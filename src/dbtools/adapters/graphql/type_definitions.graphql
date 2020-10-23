@@ -1,0 +1,33 @@
+directive @cypher(statement: String!) on FIELD_DEFINITION
+directive @relation(name:String!, direction:String!) on FIELD_DEFINITION
+
+type User {
+    username: String!
+    fullname: String!
+    password_hash: String!
+    email: String!
+    confirmed: Boolean!
+    id: Int
+#    teams: [Team] @relation(name: "AFFILIATED", direction:"OUT")
+}
+
+type Team {
+    name: String!
+    fullname: String!
+}
+
+enum AffiliationLevel {
+    UNCONFIRMED
+    USER
+    ADMIN
+}
+
+type Affiliation {
+    team: Team!
+    level: AffiliationLevel!
+}
+
+type Account {
+    user: User!
+    affiliations: [Affiliation!]!
+}

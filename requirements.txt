@@ -1,0 +1,8 @@
+dataclasses~=0.7
+Flask~=1.1.2
+setuptools~=50.3.0
+redis~=3.5.3
+itsdangerous~=1.1.0
+neo4j~=4.1.1
+wrapt~=1.12.1
+ariadne~=0.12.0
