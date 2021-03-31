@@ -1,0 +1,31 @@
+type User {
+    id: Int
+    username: String!
+    fullname: String!
+    password_hash: String!
+    email: String!
+    confirmed: Boolean!
+}
+
+type Team {
+    id: Int
+    name: String!
+    fullname: String!
+}
+
+enum AffiliationLevel {
+    UNCONFIRMED
+    USER
+    ADMIN
+    GLOBAL_ADMIN
+}
+
+type Affiliation {
+    team: Team!
+    level: AffiliationLevel!
+}
+
+type Account {
+    user: User!
+    affiliations: [Affiliation!]!
+}

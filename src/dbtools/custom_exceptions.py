@@ -1,26 +1,26 @@
 class NoResultFoundError(Exception):
-	pass
+    pass
 
 
 class IllegalOperationError(Exception):
-	pass
+    pass
 
 
 class IdentityExistsError(IllegalOperationError):
-	pass
+    pass
 
 
 class ProtectedNodeError(IllegalOperationError):
-	pass
+    pass
 
 
 class ProtectedRelationshipError(IllegalOperationError):
-	pass
+    pass
 
 
 class UnauthorisedOperationError(IllegalOperationError):
-	pass
+    pass
 
 
 class ExistingUniqueRelationship(IllegalOperationError):
-	pass
+    pass

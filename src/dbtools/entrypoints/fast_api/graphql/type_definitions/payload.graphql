@@ -1,0 +1,28 @@
+type Error {
+    class: String!
+    message: String!
+}
+
+type InitialisePayload {
+    status: Boolean!
+    result: Account
+    errors: [Error]
+}
+
+type LoginPayload {
+    status: Boolean!
+    result: Token
+    errors: [Error]
+}
+
+type AddAccountPayload {
+    status: Boolean!
+    result: Account
+    errors: [Error]
+}
+
+type ConfirmUserEmailPayload {
+    status: Boolean!
+    result: Boolean
+    errors: [Error]
+}

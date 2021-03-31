@@ -1,31 +1,49 @@
 import abc
-from typing import List
-from dbtools.domain.model import User
-from dbtools.adapters.notifications.messages import Message
 
-from flask_mail import Mail
+import aiosmtplib
+
+from typing import List
+from dbtools.domain.model.accounts import UserBase
+from emails import Email
+
+from dbtools.config import MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER
 
 
 class AbstractNotifications(abc.ABC):
 
-	@abc.abstractmethod
-	def send(
-		self,
-		recipients: List[User],
-		message: Message
-	):
-		raise NotImplementedError
+    @staticmethod
+    @abc.abstractmethod
+    async def send(
+            recipients: List[UserBase],
+            message: Email
+    ):
+        raise NotImplementedError
 
 
 class EmailNotifications(AbstractNotifications):
 
-	def __init__(self, app):
-		self.mail = Mail(app)
+    @staticmethod
+    async def send_to_unregistered(recipients: List[str], message: Email):
+        await aiosmtplib.send(
+            message.message,
+            sender=MAIL_DEFAULT_SENDER,
+            recipients=recipients,
+            hostname=MAIL_SERVER,
+            port=MAIL_PORT,
+            username=MAIL_USERNAME,
+            password=MAIL_PASSWORD,
+            use_tls=True
+        )
 
-	def send(self, recipients: List[User], message: Message):
-		message.recipients = [user.email for user in recipients]
-		self.mail.send(message)
-
-	def send_basic_email(self, emails: List[str], message: Message):
-		message.recipients = emails
-		self.mail.send(message)
+    @staticmethod
+    async def send(recipients: List[UserBase], message: Email):
+        await aiosmtplib.send(
+            message.message,
+            sender=MAIL_DEFAULT_SENDER,
+            recipients=[user.email for user in recipients],
+            hostname=MAIL_SERVER,
+            port=MAIL_PORT,
+            username=MAIL_USERNAME,
+            password=MAIL_PASSWORD,
+            use_tls=True
+        )

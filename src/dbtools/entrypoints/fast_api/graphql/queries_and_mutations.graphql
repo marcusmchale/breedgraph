@@ -1,0 +1,29 @@
+type Query {
+    get_teams: [Team!],
+    allowed_email(email: String): Boolean!,
+    get_token(username: String!, password: String!): String,
+    get_account(username: String!): Account
+}
+
+type Mutation {
+    initialise(
+        team_name: String!,
+        team_fullname: String!,
+        username: String!,
+        user_fullname: String!,
+        password: String!,
+        email: String!
+    ): InitialisePayload!,
+    login(
+        username: String!,
+        password: String!
+    ): LoginPayload!,
+    add_account(
+        team_name: String!
+        username: String!,
+        fullname: String!,
+        email: String!,
+        password: String!
+    ): AddAccountPayload!,
+    confirm_user_email(token: String!): ConfirmUserEmailPayload!
+}

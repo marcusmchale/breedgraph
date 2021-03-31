@@ -1,64 +1,114 @@
-import abc
-import logging
+from abc import ABC, abstractmethod
+import asyncio
 from neo4j import GraphDatabase, Transaction
-from dbtools.adapters.repositories import team_repository, allowed_email_repository, account_repository
-from dbtools.config import get_bolt_uri, get_graphdb_auth, NEO4J_DRIVER_LOG
+from asyncio import AbstractEventLoop, get_event_loop
+from dbtools.adapters.repositories import allowed_emails, teams, accounts
+from dbtools.config import get_bolt_uri, get_graphdb_auth
 
 
-class AbstractUnitOfWork(abc.ABC):
-	emails: allowed_email_repository.AllowedEmailRepository
-	teams: team_repository.TeamRepository
-	accounts: account_repository.AccountRepository
+# decorator for lazy loading of repositories
+# see discussion https://stackoverflow.com/questions/17486104/lazy-loading-of-class-attributes
+class CachedProperty(object):
+    def __init__(self, func, name=None):
+        self.func = func
+        self.name = name if name is not None else func.__name__
+        self.__doc__ = func.__doc__
 
-	def __enter__(self) -> 'AbstractUnitOfWork':
-		return self
+    def __get__(self, instance, class_):
+        if instance is None:
+            return self
+        res = self.func(instance)
+        setattr(instance, self.name, res)
+        return res
 
-	def __exit__(self, *args):
-		self.close()
 
-	@abc.abstractmethod
-	def commit(self):
-		raise NotImplementedError
+class AbstractUnitOfWork(ABC):
+    emails: allowed_emails.AllowedEmailRepository
+    teams: teams.TeamRepository
+    accounts: accounts.AccountRepository
 
-	@abc.abstractmethod
-	def rollback(self):
-		raise NotImplementedError
+    def __init__(self):
+        self.lock = asyncio.Lock()  # using an sync lock here
 
-	@abc.abstractmethod
-	def close(self):
-		raise NotImplementedError
+    async def __aenter__(self) -> 'AbstractUnitOfWork':
+        await self.lock.acquire()
+        # get an async lock here to avoid concurrency issues with repository instances
+        # this is still not thread safe, consider thread locking if using multi-threading at any higher level
+        # threads are currently only being used within the repositories
+        return self
 
-	def collect_new_events(self):
-		for account in self.accounts.seen:
-			while account.events:
-				yield account.events.pop(0)
+    async def __aexit__(self, *args):
+        await self.close()  # roll back any changes if not committed
+        self.lock.release()
+
+    @abstractmethod
+    async def commit(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def rollback(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def close(self):
+        raise NotImplementedError
+
+    def collect_events(self):
+        for account in self.accounts.seen:
+            while account.events:
+                yield account.events.pop(0)
+
+    @CachedProperty
+    def emails(self):
+        raise NotImplementedError
+
+    @CachedProperty
+    def teams(self):
+        raise NotImplementedError
+
+    @CachedProperty
+    def accounts(self):
+        raise NotImplementedError
 
 
 class Neo4jUnitOfWork(AbstractUnitOfWork):
 
-	def __init__(self):
-		self.driver = GraphDatabase.driver(
-			get_bolt_uri(),
-			auth=get_graphdb_auth(),
-			connection_timeout=5,
-			connection_acquisition_timeout=5,
-			max_transaction_retry_time=5
-		)
+    def __init__(self):
+        super().__init__()
+        self.driver = GraphDatabase.driver(
+            get_bolt_uri(),
+            auth=get_graphdb_auth(),
+            connection_timeout=5,
+            connection_acquisition_timeout=5,
+            max_transaction_retry_time=5
+        )
 
-	def __enter__(self):
-		self.session = self.driver.session()
-		self.tx: Transaction = self.session.begin_transaction()
-		self.emails = allowed_email_repository.Neo4jAllowedEmailRepository(self.tx)
-		self.teams = team_repository.Neo4jTeamRepository(self.tx)
-		self.accounts = account_repository.Neo4jAccountRepository(self.tx)
-		return super().__enter__()
+    async def __aenter__(self):
+        self.session = await self.driver.session()
+        self.tx: Transaction = await self.session.begin_transaction()
+        self.loop: AbstractEventLoop = get_event_loop()
+        await super().__aenter__()  # get the async lock after obtaining tx
+        # allows next async uow to have a tx ready to go when lock is cleared
+        return self
 
-	def commit(self):
-		self.accounts.update_all()
-		self.tx.commit()
+    async def commit(self):
+        await self.accounts.update_seen()
+        await self.tx.commit()
 
-	def rollback(self):
-		self.tx.rollback()
+    async def rollback(self):
+        await self.tx.rollback()
 
-	def close(self):
-		self.tx.close()  # rolls back any outstanding transactions
+    async def close(self):
+        await self.tx.close()  # rolls back any outstanding transactions
+
+    @CachedProperty
+    def emails(self):
+        return allowed_emails.Neo4jAllowedEmailRepository(self.tx, self.loop)
+
+    @CachedProperty
+    def teams(self):
+        return teams.Neo4jTeamRepository(self.tx, self.loop)
+
+    @CachedProperty
+    def accounts(self):
+        return accounts.Neo4jAccountRepository(self.tx, self.loop)
