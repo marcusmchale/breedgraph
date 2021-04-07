@@ -85,9 +85,9 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             max_transaction_retry_time=5
         )
 
-    def __enter__(self):
+    def __aenter__(self):
         self.loop: AbstractEventLoop = get_event_loop()
-        self.session = self.loop.run_in_executor(None, self.driver.session)
+        self.session = await self.loop.run_in_executor(None, self.driver.session)
         logging.debug('Started session')
         self.tx = await self.loop.run_in_executor(None, self.session.begin_transaction)
         logging.debug('Started transaction')
