@@ -54,7 +54,7 @@ def get_redis_host_and_port():
 
 
 def get_gql_url():
-    return f"https://{HOST_ADDRESS}/{GQL_API_PATH}"
+    return f"https://{HOST_ADDRESS}/{GQL_API_PATH}/"
 
 
 # def get_email_host_and_port():

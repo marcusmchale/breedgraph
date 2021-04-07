@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from dbtools.domain.model.accounts import Account
 
 
-@graphql_payload
 @graphql_mutation.field("initialise")
+@graphql_payload
 async def initialise(
         *_,
         team_name: str,
@@ -34,8 +34,8 @@ async def initialise(
     return True
 
 
-@graphql_payload
 @graphql_mutation.field("login")
+@graphql_payload
 async def login(
         *_,
         username: str,
@@ -52,8 +52,8 @@ async def login(
         #todo logic to create and return JWT
 
 
-@graphql_payload
 @graphql_mutation.field("add_account")
+@graphql_payload
 async def add_account(
         *_,
         username: str,
@@ -75,9 +75,8 @@ async def add_account(
         return await uow.accounts.get(username)
 
 
-
-@graphql_payload
 @graphql_mutation.field("confirm_user_email")
+@graphql_payload
 async def confirm_user_email(
         *_,
         token: str
@@ -86,15 +85,15 @@ async def confirm_user_email(
     return True
 
 
-@graphql_payload
 @graphql_query.field("get_teams")
+@graphql_payload
 async def get_teams(*_):
     async with bus.uow as uow:
         return [team async for team in uow.teams.get_all()]
 
 
-@graphql_payload
 @graphql_query.field("allowed_email")
+@graphql_payload
 async def allowed_email(*_, email: str = ''):
     if not email:
         return False
@@ -102,8 +101,8 @@ async def allowed_email(*_, email: str = ''):
         return True if await uow.emails.get(email) else False
 
 
-@graphql_payload
 @graphql_query.field("get_account")
+@graphql_payload
 async def get_account(_, info, username: str = ''):
     async with bus.uow as uow:
         current_account: Account = await uow.accounts.get(username=info.context["username"])

@@ -8,22 +8,6 @@ from dbtools.config import get_bolt_url, get_graphdb_auth
 import logging
 
 
-# decorator for lazy loading of repositories
-# see discussion https://stackoverflow.com/questions/17486104/lazy-loading-of-class-attributes
-class CachedProperty(object):
-    def __init__(self, func, name=None):
-        self.func = func
-        self.name = name if name is not None else func.__name__
-        self.__doc__ = func.__doc__
-
-    def __get__(self, instance, class_):
-        if instance is None:
-            return self
-        res = self.func(instance)
-        setattr(instance, self.name, res)
-        return res
-
-
 class AbstractUnitOfWork(ABC):
     emails: allowed_emails.AllowedEmailRepository
     teams: teams.TeamRepository
@@ -60,18 +44,6 @@ class AbstractUnitOfWork(ABC):
             while account.events:
                 yield account.events.pop(0)
 
-    @CachedProperty
-    def emails(self):
-        raise NotImplementedError
-
-    @CachedProperty
-    def teams(self):
-        raise NotImplementedError
-
-    @CachedProperty
-    def accounts(self):
-        raise NotImplementedError
-
 
 class Neo4jUnitOfWork(AbstractUnitOfWork):
 
@@ -85,7 +57,7 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             max_transaction_retry_time=5
         )
 
-    def __aenter__(self):
+    async def __aenter__(self):
         self.loop: AbstractEventLoop = get_event_loop()
         self.session = await self.loop.run_in_executor(None, self.driver.session)
         logging.debug('Started session')
@@ -93,6 +65,9 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         logging.debug('Started transaction')
         await super().__aenter__()  # async lock after obtaining tx
         # allows next async uow to have a tx ready to go when lock is cleared
+        self.emails = allowed_emails.Neo4jAllowedEmailRepository(self.tx, self.loop)
+        self.teams = teams.Neo4jTeamRepository(self.tx, self.loop)
+        self.accounts = accounts.Neo4jAccountRepository(self.tx, self.loop)
         return self
 
     async def commit(self):
@@ -109,15 +84,3 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         logging.debug("Closed transaction")
         await self.loop.run_in_executor(None, self.session.close)  # rolls back any outstanding transactions
         logging.debug("Closed session")
-
-    @CachedProperty
-    def emails(self):
-        return allowed_emails.Neo4jAllowedEmailRepository(self.tx, self.loop)
-
-    @CachedProperty
-    def teams(self):
-        return teams.Neo4jTeamRepository(self.tx, self.loop)
-
-    @CachedProperty
-    def accounts(self):
-        return accounts.Neo4jAccountRepository(self.tx, self.loop)

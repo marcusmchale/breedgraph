@@ -21,8 +21,14 @@ type LoginPayload {
     errors: [Error]
 }
 
-type AddAccountPayload {
+type AccountsPayload {
     status: QueryStatus!
-    result: Account
+    result: [Account]
+    errors: [Error]
+}
+
+type TeamsPayload {
+    status: QueryStatus!
+    result: [Team]
     errors: [Error]
 }

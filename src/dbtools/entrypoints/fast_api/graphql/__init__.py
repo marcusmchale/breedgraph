@@ -19,7 +19,7 @@ from . import resolvers  # need to import these here as using decorators
 
 # create the schema instance for use in the graphql route
 graphql_schema = make_executable_schema(
-    load_schema_from_path("dbtools/entrypoints/fast_api/graphql"),
+    load_schema_from_path("."),
     graphql_query,
     graphql_mutation,
     snake_case_fallback_resolvers,

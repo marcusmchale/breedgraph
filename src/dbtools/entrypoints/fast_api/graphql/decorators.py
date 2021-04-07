@@ -24,28 +24,28 @@ def graphql_payload(func):
         errors = []
         try:
             result = await func(*args, **kwargs)
-            return jsonable_encoder({
-                "status": GQLStatus.SUCCESS if result else GQLStatus.NOT_FOUND,
+            return {
+                "status": GQLStatus.SUCCESS.name if result else GQLStatus.NOT_FOUND.name,
                 "result": result
-            })
+            }
         except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
             logging.exception(e)
             errors.append(GQLError(
                 name=e.__class__.__name__,
                 message=str(e)
             ))
-            return jsonable_encoder({
-                "status": GQLStatus.ERROR,
+            return {
+                "status": GQLStatus.ERROR.name,
                 "errors": errors
-            })
+            }
         except Exception as e:
             logging.exception(e)
             errors.append(GQLError(
                 name="Other",
                 message="Something unexpected happened"
             ))
-            return jsonable_encoder({
-                "status": GQLStatus.ERROR,
+            return {
+                "status": GQLStatus.ERROR.name,
                 "errors": errors
-            })
-    return decorated_function()
+            }
+    return decorated_function
