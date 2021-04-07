@@ -13,7 +13,7 @@ affiliation_level = EnumType("AffiliationLevel", AffiliationLevel)
 graphql_query = QueryType()
 graphql_mutation = MutationType()
 
-from . import resolvers, query_resolvers  # need to import these here as using decorators
+from . import resolvers  # need to import these here as using decorators
 
 # to update the query and mutation instances
 

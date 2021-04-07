@@ -1,3 +1,4 @@
+from fastapi import BackgroundTasks
 from dbtools.entrypoints.fast_api import bus
 from dbtools.config import pwd_context
 from dbtools.entrypoints.fast_api.graphql import graphql_mutation, graphql_query
@@ -7,7 +8,6 @@ from dbtools.domain.commands.accounts import Initialise, Login, AddAccount, Conf
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from dbtools.domain.model.accounts import Account
-    from fastapi import BackgroundTasks
 
 
 @graphql_payload
@@ -31,8 +31,7 @@ async def initialise(
         email=email
     )
     await bus.handle(cmd)
-    with bus.uow as uow:
-        return await uow.accounts.get(username)
+    return True
 
 
 @graphql_payload
@@ -43,14 +42,13 @@ async def login(
         password: str,
         background_tasks: BackgroundTasks
 ):
-    with bus.uow as uow:
+    async with bus.uow as uow:
         account = await uow.accounts.get(username)
         if pwd_context.verify(password, account.user.password_hash):
             cmd = Login(
                 username=username
             )
             background_tasks.add_task(bus.handle, cmd)
-
         #todo logic to create and return JWT
 
 
@@ -73,7 +71,7 @@ async def add_account(
         team_name=team_name
     )
     await bus.handle(cmd)
-    with bus.uow as uow:
+    async with bus.uow as uow:
         return await uow.accounts.get(username)
 
 
@@ -88,12 +86,11 @@ async def confirm_user_email(
     return True
 
 
-
 @graphql_payload
 @graphql_query.field("get_teams")
 async def get_teams(*_):
-    with bus.uow as uow:
-        return list(await uow.teams.get_all())
+    async with bus.uow as uow:
+        return [team async for team in uow.teams.get_all()]
 
 
 @graphql_payload
@@ -101,14 +98,14 @@ async def get_teams(*_):
 async def allowed_email(*_, email: str = ''):
     if not email:
         return False
-    with bus.uow as uow:
+    async with bus.uow as uow:
         return True if await uow.emails.get(email) else False
 
 
 @graphql_payload
 @graphql_query.field("get_account")
 async def get_account(_, info, username: str = ''):
-    with bus.uow as uow:
+    async with bus.uow as uow:
         current_account: Account = await uow.accounts.get(username=info.context["username"])
         requested_account: Account = await uow.accounts.get(username=username)
         if current_account == requested_account:

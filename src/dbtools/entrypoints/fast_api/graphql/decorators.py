@@ -1,7 +1,21 @@
+import logging
 from functools import wraps
+from enum import Enum
+from pydantic import BaseModel
+from fastapi.encoders import jsonable_encoder
 from neo4j.exceptions import ServiceUnavailable
 from dbtools.custom_exceptions import NoResultFoundError, IllegalOperationError
-import logging
+
+
+class GQLStatus(Enum):
+    SUCCESS = 1
+    NOT_FOUND = 2
+    ERROR = 3
+
+
+class GQLError(BaseModel):
+    name: str
+    message: str
 
 
 def graphql_payload(func):
@@ -10,35 +24,28 @@ def graphql_payload(func):
         errors = []
         try:
             result = await func(*args, **kwargs)
-            return {
-                'status': True,
-                'result': result
-            }
+            return jsonable_encoder({
+                "status": GQLStatus.SUCCESS if result else GQLStatus.NOT_FOUND,
+                "result": result
+            })
+        except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
+            logging.exception(e)
+            errors.append(GQLError(
+                name=e.__class__.__name__,
+                message=str(e)
+            ))
+            return jsonable_encoder({
+                "status": GQLStatus.ERROR,
+                "errors": errors
+            })
         except Exception as e:
             logging.exception(e)
-            if isinstance(e, ServiceUnavailable):
-                errors.append({
-                    "class": e.__class__.__name__,
-                    "message": "Database connection failure"
-                })
-            elif isinstance(e, NoResultFoundError):
-                errors.append({
-                    "class": e.__class__.__name__,
-                    "message": "We couldn't find what you were looking for"
-                })
-            elif isinstance(e, IllegalOperationError):
-                errors.append({
-                    "class": e.__class__.__name__,
-                    "message": "That operation is not allowed"
-                })
-            else:
-                errors.append({
-                    "class": "Unknown",
-                    "message": "Something unexpected happened"
-                })
-            return {
-                'status': False,
-                'errors': errors
-            }
-
+            errors.append(GQLError(
+                name="Other",
+                message="Something unexpected happened"
+            ))
+            return jsonable_encoder({
+                "status": GQLStatus.ERROR,
+                "errors": errors
+            })
     return decorated_function()

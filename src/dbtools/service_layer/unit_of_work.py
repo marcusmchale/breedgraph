@@ -3,7 +3,9 @@ import asyncio
 from neo4j import GraphDatabase, Transaction
 from asyncio import AbstractEventLoop, get_event_loop
 from dbtools.adapters.repositories import allowed_emails, teams, accounts
-from dbtools.config import get_bolt_uri, get_graphdb_auth
+from dbtools.config import get_bolt_url, get_graphdb_auth
+
+import logging
 
 
 # decorator for lazy loading of repositories
@@ -76,30 +78,37 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
     def __init__(self):
         super().__init__()
         self.driver = GraphDatabase.driver(
-            get_bolt_uri(),
+            get_bolt_url(),
             auth=get_graphdb_auth(),
             connection_timeout=5,
             connection_acquisition_timeout=5,
             max_transaction_retry_time=5
         )
 
-    async def __aenter__(self):
-        self.session = await self.driver.session()
-        self.tx: Transaction = await self.session.begin_transaction()
+    def __enter__(self):
         self.loop: AbstractEventLoop = get_event_loop()
-        await super().__aenter__()  # get the async lock after obtaining tx
+        self.session = self.loop.run_in_executor(None, self.driver.session)
+        logging.debug('Started session')
+        self.tx = await self.loop.run_in_executor(None, self.session.begin_transaction)
+        logging.debug('Started transaction')
+        await super().__aenter__()  # async lock after obtaining tx
         # allows next async uow to have a tx ready to go when lock is cleared
         return self
 
     async def commit(self):
         await self.accounts.update_seen()
-        await self.tx.commit()
+        await self.loop.run_in_executor(None, self.tx.commit)
+        logging.debug("Committed transaction")
 
     async def rollback(self):
-        await self.tx.rollback()
+        await self.loop.run_in_executor(None, self.tx.rollback)
+        logging.debug("Rolled back transaction")
 
     async def close(self):
-        await self.tx.close()  # rolls back any outstanding transactions
+        await self.loop.run_in_executor(None, self.tx.close)  # rolls back any outstanding transactions
+        logging.debug("Closed transaction")
+        await self.loop.run_in_executor(None, self.session.close)  # rolls back any outstanding transactions
+        logging.debug("Closed session")
 
     @CachedProperty
     def emails(self):

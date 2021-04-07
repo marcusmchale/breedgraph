@@ -20,12 +20,16 @@ enum AffiliationLevel {
     GLOBAL_ADMIN
 }
 
-type Affiliation {
-    team: Team!
-    level: AffiliationLevel!
+type Affiliations {
+    max_level: AffiliationLevel!
+    primary: Team!
+    all: [Team!]
+    unconfirmed: [Team]
+    user: [Team]
+    admin: [Team]
 }
 
 type Account {
     user: User!
-    affiliations: [Affiliation!]!
+    affiliations: Affiliations!
 }

@@ -1,2 +1,2 @@
-from base import Event
-import accounts
+from .base import Event
+from . import accounts

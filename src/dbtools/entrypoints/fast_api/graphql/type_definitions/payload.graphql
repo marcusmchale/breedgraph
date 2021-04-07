@@ -1,28 +1,28 @@
+enum QueryStatus {
+    SUCCESS
+    NOT_FOUND
+    ERROR
+}
+
 type Error {
-    class: String!
+    name: String!
     message: String!
 }
 
-type InitialisePayload {
-    status: Boolean!
-    result: Account
+type BooleanPayload {
+    status: QueryStatus!
+    result: Boolean
     errors: [Error]
 }
 
 type LoginPayload {
-    status: Boolean!
+    status: QueryStatus!
     result: Token
     errors: [Error]
 }
 
 type AddAccountPayload {
-    status: Boolean!
+    status: QueryStatus!
     result: Account
-    errors: [Error]
-}
-
-type ConfirmUserEmailPayload {
-    status: Boolean!
-    result: Boolean
     errors: [Error]
 }

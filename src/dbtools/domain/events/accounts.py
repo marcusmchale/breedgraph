@@ -1,4 +1,4 @@
-from base import Event
+from dbtools.domain.events.base import Event
 
 
 class EmailAdded(Event):

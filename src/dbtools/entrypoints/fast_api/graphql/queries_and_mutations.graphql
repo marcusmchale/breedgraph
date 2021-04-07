@@ -13,7 +13,7 @@ type Mutation {
         user_fullname: String!,
         password: String!,
         email: String!
-    ): InitialisePayload!,
+    ): BooleanPayload,
     login(
         username: String!,
         password: String!
@@ -25,5 +25,5 @@ type Mutation {
         email: String!,
         password: String!
     ): AddAccountPayload!,
-    confirm_user_email(token: String!): ConfirmUserEmailPayload!
+    confirm_user_email(token: String!): BooleanPayload!
 }

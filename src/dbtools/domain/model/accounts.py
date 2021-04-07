@@ -1,6 +1,6 @@
 from typing import Optional
 from enum import IntEnum
-from collections import MutableMapping
+from collections.abc import MutableMapping
 from dbtools.domain.events.accounts import Event
 from dbtools.custom_exceptions import ProtectedRelationshipError
 from typing import List, Set, Tuple, Union
@@ -66,16 +66,17 @@ class Affiliations(MutableMapping):
 
     def __init__(self, affiliations: Union[Affiliation, List[Affiliation], Set[Affiliation], Tuple[Affiliation]]):
         self._map = dict()
+        self._primary = None
         if isinstance(affiliations, (set, list, tuple)):
             for affiliation in affiliations:
-                self._add(affiliation)
+                self.add(affiliation)
         elif isinstance(affiliations, Affiliation):
-            self._add(affiliations)
+            self.add(affiliations)
 
-    def _add(self, affiliation: Affiliation):
+    def add(self, affiliation: Affiliation):
         self._map[affiliation.team] = affiliation.level
         if affiliation.primary:
-            self.primary = affiliation.team
+            self._primary = affiliation.team
 
     def __setitem__(self, key: Team, value: AffiliationLevel):
         self._map[key] = value
@@ -94,11 +95,19 @@ class Affiliations(MutableMapping):
         return len(self._map)
 
     @property
+    def primary(self) -> Team:
+        return self._primary
+
+    @property
+    def all(self) -> List[Team]:
+        return [key for key, value in self._map]
+
+    @property
     def unconfirmed(self) -> List[Team]:
         return [key for key, value in self._map if value == AffiliationLevel.UNCONFIRMED]
 
     @property
-    def read_access(self) -> List[Team]:
+    def user(self) -> List[Team]:
         return [key for key, value in self._map if value >= AffiliationLevel.USER]
 
     @property
@@ -117,6 +126,31 @@ class Affiliations(MutableMapping):
                     level=level,
                     primary=team == self.primary
                 )
+
+    # for pydantic validation
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+
+        error_message = "Must be an Affiliation or list (or set or tuple) thereof"
+
+        def is_affiliation(affiliation):
+            if not isinstance(affiliation, Affiliation):
+                raise ValueError(error_message)
+
+        if not v:
+            raise ValueError(error_message)
+
+        if isinstance(v, (List, Set, Tuple)):
+            for i in v:
+                is_affiliation(i)
+        else:
+            is_affiliation(v)
+
+        return v
 
 
 class Account(BaseModel):

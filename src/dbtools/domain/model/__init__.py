@@ -1,2 +1,2 @@
-import accounts
-import authentication
+from . import accounts
+from . import authentication

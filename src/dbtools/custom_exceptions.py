@@ -7,6 +7,7 @@ class IllegalOperationError(Exception):
 
 
 class IdentityExistsError(IllegalOperationError):
+
     pass
 
 

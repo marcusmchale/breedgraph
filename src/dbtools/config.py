@@ -6,10 +6,16 @@ from passlib.context import CryptContext
 # Set to false for production
 DEV = False
 
+PROTOCOL = "http"
 SITE_NAME = 'BreedGraph'
 HOST_ADDRESS = 'localhost'
+HOST_PORT = '8000'
+GQL_API_PATH = 'graphql'
+VUE_PORT = '8080'
 
 MAX_WORKERS = 30  # for multithreading, set to about 5x the number of threads available.
+# todo need to set up a global counter for available workers
+# they are started currently in repos and in uow events queue
 
 BREEDGRAPH_LOG = os.environ.get('BREEDGRAPH_LOG')
 NEO4J_DRIVER_LOG = os.environ.get('NEO4J_DRIVER_LOG')
@@ -29,7 +35,7 @@ MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
 MAIL_DEFAULT_SENDER = 'breedcafsdb@gmail.com'
 
 
-def get_bolt_uri():
+def get_bolt_url():
     host = os.environ.get('DB_HOST', 'localhost')
     port = 7688 if DEV else 7687
     return f"neo4j://{host}:{port}"
@@ -45,6 +51,11 @@ def get_redis_host_and_port():
     host = os.environ.get('REDIS_HOST', 'localhost')
     port = 6380 if DEV else 6379
     return dict(host=host, port=port)
+
+
+def get_gql_url():
+    return f"https://{HOST_ADDRESS}/{GQL_API_PATH}"
+
 
 # def get_email_host_and_port():
 #	host = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')

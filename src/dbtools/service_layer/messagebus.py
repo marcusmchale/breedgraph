@@ -2,10 +2,11 @@ import logging
 from asyncio import Queue, create_task, gather
 from dbtools.service_layer.unit_of_work import AbstractUnitOfWork
 
+from dbtools.domain import commands, events
+
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Callable, Dict, List, Union, Type
-    from dbtools.domain import commands, events
     Message = Union[commands.Command, events.Event]
 
 
@@ -19,15 +20,15 @@ class MessageBus:
     def __init__(
             self,
             uow: AbstractUnitOfWork,
-            event_handlers: Dict[Type[events.Event], List[Callable]],
-            command_handlers: Dict[Type[commands.Command], Callable],
+            event_handlers: "Dict[Type[events.Event], List[Callable]]",
+            command_handlers: "Dict[Type[commands.Command], Callable]",
     ):
         self.uow = uow
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
         self.event_queue = Queue()
 
-    async def handle(self, message: Message):
+    async def handle(self, message: "Message"):
         if isinstance(message, commands.Command):
             await self.handle_command(message)
         elif isinstance(message, events.Event):
@@ -70,4 +71,3 @@ class MessageBus:
             for e in self.uow.collect_events():
                 await self.event_queue.put(e)
             event.task_done()
-

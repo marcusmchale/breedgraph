@@ -16,7 +16,7 @@ async def initialise(
         cmd: commands.accounts.Initialise,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         if any([team async for team in uow.teams.get_all()]):
             raise IdentityExistsError(
                 'Already initialised'
@@ -53,9 +53,9 @@ async def add_team(
         cmd: commands.accounts.AddTeam,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         admin = await uow.accounts.get(cmd.admin_username_lower)
-        if not admin.max_affiliation_level() >= AffiliationLevel.ADMIN:
+        if not admin.affiliations.max_level >= AffiliationLevel.ADMIN:
             raise UnauthorisedOperationError
         team = Team(name=cmd.name, fullname=cmd.fullname)
         if uow.teams.get(team.name):
@@ -68,9 +68,9 @@ async def add_email(
         cmd: commands.accounts.AddEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         admin = await uow.accounts.get(cmd.admin_username_lower)
-        if not admin.max_affiliation_level() >= AffiliationLevel.ADMIN:
+        if not admin.affiliations.max_level >= AffiliationLevel.ADMIN:
             raise UnauthorisedOperationError
         await uow.emails.add(admin.user, cmd.user_email)
         admin.events.append(events.accounts.EmailAdded(email=cmd.user_email))
@@ -81,9 +81,9 @@ async def remove_email(
         cmd: commands.accounts.RemoveEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         admin = await uow.accounts.get(cmd.admin_username_lower)
-        if not admin.max_affiliation_level() >= AffiliationLevel.ADMIN:
+        if not admin.affiliations.max_level >= AffiliationLevel.ADMIN:
             raise UnauthorisedOperationError
         await uow.emails.remove(admin.user, cmd.user_email)
         await uow.commit()
@@ -93,7 +93,7 @@ async def add_account(
         cmd: commands.accounts.AddAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         if not await uow.emails.get(cmd.email):
             raise UnauthorisedOperationError
         account_by_email = await uow.accounts.get_by_email(cmd.email)
@@ -125,7 +125,7 @@ async def confirm_user_email(
         cmd: commands.accounts.ConfirmUser,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         ts = URLSafeTimedSerializer(config.SECRET_KEY)
         user_name_lower = ts.loads(cmd.token, salt=config.CONFIRM_TOKEN_SALT, max_age=86400)
         account = await uow.accounts.get(user_name_lower)
@@ -139,11 +139,11 @@ async def add_affiliation(
         cmd: commands.accounts.AddAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         account = await uow.accounts.get(cmd.username_lower)
         team = await uow.teams.get(cmd.team_name)
         affiliation = Affiliation(team=team, level=AffiliationLevel(0))
-        account.affiliations.append(affiliation)
+        account.affiliations.add(affiliation)
         await uow.commit()
 
 
@@ -151,7 +151,7 @@ async def set_affiliation_level(
         cmd: commands.accounts.SetAffiliationLevel,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    with uow:
+    async with uow:
         account = await uow.accounts.get(cmd.username_lower)
         affiliation = account.affiliations.get_by_team_name(cmd.team_name)
         affiliation.level = AffiliationLevel(cmd.level)

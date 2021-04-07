@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Set, Optional, AsyncGenerator
     from asyncio import AbstractEventLoop
-    from neo4j import Transaction, Record, Result
+    from neo4j import Transaction, Record
 
 
 class AccountRepository(ABC):
@@ -59,8 +59,8 @@ class AccountRepository(ABC):
             self,
             primary_only: bool = True,
             min_affiliation_level: AffiliationLevel = AffiliationLevel.USER,
-            team_name: Optional[str] = None
-    ) -> AsyncGenerator[Account]:
+            team_name: "Optional[str]" = None
+    ) -> "AsyncGenerator[Account]":
         if team_name:
             accounts = self._get_from_team(team_name)
             async for account in accounts:
@@ -83,12 +83,12 @@ class AccountRepository(ABC):
                         yield account
 
     @abstractmethod
-    async def _get_all(self) -> AsyncGenerator[Account]:
+    async def _get_all(self) -> "AsyncGenerator[Account]":
         yield None  # required for typing
         raise NotImplementedError
 
     @abstractmethod
-    async def _get_from_team(self, team_name) -> AsyncGenerator[Account]:
+    async def _get_from_team(self, team_name) -> "AsyncGenerator[Account]":
         yield None  # required for typing
         raise NotImplementedError
 
@@ -156,11 +156,11 @@ class FakeAccountRepository(AccountRepository):
     async def _get(self, username: str) -> Account:
         return next(a for a in self._accounts if a.user.username.casefold() == username.casefold())
 
-    async def _get_all(self) -> AsyncGenerator[Account]:
+    async def _get_all(self) -> "AsyncGenerator[Account]":
         for account in self._accounts:
             yield account
 
-    async def _get_from_team(self, team_name) -> AsyncGenerator[Account]:
+    async def _get_from_team(self, team_name) -> "AsyncGenerator[Account]":
         for account in self._accounts:
             try:
                 account.affiliations.get_by_team_name()
@@ -186,12 +186,12 @@ class FakeAccountRepository(AccountRepository):
 
 class Neo4jAccountRepository(AccountRepository):
 
-    def __init__(self, tx: Transaction, loop: AbstractEventLoop):
+    def __init__(self, tx: "Transaction", loop: "AbstractEventLoop"):
         super().__init__()
         self.neo4j = AsyncNeo4j(tx, loop)
 
     async def _add(self, account: Account):
-        record: Record = await self.neo4j.single(
+        record: "Record" = await self.neo4j.single(
             queries['add_account'],
             username=account.user.username,
             username_lower=account.user.username_lower,
@@ -205,19 +205,19 @@ class Neo4jAccountRepository(AccountRepository):
         account.user.id = record['user']['id']
 
     async def _get(self, username: str) -> Account:
-        record: Record = await self.neo4j.single(
+        record: "Record" = await self.neo4j.single(
             queries['get_account'],
             username_lower=username.casefold()
         )
         return self.record_to_account(record) if record else None
 
-    async def _get_all(self) -> AsyncGenerator[Account]:
+    async def _get_all(self) -> "AsyncGenerator[Account]":
         async for record in self.neo4j.records(
                 queries['get_accounts']
         ):
             yield self.record_to_account(record)
 
-    async def _get_from_team(self, team_name) -> AsyncGenerator[Account]:
+    async def _get_from_team(self, team_name) -> "AsyncGenerator[Account]":
         async for record in self.neo4j.records(
                 queries['get_accounts_by_team'],
                 team_name=team_name
@@ -225,7 +225,7 @@ class Neo4jAccountRepository(AccountRepository):
             yield self.record_to_account(record)
 
     async def _get_by_email(self, email: str) -> Account:
-        record: Record = await self.neo4j.single(
+        record: "Record" = await self.neo4j.single(
             queries['get_account_by_email'],
             email=email
         )
@@ -264,7 +264,7 @@ class Neo4jAccountRepository(AccountRepository):
         )
 
     @staticmethod
-    def record_to_account(record: Record) -> Account:
+    def record_to_account(record: "Record") -> Account:
         user = UserRegistered(
             username=record['user']['username'],
             fullname=record['user']['fullname'],
