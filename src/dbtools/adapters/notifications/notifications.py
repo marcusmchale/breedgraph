@@ -3,10 +3,10 @@ import abc
 import aiosmtplib
 
 from typing import List
-from dbtools.domain.model.accounts import UserBase
+from src.dbtools.domain.model.accounts import UserBase
 from .emails import Email
 
-from dbtools.config import MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER
+from src.dbtools.config import MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER
 
 
 class AbstractNotifications(abc.ABC):

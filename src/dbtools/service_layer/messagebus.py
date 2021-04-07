@@ -1,8 +1,8 @@
 import logging
 from asyncio import Queue, create_task, gather
-from dbtools.service_layer.unit_of_work import AbstractUnitOfWork
+from src.dbtools.service_layer.unit_of_work import AbstractUnitOfWork
 
-from dbtools.domain import commands, events
+from src.dbtools.domain import commands, events
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

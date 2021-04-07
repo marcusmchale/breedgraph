@@ -1,13 +1,13 @@
 from fastapi import BackgroundTasks
-from dbtools.entrypoints.fast_api import bus
-from dbtools.config import pwd_context
-from dbtools.entrypoints.fast_api.graphql import graphql_mutation, graphql_query
-from dbtools.entrypoints.fast_api.graphql.decorators import graphql_payload
-from dbtools.domain.commands.accounts import Initialise, Login, AddAccount, ConfirmUser
+from src.dbtools.entrypoints.fast_api import bus
+from src.dbtools.config import pwd_context
+from src.dbtools.entrypoints.fast_api.graphql import graphql_mutation, graphql_query
+from src.dbtools.entrypoints.fast_api.graphql.decorators import graphql_payload
+from src.dbtools.domain.commands.accounts import Initialise, Login, AddAccount, ConfirmUser
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from dbtools.domain.model.accounts import Account
+    from src.dbtools.domain.model.accounts import Account
 
 
 @graphql_mutation.field("initialise")

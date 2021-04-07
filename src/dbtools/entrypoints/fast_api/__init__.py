@@ -1,3 +1,3 @@
-from dbtools import bootstrap
+from src.dbtools import bootstrap
 
 bus = bootstrap.bootstrap()

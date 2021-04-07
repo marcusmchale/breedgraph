@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 import asyncio
 from neo4j import GraphDatabase, Transaction
 from asyncio import AbstractEventLoop, get_event_loop
-from dbtools.adapters.repositories import allowed_emails, teams, accounts
-from dbtools.config import get_bolt_url, get_graphdb_auth
+from src.dbtools.adapters.repositories import allowed_emails, teams, accounts
+from src.dbtools.config import get_bolt_url, get_graphdb_auth
 
 import logging
 

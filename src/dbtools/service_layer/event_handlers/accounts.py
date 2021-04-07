@@ -1,13 +1,12 @@
-import asyncio
 from itsdangerous import URLSafeTimedSerializer
-from dbtools import config
-from dbtools.adapters.notifications import notifications
-from dbtools.service_layer import unit_of_work
-from dbtools.domain import events
-from dbtools.custom_exceptions import (
+from src.dbtools import config
+from src.dbtools.adapters.notifications import notifications
+from src.dbtools.service_layer import unit_of_work
+from src.dbtools.domain import events
+from src.dbtools.custom_exceptions import (
     NoResultFoundError
 )
-from dbtools.adapters.notifications import emails
+from src.dbtools.adapters.notifications import emails
 
 
 async def email_user_allowed(

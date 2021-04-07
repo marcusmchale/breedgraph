@@ -1,6 +1,6 @@
-from dbtools.config import SITE_NAME
-from dbtools.domain.model.accounts import UserRegistered, Team
-from dbtools.config import HOST_ADDRESS
+from src.dbtools.config import SITE_NAME
+from src.dbtools.domain.model.accounts import UserRegistered, Team
+from src.dbtools.config import HOST_ADDRESS
 from email.message import EmailMessage
 
 

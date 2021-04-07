@@ -1,6 +1,6 @@
 from typing import Dict, Type, List, Callable
 
-from dbtools.domain import events
+from src.dbtools.domain import events
 
 from . import accounts
 

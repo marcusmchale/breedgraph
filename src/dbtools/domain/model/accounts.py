@@ -1,8 +1,8 @@
 from typing import Optional
 from enum import IntEnum
 from collections.abc import MutableMapping
-from dbtools.domain.events.accounts import Event
-from dbtools.custom_exceptions import ProtectedRelationshipError
+from src.dbtools.domain.events.accounts import Event
+from src.dbtools.custom_exceptions import ProtectedRelationshipError
 from typing import List, Set, Tuple, Union
 
 from pydantic import BaseModel

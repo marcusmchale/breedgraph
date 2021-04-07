@@ -4,8 +4,8 @@ from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from ariadne.asgi import GraphQL
-from dbtools.config import PROTOCOL, HOST_ADDRESS, VUE_PORT, GQL_API_PATH
-from dbtools.domain.commands.accounts import ConfirmUser
+from src.dbtools.config import PROTOCOL, HOST_ADDRESS, VUE_PORT, GQL_API_PATH
+from src.dbtools.domain.commands.accounts import ConfirmUser
 from .graphql import graphql_schema  # need to create the bus first (so this is done in init)
 from . import bus
 

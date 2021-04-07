@@ -4,7 +4,7 @@ from ariadne import (
     snake_case_fallback_resolvers,
     EnumType
 )
-from dbtools.domain.model.accounts import AffiliationLevel
+from src.dbtools.domain.model.accounts import AffiliationLevel
 from ariadne import QueryType, MutationType
 
 #  map enums for gql

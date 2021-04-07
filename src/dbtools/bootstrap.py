@@ -1,8 +1,8 @@
 import inspect
 from typing import Callable
-from dbtools.adapters import redis_eventpublisher
-from dbtools.adapters.notifications.notifications import AbstractNotifications, EmailNotifications
-from dbtools.service_layer import event_handlers, command_handlers, messagebus, unit_of_work
+from src.dbtools.adapters import redis_eventpublisher
+from src.dbtools.adapters.notifications.notifications import AbstractNotifications, EmailNotifications
+from src.dbtools.service_layer import event_handlers, command_handlers, messagebus, unit_of_work
 
 
 def bootstrap(

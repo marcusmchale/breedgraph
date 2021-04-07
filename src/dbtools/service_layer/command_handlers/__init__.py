@@ -1,5 +1,5 @@
 from typing import Dict, Type, Callable
-from dbtools.domain import commands
+from src.dbtools.domain import commands
 
 from . import accounts
 

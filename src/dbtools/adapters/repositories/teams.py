@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-from dbtools.domain.model.accounts import Team
+from src.dbtools.domain.model.accounts import Team
 
-from dbtools.adapters.repositories.cypher import queries
-from dbtools.adapters.repositories.async_neo4j import AsyncNeo4j
+from src.dbtools.adapters.repositories.cypher import queries
+from src.dbtools.adapters.repositories.async_neo4j import AsyncNeo4j
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

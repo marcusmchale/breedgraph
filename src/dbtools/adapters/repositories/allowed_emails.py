@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from dbtools.adapters.repositories.cypher import queries
-from dbtools.adapters.repositories.async_neo4j import AsyncNeo4j
+from src.dbtools.adapters.repositories.cypher import queries
+from src.dbtools.adapters.repositories.async_neo4j import AsyncNeo4j
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING: # on 
     from asyncio import AbstractEventLoop
-    from dbtools.domain.model.accounts import UserRegistered
+    from src.dbtools.domain.model.accounts import UserRegistered
     from neo4j import Transaction, Record
 
 

@@ -3,8 +3,8 @@ import logging
 # from dataclasses import asdict
 # import redis
 
-from dbtools import config
-from dbtools.domain import events
+from src.dbtools import config
+from src.dbtools.domain import events
 
 logger = logging.getLogger(__name__)
 

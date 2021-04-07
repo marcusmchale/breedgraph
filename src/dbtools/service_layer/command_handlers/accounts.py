@@ -1,10 +1,10 @@
 from fastapi import BackgroundTasks
 from itsdangerous import URLSafeTimedSerializer
-from dbtools import config
-from dbtools.service_layer import unit_of_work
-from dbtools.domain import commands, events
-from dbtools.domain.model.accounts import UserRegistered, Affiliation, AffiliationLevel, Affiliations, Account, Team
-from dbtools.custom_exceptions import (
+from src.dbtools import config
+from src.dbtools.service_layer import unit_of_work
+from src.dbtools.domain import commands, events
+from src.dbtools.domain.model.accounts import UserRegistered, Affiliation, AffiliationLevel, Affiliations, Account, Team
+from src.dbtools.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
     ProtectedNodeError,
