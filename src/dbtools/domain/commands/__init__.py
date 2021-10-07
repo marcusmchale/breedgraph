@@ -1,2 +1,2 @@
 from .base import Command
-from . import accounts
+from . import accounts, setup

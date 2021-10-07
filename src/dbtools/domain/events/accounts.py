@@ -5,15 +5,19 @@ class EmailAdded(Event):
     email: str
 
 
+class EmailRemoved(Event):
+    email: str
+
+
 class AccountAdded(Event):
-    username_lower: str
+    user_id: int
 
 
 class AffiliationConfirmed(Event):
-    username_lower: str
+    user_id: int
     team_name: str
 
 
 class AdminGranted(Event):
-    username_lower: str
+    user_id: int
     team_name: str

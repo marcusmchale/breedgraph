@@ -1,26 +1,28 @@
 from abc import ABC, abstractmethod
 import asyncio
-from neo4j import GraphDatabase, Transaction
+from neo4j import GraphDatabase, Transaction, Session
 from asyncio import AbstractEventLoop, get_event_loop
-from src.dbtools.adapters.repositories import allowed_emails, teams, accounts
-from src.dbtools.config import get_bolt_url, get_graphdb_auth
+from src.dbtools.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
+from src.dbtools.adapters.neo4j.async_neo4j import AsyncNeo4j
+from src.dbtools.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME, MAX_WORKERS
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from concurrent.futures import ThreadPoolExecutor
 
 import logging
 
 
 class AbstractUnitOfWork(ABC):
-    emails: allowed_emails.AllowedEmailRepository
-    teams: teams.TeamRepository
-    accounts: accounts.AccountRepository
+    accounts: BaseAccountRepository
 
     def __init__(self):
-        self.lock = asyncio.Lock()  # using an sync lock here
+        self.lock = asyncio.Lock()
 
     async def __aenter__(self) -> 'AbstractUnitOfWork':
         await self.lock.acquire()
-        # get an async lock here to avoid concurrency issues with repository instances
-        # this is still not thread safe, consider thread locking if using multi-threading at any higher level
-        # threads are currently only being used within the repositories
+        # get an async lock to avoid concurrency issues with repository instances
+        # this is still not thread safe, consider thread locking if using multi-threading at any higher value
         return self
 
     async def __aexit__(self, *args):
@@ -47,40 +49,46 @@ class AbstractUnitOfWork(ABC):
 
 class Neo4jUnitOfWork(AbstractUnitOfWork):
 
-    def __init__(self):
+    def __init__(
+            self,
+            thread_pool: "ThreadPoolExecutor",
+            database_name=DATABASE_NAME
+    ):
         super().__init__()
         self.driver = GraphDatabase.driver(
             get_bolt_url(),
             auth=get_graphdb_auth(),
+            database=database_name,
             connection_timeout=5,
             connection_acquisition_timeout=5,
             max_transaction_retry_time=5
         )
+        self.thread_pool = thread_pool
 
     async def __aenter__(self):
-        self.loop: AbstractEventLoop = get_event_loop()
-        self.session = await self.loop.run_in_executor(None, self.driver.session)
+        self._loop: AbstractEventLoop = get_event_loop()
+        self._session: Session = await self._loop.run_in_executor(self.thread_pool, self.driver.session)
         logging.debug('Started session')
-        self.tx = await self.loop.run_in_executor(None, self.session.begin_transaction)
+        self._tx: Transaction = await self._loop.run_in_executor(self.thread_pool, self._session.begin_transaction)
         logging.debug('Started transaction')
+        self.neo4j = AsyncNeo4j(self._tx, self._loop, self.thread_pool)
         await super().__aenter__()  # async lock after obtaining tx
         # allows next async uow to have a tx ready to go when lock is cleared
-        self.emails = allowed_emails.Neo4jAllowedEmailRepository(self.tx, self.loop)
-        self.teams = teams.Neo4jTeamRepository(self.tx, self.loop)
-        self.accounts = accounts.Neo4jAccountRepository(self.tx, self.loop)
+        self.accounts = Neo4jAccountRepository(self.neo4j)
         return self
 
     async def commit(self):
+        logging.debug("Updating changed accounts")
         await self.accounts.update_seen()
-        await self.loop.run_in_executor(None, self.tx.commit)
-        logging.debug("Committed transaction")
+        logging.debug("Committing transaction")
+        await self._loop.run_in_executor(self.thread_pool, self._tx.commit)
 
     async def rollback(self):
-        await self.loop.run_in_executor(None, self.tx.rollback)
-        logging.debug("Rolled back transaction")
+        logging.debug("Rolling back transaction")
+        await self._loop.run_in_executor(self.thread_pool, self._tx.rollback)
 
     async def close(self):
-        await self.loop.run_in_executor(None, self.tx.close)  # rolls back any outstanding transactions
-        logging.debug("Closed transaction")
-        await self.loop.run_in_executor(None, self.session.close)  # rolls back any outstanding transactions
-        logging.debug("Closed session")
+        logging.debug("Closing transaction")
+        await self._loop.run_in_executor(self.thread_pool, self._tx.close)
+        logging.debug("Closing session")
+        await self._loop.run_in_executor(self.thread_pool, self._session.close)

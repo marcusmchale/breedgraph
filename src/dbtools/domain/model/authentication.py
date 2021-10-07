@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel
-from .accounts import Account, AffiliationLevel
+from .accounts import AffiliationLevel
 
 
 class Token(BaseModel):

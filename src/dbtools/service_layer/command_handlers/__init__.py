@@ -1,15 +1,15 @@
 from typing import Dict, Type, Callable
 from src.dbtools.domain import commands
 
-from . import accounts
+from . import accounts, setup
 
 COMMAND_HANDLERS = {
-    commands.accounts.Initialise: accounts.initialise,
+    commands.setup.EnsureGlobalAdmin: setup.ensure_global_admin,
+    commands.setup.LoadReadModel: setup.load_read_model,
+    commands.accounts.AddAccount: accounts.add_account,
     commands.accounts.AddEmail: accounts.add_email,
     commands.accounts.RemoveEmail: accounts.remove_email,
-    commands.accounts.AddAccount: accounts.add_account,
-    commands.accounts.AddAffiliation: accounts.add_affiliation,
+    commands.accounts.SetAffiliation: accounts.set_affiliation,
     commands.accounts.ConfirmUser: accounts.confirm_user_email,
-    commands.accounts.SetAffiliationLevel: accounts.set_affiliation_level,
     commands.accounts.Login: accounts.login
 }  # type: Dict[Type[commands.base.Command], Callable]

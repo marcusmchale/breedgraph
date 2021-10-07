@@ -13,13 +13,13 @@ HOST_PORT = '8000'
 GQL_API_PATH = 'graphql'
 VUE_PORT = '8080'
 
+DATABASE_NAME = os.environ.get("DATABASE_NAME")
+
 MAX_WORKERS = 30  # for multithreading, set to about 5x the number of threads available.
 # todo need to set up a global counter for available workers
 # they are started currently in repos and in uow events queue
+N_EVENT_HANDLERS = 3
 
-BREEDGRAPH_LOG = os.environ.get('BREEDGRAPH_LOG')
-NEO4J_DRIVER_LOG = os.environ.get('NEO4J_DRIVER_LOG')
-GRAPHQL_LOG = os.environ.get('GRAPHQL_LOG')
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,7 +50,7 @@ def get_graphdb_auth():
 def get_redis_host_and_port():
     host = os.environ.get('REDIS_HOST', 'localhost')
     port = 6380 if DEV else 6379
-    return dict(host=host, port=port)
+    return host, port
 
 
 def get_gql_url():
@@ -63,3 +63,82 @@ def get_gql_url():
 #	http_port = 18025 if host == 'localhost' else 8025
 #	return dict(host=host, port=port, http_port=http_port)
 #
+
+DBTOOLS_LOG = os.environ.get('DBTOOLS_LOG')
+NEO4J_LOG = os.environ.get('NEO4J_LOG')
+GRAPHQL_LOG = os.environ.get('GRAPHQL_LOG')
+FASTAPI_LOG = os.environ.get('FASTAPI_LOG')
+REDIS_LOG = os.environ.get('REDIS_LOG')
+
+LOG_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s]: %(message)s'
+        },
+        'named': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'dbtools': {
+            'value': 'INFO',
+            'formatter': 'named',
+            'class': 'logging.FileHandler',
+            'filename': DBTOOLS_LOG
+        },
+        'fastapi': {
+            'value': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.FileHandler',
+            'filename': FASTAPI_LOG
+        },
+        'graphql': {
+            'value': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.FileHandler',
+            'filename': GRAPHQL_LOG
+        },
+        'neo4j': {
+            'value': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.FileHandler',
+            'filename': NEO4J_LOG
+        },
+        'redis': {
+            'value': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.FileHandler',
+            'filename': REDIS_LOG
+        }
+    },
+    'loggers': {
+        'root': {
+            'handlers': ['dbtools'],
+            'value': 'INFO',
+            'propagate': False
+        },
+        'src.dbtools.adapters.fastapi.main': {
+            'handlers': ['fastapi'],
+            'value': 'INFO',
+            'propagate': False
+        },
+        'src.dbtools.entrypoints.fastapi.graphql': {
+            'handlers': ['graphql'],
+            'value': 'INFO',
+            'propagate': False
+        },
+        'src.dbtools.adapters.neo4j': {
+            'handlers': ['neo4j'],
+            'value': 'INFO',
+            'propagate': True
+        },
+        'src.dbtools.adapters.redis': {
+            'handlers': ['redis'],
+            'value': 'INFO',
+            'propagate': True
+        }
+    }
+}
+

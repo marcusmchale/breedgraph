@@ -1,16 +1,19 @@
 import logging
 from asyncio import Queue, create_task, gather
-from src.dbtools.service_layer.unit_of_work import AbstractUnitOfWork
 
 from src.dbtools.domain import commands, events
+from src.dbtools.config import N_EVENT_HANDLERS
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Callable, Dict, List, Union, Type
     Message = Union[commands.Command, events.Event]
+    from src.dbtools.service_layer.unit_of_work import AbstractUnitOfWork
+    from src.dbtools.adapters.redis.read_model import ReadModel
+    from concurrent.futures import ThreadPoolExecutor
 
 
-N_EVENT_HANDLERS = 3
+logger = logging.getLogger(__name__)
 
 
 #  - Commands are handled consecutively (though still async)
@@ -19,14 +22,19 @@ class MessageBus:
 
     def __init__(
             self,
-            uow: AbstractUnitOfWork,
+            uow: "AbstractUnitOfWork",
+            read_model: "ReadModel",
+            thread_pool: "ThreadPoolExecutor",
             event_handlers: "Dict[Type[events.Event], List[Callable]]",
-            command_handlers: "Dict[Type[commands.Command], Callable]",
+            command_handlers: "Dict[Type[commands.Command], Callable]"
     ):
         self.uow = uow
+        self.read_model = read_model
+        self.thread_pool = thread_pool
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
-        self.event_queue = Queue()
+        self.event_queue = Queue()  # currently just using asyncio for event queue,
+        # todo consider scaling queue up to use redis as an event store
 
     async def handle(self, message: "Message"):
         if isinstance(message, commands.Command):
@@ -47,14 +55,14 @@ class MessageBus:
 
     async def handle_command(self, command: commands.Command):
         try:
-            logging.debug(f'handling command {command}')
+            logger.info(command.__name__)
+            logger.debug(command)
             handler = self.command_handlers[type(command)]
             await handler(command)
-            for e in self.uow.collect_events():
-                await self.event_queue.put(e)
+            for event in self.uow.collect_events():
+                await self.event_queue.put(event)
         except Exception as e:
-            logging.exception(command)
-            logging.exception(e)
+            logger.error(e)
             raise
 
     async def handle_event(self):
@@ -62,11 +70,11 @@ class MessageBus:
             event = await self.event_queue.get()
             for handler in self.event_handlers[type(event)]:
                 try:
-                    logging.debug(f'handling event {event}')
+                    logger.info(event.__name__)
+                    logger.debug(event)
                     await handler(event)
                 except Exception as e:
-                    logging.exception(event)
-                    logging.exception(e)
+                    logger.error(e)
                     continue
             for e in self.uow.collect_events():
                 await self.event_queue.put(e)

@@ -7,7 +7,6 @@ class IllegalOperationError(Exception):
 
 
 class IdentityExistsError(IllegalOperationError):
-
     pass
 
 
@@ -25,3 +24,5 @@ class UnauthorisedOperationError(IllegalOperationError):
 
 class ExistingUniqueRelationship(IllegalOperationError):
     pass
+
+

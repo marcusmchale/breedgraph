@@ -1,16 +1,21 @@
 import inspect
-from typing import Callable
-from src.dbtools.adapters import redis_eventpublisher
 from src.dbtools.adapters.notifications.notifications import AbstractNotifications, EmailNotifications
 from src.dbtools.service_layer import event_handlers, command_handlers, messagebus, unit_of_work
+from src.dbtools.config import MAX_WORKERS
+from src.dbtools.adapters.redis.read_model import ReadModel
+from concurrent.futures import ThreadPoolExecutor
 
 
-def bootstrap(
+async def bootstrap(
         uow: unit_of_work.AbstractUnitOfWork = unit_of_work.Neo4jUnitOfWork(),
-        notifications: AbstractNotifications = EmailNotifications(),
-        publish: Callable = redis_eventpublisher.publish
+        notifications: AbstractNotifications = EmailNotifications()
 ) -> messagebus.MessageBus:
-    dependencies = {'uow': uow, 'notifications': notifications, 'publish': publish}
+
+    # todo consider mocking read model and passing into bootstrap for testing as for uow and notifications
+    read_model = await ReadModel.create()
+    thread_pool: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+
+    dependencies = {'uow': uow, 'notifications': notifications, 'read_model': read_model}
 
     injected_event_handlers = {
         event_type: [
@@ -26,6 +31,8 @@ def bootstrap(
 
     return messagebus.MessageBus(
         uow=uow,
+        read_model=read_model,
+        thread_pool=thread_pool,
         event_handlers=injected_event_handlers,
         command_handlers=injected_command_handlers
     )

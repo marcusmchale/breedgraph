@@ -1,5 +1,5 @@
 from src.dbtools.config import SITE_NAME
-from src.dbtools.domain.model.accounts import UserRegistered, Team
+from src.dbtools.domain.model.accounts import UserBase, Team
 from src.dbtools.config import HOST_ADDRESS
 from email.message import EmailMessage
 
@@ -23,7 +23,7 @@ class EmailAddedMessage(Email):
 
 class UserConfirmMessage(Email):
 
-    def __init__(self, user: UserRegistered, token: str):
+    def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} account confirmation'
         # options here are a url to a rest endpoint or handle the token posted over graphql
@@ -39,24 +39,24 @@ class UserConfirmMessage(Email):
 
 class AffiliationConfirmedMessage(Email):
 
-    def __init__(self, user: UserRegistered, team: Team):
+    def __init__(self, user: UserBase, team: Team):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} affiliation confirmed'
         self.message.set_content(
             f'Hi {user.fullname}. '
             f'Your affiliation with {team.fullname} has been confirmed. '
-            'You can now access data submitted by users that registered with this team.'
+            'You can now access data submitted by users that registered with this key.'
         )
 
 
 class AdminGrantedMessage(Email):
 
-    def __init__(self, user: UserRegistered, team: Team):
+    def __init__(self, user: UserBase, team: Team):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} admin granted'
         self.message.set_content(
             f'Hi {user.fullname}. '
             f'Your administrator status for {team.fullname} has been confirmed. '
-            'You can now control access to data submitted by users that registered with this team. '
+            'You can now control access to data submitted by users that registered with this key. '
             'You can also allow new users to register by adding their email address to those allowed. '
         )

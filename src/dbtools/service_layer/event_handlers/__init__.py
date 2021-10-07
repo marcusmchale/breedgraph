@@ -5,7 +5,8 @@ from src.dbtools.domain import events
 from . import accounts
 
 EVENT_HANDLERS = {
-    events.accounts.EmailAdded: [accounts.email_user_allowed],
+    events.accounts.EmailAdded: [accounts.email_user_allowed, accounts.add_email_to_read_model],
+    events.accounts.EmailRemoved: [accounts.remove_email_from_read_model],
     events.accounts.AccountAdded: [accounts.send_user_confirm_url],
     events.accounts.AffiliationConfirmed: [accounts.send_confirmed_notification],
     events.accounts.AdminGranted: [accounts.send_admin_notification]
