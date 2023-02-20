@@ -70,9 +70,10 @@ GRAPHQL_LOG = os.environ.get('GRAPHQL_LOG')
 FASTAPI_LOG = os.environ.get('FASTAPI_LOG')
 REDIS_LOG = os.environ.get('REDIS_LOG')
 
+
 LOG_CONFIG = {
     'version': 1,
-    'disable_existing_loggers': True,
+    'disable_existing_loggers': False,
     'formatters': {
         'standard': {
             'format': '%(asctime)s [%(levelname)s]: %(message)s'
@@ -83,31 +84,25 @@ LOG_CONFIG = {
     },
     'handlers': {
         'dbtools': {
-            'value': 'INFO',
+            'level': 'DEBUG',
             'formatter': 'named',
             'class': 'logging.FileHandler',
             'filename': DBTOOLS_LOG
         },
-        'fastapi': {
-            'value': 'INFO',
-            'formatter': 'standard',
-            'class': 'logging.FileHandler',
-            'filename': FASTAPI_LOG
-        },
         'graphql': {
-            'value': 'INFO',
+            'level': 'DEBUG',
             'formatter': 'standard',
             'class': 'logging.FileHandler',
             'filename': GRAPHQL_LOG
         },
         'neo4j': {
-            'value': 'INFO',
+            'level': 'DEBUG',
             'formatter': 'standard',
             'class': 'logging.FileHandler',
             'filename': NEO4J_LOG
         },
-        'redis': {
-            'value': 'INFO',
+        'connection': {
+            'level': 'DEBUG',
             'formatter': 'standard',
             'class': 'logging.FileHandler',
             'filename': REDIS_LOG
@@ -116,29 +111,24 @@ LOG_CONFIG = {
     'loggers': {
         'root': {
             'handlers': ['dbtools'],
-            'value': 'INFO',
-            'propagate': False
-        },
-        'src.dbtools.adapters.fastapi.main': {
-            'handlers': ['fastapi'],
-            'value': 'INFO',
-            'propagate': False
+            'level': 'DEBUG',
+            'propagate': True
         },
         'src.dbtools.entrypoints.fastapi.graphql': {
             'handlers': ['graphql'],
-            'value': 'INFO',
+            'level': 'DEBUG',
+            'propagate': True
+        },
+        'src.dbtools.adapters': {
+            'handlers': ['connection'],
+            'level': 'DEBUG',
             'propagate': False
         },
-        'src.dbtools.adapters.neo4j': {
+        'neo4j': {
             'handlers': ['neo4j'],
-            'value': 'INFO',
-            'propagate': True
+            'level': 'DEBUG',
+            'propagate': False
         },
-        'src.dbtools.adapters.redis': {
-            'handlers': ['redis'],
-            'value': 'INFO',
-            'propagate': True
-        }
     }
 }
 

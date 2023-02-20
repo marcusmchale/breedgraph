@@ -6,10 +6,8 @@ from src.dbtools.domain.events.accounts import Event
 from src.dbtools.custom_exceptions import ProtectedRelationshipError
 from pydantic import BaseModel
 
-from typing import TYPE_CHECKING, _T, overload, Iterable
-
-if TYPE_CHECKING:
-    from typing import Union, ValuesView
+# typing only
+from typing import Union
 
 
 class NamedEntityBase(BaseModel):
@@ -73,14 +71,6 @@ class TeamBase(NamedEntityBase):
         raise NotImplementedError
 
 
-class TeamInput(TeamBase):
-    pass
-
-
-class TeamOutput(TeamBase):
-    pass
-
-
 class TeamStored(TeamBase):
     id: int
     admins: set[UserOutput]
@@ -89,6 +79,14 @@ class TeamStored(TeamBase):
         if isinstance(other, int):
             return self.id == int
         super().__eq__(other)
+
+class TeamInput(TeamBase):
+    parent_team: TeamStored
+
+
+class TeamOutput(TeamBase):
+
+    pass
 
 
 class AffiliationLevel(IntEnum):
@@ -100,7 +98,7 @@ class AffiliationLevel(IntEnum):
 class Affiliation(BaseModel):
     team: TeamBase
     level: AffiliationLevel
-    primary: bool = False
+    write: bool = False
     confirmed: bool = False
 
 
@@ -109,7 +107,7 @@ class Affiliations(MutableMapping):
         self._name_lower_to_team: dict[str, TeamBase] = dict()
         self._team_to_level: dict[TeamBase, AffiliationLevel] = dict()
         self._level_to_teams: dict[AffiliationLevel, set[TeamBase]] = defaultdict(set)
-        self._primary_team = None
+        self._write_team = None
         self._confirmed: set[TeamBase] = set()
         if isinstance(affiliations, (set, list, tuple)):
             for affiliation in affiliations:
@@ -123,10 +121,10 @@ class Affiliations(MutableMapping):
         if affiliation.team in self._team_to_level:
             raise ProtectedRelationshipError("Affiliation is already defined")
         self.__setitem__(affiliation.team, affiliation.level)
-        if affiliation.primary:
-            if self._primary_team and self._primary_team != affiliation.team:
-                raise ProtectedRelationshipError("Primary team is already defined")
-            self._primary_team = affiliation.team
+        if affiliation.write:
+            if self._write_team and self._write_team != affiliation.team:
+                raise ProtectedRelationshipError("Write team is already defined")
+            self._write_team = affiliation.team
         if affiliation.confirmed:
             self._confirmed.add(affiliation.team)
 
@@ -150,7 +148,7 @@ class Affiliations(MutableMapping):
         raise NotImplementedError
 
     def __delitem__(self, key: TeamBase):
-        if self._primary_team == key:
+        if self._write_team == key:
             raise ProtectedRelationshipError("Primary affiliations can not be deleted")
         if key in self._confirmed:
             raise ProtectedRelationshipError("Confirmed affiliations can not be deleted")
@@ -163,20 +161,21 @@ class Affiliations(MutableMapping):
 
     def __len__(self):
         return len(self._team_to_level)
-    @property
-    def primary_team(self) -> TeamBase:
-        return self._primary_team
 
     @property
-    def unconfirmed_teams(self) -> "set[TeamBase]":
+    def write_team(self) -> TeamBase:
+        return self._write_team
+
+    @property
+    def unconfirmed_teams(self) -> set[TeamBase]:
         return self._level_to_teams[AffiliationLevel['UNCONFIRMED']]
 
     @property
-    def user_teams(self) -> "set[TeamBase]":
+    def user_teams(self) -> set[TeamBase]:
         return self._level_to_teams[AffiliationLevel['USER']]
 
     @property
-    def admin_teams(self) -> "set[TeamBase]":
+    def admin_teams(self) -> set[TeamBase]:
         return self._level_to_teams[AffiliationLevel['ADMIN']]
 
     @property
@@ -228,4 +227,4 @@ class AccountOutput(AccountBase):
 
 class AccountStored(AccountBase):
     user: UserStored
-    events: "list[Event]" = []
+    events: list[Event] = []

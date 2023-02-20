@@ -10,11 +10,9 @@ from src.dbtools.domain.model.accounts import (
 from src.dbtools.adapters.repositories.trackable_wrappers import TrackableObject, TrackableMapping
 from src.dbtools.adapters.neo4j.cypher import queries
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from typing import Set, Optional, AsyncGenerator, Union, List, ValuesView
-    from neo4j import Record
-    from src.dbtools.adapters.neo4j.async_neo4j import AsyncNeo4j
+# for typing only
+from typing import Set, Optional, AsyncGenerator, Union, List, ValuesView
+from neo4j import Record, AsyncResult, AsyncTransaction
 
 
 class BaseAccountRepository(ABC):
@@ -74,12 +72,12 @@ class BaseAccountRepository(ABC):
             self,
             primary_only: bool = True,
             min_affiliation_level: AffiliationLevel = AffiliationLevel.USER,
-            team_name: "Optional[str]" = None
-    ) -> "AsyncGenerator[AccountStored]":
+            team_name: Optional[str] = None
+    ) -> AsyncGenerator[AccountStored, None]:
         if team_name:
             accounts = await self._get_by_team(team_name)
             async for account in accounts:
-                if primary_only and account.affiliations.primary_team != team_name:
+                if primary_only and account.affiliations.write_team != team_name:
                     continue
                 if account.affiliations[team_name] >= min_affiliation_level:
                     self._track(account)
@@ -87,7 +85,7 @@ class BaseAccountRepository(ABC):
         else:
             accounts = await self._get_all()
             async for account in accounts:
-                if primary_only and account.affiliations[account.affiliations.primary_team] >= min_affiliation_level:
+                if primary_only and account.affiliations[account.affiliations.write_team] >= min_affiliation_level:
                     self._track(account)
                     yield account
                 elif account.affiliations.max_level >= min_affiliation_level:
@@ -95,11 +93,11 @@ class BaseAccountRepository(ABC):
                     yield account
 
     @abstractmethod
-    async def _get_all(self) -> "AsyncGenerator[AccountStored]":
+    async def _get_all(self) -> AsyncGenerator[AccountStored, None]:
         raise NotImplementedError
 
     @abstractmethod
-    async def _get_by_team(self, team_name) -> "AsyncGenerator[AccountStored]":
+    async def _get_by_team(self, team_name) -> AsyncGenerator[AccountStored, None]:
         raise NotImplementedError
 
     async def remove(self, account: AccountStored):
@@ -116,7 +114,7 @@ class BaseAccountRepository(ABC):
             await self._update(account)
 
     async def _update(self, account: AccountStored):
-        # note that some of the automated type checking for this function fails due to proxy wrappers
+        # note that some automated type checking for this function fails due to proxy wrappers
         # for example the dirty flag and the new and changed dicts aren't on the source models for User and Affiliations
         if account.user.dirty:
             await self._update_user(account.user)
@@ -128,7 +126,7 @@ class BaseAccountRepository(ABC):
                 affiliation = Affiliation(
                     team=team,
                     level=level,
-                    primary=team == account.affiliations.primary_team  # primary key does not change
+                    primary=team == account.affiliations.write_team  # write key does not change
                 )
                 await self._set_affiliation(account.user, affiliation)
             account.affiliations.reset_tracking()
@@ -166,11 +164,11 @@ class FakeAccountRepository(BaseAccountRepository):
     async def _get(self, user_id: int) -> AccountStored:
         return next(a for a in self._accounts if a.user.id == user_id)
 
-    async def _get_all(self) -> "AsyncGenerator[AccountStored]":
+    async def _get_all(self) -> AsyncGenerator[AccountStored, None]:
         for account in self._accounts:
             yield account
 
-    async def _get_by_team(self, team_name) -> "AsyncGenerator[AccountStored]":
+    async def _get_by_team(self, team_name) -> AsyncGenerator[AccountStored, None]:
         for account in self._accounts:
             try:
                 if team_name in account.affiliations:
@@ -196,9 +194,9 @@ class FakeAccountRepository(BaseAccountRepository):
 
 class Neo4jAccountRepository(BaseAccountRepository):
 
-    def __init__(self, neo4j: "AsyncNeo4j"):
+    def __init__(self, tx: AsyncTransaction):
         super().__init__()
-        self.neo4j = neo4j
+        self.tx = tx
 
     async def _create(self, account: AccountInput) -> AccountStored:
         await self._add_user(account)
@@ -206,16 +204,17 @@ class Neo4jAccountRepository(BaseAccountRepository):
         return AccountStored(user=account.user, affiliations=account.affiliations)
 
     async def _add_user(self, account: AccountInput):
-        record: Record = await self.neo4j.single(
+        result = await self.tx.run(
             queries['create_user'],
             **dict(account.user)
         )
+        record: Record = await result.single()
         account.user = UserStored(**record['user'])
 
     async def _set_affiliations(self, account):
         await self._add_teams(account)
         for team, level in account.affiliations:
-            await self.neo4j.single(
+            await self.tx.run(
                 queries['set_affiliation'],
                 user_id=account.user.id,
                 team_id=team.id,
@@ -224,72 +223,76 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     async def _add_teams(self, account):
         for team in account.affiliations.all_teams:
-            if not await self.neo4j.single(queries['get_team'], name_lower=team.name_lower):
-                record: Record = await self.neo4j.single(
+            if not await self.tx.run(queries['get_team'], name_lower=team.name_lower):
+                result: AsyncResult = await self.tx.run(
                     queries['create_team'],
                     **dict(team)
                 )
-                account.affiliations[Team(**record['key'])] = account.affiliations.pop(team)
+                record = await result.single()
+                account.affiliations[TeamStored(**record['key'])] = account.affiliations.pop(team)
 
     async def _get(self, user_id: int) -> AccountStored:
-        record: "Record" = await self.neo4j.single(
+        result: AsyncResult = await self.tx.run(
             queries['get_account'],
             user_id=user_id
         )
+        record: "Record" = await result.single()
         return self.record_to_account(record) if record else None
 
-    async def _get_all(self) -> "AsyncGenerator[AccountStored]":
-        async for record in self.neo4j.records(
+    async def _get_all(self) -> AsyncGenerator[AccountStored, None]:
+        async for record in await self.tx.run(
                 queries['get_accounts']
         ):
             yield self.record_to_account(record)
 
-    async def _get_by_team(self, team_name) -> "AsyncGenerator[AccountStored]":
-        async for record in self.neo4j.records(
+    async def _get_by_team(self, team_name) -> AsyncGenerator[AccountStored, None]:
+        async for record in await self.tx.run(
                 queries['get_accounts_by_team'],
                 team_name=team_name
         ):
             yield self.record_to_account(record)
 
     async def _get_by_email(self, email: str) -> AccountStored:
-        record: "Record" = await self.neo4j.single(
+        result: AsyncResult = await self.tx.run(
             queries['get_account_by_email'],
             email=email
         )
+        record: Record = await result.single()
         return self.record_to_account(record) if record else None
 
     async def _get_by_username(self, username: str) -> AccountStored:
-        record: "Record" = await self.neo4j.single(
+        result: AsyncResult = await self.tx.run(
             queries['get_account_by_username'],
             username_lower=username.casefold()
         )
+        record: Record = await result.single()
         return self.record_to_account(record) if record else None
 
     async def _remove(self, account: AccountStored):
-        await self.neo4j.run(
+        await self.tx.run(
             queries['delete_unverified_user'],
             email=account.user.email
         )
-        await self.neo4j.run(
+        await self.tx.run(
             queries['delete_unaffiliated_teams']
         )
 
     async def _update_user(self, user: UserStored):
-        await self.neo4j.run(
+        await self.tx.run(
             queries('set_user'),
             **dict(user)
         )
 
     async def _set_affiliation(self, user: UserStored, affiliation: Affiliation):
-        await self.neo4j.run(
+        await self.tx.run(
             queries('set_affiliation'),
             username_lower=user.name_lower,
             team_name=affiliation.team.name,
-            level=affiliation.levels
+            level=affiliation.level
         )
 
     @staticmethod
-    def record_to_account(record: "Record") -> AccountStored:
+    def record_to_account(record: Record) -> AccountStored:
         user = UserStored(**record['user'])
         affiliations = Affiliations([
             Affiliation(

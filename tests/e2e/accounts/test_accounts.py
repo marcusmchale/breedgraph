@@ -3,7 +3,7 @@ import pytest
 
 from src.dbtools.entrypoints.fastapi.main import app
 from src.dbtools.config import get_gql_url
-from src.dbtools.domain.model.accounts import Team
+from src.dbtools.domain.model.accounts import TeamBase
 
 from src.dbtools.entrypoints.fastapi.graphql.decorators import GQLStatus
 
@@ -59,7 +59,7 @@ async def test_get_teams():
         assert payload['status'] == GQLStatus.SUCCESS.name
         assert payload['errors'] is None
         for team in payload['result']:
-            Team(**team)
+            TeamBase(**team)
 
 
 

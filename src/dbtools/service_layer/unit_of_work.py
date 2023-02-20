@@ -1,33 +1,24 @@
-from abc import ABC, abstractmethod
-import asyncio
-from neo4j import GraphDatabase, Transaction, Session
-from asyncio import AbstractEventLoop, get_event_loop
-from src.dbtools.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
-from src.dbtools.adapters.neo4j.async_neo4j import AsyncNeo4j
-from src.dbtools.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME, MAX_WORKERS
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from concurrent.futures import ThreadPoolExecutor
-
 import logging
+
+from abc import ABC, abstractmethod
+from src.dbtools.adapters.neo4j.driver import get_driver
+from asyncio import CancelledError
+
+# Typing only
+from typing import Self
+from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
+from src.dbtools.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
 
 
 class AbstractUnitOfWork(ABC):
     accounts: BaseAccountRepository
 
-    def __init__(self):
-        self.lock = asyncio.Lock()
-
-    async def __aenter__(self) -> 'AbstractUnitOfWork':
-        await self.lock.acquire()
-        # get an async lock to avoid concurrency issues with repository instances
-        # this is still not thread safe, consider thread locking if using multi-threading at any higher value
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args):
-        await self.close()  # roll back any changes if not committed
-        self.lock.release()
+    async def __aexit__(self, *args):  # todo investigate async cancellation behaviour (write some tests)
+        logging.debug("Close unit of work (roll back unless committed)")
+        await self.rollback()  # note: exceptions inside aexit will replace any that triggerred the exit
 
     @abstractmethod
     async def commit(self):
@@ -35,10 +26,6 @@ class AbstractUnitOfWork(ABC):
 
     @abstractmethod
     async def rollback(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    async def close(self):
         raise NotImplementedError
 
     def collect_events(self):
@@ -49,46 +36,43 @@ class AbstractUnitOfWork(ABC):
 
 class Neo4jUnitOfWork(AbstractUnitOfWork):
 
-    def __init__(
-            self,
-            thread_pool: "ThreadPoolExecutor",
-            database_name=DATABASE_NAME
-    ):
+    def __init__(self):
         super().__init__()
-        self.driver = GraphDatabase.driver(
-            get_bolt_url(),
-            auth=get_graphdb_auth(),
-            database=database_name,
-            connection_timeout=5,
-            connection_acquisition_timeout=5,
-            max_transaction_retry_time=5
-        )
-        self.thread_pool = thread_pool
+        self.driver: AsyncDriver = get_driver()
 
-    async def __aenter__(self):
-        self._loop: AbstractEventLoop = get_event_loop()
-        self._session: Session = await self._loop.run_in_executor(self.thread_pool, self.driver.session)
-        logging.debug('Started session')
-        self._tx: Transaction = await self._loop.run_in_executor(self.thread_pool, self._session.begin_transaction)
-        logging.debug('Started transaction')
-        self.neo4j = AsyncNeo4j(self._tx, self._loop, self.thread_pool)
-        await super().__aenter__()  # async lock after obtaining tx
-        # allows next async uow to have a tx ready to go when lock is cleared
-        self.accounts = Neo4jAccountRepository(self.neo4j)
-        return self
+    async def __aenter__(self) -> Self:
+        # recommended syntax to call session without context manager: session = await with driver.session()
+        # from https://neo4j.com/docs/api/python-driver/5.1/async_api.html#async-cancellation
+        # doesn't work. So call as below as it works and still handle manual cancel as advised
+        # but in the local context manager
+        # todo look at this when driver and docs are more mature
+        logging.debug('Session start')
+        self._session: AsyncSession = self.driver.session()
+        logging.debug('Transaction start')
+        self.tx: AsyncTransaction = await self._session.begin_transaction()
+        self.accounts = Neo4jAccountRepository(self.tx)
+        return super().__aenter__()
+
+    async def __aexit__(self, *args):
+        try:
+            logging.debug("Transaction close (triggers roll back if not already closed)")
+            await self.tx.close()
+        except CancelledError:
+            logging.debug("Operation cancelled, cancel session and raise")
+            self._session.cancel()
+            raise
+        finally:
+            logging.debug("Session close")
+            await self._session.close()
 
     async def commit(self):
-        logging.debug("Updating changed accounts")
+        logging.debug("Accounts update")
         await self.accounts.update_seen()
-        logging.debug("Committing transaction")
-        await self._loop.run_in_executor(self.thread_pool, self._tx.commit)
+        logging.debug("Transaction commit")
+        await self.tx.commit()
 
     async def rollback(self):
-        logging.debug("Rolling back transaction")
-        await self._loop.run_in_executor(self.thread_pool, self._tx.rollback)
+        logging.debug("Transaction roll back (explicit)")
+        await self.tx.rollback()
 
-    async def close(self):
-        logging.debug("Closing transaction")
-        await self._loop.run_in_executor(self.thread_pool, self._tx.close)
-        logging.debug("Closing session")
-        await self._loop.run_in_executor(self.thread_pool, self._session.close)
+

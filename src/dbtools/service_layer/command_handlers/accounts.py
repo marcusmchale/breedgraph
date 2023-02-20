@@ -41,8 +41,8 @@ async def add_account(
                 raise IdentityExistsError(f"Username already taken")
             if cmd.email in account.user.allowed_emails:
                 allowed_email = True
-                if account.affiliations.primary_team.name_lower == cmd.team_name.casefold():
-                    team = account.affiliations.primary_team
+                if account.affiliations.write_team.name_lower == cmd.team_name.casefold():
+                    team = account.affiliations.write_team
                     level = AffiliationLevel(1)
             if not team and cmd.team_name in account.affiliations:
                 team = account.affiliations.get_team(cmd.team_name)
@@ -77,7 +77,7 @@ async def login(
         uow: unit_of_work.AbstractUnitOfWork
 ):
     # todo logic to record login events etc.
-    pass
+    raise NotImplementedError
 
 
 async def add_email(

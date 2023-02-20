@@ -20,7 +20,7 @@ Accessible through a separate VueJS web-interface (breedview).
 Built on the experience of developing and using the [breedcafs database tools](https://github.com/marcusmchale/breedcafs)
 
 Applying the principles of domain driven design and event-driven architecture
-e.g.  [Architecture patterns with Python](https://www.oreilly.com/library/view/architecture-patterns-with/9781492052197/)
+e.g.  [Architecture patterns with Python](https://www.cosmicpython.com/book/preface.html)
 
 Development notes:
 
@@ -44,33 +44,53 @@ Development notes:
 
     
 Data access control:
-- Users are agents that submit records on behalf of their primary team 
+- Users are agents that submit records on behalf of teams for which they have a "write" affiliation. 
   and may retrieve records from any of their affiliated teams.
-    - When a user registers they select their primary team, and an affiliation is created to this team.
+    - When a user registers they select a team, and a "write" affiliation is created to this team.
       - Affiliations are provided in 3 ranked levels.
           - Level 2: Admin
           - Level 1: User
           - Level 0: Unconfirmed
-      - If the team does not yet exist, the user is provided a level 2 affiliation (Admin).
-      - If the team does exist, and the new user was invited to join (email added) by an Admin level affiliate
-        of this same team, the new user is provided a level 1 affiliation (User).
-      - If the team exists, and the new user was invited to join by an unaffiliated user, 
-        the new user is provided a level 0 affiliation (Unconfirmed).
-    - Users may create secondary affiliations with any other team.
+      - If the team does not exist, the user is provided a level 2 affiliation (Admin).
+      - If the team exists, and the user was invited to join (email added by an Admin level affiliate
+        of this same team), the new user is provided a level 1 affiliation (User).
+      - If the team exists, and the user joins without invitation,
+        the new user is provided a level 0 affiliation (Unconfirmed), 
+        and a request is sent to the corresponding Admin to elevate this affiliation.
+    - Users may create affiliations with any team.
       - Secondary affiliations default to level 0 (Unconfirmed) and can only be deleted if never raised to a higher level.
-        - This allows a reconstruction of the history of data access according to timestamps for each level change.
+        - This allows a reconstruction of the history of data access according to timestamps for affiliation level change.
     - The level of each affiliation to a given team can be changed by any user with an Admin level affiliation to this team.
-  - All records are associated with the submitting user and their primary team.
+  - All records are associated with the submitting user and their current "write" team.
   - Each user can retrieve records from teams with which they hold a User (or greater) level affiliation. 
-    
-  - Notes:
-    - The primary team cannot change.
-      - In this model the user is defined as an agent of the team. 
-        As such, if a person changes teams, they are no longer the same user. 
-        In such cases a new user must be registered which will result in multiple "User" accounts 
-        sharing details like email address, fullname etc.
-    - Users have an additional property "global_admin", set to true for the first registrant automatically.
-      - If set to true:
-        - This user can change the level of any affiliation.
-        - This user can set any users "Global Admin" property.
-      - There must always be at least one User with "global_admin" = True
+- Users have an additional property "global_admin", set to true for the first registrant automatically.
+  - If set to true:
+    - This user can change the level of any affiliation.
+    - This user can set any users "Global Admin" property.
+  - There must always be at least one User with "global_admin" = True
+
+## Setup neo4j
+get the key, add the source and apt install
+
+    wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/neo4j.gpg
+    deb [signed-by=/usr/share/keyrings/neo4j.gpg] https://debian.neo4j.com stable latest
+    sudo apt install neo4j=1:5.1.0
+
+set initial password for neo4j user (only works if run before starting for the first time)
+
+    neo4j-admin dbms set-initial-password <password-here> 
+
+enable systemd to start the neo4j service
+
+    sudo systemctl enable neo4j    
+    sudo systemctl start neo4j
+
+## Set up redis
+    sudo apt install redis-server
+
+change /etc/redis/redis.conf "supervised no" to "supervised systemd" to allow systemd to manage startup
+restart to load config
+
+    sudo systemctl restart redis.service
+
+

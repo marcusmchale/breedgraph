@@ -5,6 +5,7 @@ from typing import Optional
 class AddAccount(Command):
     team_name: str
     team_fullname: Optional[str]
+    team_parent_id: Optional[int]
     username: str
     fullname: str
     password_hash: str
@@ -19,15 +20,12 @@ class AddEmail(Command):
     user_id: int
     email: str
 
-
 class RemoveEmail(Command):
     user_id: int
     email: str
 
-
 class ConfirmUser(Command):
     token: str
-
 
 class SetAffiliation(Command):
     user_id: int

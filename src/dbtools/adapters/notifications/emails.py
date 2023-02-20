@@ -1,5 +1,5 @@
 from src.dbtools.config import SITE_NAME
-from src.dbtools.domain.model.accounts import UserBase, Team
+from src.dbtools.domain.model.accounts import UserBase, TeamBase
 from src.dbtools.config import HOST_ADDRESS
 from email.message import EmailMessage
 
@@ -39,7 +39,7 @@ class UserConfirmMessage(Email):
 
 class AffiliationConfirmedMessage(Email):
 
-    def __init__(self, user: UserBase, team: Team):
+    def __init__(self, user: UserBase, team: TeamBase):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} affiliation confirmed'
         self.message.set_content(
@@ -51,7 +51,7 @@ class AffiliationConfirmedMessage(Email):
 
 class AdminGrantedMessage(Email):
 
-    def __init__(self, user: UserBase, team: Team):
+    def __init__(self, user: UserBase, team: TeamBase):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} admin granted'
         self.message.set_content(

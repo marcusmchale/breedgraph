@@ -4,7 +4,7 @@ from src.dbtools.domain import commands
 from . import accounts, setup
 
 COMMAND_HANDLERS = {
-    commands.setup.EnsureGlobalAdmin: setup.ensure_global_admin,
+    # commands.setup.EnsureGlobalAdmin: setup.ensure_global_admin,
     commands.setup.LoadReadModel: setup.load_read_model,
     commands.accounts.AddAccount: accounts.add_account,
     commands.accounts.AddEmail: accounts.add_email,
