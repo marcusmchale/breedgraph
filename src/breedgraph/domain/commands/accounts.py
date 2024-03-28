@@ -1,0 +1,61 @@
+from .base import Command
+from typing import Optional, Set
+
+class AddUser(Command):
+    name: str
+    fullname: str
+    email: str
+    password_hash: str
+
+class VerifyEmail(Command):
+    token: str
+
+class Login(Command):
+    user_id: int
+
+class AddTeam(Command):
+    user_id: int
+    name: str
+    fullname: Optional[str]
+    parent_id: Optional[int]
+
+class AddEmail(Command):
+    user_id: int
+    email: str
+
+class RemoveEmail(Command):
+    user_id: int
+    email: str
+
+class RequestAffiliation(Command):
+    user_id: int
+    team_id: int
+
+class RequestRead(RequestAffiliation):
+    pass
+
+class RequestWrite(RequestAffiliation):
+    pass
+
+class RequestAdmin(RequestAffiliation):
+    pass
+
+class SetAffiliation(Command):
+    auth_user_id: int
+    target_user_id: int
+    team_id: int
+    inherit: bool  # apply the same affiliation to all children
+
+class AddRead(SetAffiliation):
+    pass
+class RemoveRead(SetAffiliation):
+    pass
+class AddWrite(SetAffiliation):
+    pass
+class RemoveWrite(SetAffiliation):
+    pass
+
+class AddAdmin(SetAffiliation):
+    pass
+class RemoveAdmin(SetAffiliation):
+    pass

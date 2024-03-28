@@ -5,10 +5,12 @@ A package to manage data aggregation in breeding projects.
     - Field, Block, Tree, Sample in a useful pseudo-hierarchy 
   - Experimental data
     - Molecular/Qualitative/Phenotypic
+    - Microbiome
     - Environmental conditions
     - Locations
   - Genetic data
     - SNP
+    - Pedigree
   - Traceability
 
 Handles GraphQL requests and commits to a Neo4j database.
@@ -35,7 +37,7 @@ Development notes:
       This might be worth it if we wanted to go multi-threaded.
 - GraphQL
     - The [neo4j database has a lot of potential for use with GraphQL](https://pypi.org/project/neo4j-graphql-py/).
-      This should be useful in the future, but it isn't very mature. 
+      This would be useful, but it isn't very mature. 
       The standard python driver for the bolt protocol has been used here.
 - FastAPI
   - Not used much, mostly GraphQL endpoints, but still central to the functionality.

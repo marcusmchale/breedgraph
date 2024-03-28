@@ -1,0 +1,1 @@
+from src.breedgraph.entrypoints.fastapi import app

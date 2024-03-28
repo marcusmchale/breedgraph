@@ -1,0 +1,150 @@
+from fastapi import FastAPI, Request
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from ariadne.asgi import GraphQL
+from ariadne import (
+    EnumType,
+    make_executable_schema,
+    load_schema_from_path,
+    snake_case_fallback_resolvers
+)
+from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_query, graphql_mutation
+from src.breedgraph import bootstrap
+from src.breedgraph.domain.commands.accounts import VerifyEmail
+#from src.dbtools.domain.commands.setup import LoadReadModel
+#from src.dbtools.service_layer.messagebus import MessageBus
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+
+from src.breedgraph.custom_exceptions import (
+    UnauthorisedOperationError
+)
+
+from src.breedgraph.config import (
+    PROTOCOL,
+    HOST_ADDRESS,
+    HOST_PORT,
+    VUE_PORT,
+    GQL_API_PATH,
+    SECRET_KEY,
+    LOGIN_SALT,
+    TOKEN_EXPIRES_MINUTES
+)
+
+from typing import Optional
+from src.breedgraph.domain.model.accounts import AccountStored
+
+# logging
+import logging
+logger = logging.getLogger(__name__)
+
+logger.debug("Start FastAPI app")
+app = FastAPI()
+
+logger.debug("Load auth scheme")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# CORS
+origins = [
+    f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+bus = None
+
+logger.debug('Prepare startup')
+
+@app.on_event("startup")
+async def startup_event():
+    logger.debug("Application startup")
+    logger.debug("Build the messaging bus")
+    global bus
+    bus = await bootstrap.bootstrap()
+
+    async def get_account_for_request(request: Request) -> Optional[AccountStored]:
+        token = request.headers.get('token')
+        if token is not None:
+            # todo verify token then return the user_id
+            async with bus.uow as uow:
+                # consider storing in cookie and
+                # just check if cookie is expired
+                # refreshing user if needed
+                ts = URLSafeTimedSerializer(SECRET_KEY)
+
+                try:
+                    user_id = ts.loads(token, salt=LOGIN_SALT, max_age=TOKEN_EXPIRES_MINUTES * 60)
+                except SignatureExpired as e:
+                    logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
+                    #return RedirectResponse(
+                    #    url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
+                    raise UnauthorisedOperationError("The login token has expired")
+
+                if user_id is not None:
+                    return await uow.accounts.get(user_id)
+
+
+    async def get_context_value(request: Request, _):
+        return {
+            "request": request,
+            "bus": bus,
+            "account": await get_account_for_request(request)
+        }
+
+    # create the schema instance for use in the graphql route
+    #  map enums for gql
+    #access_level = EnumType("AccessLevel", AccessLevel)
+
+    logger.debug("Build graphql schema and bind")
+    graphql_schema = make_executable_schema(
+        load_schema_from_path("src/breedgraph/entrypoints/fastapi/graphql"),
+        graphql_query,
+        graphql_mutation,
+        snake_case_fallback_resolvers
+        #access_level
+    )
+
+    logger.debug("Mount graphql onto app with context values")
+    app.mount(
+        f"/{GQL_API_PATH}",
+        GraphQL(
+            graphql_schema,
+            debug=True,
+            logger="ariadne",
+            context_value=get_context_value
+        )
+    )
+    logger.debug("Prepare graphql schema")
+
+    ##logger.debug("Load read model ")
+    ##await bus.handle(LoadReadModel())
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Start shutting down")
+    if bus is not None:
+        if hasattr(bus.uow, "driver"):
+            logger.info("Closing Neo4j driver")
+            bus.uow.driver.close()
+        #logger.info("Closing Redis connection pool")
+        #await bus.read_model.connection.close()
+    logger.info("Finished shutting down")
+
+
+
+@app.get('/')
+def read_root():
+    logger.debug("Hit")
+    return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
+
+
+@app.get('/verify')
+async def verify_email(token):
+    await bus.handle(VerifyEmail(token=token))
+    return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/{GQL_API_PATH}")

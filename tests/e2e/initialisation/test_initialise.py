@@ -2,13 +2,13 @@ import httpx
 import pytest
 import os
 
-from src.dbtools.config import get_gql_url
-from src.dbtools.entrypoints.fastapi.graphql.decorators import GQLStatus
+from src.breedgraph.config import get_gql_url
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 from tests.e2e.payload_helpers import get_verified_payload
 
 os.environ["DATABASE_NAME"] = "testing"
 
-from src.dbtools.entrypoints.fastapi.main import app
+from src.breedgraph.entrypoints.fastapi.__init__ import app
 
 
 async def post_to_initialise():

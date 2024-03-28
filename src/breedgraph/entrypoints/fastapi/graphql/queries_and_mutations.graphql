@@ -1,0 +1,27 @@
+type Query {
+    get_teams: TeamsPayload!
+    allowed_email(email: String): BooleanPayload
+    get_account(name: String!): AccountsPayload
+}
+
+type Mutation {
+    add_user(
+        name: String!
+        fullname: String!
+        email: String!
+        password: String!
+    ): AccountsPayload!
+    verify_email(token: String!): BooleanPayload!
+    login(
+        username: String!
+        password: String!
+    ): LoginPayload!
+    add_team(
+        name: String!
+        fullname: String
+        parent_id: Int
+    ): TeamsPayload!
+    add_email(
+        email: String!
+    ): BooleanPayload!
+}

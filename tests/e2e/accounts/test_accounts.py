@@ -1,11 +1,11 @@
 import httpx
 import pytest
 
-from src.dbtools.entrypoints.fastapi.main import app
-from src.dbtools.config import get_gql_url
-from src.dbtools.domain.model.accounts import TeamBase
+from src.breedgraph.entrypoints.fastapi.__init__ import app
+from src.breedgraph.config import get_gql_url
+from src.breedgraph.domain.model.accounts import TeamBase
 
-from src.dbtools.entrypoints.fastapi.graphql.decorators import GQLStatus
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 from tests.e2e.payload_helpers import get_verified_payload
 
