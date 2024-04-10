@@ -1,7 +1,8 @@
 MERGE (counter:Counter {name: 'team'})
   ON CREATE SET counter.count = 0
-SET counter.count = counter.count + 1
+WITH counter
 MATCH (parent: Team {id: $parent_id})
+SET counter.count = counter.count + 1
 CREATE (team: Team {
   id: counter.count,
   name: $name,

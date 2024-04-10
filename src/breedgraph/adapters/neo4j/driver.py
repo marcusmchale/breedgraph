@@ -20,11 +20,10 @@ def get_driver() -> AsyncDriver:
         DriverHolder.driver = AsyncGraphDatabase.driver(
             get_bolt_url(),
             auth=get_graphdb_auth(),
-            #database=DATABASE_NAME,
+            database=DATABASE_NAME,
             connection_timeout=5,
             connection_acquisition_timeout=5,
             max_transaction_retry_time=5
         )
     return DriverHolder.driver
 
-# todo currently not closing the driver, consider implementing a shutdown script and handling this there

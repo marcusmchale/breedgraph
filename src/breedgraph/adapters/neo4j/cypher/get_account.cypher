@@ -1,28 +1,42 @@
 MATCH
   (user:User {id: ($user_id)})
+
 OPTIONAL MATCH
-  (user)-[: READS_FROM]->(reads_from:Team)
+  (user)-[affiliation:READ|WRITE|ADMIN]->(team:Team)
 OPTIONAL MATCH
-  (reads_from)-[:CONTRIBUTES_TO]->(reads_from_parent:Team)
+  (team)<-[:CONTRIBUTES_TO*]-(inherited_team:Team)
+  WHERE affiliation.heritable AND affiliation.authorisation = 'AUTHORISED'
+  AND NOT (user)-[:READ|WRITE|ADMIN]->(inherited_team)
 OPTIONAL MATCH
-  (user)-[: WRITES_FOR]->(writes_for:Team)
-OPTIONAL MATCH
-  (writes_for)-[:CONTRIBUTES_TO]->(writes_for_parent:Team)
-OPTIONAL MATCH
-  (user)-[: ADMINS_FOR]->(admins_for:Team)
-OPTIONAL MATCH
-  (admins_for)-[:CONTRIBUTES_TO]->(admins_for_parent:Team)
-OPTIONAL MATCH
-  (user)-[: ALLOWED_REGISTRATION]->(email:Email)
+  (orphan:Team)
+  WHERE NOT (orphan)-[:CONTRIBUTES_TO]->(:Team)
+  AND NOT (user)-[:READ|WRITE|ADMIN]->(orphan)
+
 WITH
-  user,
-  collect({team: reads_from, parent:reads_from_parent}) AS reads_from,
-  collect({team: writes_for, parent:writes_for_parent}) AS writes_for,
-  collect({team: admins_for, parent:admins_for_parent}) AS admins_for,
-  collect(email) AS allowed_emails
+  user {.*} as user,
+  [(user)-[: ALLOWED_REGISTRATION]->(email:Email)|email.address] AS allowed_emails,
+  collect(
+    {
+      team: team {.*, parent_id:[(team) - [:CONTRIBUTES_TO] - (parent:Team) | parent.id][0]},
+      authorisation: affiliation.authorisation,
+      access: type(affiliation)
+    }
+  )  +
+  collect(distinct
+    {
+      team: inherited_team {.*, parent_id:[(team) - [:CONTRIBUTES_TO] - (parent:Team) | parent.id][0]},
+      authorisation: affiliation.authorisation,
+      access: type(affiliation)
+    }
+  )  +
+    collect(distinct
+    {
+      team: orphan {.*},
+      authorisation: NULL,
+      access: NULL
+    }
+  )
+  AS affiliations
+
 RETURN
-  user,
-  reads_from,
-  writes_for,
-  admins_for,
-  allowed_emails
+  user, allowed_emails, [a IN affiliations WHERE a.team IS NOT NULL] as affiliations

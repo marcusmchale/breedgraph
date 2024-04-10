@@ -15,10 +15,13 @@ from src.breedgraph.domain.commands.accounts import VerifyEmail
 #from src.dbtools.domain.commands.setup import LoadReadModel
 #from src.dbtools.service_layer.messagebus import MessageBus
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+from starlette.responses import HTMLResponse
 
 from src.breedgraph.custom_exceptions import (
     UnauthorisedOperationError
 )
+
+from contextlib import asynccontextmanager
 
 from src.breedgraph.config import (
     PROTOCOL,
@@ -38,8 +41,81 @@ from src.breedgraph.domain.model.accounts import AccountStored
 import logging
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(fast_api_app: FastAPI):
+    logger.debug("Application startup")
+    logger.debug("Build the messaging bus")
+    global bus
+    bus = await bootstrap.bootstrap()
+
+    async def get_account_for_request(request: Request) -> Optional[AccountStored]:
+        token = request.headers.get('token')
+        if token is not None:
+            async with bus.uow as uow:
+                # consider storing in cookie and
+                # just check if cookie is expired
+                # refreshing user if needed
+                ts = URLSafeTimedSerializer(SECRET_KEY)
+
+                try:
+                    user_id = ts.loads(token, salt=LOGIN_SALT, max_age=TOKEN_EXPIRES_MINUTES * 60)
+                except SignatureExpired as e:
+                    logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
+                    # return RedirectResponse(
+                    #    url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
+                    raise UnauthorisedOperationError("The login token has expired")
+
+                if user_id is not None:
+                    return await uow.accounts.get(user_id)
+
+    async def get_context_value(request: Request, _):
+        return {
+            "request": request,
+            "bus": bus,
+            "account": await get_account_for_request(request)
+        }
+
+    # create the schema instance for use in the graphql route
+    #  map enums for gql
+    # access_level = EnumType("AccessLevel", AccessLevel)
+
+    logger.debug("Build graphql schema and bind")
+    graphql_schema = make_executable_schema(
+        load_schema_from_path("src/breedgraph/entrypoints/fastapi/graphql"),
+        graphql_query,
+        graphql_mutation,
+        snake_case_fallback_resolvers
+        # access_level
+    )
+
+    logger.debug("Mount graphql onto app with context values")
+    fast_api_app.mount(
+        f"/{GQL_API_PATH}",
+        GraphQL(
+            graphql_schema,
+            debug=True,
+            logger="ariadne",
+            context_value=get_context_value
+        )
+    )
+    logger.debug("Prepare graphql schema")
+
+    ##logger.debug("Load read model ")
+    ##await bus.handle(LoadReadModel())
+    yield
+
+    logger.info("Start shutting down")
+    if bus is not None:
+        #if hasattr(bus.uow, "driver"):
+        #    logger.info("Closing Neo4j driver")
+        #    await bus.uow.driver.close()
+        logger.info("Closing Redis connection pool")
+        await bus.read_model.connection.aclose()
+    logger.info("Finished shutting down")
+
+
 logger.debug("Start FastAPI app")
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 logger.debug("Load auth scheme")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -60,89 +136,11 @@ bus = None
 
 logger.debug('Prepare startup')
 
-@app.on_event("startup")
-async def startup_event():
-    logger.debug("Application startup")
-    logger.debug("Build the messaging bus")
-    global bus
-    bus = await bootstrap.bootstrap()
-
-    async def get_account_for_request(request: Request) -> Optional[AccountStored]:
-        token = request.headers.get('token')
-        if token is not None:
-            # todo verify token then return the user_id
-            async with bus.uow as uow:
-                # consider storing in cookie and
-                # just check if cookie is expired
-                # refreshing user if needed
-                ts = URLSafeTimedSerializer(SECRET_KEY)
-
-                try:
-                    user_id = ts.loads(token, salt=LOGIN_SALT, max_age=TOKEN_EXPIRES_MINUTES * 60)
-                except SignatureExpired as e:
-                    logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
-                    #return RedirectResponse(
-                    #    url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
-                    raise UnauthorisedOperationError("The login token has expired")
-
-                if user_id is not None:
-                    return await uow.accounts.get(user_id)
-
-
-    async def get_context_value(request: Request, _):
-        return {
-            "request": request,
-            "bus": bus,
-            "account": await get_account_for_request(request)
-        }
-
-    # create the schema instance for use in the graphql route
-    #  map enums for gql
-    #access_level = EnumType("AccessLevel", AccessLevel)
-
-    logger.debug("Build graphql schema and bind")
-    graphql_schema = make_executable_schema(
-        load_schema_from_path("src/breedgraph/entrypoints/fastapi/graphql"),
-        graphql_query,
-        graphql_mutation,
-        snake_case_fallback_resolvers
-        #access_level
-    )
-
-    logger.debug("Mount graphql onto app with context values")
-    app.mount(
-        f"/{GQL_API_PATH}",
-        GraphQL(
-            graphql_schema,
-            debug=True,
-            logger="ariadne",
-            context_value=get_context_value
-        )
-    )
-    logger.debug("Prepare graphql schema")
-
-    ##logger.debug("Load read model ")
-    ##await bus.handle(LoadReadModel())
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Start shutting down")
-    if bus is not None:
-        if hasattr(bus.uow, "driver"):
-            logger.info("Closing Neo4j driver")
-            bus.uow.driver.close()
-        #logger.info("Closing Redis connection pool")
-        #await bus.read_model.connection.close()
-    logger.info("Finished shutting down")
-
-
 
 @app.get('/')
 def read_root():
     logger.debug("Hit")
     return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
-
 
 @app.get('/verify')
 async def verify_email(token):

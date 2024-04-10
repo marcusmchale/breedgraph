@@ -1,14 +1,14 @@
 from itsdangerous import URLSafeTimedSerializer
 from src.breedgraph import config
 
-from src.breedgraph.views.accounts import teams
+#from src.breedgraph.views.accounts import teams
 from src.breedgraph.domain import events
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError
 )
 
 from src.breedgraph.adapters.notifications import emails
-from src.breedgraph.domain.model.accounts import Email
+from src.breedgraph.domain.model.accounts import Access
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -49,17 +49,11 @@ async def send_user_verify_url(
             message
         )
 
-async def transfer_allowed_to_user(
+async def email_verified(
         event: events.accounts.EmailVerified,
         uow: "AbstractUnitOfWork"
 ):
-    async with uow:
-        account = await uow.accounts.get(event.user_id)
-        email = Email(address=account.user.email)
-        async for admin in uow.accounts.get_all(admins_only=True):
-            if email in admin.allowed_emails:
-                admin.allowed_emails.remove(email)
-        await uow.commit()
+    pass
 
 #
 #async def add_email_to_read_model(

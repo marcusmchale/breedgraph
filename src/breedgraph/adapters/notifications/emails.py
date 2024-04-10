@@ -35,7 +35,7 @@ class VerifyEmailMessage(Email):
             verify_url = f'{PROTOCOL}://{HOST_ADDRESS}/verify'
         self.message.set_content(
             f'Hi {user.fullname}. '
-            f'Please visit the following link to verify your email address:'
+            f'Please visit the following link to verify your email address: '
             f'{verify_url + "?token=" + token}'
         )
 

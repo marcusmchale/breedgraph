@@ -1,7 +1,15 @@
 from .base import Command
 from typing import Optional, Set
 
-class AddUser(Command):
+class AddFirstAccount(Command):
+    name: str
+    fullname: Optional[str]
+    email: str
+    password_hash: str
+    team_name: str
+    team_fullname: Optional[str]
+
+class AddAccount(Command):
     name: str
     fullname: str
     email: str

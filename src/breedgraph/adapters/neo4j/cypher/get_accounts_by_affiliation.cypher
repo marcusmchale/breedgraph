@@ -1,5 +1,9 @@
 MATCH
-  (user:User {email_lower: ($email_lower)})
+  (user:User)-[affiliation]->(:Team)
+
+WHERE
+  type(affiliation) IN $access_types AND
+  affiliation.authorisation in $authorisations
 
 OPTIONAL MATCH
   (user)-[affiliation:READ|WRITE|ADMIN]->(team:Team)

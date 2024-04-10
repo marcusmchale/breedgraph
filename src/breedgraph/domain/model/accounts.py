@@ -1,100 +1,34 @@
 import logging
 
-from enum import Enum
+from enum import Enum, IntEnum
 from abc import abstractmethod
 from src.breedgraph.domain.events.accounts import Event
-from pydantic import BaseModel, model_validator, field_validator, computed_field, model_validator
-from collections import defaultdict, Mapping
+from pydantic import BaseModel, model_validator, field_validator, computed_field, model_validator, ValidationError, Field
 
-# typing only
-from typing import Union, Optional, List, Dict, DefaultDict, Set, Tuple
+from typing import Union, Optional, Dict, DefaultDict, Set, Tuple, TypedDict, List
 
 logger = logging.getLogger(__name__)
 
-class Name(BaseModel):
-    display: str
-    full: Optional[str] = None
-    @computed_field
-    @property
-    def lower(self) -> str:
-        return self.display.casefold()
-
-    @model_validator(mode='after')
-    def autofill_full(self) -> 'Name':
-        if self.full is None:
-            self.full = self.display
-        return self
-
-    def __hash__(self) -> int:
-        return hash(self.lower)
-
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.lower == other.lower
-        elif isinstance(other, str):
-            return self.lower == other.casefold()
-        raise ValueError("Name can only be tested for equivalence to Name or str")
-
-class Email(BaseModel):
-    address: str
-    verified: bool
-
-    @property
-    def lower(self):
-        return self.address.casefold()  # not a true guarantee but should catch some redundancy
-
-    def __hash__(self):
-        return hash(self.lower)
-
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.lower == other.lower
-        elif isinstance(other, str):
-            return self.lower == other.casefold()
-        raise ValueError("Email can only be tested for equivalence to Email or str")
-
 class UserBase(BaseModel):
-    name: Name
-    email: Email
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.name == other.name
-        raise ValueError("Can't compare User to other types")
+    name: str
+    fullname: str
+    email: str
+    email_verified: bool = False
 
 class UserInput(UserBase):
     password_hash: str
 
-
 class UserOutput(UserBase):
     id: int
 
-    def __hash__(self) -> int:
-        return hash(self.id)
-
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.id == other.id
-        UserBase.__eq__(self, other)
-
-class UserStored(UserOutput):
+class UserStored(UserBase):
+    id: int
     password_hash: str
 
 class TeamBase(BaseModel):
-    name: Name
+    name: str
+    fullname: str
     parent_id: Optional[int] = None
-
-    def __hash__(self) -> int:
-        return hash((self.name, self.parent_id))
-
-    def __eq__(self, other):
-        if type(other) == type(self) and other.parent_id == self.parent_id:
-            return self.name == other.name
-        else:
-            return False
 
 class TeamInput(TeamBase):
     pass
@@ -102,139 +36,63 @@ class TeamInput(TeamBase):
 class TeamOutput(TeamBase):
     id: int
 
-    def __hash__(self) -> int:
-        return hash((self.id, self.parent_id))
+class TeamStored(TeamBase):
+    id: int
 
-    def __eq__(self, other):
-        if isinstance(other, type(self)) and other.parent_id == self.parent_id:
-            return self.id == other.id
-        elif isinstance(other, TeamBase):
-            return TeamBase.__eq__(other, self)
-        elif isinstance(other, int):
-            return self.id == other
-        else:
-            return False
-
-class TeamStored(TeamOutput):
-    pass
-
-
-
-#class TeamTree(TeamStored):
-#    children: List['TeamTree']
-#
-#class Organisation(BaseModel):  # tree structure
-#    tree: TeamTree
-#
-#    @property
-#    def name(self) -> str:  #not sure if this will work with pydantic... maybe
-#        return self.tree.name
-#
-#    @property
-#    def fullname(self) -> str:
-#        return self.tree.fullname
-#
-#    @property
-#    def id(self) -> int:
-#        return self.tree.id
-#
-#    @property
-#    def teams(self):
-#        return self.teams_dict
-#
-#    @property
-#    def teams_list(self) -> List[TeamStored]:
-#        teams = list()
-#        def add_to_list(tree: TeamTree):
-#            teams.append(TeamStored(**tree.dict()))
-#            for child in tree.children:
-#                add_to_list(child)
-#
-#        add_to_list(self.tree)
-#        return teams
-#
-#    @property
-#    def teams_dict(self) -> Dict[TeamStored, TeamStored]:
-#        teams = dict()
-#        def add_children(parent_dict: Dict, tree: TeamTree):
-#            key = TeamStored(**tree.dict())
-#            parent_dict[key] = dict()
-#            for child in tree.children:
-#                add_children(parent_dict[key], child)
-#
-#        add_children(teams, self.tree)
-#        return teams
-#
-
-class AffiliationType(Enum):
+class Access(Enum):
+    NONE = 0
     READ = 1
     WRITE = 2
     ADMIN = 3
 
 class Authorisation(Enum):
-    REQUESTED = 1
-    AUTHORISED = 2
-    RETIRED = 3
-    DENIED = 4
+    NONE = 0
+    REQUESTED = 1  # the user has requested an affiliation, can be removed by user or admin, authorised or denied by admin.
+    AUTHORISED = 2  # user has requested then been authorised by an admin or IS and admin of this team or its parent, may not be removed, only retired.
+    RETIRED = 3  # requested, authorised then later retired, can re-authorise, may not be removed, only denied
+    DENIED = 4  # future requests denied, can't authorise,
+    # this is included to support request denial but may not be needed.
+    # consider only applying denied in strong cases, otherwise just leave the request active.
 
 class Affiliation(BaseModel):
-    type: AffiliationType
+    # Affiliation rules:
+    #  - Users request affiliation with a team
+    #  - Admins can authorise that affiliation OR the same with one of its children.
+    #  - Multiple relationships are allowed, including writing for multiple teams
+    access: Access = Field(frozen=True)
+    team: TeamBase
     authorisation: Authorisation
-    team: [int|TeamInput|TeamStored]
+    heritable: bool = False  # if heritable provide the same read/admin to all children, recursively.
 
-class AffiliationsHolder:
-    def __init__(self, affiliations: Optional[List[Affiliation]] = None):
-        if affiliations is None:
-            affiliations = list()
-        self.affiliations = affiliations
-
-    def get(
-            self,
-            affiliation_types: Optional[List[AffiliationType]] = None,
-            authorisations: Optional[List[Authorisation]] = None,
-            teams: Optional[List[int|TeamInput|TeamStored]] = None
-    ):
-        return [a for a in self.affiliations if self.is_matched(a, affiliation_types, authorisations, teams)]
-
-    @staticmethod
     def is_matched(
-            affiliation: Affiliation,
-            affiliation_types: Optional[List[AffiliationType]],
+            self,
+            access_types: Optional[List[Access]],
             authorisations: Optional[List[Authorisation]],
-            teams: Optional[List[int|TeamInput|TeamStored]]
+            teams: Optional[List[str|int|TeamBase]]
     ):
         return all([
-            affiliation_types is None or affiliation.type in affiliation_types,
-            authorisations is None or affiliation.authorisation in authorisations,
-            teams is None or affiliation.team in teams
+            access_types is None or self.access in access_types,
+            authorisations is None or self.authorisation in authorisations,
+            teams is None or self.team in teams
         ])
 
 class AccountBase(BaseModel):
     user: UserBase
 
-    def __eq__(self, other):
-        if isinstance(other, AccountBase):
-            return self.user == other.user
-        return False
-
-    def __hash__(self):
-        return hash(self.user)
-
 class AccountInput(AccountBase):
     user: UserInput
 
-class AccountOutput(AccountBase):
-    user: UserOutput
-    affiliations: AffiliationsHolder = AffiliationsHolder()
-    allowed_emails: List[Email] = list()
+#class AccountOutput(AccountBase):
+#    user: UserOutput
+#    affiliations: List[Affiliation] = list()
+#    allowed_emails: List[str] = list()
 
-    @model_validator(mode='after')
-    def allow_emails_for_admins_only(self) -> 'AccountOutput':
-        if self.allowed_emails and not self.affiliations[AffiliationType.ADMIN]:
-            raise ValueError('only admins can have allowed emails')
-        return self
-
-class AccountStored(AccountOutput):
+class AccountStored(AccountBase):
     user: UserStored
-    events: list[Event] = []
+    affiliations: List[Affiliation] = list()
+    allowed_emails: List[str] = list()
+    events: List[Event] = list()
+
+    def __hash__(self):
+        return hash(self.user.id)
 

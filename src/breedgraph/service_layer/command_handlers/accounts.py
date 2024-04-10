@@ -5,10 +5,10 @@ from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands, events
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
+    Affiliation, Authorisation, Access,
     AccountInput, AccountStored,
-    TeamInput, Email, AffiliationType
+    TeamInput, TeamStored
 )
-from src.breedgraph import views
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
@@ -21,60 +21,78 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-async def add_user(
-        cmd: commands.accounts.AddUser,
+async def add_first_account(
+        cmd: commands.accounts.AddFirstAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
-        # First user gets to create account without needing to be verified
+        async for _ in uow.accounts.get_all():
+            raise IdentityExistsError("This operation is only permitted when no accounts have been registered")
+
+        user = UserInput(
+            name=cmd.name,
+            fullname=cmd.fullname if cmd.fullname else cmd.name,
+            email=cmd.email,
+            password_hash=cmd.password_hash
+        )
+        account: AccountInput = AccountInput(user=user)
+        account: AccountStored = await uow.accounts.create(account)
+        account.affiliations.append(
+            Affiliation(
+                access = Access.ADMIN,
+                authorisation = Authorisation.AUTHORISED,
+                team = TeamInput(
+                    name=cmd.team_name,
+                    fullname=cmd.team_fullname if cmd.team_fullname else cmd.team_name
+                )
+            )
+        )
+        account.events.append(events.accounts.AccountAdded(user_id=account.user.id))
+        await uow.commit()
+
+async def add_account(
+        cmd: commands.accounts.AddAccount,
+        uow: unit_of_work.AbstractUnitOfWork
+):
+    async with uow:
+
         # Registration email must be included in the allowed emails of some other account
-        first_user = True
-        email_allowed = False
-        email = Email(address=cmd.email)
-
-        async for account in uow.accounts.get_all():
-            first_user = False
-            if email in account.allowed_emails:
-                email_allowed = True
+        async for account in uow.accounts.get_all(
+                access_types=[Access.ADMIN],
+                authorisations=[Authorisation.AUTHORISED]
+        ):
+            account: AccountStored
+            if cmd.email.casefold() in [i.casefold() for i in account.allowed_emails]:
                 break
-
-        if first_user:
-            logger.warning("First user registration")
-
-        if not(email_allowed or first_user):
+        else:
             raise UnauthorisedOperationError("Email is not allowed")
 
-        # Check for prior registration
-        account_existing_email = await uow.accounts.get_by_email(cmd.email)
-        # And whether the username is already taken
-        account_existing_username = await uow.accounts.get_by_name(cmd.name)
+        # Check for accounts with same email but not verified
+        existing_email: AccountStored = await uow.accounts.get_by_email(cmd.email)
 
-        if account_existing_email:
-            try:
-                logger.info("Removing account without verified email")
-                await uow.accounts.remove(account_existing_email)
-            except ProtectedNodeError:
-                logger.warning("Existing account with this verified email address")
-                raise ProtectedNodeError(f"Verified account cannot be removed")
+        if existing_email is not None:
+            if not existing_email.user.email_verified:
+                await uow.accounts.remove(existing_email)
+            else:
+                raise UnauthorisedOperationError("This email address is already registered and verified")
 
-        if account_existing_username and not account_existing_username == account_existing_email:
-            logger.warning("Existing account with this username")
+        # Check for accounts And whether the name is already taken
+        existing_name: AccountStored = await uow.accounts.get_by_name(cmd.name)
+        if existing_name is not None:
             raise IdentityExistsError(f"Username already taken")
 
         user = UserInput(
             name=cmd.name,
-            fullname=cmd.fullname,
+            fullname=cmd.fullname if cmd.fullname else cmd.name,
             email=cmd.email,
             password_hash=cmd.password_hash
         )
-        account = AccountInput(
-            user=user
-        )
-        account = await uow.accounts.create(account)
+
+        account: AccountInput = AccountInput(user=user)
+        account: AccountStored = await uow.accounts.create(account)
+
         account.events.append(events.accounts.AccountAdded(user_id=account.user.id))
         await uow.commit()
-
 
 async def verify_email(
         cmd: commands.accounts.VerifyEmail,
@@ -92,7 +110,17 @@ async def verify_email(
         account = await uow.accounts.get(user_id)
         if account is None:
             raise NoResultFoundError
+
         account.user.email_verified = True
+
+        # now remove allowed emails - todo, the repository is inefficient for this, consider other implementations
+        # maybe a get_by_allowed_emails helper in repository?
+        # or handle as an event after the fact.
+        async for admin in uow.accounts.get_all(access_types=[Access.ADMIN]):
+            for e in admin.allowed_emails:
+                if e.casefold() == account.user.email.casefold():
+                    admin.allowed_emails.remove(e)
+
         account.events.append(events.accounts.EmailVerified(user_id=account.user.id))
         await uow.commit()
 
@@ -104,46 +132,19 @@ async def login(
     pass
     # raise NotImplementedError
 
-
-async def add_team(
-        cmd: commands.accounts.AddTeam,
-        uow: unit_of_work.AbstractUnitOfWork
-):
-    async with uow:
-        first_team = True
-        async for account in uow.accounts.get_all():
-            if account.reads_from or account.writes_for or account.admins_for:
-                first_team = False
-                break
-
-        account = await uow.accounts.get(cmd.user_id)
-        # Team creation rules:
-        #  - Admins only can add teams but the first team can always be created
-        if not first_team and not account.admins_for:
-            raise UnauthorisedOperationError("Only admins can create teams")
-        #  - Admins can create orphan teams, but can only create children to teams for which they are admin
-        if cmd.parent_id is not None and cmd.parent_id not in account.admins_for:
-            raise UnauthorisedOperationError("Teams may be created as orphans or as children of teams for which the user is admin")
-
-        team = TeamInput(
-            name = cmd.name,
-            fullname = cmd.fullname if cmd.fullname else cmd.name,
-            parent_id = cmd.parent_id
-        )
-        account.admins_for.append(team)  # If you add a team you become its admin (all teams must have at least one admin)
-        await uow.commit()
-
-
 async def add_email(
         cmd: commands.accounts.AddEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
+        if await uow.accounts.get_by_email(cmd.email):
+            raise IdentityExistsError("This email is already registered to an account")
+
         account = await uow.accounts.get(cmd.user_id)
-        account.allowed_emails.append(Email(address=cmd.email))
+
+        account.allowed_emails.append(cmd.email)
         account.events.append(events.accounts.EmailAdded(email=cmd.email))
         await uow.commit()
-
 
 async def remove_email(
         cmd: commands.accounts.RemoveEmail,
@@ -151,10 +152,55 @@ async def remove_email(
 ):
     async with uow:
         account = await uow.accounts.get(cmd.user_id)
-        account.user.allowed_emails.remove(Email(address=cmd.email))
+        try:
+            account.allowed_emails.remove(cmd.email)
+        except ValueError:
+            raise NoResultFoundError("Email not found among those allowed by this account")
         account.events.append(events.accounts.EmailRemoved(email=cmd.email))
         await uow.commit()
 
+
+async def add_team(
+        cmd: commands.accounts.AddTeam,
+        uow: unit_of_work.AbstractUnitOfWork
+):
+    async with uow:
+        account = await uow.accounts.get(cmd.user_id)
+
+        if cmd.parent_id is None:
+            for a in account.affiliations:
+                if a.access == Access.ADMIN and a.authorisation == Authorisation.AUTHORISED:
+                   break
+            else:
+                raise UnauthorisedOperationError("Only admins can add orphan teams")
+        else:
+            for a in account.affiliations:
+                if not isinstance(a.team, TeamStored):
+                    raise(ValueError("Ensure affiliations are stored before adding new teams"))
+
+                if all([
+                    a.access == Access.ADMIN,
+                    a.authorisation == Authorisation.AUTHORISED,
+                    a.team.id == cmd.parent_id
+                ]):
+                   break
+            else:
+                raise UnauthorisedOperationError("Only admins for the given parent team can add a child team")
+
+        team = TeamInput(
+            name = cmd.name,
+            fullname = cmd.fullname if cmd.fullname else cmd.name,
+            parent_id = cmd.parent_id
+        )
+
+        # Make sure the name/parent combination isn't already found
+        for a in account.affiliations:
+            if a.team.name.casefold() == team.name.casefold() and a.team.parent_id == team.parent_id:
+                raise IdentityExistsError("This team name/parent combination is already found")
+
+        # If you add a team you become its admin (all teams must have at least one admin)
+        account.affiliations.append(Affiliation(access=Access.ADMIN, authorisation=Authorisation.AUTHORISED, team=team))
+        await uow.commit()
 
 async def request_read(
         cmd: commands.accounts.RequestRead,
@@ -162,7 +208,7 @@ async def request_read(
 ):
     async with uow:
         account = await uow.accounts.get(cmd.user_id)
-        admins = uow.accounts.get_by_affiliation([cmd.team_id], [AffiliationType.ADMIN])
+        admins = uow.accounts.get_all(teams=[cmd.team_id], access_types=[Access.ADMIN])
         team = None
         async for account in admins:
             for t in account.admins_for:

@@ -1,54 +1,66 @@
 from abc import ABC, abstractmethod
-from typing import Union, Dict, Set, MutableMapping, overload, Iterable
+from typing import Union, Dict, Set, MutableMapping, overload, Iterable, Callable
 from wrapt import ObjectProxy
 
 from collections.abc import MutableSequence
 
-class Trackable(ObjectProxy):
-    def __copy__(self):
-        return self.__wrapped__.__copy__()
-    def __deepcopy__(self, memo):
-        return self.__wrapped__.__deepcopy__()
-    def __reduce__(self):
-        return self.__wrapped__.__reduce__()
-    def __reduce_ex__(self, protocol):
-        return self.__wrapped__.__reduce_ex__()
-    def __init__(self, wrapped):
-        super(Trackable, self).__init__(wrapped)
+# considered the adapter pattern and descriptor pattern during design of these wrappers
+#   - https://docs.python.org/3/howto/descriptor.html#descriptorhowto
+
+
+class Tracked(ObjectProxy):
+
+    def __init__(self, wrapped, on_changed: Callable  = None):
+        super(Tracked, self).__init__(wrapped)
         self._self_changed = False
+        self._self_on_changed = on_changed
 
-    def reset_tracking(self):
-        self._self_changed = False
-
-    @property
-    def changed(self):
-        return self._self_changed
-
-
-# "changed" means inconsistent with database, i.e. changes are yet to be saved
-class TrackedObject(Trackable):
     def __setattr__(self, key, value):
         if all([
             key != '_self_changed',
             hasattr(self, key) and getattr(self, key) != value
         ]):
             self._self_changed = True
-        super(TrackedObject, self).__setattr__(key, value)
+            if self._self_on_changed:
+                self._self_on_changed()
 
+        super(Tracked, self).__setattr__(key, value)
 
-class TrackedList(MutableSequence, Trackable):
+    @property
+    def changed(self) -> bool:
+        return self._self_changed
 
-    def __init__(self, d: list = None):
+    @changed.setter
+    def changed(self, value: bool):
+        self._self_changed = value
+
+    @property
+    def on_changed(self) -> Callable:
+        return self._self_on_changed
+
+    @on_changed.setter
+    def on_changed(self, callback: Callable):
+        self._self_on_changed = callback
+
+    def reset_tracking(self):
+        self.changed = False
+
+class TrackedList(MutableSequence, Tracked):
+
+    def __init__(self, d: list = None, on_changed = None):
         if d is None:
             d = list()
 
-        super(TrackedList, self).__init__(d)
+        super(TrackedList, self).__init__(d, on_changed)
 
         for i, item in enumerate(d):
-            d[i] = TrackedObject(item)
+            d[i] = Tracked(item, self.on_changed_item)
 
-        self._self_added = set()
-        self._self_removed = set()
+        self._self_added = list()
+        self._self_removed = list()
+
+    def on_changed_item(self):
+        self.changed = True
 
     @property
     def added(self):
@@ -59,111 +71,112 @@ class TrackedList(MutableSequence, Trackable):
         return self._self_removed
 
     def insert(self, index: int, value):
-        tracked_item = TrackedObject(value)
-        self._self_added.add(tracked_item)
+        tracked_item = Tracked(value)
+        self.added.append(tracked_item)
         self.__wrapped__.insert(index, tracked_item)
-        self._self_changed = True
+        self.changed = True
 
     def remove(self, value):
         self.__wrapped__.remove(value)
-        self._self_removed.add(value)
-        self._self_changed = True
-
-    def __getitem__(self, index: int):
-        return self.__wrapped__.__getitem__(index)
+        self.removed.append(value)
+        self.changed = True
 
     def __setitem__(self, index: int, value):
         existing_value = self.__wrapped__.__getitem__(index)
-        new_value = TrackedObject(value)
+        new_value = Tracked(value)
         if existing_value in self._self_added:
-            self._self_added.remove(existing_value)
-            self._self_added.add(new_value)
+            self.added.remove(existing_value)
+            self.added.append(new_value)
         if existing_value in self._self_removed:
-            self._self_removed.remove(existing_value)
-            self._self_removed.add(new_value)
+            self.removed.remove(existing_value)
+            self.removed.append(new_value)
         self.__wrapped__.__setitem__(index, new_value)
-        self._self_changed = True
+        self.changed = True
 
     def __delitem__(self, index: int):
         item = self.__wrapped__.__getitem__[index]
         if item in self.added:
-            raise ValueError("This item was just added, why try to remove it?")
+            raise ValueError("This item was just added so it can't be removed")
 
-        self._self_removed.add(item)
+        self.removed.append(item)
         self.__wrapped__.__delitem__(index)
-        self._self_changed = True
+        self.changed = True
 
     def __len__(self):
         return self.__wrapped__.__len__()
 
+    def __getitem__(self, index: int):
+        return self.__wrapped__.__getitem__(index)
 
-## dirty is a dict of changed key/value for selective update
+    def __iter__(self):
+        return self.__wrapped__.__iter__()
+
+    def reset_tracking(self):
+        for item in self.__wrapped__:
+            item.changed = False
+        self.added.clear()
+        self.removed.clear()
+        self.changed = False
+
+from pydantic import BaseModel
+
+class Test(BaseModel):
+    name: str
+
+
 ## value of None means key was deleted
-## todo if this is used consider refactoring to keep the dirty flag and add a new dict to track changes
-#class TrackedMapping(TrackedObject):
+#class TrackedMapping(MutableMapping, Tracked):
 #
-#    def __init__(self, d: Union[Dict, MutableMapping]):
+#    def __init__(self, d: dict = None):
+#        if d is None:
+#            d = dict()
+#
 #        super(TrackedMapping, self).__init__(d)
-#        self._self_dirty = dict()
 #
-#    def __setitem__(self, key, value) -> None:
-#        self._self_dirty[key] = value
-#        self.__wrapped__.__setitem__(key, value)
+#        for key, value in d.items():
+#            d[key] = Tracked(value)
 #
-#    def __delitem__(self, key) -> None:
-#        self.__wrapped__.__delitem__(key)
-#        self._self_dirty[key] = None
-#
-#    def reset_tracking(self):
-#        self._self_dirty = dict()
-#
-#
-#class TrackedSet(TrackedObject, MutableSet):
-#
-#    def add(self, value):
-#        self._self_added.add(value)
-#        self.__wrapped__.add(TrackedObject(value))
-#        self._self_dirty = True
-#
-#    def discard(self, value):
-#        self._self_discarded.add(value)
-#        self.__wrapped__.discard(value)
-#        self._self_dirty = True
-#
-#    def remove(self, value):
-#        self._self_discarded.add(value)
-#        self.__wrapped__.remove(value)
-#        self._self_dirty = True
+#        # record any keys added/removed
+#        self._self_added = set()
+#        self._self_removed = set()
 #
 #    @property
 #    def added(self):
 #        return self._self_added
 #
 #    @property
-#    def discarded(self):
-#        return self._self_discarded
+#    def removed(self):
+#        return self._self_removed
 #
-#    @discarded.setter
-#    def discarded(self, value: "TrackedSet"):
-#        self._self_discarded = value
+#    def __setitem__(self, key, value) -> None:
+#        if key not in self.__wrapped__:
+#            self.added.add(key)
+#        tracked = Tracked(value)
+#        tracked.changed = True
+#        self.__wrapped__.__setitem__(key, tracked)
+#        self.changed = False
 #
-#    @added.setter
-#    def added(self, value: "TrackedSet"):
-#        self._self_added = value
+#    def __delitem__(self, key) -> None:
+#        if key in self.added:
+#            raise ValueError("This key was just added so it can't be removed")
 #
-#    def __init__(self, d: Union[Set, MutableSet] = None):
-#        if d is None:
-#            d = set()
-#        super(TrackedSet, self).__init__(d)
-#        for item in d:
-#            d.remove(item)
-#            d.add(TrackedObject(item))
-#        self._self_added = set()
-#        self._self_discarded = set()
+#        self.removed.add(key)
+#        self.__wrapped__.__delitem__(key)
+#        self.changed = True
+#
+#    def __len__(self):
+#        return self.__wrapped__.__len__()
+#
+#    def __getitem__(self, __key):
+#        return self.__wrapped__.__getitem__(__key)
+#
+#    def __iter__(self):
+#        return self.__wrapped__.__iter__()
 #
 #    def reset_tracking(self):
+#        for item in self.__wrapped__.values():
+#            item.changed = False
 #        self._self_added.clear()
-#        self._self_discarded.clear()
-#        self._self_dirty = False
-#        for item in self.__wrapped__:
-#            item.reset_tracking()
+#        self._self_removed.clear()
+#        self._self_changed = False
+#

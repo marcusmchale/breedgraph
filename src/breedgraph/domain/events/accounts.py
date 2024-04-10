@@ -1,13 +1,10 @@
 from .base import Event
 
-
 class EmailAdded(Event):
     email: str
 
-
 class EmailRemoved(Event):
     email: str
-
 
 class AccountAdded(Event):
     user_id: int

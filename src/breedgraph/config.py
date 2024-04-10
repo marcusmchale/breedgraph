@@ -1,6 +1,5 @@
 import os
 from passlib.context import CryptContext
-
 # The layout template looks for DEV value to load a splash warning
 # Also used in checks for which ports to access Neo4j and Redis instances
 # Set to false for production
@@ -18,7 +17,6 @@ MAX_WORKERS = 10  # for multithreading, set to about 5x the number of threads av
 # todo need to set up a global counter for available workers
 # they are started currently in repos and in uow events queue
 N_EVENT_HANDLERS = 3
-
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -55,8 +53,10 @@ def get_redis_host_and_port():
 
 
 def get_gql_url():
-    return f"https://{HOST_ADDRESS}/{GQL_API_PATH}/"
-
+    if HOST_PORT != 80:
+        return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/{GQL_API_PATH}/'
+    else:
+        return f'{PROTOCOL}://{HOST_ADDRESS}/{GQL_API_PATH}/'
 
 # def get_email_host_and_port():
 #	host = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
@@ -64,6 +64,7 @@ def get_gql_url():
 #	http_port = 18025 if host == 'localhost' else 8025
 #	return dict(host=host, port=port, http_port=http_port)
 #
+
 
 ARIADNE_LOG = os.environ.get('ARIADNE_LOG')
 NEO4J_LOG = os.environ.get('NEO4J_LOG')

@@ -6,7 +6,8 @@ from . import accounts, setup
 COMMAND_HANDLERS = {
     # commands.setup.EnsureGlobalAdmin: setup.ensure_global_admin,
     commands.setup.LoadReadModel: setup.load_read_model,
-    commands.accounts.AddUser: accounts.add_user,
+    commands.accounts.AddFirstAccount: accounts.add_first_account,
+    commands.accounts.AddAccount: accounts.add_account,
     commands.accounts.AddEmail: accounts.add_email,
     commands.accounts.RemoveEmail: accounts.remove_email,
     commands.accounts.VerifyEmail: accounts.verify_email,

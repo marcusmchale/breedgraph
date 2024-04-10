@@ -3,7 +3,6 @@ from src.breedgraph.adapters.notifications.notifications import AbstractNotifica
 from src.breedgraph.service_layer import event_handlers, command_handlers, messagebus, unit_of_work
 from src.breedgraph.adapters.redis.read_model import ReadModel
 
-
 async def bootstrap(
         uow: unit_of_work.AbstractUnitOfWork = unit_of_work.Neo4jUnitOfWork(),
         notifications: AbstractNotifications = EmailNotifications()
