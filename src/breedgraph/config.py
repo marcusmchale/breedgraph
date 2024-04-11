@@ -32,31 +32,32 @@ MAIL_PORT = 465
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
 MAIL_DEFAULT_SENDER = 'breedcafsdb@gmail.com'
+TEST_EMAILS = ["marcus.mchale@universityofgalway.ie", "marcusmchale@gmail.com", "h8male@gmail.com"]
 
+def get_base_url():
+    if HOST_PORT != 80:
+        return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/'
+    else:
+        return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 def get_bolt_url():
     host = os.environ.get('DB_HOST', 'localhost')
     port = 7688 if DEV else 7687
     return f"neo4j://{host}:{port}"
 
-
 def get_graphdb_auth():
     username = os.environ['NEO4J_USERNAME']
     password = os.environ['NEO4J_PASSWORD']
     return username, password
-
 
 def get_redis_host_and_port():
     host = os.environ.get('REDIS_HOST', 'localhost')
     port = 6380 if DEV else 6379
     return host, port
 
-
 def get_gql_url():
-    if HOST_PORT != 80:
-        return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/{GQL_API_PATH}/'
-    else:
-        return f'{PROTOCOL}://{HOST_ADDRESS}/{GQL_API_PATH}/'
+    base_url = get_base_url()
+    return f'{base_url}/{GQL_API_PATH}/'
 
 # def get_email_host_and_port():
 #	host = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')

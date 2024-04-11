@@ -1,14 +1,18 @@
 import logging
 
 from abc import ABC, abstractmethod
-from src.breedgraph.adapters.neo4j.driver import get_driver
+from neo4j import AsyncGraphDatabase
+
+
 from asyncio import CancelledError
 
 # Typing only
 from typing import Self
 from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
 from src.breedgraph.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
+from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 
+logger = logging.getLogger(__name__)
 
 class AbstractUnitOfWork(ABC):
     accounts: BaseAccountRepository
@@ -17,7 +21,7 @@ class AbstractUnitOfWork(ABC):
         return self
 
     async def __aexit__(self, *args):  # todo investigate async cancellation behaviour (write some tests)
-        logging.debug("Close unit of work (roll back unless committed)")
+        logger.debug("Close unit of work (roll back unless committed)")
         await self.rollback()  # note: exceptions inside aexit will replace any that triggerred the exit
 
     @abstractmethod
@@ -38,34 +42,44 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
 
     def __init__(self):
         super().__init__()
-        self.driver: AsyncDriver = get_driver()
+        logger.debug("Build new neo4j driver")
+        self.driver: AsyncDriver = AsyncGraphDatabase.driver(
+            get_bolt_url(),
+            auth=get_graphdb_auth(),
+            database=DATABASE_NAME,
+            connection_timeout=5,
+            connection_acquisition_timeout=5,
+            max_transaction_retry_time=5
+        )
 
     async def __aenter__(self) -> Self:
+        logger.debug("Start new neo4j session")
         self._session: AsyncSession = self.driver.session()
+        logger.debug("Begin neo4j transaction")
         self.tx: AsyncTransaction = await self._session.begin_transaction()
         self.accounts = Neo4jAccountRepository(self.tx)
         return self
 
     async def __aexit__(self, *args):
         try:
-            logging.debug("Transaction close (triggers roll back if not already closed)")
+            logger.debug("Transaction close (triggers roll back if not already closed)")
             await self.tx.close()
         except CancelledError:
-            logging.debug("Operation cancelled, cancel session and raise")
+            logger.debug("Operation cancelled, cancel session and raise")
             self._session.cancel()
             raise
         finally:
-            logging.debug("Session close")
+            logger.debug("Session close")
             await self._session.close()
 
     async def commit(self):
-        logging.debug("Accounts update")
+        logger.debug("Accounts update")
         await self.accounts.update_seen()
-        logging.debug("Transaction commit")
+        logger.debug("Transaction commit")
         await self.tx.commit()
 
     async def rollback(self):
-        logging.debug("Transaction roll back (explicit)")
+        logger.debug("Transaction roll back (explicit)")
         await self.tx.rollback()
 
 

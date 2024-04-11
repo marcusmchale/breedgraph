@@ -13,7 +13,7 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_query, 
 from src.breedgraph import bootstrap
 from src.breedgraph.domain.commands.accounts import VerifyEmail
 #from src.dbtools.domain.commands.setup import LoadReadModel
-#from src.dbtools.service_layer.messagebus import MessageBus
+from src.breedgraph.service_layer.messagebus import MessageBus
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from starlette.responses import HTMLResponse
 
@@ -41,12 +41,15 @@ from src.breedgraph.domain.model.accounts import AccountStored
 import logging
 logger = logging.getLogger(__name__)
 
+#bus=None
+
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):
     logger.debug("Application startup")
     logger.debug("Build the messaging bus")
-    global bus
-    bus = await bootstrap.bootstrap()
+
+    bus: MessageBus = await bootstrap.bootstrap()
+    app.bus = bus
 
     async def get_account_for_request(request: Request) -> Optional[AccountStored]:
         token = request.headers.get('token')
@@ -106,13 +109,12 @@ async def lifespan(fast_api_app: FastAPI):
 
     logger.info("Start shutting down")
     if bus is not None:
-        #if hasattr(bus.uow, "driver"):
-        #    logger.info("Closing Neo4j driver")
-        #    await bus.uow.driver.close()
+        if hasattr(bus.uow, "driver"):
+            logger.info("Closing Neo4j driver")
+            await bus.uow.driver.close()
         logger.info("Closing Redis connection pool")
         await bus.read_model.connection.aclose()
     logger.info("Finished shutting down")
-
 
 logger.debug("Start FastAPI app")
 app = FastAPI(lifespan=lifespan)
@@ -132,10 +134,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-bus = None
-
 logger.debug('Prepare startup')
-
 
 @app.get('/')
 def read_root():
@@ -144,5 +143,5 @@ def read_root():
 
 @app.get('/verify')
 async def verify_email(token):
-    await bus.handle(VerifyEmail(token=token))
+    await app.bus.handle(VerifyEmail(token=token))
     return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/{GQL_API_PATH}")

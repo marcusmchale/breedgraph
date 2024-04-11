@@ -40,10 +40,10 @@ async def add_first_account(
         _,
         info,
         name: str,
-        fullname: str,
         email: str,
         password: str,
         team_name: str,
+        fullname: Optional[str] = None,
         team_fullname: Optional[str] = None
 ) -> bool:
     password_hash = pwd_context.hash(password)
@@ -60,6 +60,36 @@ async def add_first_account(
     #async with info.context['bus'].uow as uow:
     #    account: AccountStored = await uow.accounts.get_by_name(name)
     #    return [account]
+
+@graphql_mutation.field("login")
+@graphql_payload
+async def login(
+        _,
+        info,
+        username: str,
+        password: str
+) -> Token:
+    logger.debug(f"Log in: {username}")
+    fail_message = "Invalid username or password"
+    async with info.context['bus'].uow as uow:
+        account = await uow.accounts.get_by_name(username)
+        if not account:
+            raise UnauthorisedOperationError(fail_message)
+
+        if pwd_context.verify(password, account.user.password_hash):
+
+            if not account.user.email_verified:
+                raise UnauthorisedOperationError("Please confirm email before logging in")
+
+            await info.context['bus'].handle(Login(user_id=account.user.id))
+            token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
+                account.user.id,
+                salt=config.LOGIN_SALT
+            )
+            return Token(access_token=token, token_type="bearer")
+
+        else:
+            raise UnauthorisedOperationError(fail_message)
 
 @graphql_mutation.field("add_account")
 @graphql_payload
@@ -96,37 +126,6 @@ async def verify_email(
     logger.debug(f"Verify email")
     await info.context['bus'].handle(VerifyEmail(token=token))
     return True
-
-
-@graphql_mutation.field("login")
-@graphql_payload
-async def login(
-        _,
-        info,
-        username: str,
-        password: str
-) -> Token:
-    logger.debug(f"Log in: {username}")
-    fail_message = "Invalid username or password"
-    async with info.context['bus'].uow as uow:
-        account = await uow.accounts.get_by_name(username)
-        if not account:
-            raise UnauthorisedOperationError(fail_message)
-
-        if pwd_context.verify(password, account.user.password_hash):
-
-            if not account.user.email_verified:
-                raise UnauthorisedOperationError("Please confirm email before logging in")
-
-            await info.context['bus'].handle(Login(user_id=account.user.id))
-            token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
-                account.user.id,
-                salt=config.LOGIN_SALT
-            )
-            return Token(access_token=token, token_type="bearer")
-
-        else:
-            raise UnauthorisedOperationError(fail_message)
 
 @graphql_mutation.field("add_email")
 @graphql_payload
