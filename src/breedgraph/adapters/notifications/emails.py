@@ -1,6 +1,10 @@
+import json
+
+from email.mime.text import MIMEText
+
 from src.breedgraph.config import SITE_NAME
 from src.breedgraph.domain.model.accounts import UserBase, TeamBase
-from src.breedgraph.config import PROTOCOL, HOST_ADDRESS, HOST_PORT
+from src.breedgraph.config import get_base_url
 from email.message import EmailMessage
 
 
@@ -20,7 +24,6 @@ class EmailAddedMessage(Email):
             f'You are now able to register with this email address.'
         )
 
-
 class VerifyEmailMessage(Email):
 
     def __init__(self, user: UserBase, token: str):
@@ -29,16 +32,19 @@ class VerifyEmailMessage(Email):
         # options here are a url to a rest endpoint or handle the token posted over graphql
         # this can be done through a form submission disguised as a link but this wouldn't work without html
         # for ease of use for users without html email we have a rest endpoint just for this url
-        if HOST_PORT != 80:
-            verify_url = f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/verify'
-        else:
-            verify_url = f'{PROTOCOL}://{HOST_ADDRESS}/verify'
-        self.message.set_content(
-            f'Hi {user.fullname}. '
-            f'Please visit the following link to verify your email address: '
+        verify_url = f'{get_base_url()}/verify'
+        body = (
+            f'Hi {user.fullname}, \n'
+            f'Please visit the following link to verify your email address: \n'
             f'{verify_url + "?token=" + token}'
         )
-
+        self.message.set_content(body)
+        self.message.add_attachment(
+            json.dumps({"token": token, "token2": token, "token3": token}).encode('utf-8'),
+            maintype='application',
+            subtype='json',
+            filename='verify_email_token.json'
+        )
 
 class AffiliationConfirmedMessage(Email):
 

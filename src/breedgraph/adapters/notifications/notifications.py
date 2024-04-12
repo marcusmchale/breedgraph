@@ -6,7 +6,13 @@ from typing import List
 from src.breedgraph.domain.model.accounts import UserBase
 from .emails import Email
 
-from src.breedgraph.config import MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER
+from src.breedgraph.config import (
+    SMTP_MAIL_SERVER,
+    SMTP_MAIL_PORT,
+    MAIL_USERNAME,
+    MAIL_PASSWORD,
+    MAIL_DEFAULT_SENDER
+)
 
 
 class AbstractNotifications(abc.ABC):
@@ -28,8 +34,8 @@ class EmailNotifications(AbstractNotifications):
             message.message,
             sender=MAIL_DEFAULT_SENDER,
             recipients=recipients,
-            hostname=MAIL_SERVER,
-            port=MAIL_PORT,
+            hostname=SMTP_MAIL_SERVER,
+            port=SMTP_MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
             use_tls=True
@@ -41,8 +47,8 @@ class EmailNotifications(AbstractNotifications):
             message.message,
             sender=MAIL_DEFAULT_SENDER,
             recipients=[user.email for user in recipients],
-            hostname=MAIL_SERVER,
-            port=MAIL_PORT,
+            hostname=SMTP_MAIL_SERVER,
+            port=SMTP_MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
             use_tls=True

@@ -441,12 +441,20 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     @staticmethod
     def team_record_to_team(record) -> TeamStored:
-        return TeamStored(
-            name=record['name'],
-            fullname=record['fullname'],
-            id=record['id'],
-            parent_id=record['parent_id']
-        )
+        if 'parent_id' in record:
+            return TeamStored(
+                name=record['name'],
+                fullname=record['fullname'],
+                id=record['id'],
+                parent_id=record['parent_id']
+            )
+        else:
+            return TeamStored(
+                name=record['name'],
+                fullname=record['fullname'],
+                id=record['id'],
+                parent_id=None
+            )
 
     @staticmethod
     def user_record_to_user(record) -> UserStored:
@@ -470,7 +478,6 @@ class Neo4jAccountRepository(BaseAccountRepository):
         return AccountStored(
             user=self.user_record_to_user(record['user']),
             affiliations=[self.affiliation_record_to_affiliation(a) for a in record['affiliations']],
-            allowed_emails=[e['address'] for e in record['allowed_emails']]
+            allowed_emails=record['allowed_emails']
         ) if record else None
-
 

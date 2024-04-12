@@ -6,4 +6,5 @@ from ariadne import (
 graphql_query = QueryType()
 graphql_mutation = MutationType()
 
-from . import resolvers
+from . import mutations
+from . import queries

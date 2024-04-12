@@ -93,62 +93,128 @@ async def post_to_verify_email(client, token: str):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
 
+async def post_to_add_email(client, token: str, email: str):
+    json={
+        "query": (
+            " mutation ( "
+            "  $email: String!"
+            " ) { "
+            "  add_email( "
+            "    email: $email, "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "email": f"{email}",
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
 
-#
-#async def post_to_add_email(email: str):
-#    json={
-#        "query": (
-#            " mutation ( "
-#            "  $email: String!"
-#            " ) { "
-#            "  add_email( "
-#            "    email: $email, "
-#            "  ) { "
-#            "    status, "
-#            "    result, "
-#            "    errors { name, message } "
-#            "  } "
-#            " } "
-#        ),
-#        "variables": {
-#            "email": f"{email}",
-#        }
-#    }
-#    async with LifespanManager(app):
-#        transport = httpx.ASGITransport(app=app)
-#        async with httpx.AsyncClient(transport=transport) as client:
-#            return await client.post(get_gql_url(), json=json)
-#
-##async def post_to_add_account(name: str, email: str):
-##    json={
-#        "query": (
-#            " mutation ( "
-#            "  $name: String!,"
-#            "  $fullname: String,"
-#            "  $email: String!,"
-#            "  $password: String!"
-#            " ) { "
-#            "  add_account( "
-#            "    name: $name, "
-#            "    fullname: $fullname, "
-#            "    email: $email, "
-#            "    password: $password "
-#            "  ) { "
-#            "    status, "
-#            "    result, "
-#            "    errors { name, message } "
-#            "  } "
-#            " } "
-#        ),
-#        "variables": {
-#            "name": f"{name}",
-#            "fullname": f"{name}",
-#            "email": f"{email}",
-#            "password": "password"
-#        }
-#    }
-#    async with LifespanManager(app):
-#        transport = httpx.ASGITransport(app=app)
-#        async with httpx.AsyncClient(transport=transport) as client:
-#            return await client.post(get_gql_url(), json=json)
-#
+async def post_to_remove_email(client, token: str, email: str):
+    json={
+        "query": (
+            " mutation ( "
+            "  $email: String!"
+            " ) { "
+            "  remove_email( "
+            "    email: $email, "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "email": f"{email}",
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
+
+
+async def post_to_add_account(client, name: str, email: str, password: str):
+    json={
+        "query": (
+            " mutation ( "
+            "  $name: String!,"
+            "  $fullname: String,"
+            "  $email: String!,"
+            "  $password: String!"
+            " ) { "
+            "  add_account( "
+            "    name: $name, "
+            "    fullname: $fullname, "
+            "    email: $email, "
+            "    password: $password "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "name": f"{name}",
+            "fullname": f"{name}",
+            "email": f"{email}",
+            "password": f"{password}"
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json)
+
+
+async def post_to_add_team(client, token:str, name: str, parent_id: int|None = None):
+    if parent_id:
+        json={
+            "query": (
+                " mutation ( "
+                "  $name: String!,"
+                "  $fullname: String,"
+                "  $parent_id: Int,"
+                " ) { "
+                "  add_team( "
+                "    name: $name, "
+                "    fullname: $fullname, "
+                "    parent_id: $parent_id "
+                "  ) { "
+                "    status, "
+                "    result, "
+                "    errors { name, message } "
+                "  } "
+                " } "
+            ),
+            "variables": {
+                "name": f"{name}",
+                "fullname": f"{name}",
+                "parent_id": parent_id
+            }
+        }
+    else:
+        json = {
+            "query": (
+                " mutation ( "
+                "  $name: String!,"
+                "  $fullname: String"
+                " ) { "
+                "  add_team( "
+                "    name: $name, "
+                "    fullname: $fullname"
+                "  ) { "
+                "    status, "
+                "    result, "
+                "    errors { name, message } "
+                "  } "
+                " } "
+            ),
+            "variables": {
+                "name": f"{name}",
+                "fullname": f"{name}"
+            }
+        }
+
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+

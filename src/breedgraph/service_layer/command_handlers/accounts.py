@@ -27,7 +27,7 @@ async def add_first_account(
 ):
     async with uow:
         async for _ in uow.accounts.get_all():
-            raise IdentityExistsError("This operation is only permitted when no accounts have been registered")
+            raise UnauthorisedOperationError("This operation is only permitted when no accounts have been registered")
 
         user = UserInput(
             name=cmd.name,

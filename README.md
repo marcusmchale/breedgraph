@@ -25,6 +25,11 @@ Applying the principles of domain driven design and event-driven architecture
 e.g.  [Architecture patterns with Python](https://www.cosmicpython.com/book/preface.html)
 
 Development notes:
+# for testing on community we can only have one active db
+# change the /etc/neo4j/neo4j.conf line to specify which to run, e.g.
+initial.dbms.default_database=test
+
+
 
 - Async
     - emails (aiosmtplib)

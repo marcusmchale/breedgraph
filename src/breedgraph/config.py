@@ -1,5 +1,4 @@
 import os
-from passlib.context import CryptContext
 # The layout template looks for DEV value to load a splash warning
 # Also used in checks for which ports to access Neo4j and Redis instances
 # Set to false for production
@@ -18,8 +17,6 @@ MAX_WORKERS = 10  # for multithreading, set to about 5x the number of threads av
 # they are started currently in repos and in uow events queue
 N_EVENT_HANDLERS = 3
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 SECRET_KEY = 'have-a-crack-at-it'
 VERIFY_TOKEN_SALT = "slip-that-over-your-laughing-gear"
 PASSWORD_RESET_SALT = "ZOMFG-How-COULD-y0u-FORGETZ"
@@ -27,12 +24,15 @@ LOGIN_SALT = "Since-you-asked-so-nicely"
 
 TOKEN_EXPIRES_MINUTES = 10080
 
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 465
+SMTP_MAIL_SERVER = 'smtp.gmail.com'
+SMTP_MAIL_PORT = 465
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-MAIL_DEFAULT_SENDER = 'breedcafsdb@gmail.com'
-TEST_EMAILS = ["marcus.mchale@universityofgalway.ie", "marcusmchale@gmail.com", "h8male@gmail.com"]
+MAIL_DOMAIN = 'gmail.com'
+MAIL_DEFAULT_SENDER = f"{MAIL_USERNAME}@{MAIL_DOMAIN}"
+# for E2E testing, retrieves emails to get tokens etc.
+POP3_MAIL_SERVER = "pop.gmail.com"
+POP3_MAIL_PORT = 995
 
 def get_base_url():
     if HOST_PORT != 80:

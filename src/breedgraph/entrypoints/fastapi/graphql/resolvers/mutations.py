@@ -1,9 +1,10 @@
 from itsdangerous import URLSafeTimedSerializer
 
+import bcrypt
+
 from src.breedgraph import config
 
 from src.breedgraph import views
-from src.breedgraph.config import pwd_context
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.domain.commands.accounts import (
     AddFirstAccount,
@@ -46,7 +47,7 @@ async def add_first_account(
         fullname: Optional[str] = None,
         team_fullname: Optional[str] = None
 ) -> bool:
-    password_hash = pwd_context.hash(password)
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     cmd = AddFirstAccount(
         name=name,
         fullname=fullname,
@@ -57,9 +58,6 @@ async def add_first_account(
     )
     await info.context['bus'].handle(cmd)
     return True
-    #async with info.context['bus'].uow as uow:
-    #    account: AccountStored = await uow.accounts.get_by_name(name)
-    #    return [account]
 
 @graphql_mutation.field("login")
 @graphql_payload
@@ -76,7 +74,7 @@ async def login(
         if not account:
             raise UnauthorisedOperationError(fail_message)
 
-        if pwd_context.verify(password, account.user.password_hash):
+        if bcrypt.checkpw(password.encode(), account.user.password_hash.encode()):
 
             if not account.user.email_verified:
                 raise UnauthorisedOperationError("Please confirm email before logging in")
@@ -102,7 +100,7 @@ async def add_account(
         password: str
 ) -> bool:
     logger.debug(f"Resolver add account: {name}")
-    password_hash = pwd_context.hash(password)
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     cmd = AddAccount(
         name=name,
         fullname=fullname,
@@ -111,9 +109,6 @@ async def add_account(
     )
     await info.context['bus'].handle(cmd)
     return True
-    #async with info.context['bus'].uow as uow:
-    #    account: AccountStored = await uow.accounts.get_by_name(name)
-    #    return [account]
 
 # the below also has a dedicated endpoint for REST so can follow a simple link
 @graphql_mutation.field("verify_email")
@@ -157,12 +152,12 @@ async def add_team(
         name: str,
         fullname: Optional[str] = None,
         parent_id: Optional[int] = None
-) -> List[TeamOutput]:
+) -> bool:
     account = info.context.get('account')
     if account is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Add team: {name}")
+    logger.debug(f"User {account.user.id} adds team: {name}")
     cmd = AddTeam(
         user_id=account.user.id,
         name=name,
@@ -170,19 +165,23 @@ async def add_team(
         parent_id=parent_id
     )
     await info.context['bus'].handle(cmd)
-    return [
-        TeamOutput(name=team.name, fullname=team.fullname, id=team.id)
-        async for team in views.accounts.teams(info.context['bus'].uow, team_name=name, parent_id=parent_id)
-    ]
+    return True
 
-@graphql_query.field("get_teams")
+@graphql_mutation.field("request_read")
 @graphql_payload
-async def get_teams(_, info) -> List[TeamOutput]:
+async def request_read(
+        _,
+        info,
+        team_id: int
+) -> bool:
     account = info.context.get('account')
     if account is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    return [
-        TeamOutput(name=team.name, fullname=team.fullname, id=team.id)
-        async for team in views.accounts.teams(info.context['bus'].uow, user_id=account.user.id)
-    ]
+    logger.debug(f"User {account.user.id} requests read access from team: {team_id}")
+    cmd = RequestRead(
+        user_id=account.user.id,
+        team_id=team_id
+    )
+    await info.context['bus'].handle(cmd)
+    return True

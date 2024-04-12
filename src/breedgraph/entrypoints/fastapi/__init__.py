@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import FastAPI, Request   # todo consider dropping fastapi for starlette
+#from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from ariadne.asgi import GraphQL
 from ariadne import (
     EnumType,
@@ -15,7 +16,7 @@ from src.breedgraph.domain.commands.accounts import VerifyEmail
 #from src.dbtools.domain.commands.setup import LoadReadModel
 from src.breedgraph.service_layer.messagebus import MessageBus
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
-from starlette.responses import HTMLResponse
+
 
 from src.breedgraph.custom_exceptions import (
     UnauthorisedOperationError
@@ -119,8 +120,8 @@ async def lifespan(fast_api_app: FastAPI):
 logger.debug("Start FastAPI app")
 app = FastAPI(lifespan=lifespan)
 
-logger.debug("Load auth scheme")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+#logger.debug("Load auth scheme")
+#oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # CORS
 origins = [

@@ -28,7 +28,10 @@ type Mutation {
         name: String!
         fullname: String
         parent_id: Int
-    ): TeamsPayload!
+    ): BooleanPayload!
+    request_read(
+        team_id: Int!
+    ): BooleanPayload!
 }
 
 type Query {
