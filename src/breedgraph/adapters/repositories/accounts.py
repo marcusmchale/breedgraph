@@ -50,7 +50,7 @@ class BaseAccountRepository(ABC):
         raise NotImplementedError
 
     async def get_by_email(self, email: str) -> AccountStored:
-        account = await self._get_by_email(email)
+        account = await self._get_by_email(email.casefold())
         if account:
             self._track(account)
         return account
@@ -333,7 +333,7 @@ class Neo4jAccountRepository(BaseAccountRepository):
     async def _get_by_email(self, email: str) -> AccountStored:
         result: AsyncResult = await self.tx.run(
             queries['get_account_by_email'],
-            email_lower=email.casefold()
+            email_lower=email
         )
         record: Record = await result.single()
         return self.record_to_account(record) if record else None

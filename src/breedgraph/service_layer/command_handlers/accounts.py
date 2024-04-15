@@ -207,21 +207,33 @@ async def request_read(
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
-        account = await uow.accounts.get(cmd.user_id)
-        admins = uow.accounts.get_all(teams=[cmd.team_id], access_types=[Access.ADMIN])
-        team = None
-        async for account in admins:
-            for t in account.admins_for:
-                if t.id == cmd.team_id:
-                    team = t
-                    break
+        requesting_account = await uow.accounts.get(cmd.user_id)
+
+        admins = uow.accounts.get_all(
+            teams=[cmd.team_id],
+            access_types=[Access.ADMIN],
+            authorisations=[Authorisation.AUTHORISED]
+        )
+        async for admin in admins:
+            team = admin.get_team_by_id(cmd.team_id)
             break
+        else:
+            raise ValueError("Team not found")
 
-        if team is None:
-            raise ValueError("No team found")
+        affiliation = Affiliation(
+            access=Access.READ,
+            authorisation=Authorisation.REQUESTED,
+            team=team
+        )
+        requesting_account.affiliations.append(affiliation)
+        requesting_account.events.append(
+            events.accounts.ReadRequested(
+                user_id = requesting_account.user.id,
+                team_id = team.id
+            )
+        )
+        await uow.commit()
 
-        #account.read_requests.
-        #account.events.append(events.accounts.ReadRequested(cmd.user_id, cmd.team_id))
 
 #async def add_admins(
 #        cmd: commands.accounts.AddAdmin,

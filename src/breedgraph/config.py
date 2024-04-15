@@ -24,15 +24,10 @@ LOGIN_SALT = "Since-you-asked-so-nicely"
 
 TOKEN_EXPIRES_MINUTES = 10080
 
-SMTP_MAIL_SERVER = 'smtp.gmail.com'
-SMTP_MAIL_PORT = 465
+MAIL_HOST = os.environ.get('MAIL_HOST')
+MAIL_PORT = os.environ.get('MAIL_PORT')
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-MAIL_DOMAIN = 'gmail.com'
-MAIL_DEFAULT_SENDER = f"{MAIL_USERNAME}@{MAIL_DOMAIN}"
-# for E2E testing, retrieves emails to get tokens etc.
-POP3_MAIL_SERVER = "pop.gmail.com"
-POP3_MAIL_PORT = 995
 
 def get_base_url():
     if HOST_PORT != 80:
@@ -65,7 +60,6 @@ def get_gql_url():
 #	http_port = 18025 if host == 'localhost' else 8025
 #	return dict(host=host, port=port, http_port=http_port)
 #
-
 
 ARIADNE_LOG = os.environ.get('ARIADNE_LOG')
 NEO4J_LOG = os.environ.get('NEO4J_LOG')

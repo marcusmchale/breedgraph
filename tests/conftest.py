@@ -1,6 +1,7 @@
+import asyncio
+import pytest
 import pytest_asyncio
 
-from faker import Faker
 
 from asgi_lifespan import LifespanManager
 from httpx import AsyncClient, ASGITransport
@@ -8,17 +9,15 @@ from fastapi import FastAPI
 from typing import AsyncIterator
 
 from src.breedgraph.main import app
-from src.breedgraph.service_layer.unit_of_work import Neo4jUnitOfWork
+from src.breedgraph.service_layer import unit_of_work
+from src.breedgraph.adapters.notifications import notifications
+from src.breedgraph.config import get_base_url, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+from src.breedgraph import bootstrap
+from src.breedgraph.service_layer.messagebus import MessageBus
 
-from src.breedgraph.config import get_base_url, MAIL_DOMAIN, MAIL_USERNAME
+from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
 
-
-
-@pytest_asyncio.fixture(scope="session")
-async def clear_database() -> None:
-    async with Neo4jUnitOfWork() as uow:
-        await uow.tx.run("MATCH (n) DETACH DELETE n")
-        await uow.commit()
+from tests.test_inputs import UserInputGenerator
 
 @pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
@@ -31,21 +30,43 @@ async def client(test_app: FastAPI) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=transport, base_url=get_base_url()) as client:
         yield client
 
+@pytest_asyncio.fixture(scope="session")
+async def neo4j_uow() -> unit_of_work.Neo4jUnitOfWork:
+    yield unit_of_work.Neo4jUnitOfWork()
 
-class UserInputGenerator:
-    def __init__(self):
-        self.fake = Faker()
-        self.user_inputs = list()
+@pytest_asyncio.fixture(scope="session")
+async def email_notifications() -> notifications.EmailNotifications:
+    yield notifications.EmailNotifications()
+#
+#@pytest_asyncio.fixture(scope="session")
+#async def bus(neo4j_uow, email_notifications) -> MessageBus:
+#    bus = await bootstrap.bootstrap(
+#        uow=neo4j_uow,
+#        notifications=email_notifications
+#    )
+#    yield bus
+#
+#@pytest_asyncio.fixture(scope="session")
+#async def quiet_bus() -> MessageBus:
+#    bus = await bootstrap.bootstrap(
+#        uow=unit_of_work.Neo4jUnitOfWork(),
+#        notifications=notifications.FakeNotifications()
+#    )
+#    yield bus
+#
+@pytest_asyncio.fixture(scope="session")
+async def session_database() -> None:
+    # yield clear db
+    async with unit_of_work.Neo4jUnitOfWork() as uow:
+        await uow.tx.run("MATCH (n) DETACH DELETE n")
+        await uow.commit()
 
-    def new_user_input(self):
-        user_input = {
-            "name": self.fake.unique.name(),
-            "email": f"{MAIL_USERNAME}+_test_user_{len(self.user_inputs)+1}@{MAIL_DOMAIN}",
-            "password": self.fake.password(),
-            "team": self.fake.company()
-        }
-        self.user_inputs.append(user_input)
-        return user_input
+    yield
+
+    #async with unit_of_work.Neo4jUnitOfWork() as uow:
+    #    await uow.tx.run("MATCH (n) DETACH DELETE n")
+    #    await uow.commit()
+
 
 @pytest_asyncio.fixture(scope="session")
 async def user_input_generator() -> UserInputGenerator:

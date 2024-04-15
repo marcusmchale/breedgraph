@@ -8,7 +8,11 @@ from src.breedgraph.custom_exceptions import (
 )
 
 from src.breedgraph.adapters.notifications import emails
-from src.breedgraph.domain.model.accounts import Access
+from src.breedgraph.domain.model.accounts import Access, Authorisation
+
+from src.breedgraph.domain.model.accounts import (
+    TeamStored
+)
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -54,6 +58,30 @@ async def email_verified(
         uow: "AbstractUnitOfWork"
 ):
     pass
+
+async def email_admins_read_request(
+        event: events.accounts.ReadRequested,
+        uow: "AbstractUnitOfWork",
+        notifications: "AbstractNotifications"
+):
+    async with uow:
+        requesting_account = await uow.accounts.get(event.user_id)
+        requested_team = requesting_account.get_team_by_id(event.team_id)
+
+        admins = uow.accounts.get_all(
+            teams=[event.team_id],
+            access_types=[Access.ADMIN],
+            authorisations=[Authorisation.AUTHORISED]
+        )
+        message = emails.ReadRequestedMessage(
+            requesting_user = requesting_account.user,
+            team = requested_team
+        )
+        await notifications.send(
+            [admin.user async for admin in admins],
+            message
+        )
+
 
 #
 #async def add_email_to_read_model(

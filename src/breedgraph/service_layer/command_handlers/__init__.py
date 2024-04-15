@@ -13,7 +13,7 @@ COMMAND_HANDLERS = {
     commands.accounts.VerifyEmail: accounts.verify_email,
     commands.accounts.Login: accounts.login,
     commands.accounts.AddTeam: accounts.add_team,
-    #commands.accounts.RequestRead: accounts.request_read,
+    commands.accounts.RequestRead: accounts.request_read,
     #commands.accounts.RequestWrite: accounts.request_write,
     #commands.accounts.RequestAdmin: accounts.request_admin,
 }  # type: Dict[Type[commands.base.Command], Callable]

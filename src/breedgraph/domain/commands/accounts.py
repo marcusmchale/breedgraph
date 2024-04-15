@@ -3,15 +3,15 @@ from typing import Optional, Set
 
 class AddFirstAccount(Command):
     name: str
-    fullname: Optional[str]
+    fullname: Optional[str] = None
     email: str
     password_hash: str
     team_name: str
-    team_fullname: Optional[str]
+    team_fullname: Optional[str] = None
 
 class AddAccount(Command):
     name: str
-    fullname: str
+    fullname: Optional[str] = None
     email: str
     password_hash: str
 
@@ -24,7 +24,7 @@ class Login(Command):
 class AddTeam(Command):
     user_id: int
     name: str
-    fullname: Optional[str]
+    fullname: Optional[str] = None
     parent_id: Optional[int]
 
 class AddEmail(Command):

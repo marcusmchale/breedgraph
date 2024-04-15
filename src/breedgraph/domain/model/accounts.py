@@ -96,3 +96,7 @@ class AccountStored(AccountBase):
     def __hash__(self):
         return hash(self.user.id)
 
+    def get_team_by_id(self, team_id: int):
+        for a in self.affiliations:
+            if isinstance(a.team, TeamStored) and a.team.id == team_id:
+                return a.team

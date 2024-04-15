@@ -46,26 +46,39 @@ class VerifyEmailMessage(Email):
             filename='verify_email_token.json'
         )
 
-class AffiliationConfirmedMessage(Email):
 
-    def __init__(self, user: UserBase, team: TeamBase):
+class ReadRequestedMessage(Email):
+
+    def __init__(self, requesting_user: UserBase, team: TeamBase):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} affiliation confirmed'
-        self.message.set_content(
-            f'Hi {user.fullname}. '
-            f'Your affiliation with {team.fullname} has been confirmed. '
-            'You can now access data submitted by users that registered with this key.'
+        self.message['SUBJECT'] = f'{SITE_NAME} read access requested'
+        body = (
+            f'To all admins for {team.fullname},\n'
+            f'{requesting_user.fullname} has requested read access to data written by this team.\n'
+            f'Please consider authorising this request.'
         )
+        self.message.set_content(body)
 
 
-class AdminGrantedMessage(Email):
-
-    def __init__(self, user: UserBase, team: TeamBase):
-        super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} admin granted'
-        self.message.set_content(
-            f'Hi {user.fullname}. '
-            f'Your administrator status for {team.fullname} has been confirmed. '
-            'You can now control access to data submitted by users that registered with this key. '
-            'You can also allow new users to register by adding their email address to those allowed. '
-        )
+#class AffiliationConfirmedMessage(Email):
+#
+#    def __init__(self, user: UserBase, team: TeamBase):
+#        super().__init__()
+#        self.message['SUBJECT'] = f'{SITE_NAME} affiliation confirmed'
+#        self.message.set_content(
+#            f'Hi {user.fullname}. '
+#            f'Your affiliation with {team.fullname} has been confirmed. '
+#            'You can now access data submitted by users that registered with this key.'
+#        )
+#
+#class AdminGrantedMessage(Email):
+#
+#    def __init__(self, user: UserBase, team: TeamBase):
+#        super().__init__()
+#        self.message['SUBJECT'] = f'{SITE_NAME} admin granted'
+#        self.message.set_content(
+#            f'Hi {user.fullname}. '
+#            f'Your administrator status for {team.fullname} has been confirmed. '
+#            'You can now control access to data submitted by users that registered with this key. '
+#            'You can also allow new users to register by adding their email address to those allowed. '
+#        )

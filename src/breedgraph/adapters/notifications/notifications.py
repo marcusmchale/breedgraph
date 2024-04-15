@@ -7,11 +7,10 @@ from src.breedgraph.domain.model.accounts import UserBase
 from .emails import Email
 
 from src.breedgraph.config import (
-    SMTP_MAIL_SERVER,
-    SMTP_MAIL_PORT,
+    MAIL_HOST,
+    MAIL_PORT,
     MAIL_USERNAME,
-    MAIL_PASSWORD,
-    MAIL_DEFAULT_SENDER
+    MAIL_PASSWORD
 )
 
 
@@ -25,6 +24,21 @@ class AbstractNotifications(abc.ABC):
     ):
         raise NotImplementedError
 
+    @staticmethod
+    @abc.abstractmethod
+    async def send_to_unregistered(recipients: List[str], message: Email):
+        raise NotImplementedError
+
+
+class FakeNotifications(AbstractNotifications):
+
+    @staticmethod
+    async def send_to_unregistered(recipients: List[str], message: Email):
+        pass
+
+    @staticmethod
+    async def send(recipients: List[UserBase], message: Email):
+        pass
 
 class EmailNotifications(AbstractNotifications):
 
@@ -32,10 +46,10 @@ class EmailNotifications(AbstractNotifications):
     async def send_to_unregistered(recipients: List[str], message: Email):
         await aiosmtplib.send(
             message.message,
-            sender=MAIL_DEFAULT_SENDER,
+            sender=f"{MAIL_USERNAME}@{MAIL_HOST}",
             recipients=recipients,
-            hostname=SMTP_MAIL_SERVER,
-            port=SMTP_MAIL_PORT,
+            hostname=f"smtp.{MAIL_HOST}",
+            port=MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
             use_tls=True
@@ -45,10 +59,10 @@ class EmailNotifications(AbstractNotifications):
     async def send(recipients: List[UserBase], message: Email):
         await aiosmtplib.send(
             message.message,
-            sender=MAIL_DEFAULT_SENDER,
+            sender=f"{MAIL_USERNAME}@{MAIL_HOST}",
             recipients=[user.email for user in recipients],
-            hostname=SMTP_MAIL_SERVER,
-            port=SMTP_MAIL_PORT,
+            hostname=f"smtp.{MAIL_HOST}",
+            port=MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
             use_tls=True

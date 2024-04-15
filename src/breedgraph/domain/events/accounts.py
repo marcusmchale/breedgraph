@@ -12,6 +12,10 @@ class AccountAdded(Event):
 class EmailVerified(Event):
     user_id: int
 
+class ReadRequested(Event):
+    user_id: int
+    team_id: int
+
 #
 #class AffiliationConfirmed(Event):
 #    user_id: int
