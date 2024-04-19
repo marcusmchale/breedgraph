@@ -19,25 +19,11 @@ class UserInput(UserBase):
     password_hash: str
 
 class UserOutput(UserBase):
-    id: int
+    id: int = Field(frozen=True)
 
 class UserStored(UserBase):
-    id: int
+    id: int = Field(frozen=True)
     password_hash: str
-
-class TeamBase(BaseModel):
-    name: str
-    fullname: str
-    parent_id: Optional[int] = None
-
-class TeamInput(TeamBase):
-    pass
-
-class TeamOutput(TeamBase):
-    id: int
-
-class TeamStored(TeamBase):
-    id: int
 
 class Access(Enum):
     NONE = 0
@@ -59,21 +45,25 @@ class Affiliation(BaseModel):
     #  - Users request affiliation with a team
     #  - Admins can authorise that affiliation OR the same with one of its children.
     #  - Multiple relationships are allowed, including writing for multiple teams
+    user_id: int = Field(frozen=True)
+    team_id: int = Field(frozen=True)
+    # that Team aggregate may include user references and other details, behaviours.
     access: Access = Field(frozen=True)
-    team: TeamBase
     authorisation: Authorisation
     heritable: bool = False  # if heritable provide the same read/admin to all children, recursively.
 
     def is_matched(
             self,
-            access_types: Optional[List[Access]],
-            authorisations: Optional[List[Authorisation]],
-            teams: Optional[List[str|int|TeamBase]]
+            user_ids: None|List[int] = None,
+            team_ids: None | List[int] = None,
+            access_types: None|List[Access] = None,
+            authorisations: None|List[Authorisation] = None
     ):
         return all([
+            user_ids is None or self.user_id in user_ids,
+            team_ids is None or self.team_id in team_ids,
             access_types is None or self.access in access_types,
             authorisations is None or self.authorisation in authorisations,
-            teams is None or self.team in teams
         ])
 
 class AccountBase(BaseModel):
@@ -96,7 +86,20 @@ class AccountStored(AccountBase):
     def __hash__(self):
         return hash(self.user.id)
 
-    def get_team_by_id(self, team_id: int):
+    def get_affiliations(
+            self,
+            user_ids: None|List[int] = None,
+            team_ids: None|List[int] = None,
+            access_types: None|List[Access] = None,
+            authorisations: None|List[Authorisation] = None
+    ):
         for a in self.affiliations:
-            if isinstance(a.team, TeamStored) and a.team.id == team_id:
-                return a.team
+            if all(
+                [
+                    user_ids is None or a.user_id in user_ids,
+                    team_ids is None or a.team_id in team_ids,
+                    access_types is None or a.access in access_types,
+                    authorisations is None or a.authorisation in authorisations
+                ]
+            ):
+                yield a

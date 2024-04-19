@@ -9,6 +9,7 @@ EVENT_HANDLERS = {
     events.accounts.EmailRemoved: [],
     events.accounts.AccountAdded: [accounts.send_user_verify_url],
     events.accounts.EmailVerified: [accounts.email_verified],
-    events.accounts.ReadRequested: [accounts.email_admins_read_request]
+    events.accounts.ReadRequested: [accounts.email_admins_read_request],
+    events.accounts.ReadAdded: [accounts.email_user_read_added]
     #events.accounts.AdminGranted: [accounts.send_admin_notification]
 }  # type: Dict[Type[events.base.Event], List[Callable]]

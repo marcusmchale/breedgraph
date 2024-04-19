@@ -9,4 +9,10 @@ CREATE (team: Team {
   name_lower: $name_lower,
   fullname: $fullname
 })-[:CONTRIBUTES_TO]->(parent)
-RETURN team.name as name, team.fullname as fullname, team.id as id, parent.id as parent_id
+RETURN
+  team.name as name,
+  team.fullname as fullname,
+  team.id as id,
+  parent.id as parent_id,
+  [] as child_ids,
+  [] as admin_ids

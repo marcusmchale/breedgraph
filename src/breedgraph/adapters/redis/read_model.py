@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 import redis.asyncio as redis
 
 from src.breedgraph.config import get_redis_host_and_port
-from src.breedgraph.domain.model.accounts import TeamInput, TeamStored
+from src.breedgraph.domain.model.organisations import TeamInput, TeamStored
 
 
 class ReadModel:

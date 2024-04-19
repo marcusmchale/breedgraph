@@ -13,15 +13,20 @@ from src.breedgraph.domain.commands.accounts import (
     VerifyEmail,
     AddTeam,
     AddEmail, RemoveEmail,
-    RequestRead, RequestWrite, RequestAdmin
+    RequestRead, RequestWrite, RequestAdmin,
+    AddRead, AddAdmin, AddWrite
 )
 
 from . import graphql_query, graphql_mutation
 
 from typing import List, Optional
 from src.breedgraph.domain.model.accounts import (
-    AccountStored, UserOutput, TeamStored, TeamOutput
+    AccountStored, UserOutput
 )
+from src.breedgraph.domain.model.organisations import (
+    TeamStored, TeamOutput
+)
+
 from src.breedgraph.domain.model.authentication import Token
 
 from src.breedgraph.custom_exceptions import (
@@ -183,6 +188,29 @@ async def request_read(
     cmd = RequestRead(
         user_id=account.user.id,
         team_id=team_id
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("add_read")
+@graphql_payload
+async def add_read(
+        _,
+        info,
+        user_id: int,
+        team_id: int,
+        heritable: bool = False
+) -> bool:
+    account = info.context.get('account')
+    if account is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"Admin {account.user.id} approving read access to team: {team_id}")
+    cmd = AddRead(
+        admin_id=account.user.id,
+        user_id=user_id,
+        team_id=team_id,
+        heritable=heritable
     )
     await info.context['bus'].handle(cmd)
     return True

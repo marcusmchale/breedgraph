@@ -25,4 +25,5 @@ class UnauthorisedOperationError(IllegalOperationError):
 class ExistingUniqueRelationship(IllegalOperationError):
     pass
 
-
+class TooManyRetries(Exception):
+    pass

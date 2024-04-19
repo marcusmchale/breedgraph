@@ -1,4 +1,5 @@
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+from werkzeug.exceptions import Unauthorized
 
 from src.breedgraph import config
 from src.breedgraph.service_layer import unit_of_work
@@ -6,8 +7,11 @@ from src.breedgraph.domain import commands, events
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
     Affiliation, Authorisation, Access,
-    AccountInput, AccountStored,
-    TeamInput, TeamStored
+    AccountInput, AccountStored
+)
+from src.breedgraph.domain.model.organisations import (
+    TeamInput, TeamStored,
+    OrganisationInput, OrganisationStored
 )
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
@@ -25,7 +29,7 @@ async def add_first_account(
         cmd: commands.accounts.AddFirstAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with (uow):
         async for _ in uow.accounts.get_all():
             raise UnauthorisedOperationError("This operation is only permitted when no accounts have been registered")
 
@@ -35,16 +39,23 @@ async def add_first_account(
             email=cmd.email,
             password_hash=cmd.password_hash
         )
+
+        team = TeamInput(
+            name=cmd.team_name,
+            fullname=cmd.team_fullname if cmd.team_fullname else cmd.team_name
+        )
+
+        organisation: OrganisationInput = OrganisationInput(teams=[team])
+        organisation: OrganisationStored = await uow.organisations.create(organisation)
+
         account: AccountInput = AccountInput(user=user)
         account: AccountStored = await uow.accounts.create(account)
         account.affiliations.append(
             Affiliation(
+                user_id=account.user.id,
+                team_id=organisation.root.id,
                 access = Access.ADMIN,
-                authorisation = Authorisation.AUTHORISED,
-                team = TeamInput(
-                    name=cmd.team_name,
-                    fullname=cmd.team_fullname if cmd.team_fullname else cmd.team_name
-                )
+                authorisation = Authorisation.AUTHORISED
             )
         )
         account.events.append(events.accounts.AccountAdded(user_id=account.user.id))
@@ -167,39 +178,53 @@ async def add_team(
     async with uow:
         account = await uow.accounts.get(cmd.user_id)
 
-        if cmd.parent_id is None:
-            for a in account.affiliations:
-                if a.access == Access.ADMIN and a.authorisation == Authorisation.AUTHORISED:
-                   break
-            else:
-                raise UnauthorisedOperationError("Only admins can add orphan teams")
+        for a in account.affiliations:
+            if a.access == Access.ADMIN and a.authorisation == Authorisation.AUTHORISED:
+               break
         else:
-            for a in account.affiliations:
-                if not isinstance(a.team, TeamStored):
-                    raise(ValueError("Ensure affiliations are stored before adding new teams"))
+            raise UnauthorisedOperationError("Only admins can add teams")
 
-                if all([
-                    a.access == Access.ADMIN,
-                    a.authorisation == Authorisation.AUTHORISED,
-                    a.team.id == cmd.parent_id
-                ]):
-                   break
-            else:
-                raise UnauthorisedOperationError("Only admins for the given parent team can add a child team")
-
-        team = TeamInput(
-            name = cmd.name,
-            fullname = cmd.fullname if cmd.fullname else cmd.name,
-            parent_id = cmd.parent_id
+        team_input = TeamInput(
+            name=cmd.name,
+            fullname=cmd.fullname if cmd.fullname else cmd.name,
+            parent_id=cmd.parent_id
         )
 
-        # Make sure the name/parent combination isn't already found
-        for a in account.affiliations:
-            if a.team.name.casefold() == team.name.casefold() and a.team.parent_id == team.parent_id:
-                raise IdentityExistsError("This team name/parent combination is already found")
+        if cmd.parent_id is not None:
+            organisation = await uow.organisations.get(team_input.parent_id)
+            parent = organisation.get_team(team_input.parent_id)
+            if not account.user.id in parent.admin_ids:
+                raise UnauthorisedOperationError("Only admins for the parent team can add a child team")
 
-        # If you add a team you become its admin (all teams must have at least one admin)
-        account.affiliations.append(Affiliation(access=Access.ADMIN, authorisation=Authorisation.AUTHORISED, team=team))
+            for team_id in parent.child_ids:
+                team = organisation.get_team(team_id)
+                if team.name.casefold() == team_input.name.casefold():
+                    raise IdentityExistsError("The chosen parent team already has a child team with this name")
+
+            organisation.teams.append(team_input)
+            await uow.organisations.update_seen()
+            # get the team ID to add an admin affiliation to the account
+            updated_organisation = await uow.organisations.get(team_input.parent_id)
+            stored_team: TeamStored = updated_organisation.get_team_by_name_and_parent(
+                name=team_input.name,
+                parent_id=team_input.parent_id
+            )
+        else:
+            async for organisation in uow.organisations.get_all():
+                if organisation.root.name.casefold() == cmd.name.casefold():
+                    raise IdentityExistsError("The chosen parent team already has a child team with this name")
+
+            organisation = await uow.organisations.create(OrganisationInput(teams=[team_input]))
+            stored_team = organisation.root
+
+        account.affiliations.append(
+                Affiliation(
+                    user_id=account.user.id,
+                    team_id=stored_team.id,
+                    access=Access.ADMIN,
+                    authorisation=Authorisation.AUTHORISED
+                )
+        )
         await uow.commit()
 
 async def request_read(
@@ -207,33 +232,84 @@ async def request_read(
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
-        requesting_account = await uow.accounts.get(cmd.user_id)
+        account = await uow.accounts.get(cmd.user_id)
+        organisation = await uow.organisations.get(cmd.team_id)
+        team = organisation.get_team(cmd.team_id)
 
-        admins = uow.accounts.get_all(
-            teams=[cmd.team_id],
-            access_types=[Access.ADMIN],
-            authorisations=[Authorisation.AUTHORISED]
-        )
-        async for admin in admins:
-            team = admin.get_team_by_id(cmd.team_id)
-            break
+        for a in account.get_affiliations(team_ids=[cmd.team_id], access_types=[Access.READ]):
+            if a.authorisation in [Authorisation.RETIRED, Authorisation.NONE]:
+                continue
+            elif a.authorisation == Authorisation.REQUESTED:
+                logger.debug("Repeated request, do nothing")
+                return
+            elif a.authorisation == Authorisation.AUTHORISED:
+                logger.debug("Request for authorised affiliation, do nothing")
+                return
+            elif a.authorisation == Authorisation.DENIED:
+                logger.debug("Request to denied affiliation, do nothing")
+                return
+
+        if account.user.id in team.admin_ids:
+            authorisation = Authorisation.AUTHORISED
         else:
-            raise ValueError("Team not found")
-
-        affiliation = Affiliation(
-            access=Access.READ,
-            authorisation=Authorisation.REQUESTED,
-            team=team
-        )
-        requesting_account.affiliations.append(affiliation)
-        requesting_account.events.append(
-            events.accounts.ReadRequested(
-                user_id = requesting_account.user.id,
-                team_id = team.id
+            authorisation = Authorisation.REQUESTED
+            account.events.append(
+                events.accounts.ReadRequested(
+                    user_id=account.user.id,
+                    team_id=team.id
+                )
             )
+        affiliation = Affiliation(
+            user_id=account.user.id,
+            team_id = team.id,
+            access=Access.READ,
+            authorisation=authorisation
         )
+        account.affiliations.append(affiliation)
         await uow.commit()
 
+async def add_read(
+        cmd: commands.accounts.AddRead,
+        uow: unit_of_work.AbstractUnitOfWork
+):
+    async with uow:
+        requesting_account = await uow.accounts.get(cmd.user_id)
+        organisation = await uow.organisations.get(cmd.team_id)
+        team = organisation.get_team(cmd.team_id)
+        if not cmd.admin_id in team.admin_ids:
+            raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
+
+        # request may be for a parent team
+        request_team = team
+        while request_team is not None:
+            requested_affiliation = next(
+                requesting_account.get_affiliations(
+                    team_ids=[request_team.id],
+                    access_types=[Access.READ],
+                    authorisations=[Authorisation.REQUESTED]
+                ),
+                None
+            )
+            if requested_affiliation is not None:
+                break
+            else:
+                request_team = organisation.get_team(request_team.parent_id)
+        else:
+            raise UnauthorisedOperationError("The request to apply this affiliation was not found")
+
+        new_affiliation = Affiliation(
+            user_id=requesting_account.user.id,
+            team_id = team.id,
+            access = Access.READ,
+            authorisation = Authorisation.AUTHORISED
+        )
+        requesting_account.affiliations.remove(requested_affiliation)
+        requesting_account.affiliations.append(new_affiliation)
+        requesting_account.events.append(events.accounts.ReadAdded(
+            user_id=requesting_account.user.id,
+            team_id=team.id
+        ))
+        await uow.commit()
 
 #async def add_admins(
 #        cmd: commands.accounts.AddAdmin,

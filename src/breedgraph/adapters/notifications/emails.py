@@ -1,12 +1,16 @@
 import json
+import logging
 
 from email.mime.text import MIMEText
 
 from src.breedgraph.config import SITE_NAME
-from src.breedgraph.domain.model.accounts import UserBase, TeamBase
+from src.breedgraph.domain.model.accounts import UserBase
+from src.breedgraph.domain.model.organisations import TeamBase
 from src.breedgraph.config import get_base_url
 from email.message import EmailMessage
 
+
+logger = logging.getLogger(__name__)
 
 class Email:
 
@@ -29,9 +33,6 @@ class VerifyEmailMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} account email verification'
-        # options here are a url to a rest endpoint or handle the token posted over graphql
-        # this can be done through a form submission disguised as a link but this wouldn't work without html
-        # for ease of use for users without html email we have a rest endpoint just for this url
         verify_url = f'{get_base_url()}/verify'
         body = (
             f'Hi {user.fullname}, \n'
@@ -40,11 +41,12 @@ class VerifyEmailMessage(Email):
         )
         self.message.set_content(body)
         self.message.add_attachment(
-            json.dumps({"token": token, "token2": token, "token3": token}).encode('utf-8'),
+            json.dumps({"token": token}).encode('utf-8'),
             maintype='application',
             subtype='json',
             filename='verify_email_token.json'
         )
+
 
 
 class ReadRequestedMessage(Email):
@@ -53,9 +55,22 @@ class ReadRequestedMessage(Email):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} read access requested'
         body = (
-            f'To all admins for {team.fullname},\n'
-            f'{requesting_user.fullname} has requested read access to data written by this team.\n'
+            f'Admin notification:\n'
+            f'{requesting_user.fullname} has requested read access '
+            f'to data written by {team.fullname}.\n'
             f'Please consider authorising this request.'
+        )
+        self.message.set_content(body)
+
+
+class ReadAddedMessage(Email):
+
+    def __init__(self, user: UserBase, team: TeamBase):
+        super().__init__()
+        self.message['SUBJECT'] = f'{SITE_NAME} read access added'
+        body = (
+            f'Hi {user.fullname},\n'
+            f'Read access to data written by {team.fullname} has been added to your account.\n'
         )
         self.message.set_content(body)
 

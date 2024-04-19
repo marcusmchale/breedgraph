@@ -10,12 +10,14 @@ from asyncio import CancelledError
 from typing import Self
 from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
 from src.breedgraph.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
+from src.breedgraph.adapters.repositories.organisations import BaseOrganisationRepository, Neo4jOrganisationRepository
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 
 logger = logging.getLogger(__name__)
 
 class AbstractUnitOfWork(ABC):
     accounts: BaseAccountRepository
+    organisations: BaseOrganisationRepository
 
     async def __aenter__(self) -> Self:
         return self
@@ -58,6 +60,7 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         logger.debug("Begin neo4j transaction")
         self.tx: AsyncTransaction = await self._session.begin_transaction()
         self.accounts = Neo4jAccountRepository(self.tx)
+        self.organisations = Neo4jOrganisationRepository(self.tx)
         return self
 
     async def __aexit__(self, *args):
@@ -75,6 +78,7 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
     async def commit(self):
         logger.debug("Accounts update")
         await self.accounts.update_seen()
+        await self.organisations.update_seen()
         logger.debug("Transaction commit")
         await self.tx.commit()
 

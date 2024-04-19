@@ -7,8 +7,9 @@ WITH collect(team) + collect(inherited_team) as teams
 UNWIND teams as team
 OPTIONAL MATCH
   (team)-[:CONTRIBUTES_TO]->(parent:Team)
+
 RETURN
-  team.id as id,
   team.name as name,
   team.fullname as fullname,
-  parent.id as parent_id
+  team.id as id,
+  NULL as parent_id

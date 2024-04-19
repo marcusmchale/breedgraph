@@ -1,0 +1,65 @@
+import pytest
+from pydantic import ValidationError
+
+from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored
+from src.breedgraph.domain.model.organisations import OrganisationInput, OrganisationStored
+from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
+
+from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
+
+from src.breedgraph.custom_exceptions import NoResultFoundError
+
+from tests.integration.test_organisations_repository import create_team_input
+
+async def create_account_input(user_input_generator) -> AccountInput:
+    new_user_input = user_input_generator.new_user_input()
+    new_user = UserInput(
+        name=new_user_input['name'],
+        fullname=new_user_input['name'],
+        email=new_user_input['email'],
+        password_hash=new_user_input['password_hash']
+    )
+    return AccountInput(user=new_user)
+
+@pytest.mark.asyncio(scope="session")
+async def test_create_and_get_account(neo4j_tx, user_input_generator):
+    account_input = await create_account_input(user_input_generator)
+    accounts_repo = Neo4jAccountRepository(neo4j_tx)
+    stored_account: AccountStored = await accounts_repo.create(account_input)
+
+    retrieved_account = await accounts_repo.get(stored_account.user.id)
+    assert retrieved_account.user.name == account_input.user.name
+
+    retrieved_account = await accounts_repo.get_by_name(account_input.user.name)
+    assert retrieved_account.user.name == account_input.user.name
+
+    retrieved_account = await accounts_repo.get_by_email(account_input.user.email)
+    assert retrieved_account.user.name == account_input.user.name
+
+    async for account in accounts_repo.get_all():
+        # todo test filters by team, access and authorisation
+        # for this we need to add affiliations etc.
+        if account.user.name == account_input.user.name:
+            break
+    else:
+        raise NoResultFoundError
+
+@pytest.mark.asyncio(scope="session")
+async def test_change_user_details_on_account(neo4j_tx, user_input_generator):
+    new_account_input = await create_account_input(user_input_generator)
+    accounts_repo = Neo4jAccountRepository(neo4j_tx)
+    stored_account: AccountStored = await accounts_repo.create(new_account_input)
+
+    changed_account_input = await create_account_input(user_input_generator)
+    stored_account.user.name = changed_account_input.user.name
+    stored_account.user.email = changed_account_input.user.email
+    stored_account.user.fullname = changed_account_input.user.name
+
+    with pytest.raises(ValidationError):
+        stored_account.user.id = 0
+
+    await accounts_repo.update_seen()
+
+    retrieved_stored_account = await accounts_repo.get(stored_account.user.id)
+    assert retrieved_stored_account.user == stored_account.user
+

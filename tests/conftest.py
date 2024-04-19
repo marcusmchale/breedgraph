@@ -17,7 +17,7 @@ from src.breedgraph.service_layer.messagebus import MessageBus
 
 from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
 
-from tests.test_inputs import UserInputGenerator
+from tests.inputs import UserInputGenerator
 
 @pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
@@ -33,6 +33,11 @@ async def client(test_app: FastAPI) -> AsyncIterator[AsyncClient]:
 @pytest_asyncio.fixture(scope="session")
 async def neo4j_uow() -> unit_of_work.Neo4jUnitOfWork:
     yield unit_of_work.Neo4jUnitOfWork()
+
+@pytest_asyncio.fixture(scope="session")
+async def neo4j_tx(neo4j_uow):
+    async with neo4j_uow as uow:
+        yield uow.tx
 
 @pytest_asyncio.fixture(scope="session")
 async def email_notifications() -> notifications.EmailNotifications:
@@ -54,6 +59,7 @@ async def email_notifications() -> notifications.EmailNotifications:
 #    )
 #    yield bus
 #
+
 @pytest_asyncio.fixture(scope="session")
 async def session_database() -> None:
     # yield clear db
@@ -62,10 +68,6 @@ async def session_database() -> None:
         await uow.commit()
 
     yield
-
-    #async with unit_of_work.Neo4jUnitOfWork() as uow:
-    #    await uow.tx.run("MATCH (n) DETACH DELETE n")
-    #    await uow.commit()
 
 
 @pytest_asyncio.fixture(scope="session")

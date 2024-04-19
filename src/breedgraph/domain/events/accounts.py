@@ -16,6 +16,10 @@ class ReadRequested(Event):
     user_id: int
     team_id: int
 
+class ReadAdded(Event):
+    user_id: int
+    team_id: int
+
 #
 #class AffiliationConfirmed(Event):
 #    user_id: int

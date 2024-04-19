@@ -10,7 +10,8 @@ from src.breedgraph.config import (
     MAIL_HOST,
     MAIL_PORT,
     MAIL_USERNAME,
-    MAIL_PASSWORD
+    MAIL_PASSWORD,
+    MAIL_USE_TLS
 )
 
 
@@ -52,7 +53,7 @@ class EmailNotifications(AbstractNotifications):
             port=MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
-            use_tls=True
+            use_tls=MAIL_USE_TLS
         )
 
     @staticmethod
@@ -65,5 +66,5 @@ class EmailNotifications(AbstractNotifications):
             port=MAIL_PORT,
             username=MAIL_USERNAME,
             password=MAIL_PASSWORD,
-            use_tls=True
+            use_tls=MAIL_USE_TLS
         )

@@ -10,7 +10,7 @@ from src.breedgraph.custom_exceptions import (
 from src.breedgraph.adapters.notifications import emails
 from src.breedgraph.domain.model.accounts import Access, Authorisation
 
-from src.breedgraph.domain.model.accounts import (
+from src.breedgraph.domain.model.organisations import (
     TeamStored
 )
 
@@ -65,20 +65,39 @@ async def email_admins_read_request(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        requesting_account = await uow.accounts.get(event.user_id)
-        requested_team = requesting_account.get_team_by_id(event.team_id)
+        account = await uow.accounts.get(event.user_id)
+        organisation = await uow.organisations.get(event.team_id)
+        team = organisation.get_team(event.team_id)
 
-        admins = uow.accounts.get_all(
-            teams=[event.team_id],
-            access_types=[Access.ADMIN],
-            authorisations=[Authorisation.AUTHORISED]
-        )
+        # todo consider implementing a method to fetch a list of ids in the repository
+        admins = [await uow.accounts.get(admin_id) for admin_id in team.admin_ids]
+
         message = emails.ReadRequestedMessage(
-            requesting_user = requesting_account.user,
-            team = requested_team
+            requesting_user = account.user,
+            team = team
         )
         await notifications.send(
-            [admin.user async for admin in admins],
+            [admin.user for admin in admins],
+            message
+        )
+
+
+async def email_user_read_added(
+        event: events.accounts.ReadRequested,
+        uow: "AbstractUnitOfWork",
+        notifications: "AbstractNotifications"
+):
+    async with uow:
+        account = await uow.accounts.get(event.user_id)
+        organisation = await uow.organisations.get(event.team_id)
+        team = organisation.get_team(event.team_id)
+
+        message = emails.ReadAddedMessage(
+            user = account.user,
+            team = team
+        )
+        await notifications.send(
+            [account.user],
             message
         )
 

@@ -49,10 +49,10 @@ class RequestAdmin(RequestAffiliation):
     pass
 
 class SetAffiliation(Command):
-    auth_user_id: int
-    target_user_id: int
+    admin_id: int
+    user_id: int
     team_id: int
-    inherit: bool  # apply the same affiliation to all children
+    heritable: bool
 
 class AddRead(SetAffiliation):
     pass

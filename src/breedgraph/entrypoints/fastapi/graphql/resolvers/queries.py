@@ -17,7 +17,10 @@ from . import graphql_query, graphql_mutation
 
 from typing import List, Optional
 from src.breedgraph.domain.model.accounts import (
-    AccountStored, UserOutput, TeamStored, TeamOutput
+    AccountStored, UserOutput
+)
+from src.breedgraph.domain.model.organisations import (
+    TeamStored, TeamOutput
 )
 from src.breedgraph.domain.model.authentication import Token
 

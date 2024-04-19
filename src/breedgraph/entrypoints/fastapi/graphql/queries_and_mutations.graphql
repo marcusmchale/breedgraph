@@ -32,6 +32,11 @@ type Mutation {
     request_read(
         team_id: Int!
     ): BooleanPayload!
+    add_read(
+        user_id: Int!
+        team_id: Int!
+        heritable: Boolean
+    ): BooleanPayload!
 }
 
 type Query {

@@ -238,3 +238,27 @@ async def post_to_request_read(client, token:str, team_id: int):
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+
+async def post_to_add_read(client, token:str, user_id:int, team_id: int):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $user_id: Int!, "
+            "  $team_id: Int!"
+            " ) { "
+            "  add_read( "
+            "    user_id: $user_id, "
+            "    team_id: $team_id"
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "user_id": user_id,
+            "team_id": team_id
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

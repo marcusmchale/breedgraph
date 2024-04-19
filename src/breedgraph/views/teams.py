@@ -1,6 +1,6 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.accounts import TeamStored
+from src.breedgraph.domain.model.organisations import TeamStored
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
     UnauthorisedOperationError
