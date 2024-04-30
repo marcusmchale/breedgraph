@@ -11,6 +11,7 @@ from tests.e2e.accounts.post_methods import (
     post_to_add_email,
     post_to_add_account,
     post_to_add_team,
+    post_to_remove_team,
     post_to_teams,
     post_to_request_read,
     post_to_accounts,
@@ -107,6 +108,40 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
     assert_payload_success(register_payload)
 
     await check_verify_email(client, second_user_input['email'], second_user_input['name'])
+
+@pytest.mark.asyncio(scope="session")
+async def test_admin_adds_removes_team(client, user_input_generator, admin_login_token):
+    new_team_name = user_input_generator.user_inputs[1]['team_name']
+    add_team_response = await post_to_add_team(
+        client,
+        admin_login_token,
+        new_team_name
+    )
+    add_team_payload = get_verified_payload(add_team_response, "add_team")
+    assert_payload_success(add_team_payload)
+
+    teams_request_response = await post_to_teams(
+        client,
+        admin_login_token
+    )
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    assert teams_payload['result']
+
+    new_team_id = None
+    for team in teams_payload['result']:
+        if team['name'] == new_team_name:
+            new_team_id = team['id']
+            break
+    assert new_team_id is not None
+
+    remove_team_response = await post_to_remove_team(
+        client,
+        admin_login_token,
+        new_team_id
+    )
+    remove_team_payload = get_verified_payload(remove_team_response, "remove_team")
+    assert_payload_success(remove_team_payload)
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_admin_adds_child_team(client, user_input_generator, admin_login_token):

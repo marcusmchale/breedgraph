@@ -49,7 +49,7 @@ type Mutation {
 type Query {
     account: AccountsPayload!  # see own account details
     teams (team_id: Int): TeamsPayload!  # see teams visible to the user
-    accounts (user_id: Int): AccountsPayload! # see account details for which the user is admin
+    accounts (user_id: Int): AccountsPayload! # see accounts for admin
 }
 
 
