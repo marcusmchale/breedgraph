@@ -3,50 +3,55 @@ import logging
 from pydantic import BaseModel, field_validator, ValidationError, Field
 from typing import List, Optional
 
+from src.breedgraph.custom_exceptions import ProtectedNodeError
+
+
 logger = logging.getLogger(__name__)
 
 class TeamBase(BaseModel):
     name: str
     fullname: str
-    parent_id: None|int = None
 
 class  TeamInput(TeamBase):
+    parent: None | int = Field(frozen=True, default=None)
+
+class TeamOutput(TeamInput):
+    id: int = Field(frozen=True)
+    children: None | List[int] = Field(frozen=True)
+    # lists of users with affiliations (including inherited)
+    admins: List[int] = Field(frozen=True)
+    readers: List[int] = Field(frozen=True)
+    writers: List[int] = Field(frozen=True)
+    requests: List[int] = Field(frozen=True)
+
+class TeamStored(TeamOutput):
     pass
 
-class TeamOutput(TeamBase):
-    id: int = Field(frozen=True)
-    child_ids: None|List[int] = Field(frozen=True)
-
-class TeamStored(TeamBase):
-    id: int = Field(frozen=True)
-    admin_ids: List[int] = Field(frozen=True)
-    child_ids: None|List[int] = Field(frozen=True)
-
 class OrganisationBase(BaseModel):
-    teams: List[TeamBase]
+    teams: List[TeamInput]
 
     def __hash__(self):
         return hash(self.root.name)
     @property
-    def root(self) -> TeamBase:
+    def root(self) -> TeamInput:
         for team in self.teams:  # should always be the first, this just ensures we can only return a root.
-            if team.parent_id is None:
+            if team.parent is None:
                 return team
 
-    def get_team(self, team_id: int):  # todo probably should be using a map here
-        for team in self.teams:
-            if isinstance(team, TeamStored) and team.id == team_id:
-                return team
+    def get_team(self, team: int):  # todo probably should be using a map here
+        for t in self.teams:
+            if isinstance(t, TeamStored) and t.id == team:
+                return t
 
-    def get_team_by_name_and_parent(self, name: str, parent_id: None|int):
-        if parent_id is None:
+    def get_team_by_name_and_parent(self, name: str, parent: None|int):
+        if parent is None:
             logger.warning("Looking for a team without a parent, this is always the root")
             if name.casefold == self.root.name.casefold():
                 return self.root
         else:
-            parent = self.get_team(parent_id)
-            for team_id in parent.child_ids:
-                team = self.get_team(team_id)
+            parent = self.get_team(parent)
+            for t in parent.children:
+                team = self.get_team(t)
                 if team.name.casefold() == name.casefold():
                     return team
 
@@ -57,7 +62,7 @@ class OrganisationInput(OrganisationBase):
     def teams(cls, l: List[TeamInput]) -> List[TeamInput]:
         if not len(l) == 1:
             raise ValidationError('Input organisation can only have one team')
-        if l[0].parent_id:
+        if l[0].parent:
             raise ValidationError('Input organisation root team must not have a parent')
         return l
 
@@ -65,8 +70,8 @@ class OrganisationInput(OrganisationBase):
 class OrganisationStored(OrganisationBase):
     teams: List[TeamStored|TeamInput]
 
-    @property   # re-declaring here to reflect modified type of root
+    @property   # re-declaring here to reflect modified type
     def root(self) -> TeamStored:
         for team in self.teams:
-            if team.parent_id is None:
+            if team.parent is None:
                 return team

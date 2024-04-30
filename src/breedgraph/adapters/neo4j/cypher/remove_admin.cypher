@@ -1,2 +1,2 @@
-MATCH (:User {id: $user_id})-[admin:ADMIN]->(:Team {id: $team_id})
+MATCH (:User {id: $user})-[admin:ADMIN]->(:Team {id: $team})
 DELETE admin

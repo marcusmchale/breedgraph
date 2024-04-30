@@ -1,22 +1,32 @@
-type User {
-    id: Int!
-    name: String!
-    fullname: String!
-    password_hash: String
-    email: String!
-    email_verified: Boolean!
-}
+enum Access { NONE, READ, WRITE, ADMIN}
+enum Authorisation {NONE, REQUESTED, AUTHORISED, RETIRED, DENIED}
 
 type Team {
     id: Int!
     name: String!
     fullname: String!
-    parent_id: Int
+    parent: Team
+    children: [Team]
+    readers: [Int]
+    writers: [Int]
+    admins: [Int]
+    requests: [Int]
+}
+
+type User {
+    id: Int!
+    fullname: String!
+    email: String!
+}
+
+type Affiliation {
+    team: Team!
+    access: Access!
+    authorisation: Authorisation!
+    heritable: Boolean!
 }
 
 type Account {
-    user: User!
-    reads_from: [Team]
-    writes_for: [Team]
-    admins_for: [Team]
+    user: User!,
+    affiliations: [Affiliation]
 }

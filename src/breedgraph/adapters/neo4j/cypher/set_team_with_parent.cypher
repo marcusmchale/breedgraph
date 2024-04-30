@@ -1,7 +1,7 @@
 MATCH
-  (team: Team {id: $team_id})
+  (team: Team {id: $team})
 MATCH
-  (parent: Team {id: $parent_id})
+  (parent: Team {id: $parent})
 OPTIONAL MATCH (team)-[contributes_to:CONTRIBUTES_TO]->(:Team)
 DELETE contributes_to
 CREATE (team)-[:CONTRIBUTES_TO]->(parent)

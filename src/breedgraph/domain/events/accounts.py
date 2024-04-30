@@ -7,18 +7,18 @@ class EmailRemoved(Event):
     email: str
 
 class AccountAdded(Event):
-    user_id: int
+    user: int
 
 class EmailVerified(Event):
-    user_id: int
+    user: int
 
 class ReadRequested(Event):
-    user_id: int
-    team_id: int
+    user: int
+    team: int
 
 class ReadAdded(Event):
-    user_id: int
-    team_id: int
+    user: int
+    team: int
 
 #
 #class AffiliationConfirmed(Event):

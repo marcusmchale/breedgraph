@@ -1,2 +1,2 @@
-MATCH (:User {id: $user_id})-[read:READ]->(:Team {id: $team_id})
+MATCH (:User {id: $user})-[read:READ]->(:Team {id: $team})
 DELETE read

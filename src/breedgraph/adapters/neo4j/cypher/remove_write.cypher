@@ -1,2 +1,2 @@
-MATCH (:User {id: $user_id})-[write:WRITE]->(:Team {id: $team_id})
+MATCH (:User {id: $user})-[write:WRITE]->(:Team {id: $team})
 DELETE WRITE

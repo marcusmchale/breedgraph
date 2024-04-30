@@ -1,5 +1,5 @@
 MATCH (user:User {
-  id: $id
+  id: $user
 })
 SET
 user.name = $name,

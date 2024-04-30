@@ -1,15 +1,26 @@
 MATCH
-  (user:User {id: ($user_id)})-[:READ|WRITE|ADMIN]->(team:Team)
-OPTIONAL MATCH
-  (user)-[:READ|WRITE|ADMIN {heritable:True, authorisation:"AUTHORISED"}]->(:Team)
-    <-[:CONTRIBUTES_TO*]-(inherited_team:Team)
-WITH collect(team) + collect(inherited_team) as teams
+  (user:User {id: ($user)})
+WITH
+  coalesce([(user)-[affiliation:READ|WRITE|ADMIN]->(team:Team) | team ], []) +
+  [(user)-[affiliation:READ|WRITE|ADMIN {heritable: True, authorisation: 'AUTHORISED'}]->(:Team)<-[:CONTRIBUTES_TO*]-(team) | team]
+  as teams
+CALL {
+  MATCH (root: Team)
+  WHERE NOT (root)-[:CONTRIBUTES_TO]->(:Team)
+  return collect(root) as roots
+}
+WITH teams + roots as teams
 UNWIND teams as team
-OPTIONAL MATCH
-  (team)-[:CONTRIBUTES_TO]->(parent:Team)
+WITH DISTINCT team
 
-RETURN
-  team.name as name,
-  team.fullname as fullname,
-  team.id as id,
-  NULL as parent_id
+RETURN team {
+  .*,
+  parent: [(team)-[:CONTRIBUTES_TO]->(parent:Team) | parent.id][0],
+  children: [(team)<-[:CONTRIBUTES_TO]-(child:Team) | child.id],
+  readers: coalesce([(team)<-[:READ {authorisation:"AUTHORISED"}]-(reader:User) | reader.id], []) +
+       [(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:READ {authorisation:"AUTHORISED", heritable:true}]-(reader:User) | reader.id],
+  writers: [(team)<-[:WRITE {authorisation:"AUTHORISED"}] -(writer:User) | writer.id],
+  admins: coalesce([(team)<-[:ADMIN {authorisation:"AUTHORISED"}] -(admin:User) | admin.id], []) +
+       [(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:ADMIN {authorisation:"AUTHORISED", heritable:true}]-(admin:User) | admin.id],
+  requests: [(team)<-[:READ|WRITE|ADMIN {authorisation:"REQUESTED"}]-(request:User) | request.id]
+}

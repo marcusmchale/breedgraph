@@ -1,2 +1,2 @@
-MATCH (team: Team {id: $team_id})
+MATCH (team: Team {id: $team})
 DETACH DELETE team

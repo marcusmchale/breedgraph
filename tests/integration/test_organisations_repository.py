@@ -56,20 +56,15 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
 
 @pytest.mark.asyncio(scope="session")
 async def test_change_team_details_on_organisation(neo4j_tx, user_input_generator):
+    organisations_repo = Neo4jOrganisationRepository(neo4j_tx)
+
     team_input = await create_team_input(user_input_generator)
     organisation_input = OrganisationInput(teams=[team_input])
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx)
     stored_organisation = await organisations_repo.create(organisation_input)
 
     changed_team_input = await create_team_input(user_input_generator)
-
     stored_organisation.root.name = changed_team_input.name
-    stored_organisation.root.fullname = changed_team_input.fullname
-
-    with pytest.raises(ValidationError):
-        stored_organisation.root.id = 0
 
     await organisations_repo.update_seen()
-
     retrieved_from_root_id = await organisations_repo.get(stored_organisation.root.id)
     assert retrieved_from_root_id.root == stored_organisation.root

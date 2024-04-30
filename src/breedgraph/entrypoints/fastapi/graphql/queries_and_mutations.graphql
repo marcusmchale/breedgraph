@@ -27,18 +27,30 @@ type Mutation {
     add_team(
         name: String!
         fullname: String
-        parent_id: Int
+        parent: Int
+    ): BooleanPayload!
+    remove_team(
+        team: Int!
     ): BooleanPayload!
     request_read(
-        team_id: Int!
+        team: Int!
     ): BooleanPayload!
     add_read(
-        user_id: Int!
-        team_id: Int!
+        user: Int!
+        team: Int!
         heritable: Boolean
+    ): BooleanPayload!
+    remove_read(
+        user: Int!
+        team: Int!
     ): BooleanPayload!
 }
 
 type Query {
-    get_teams: TeamsPayload!
+    account: AccountsPayload!  # see own account details
+    teams (team_id: Int): TeamsPayload!  # see teams visible to the user
+    accounts (user_id: Int): AccountsPayload! # see account details for which the user is admin
 }
+
+
+

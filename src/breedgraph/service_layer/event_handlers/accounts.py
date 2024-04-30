@@ -37,7 +37,7 @@ async def send_user_verify_url(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user_id)
+        account = await uow.accounts.get(event.user)
         if not account:
             raise NoResultFoundError
         token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
@@ -65,12 +65,12 @@ async def email_admins_read_request(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user_id)
-        organisation = await uow.organisations.get(event.team_id)
-        team = organisation.get_team(event.team_id)
+        account = await uow.accounts.get(event.user)
+        organisation = await uow.organisations.get(event.team)
+        team = organisation.get_team(event.team)
 
         # todo consider implementing a method to fetch a list of ids in the repository
-        admins = [await uow.accounts.get(admin_id) for admin_id in team.admin_ids]
+        admins = [await uow.accounts.get(admin_id) for admin_id in team.admins]
 
         message = emails.ReadRequestedMessage(
             requesting_user = account.user,
@@ -88,9 +88,9 @@ async def email_user_read_added(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user_id)
-        organisation = await uow.organisations.get(event.team_id)
-        team = organisation.get_team(event.team_id)
+        account = await uow.accounts.get(event.user)
+        organisation = await uow.organisations.get(event.team)
+        team = organisation.get_team(event.team)
 
         message = emails.ReadAddedMessage(
             user = account.user,

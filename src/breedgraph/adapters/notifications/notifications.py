@@ -31,16 +31,6 @@ class AbstractNotifications(abc.ABC):
         raise NotImplementedError
 
 
-class FakeNotifications(AbstractNotifications):
-
-    @staticmethod
-    async def send_to_unregistered(recipients: List[str], message: Email):
-        pass
-
-    @staticmethod
-    async def send(recipients: List[UserBase], message: Email):
-        pass
-
 class EmailNotifications(AbstractNotifications):
 
     @staticmethod

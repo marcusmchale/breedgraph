@@ -56,7 +56,7 @@ class BaseOrganisationRepository(ABC):
         raise NotImplementedError
 
     async def remove(self, organisation: OrganisationStored):
-        if organisation.root.child_ids:
+        if organisation.root.children:
             raise ProtectedNodeError
 
         await self._remove(organisation)
@@ -68,6 +68,7 @@ class BaseOrganisationRepository(ABC):
     async def update_seen(self):
         for organisation in self.seen:
             await self._update(organisation)
+        self.seen.clear()
 
     @abstractmethod
     async def _update(self, organisation: OrganisationStored):
@@ -85,14 +86,14 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
             stored_team: TeamStored = await self._create_team(team)
             return OrganisationStored(teams=[stored_team])
 
-    async def _get(self, team_id: int) -> OrganisationStored:
+    async def _get(self, team: int) -> OrganisationStored:
         result: AsyncResult = await self.tx.run(
             queries['get_organisation'],
-            team_id=team_id
+            team=team
         )
         teams = list()
         async for record in result:
-            teams.append(self.team_record_to_team(record))
+            teams.append(self.team_record_to_team(record['team']))
 
         return OrganisationStored(teams=teams)
 
@@ -106,13 +107,13 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
     async def _create_team(self, team: TeamInput):
         logger.debug(f"Create team: {team}")
 
-        if team.parent_id is not None:
+        if team.parent is not None:
             result: AsyncResult = await self.tx.run(
                 queries['create_team_with_parent'],
                 name=team.name,
                 name_lower=team.name.casefold(),
                 fullname=team.fullname,
-                parent_id=team.parent_id
+                parent=team.parent
             )
         else:
             result: AsyncResult = await self.tx.run(
@@ -123,16 +124,16 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
             )
 
         record: Record = await result.single()
-        return self.team_record_to_team(record)
+        return self.team_record_to_team(record['team'])
 
     async def _set_team(self, team: TeamStored):
         logger.debug(f"Set team: {team}")
         # todo test if parent_id has changed, if so need to update parent also (its children have changed)
-        if team.parent_id is not None:
+        if team.parent is not None:
             await self.tx.run(
                 queries['set_team_with_parent_id'],
-                team_id=team.id,
-                parent_id=team.parent_id,
+                team=team.id,
+                parent=team.parent,
                 name=team.name,
                 name_lower=team.name.casefold(),
                 fullname=team.fullname
@@ -140,7 +141,7 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
         else:
             await self.tx.run(
                 queries['set_team'],
-                team_id=team.id,
+                team=team.id,
                 name=team.name,
                 name_lower=team.name.casefold(),
                 fullname=team.fullname
@@ -165,10 +166,11 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
 
         for team in organisation.teams:
             if team.changed or team in organisation.teams.added:
-                if isinstance(team, TeamInput):
-                    await self._create_team(team)
-                else:
+                if isinstance(team, TeamStored):
                     await self._set_team(team)
+                else:
+                    await self._create_team(team)
+
 
         for team in organisation.teams.removed:
             await self._remove_team(team)
@@ -179,7 +181,10 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
             name=record['name'],
             fullname=record['fullname'],
             id=record['id'],
-            parent_id=record['parent_id'],
-            child_ids=record['child_ids'],
-            admin_ids=record['admin_ids']
+            parent=record['parent'],
+            children=record['children'],
+            readers=record['readers'],
+            writers=record['writers'],
+            admins=record['admins'],
+            requests=record['requests']
         )

@@ -7,10 +7,12 @@ CREATE (team: Team {
   name_lower: $name_lower,
   fullname: $fullname
 })
-RETURN
-  team.name as name,
-  team.fullname as fullname,
-  team.id as id,
-  null as parent_id,
-  [] as child_ids,
-  [] as admin_ids
+RETURN team {
+  .*,
+  parent: Null,
+  children: [],
+  readers: [],
+  writers: [],
+  admins: [],
+  requests: []
+}

@@ -12,4 +12,4 @@ CREATE (user: User {
   email_verified: $email_verified,
   time:           datetime.transaction()
 })
-RETURN user
+RETURN user {.*}

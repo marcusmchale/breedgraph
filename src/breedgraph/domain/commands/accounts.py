@@ -19,25 +19,29 @@ class VerifyEmail(Command):
     token: str
 
 class Login(Command):
-    user_id: int
+    user: int
 
 class AddTeam(Command):
-    user_id: int
+    user: int
     name: str
     fullname: Optional[str] = None
-    parent_id: Optional[int]
+    parent: Optional[int]
+
+class RemoveTeam(Command):
+    user: int
+    team: int
 
 class AddEmail(Command):
-    user_id: int
+    user: int
     email: str
 
 class RemoveEmail(Command):
-    user_id: int
+    user: int
     email: str
 
 class RequestAffiliation(Command):
-    user_id: int
-    team_id: int
+    user: int
+    team: int
 
 class RequestRead(RequestAffiliation):
     pass
@@ -49,15 +53,16 @@ class RequestAdmin(RequestAffiliation):
     pass
 
 class SetAffiliation(Command):
-    admin_id: int
-    user_id: int
-    team_id: int
-    heritable: bool
+    admin: int
+    user: int
+    team: int
 
 class AddRead(SetAffiliation):
-    pass
+    heritable: bool
+
 class RemoveRead(SetAffiliation):
     pass
+
 class AddWrite(SetAffiliation):
     pass
 class RemoveWrite(SetAffiliation):

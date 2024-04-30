@@ -6,5 +6,11 @@ from ariadne import (
 graphql_query = QueryType()
 graphql_mutation = MutationType()
 
+
+
 from . import mutations
 from . import queries
+
+
+team = queries.team
+affiliation = queries.affiliation

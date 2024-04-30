@@ -6,6 +6,11 @@ from src.breedgraph.domain.model.accounts import (
     AccountInput, AccountStored
 )
 
+from src.breedgraph.domain.model.organisations import (
+    TeamOutput
+)
+
+
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
 from src.breedgraph.adapters.neo4j.cypher import queries
 
@@ -38,14 +43,14 @@ class BaseAccountRepository(ABC):
     async def _create(self, account: AccountInput) -> AccountStored:
         raise NotImplementedError
 
-    async def get(self, user_id: int) -> AccountStored:
-        account = await self._get(user_id)
+    async def get(self, user: int) -> AccountStored:
+        account = await self._get(user)
         if account is not None:
             self._track(account)
         return account
 
     @abstractmethod
-    async def _get(self, user_id: int) -> AccountStored:
+    async def _get(self, user: int) -> AccountStored:
         raise NotImplementedError
 
     async def get_by_email(self, email: str) -> AccountStored:
@@ -111,75 +116,6 @@ class BaseAccountRepository(ABC):
     async def _update(self, account: AccountStored):
         raise NotImplementedError
 
-class FakeAccountRepository(BaseAccountRepository):
-
-    def __init__(self):
-        super().__init__()
-        self._accounts = set()
-        self.user_id_counter = 0
-        self.team_id_counter = 0
-
-    @property
-    def orphan_teams(self):
-        for account in self._accounts:
-            for affiliation in account.affiliations:
-                if affiliation.team.parent_id is None:
-                    yield affiliation.team
-
-    async def _create(self, account: AccountInput) -> AccountStored:
-        self.user_id_counter += 1
-        account.user = UserStored(
-            id=self.user_id_counter,
-            name=account.user.name,
-            email=account.user.email,
-            password_hash=account.user.password_hash
-        )
-        account = AccountStored(
-            user = account.user,
-            affiliations = [
-                Affiliation(
-                    access=Access.NONE,
-                    authorisation=Authorisation.NONE,
-                    team=t
-                ) for t in self.orphan_teams
-            ])
-
-        self._accounts.add(account)
-        return account
-
-    async def _get(self, user_id: int) -> AccountStored:
-        return next(a for a in self._accounts if a.user.id == user_id)
-
-    def _get_all(
-            self,
-            team_ids: None|List[int] = None,
-            access_types: None|List[Access] = None,
-            authorisations: None|List[Authorisation] = None
-    ) -> AsyncGenerator[AccountStored, None]:
-        account: AccountStored
-        for account in self._accounts:
-            for affiliation in account.affiliations:
-                if affiliation.is_matched(
-                    user_ids=[account.user.id],
-                    team_ids=team_ids,
-                    access_types=access_types,
-                    authorisations=authorisations,
-                ):
-                    yield account
-
-    async def _get_by_email(self, email: str) -> AccountStored:
-        return next(a for a in self._accounts if a.user.email == email)
-
-    async def _get_by_name(self, name: str) -> AccountStored:
-        return next(a for a in self._accounts if a.user.name == name)
-
-    async def _remove(self, account: AccountStored):
-        self._accounts.remove(account)
-
-    async def _update(self, user: AccountStored):
-        pass
-
-
 class Neo4jAccountRepository(BaseAccountRepository):
 
     def __init__(self, tx: AsyncTransaction):
@@ -188,7 +124,7 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     async def _create(self, account: AccountInput) -> AccountStored:
         user = await self._create_user(account.user)
-        return await self._get(user_id=user.id)
+        return await self._get(user=user.id)
 
     async def _create_user(self, user: UserInput) -> UserStored:
         logger.debug(f"Create user: {user}")
@@ -205,9 +141,9 @@ class Neo4jAccountRepository(BaseAccountRepository):
         record = await result.single()
         return self.user_record_to_user(record['user'])
 
-    async def _set_affiliation(self, affiliation: Affiliation) -> Affiliation:
+    async def _set_affiliation(self, user: UserStored, affiliation: Affiliation) -> Affiliation:
         # if none type just return, these are inferred from exposed root teams and not stored
-        if affiliation == Access.NONE:
+        if affiliation.access == Access.NONE:
             return affiliation
 
         if affiliation.access == Access.READ:
@@ -221,14 +157,14 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
         await self.tx.run(
             query,
-            user_id=affiliation.user_id,
-            team_id=affiliation.team_id,
+            user=user.id,
+            team=affiliation.team,
             authorisation=affiliation.authorisation.name,
             heritable=affiliation.heritable
         )
         return affiliation
 
-    async def _remove_affiliation(self, affiliation: Affiliation) -> None:
+    async def _remove_affiliation(self, user: UserStored, affiliation: Affiliation) -> None:
 
         if affiliation.access == Access.NONE:
             return
@@ -242,12 +178,12 @@ class Neo4jAccountRepository(BaseAccountRepository):
         else:
             raise TypeError("Unknown affiliation")
 
-        await self.tx.run(query, user_id=affiliation.user_id, team_id=affiliation.team_id)
+        await self.tx.run(query, user=user.id, team=affiliation.team)
 
-    async def _get(self, user_id: int) -> AccountStored:
+    async def _get(self, user: int) -> AccountStored:
         result: AsyncResult = await self.tx.run(
             queries['get_account'],
-            user_id=user_id
+            user=user
         )
         record: "Record" = await result.single()
         return self.record_to_account(record) if record else None
@@ -276,12 +212,12 @@ class Neo4jAccountRepository(BaseAccountRepository):
     ) -> AsyncGenerator[AccountStored, None]:
 
         if not authorisations:
-            authorisations = [a.name for a in Authorisation]
+            authorisations = [a for a in Authorisation]
         else:
             authorisations = [a.name for a in authorisations]
 
         if not access_types:
-            access_types = [a.name for a in Access]
+            access_types = [a for a in Access]
         else:
             access_types = [a.name for a in access_types]
 
@@ -316,8 +252,8 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     async def _update(self, account: AccountStored):
         await self._set_user(account.user)
-        await self._update_affiliations(account.affiliations)
-        await self._update_allowed_emails(account.user.id, account.allowed_emails)
+        await self._update_affiliations(account.user, account.affiliations)
+        await self._update_allowed_emails(account.user, account.allowed_emails)
 
     async def _set_user(self, user: UserStored):
 
@@ -327,7 +263,7 @@ class Neo4jAccountRepository(BaseAccountRepository):
         if user.changed:
             await self.tx.run(
                 queries['set_user'],
-                id=user.id,
+                user=user.id,
                 name = user.name,
                 name_lower=user.name.casefold(),
                 fullname = user.fullname,
@@ -338,7 +274,7 @@ class Neo4jAccountRepository(BaseAccountRepository):
             )
             user.reset_tracking()
 
-    async def _update_affiliations(self, affiliations: List[Affiliation]):
+    async def _update_affiliations(self, user: UserStored, affiliations: List[Affiliation]):
         if not isinstance(affiliations, TrackedList):
             raise TypeError("Affiliations must be TrackedList for neo4j repository updates")
 
@@ -348,15 +284,15 @@ class Neo4jAccountRepository(BaseAccountRepository):
         # Can't just iterate over added as there might be changes to affiliations
         for affiliation in affiliations:
             if affiliation.changed or affiliation in affiliations.added:
-                await self._set_affiliation(affiliation)
+                await self._set_affiliation(user, affiliation)
 
         for affiliation in affiliations.removed:
-            await self._remove_affiliation(affiliation)
+            await self._remove_affiliation(user, affiliation)
 
         affiliations.reset_tracking()
 
 
-    async def _update_allowed_emails(self, user_id: int, allowed_emails: List[str]):
+    async def _update_allowed_emails(self, user: UserStored, allowed_emails: List[str]):
 
         if not isinstance(allowed_emails, TrackedList):
             raise IllegalOperationError("Allowed emails must be tracked for neo4j updates")
@@ -368,14 +304,14 @@ class Neo4jAccountRepository(BaseAccountRepository):
         for email in allowed_emails.added:
             await self.tx.run(
                 queries['create_allowed_email'],
-                user_id=user_id,
-                email = email,
+                user=user.id,
+                email=email,
                 email_lower=email.casefold()
             )
         for email in allowed_emails.removed:
             await self.tx.run(
                 queries['remove_allowed_email'],
-                user_id=user_id,
+                user=user.id,
                 email_lower=email.casefold()
             )
         allowed_emails.reset_tracking()
@@ -394,10 +330,10 @@ class Neo4jAccountRepository(BaseAccountRepository):
     @staticmethod
     def affiliation_record_to_affiliation(record) -> Affiliation:
         return Affiliation(
-            user_id=record['user_id'],
-            team_id=record['team_id'],
+            team=record['team_id'],
             access=Access[record['access']] if record['access'] else Access.NONE,
             authorisation=Authorisation[record['authorisation']] if record['authorisation'] else Authorisation.NONE,
+            heritable=record['heritable'] if record['heritable'] else False
         ) if record else None
 
     def record_to_account(self, record: Record) -> AccountStored:

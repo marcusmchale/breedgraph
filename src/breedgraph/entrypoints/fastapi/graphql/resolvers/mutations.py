@@ -11,10 +11,12 @@ from src.breedgraph.domain.commands.accounts import (
     AddAccount,
     Login,
     VerifyEmail,
-    AddTeam,
+    AddTeam, RemoveTeam,
     AddEmail, RemoveEmail,
-    RequestRead, RequestWrite, RequestAdmin,
-    AddRead, AddAdmin, AddWrite
+    RequestRead, AddRead, RemoveRead,
+    RequestWrite, AddWrite,
+    RequestAdmin, AddAdmin,
+
 )
 
 from . import graphql_query, graphql_mutation
@@ -85,7 +87,7 @@ async def login(
             if not account.user.email_verified:
                 raise UnauthorisedOperationError("Please confirm email before logging in")
 
-            await info.context['bus'].handle(Login(user_id=account.user.id))
+            await info.context['bus'].handle(Login(user=account.user.id))
             token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
                 account.user.id,
                 salt=config.LOGIN_SALT
@@ -136,7 +138,7 @@ async def add_email(_, info, email: str) -> bool:
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"Add email ({email}) to allowed emails for user {account.user}")
-    await info.context['bus'].handle(AddEmail(user_id=account.user.id, email=email))
+    await info.context['bus'].handle(AddEmail(user=account.user.id, email=email))
     return True
 
 @graphql_mutation.field("remove_email")
@@ -147,7 +149,7 @@ async def remove_email(_, info, email: str) -> bool:
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"Remove email ({email}) from allowed emails for user {account.user}")
-    await info.context['bus'].handle(RemoveEmail(user_id=account.user.id, email=email))
+    await info.context['bus'].handle(RemoveEmail(user=account.user.id, email=email))
     return True
 
 @graphql_mutation.field("add_team")
@@ -157,7 +159,7 @@ async def add_team(
         info,
         name: str,
         fullname: Optional[str] = None,
-        parent_id: Optional[int] = None
+        parent: Optional[int] = None
 ) -> bool:
     account = info.context.get('account')
     if account is None:
@@ -165,10 +167,29 @@ async def add_team(
 
     logger.debug(f"User {account.user.id} adds team: {name}")
     cmd = AddTeam(
-        user_id=account.user.id,
+        user=account.user.id,
         name=name,
         fullname=fullname,
-        parent_id=parent_id
+        parent=parent
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("remove_team")
+@graphql_payload
+async def remove_team(
+        _,
+        info,
+        team: int
+) -> bool:
+    account = info.context.get('account')
+    if account is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"User {account.user.id} removes team: {team}")
+    cmd = RemoveTeam(
+        user=account.user.id,
+        team=team
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -178,16 +199,16 @@ async def add_team(
 async def request_read(
         _,
         info,
-        team_id: int
+        team: int
 ) -> bool:
     account = info.context.get('account')
     if account is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} requests read access from team: {team_id}")
+    logger.debug(f"User {account.user.id} requests read access from team: {team}")
     cmd = RequestRead(
-        user_id=account.user.id,
-        team_id=team_id
+        user=account.user.id,
+        team=team
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -197,19 +218,19 @@ async def request_read(
 async def add_read(
         _,
         info,
-        user_id: int,
-        team_id: int,
+        user: int,
+        team: int,
         heritable: bool = False
 ) -> bool:
     account = info.context.get('account')
     if account is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Admin {account.user.id} approving read access to team: {team_id}")
+    logger.debug(f"Admin {account.user.id} approving read access to team: {team}")
     cmd = AddRead(
-        admin_id=account.user.id,
-        user_id=user_id,
-        team_id=team_id,
+        admin=account.user.id,
+        user=user,
+        team=team,
         heritable=heritable
     )
     await info.context['bus'].handle(cmd)

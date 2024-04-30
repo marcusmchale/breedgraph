@@ -1,1 +1,1 @@
-from . import teams
+from . import accounts
