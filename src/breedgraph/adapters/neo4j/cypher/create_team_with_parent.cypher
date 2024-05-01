@@ -16,5 +16,7 @@ RETURN team {
   readers: coalesce([(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:READ {authorisation:"AUTHORISED", heritable:true}]-(reader:User) | reader.id], []),
   writers: [],
   admins: coalesce([(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:ADMIN {authorisation:"AUTHORISED", heritable:true}]-(admin:User) | admin.id], []),
-  requests: []
+  read_requests: coalesce([(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:READ {authorisation:"REQUESTED"}]-(request:User) | request.id], []),
+  write_requests: coalesce([(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:WRITE {authorisation:"REQUESTED"}]-(request:User) | request.id], []),
+  admin_requests: coalesce([(team)-[:CONTRIBUTES_TO*]->(:Team)<-[:ADMIN {authorisation:"REQUESTED"}]-(request:User) | request.id], [])
 }

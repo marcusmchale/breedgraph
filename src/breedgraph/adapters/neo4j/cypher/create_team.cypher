@@ -14,5 +14,7 @@ RETURN team {
   readers: [],
   writers: [],
   admins: [],
-  requests: []
+  read_requests: [],
+  write_requests: [],
+  admin_requests: []
 }

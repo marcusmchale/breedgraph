@@ -22,7 +22,9 @@ class TeamOutput(TeamInput):
     admins: List[int] = Field(frozen=True)
     readers: List[int] = Field(frozen=True)
     writers: List[int] = Field(frozen=True)
-    requests: List[int] = Field(frozen=True)
+    read_requests: List[int] = Field(frozen=True)
+    write_requests: List[int] = Field(frozen=True)
+    admin_requests: List[int] = Field(frozen=True)
 
 class TeamStored(TeamOutput):
     pass

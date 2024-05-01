@@ -6,7 +6,8 @@ from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands, events
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
-    Affiliation, Authorisation, Access,
+    Authorisation, Access,
+    Affiliation,
     AccountInput, AccountStored
 )
 from src.breedgraph.domain.model.organisations import (
@@ -50,10 +51,9 @@ async def add_first_account(
 
         account: AccountInput = AccountInput(user=user)
         account: AccountStored = await uow.accounts.create(account)
-        account.affiliations.append(
-            Affiliation(
+        account.affiliations.append(Affiliation(
                 team=organisation.root.id,
-                access = Access.ADMIN,
+                access=Access.ADMIN,
                 authorisation = Authorisation.AUTHORISED
             )
         )
@@ -123,9 +123,8 @@ async def verify_email(
 
         account.user.email_verified = True
 
-        # now remove allowed emails - todo, the repository is inefficient for this, consider other implementations
-        # maybe a get_by_allowed_emails helper in repository?
-        # or handle as an event after the fact.
+        # now remove allowed emails, this results in the ALLOWED_REGISTRATION relationship being created
+        # this is important as any of these admins can then assign the first write relationship to the user
         async for admin in uow.accounts.get_all(access_types=[Access.ADMIN]):
             for e in admin.allowed_emails:
                 if e.casefold() == account.user.email.casefold():
@@ -246,15 +245,15 @@ async def remove_team(
         if not cmd.user in team.admins:
             raise UnauthorisedOperationError("Only admins for the given team can remove it")
 
-        if team.children is not None:
+        if team.children:
             raise ProtectedNodeError("Cannot remove a team with children")
 
         organisation.teams.remove(team)
 
         await uow.commit()
 
-async def request_read(
-        cmd: commands.accounts.RequestRead,
+async def request_affiliation(
+        cmd: commands.accounts.RequestAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
@@ -262,39 +261,40 @@ async def request_read(
         organisation = await uow.organisations.get(cmd.team)
         team = organisation.get_team(cmd.team)
 
-        for a in account.get_affiliations(teams=[cmd.team], access_types=[Access.READ]):
-            if a.authorisation in [Authorisation.RETIRED, Authorisation.NONE]:
-                continue
-            elif a.authorisation == Authorisation.REQUESTED:
-                logger.debug("Repeated request, do nothing")
-                return
-            elif a.authorisation == Authorisation.AUTHORISED:
-                logger.debug("Request for authorised affiliation, do nothing")
-                return
-            elif a.authorisation == Authorisation.DENIED:
-                logger.debug("Request to denied affiliation, do nothing")
-                return
+        for a in account.affiliations:
+            if a.team == cmd.team and a.access == cmd.access:
+                if a.authorisation in [Authorisation.RETIRED, Authorisation.DENIED]:
+                    a.authorisation = Authorisation.REQUESTED
+                    await uow.commit()
+                    return
+                elif a.authorisation == Authorisation.REQUESTED:
+                    logger.debug("Repeated request, do nothing")
+                    return
+                elif a.authorisation == Authorisation.AUTHORISED:
+                    logger.debug("Request already approved, do nothing")
+                    return
 
         if cmd.user in team.admins:
             authorisation = Authorisation.AUTHORISED
         else:
             authorisation = Authorisation.REQUESTED
             account.events.append(
-                events.accounts.ReadRequested(
+                events.accounts.AffiliationRequested(
                     user=cmd.user,
-                    team=cmd.team
+                    team=cmd.team,
+                    access=Access[cmd.access]
                 )
             )
         affiliation = Affiliation(
             team= cmd.team,
-            access=Access.READ,
-            authorisation=authorisation
+            authorisation=authorisation,
+            access=Access[cmd.access]
         )
         account.affiliations.append(affiliation)
         await uow.commit()
 
-async def add_read(
-        cmd: commands.accounts.AddRead,
+async def approve_affiliation(
+        cmd: commands.accounts.ApproveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
@@ -303,56 +303,37 @@ async def add_read(
         team = organisation.get_team(cmd.team)
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
-
-        # request may be for a parent team
-        request_team = team
-        while request_team is not None:
-            requested_affiliation = next(
-                requesting_account.get_affiliations(
-                    teams=[request_team.id],
-                    access_types=[Access.READ],
-                    authorisations=[Authorisation.REQUESTED]
-                ),
-                None
-            )
-            if requested_affiliation is not None:
-                break
-            else:
-                request_team = organisation.get_team(request_team.parent)
-        else:
+        if not requesting_account.user.id in team.read_requests:
             raise UnauthorisedOperationError("The request to apply this affiliation was not found")
-
-        new_affiliation = Affiliation(
-            team= team.id,
-            access = Access.READ,
-            authorisation = Authorisation.AUTHORISED
+        affiliation = Affiliation(
+            team=cmd.team,
+            access=Access[cmd.access],
+            authorisation=Authorisation.AUTHORISED,
+            heritable=cmd.heritable
         )
-        requesting_account.affiliations.remove(requested_affiliation)
-        requesting_account.affiliations.append(new_affiliation)
-        requesting_account.events.append(events.accounts.ReadAdded(
+        requesting_account.affiliations.append(affiliation)
+        requesting_account.events.append(events.accounts.AffiliationApproved(
             user=cmd.user,
-            team=cmd.team
+            team=cmd.team,
+            access=cmd.access
         ))
         await uow.commit()
 
-async def remove_read(
-        cmd: commands.accounts.RemoveRead,
+async def remove_affiliation(
+        cmd: commands.accounts.RemoveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow:
         organisation = await uow.organisations.get(cmd.team)
         team = organisation.get_team(cmd.team)
-
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
-
-        read_account = await uow.accounts.get(cmd.user)
-        for a in read_account.affiliations:
+        account = await uow.accounts.get(cmd.user)
+        for a in account.affiliations:
             if all([
                 a.team == cmd.team,
-                a.access == Access.READ,
-                a.authorisation == Authorisation.AUTHORISED
+                a.access == cmd.access
             ]):
-                read_account.affiliations.remove(a)
-
+                account.affiliations.remove(a)
+                break
         await uow.commit()

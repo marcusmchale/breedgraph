@@ -10,7 +10,7 @@ from ariadne import (
     load_schema_from_path,
     snake_case_fallback_resolvers
 )
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_query, graphql_mutation, team, affiliation
+from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_query, graphql_mutation, team, account
 
 from src.breedgraph import bootstrap
 from src.breedgraph.domain.commands.accounts import VerifyEmail
@@ -90,7 +90,7 @@ async def lifespan(fast_api_app: FastAPI):
         graphql_query,
         graphql_mutation,
         team,
-        affiliation,
+        account,
         snake_case_fallback_resolvers
         # access_level
     )

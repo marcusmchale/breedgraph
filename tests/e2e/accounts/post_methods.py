@@ -231,10 +231,26 @@ async def post_to_teams(client, token:str, team_id: None|int = None):
             "    status, "
             "    result { "
             "       name, "
+            "       fullname, "
             "       id, "
-            "       parent {name, id,  children {name, id}}, "
-            "       children {name, id, parent {name, id}} "
-            "       requests "
+            "       parent { "
+            "           name,"
+            "           fullname, "
+            "           id, "
+            "           children {name, fullname, id}"
+            "       }, "
+            "       children { "
+            "           name, "
+            "           fullname, "
+            "           id, "
+            "           parent {name, fullname, id}"
+            "       }, "
+            "       readers {name, fullname, id, email}, "
+            "       writers {name, fullname, id, email}, "
+            "       admins {name, fullname, id, email}, "
+            "       read_requests {name, fullname, id, email}, "
+            "       write_requests {name, fullname, id, email}, "
+            "       admin_requests {name, fullname, id, email} "  
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -253,29 +269,7 @@ async def post_to_remove_team(client, token:str, team: int):
             "  $team: Int!"
             " ) { "
             "  remove_team( "
-            "    team: $team_id "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "team": f"{team}"
-        }
-    }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
-
-
-async def post_to_request_read(client, token:str, team: int):
-    json = {
-        "query": (
-            " mutation ( "
-            "  $team: Int!"
-            " ) { "
-            "  request_read( "
-            "    team: $team"
+            "    team: $team "
             "  ) { "
             "    status, "
             "    result, "
@@ -289,20 +283,39 @@ async def post_to_request_read(client, token:str, team: int):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_accounts(client, token:str, user_id: None|int = None):
+
+async def post_to_account(client, token:str):
+    json = {
+        "query": (
+            " query { "
+            "  account { "
+            "    status, "
+            "    result {"
+            "       user {id, name, fullname, email}, "
+            "       reads {id, name}"
+            "       writes {id, name}"
+            "       admins {id, name}"
+            "    } , "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        )
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+
+
+async def post_to_users(client, token:str, user_id: None|int = None):
     json = {
         "query": (
             " query ( "
             "   $user_id : Int "
             " ) { "
-            "  accounts ( "
+            "  users ( "
             "  user_id: $user_id"
             "  ) { "
             "    status, "
             "    result {"
-            "       user {id, fullname, email},"
-            "       affiliations {access, authorisation, team {id, name}} "
-            #"       affiliations {access, authorisation } "
+            "       id, fullname, email,"
             "   },"
             "    errors { name, message } "
             "   } "
@@ -315,41 +328,42 @@ async def post_to_accounts(client, token:str, user_id: None|int = None):
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
 
-#
-#async def post_to_get_affiliations(client, token:str, access: Access, authorisation: Authorisation):
-#    json = {
-#        "query": (
-#            " query ($access: Access!, $authorisation: Authorisation!) { "
-#            "  get_affiliations (access: $access, authorisation: $authorisation) { "
-#            "    status, "
-#            "    result { "
-#            "       user {id, name, fullname, email},"
-#            "       team {id, name, fullname, parent_id, child_ids},"
-#            "       access,"
-#            "       authorisation, heritable"
-#            "    }, "
-#            "    errors { name, message } "
-#            "  } "
-#            " } "
-#        ),
-#        "variables": {
-#            "access": access,
-#            "authorisation": authorisation
-#        }
-#    }
-#    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
-#
+async def post_to_request_affiliation(client, token:str, team: int, access: Access):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $team: Int!"
+            "  $access: Access!"
+            " ) { "
+            "  request_affiliation( "
+            "    team: $team,"
+            "    access: $access "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "team": team,
+            "access": access
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_add_read(client, token:str, user:int, team: int):
+async def post_to_approve_affiliation(client, token:str, user:int, team: int, access: Access):
     json = {
         "query": (
             " mutation ( "
             "  $user: Int!, "
             "  $team: Int!"
+            "  $access: Access!"
             " ) { "
-            "  add_read( "
+            "  approve_affiliation( "
             "    user: $user, "
-            "    team: $team"
+            "    team: $team, "
+            "    access: $access"
             "  ) { "
             "    status, "
             "    result, "
@@ -359,24 +373,35 @@ async def post_to_add_read(client, token:str, user:int, team: int):
         ),
         "variables": {
             "user": user,
-            "team": team
+            "team": team,
+            "access": access
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_account(client, token:str):
+async def post_to_remove_affiliation(client, token:str, user:int, team: int, access: Access):
     json = {
         "query": (
-            " query { "
-            "  account { "
+            " mutation ( "
+            "  $user: Int!, "
+            "  $team: Int!, "
+            "  $access: Access!"
+            " ) { "
+            "  remove_affiliation( "
+            "    user: $user, "
+            "    team: $team,"
+            "    access: $access"
+            "  ) { "
             "    status, "
-            "    result {"
-            "       user {id, fullname}, "
-            "       affiliations {access, authorisation, team {id, name}}"
-            "    } , "
+            "    result, "
             "    errors { name, message } "
             "  } "
             " } "
-        )
+        ),
+        "variables": {
+            "user": user,
+            "team": team,
+            "access": access
+        }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

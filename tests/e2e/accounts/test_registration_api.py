@@ -13,11 +13,11 @@ from tests.e2e.accounts.post_methods import (
     post_to_add_team,
     post_to_remove_team,
     post_to_teams,
-    post_to_request_read,
-    post_to_accounts,
+    post_to_users,
     post_to_account,
-    #post_to_get_affiliations,
-    post_to_add_read
+    post_to_request_affiliation,
+    post_to_approve_affiliation,
+    post_to_remove_affiliation
 )
 
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
@@ -54,7 +54,6 @@ async def test_first_user_register_verify_login(client, user_input_generator):
         first_user_input["team_name"]
     )
     assert_payload_success(get_verified_payload(response, "add_first_account"))
-
     await check_verify_email(client, first_user_input['email'], first_user_input['name'])
 
     login_response = await post_to_login(
@@ -125,6 +124,7 @@ async def test_admin_adds_removes_team(client, user_input_generator, admin_login
         admin_login_token
     )
     teams_payload = get_verified_payload(teams_request_response, "teams")
+
     assert teams_payload['result']
 
     new_team_id = None
@@ -140,6 +140,7 @@ async def test_admin_adds_removes_team(client, user_input_generator, admin_login
         new_team_id
     )
     remove_team_payload = get_verified_payload(remove_team_response, "remove_team")
+
     assert_payload_success(remove_team_payload)
 
 
@@ -153,7 +154,7 @@ async def test_admin_adds_child_team(client, user_input_generator, admin_login_t
     teams_payload = get_verified_payload(teams_request_response, "teams")
     assert teams_payload['result']
 
-    parent_team_id = teams_payload['result'][0]['id']  # should only be one team so far, from first user registration
+    parent_team_id = teams_payload['result'][0]['id']  # should only be one team, from first user registration
 
     # Use second user input for team name
     child_team_name = user_input_generator.user_inputs[1]['team_name']
@@ -209,9 +210,8 @@ async def second_user_login_token(client, user_input_generator) -> str:
     assert_payload_success(login_payload)
     yield login_payload['result']['access_token']
 
-
 @pytest.mark.asyncio(scope="session")
-async def test_admin_requests_read(client, admin_login_token):
+async def test_admin_requests_affiliation(client, admin_login_token):
     teams_request_response = await post_to_teams(
         client,
         admin_login_token
@@ -220,20 +220,25 @@ async def test_admin_requests_read(client, admin_login_token):
     assert teams_payload['result']
 
     team_id = teams_payload['result'][0]['id']
-    read_request_response = await post_to_request_read(
+    affiliation_request_response = await post_to_request_affiliation(
         client,
         admin_login_token,
-        team_id
+        team_id,
+        Access.READ
     )
-    request_read_payload = get_verified_payload(read_request_response, "request_read")
-    assert_payload_success(request_read_payload)
+    affiliation_request_payload = get_verified_payload(affiliation_request_response, "request_affiliation")
+    assert_payload_success(affiliation_request_payload)
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_non_admin_requests_read_from_root(client, user_input_generator, second_user_login_token):
+async def test_non_admin_requests_read_from_root_then_approved_for_child(
+        client,
+        user_input_generator,
+        admin_login_token,
+        second_user_login_token
+):
     admin_user_input = user_input_generator.user_inputs[0]
     second_user_input = user_input_generator.user_inputs[1]
-
     teams_request_response = await post_to_teams(
         client,
         second_user_login_token
@@ -241,78 +246,96 @@ async def test_non_admin_requests_read_from_root(client, user_input_generator, s
     teams_payload = get_verified_payload(teams_request_response, "teams")
     assert teams_payload['result']
     team_id = teams_payload['result'][0]['id']
-    request_read_response = await post_to_request_read(
+    request_affiliation_response = await post_to_request_affiliation(
         client,
         second_user_login_token,
-        team_id
+        team_id,
+        access=Access.READ
     )
-    request_read_payload = get_verified_payload(request_read_response, "request_read")
-    assert_payload_success(request_read_payload)
+    request_affiliation_payload = get_verified_payload(request_affiliation_response, "request_affiliation")
+    assert_payload_success(request_affiliation_payload)
+
+    # the admin should receive an email
     assert await confirm_email_delivered(
         admin_user_input["email"],
-        f'{SITE_NAME} read access requested',
-        string_in_body = f'{second_user_input["name"]} has requested read access to data written by {admin_user_input["team_name"]}.'
+        f'{SITE_NAME} {Access.READ.name.casefold()} access requested',
+        string_in_body = f'{second_user_input["name"]} requested {Access.READ.name.casefold()} access to {admin_user_input["team_name"]}.'
     )
-
-@pytest.mark.asyncio(scope="session")
-async def test_admin_adds_read_to_child_team(client, user_input_generator, admin_login_token, second_user_login_token):
-    # get ids of requesting accounts from teams
+    # admin gets id of requesting account
     teams_request_response = await post_to_teams(
         client,
         admin_login_token
     )
     teams_payload = get_verified_payload(teams_request_response, "teams")
     assert teams_payload['result']
-    # find request
-    requested_team = [t for t in teams_payload['result'] if t['requests']][0]
-    assert requested_team['parent'] is None
-    requesting_account_id = requested_team['requests'][0]
-    child_team = requested_team['children'][0]
-
-    # get the corresponding account to see user details (for admin to identify the user)
-    accounts_response = await post_to_accounts(
+    # find a child team with the inherited request
+    child_team = [t for t in teams_payload['result'] if t['read_requests'] and t['parent']][0]
+    user = child_team['read_requests'][0]
+    approve_read_response = await post_to_approve_affiliation(
         client,
         admin_login_token,
-        user_id=requesting_account_id
+        user=user['id'],
+        team=child_team['id'],
+        access=Access.READ
     )
-    accounts_payload = get_verified_payload(accounts_response, "accounts")
-    requesting_account = accounts_payload['result'][0]
-    assert requesting_account
-
-    add_read_response = await post_to_add_read(
-        client,
-        admin_login_token,
-        user=requesting_account_id,
-        team=child_team['id']
-    )
-
-    add_read_payload = get_verified_payload(add_read_response, "add_read")
-    assert_payload_success(add_read_payload)
+    approve_read_payload = get_verified_payload(approve_read_response, "approve_affiliation")
+    assert_payload_success(approve_read_payload)
     assert await confirm_email_delivered(
-        requesting_account['user']['email'],
-        f'{SITE_NAME} read access added',
-        string_in_body=f'Read access to data written by {child_team["name"]} has been added to your account.'
+        user['email'],
+        f'{SITE_NAME} read access approved',
+        string_in_body=f"Your account was approved for {Access.READ.name.casefold()} access to {child_team['fullname']}."
     )
-
-    # confirm the affiliation is now in the admin users accounts as authorised
-    updated_account_from_admin_response = await post_to_accounts(
-        client,
-        admin_login_token,
-        user_id=requesting_account_id
-    )
-    updated_account_from_admin = get_verified_payload(updated_account_from_admin_response, "accounts")['result'][0]
-    assert updated_account_from_admin['affiliations'][0]['authorisation'] == Authorisation.AUTHORISED
-
-    # and confirm the affiliation is now in the second users account
+    # confirm the affiliation is now in the second users account
     second_user_account_response = await post_to_account(
+        client,
+        second_user_login_token
+    )
+    second_user_account = get_verified_payload(second_user_account_response, "account")['result']
+    for t in second_user_account['reads']:
+        if t['id'] == child_team['id']:
+            break
+    else:
+        raise NoResultFoundError("Couldn't find the approved read in the users account")
+
+@pytest.mark.asyncio(scope="session")
+async def test_admin_removes_approved_read(client, user_input_generator, admin_login_token, second_user_login_token):
+    admin_name = user_input_generator.user_inputs[0]['name']
+    teams_request_response = await post_to_teams(
         client,
         admin_login_token
     )
-    second_user_account = get_verified_payload(second_user_account_response, "account")['result'][0]
-    assert second_user_account['affiliations'][0]['authorisation'] == Authorisation.AUTHORISED
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    assert teams_payload.get('result')
+    for t in teams_payload.get('result'):
+        for u in t.get('readers', []):
+            if u.get('name') != admin_name:
+                remove_response = await post_to_remove_affiliation(
+                    client,
+                    admin_login_token,
+                    user=u.get('id'),
+                    team=t.get('id'),
+                    access=Access.READ
+                )
+                remove_payload = get_verified_payload(remove_response, "remove_affiliation")
+                assert_payload_success(remove_payload)
 
+                # confirm the affiliation is no longer in the second users account
+                second_user_account_response = await post_to_account(
+                    client,
+                    second_user_login_token
+                )
+                second_user_account = get_verified_payload(second_user_account_response, "account")['result']
+                for tt in second_user_account['reads']:
+                    if t.get('id') == tt['id']:
+                        raise ValueError("Read is still in the users account")
 
-@pytest.mark.asyncio(scope="session")
-async def test_admin_removes_read(client, admin_login_token):
-    pass
-
+    teams_request_response = await post_to_teams(
+        client,
+        admin_login_token
+    )
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    assert teams_payload.get('result')
+    for t in teams_payload.get('result'):
+        for u in t.get('readers', []):
+            if u.get('name') != admin_name:
+                raise ValueError("Other users are still listed as readers")

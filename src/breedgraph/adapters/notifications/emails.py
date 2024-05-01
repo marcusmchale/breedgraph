@@ -4,7 +4,7 @@ import logging
 from email.mime.text import MIMEText
 
 from src.breedgraph.config import SITE_NAME
-from src.breedgraph.domain.model.accounts import UserBase
+from src.breedgraph.domain.model.accounts import UserBase, Access
 from src.breedgraph.domain.model.organisations import TeamBase
 from src.breedgraph.config import get_base_url
 from email.message import EmailMessage
@@ -48,29 +48,27 @@ class VerifyEmailMessage(Email):
         )
 
 
+class AffiliationRequestedMessage(Email):
 
-class ReadRequestedMessage(Email):
-
-    def __init__(self, requesting_user: UserBase, team: TeamBase):
+    def __init__(self, requesting_user: UserBase, team: TeamBase, access: Access):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} read access requested'
+        self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access requested'
         body = (
             f'Admin notification:\n'
-            f'{requesting_user.fullname} has requested read access '
-            f'to data written by {team.fullname}.\n'
+            f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.fullname}.\n'
             f'Please consider authorising this request.'
         )
         self.message.set_content(body)
 
 
-class ReadAddedMessage(Email):
+class AffiliationApprovedMessage(Email):
 
-    def __init__(self, user: UserBase, team: TeamBase):
+    def __init__(self, user: UserBase, team: TeamBase, access: Access):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} read access added'
+        self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access approved'
         body = (
             f'Hi {user.fullname},\n'
-            f'Read access to data written by {team.fullname} has been added to your account.\n'
+            f'Your account was approved for {access.name.casefold()} access to {team.fullname}.\n'
         )
         self.message.set_content(body)
 

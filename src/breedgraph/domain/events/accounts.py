@@ -12,13 +12,15 @@ class AccountAdded(Event):
 class EmailVerified(Event):
     user: int
 
-class ReadRequested(Event):
+class AffiliationRequested(Event):
     user: int
     team: int
+    access: str
 
-class ReadAdded(Event):
+class AffiliationApproved(Event):
     user: int
     team: int
+    access: str
 
 #
 #class AffiliationConfirmed(Event):

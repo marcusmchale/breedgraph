@@ -12,11 +12,9 @@ RETURN
     {
       team_id: team.id,
       authorisation: affiliation.authorisation,
-      access:type(affiliation),
+      access: type(affiliation),
       heritable: affiliation.heritable
     }
   ] as affiliations,
-  [
-    (user)-[: ALLOWED_REGISTRATION]->(email:Email)|
-    email.address
-  ] AS allowed_emails
+  [(user)-[: ALLOWED_REGISTRATION]->(email:Email)|email.address] AS allowed_emails,
+  [(user)-[: ALLOWED_REGISTRATION]->(invited:User)| invited.id] as allowed_users

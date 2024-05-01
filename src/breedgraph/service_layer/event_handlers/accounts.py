@@ -59,8 +59,8 @@ async def email_verified(
 ):
     pass
 
-async def email_admins_read_request(
-        event: events.accounts.ReadRequested,
+async def email_admins_request(
+        event: events.accounts.AffiliationRequested,
         uow: "AbstractUnitOfWork",
         notifications: "AbstractNotifications"
 ):
@@ -72,9 +72,10 @@ async def email_admins_read_request(
         # todo consider implementing a method to fetch a list of ids in the repository
         admins = [await uow.accounts.get(admin_id) for admin_id in team.admins]
 
-        message = emails.ReadRequestedMessage(
+        message = emails.AffiliationRequestedMessage(
             requesting_user = account.user,
-            team = team
+            team = team,
+            access = Access[event.access]
         )
         await notifications.send(
             [admin.user for admin in admins],
@@ -82,8 +83,8 @@ async def email_admins_read_request(
         )
 
 
-async def email_user_read_added(
-        event: events.accounts.ReadRequested,
+async def email_user_approved(
+        event: events.accounts.AffiliationApproved,
         uow: "AbstractUnitOfWork",
         notifications: "AbstractNotifications"
 ):
@@ -92,69 +93,13 @@ async def email_user_read_added(
         organisation = await uow.organisations.get(event.team)
         team = organisation.get_team(event.team)
 
-        message = emails.ReadAddedMessage(
+        message = emails.AffiliationApprovedMessage(
             user = account.user,
-            team = team
+            team = team,
+            access = Access[event.access]
         )
         await notifications.send(
             [account.user],
             message
         )
 
-
-#
-#async def add_email_to_read_model(
-#        event: events.accounts.EmailAdded,
-#        read_model: "ReadModel"
-#):
-#    # send allowed user a simple email with link to registration address
-#    await read_model.add_email(event.email)
-#
-#
-#async def remove_email_from_read_model(
-#        event: events.accounts.EmailRemoved,
-#        read_model: "ReadModel"
-#):
-#    # send allowed user a simple email with link to registration address
-#    await read_model.remove_email(event.email)
-#
-
-#
-#async def send_confirmed_notification(
-#        event: events.accounts.AffiliationConfirmed,
-#        uow: "AbstractUnitOfWork",
-#        notifications: "AbstractNotifications"
-#):
-#    with uow:
-#        account = await uow.accounts.get(event.user_id)
-#        if not account:
-#            raise NoResultFoundError
-#        team = account.affiliations.get_team(event.team_name)
-#        message = emails.AffiliationConfirmedMessage(
-#            account.user,
-#            team
-#        )
-#        await notifications.send(
-#            [account.user],
-#            message
-#        )
-#
-#
-#async def send_admin_notification(
-#        event: events.accounts.AdminGranted,
-#        uow: "AbstractUnitOfWork",
-#        notifications: "AbstractNotifications"
-#):
-#    with uow:
-#        account = await uow.accounts.get(event.user_id)
-#        if not account:
-#            raise NoResultFoundError
-#        team = account.affiliations.get_team(event.team_name)
-#        message = emails.AdminGrantedMessage(
-#            account.user,
-#            team
-#        )
-#        await notifications.send(
-#            [account.user],
-#            message
-#        )

@@ -13,4 +13,4 @@ from . import queries
 
 
 team = queries.team
-affiliation = queries.affiliation
+account = queries.account

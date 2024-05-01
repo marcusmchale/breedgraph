@@ -42,33 +42,17 @@ class RemoveEmail(Command):
 class RequestAffiliation(Command):
     user: int
     team: int
+    access: str
 
-class RequestRead(RequestAffiliation):
-    pass
-
-class RequestWrite(RequestAffiliation):
-    pass
-
-class RequestAdmin(RequestAffiliation):
-    pass
-
-class SetAffiliation(Command):
+class ApproveAffiliation(Command):
     admin: int
     user: int
     team: int
-
-class AddRead(SetAffiliation):
+    access: str
     heritable: bool
 
-class RemoveRead(SetAffiliation):
-    pass
-
-class AddWrite(SetAffiliation):
-    pass
-class RemoveWrite(SetAffiliation):
-    pass
-
-class AddAdmin(SetAffiliation):
-    pass
-class RemoveAdmin(SetAffiliation):
-    pass
+class RemoveAffiliation(Command):
+    admin: int
+    user: int
+    team: int
+    access: str

@@ -13,17 +13,14 @@ from src.breedgraph.domain.commands.accounts import (
     VerifyEmail,
     AddTeam, RemoveTeam,
     AddEmail, RemoveEmail,
-    RequestRead, AddRead, RemoveRead,
-    RequestWrite, AddWrite,
-    RequestAdmin, AddAdmin,
-
+    RequestAffiliation, ApproveAffiliation, RemoveAffiliation
 )
 
 from . import graphql_query, graphql_mutation
 
 from typing import List, Optional
 from src.breedgraph.domain.model.accounts import (
-    AccountStored, UserOutput
+    AccountStored, UserOutput, Access
 )
 from src.breedgraph.domain.model.organisations import (
     TeamStored, TeamOutput
@@ -194,32 +191,35 @@ async def remove_team(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("request_read")
+@graphql_mutation.field("request_affiliation")
 @graphql_payload
-async def request_read(
+async def request_affiliation(
         _,
         info,
-        team: int
+        team: int,
+        access: Access
 ) -> bool:
     account = info.context.get('account')
     if account is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {account.user.id} requests read access from team: {team}")
-    cmd = RequestRead(
+    cmd = RequestAffiliation(
         user=account.user.id,
-        team=team
+        team=team,
+        access=access
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("add_read")
+@graphql_mutation.field("approve_affiliation")
 @graphql_payload
-async def add_read(
+async def approve_affiliation(
         _,
         info,
         user: int,
         team: int,
+        access: Access,
         heritable: bool = False
 ) -> bool:
     account = info.context.get('account')
@@ -227,11 +227,35 @@ async def add_read(
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"Admin {account.user.id} approving read access to team: {team}")
-    cmd = AddRead(
+    cmd = ApproveAffiliation(
         admin=account.user.id,
         user=user,
         team=team,
+        access=access,
         heritable=heritable
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("remove_affiliation")
+@graphql_payload
+async def remove_affiliation(
+        _,
+        info,
+        user: int,
+        team: int,
+        access: Access
+) -> bool:
+    account = info.context.get('account')
+    if account is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"Admin {account.user.id} removing read access to team: {team}")
+    cmd = RemoveAffiliation(
+        admin=account.user.id,
+        user=user,
+        team=team,
+        access=access
     )
     await info.context['bus'].handle(cmd)
     return True

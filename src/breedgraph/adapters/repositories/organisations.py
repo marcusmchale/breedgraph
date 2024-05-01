@@ -154,7 +154,7 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
     async def _remove_team(self, team: TeamStored):
         await self.tx.run(
             queries['remove_team'],
-            team_id=team.id
+            team=team.id
         )
 
     async def _update(self, organisation: OrganisationStored):
@@ -186,5 +186,7 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
             readers=record['readers'],
             writers=record['writers'],
             admins=record['admins'],
-            requests=record['requests']
+            read_requests=record['read_requests'],
+            write_requests=record['write_requests'],
+            admin_requests=record['admin_requests']
         )

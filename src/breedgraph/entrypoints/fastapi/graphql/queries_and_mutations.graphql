@@ -32,24 +32,27 @@ type Mutation {
     remove_team(
         team: Int!
     ): BooleanPayload!
-    request_read(
+    request_affiliation(
         team: Int!
+        access: Access!
     ): BooleanPayload!
-    add_read(
+    approve_affiliation(
         user: Int!
         team: Int!
+        access: Access!
         heritable: Boolean
     ): BooleanPayload!
-    remove_read(
+    remove_affiliation(
         user: Int!
         team: Int!
-    ): BooleanPayload!
+        access: Access!
+    ): BooleanPayload
 }
 
 type Query {
-    account: AccountsPayload!  # see own account details
-    teams (team_id: Int): TeamsPayload!  # see teams visible to the user
-    accounts (user_id: Int): AccountsPayload! # see accounts for admin
+    account: AccountPayload!  # see own account details
+    teams (team_id: Int): TeamsPayload! # see teams visible to the user
+    users (user_id: Int): UsersPayload! # see accounts for admin
 }
 
 

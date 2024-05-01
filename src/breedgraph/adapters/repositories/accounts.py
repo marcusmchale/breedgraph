@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from src.breedgraph.custom_exceptions import ProtectedNodeError, IdentityExistsError, IllegalOperationError
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
-    Access, Authorisation, Affiliation,
+    Affiliation,
+    Authorisation, Access,
     AccountInput, AccountStored
 )
 
@@ -141,44 +142,23 @@ class Neo4jAccountRepository(BaseAccountRepository):
         record = await result.single()
         return self.user_record_to_user(record['user'])
 
-    async def _set_affiliation(self, user: UserStored, affiliation: Affiliation) -> Affiliation:
-        # if none type just return, these are inferred from exposed root teams and not stored
-        if affiliation.access == Access.NONE:
-            return affiliation
-
-        if affiliation.access == Access.READ:
-            query = queries['set_read']
-        elif affiliation.access == Access.WRITE:
-            query = queries['set_write']
-        elif affiliation.access == Access.ADMIN:
-            query = queries['set_admin']
-        else:
-            raise TypeError("Unknown affiliation type")
-
+    async def _set_affiliation(self, user: UserStored, affiliation: Affiliation)-> None:
         await self.tx.run(
-            query,
+            queries[f'set_{affiliation.access.casefold()}'],
             user=user.id,
             team=affiliation.team,
-            authorisation=affiliation.authorisation.name,
+            authorisation=affiliation.authorisation,
             heritable=affiliation.heritable
         )
-        return affiliation
 
-    async def _remove_affiliation(self, user: UserStored, affiliation: Affiliation) -> None:
-
-        if affiliation.access == Access.NONE:
+    async def _remove_affiliation(self, user: UserStored, affiliation: Affiliation):
+        if affiliation.authorisation in [Authorisation.RETIRED, Authorisation.DENIED]:
             return
-
-        if affiliation.access == Access.READ:
-            query = queries['remove_read']
-        elif affiliation.access == Access.WRITE:
-            query = queries['remove_write']
-        elif affiliation.access == Access.ADMIN:
-            query = queries['remove_admin']
-        else:
-            raise TypeError("Unknown affiliation")
-
-        await self.tx.run(query, user=user.id, team=affiliation.team)
+        elif affiliation.authorisation == Authorisation.REQUESTED:
+            affiliation.authorisation = Authorisation.DENIED
+        elif affiliation.authorisation == Authorisation.AUTHORISED:
+            affiliation.authorisation = Authorisation.RETIRED
+        await self._set_affiliation(user, affiliation)
 
     async def _get(self, user: int) -> AccountStored:
         result: AsyncResult = await self.tx.run(
@@ -252,7 +232,9 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     async def _update(self, account: AccountStored):
         await self._set_user(account.user)
+
         await self._update_affiliations(account.user, account.affiliations)
+
         await self._update_allowed_emails(account.user, account.allowed_emails)
 
     async def _set_user(self, user: UserStored):
@@ -276,21 +258,15 @@ class Neo4jAccountRepository(BaseAccountRepository):
 
     async def _update_affiliations(self, user: UserStored, affiliations: List[Affiliation]):
         if not isinstance(affiliations, TrackedList):
-            raise TypeError("Affiliations must be TrackedList for neo4j repository updates")
-
+            raise TypeError("reads must be TrackedList for neo4j repository updates")
         if not affiliations.changed:
             return
-
-        # Can't just iterate over added as there might be changes to affiliations
-        for affiliation in affiliations:
-            if affiliation.changed or affiliation in affiliations.added:
-                await self._set_affiliation(user, affiliation)
-
-        for affiliation in affiliations.removed:
-            await self._remove_affiliation(user, affiliation)
-
+        for aff in affiliations:
+            if aff.changed or aff in affiliations.added:
+                await self._set_affiliation(user, aff)
+        for aff in affiliations.removed:
+            await self._remove_affiliation(user, aff)
         affiliations.reset_tracking()
-
 
     async def _update_allowed_emails(self, user: UserStored, allowed_emails: List[str]):
 
@@ -328,18 +304,19 @@ class Neo4jAccountRepository(BaseAccountRepository):
         ) if record else None
 
     @staticmethod
-    def affiliation_record_to_affiliation(record) -> Affiliation:
+    def record_to_affiliation(record) -> Affiliation:
         return Affiliation(
             team=record['team_id'],
-            access=Access[record['access']] if record['access'] else Access.NONE,
-            authorisation=Authorisation[record['authorisation']] if record['authorisation'] else Authorisation.NONE,
-            heritable=record['heritable'] if record['heritable'] else False
+            authorisation=Authorisation[record['authorisation']],
+            access=Access[record['access']],
+            heritable=record['heritable']
         ) if record else None
 
     def record_to_account(self, record: Record) -> AccountStored:
         return AccountStored(
             user=self.user_record_to_user(record['user']),
-            affiliations=[self.affiliation_record_to_affiliation(a) for a in record['affiliations']],
-            allowed_emails=record['allowed_emails']
+            affiliations = [self.record_to_affiliation(r) for r in record['affiliations']],
+            allowed_emails=record['allowed_emails'],
+            allowed_users=record['allowed_users']
         ) if record else None
 

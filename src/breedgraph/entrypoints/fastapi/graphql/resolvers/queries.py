@@ -10,7 +10,8 @@ from . import graphql_query, graphql_mutation
 from typing import List
 from src.breedgraph.domain.model.accounts import (
     AccountStored, AccountOutput,
-    Access, Authorisation, Affiliation
+    Affiliation, Access, Authorisation,
+    UserStored, UserOutput
 )
 from src.breedgraph.domain.model.organisations import (
     TeamOutput
@@ -26,12 +27,12 @@ from src.breedgraph.custom_exceptions import (
 import logging
 logger = logging.getLogger(__name__)
 
-team = ObjectType("Team")  #todo consider renaming to reflect their type
-affiliation = ObjectType("Affiliation")
+team = ObjectType("Team")  #todo consider renaming to reflect their graphql type, e.g. gql_team
+account = ObjectType("Account")
 
 async def inject_teams_map(context):
     if 'teams_map' in context:
-        return context['teams_map']
+        return
 
     a = context.get('account')
     if a is None:
@@ -40,15 +41,31 @@ async def inject_teams_map(context):
     # insert the team map into the context for building parent/child relationships in the resolver
     teams_map = dict()
     async for t in views.accounts.teams(context['bus'].uow, user=a.user.id):
-        teams_map[t.id] = dict(t)
+        teams_map[t.id] = t
     context['teams_map'] = teams_map
-    return teams_map
+
+async def inject_users_map(context):
+    if 'users_map' in context:
+        return
+
+    a = context.get('account')
+    if a is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    users_map = dict()
+    async for user in views.accounts.users(context['bus'].uow, user=a.user.id):
+        users_map[user.id] = user
+
+    # insert the accounts map into the context for building responses in the resolver
+    context['users_map'] = users_map
 
 @graphql_query.field("teams")
 @graphql_payload
-async def get_teams(_, info, team_id: None|int = None) -> List[dict]:
-    teams_map = await inject_teams_map(info.context)
-    # then return the list of values
+async def get_teams(_, info, team_id: None|int = None) -> List[TeamOutput]:
+    await inject_teams_map(info.context)
+    await inject_users_map(info.context)
+
+    teams_map = info.context.get('teams_map')
     if team_id is not None:
         return [teams_map[team_id]]
     else:
@@ -56,70 +73,80 @@ async def get_teams(_, info, team_id: None|int = None) -> List[dict]:
 
 @team.field("parent")
 def resolve_parent(obj, info):
-    if obj['parent']:
-        return info.context['teams_map'][obj['parent']]
+    return info.context.get('teams_map').get(obj.parent)
 
 @team.field("children")
 def resolve_children(obj, info):
-    if obj['children']:
-        return [info.context['teams_map'][child] for child in obj['children']]
+    return [info.context.get('teams_map').get(child) for child in obj.children]
 
+@team.field("readers")
+def resolve_readers(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.readers]
 
-async def inject_accounts_map(context):
-    if 'accounts_map' in context:
-        return context['accounts_map']
+@team.field("writers")
+def resolve_writers(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.writers]
 
-    a = context.get('account')
-    if a is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
+@team.field("admins")
+def resolve_admins(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.admins]
 
-    accounts_map = dict()
+@team.field("read_requests")
+def resolve_read_requests(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.read_requests]
 
-    async for acc in views.accounts.accounts(context['bus'].uow, user=a.user.id):
+@team.field("write_requests")
+def resolve_writers(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.write_requests]
 
-        accounts_map[acc.user.id] = AccountOutput(user = acc.user, affiliations = acc.affiliations)
-        #accounts_map[acc.user.id] = dict()
-        #accounts_map[acc.user.id]['user'] = dict(acc.user)
-        #accounts_map[acc.user.id]['affiliations'] = [dict(aff) for aff in acc.affiliations]
+@team.field("admin_requests")
+def resolve_admins(obj, info):
+    return [info.context.get('users_map').get(i) for i in obj.admin_requests]
 
-    # insert the accounts map into the context for building responses in the resolver
-    context['accounts_map'] = accounts_map
-    return accounts_map
+@graphql_query.field("users")
+@graphql_payload
+async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
+    await inject_users_map(info.context)
+    users_map = info.context.get('users_map')
+    # then return the list of values
+    if user_id:
+        return [users_map[user_id]]
+    else:
+        return list(users_map.values())
 
 @graphql_query.field("account")
 @graphql_payload
-async def get_account(_, info) -> List[AccountOutput]:
-    a: AccountStored = info.context.get('account')
-    await inject_teams_map(info.context)
-
-    if a is None:
+async def get_account(_, info) -> AccountOutput:
+    acc: AccountStored = info.context.get('account')
+    if acc is None:
         raise UnauthorisedOperationError("Please provide a valid token")
-    #
-    #return [
-    #    {
-    #        'user': a.user.to_output(),
-    #        'affiliations': a.affiliations
-    #    }
-    #]
-    return [AccountOutput(user=a.user.to_output(), affiliations = a.affiliations)]
 
+    reads, writes, admins = list(), list(), list()
+    for aff in acc.affiliations:
+        if aff.authorisation != Authorisation.AUTHORISED:
+            continue
 
-@graphql_query.field("accounts")
-@graphql_payload
-async def get_accounts(_, info, user_id: None|int = None) -> List[AccountOutput]:
-    accounts_map = await inject_accounts_map(info.context)
+        if aff.access == Access.READ:
+            reads.append(aff.team)
+        elif aff.access == Access.WRITE:
+            writes.append(aff.team)
+        elif aff.access == Access.ADMIN:
+            admins.append(aff.team)
+
     await inject_teams_map(info.context)
-    # then return the list of values
-    if user_id:
-        return [accounts_map[user_id]]
-    else:
-        return list(accounts_map.values())
+    return AccountOutput(user=UserOutput(**dict(acc.user)), reads=reads, writes=writes, admins=admins)
 
-@affiliation.field("team")
-def resolve_team(obj, info):
+@account.field("reads")
+def resolve_reads(obj, info):
+    return [info.context.get('teams_map').get(i) for i in obj.reads]
 
-    if obj.team:
-        return info.context['teams_map'][obj.team]
+@account.field("writes")
+def resolve_writes(obj, info):
+    return [info.context.get('teams_map').get(i) for i in obj.writes]
+
+@account.field("admins")
+def resolve_writes(obj, info):
+    return [info.context.get('teams_map').get(i) for i in obj.admins]
 
 #@graphql_query.field("get_affiliations")
 #@graphql_payload
