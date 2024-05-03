@@ -10,7 +10,11 @@ async def bootstrap(
     # todo mock read model and pass into bootstrap for testing as for uow and notifications
     read_model = await ReadModel.create()
 
-    dependencies = {'uow': uow, 'notifications': notifications, 'read_model': read_model}
+    dependencies = {
+        'uow': uow,
+        'notifications': notifications,
+        'read_model': read_model
+    }
 
     injected_event_handlers = {
         event_type: [

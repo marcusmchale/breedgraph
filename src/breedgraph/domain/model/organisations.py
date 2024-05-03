@@ -1,9 +1,7 @@
 import logging
 
 from pydantic import BaseModel, field_validator, ValidationError, Field
-from typing import List, Optional
-
-from src.breedgraph.custom_exceptions import ProtectedNodeError
+from typing import List
 
 
 logger = logging.getLogger(__name__)

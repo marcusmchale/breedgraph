@@ -1,12 +1,10 @@
 import logging
 
-from enum import Enum, IntEnum
-from abc import abstractmethod
+from enum import Enum
 from src.breedgraph.domain.events.accounts import Event
-from src.breedgraph.domain.model.organisations import TeamOutput
-from pydantic import BaseModel, model_validator, field_validator, computed_field, model_validator, ValidationError, Field
+from pydantic import BaseModel, Field
 
-from typing import Union, Optional, Dict, DefaultDict, Set, Tuple, TypedDict, List
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +22,7 @@ class UserOutput(UserBase):
 
 class UserStored(UserInput):
     id: int = Field(frozen=True)
+    person: None|int = None  #ID for the corresponding Person
 
     def to_output(self):
         return UserOutput(

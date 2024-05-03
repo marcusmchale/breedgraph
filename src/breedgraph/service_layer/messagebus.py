@@ -18,7 +18,6 @@ logger.debug("Messagebus ready")
 #  - Commands are handled consecutively (though still async)
 #  - Events are handled concurrently (asyncio)
 
-
 class MessageBus:
 
     def __init__(

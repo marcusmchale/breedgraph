@@ -1,17 +1,6 @@
-import httpx
-import pytest
-
-from asgi_lifespan import LifespanManager
-from fastapi.testclient import TestClient
-
-
-from asgi_lifespan import LifespanManager
-from httpx import AsyncClient, ASGITransport
-from fastapi import FastAPI
-from typing import AsyncIterator
 from src.breedgraph.config import GQL_API_PATH
 
-from src.breedgraph.domain.model.accounts import Access, Authorisation
+from src.breedgraph.domain.model.accounts import Access
 
 async def post_to_add_first_account(client, name: str, email: str, password: str, team_name: str):
     json={

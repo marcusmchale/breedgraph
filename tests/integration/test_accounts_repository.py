@@ -26,6 +26,7 @@ async def test_create_and_get_account(neo4j_tx, user_input_generator):
     account_input = await create_account_input(user_input_generator)
     accounts_repo = Neo4jAccountRepository(neo4j_tx)
     stored_account: AccountStored = await accounts_repo.create(account_input)
+    assert stored_account.user.name == account_input.user.name
 
     retrieved_account = await accounts_repo.get(stored_account.user.id)
     assert retrieved_account.user.name == account_input.user.name
@@ -37,8 +38,6 @@ async def test_create_and_get_account(neo4j_tx, user_input_generator):
     assert retrieved_account.user.name == account_input.user.name
 
     async for account in accounts_repo.get_all():
-        # todo test filters by team, access and authorisation
-        # for this we need to add affiliations etc.
         if account.user.name == account_input.user.name:
             break
     else:

@@ -36,17 +36,7 @@ class FakeAccountRepository(BaseAccountRepository):
             email=account.user.email,
             password_hash=account.user.password_hash
         )
-        account = AccountStored(
-            user = account.user,
-            affiliations = [
-                Affiliation(
-                    user=account.user.to_output(),
-                    access=Access.NONE,
-                    authorisation=Authorisation.NONE,
-                    team=t.to_output()
-                ) for t in self.orphan_teams
-            ])
-
+        account = AccountStored(user = account.user)
         self._accounts.add(account)
         return account
 
@@ -59,16 +49,11 @@ class FakeAccountRepository(BaseAccountRepository):
             access_types: None|List[Access] = None,
             authorisations: None|List[Authorisation] = None
     ) -> AsyncGenerator[AccountStored, None]:
+        if any([team_ids, access_types, authorisations]):
+            raise NotImplementedError("Filters by affiliation are not implemented here yet")
         account: AccountStored
         for account in self._accounts:
-            for affiliation in account.affiliations:
-                if affiliation.is_matched(
-                    user_ids=[account.user.id],
-                    teams=team_ids,
-                    access_types=access_types,
-                    authorisations=authorisations,
-                ):
-                    yield account
+            yield account
 
     async def _get_by_email(self, email: str) -> AccountStored:
         return next(a for a in self._accounts if a.user.email == email)

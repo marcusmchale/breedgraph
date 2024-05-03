@@ -124,8 +124,7 @@ async def verify_email(
         account.user.email_verified = True
 
         # now remove allowed emails, this results in the ALLOWED_REGISTRATION relationship being created
-        # this is important as any of these admins can then assign the first write relationship to the user
-        async for admin in uow.accounts.get_all(access_types=[Access.ADMIN]):
+        async for admin in uow.accounts.get_all(access_types=[Access.ADMIN], authorisations=[Authorisation.AUTHORISED]):
             for e in admin.allowed_emails:
                 if e.casefold() == account.user.email.casefold():
                     admin.allowed_emails.remove(e)

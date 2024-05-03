@@ -191,35 +191,28 @@ class Neo4jAccountRepository(BaseAccountRepository):
             authorisations: None|List[Authorisation] = None
     ) -> AsyncGenerator[AccountStored, None]:
 
-        if not authorisations:
-            authorisations = [a for a in Authorisation]
-        else:
-            authorisations = [a.name for a in authorisations]
-
-        if not access_types:
-            access_types = [a for a in Access]
-        else:
-            access_types = [a.name for a in access_types]
-
-        if 'NONE' in access_types:
+        if all([team_ids is None, access_types is None, authorisations is None]):
             result = self.tx.run(
                 queries['get_accounts'],
                 access_types=access_types,
                 authorisations=authorisations
             )
-        elif team_ids:
-            result = self.tx.run(
-                queries['get_accounts_by_teams'],
-                team_ids=team_ids,
-                access_types=access_types,
-                authorisations=authorisations
-            )
         else:
-            result = self.tx.run(
-                queries['get_accounts_by_affiliation'],
-                access_types=access_types,
-                authorisations=authorisations
-            )
+            authorisations = [a for a in Authorisation] if authorisations is None else authorisations
+            access_types = [a for a in Access] if access_types is None else access_types
+            if team_ids:
+                result = self.tx.run(
+                    queries['get_accounts_by_teams'],
+                    team_ids=team_ids,
+                    access_types=access_types,
+                    authorisations=authorisations
+                )
+            else:
+                result = self.tx.run(
+                    queries['get_accounts_by_affiliation'],
+                    access_types=access_types,
+                    authorisations=authorisations
+                )
 
         async for record in await result:
             yield self.record_to_account(record)

@@ -1,4 +1,4 @@
-from src.breedgraph.domain.commands.setup import LoadReadModel, EnsureGlobalAdmin
+from src.breedgraph.domain.commands.setup import LoadReadModel
 from src.breedgraph.adapters.redis.read_model import ReadModel
 import logging
 

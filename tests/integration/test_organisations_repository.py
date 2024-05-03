@@ -7,11 +7,12 @@ from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisation
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
 
-async def create_team_input(user_input_generator) -> TeamInput:
+async def create_team_input(user_input_generator, parent: int = None) -> TeamInput:
     user_input = user_input_generator.new_user_input()
     return TeamInput(
         name = user_input['team_name'],
-        fullname = user_input['team_name']
+        fullname = user_input['team_name'],
+        parent = parent
     )
 
 @pytest.mark.asyncio(scope="session")
@@ -33,8 +34,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
         raise NoResultFoundError
 
     # Add a child
-    new_team_input = await create_team_input(user_input_generator)
-    new_team_input.parent_id = stored_organisation.root.id
+    new_team_input = await create_team_input(user_input_generator, parent=stored_organisation.root.id)
     stored_organisation.teams.append(new_team_input)
 
     # update db
@@ -47,7 +47,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
         if all([
             team.name == new_team_input.name,
             team.fullname == new_team_input.fullname,
-            team.parent_id == stored_organisation.root.id
+            team.parent == stored_organisation.root.id
         ]):
             assert team.id
             break
@@ -68,3 +68,4 @@ async def test_change_team_details_on_organisation(neo4j_tx, user_input_generato
     await organisations_repo.update_seen()
     retrieved_from_root_id = await organisations_repo.get(stored_organisation.root.id)
     assert retrieved_from_root_id.root == stored_organisation.root
+

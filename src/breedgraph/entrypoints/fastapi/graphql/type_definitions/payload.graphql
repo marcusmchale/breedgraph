@@ -38,3 +38,9 @@ type UsersPayload {
     result: [User]
     errors: [Error]
 }
+
+type CountriesPayload {
+    status: QueryStatus!
+    result: [Country]
+    errors: [Error]
+}

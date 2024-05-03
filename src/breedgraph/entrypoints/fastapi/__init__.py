@@ -53,13 +53,11 @@ async def lifespan(fast_api_app: FastAPI):
     bus: MessageBus = await bootstrap.bootstrap()
     app.bus = bus
 
+
     async def get_account_for_request(request: Request) -> Optional[AccountStored]:
         token = request.headers.get('token')
         if token is not None:
             async with bus.uow as uow:
-                # consider storing in cookie and
-                # just check if cookie is expired
-                # refreshing user if needed
                 ts = URLSafeTimedSerializer(SECRET_KEY)
 
                 try:
