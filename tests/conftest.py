@@ -17,7 +17,7 @@ from src.breedgraph.service_layer.messagebus import MessageBus
 
 from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
 
-from tests.inputs import UserInputGenerator
+from tests.inputs import UserInputGenerator, LoremTextGenerator
 
 @pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
@@ -73,3 +73,8 @@ async def session_database() -> None:
 @pytest_asyncio.fixture(scope="session")
 async def user_input_generator() -> UserInputGenerator:
     yield UserInputGenerator()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def lorem_text_generator() -> LoremTextGenerator:
+    yield LoremTextGenerator()

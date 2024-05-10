@@ -32,3 +32,16 @@ class UserInputGenerator:
         }
         self.user_inputs.append(user_input)
         return user_input
+
+
+class LoremTextGenerator:
+    def __init__(self):
+        #Faker.seed(7)
+        # https://faker.readthedocs.io/en/master/locales.html
+        self.fake = Faker(['fr_FR', 'es_ES', 'zh_CN'])
+        self.inputs = list()
+
+    def new_text(self, max_nb_chars=50):
+        text = self.fake.text(max_nb_chars=max_nb_chars)
+        self.inputs.append(text)
+        return text

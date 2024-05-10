@@ -82,9 +82,10 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
         self.tx = tx
 
     async def _create(self, organisation: OrganisationInput) -> OrganisationStored:
+        teams = list()
         for team in organisation.teams:
-            stored_team: TeamStored = await self._create_team(team)
-            return OrganisationStored(teams=[stored_team])
+            teams.append(await self._create_team(team))
+        return OrganisationStored(teams=teams)
 
     async def _get(self, team: int) -> OrganisationStored:
         result: AsyncResult = await self.tx.run(
@@ -128,7 +129,7 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
 
     async def _set_team(self, team: TeamStored):
         logger.debug(f"Set team: {team}")
-        # todo test if parent_id has changed, if so need to update parent also (its children have changed)
+        # todo if parent_id has changed need to update parent also (its children have changed)
         if team.parent is not None:
             await self.tx.run(
                 queries['set_team_with_parent_id'],

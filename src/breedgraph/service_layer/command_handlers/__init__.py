@@ -1,7 +1,7 @@
 from typing import Dict, Type, Callable
 from src.breedgraph.domain import commands
 
-from . import accounts, setup
+from . import locations, accounts, setup
 
 COMMAND_HANDLERS = {
     commands.setup.LoadReadModel: setup.load_read_model,
@@ -16,4 +16,5 @@ COMMAND_HANDLERS = {
     commands.accounts.RequestAffiliation: accounts.request_affiliation,
     commands.accounts.ApproveAffiliation: accounts.approve_affiliation,
     commands.accounts.RemoveAffiliation: accounts.remove_affiliation,
+    commands.accounts.AddCountry: locations.add_country,
 }  # type: Dict[Type[commands.base.Command], Callable]

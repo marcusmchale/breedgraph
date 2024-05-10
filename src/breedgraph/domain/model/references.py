@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-from src.breedgraph.domain.model.enums import ScientificType
 from src.breedgraph.domain.model.people import Person
 
 from typing import List
@@ -23,7 +22,6 @@ class LegalReferenceStored(LegalReference):
 class DataReference(Reference):
     data_format: str
     file_format: str
-    type: ScientificType
 
 class DataReferenceStored(DataReference):
     id: int

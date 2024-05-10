@@ -150,49 +150,6 @@ def resolve_writes(obj, info):
 def resolve_writes(obj, info):
     return [info.context.get('teams_map').get(i) for i in obj.admins]
 
-#@graphql_query.field("get_affiliations")
-#@graphql_payload
-#async def get_affiliations(
-#        _,
-#        info,
-#        access: Access,
-#        authorisation: Authorisation
-#) -> List[Affiliation]:
-#    account = info.context.get('account')
-#    if account is None:
-#        raise UnauthorisedOperationError("Please provide a valid token")
-#
-#    return [
-#        a async for a in views.teams.affiliations(
-#            info.context['bus'].uow,
-#            user_id=account.user.id,
-#            access = Access[access],
-#            authorisation= Authorisation[authorisation]
-#        )
-#    ]
-
-#@graphql_query.field("get_affiliations")
-#@graphql_payload
-#async def get_affiliations(
-#        _,
-#        info,
-#        access: Access,
-#        authorisation: Authorisation
-#) -> List[Affiliation]:
-#    account = info.context.get('account')
-#    if account is None:
-#        raise UnauthorisedOperationError("Please provide a valid token")
-#    return [
-#        a async for a in views.teams.affiliations(
-#            info.context['bus'].uow,
-#            user_id=account.user.id,
-#            access = Access[access],
-#            authorisation= Authorisation[authorisation]
-#        )
-#    ]
-#
-#
-
 @graphql_query.field("countries")
 @graphql_payload
 async def get_countries(_, info) -> List[Country]:

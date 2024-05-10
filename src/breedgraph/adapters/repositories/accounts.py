@@ -7,11 +7,6 @@ from src.breedgraph.domain.model.accounts import (
     AccountInput, AccountStored
 )
 
-from src.breedgraph.domain.model.organisations import (
-    TeamOutput
-)
-
-
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
 from src.breedgraph.adapters.neo4j.cypher import queries
 

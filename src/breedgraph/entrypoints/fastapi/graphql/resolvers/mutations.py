@@ -259,3 +259,24 @@ async def remove_affiliation(
     )
     await info.context['bus'].handle(cmd)
     return True
+
+@graphql_mutation.field("add_country")
+@graphql_payload
+async def add_country(
+        _,
+        info,
+        name: str,
+        code: str
+) -> bool:
+    account = info.context.get('account')
+    if account is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"User {account.user.id} adds team: {name}")
+    cmd = AddCountry(
+        user=account.user.id,
+        name=name,
+        code=code
+    )
+    await info.context['bus'].handle(cmd)
+    return True

@@ -66,7 +66,6 @@ class OrganisationInput(OrganisationBase):
             raise ValidationError('Input organisation root team must not have a parent')
         return l
 
-
 class OrganisationStored(OrganisationBase):
     teams: List[TeamStored|TeamInput]
 

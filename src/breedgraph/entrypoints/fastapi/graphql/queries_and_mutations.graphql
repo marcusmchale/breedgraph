@@ -47,6 +47,10 @@ type Mutation {
         team: Int!
         access: Access!
     ): BooleanPayload
+    add_country(
+        name: String!
+        code: String!
+    ): BooleanPayload
 }
 
 type Query {

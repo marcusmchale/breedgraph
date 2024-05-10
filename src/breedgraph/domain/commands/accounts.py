@@ -56,3 +56,8 @@ class RemoveAffiliation(Command):
     user: int
     team: int
     access: str
+
+class AddCountry(Command):
+    admin: int
+    name: str
+    code: str
