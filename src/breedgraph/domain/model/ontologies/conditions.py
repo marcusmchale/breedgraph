@@ -7,35 +7,33 @@ Although the Trait concept is functionally similar here, the use is quite differ
 We create the Parameter class to distinguish these.
 The Plant Experimental Conditions Ontology should be referenced where possible in defining parameters
 
-For treatments/exposures we use the Events term from BrAPI Phenotyping,
-We encode eventType becomes as a stored "Treatment" which should also be used for exposures.
-
 """
 from src.breedgraph.adapters.repositories.base import Entity
 
 from src.breedgraph.domain.model.ontologies.entries import OntologyEntry
-from src.breedgraph.domain.model.ontologies.variables import SubjectType
+from src.breedgraph.domain.model.ontologies.variables import Subject, Method, Scale
+
 
 from typing import List
 
 class Parameter(OntologyEntry):  # akin to Variable
-    subjects: List[SubjectType]
+    # e.g. name = light level
+    subjects: List[Subject] # e.g. light, substrate, air etc.
 
 class ParameterStored(Parameter, Entity):
     pass
 
-class Condition(OntologyEntry):  # quantities/qualities that are fixed or definite throughout an experiment.
+class Condition(OntologyEntry):
+    """
+    quantities/qualities that are fixed or definite throughout an experiment.
+    for example:
+     parameter = daylight level
+     method = fluorescent tube lighting
+     scale = micro-einsteins
+    """
     parameter: int  # ParameterStored id
     method: int  # MethodStored id
     scale: int  # ScaleStored id
 
 class ConditionStored(Parameter, Entity):
     pass
-
-class Treatment(OntologyEntry): #a.k.a. exposure
-    subjects: List[SubjectType]
-
-class Event(OntologyEntry):
-    treatment: int
-    method: int
-    scale: int

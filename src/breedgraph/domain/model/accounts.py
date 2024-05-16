@@ -4,6 +4,8 @@ from enum import Enum
 from src.breedgraph.domain.events.accounts import Event
 from pydantic import BaseModel, Field
 
+from .base import Entity, Aggregate
+
 from typing import List
 
 logger = logging.getLogger(__name__)
@@ -17,20 +19,13 @@ class UserInput(UserBase):
     password_hash: str
     email_verified: bool = False
 
-class UserOutput(UserBase):
-    id: int = Field(frozen=True)
-
-class UserStored(UserInput):
-    id: int = Field(frozen=True)
+class UserStored(UserBase, Entity):
+    password_hash: str
+    email_verified: bool = False
     person: None|int = None  #ID for the corresponding Person
 
-    def to_output(self):
-        return UserOutput(
-            id=self.id,
-            name=self.name,
-            fullname=self.fullname,
-            email=self.email
-        )
+class UserOutput(UserBase, Entity):
+    pass
 
 class Access(str, Enum):
     READ = "READ"
@@ -55,18 +50,25 @@ class AccountBase(BaseModel):
 class AccountInput(AccountBase):
     user: UserInput
 
+class AccountStored(AccountBase, Aggregate):
+    user: UserStored
+    affiliations: List[Affiliation] = list()
+    allowed_emails: List[str] = list()
+    allowed_users: List[int] = Field(frozen=True, default=list())
+    events: List[Event] = list()
+
+    @property
+    def root(self):
+        return self.user
+    @property
+    def protected(self):
+        if self.user.email_verified:
+            return "Accounts with a verified email cannot be removed"
+        else:
+            return False
+
 class  AccountOutput(AccountBase):
     user: UserOutput
     reads: List[int]
     writes: List[int]
     admins: List[int]
-
-class AccountStored(AccountBase):
-    user: UserStored
-    affiliations: List[Affiliation] = list()
-    allowed_emails: List[str] = list()
-    allowed_users: List[int] = Field(default=list(), frozen=True)
-    events: List[Event] = list()
-
-    def __hash__(self):
-        return hash(self.user.id)

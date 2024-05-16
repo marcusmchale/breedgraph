@@ -1,69 +1,56 @@
 from abc import ABC, abstractmethod
 from typing import Set, List, AsyncGenerator
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
+from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked
 from src.breedgraph.custom_exceptions import ProtectedNodeError
 
-class Entity(BaseModel):
-    id: int
+from src.breedgraph.domain.model.base import Entity, Aggregate
 
-class AggregateRoot(Entity):
-    id: int
-
-class Aggregate(BaseModel):
-
-    @property
-    @abstractmethod
-    def root(self) -> AggregateRoot:
-        raise NotImplementedError
-
-
-    @property
-    @abstractmethod
-    def protected(self) -> str|bool: # Return an error message if protected or False if safe to remove
-        raise NotImplementedError
-        # e.g. for an account, if email is verified we no longer want to allow a removal.
+from typing import Any
 
 class BaseRepository(ABC):
 
     def __init__(self):
-        self.seen: Set[Aggregate] = set()
+        self.seen: Set[Tracked|Aggregate] = set()
 
-    def _track(self, aggregate: Aggregate) -> None:
-        aggregate.root = Tracked(aggregate.root)
-        for attr in aggregate.root.model_fields.keys():
-            if isinstance(getattr(aggregate.root, attr), list):
-                setattr(self, attr, TrackedList(getattr(self, attr)))
-        self.seen.add(aggregate)
+    def _track(self, aggregate: Aggregate) -> Tracked|Aggregate:
+        # return type should be intersection not union,
+        # waiting for python to support this
+        tracked = Tracked(aggregate)
+        self.seen.add(tracked)
+        return tracked
 
-    async def create(self, aggregate: Aggregate) -> Aggregate:
-        aggregate_stored = await self._create(aggregate)
-        self._track(aggregate)
-        return aggregate_stored
+    async def create(self, aggregate_input: BaseModel) -> Tracked|Aggregate:
+        # return type should be intersection not union,
+        # waiting for python to support this
+        aggregate = await self._create(aggregate_input)
+        tracked_aggregate = self._track(aggregate)
+        return tracked_aggregate
 
     @abstractmethod
-    async def _create(self, aggregate: Aggregate) -> Aggregate:
+    async def _create(self, aggregate_input: BaseModel) -> Aggregate:
         raise NotImplementedError
 
-    async def get(self, db_id: int) -> Aggregate:
-        aggregate = await self._get(db_id)
+    async def get(self, **kwargs) -> Tracked|Aggregate:
+        # return type should be intersection not union,
+        # waiting for python to support this
+        aggregate = await self._get(**kwargs)
         if aggregate is not None:
-            self._track(aggregate)
-        return aggregate
+            return self._track(aggregate)
 
     @abstractmethod
-    async def _get(self, db_id: int) -> Aggregate:  # get may be from root id or ID of list_attribute elements
+    async def _get(self, **kwargs) -> Aggregate:  # get may be from root id or ID of list_attribute elements
         raise NotImplementedError
 
-    async def get_all(self) -> AsyncGenerator[Aggregate, None]:
-        async for aggregate in self._get_all():
-            self._track(aggregate)
-            yield aggregate
+    async def get_all(self, **kwargs) -> AsyncGenerator[Tracked|Aggregate, None]:
+        async for aggregate in self._get_all(**kwargs):
+            yield self._track(aggregate)
 
     @abstractmethod
-    def _get_all(self) -> AsyncGenerator[Aggregate, None]:
+    def _get_all(self, **kwargs) -> AsyncGenerator[Aggregate, None]:
+        # each attr is stored with a list of values to filter by
         raise NotImplementedError
 
     async def remove(self, aggregate: Aggregate) -> None:
@@ -71,6 +58,7 @@ class BaseRepository(ABC):
             raise ProtectedNodeError(aggregate.protected)
 
         await self._remove(aggregate)
+        self.seen.remove(aggregate)
 
     @abstractmethod
     async def _remove(self, aggregate: Aggregate) -> None:
@@ -82,5 +70,7 @@ class BaseRepository(ABC):
         self.seen.clear()
 
     @abstractmethod
-    async def _update(self, aggregate: Aggregate):
+    async def _update(self, aggregate: Aggregate|Tracked):
+        # type should be intersection not union,
+        # waiting for python to support this
         raise NotImplementedError

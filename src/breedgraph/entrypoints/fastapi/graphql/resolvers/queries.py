@@ -13,7 +13,7 @@ from src.breedgraph.domain.model.accounts import (
     Affiliation, Access, Authorisation,
     UserStored, UserOutput
 )
-from src.breedgraph.domain.model.locations import Country
+from src.breedgraph.domain.model.locations import Region
 
 from src.breedgraph.domain.model.organisations import (
     TeamOutput
@@ -152,6 +152,6 @@ def resolve_writes(obj, info):
 
 @graphql_query.field("countries")
 @graphql_payload
-async def get_countries(_, info) -> List[Country]:
+async def get_countries(_, info) -> List[Region]:
     bus = info.context.get('bus')
     return [c async for c in views.locations.countries(bus.read_model)]

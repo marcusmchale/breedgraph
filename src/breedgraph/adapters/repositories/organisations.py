@@ -11,106 +11,27 @@ from src.breedgraph.domain.model.organisations import (
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
-from src.breedgraph.custom_exceptions import ProtectedNodeError, IllegalOperationError
+from src.breedgraph.adapters.repositories.base import BaseRepository
 
-
-from typing import Set, AsyncGenerator
+from typing import Any, AsyncGenerator, List
 
 logger = logging.getLogger(__name__)
 
-class BaseOrganisationRepository(ABC):
-
-    def __init__(self):
-        self.seen: Set[OrganisationStored] = set()
-
-    def _track(self, organisation: OrganisationStored):
-        organisation.teams = TrackedList(organisation.teams)
-        self.seen.add(organisation)
-
-    async def create(self, organisation: OrganisationInput) -> OrganisationStored:
-        organisation_stored = await self._create(organisation)
-        self._track(organisation_stored)
-        return organisation_stored
-
-    @abstractmethod
-    async def _create(self, organisation: OrganisationInput) -> OrganisationStored:
-        raise NotImplementedError
-
-    async def get(self, team_id: int) -> OrganisationStored:
-        organisation = await self._get(team_id)
-        if organisation is not None:
-            self._track(organisation)
-        return organisation
-
-    @abstractmethod
-    async def _get(self, team_id: int) -> OrganisationStored:
-        raise NotImplementedError
-
-    async def get_all(self) -> AsyncGenerator[OrganisationStored, None]:
-        async for organisation in self._get_all():
-            self._track(organisation)
-            yield organisation
-
-    @abstractmethod
-    def _get_all(self) -> AsyncGenerator[OrganisationStored, None]:
-        raise NotImplementedError
-
-    async def remove(self, organisation: OrganisationStored):
-        if organisation.root.children:
-            raise ProtectedNodeError
-
-        await self._remove(organisation)
-
-    @abstractmethod
-    async def _remove(self, organisation: OrganisationStored):
-        raise NotImplementedError
-
-    async def update_seen(self):
-        for organisation in self.seen:
-            await self._update(organisation)
-        self.seen.clear()
-
-    @abstractmethod
-    async def _update(self, organisation: OrganisationStored):
-        raise NotImplementedError
-
-
-class Neo4jOrganisationRepository(BaseOrganisationRepository):
+class Neo4jOrganisationRepository(BaseRepository):
 
     def __init__(self, tx: AsyncTransaction):
         super().__init__()
         self.tx = tx
 
     async def _create(self, organisation: OrganisationInput) -> OrganisationStored:
-        teams = list()
-        for team in organisation.teams:
-            teams.append(await self._create_team(team))
+        teams = [await self._create_team(team) for team in organisation.teams]
         return OrganisationStored(teams=teams)
-
-    async def _get(self, team: int) -> OrganisationStored:
-        result: AsyncResult = await self.tx.run(
-            queries['get_organisation'],
-            team=team
-        )
-        teams = list()
-        async for record in result:
-            teams.append(self.team_record_to_team(record['team']))
-
-        return OrganisationStored(teams=teams)
-
-    async def _get_all(self) -> AsyncGenerator[OrganisationStored, None]:
-        result: AsyncResult = await self.tx.run(
-            queries['get_organisations']
-        )
-        async for record in result:
-            yield OrganisationStored(teams = record['teams'])
 
     async def _create_team(self, team: TeamInput):
         logger.debug(f"Create team: {team}")
-
         if team.parent is not None:
             result: AsyncResult = await self.tx.run(
-                queries['create_team_with_parent'],
+                queries['organisations']['create_team_with_parent'],
                 name=team.name,
                 name_lower=team.name.casefold(),
                 fullname=team.fullname,
@@ -118,7 +39,7 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
             )
         else:
             result: AsyncResult = await self.tx.run(
-                queries['create_team'],
+                queries['organisations']['create_team'],
                 name=team.name,
                 name_lower=team.name.casefold(),
                 fullname=team.fullname
@@ -127,26 +48,34 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
         record: Record = await result.single()
         return self.team_record_to_team(record['team'])
 
+    async def _get(self, team_id=None) -> OrganisationStored:
+        if team_id is None:
+            raise TypeError(f"Get organisation requires team_id")
+
+        result: AsyncResult = await self.tx.run(
+            queries['organisations']['get_organisation'],
+            team=team_id
+        )
+
+        teams = [self.team_record_to_team(record['team']) async for record in result]
+        return OrganisationStored(teams=teams)
+
+    async def _get_all(self) -> AsyncGenerator[OrganisationStored, None]:
+        result: AsyncResult = await self.tx.run(
+            queries['organisations']['get_organisations']
+        )
+        async for record in result:
+            yield OrganisationStored(teams = record['teams'])
+
     async def _set_team(self, team: TeamStored):
         logger.debug(f"Set team: {team}")
-        # todo if parent_id has changed need to update parent also (its children have changed)
-        if team.parent is not None:
-            await self.tx.run(
-                queries['set_team_with_parent_id'],
-                team=team.id,
-                parent=team.parent,
-                name=team.name,
-                name_lower=team.name.casefold(),
-                fullname=team.fullname
-            )
-        else:
-            await self.tx.run(
-                queries['set_team'],
-                team=team.id,
-                name=team.name,
-                name_lower=team.name.casefold(),
-                fullname=team.fullname
-            )
+        await self.tx.run(
+            queries['organisations']['set_team'],
+            team=team.id,
+            name=team.name,
+            name_lower=team.name.casefold(),
+            fullname=team.fullname
+        )
 
     async def _remove(self, organisation: OrganisationStored):
         for team in organisation.teams:
@@ -154,26 +83,24 @@ class Neo4jOrganisationRepository(BaseOrganisationRepository):
 
     async def _remove_team(self, team: TeamStored):
         await self.tx.run(
-            queries['remove_team'],
+            queries['organisations']['remove_team'],
             team=team.id
         )
 
-    async def _update(self, organisation: OrganisationStored):
-        if not isinstance(organisation.teams, Tracked):
-            raise IllegalOperationError("Organisation changes must be tracked for neo4j updates")
-
-        if not organisation.teams.changed:
+    async def _update(self, organisation: OrganisationStored|Tracked):
+        if not organisation.changed:
             return
 
-        for team in organisation.teams:
-            if team.changed or team in organisation.teams.added:
-                if isinstance(team, TeamStored):
-                    await self._set_team(team)
-                else:
-                    await self._create_team(team)
+        await self._update_teams(organisation.teams)
 
+    async def _update_teams(self, teams: List|TrackedList):
+        for i in teams.added:
+            teams[i] = await self._create_team(teams[i])
 
-        for team in organisation.teams.removed:
+        for i in teams.changed:
+            await self._set_team(teams[i])
+
+        for team in teams.removed:
             await self._remove_team(team)
 
     @staticmethod

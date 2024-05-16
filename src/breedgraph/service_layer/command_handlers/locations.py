@@ -4,7 +4,7 @@ from src.breedgraph.adapters.redis.read_model import ReadModel
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.accounts import Access, Authorisation
-from src.breedgraph.domain.model.locations import Country
+from src.breedgraph.domain.model.locations import Region
 
 from src.breedgraph.views.locations import countries
 
@@ -25,7 +25,7 @@ async def add_country(
         else:
             raise UnauthorisedOperationError("Only admins can add a country")
 
-        country = Country(
+        country = Region(
             name=cmd.name,
             code=cmd.code
         )

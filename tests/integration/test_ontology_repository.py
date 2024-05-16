@@ -1,6 +1,7 @@
 import pytest
 
-from src.breedgraph.domain.model.ontologies import OntologyEntry, OntologyEntryStored, Ontology
+from src.breedgraph.domain.model.ontologies.entries import OntologyEntry, OntologyEntryStored
+from src.breedgraph.domain.model.ontologies.aggregate import Ontology
 
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 
@@ -28,5 +29,6 @@ async def test_create_ontology(neo4j_tx, lorem_text_generator):
     #        break
     #else:
     #    raise NoResultFoundError
+
 
 

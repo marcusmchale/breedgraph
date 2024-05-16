@@ -1,5 +1,4 @@
 import pytest
-from pydantic import ValidationError
 
 from src.breedgraph.domain.model.organisations import TeamInput, OrganisationInput, OrganisationStored
 from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
@@ -22,7 +21,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
     organisations_repo = Neo4jOrganisationRepository(neo4j_tx)
     stored_organisation = await organisations_repo.create(organisation_input)
     # test that retrieve by id works
-    retrieved_from_root_id = await organisations_repo.get(stored_organisation.root.id)
+    retrieved_from_root_id = await organisations_repo.get(team_id=stored_organisation.root.id)
     assert retrieved_from_root_id.root.name == team_input.name
     # test that retrieve all includes the submitted entry
     async for org in organisations_repo.get_all():
@@ -41,7 +40,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
     await organisations_repo.update_seen()
 
     # retrieve from db to ensure new team is now stored as child with ID
-    retrieved_from_child_id = await organisations_repo.get(stored_organisation.root.id)
+    retrieved_from_child_id = await organisations_repo.get(team_id=stored_organisation.root.id)
     assert retrieved_from_child_id.root.id == stored_organisation.root.id
     for team in retrieved_from_child_id.teams:
         if all([
@@ -66,6 +65,6 @@ async def test_change_team_details_on_organisation(neo4j_tx, user_input_generato
     stored_organisation.root.name = changed_team_input.name
 
     await organisations_repo.update_seen()
-    retrieved_from_root_id = await organisations_repo.get(stored_organisation.root.id)
+    retrieved_from_root_id = await organisations_repo.get(team_id=stored_organisation.root.id)
     assert retrieved_from_root_id.root == stored_organisation.root
 

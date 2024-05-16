@@ -1,6 +1,9 @@
 MATCH
-  (user:User)-[affiliation:READ|WRITE|ADMIN]->(match_team:Team)
-WHERE match_team.id in $teams
+  (user:User)-[affiliation]->(match_team:Team)
+
+WHERE type(affiliation) in $access_types
+AND affiliation.authorisation in $authorisations
+AND match_team.id in $teams
 WITH DISTINCT user
 RETURN
   user {.*},

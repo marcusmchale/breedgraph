@@ -4,7 +4,7 @@ import redis
 from pathlib import Path
 
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.locations import Location, Country
+from src.breedgraph.domain.model.locations import Location, Region
 
 # typing only
 from neo4j import AsyncResult
@@ -27,7 +27,7 @@ class RedisLoader:
         async with self.uow as uow:
             result: AsyncResult = await uow.tx.run(queries['get_countries'])
             async for record in result:
-                country = Country(**record['country'])
+                country = Region(**record['country'])
                 await self.connection.sadd("country", country.model_dump_json())
 
         # e.g. https://unstats.un.org/unsd/methodology/m49/overview/
@@ -37,7 +37,7 @@ class RedisLoader:
             with open(country_codes_path) as country_codes_csv:
                 for row in csv.DictReader(country_codes_csv, delimiter=";"):
                     location = Location(name=row['Country or Area'], code=row['ISO-alpha3 Code'], type=None)
-                    country = Country(locations=[location])
+                    country = Region(locations=[location])
                     await self.connection.sadd("country", country.model_dump_json())
         else:
             logger.warning("Couldn't find country codes to preload read model")

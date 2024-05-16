@@ -5,7 +5,7 @@ from neo4j import AsyncTransaction, AsyncResult, Record
 from neo4j.exceptions import ConstraintError
 
 from src.breedgraph.domain.model.locations import (
-    Country, Location, LocationStored, LocationType, LocationTypeStored, Coordinate
+    Region, Location, LocationStored, LocationType, LocationTypeStored, Coordinate
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
@@ -19,48 +19,48 @@ logger = logging.getLogger(__name__)
 class BaseCountriesRepository(ABC):
 
     def __init__(self):
-        self.seen: Set[Country] = set()
+        self.seen: Set[Region] = set()
 
-    def _track(self, country: Country):
+    def _track(self, country: Region):
         country.locations = TrackedList(country.locations)
         self.seen.add(country)
 
-    async def create(self, country: Country) -> Country:
+    async def create(self, country: Region) -> Region:
         country_stored = await self._create(country)
         self._track(country_stored)
         return country_stored
 
     @abstractmethod
-    async def _create(self, country: Country) -> Country:
+    async def _create(self, country: Region) -> Region:
         raise NotImplementedError
 
-    async def get(self, code: str) -> Country:
+    async def get(self, code: str) -> Region:
         country = await self._get(code)
         if country is not None:
             self._track(country)
         return country
 
     @abstractmethod
-    async def _get(self, code: str) -> Country:
+    async def _get(self, code: str) -> Region:
         raise NotImplementedError
 
-    async def get_all(self) -> AsyncGenerator[Country, None]:
+    async def get_all(self) -> AsyncGenerator[Region, None]:
         async for country in self._get_all():
             self._track(country)
             yield country
 
     @abstractmethod
-    def _get_all(self) -> AsyncGenerator[Country, None]:
+    def _get_all(self) -> AsyncGenerator[Region, None]:
         raise NotImplementedError
 
-    async def remove(self, country: Country):
+    async def remove(self, country: Region):
         if country.root.locations:
             raise ProtectedNodeError
 
         await self._remove(country)
 
     @abstractmethod
-    async def _remove(self, country: Country):
+    async def _remove(self, country: Region):
         raise NotImplementedError
 
     async def update_seen(self):
@@ -69,7 +69,7 @@ class BaseCountriesRepository(ABC):
         self.seen.clear()
 
     @abstractmethod
-    async def _update(self, country: Country):
+    async def _update(self, country: Region):
         raise NotImplementedError
 
 
@@ -79,34 +79,34 @@ class Neo4jCountriesRepository(BaseCountriesRepository):
         super().__init__()
         self.tx = tx
 
-    async def _create(self, country: Country) -> Country:
+    async def _create(self, country: Region) -> Region:
         locations = [await self._create_location(location) for location in country.locations]
         country.locations = locations
         return country
 
-    async def _get(self, location_id: int) -> Country:
+    async def _get(self, location_id: int) -> Region:
         result: AsyncResult = await self.tx.run(
             queries['get_country'],
             location=location_id
         )
         record = await result.single()
         locations = [self.record_to_location(l) for l in record['locations']]
-        return Country(locations=locations)
+        return Region(locations=locations)
 
-    async def _get_all(self) -> AsyncGenerator[Country, None]:
+    async def _get_all(self) -> AsyncGenerator[Region, None]:
         result: AsyncResult = await self.tx.run(
             queries['get_countries']
         )
         async for record in result:
             locations = [self.record_to_location(l) for l in record['locations']]
-            yield Country(locations=locations)
+            yield Region(locations=locations)
 
-    async def _store_country(self, country: Country) -> None:
+    async def _store_country(self, country: Region) -> None:
         # not quite the same as create, store means it exists in the read model but isn't in neo4j
         # here that is because it is loaded from a csv file to serve as precached suggestions.
         await self.tx.run(queries['store_country'], name=country.name, code=country.code)
 
-    async def _remove_country(self, country: Country) -> None:
+    async def _remove_country(self, country: Region) -> None:
         try:
             await self.tx.run(queries['remove_country'], name=country.name, code=country.code)
         except ConstraintError:
@@ -187,7 +187,7 @@ class Neo4jCountriesRepository(BaseCountriesRepository):
         elif isinstance(parent, str):
             await self.tx.run(queries['relocate_to_country'], location=location.id, country=parent)
 
-    async def _remove(self, country: Country):
+    async def _remove(self, country: Region):
         logger.debug(f"Removing country and all its locations: {country}")
         for l in country.locations:
             if isinstance(l, LocationStored):
@@ -201,7 +201,7 @@ class Neo4jCountriesRepository(BaseCountriesRepository):
             location=location.id
         )
 
-    async def _update(self, country: Country):
+    async def _update(self, country: Region):
         if not isinstance(country.locations, Tracked):
             raise IllegalOperationError("Country locations must be tracked for neo4j updates")
 

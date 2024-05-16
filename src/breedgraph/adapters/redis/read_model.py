@@ -2,7 +2,7 @@ import csv
 import redis.asyncio as redis
 
 from src.breedgraph.config import get_redis_host_and_port
-from src.breedgraph.domain.model.locations import Country
+from src.breedgraph.domain.model.locations import Region
 from src.breedgraph.service_layer.unit_of_work import Neo4jUnitOfWork
 from src.breedgraph.adapters.redis.load_data import RedisLoader
 
@@ -26,19 +26,19 @@ class ReadModel:
             await loader.load_read_model()
         return cls(connection)
 
-    async def add_country(self, country: Country) -> None:
+    async def add_country(self, country: Region) -> None:
         logger.info(f"Add country: {country}")
         await self.connection.sadd("country", country.json())
 
-    async def remove_country(self, country: Country) -> None:
+    async def remove_country(self, country: Region) -> None:
         logger.info(f"Removing country: {country.json()}")
         await self.connection.srem("country", country.json())
 
-    async def get_countries(self) -> AsyncGenerator[Country, None]:
+    async def get_countries(self) -> AsyncGenerator[Region, None]:
         logger.info(f"Getting countries")
         countries_bytes = await self.connection.smembers("country")
         for country in countries_bytes:
-            yield Country.model_validate_json(country.decode("utf-8"))
+            yield Region.model_validate_json(country.decode("utf-8"))
 
     #async def add_email(self, email: str):
     #    logger.info(f"Adding allowed email: {email}")

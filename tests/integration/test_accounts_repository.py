@@ -2,14 +2,9 @@ import pytest
 from pydantic import ValidationError
 
 from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored
-from src.breedgraph.domain.model.organisations import OrganisationInput, OrganisationStored
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
-
-from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
-
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
-from tests.integration.test_organisations_repository import create_team_input
 
 async def create_account_input(user_input_generator) -> AccountInput:
     new_user_input = user_input_generator.new_user_input()
@@ -28,20 +23,20 @@ async def test_create_and_get_account(neo4j_tx, user_input_generator):
     stored_account: AccountStored = await accounts_repo.create(account_input)
     assert stored_account.user.name == account_input.user.name
 
-    retrieved_account = await accounts_repo.get(stored_account.user.id)
+    retrieved_account = await accounts_repo.get(user_id=stored_account.user.id)
     assert retrieved_account.user.name == account_input.user.name
 
-    retrieved_account = await accounts_repo.get_by_name(account_input.user.name)
+    retrieved_account = await accounts_repo.get(name=stored_account.user.name)
     assert retrieved_account.user.name == account_input.user.name
 
-    retrieved_account = await accounts_repo.get_by_email(account_input.user.email)
+    retrieved_account = await accounts_repo.get(email=account_input.user.email)
     assert retrieved_account.user.name == account_input.user.name
 
     async for account in accounts_repo.get_all():
         if account.user.name == account_input.user.name:
             break
     else:
-        raise NoResultFoundError
+        raise NoResultFoundError("Account is not retrieved by get_all without filters")
 
 @pytest.mark.asyncio(scope="session")
 async def test_change_user_details_on_account(neo4j_tx, user_input_generator):
@@ -59,6 +54,6 @@ async def test_change_user_details_on_account(neo4j_tx, user_input_generator):
 
     await accounts_repo.update_seen()
 
-    retrieved_stored_account = await accounts_repo.get(stored_account.user.id)
+    retrieved_stored_account = await accounts_repo.get(user_id=stored_account.user.id)
     assert retrieved_stored_account.user == stored_account.user
 

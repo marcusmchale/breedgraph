@@ -1,52 +1,67 @@
-from pydantic import BaseModel, computed_field
+from pydantic import Field, computed_field
 
-from src.breedgraph.adapters.repositories.base import Aggregate, AggregateRoot
-from src.breedgraph.domain.model.references import Reference
-from src.breedgraph.domain.model.ontologies.entries import OntologyEntry, OntologyEntryStored
+from src.breedgraph.adapters.repositories.base import Entity, Aggregate
+from src.breedgraph.domain.model.references import LegalReferenceStored
+
+from .entries import Version, VersionStored, OntologyEntry, OntologyEntryStored, Term, TermStored
+from .subjects import Subject, SubjectStored
+
+from .variables import Trait, TraitStored, Method, MethodStored, Scale, ScaleStored, Variable, VariableStored
+from .conditions import Parameter, ParameterStored, Condition, ConditionStored
+from .events import Exposure, ExposureStored, EventType, EventTypeStored
+
+from .germplasm import Sourcing, SourcingStored, Maintenance, MaintenanceStored, Attribute, AttributeStored
+
+from .facilities import FacilityType, FacilityTypeStored
+from .locations import LocationType, LocationTypeStored
+from .designs import Design, DesignStored
+from .layout import LayoutType, LayoutTypeStored
 
 from typing import List
 
-class Version(BaseModel):
-    major: int
-    minor: int
-    patch: int
-    comment: str
 
-    @property
-    def name(self) -> str:
-        return f"{self.major}.{self.minor}.{self.patch}-{self.comment}"
+class Ontology(Aggregate):
+    version: Version|VersionStored
+
+    licence: int | None = None  # id for internally stored LegalReference
+    copyright: int|None = None  # id for internally stored LegalReference
+
+    terms: List[Term|TermStored]
+    subjects: List[Subject|SubjectStored]
+
+    traits: List[Trait|TraitStored]
+    parameters: List[Parameter | ParameterStored]
+    exposures: List[Exposure|ExposureStored]
+
+    methods: List[Method|MethodStored]
+    scales: List[Scale|ScaleStored]
+
+    variables: List[Variable|VariableStored]
+
+    conditions: List[Condition|ConditionStored]
+    exposures: List[Exposure|ExposureStored]
+    events: List[EventType | EventTypeStored]
+
+    # germplasm attributes
+    sourcing: List[Sourcing|SourcingStored]
+    maintenance: List[Maintenance|MaintenanceStored]
+    attributes: List[Attribute|AttributeStored]
+
+    locations: List[LocationType|LocationTypeStored]
+    facilities: List[FacilityType|FacilityTypeStored]
+    layouts: List[LayoutType|LayoutTypeStored]
+
+    designs: List[Design|DesignStored]
 
 
-class Ontology(Aggregate): 
-    references: List[OntologyEntry]
-    version: Version = Version(major=1, minor=0, patch=0, comment="Initial version")
-
-    copyright: Reference|None = None
-    licence: Reference|None = None
-
-    def get_reference(self, reference: int):
-        for r in self.references:
-            if isinstance(r, OntologyEntryStored) and r.id == reference:
-                return r
     @computed_field
     @property
-    def root(self) -> AggregateRoot | OntologyEntry:
-        return self.references[0]
+    def root(self) -> Entity:
+        return self.version
 
     @property
-    def protected(self) -> str | bool:
-        protected_message = "This ontology is in use and cannot be removed"
-        def is_used(reference: OntologyEntry):
-            if isinstance(reference, OntologyEntryStored):
-                if reference.used:
-                    return True
-                for child_ref in reference.children:
-                    child_used = is_used(self.get_reference(child_ref))
-                    if child_used:
-                        return child_used
-
-        if is_used(self.root):
-            return protected_message
-
-    def __hash__(self):
-        return hash(self.root.id)
+    def protected(self) -> [str|bool]:
+        if isinstance(self.version, VersionStored):
+            return "Stored ontology is protected"
+        else:
+            return False

@@ -29,26 +29,22 @@ Similarly, when entering Traits, references to the Plant Trait Ontology should b
 
 todo: The "Variable Status" concept from Crop Ontology is to be handled differently in BreedGraph.
     Organisation root admins should control ‘Recommended’,‘Standard',‘Obsolete’ and ‘Legacy’ annotations for variables.
-    These should then be visible to all users.
+    We can consider visibility of these in the future for recommendations across organisations,
+    but it is most useful to resolve this at the organisation level.
 
 """
 from pydantic import BaseModel
 
 from enum import Enum
 from src.breedgraph.domain.model.ontologies.entries import OntologyEntry
-
 from src.breedgraph.adapters.repositories.base import Entity
+from src.breedgraph.domain.model.ontologies.subjects import Subject
 
 from typing import List
 
-class SubjectType(OntologyEntry):
-    pass
-
-class SubjectTypeStored(SubjectType, Entity):
-    pass
 
 class Trait(OntologyEntry):
-    subjects: List[SubjectType]
+    subjects: List[Subject]
 
 class TraitStored(Trait, Entity):
     pass

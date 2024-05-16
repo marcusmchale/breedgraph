@@ -18,7 +18,7 @@ async def teams(
         user: int
 ) -> AsyncGenerator[TeamOutput, None]:
     async with uow:
-        result: AsyncResult = await uow.tx.run(queries['get_teams_view'], user=user)
+        result: AsyncResult = await uow.tx.run(queries['views']['get_teams'], user=user)
         async for record in result:
             yield TeamOutput(**dict(Neo4jOrganisationRepository.team_record_to_team(record['team'])))
 
@@ -27,7 +27,7 @@ async def users(
         user: int
 ) -> AsyncGenerator[UserOutput, None]:
     async with uow:
-        result: AsyncResult = await uow.tx.run(queries['get_users_view'], user=user)
+        result: AsyncResult = await uow.tx.run(queries['views']['get_users'], user=user)
         async for record in result:
             user_output: UserOutput = UserOutput(
                 id=record['user']['id'],

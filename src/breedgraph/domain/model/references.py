@@ -34,3 +34,6 @@ class PublicationReference(Reference):
 
 class PublicationStored(PublicationReference):
     id: int
+
+class LocalFileReference(Reference):
+    pass

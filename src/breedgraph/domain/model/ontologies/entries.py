@@ -15,23 +15,43 @@ class Language(BaseModel):
     # e.g. https://datahub.io/core/language-codes#language-codes
     # ISO Language Codes (639-1 and 693-2) and IETF Language Types
 
+class Version(BaseModel):
+    major: int
+    minor: int
+    patch: int
+    comment: str
+
+    @property
+    def name(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}-{self.comment}"
+
+class VersionStored(Version, Entity):
+    """
+        Ontology version is associated with it's respective entries.
+        When a new term is added, this means a new version, but may be a minor/patch version
+        Major version changes should reflect a curated commit.
+
+        todo
+          consider edits that may not require creation of a new entry
+          e.g. addition of references/synonyms.
+    """
+    pass
 
 class OntologyEntry(BaseModel):
     name: str
-    abbreviation: str
+    abbreviation: str|None = None
     synonyms: List[str] = list()
 
     description: str|None = None
 
-    language: Language = Language(name='English', code='eng')
-
     authors: List[int] = list()  # internal person ID
     references: List[int] = list()  # internal reference ID
 
-    parents: List[int] = list() # ontology entry IDs, to be stored with related_to towards parent
-    children: List[int] = list() # ontology entry IDs, to be stored with related_to towards self
+    parents: List[int] = Field(frozen=True, default=list())
+    children: List[int] = Field(frozen=True, default=list())
 
-    used: bool = False  # Whether the ontology entry is directly referenced outside the ontology
+class OntologyEntryStored(OntologyEntry, Entity):
+    pass
 
 class Term(OntologyEntry):  # generic ontology entry, used to relate terms to each other and traits/methods/scales
     pass

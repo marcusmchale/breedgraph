@@ -9,15 +9,16 @@ from asyncio import CancelledError
 # Typing only
 from typing import Self
 from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
-from src.breedgraph.adapters.repositories.accounts import BaseAccountRepository, Neo4jAccountRepository
-from src.breedgraph.adapters.repositories.organisations import BaseOrganisationRepository, Neo4jOrganisationRepository
+from src.breedgraph.adapters.repositories.base import BaseRepository
+from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
+from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 
 logger = logging.getLogger(__name__)
 
 class AbstractUnitOfWork(ABC):
-    accounts: BaseAccountRepository
-    organisations: BaseOrganisationRepository
+    accounts: BaseRepository
+    organisations: BaseRepository
 
     async def __aenter__(self) -> Self:
         return self
