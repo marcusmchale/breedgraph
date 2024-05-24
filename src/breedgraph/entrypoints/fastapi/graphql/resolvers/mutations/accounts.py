@@ -1,39 +1,23 @@
+import bcrypt
 from itsdangerous import URLSafeTimedSerializer
 
-import bcrypt
-
 from src.breedgraph import config
-
-from src.breedgraph import views
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.domain.commands.accounts import (
     AddFirstAccount,
     AddAccount,
     Login,
     VerifyEmail,
-    AddTeam, RemoveTeam,
     AddEmail, RemoveEmail,
     RequestAffiliation, ApproveAffiliation, RemoveAffiliation
 )
+from src.breedgraph.domain.model.accounts import Access
+from src.breedgraph.domain.model.authentication import Token
+from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from . import graphql_query, graphql_mutation
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
 from typing import List, Optional
-from src.breedgraph.domain.model.accounts import (
-    AccountStored, UserOutput, Access
-)
-from src.breedgraph.domain.model.organisations import (
-    TeamStored, TeamOutput
-)
-
-from src.breedgraph.domain.model.authentication import Token
-
-from src.breedgraph.custom_exceptions import (
-    NoResultFoundError,
-    IdentityExistsError,
-    ProtectedNodeError,
-    UnauthorisedOperationError
-)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -75,7 +59,7 @@ async def login(
     logger.debug(f"Log in: {username}")
     fail_message = "Invalid username or password"
     async with info.context['bus'].uow as uow:
-        account = await uow.accounts.get_by_name(username)
+        account = await uow.accounts.get(name=username)
         if not account:
             raise UnauthorisedOperationError(fail_message)
 
@@ -149,48 +133,6 @@ async def remove_email(_, info, email: str) -> bool:
     await info.context['bus'].handle(RemoveEmail(user=account.user.id, email=email))
     return True
 
-@graphql_mutation.field("add_team")
-@graphql_payload
-async def add_team(
-        _,
-        info,
-        name: str,
-        fullname: Optional[str] = None,
-        parent: Optional[int] = None
-) -> bool:
-    account = info.context.get('account')
-    if account is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
-    logger.debug(f"User {account.user.id} adds team: {name}")
-    cmd = AddTeam(
-        user=account.user.id,
-        name=name,
-        fullname=fullname,
-        parent=parent
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
-@graphql_mutation.field("remove_team")
-@graphql_payload
-async def remove_team(
-        _,
-        info,
-        team: int
-) -> bool:
-    account = info.context.get('account')
-    if account is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
-    logger.debug(f"User {account.user.id} removes team: {team}")
-    cmd = RemoveTeam(
-        user=account.user.id,
-        team=team
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
 @graphql_mutation.field("request_affiliation")
 @graphql_payload
 async def request_affiliation(
@@ -256,27 +198,6 @@ async def remove_affiliation(
         user=user,
         team=team,
         access=access
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
-@graphql_mutation.field("add_country")
-@graphql_payload
-async def add_country(
-        _,
-        info,
-        name: str,
-        code: str
-) -> bool:
-    account = info.context.get('account')
-    if account is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
-    logger.debug(f"User {account.user.id} adds team: {name}")
-    cmd = AddCountry(
-        user=account.user.id,
-        name=name,
-        code=code
     )
     await info.context['bus'].handle(cmd)
     return True

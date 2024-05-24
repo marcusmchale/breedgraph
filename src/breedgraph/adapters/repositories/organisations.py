@@ -6,14 +6,13 @@ from neo4j import AsyncTransaction, AsyncResult, Record
 from src.breedgraph.domain.model.organisations import (
     TeamInput,
     TeamStored,
-    OrganisationInput,
-    OrganisationStored
+    Organisation
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
+from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict
 from src.breedgraph.adapters.repositories.base import BaseRepository
 
-from typing import Any, AsyncGenerator, List
+from typing import AsyncGenerator, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +22,11 @@ class Neo4jOrganisationRepository(BaseRepository):
         super().__init__()
         self.tx = tx
 
-    async def _create(self, organisation: OrganisationInput) -> OrganisationStored:
-        teams = [await self._create_team(team) for team in organisation.teams]
-        return OrganisationStored(teams=teams)
+    async def _create(self, team: TeamInput) -> Organisation:
+        team = await self._create_team(team)
+        return Organisation(root_id=team.id, teams={team.id: team})
 
-    async def _create_team(self, team: TeamInput):
+    async def _create_team(self, team: TeamInput) -> TeamStored:
         logger.debug(f"Create team: {team}")
         if team.parent is not None:
             result: AsyncResult = await self.tx.run(
@@ -48,7 +47,7 @@ class Neo4jOrganisationRepository(BaseRepository):
         record: Record = await result.single()
         return self.team_record_to_team(record['team'])
 
-    async def _get(self, team_id=None) -> OrganisationStored:
+    async def _get(self, team_id=None) -> Organisation:
         if team_id is None:
             raise TypeError(f"Get organisation requires team_id")
 
@@ -58,14 +57,15 @@ class Neo4jOrganisationRepository(BaseRepository):
         )
 
         teams = [self.team_record_to_team(record['team']) async for record in result]
-        return OrganisationStored(teams=teams)
+        return Organisation.from_list(teams)
 
-    async def _get_all(self) -> AsyncGenerator[OrganisationStored, None]:
+    async def _get_all(self) -> AsyncGenerator[Organisation, None]:
         result: AsyncResult = await self.tx.run(
             queries['organisations']['get_organisations']
         )
         async for record in result:
-            yield OrganisationStored(teams = record['teams'])
+            teams = [self.team_record_to_team(team) for team in record['teams']]
+            yield Organisation.from_list(teams)
 
     async def _set_team(self, team: TeamStored):
         logger.debug(f"Set team: {team}")
@@ -77,31 +77,45 @@ class Neo4jOrganisationRepository(BaseRepository):
             fullname=team.fullname
         )
 
-    async def _remove(self, organisation: OrganisationStored):
-        for team in organisation.teams:
-            await self._remove_team(team)
+    async def _remove(self, organisation: Organisation):
+        for team_id in organisation.teams.keys():
+            await self._remove_team(team_id)
 
-    async def _remove_team(self, team: TeamStored):
+    async def _remove_team(self, team_id: int):
         await self.tx.run(
             queries['organisations']['remove_team'],
-            team=team.id
+            team=team_id
         )
 
-    async def _update(self, organisation: OrganisationStored|Tracked):
+    async def _update(self, organisation: Tracked|Organisation):
         if not organisation.changed:
             return
 
         await self._update_teams(organisation.teams)
 
-    async def _update_teams(self, teams: List|TrackedList):
-        for i in teams.added:
-            teams[i] = await self._create_team(teams[i])
+    async def _update_teams(self, teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
+        await self._create_teams(teams)
+        await self._remove_teams(teams)
+        await self._update_changed_teams(teams)
 
-        for i in teams.changed:
-            await self._set_team(teams[i])
+    async def _create_teams(self,teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
+        for team_id in teams.added:
+            team = teams[team_id]
+            if isinstance(team, TeamInput):
+                stored_team = await self._create_team(team)
+                teams.silent_set(stored_team.id, stored_team)
+                teams.silent_remove(team_id)
+            else:
+                raise ValueError("An instance of TeamInput is required for team creation")
 
-        for team in teams.removed:
-            await self._remove_team(team)
+    async def _remove_teams(self, teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
+        for team_id in teams.removed.keys():
+            await self._remove_team(team_id)
+
+    async def _update_changed_teams(self, teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
+        for team_id in teams.changed:
+            team = teams[team_id]
+            await self._set_team(team)
 
     @staticmethod
     def team_record_to_team(record) -> TeamStored:

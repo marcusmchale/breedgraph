@@ -12,7 +12,7 @@ from src.breedgraph.service_layer import unit_of_work
 
 
 async def add_country(
-        cmd: commands.accounts.AddCountry,
+        cmd: commands.countries.AddCountry,
         uow: unit_of_work.AbstractUnitOfWork,
         read_model: ReadModel
 ):

@@ -1,7 +1,9 @@
 import logging
 
-from pydantic import BaseModel, field_validator, ValidationError, Field
-from typing import List
+from pydantic import BaseModel, field_validator, ValidationError, Field, computed_field
+
+
+from typing import List, Dict
 
 from .base import Entity, Aggregate
 
@@ -27,46 +29,49 @@ class TeamStored(TeamBase, Entity):
 class TeamOutput(TeamStored):
     pass
 
-class OrganisationBase(BaseModel):
-    teams: List[TeamInput]
+class Organisation(Aggregate):
+    root_id: int
+    teams: Dict[int, TeamInput|TeamStored] = dict()
 
-class OrganisationInput(OrganisationBase):
-    teams: List[TeamInput]
-
-    @field_validator('teams')
-    def teams(cls, l: List[TeamInput]) -> List[TeamInput]:
-        if not len(l) == 1:
-            raise ValidationError('Input organisation can only have one team')
-        if l[0].parent:
-            raise ValidationError('Input organisation root team must not have a parent')
-        return l
-
-class OrganisationStored(OrganisationBase, Aggregate):
-    teams: List[TeamStored|TeamInput]
+    @classmethod
+    def from_list(cls, teams_list: List[TeamStored]):
+        root_id = None
+        teams_map = dict()
+        for team in teams_list:
+            teams_map[team.id] = team
+            if team.parent is None:
+                root_id = team.id
+        return cls(root_id=root_id, teams=teams_map)
 
     @property
     def root(self) -> TeamStored:
-        for team in self.teams:
-            if team.parent is None:
-                return team
+        return self.teams[self.root_id]
+
     @property
     def protected(self) -> str|None:
         if self.root.children:
             return "Cannot delete an organisation while its root has children"
 
-    def get_team(self, team: int):  # todo probably should be using a map here
-        for t in self.teams:
-            if isinstance(t, TeamStored) and t.id == team:
-                return t
+    def add_team(self, team: TeamInput) -> int:  # returns temporary ID in case it is needed
+        if not team.parent in self.teams:
+            raise ValueError("Parent team is not in this organisation")
+        temp_id = -len(self.teams) - 1
+        self.teams[temp_id] = team
+        return temp_id
 
-    def get_team_by_name_and_parent(self, name: str, parent: None|int):
-        if parent is None:
-            logger.warning("Looking for a team without a parent, this is always the root")
+    def remove_team(self, team_id):
+        team = self.teams[team_id]
+        if team.children:
+            raise ValueError("Cannot remove a team with children")
+        self.teams.pop(team_id)
+
+    def get_team(self, name: str, parent_id: None|int):
+        if parent_id is None:
             if name.casefold == self.root.name.casefold():
                 return self.root
         else:
-            parent = self.get_team(parent)
+            parent = self.teams[parent_id]
             for t in parent.children:
-                team = self.get_team(t)
+                team = self.teams[t]
                 if team.name.casefold() == name.casefold():
                     return team

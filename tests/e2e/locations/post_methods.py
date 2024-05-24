@@ -35,8 +35,8 @@ async def post_to_add_country(client, token:str, name: str, code: str):
             " } "
         ),
         "variables": {
-            "name": f"{name}",
-            "code": f"{code}"
+            "name": name,
+            "code": code
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

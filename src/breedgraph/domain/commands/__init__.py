@@ -1,2 +1,2 @@
 from .base import Command
-from . import accounts, setup
+from . import accounts, countries, organisations, setup, ontologies

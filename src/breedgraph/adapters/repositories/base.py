@@ -8,7 +8,8 @@ from src.breedgraph.custom_exceptions import ProtectedNodeError
 
 from src.breedgraph.domain.model.base import Entity, Aggregate
 
-from typing import Any
+from typing import Union
+
 
 class BaseRepository(ABC):
 
@@ -16,15 +17,11 @@ class BaseRepository(ABC):
         self.seen: Set[Tracked|Aggregate] = set()
 
     def _track(self, aggregate: Aggregate) -> Tracked|Aggregate:
-        # return type should be intersection not union,
-        # waiting for python to support this
         tracked = Tracked(aggregate)
         self.seen.add(tracked)
         return tracked
 
     async def create(self, aggregate_input: BaseModel) -> Tracked|Aggregate:
-        # return type should be intersection not union,
-        # waiting for python to support this
         aggregate = await self._create(aggregate_input)
         tracked_aggregate = self._track(aggregate)
         return tracked_aggregate
@@ -34,8 +31,6 @@ class BaseRepository(ABC):
         raise NotImplementedError
 
     async def get(self, **kwargs) -> Tracked|Aggregate:
-        # return type should be intersection not union,
-        # waiting for python to support this
         aggregate = await self._get(**kwargs)
         if aggregate is not None:
             return self._track(aggregate)
@@ -53,7 +48,7 @@ class BaseRepository(ABC):
         # each attr is stored with a list of values to filter by
         raise NotImplementedError
 
-    async def remove(self, aggregate: Aggregate) -> None:
+    async def remove(self, aggregate: Tracked|Aggregate) -> None:
         if aggregate.protected:
             raise ProtectedNodeError(aggregate.protected)
 
@@ -61,16 +56,14 @@ class BaseRepository(ABC):
         self.seen.remove(aggregate)
 
     @abstractmethod
-    async def _remove(self, aggregate: Aggregate) -> None:
+    async def _remove(self, aggregate: Tracked|Aggregate) -> None:
         raise NotImplementedError
 
     async def update_seen(self):
         for aggregate in self.seen:
             await self._update(aggregate)
-        self.seen.clear()
+            aggregate.reset_tracking()
 
     @abstractmethod
-    async def _update(self, aggregate: Aggregate|Tracked):
-        # type should be intersection not union,
-        # waiting for python to support this
+    async def _update(self, aggregate: Tracked|Aggregate):
         raise NotImplementedError

@@ -32,6 +32,11 @@ type Mutation {
     remove_team(
         team: Int!
     ): BooleanPayload!
+    edit_team(
+        team: Int!
+        name: String
+        fullname: String
+    ): BooleanPayload!
     request_affiliation(
         team: Int!
         access: Access!
@@ -46,16 +51,18 @@ type Mutation {
         user: Int!
         team: Int!
         access: Access!
-    ): BooleanPayload
+    ): BooleanPayload!
+    add_term(
+        name: String!
+        description: String,
+        abbreviation: String,
+        synonyms: [String]
+        authors: [Int],
+        references: [Int],
+        parents: [Int]
+    ): BooleanPayload!
     add_country(
         name: String!
         code: String!
-    ): BooleanPayload
-}
-
-type Query {
-    account: AccountPayload!  # see own account details
-    teams (team_id: Int): TeamsPayload! # see teams visible to the user
-    users (user_id: Int): UsersPayload! # see accounts for admin
-    countries: CountriesPayload!
+    ): BooleanPayload!
 }

@@ -1,60 +1,38 @@
-from pydantic import BaseModel, Field
+from pydantic import Field, root_validator
 
 from typing import List
 
-from src.breedgraph.domain.model.references import Reference
 from src.breedgraph.adapters.repositories.base import Entity
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
 """
 
-class Language(BaseModel):
-    name: str
-    code: str
-    # e.g. https://datahub.io/core/language-codes#language-codes
-    # ISO Language Codes (639-1 and 693-2) and IETF Language Types
+#class Language(BaseModel):
+#    name: str
+#    code: str
+#    # e.g. https://datahub.io/core/language-codes#language-codes
+#    # ISO Language Codes (639-1 and 693-2) and IETF Language Types
 
-class Version(BaseModel):
-    major: int
-    minor: int
-    patch: int
-    comment: str
-
-    @property
-    def name(self) -> str:
-        return f"{self.major}.{self.minor}.{self.patch}-{self.comment}"
-
-class VersionStored(Version, Entity):
+class OntologyEntry(Entity):
     """
-        Ontology version is associated with it's respective entries.
-        When a new term is added, this means a new version, but may be a minor/patch version
-        Major version changes should reflect a curated commit.
-
-        todo
-          consider edits that may not require creation of a new entry
-          e.g. addition of references/synonyms.
+    ID of 0 is a placeholder to be used when constructing a new entry.
+    This value is replaced with a negative value to use as the key in the repo before commit to DB.
+    This value is then replaced with a positive value when it is stored by the repository into DB.
     """
-    pass
+    id: int = 0
 
-class OntologyEntry(BaseModel):
     name: str
+    description: str | None = None
+
     abbreviation: str|None = None
-    synonyms: List[str] = list()
+    synonyms: List[str]|None = list()
 
-    description: str|None = None
+    authors: List[int]|None = list()  # internal person ID
+    references: List[int]|None = list()  # internal reference ID
 
-    authors: List[int] = list()  # internal person ID
-    references: List[int] = list()  # internal reference ID
-
-    parents: List[int] = Field(frozen=True, default=list())
-    children: List[int] = Field(frozen=True, default=list())
-
-class OntologyEntryStored(OntologyEntry, Entity):
-    pass
+    parents: List[int]|None = Field(frozen=True, default=list())
+    children: List[int]|None = list()
 
 class Term(OntologyEntry):  # generic ontology entry, used to relate terms to each other and traits/methods/scales
-    pass
-
-class TermStored(Term, Entity):
     pass

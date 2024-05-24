@@ -37,7 +37,7 @@ async def send_user_verify_url(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user)
+        account = await uow.accounts.get(user_id=event.user)
         if not account:
             raise NoResultFoundError
         token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
@@ -65,12 +65,12 @@ async def email_admins_request(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user)
-        organisation = await uow.organisations.get(event.team)
-        team = organisation.get_team(event.team)
+        account = await uow.accounts.get(user_id=event.user)
+        organisation = await uow.organisations.get(team_id=event.team)
+        team = organisation.teams[event.team]
 
         # todo consider implementing a method to fetch a list of ids in the repository
-        admins = [await uow.accounts.get(admin_id) for admin_id in team.admins]
+        admins = [await uow.accounts.get(user_id=admin_id) for admin_id in team.admins]
 
         message = emails.AffiliationRequestedMessage(
             requesting_user = account.user,
@@ -89,9 +89,9 @@ async def email_user_approved(
         notifications: "AbstractNotifications"
 ):
     async with uow:
-        account = await uow.accounts.get(event.user)
-        organisation = await uow.organisations.get(event.team)
-        team = organisation.get_team(event.team)
+        account = await uow.accounts.get(user_id=event.user)
+        organisation = await uow.organisations.get(team_id=event.team)
+        team = organisation.teams[event.team]
 
         message = emails.AffiliationApprovedMessage(
             user = account.user,

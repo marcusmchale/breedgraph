@@ -1,10 +1,17 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from abc import ABC, abstractmethod
 
 class Entity(BaseModel):
     id: int = Field(frozen=True)
 
-class Aggregate(BaseModel, ABC):
+    def __hash__(self):
+        return hash(self.id)
+
+from typing import List
+from src.breedgraph.domain.events.accounts import Event
+
+class Aggregate(ABC, BaseModel):
+    events: List[Event] = list()
 
     @property
     @abstractmethod
@@ -18,5 +25,5 @@ class Aggregate(BaseModel, ABC):
         # or None/empty string if safe to delete
         raise NotImplementedError
 
-    def __hash__(self):
-        return hash(self.root.id)
+    def __hash__(self) -> int:
+        return hash(self.root)

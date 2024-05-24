@@ -69,7 +69,7 @@ async def lifespan(fast_api_app: FastAPI):
                     raise UnauthorisedOperationError("The login token has expired")
 
                 if user_id is not None:
-                    return await uow.accounts.get(user_id)
+                    return await uow.accounts.get(user_id=user_id)
 
     async def get_context_value(request: Request, _):
         return {

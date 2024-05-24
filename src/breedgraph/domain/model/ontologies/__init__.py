@@ -1,15 +1,16 @@
-from .entries import Version, VersionStored, OntologyEntry, OntologyEntryStored, Term, TermStored
-from .subjects import Subject, SubjectStored
+from .entries import OntologyEntry, Term
+from .subjects import Subject
 
-from .variables import Trait, TraitStored, Method, MethodStored, Scale, ScaleStored, Variable, VariableStored
-from .conditions import Parameter, ParameterStored, Condition, ConditionStored
-from .events import Exposure, ExposureStored, EventType, EventTypeStored
+from .variables import Trait, Method, Scale, Variable, MethodType, ScaleType, Category
+from .conditions import Condition, Parameter
+from .events import Exposure, Event
 
-from .germplasm import Sourcing, SourcingStored, Maintenance, MaintenanceStored, Attribute, AttributeStored
+from .germplasm import Sourcing, Maintenance, Attribute
 
-from .facilities import FacilityType, FacilityTypeStored
-from .locations import LocationType, LocationTypeStored
-from .designs import Design, DesignStored
-from .layout import LayoutType, LayoutTypeStored
+from .facilities import FacilityType
+from .locations import LocationType
+from .designs import Design
+from .layout import LayoutType
+from .people import PersonRole, PersonTitle
 
-from .aggregate import Ontology
+from .ontology import Ontology, Version, VersionStored

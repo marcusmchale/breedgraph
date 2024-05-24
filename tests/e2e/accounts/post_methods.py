@@ -28,12 +28,12 @@ async def post_to_add_first_account(client, name: str, email: str, password: str
             " } "
         ),
         "variables": {
-            "name": f"{name}",
-            "fullname": f"{name}",
-            "email": f"{email}",
-            "password": f"{password}",
-            "team_name": f"{team_name}",
-            "team_fullname": f"{team_name}"
+            "name": name,
+            "fullname": name,
+            "email": email,
+            "password": password,
+            "team_name": team_name,
+            "team_fullname": team_name
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
@@ -56,8 +56,8 @@ async def post_to_login(client, username: str, password: str):
             " } "
         ),
         "variables": {
-            "username": f"{username}",
-            "password": f"{password}"
+            "username": username,
+            "password": password
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
@@ -79,7 +79,7 @@ async def post_to_verify_email(client, token: str):
             " } "
         ),
         "variables": {
-            "token": f"{token}"
+            "token": token
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
@@ -100,7 +100,7 @@ async def post_to_add_email(client, token: str, email: str):
             " } "
         ),
         "variables": {
-            "email": f"{email}",
+            "email": email,
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
@@ -121,7 +121,7 @@ async def post_to_remove_email(client, token: str, email: str):
             " } "
         ),
         "variables": {
-            "email": f"{email}",
+            "email": email,
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
@@ -149,10 +149,10 @@ async def post_to_add_account(client, name: str, email: str, password: str):
             " } "
         ),
         "variables": {
-            "name": f"{name}",
-            "fullname": f"{name}",
-            "email": f"{email}",
-            "password": f"{password}"
+            "name": name,
+            "fullname": name,
+            "email": email,
+            "password": password
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
@@ -179,8 +179,8 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
                 " } "
             ),
             "variables": {
-                "name": f"{name}",
-                "fullname": f"{name}",
+                "name": name,
+                "fullname": name,
                 "parent": parent
             }
         }
@@ -202,8 +202,8 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
                 " } "
             ),
             "variables": {
-                "name": f"{name}",
-                "fullname": f"{name}"
+                "name": name,
+                "fullname": name
             }
         }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
@@ -391,6 +391,35 @@ async def post_to_remove_affiliation(client, token:str, user:int, team: int, acc
             "user": user,
             "team": team,
             "access": access
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+
+
+async def post_to_edit_team(client, token:str, team: int, name: str, fullname: str):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $team: Int!,"
+            "  $name: String, "
+            "  $fullname: String "
+            "   "
+            " ) { "
+            "  edit_team( "
+            "    team: $team, "
+            "    name: $name, "
+            "    fullname: $fullname, "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "team": team,
+            "name": name,
+            "fullname": fullname
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

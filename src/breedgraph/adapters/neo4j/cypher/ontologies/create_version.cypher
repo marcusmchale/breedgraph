@@ -3,7 +3,7 @@ ON CREATE SET counter.count = 0
 SET counter.count = counter.count +1
 
 CREATE (version: OntologyVersion {
-  id: ontologies.count,
+  id: counter.count,
   major: $major,
   minor: $minor,
   patch: $patch,

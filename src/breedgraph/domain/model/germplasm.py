@@ -7,7 +7,7 @@ from typing import List
 
 class Germplasm(BaseModel):
     """
-    Germplasm should form a graph relating entries
+    Germplasm entries form a graph relating entries
     Parents and children can describe relationships, with sourcing ,
 
     These may include:
@@ -25,7 +25,6 @@ class Germplasm(BaseModel):
 
     e.g. Coffee <- Coffea arabica <- Marsellesa <- Centroamericano -> MSH12 ...
     """
-
     name: str
     synonyms: List[str] = list()
     description: str

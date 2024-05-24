@@ -1,16 +1,8 @@
-from ariadne import (
-    QueryType,
-    MutationType
-)
-
-graphql_query = QueryType()
-graphql_mutation = MutationType()
-
-
-
 from . import mutations
 from . import queries
 
+from .mutations import graphql_mutation
+from .queries import graphql_query
 
-team = queries.team
-account = queries.account
+team = queries.organisations.team
+account = queries.accounts.account

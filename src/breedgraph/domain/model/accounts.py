@@ -1,7 +1,6 @@
 import logging
 
 from enum import Enum
-from src.breedgraph.domain.events.accounts import Event
 from pydantic import BaseModel, Field
 
 from .base import Entity, Aggregate
@@ -53,9 +52,8 @@ class AccountInput(AccountBase):
 class AccountStored(AccountBase, Aggregate):
     user: UserStored
     affiliations: List[Affiliation] = list()
-    allowed_emails: List[str] = list()
+    allowed_emails: List[str] = list()  # tracked sets not suited to strings due to collisions of hashes
     allowed_users: List[int] = Field(frozen=True, default=list())
-    events: List[Event] = list()
 
     @property
     def root(self):

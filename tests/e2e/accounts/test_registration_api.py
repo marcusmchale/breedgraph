@@ -17,7 +17,8 @@ from tests.e2e.accounts.post_methods import (
     post_to_account,
     post_to_request_affiliation,
     post_to_approve_affiliation,
-    post_to_remove_affiliation
+    post_to_remove_affiliation,
+    post_to_edit_team
 )
 
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
@@ -61,7 +62,9 @@ async def test_first_user_register_verify_login(client, user_input_generator):
         first_user_input["name"],
         first_user_input["password"],
     )
+
     login_payload = get_verified_payload(login_response, "login")
+
     assert_payload_success(login_payload)
 
 @pytest.mark.usefixtures("session_database")
@@ -81,7 +84,6 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
         mailto=second_user_input["email"],
         subject=f"{SITE_NAME} registration now available"
     )
-
     # second user can then register
     register_response = await post_to_add_account(
         client,
@@ -110,7 +112,6 @@ async def test_admin_adds_removes_team(client, user_input_generator, admin_login
         admin_login_token
     )
     teams_payload = get_verified_payload(teams_request_response, "teams")
-
     assert teams_payload['result']
 
     new_team_id = None
@@ -119,14 +120,12 @@ async def test_admin_adds_removes_team(client, user_input_generator, admin_login
             new_team_id = team['id']
             break
     assert new_team_id is not None
-
     remove_team_response = await post_to_remove_team(
         client,
         admin_login_token,
         new_team_id
     )
     remove_team_payload = get_verified_payload(remove_team_response, "remove_team")
-
     assert_payload_success(remove_team_payload)
 
 
@@ -141,7 +140,6 @@ async def test_admin_adds_child_team(client, user_input_generator, admin_login_t
     assert teams_payload['result']
 
     parent_team_id = teams_payload['result'][0]['id']  # should only be one team, from first user registration
-
     # Use second user input for team name
     child_team_name = user_input_generator.user_inputs[1]['team_name']
     add_child_team_response = await post_to_add_team(
@@ -152,7 +150,6 @@ async def test_admin_adds_child_team(client, user_input_generator, admin_login_t
     )
     add_child_team_payload = get_verified_payload(add_child_team_response, "add_team")
     assert_payload_success(add_child_team_payload)
-
     # make sure this team is now in the view for teams and the parent relationship is properly resolved
     teams_request_response = await post_to_teams(
         client,
@@ -181,6 +178,9 @@ async def test_admin_adds_child_team(client, user_input_generator, admin_login_t
             break
     else:
         raise NoResultFoundError("New child team not resolved properly by parent/child relationship")
+
+
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_admin_requests_affiliation(client, admin_login_token):
@@ -311,3 +311,24 @@ async def test_admin_removes_approved_read(client, user_input_generator, admin_l
         for u in t.get('readers', []):
             if u.get('name') != admin_name:
                 raise ValueError("Other users are still listed as readers")
+
+
+@pytest.mark.asyncio(scope="session")
+async def test_admin_renames_team(client, user_input_generator, admin_login_token):
+    teams_request_response = await post_to_teams(
+        client,
+        admin_login_token
+    )
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    team = teams_payload['result'][0]
+
+    new_input = user_input_generator.new_user_input()
+    
+    teams_edit_response = await post_to_edit_team(
+        client,
+        admin_login_token,
+        team=team.id,
+        name=new_input['team_name'],
+        fullname=new_input['team_name']
+    )
+

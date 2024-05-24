@@ -1,5 +1,5 @@
 from .base import Command
-from typing import Optional, Set
+from typing import Optional
 
 class AddFirstAccount(Command):
     name: str
@@ -20,16 +20,6 @@ class VerifyEmail(Command):
 
 class Login(Command):
     user: int
-
-class AddTeam(Command):
-    user: int
-    name: str
-    fullname: Optional[str] = None
-    parent: Optional[int]
-
-class RemoveTeam(Command):
-    user: int
-    team: int
 
 class AddEmail(Command):
     user: int
@@ -56,8 +46,3 @@ class RemoveAffiliation(Command):
     user: int
     team: int
     access: str
-
-class AddCountry(Command):
-    admin: int
-    name: str
-    code: str

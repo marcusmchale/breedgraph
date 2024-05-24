@@ -1,5 +1,3 @@
-from src.breedgraph.adapters.repositories.base import Entity
-
 from src.breedgraph.domain.model.ontologies.entries import OntologyEntry
 
 class LayoutType(OntologyEntry):
@@ -9,8 +7,4 @@ class LayoutType(OntologyEntry):
 
     Layouts may be applied to unit positions within a location
     """
-    pass
-
-
-class LayoutTypeStored(LayoutType, Entity):
     pass

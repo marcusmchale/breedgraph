@@ -1,5 +1,5 @@
 """
-I considered the following reference heavily in designing this model:
+I considered the following reference in designing this model:
 
     Pietragalla, J.; Valette, L.; Shrestha, R.; Laporte, M.-A.; Hazekamp, T.; Arnaud, E. (2022)
     Guidelines for creating crop-specific Ontology to annotate phenotypic data: version 2.1.
@@ -10,8 +10,7 @@ In particular the adoption of Trait/Method/Scale (T/M/S) definition for a Variab
 Terms to relate these concepts. Terms can have parent-child relationships to other terms.
 T/M/S and Variable have more restricted relationships.
 
-I added to "Subject" as a parallel entity to Term in the ontology.
-Subject provides a formal description for components of the system under study.
+I added "Subject" to formalise descriptions of components of the system under study.
 Subject is an expansion of the "entity" property described in the CropOntology.
 Subject defines the entity or entities described by a trait.
     - plant structures and/or environmental components (e.g. rhizosphere)
@@ -33,21 +32,13 @@ todo: The "Variable Status" concept from Crop Ontology is to be handled differen
     but it is most useful to resolve this at the organisation level.
 
 """
-from pydantic import BaseModel
-
 from enum import Enum
 from src.breedgraph.domain.model.ontologies.entries import OntologyEntry
-from src.breedgraph.adapters.repositories.base import Entity
-from src.breedgraph.domain.model.ontologies.subjects import Subject
 
-from typing import List
-
+from typing import List, Set
 
 class Trait(OntologyEntry):
-    subjects: List[Subject]
-
-class TraitStored(Trait, Entity):
-    pass
+    subjects: List[int]
 
 class MethodType(str, Enum):
     MEASUREMENT = "MEASUREMENT"
@@ -60,10 +51,6 @@ class MethodType(str, Enum):
 
 class Method(OntologyEntry):
     type: MethodType
-    formula: str|None = None
-
-class MethodStored(Method, Entity):
-    pass
 
 class ScaleType(str, Enum):
     DATE = "DATE"
@@ -74,21 +61,12 @@ class ScaleType(str, Enum):
     TEXT = "TEXT"
     CODE = "CODE"
 
+class Category(OntologyEntry):
+    pass
+
 class Scale(OntologyEntry):
     type: ScaleType
-
-class ScaleStored(Scale, Entity):
-    pass
-
-class Category(BaseModel):
-    code: str
-    description: str
-
-class ScaleCategorical(Scale):
-    categories: List[Category]
-
-class ScaleCategoricalStored(ScaleCategorical, Entity):
-    pass
+    categories: List[int] = list()  # category ontology entry references
 
 class Variable(OntologyEntry):  # quantities/qualities that vary and may be observed
     trait: int  # OntologyEntry id
@@ -97,6 +75,3 @@ class Variable(OntologyEntry):  # quantities/qualities that vary and may be obse
     # name: # CropOntology requires name to be <TraitAbbreviation>_<MethodAbbreviation >_< ScaleAbbreviation >
     # makes more sense for this format to be the abbreviation value of the OntologyEntry class
     # CropOntology variable properties has a separate label attribute to store the name
-
-class VariableStored(Variable, Entity):
-    pass
