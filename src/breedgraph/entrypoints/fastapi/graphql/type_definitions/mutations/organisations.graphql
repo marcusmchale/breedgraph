@@ -1,0 +1,15 @@
+extend type Mutation {
+    add_team(
+        name: String!
+        fullname: String
+        parent: Int
+    ): BooleanPayload!
+    remove_team(
+        team: Int!
+    ): BooleanPayload!
+    edit_team(
+        team: Int!
+        name: String
+        fullname: String
+    ): BooleanPayload!
+}

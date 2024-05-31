@@ -54,7 +54,7 @@ class Neo4jOntologyRepository(BaseRepository):
         super().__init__()
         self.tx = tx
 
-    async def _create(self, ontology: Ontology) -> Ontology:
+    async def _create(self, ontology: Ontology, **kwargs) -> Ontology:
         ontology.version = await self._create_version(ontology.version)
         await self._set_licence(ontology.licence, ontology.version.id)
         await self._set_copyright(ontology.copyright, ontology.version.id)

@@ -40,7 +40,7 @@ async def get_account(_, info) -> AccountOutput:
     if acc is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    reads, writes, admins = list(), list(), list()
+    reads, writes, admins, curates = list(), list(), list(), list()
     for aff in acc.affiliations:
         if aff.authorisation != Authorisation.AUTHORISED:
             continue
@@ -51,9 +51,11 @@ async def get_account(_, info) -> AccountOutput:
             writes.append(aff.team)
         elif aff.access == Access.ADMIN:
             admins.append(aff.team)
+        elif aff.access == Access.CURATE:
+            curates.append(aff.team)
 
     await inject_teams_map(info.context)
-    return AccountOutput(user=UserOutput(**dict(acc.user)), reads=reads, writes=writes, admins=admins)
+    return AccountOutput(user=UserOutput(**dict(acc.user)), reads=reads, writes=writes, admins=admins, curates=curates)
 
 @account.field("reads")
 def resolve_reads(obj, info):

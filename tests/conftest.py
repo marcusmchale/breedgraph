@@ -36,7 +36,7 @@ async def neo4j_uow() -> unit_of_work.Neo4jUnitOfWork:
 
 @pytest_asyncio.fixture(scope="session")
 async def neo4j_tx(neo4j_uow):
-    async with neo4j_uow as uow:
+    async with neo4j_uow.get_repositories() as uow:
         yield uow.tx
 
 @pytest_asyncio.fixture(scope="session")
@@ -62,11 +62,11 @@ async def email_notifications() -> notifications.EmailNotifications:
 
 @pytest_asyncio.fixture(scope="session")
 async def session_database() -> None:
+    uow = unit_of_work.Neo4jUnitOfWork()
     # yield clear db
-    async with unit_of_work.Neo4jUnitOfWork() as uow:
+    async with uow.get_repositories() as uow:
         await uow.tx.run("MATCH (n) DETACH DELETE n")
         await uow.commit()
-
     yield
 
 

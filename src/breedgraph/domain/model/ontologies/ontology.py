@@ -1,6 +1,6 @@
 from pydantic import BaseModel, computed_field
 
-from src.breedgraph.adapters.repositories.base import Entity, Aggregate
+from src.breedgraph.domain.model.base import Entity, Aggregate
 
 from .entries import OntologyEntry
 

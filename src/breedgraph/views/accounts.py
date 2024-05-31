@@ -14,10 +14,10 @@ logger= logging.getLogger(__name__)
 logger.debug("load teams views")
 
 async def teams(
-        uow: unit_of_work.Neo4jUnitOfWork,
+        uow: unit_of_work.AbstractUnitOfWork,
         user: int
 ) -> AsyncGenerator[TeamOutput, None]:
-    async with uow:
+    async with uow.get_repositories() as uow:
         result: AsyncResult = await uow.tx.run(queries['views']['get_teams'], user=user)
         async for record in result:
             yield TeamOutput(**dict(Neo4jOrganisationRepository.team_record_to_team(record['team'])))
@@ -26,7 +26,7 @@ async def users(
         uow: unit_of_work.Neo4jUnitOfWork,
         user: int
 ) -> AsyncGenerator[UserOutput, None]:
-    async with uow:
+    async with uow.get_repositories() as uow:
         result: AsyncResult = await uow.tx.run(queries['views']['get_users'], user=user)
         async for record in result:
             user_output: UserOutput = UserOutput(

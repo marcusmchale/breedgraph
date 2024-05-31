@@ -53,11 +53,10 @@ async def lifespan(fast_api_app: FastAPI):
     bus: MessageBus = await bootstrap.bootstrap()
     app.bus = bus
 
-
     async def get_account_for_request(request: Request) -> Optional[AccountStored]:
         token = request.headers.get('token')
         if token is not None:
-            async with bus.uow as uow:
+            async with bus.uow.get_repositories() as uow:
                 ts = URLSafeTimedSerializer(SECRET_KEY)
 
                 try:
@@ -72,6 +71,7 @@ async def lifespan(fast_api_app: FastAPI):
                     return await uow.accounts.get(user_id=user_id)
 
     async def get_context_value(request: Request, _):
+        logger.debug("get context value")
         return {
             "request": request,
             "bus": bus,

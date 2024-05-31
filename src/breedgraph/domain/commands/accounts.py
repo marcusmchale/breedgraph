@@ -3,17 +3,24 @@ from typing import Optional
 
 class AddFirstAccount(Command):
     name: str
-    fullname: Optional[str] = None
+    fullname: str|None = None
     email: str
     password_hash: str
     team_name: str
-    team_fullname: Optional[str] = None
+    team_fullname: str|None = None
 
 class AddAccount(Command):
     name: str
-    fullname: Optional[str] = None
+    fullname: str|None = None
     email: str
     password_hash: str
+
+class EditUser(Command):
+    user: int
+    name: str|None = None
+    fullname: str|None = None
+    email: str|None = None
+    password_hash: str|None = None
 
 class VerifyEmail(Command):
     token: str

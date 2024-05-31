@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 async def add_team(
         cmd: commands.organisations.AddTeam,
-        uow: unit_of_work.AbstractUnitOfWork
+        uow: unit_of_work.Neo4jUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=cmd.user)
 
         for a in account.affiliations:
@@ -64,21 +64,21 @@ async def add_team(
             organisation = await uow.organisations.create(team_input)
             stored_team = organisation.root
 
-
         account.affiliations.append(
                 Affiliation(
                     team=stored_team.id,
                     access=Access.ADMIN,
-                    authorisation=Authorisation.AUTHORISED
+                    authorisation=Authorisation.AUTHORISED,
+                    heritable=True
                 )
         )
         await uow.commit()
 
 async def remove_team(
         cmd: commands.organisations.RemoveTeam,
-        uow: unit_of_work.AbstractUnitOfWork
+        uow: unit_of_work.Neo4jUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
         team = organisation.teams[cmd.team]
 
@@ -94,9 +94,9 @@ async def remove_team(
 
 async def edit_team(
         cmd: commands.organisations.EditTeam,
-        uow: unit_of_work.AbstractUnitOfWork
+        uow: unit_of_work.Neo4jUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
         team = organisation.teams[cmd.team]
 

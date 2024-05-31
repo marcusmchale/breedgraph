@@ -1,5 +1,5 @@
 MATCH
-  (user:User {name_lower: ($name_lower)})
+  (user:User)
 
 RETURN
   user {.*},
@@ -17,5 +17,3 @@ RETURN
   ] as affiliations,
   [(user)-[: ALLOWED_REGISTRATION]->(email:Email)|email.address] AS allowed_emails,
   [(user)-[: ALLOWED_REGISTRATION]->(invited:User)| invited.id] as allowed_users
-
-

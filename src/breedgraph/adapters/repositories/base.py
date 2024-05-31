@@ -1,15 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Set, List, AsyncGenerator
+from typing import Set, AsyncGenerator
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked
 from src.breedgraph.custom_exceptions import ProtectedNodeError
 
-from src.breedgraph.domain.model.base import Entity, Aggregate
-
-from typing import Union
-
+from src.breedgraph.domain.model.base import Aggregate, Release
 
 class BaseRepository(ABC):
 
@@ -19,6 +16,7 @@ class BaseRepository(ABC):
     def _track(self, aggregate: Aggregate) -> Tracked|Aggregate:
         tracked = Tracked(aggregate)
         self.seen.add(tracked)
+
         return tracked
 
     async def create(self, aggregate_input: BaseModel) -> Tracked|Aggregate:
@@ -67,3 +65,10 @@ class BaseRepository(ABC):
     @abstractmethod
     async def _update(self, aggregate: Tracked|Aggregate):
         raise NotImplementedError
+
+class ControlledRepository(BaseRepository, ABC):
+
+    def __init__(self, user:int, release: Release= Release.PRIVATE):
+        super().__init__()
+        self.user = user
+        self.release = release

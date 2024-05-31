@@ -5,6 +5,7 @@ from src.breedgraph import config
 from src.breedgraph.domain.commands.accounts import (
     AddFirstAccount,
     AddAccount,
+    EditUser,
     Login,
     VerifyEmail,
     AddEmail, RemoveEmail,
@@ -36,6 +37,7 @@ async def add_first_account(
         fullname: Optional[str] = None,
         team_fullname: Optional[str] = None
 ) -> bool:
+    logger.debug("Add first account")
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     cmd = AddFirstAccount(
         name=name,
@@ -58,7 +60,7 @@ async def login(
 ) -> Token:
     logger.debug(f"Log in: {username}")
     fail_message = "Invalid username or password"
-    async with info.context['bus'].uow as uow:
+    async with info.context['bus'].uow.get_repositories() as uow:
         account = await uow.accounts.get(name=username)
         if not account:
             raise UnauthorisedOperationError(fail_message)
@@ -88,9 +90,38 @@ async def add_account(
         email: str,
         password: str
 ) -> bool:
-    logger.debug(f"Resolver add account: {name}")
+    logger.debug(f"Add account: {name}")
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     cmd = AddAccount(
+        name=name,
+        fullname=fullname,
+        password_hash=password_hash,
+        email=email
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("edit_user")
+@graphql_payload
+async def edit_user(
+        _,
+        info,
+        name: str|None = None,
+        fullname: str|None = None,
+        email: str|None = None,
+        password: str|None = None
+) -> bool:
+    account = info.context.get('account')
+    if account is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"Edit user: {account.user.id}")
+    if password is not None:
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    else:
+        password_hash = password
+    cmd = EditUser(
+        user=account.user.id,
         name=name,
         fullname=fullname,
         password_hash=password_hash,

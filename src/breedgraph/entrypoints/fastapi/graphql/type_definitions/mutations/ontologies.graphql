@@ -1,0 +1,11 @@
+extend type Mutation {
+    add_term(
+        name: String!
+        description: String,
+        abbreviation: String,
+        synonyms: [String]
+        authors: [Int],
+        references: [Int],
+        parents: [Int]
+    ): BooleanPayload!
+}

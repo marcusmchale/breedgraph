@@ -6,7 +6,10 @@ RETURN
   [
     (user)-[affiliation:READ|WRITE|ADMIN]->(team:Team) |
     {
-      team_id: team.id,
+      team: team.id,
+      teams: [team.id] + [(team)<-[:CONTRIBUTES_TO*]-(tt:Team)|tt.id],
+      admins: coalesce([(team)<-[:ADMIN {authorisation:"AUTHORISED"}]-(admin:User )|admin.id], []) +
+      [(team)-[:CONTRIBUTES_TO]->(:Team)<-[:ADMIN {authorisation:"AUTHORISED", heritable:True}]-(admin:User )|admin.id],
       authorisation: affiliation.authorisation,
       access: type(affiliation),
       heritable: affiliation.heritable

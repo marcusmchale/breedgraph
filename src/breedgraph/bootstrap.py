@@ -15,7 +15,6 @@ async def bootstrap(
         'notifications': notifications,
         'read_model': read_model
     }
-
     injected_event_handlers = {
         event_type: [
             inject_dependencies(handler, dependencies)

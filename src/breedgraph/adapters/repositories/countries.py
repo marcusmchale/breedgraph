@@ -44,7 +44,7 @@ class BaseCountriesRepository(ABC):
     async def _get(self, code: str) -> Region:
         raise NotImplementedError
 
-    async def get_all(self) -> AsyncGenerator[Region, None]:
+    async def get_all(self, **kwargs) -> AsyncGenerator[Region, None]:
         async for country in self._get_all():
             self._track(country)
             yield country

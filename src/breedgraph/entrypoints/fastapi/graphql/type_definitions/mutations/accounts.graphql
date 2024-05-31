@@ -1,4 +1,4 @@
-type Mutation {
+extend type Mutation {
     add_first_account(
         name: String!
         fullname: String
@@ -13,6 +13,12 @@ type Mutation {
         email: String!
         password: String!
     ): BooleanPayload!
+    edit_user(
+        name: String,
+        fullname: String,
+        email: String,
+        password: String
+    ): BooleanPayload!,
     verify_email(token: String!): BooleanPayload!
     login(
         username: String!
@@ -23,19 +29,6 @@ type Mutation {
     ): BooleanPayload!
     remove_email(
         email: String!
-    ): BooleanPayload!
-    add_team(
-        name: String!
-        fullname: String
-        parent: Int
-    ): BooleanPayload!
-    remove_team(
-        team: Int!
-    ): BooleanPayload!
-    edit_team(
-        team: Int!
-        name: String
-        fullname: String
     ): BooleanPayload!
     request_affiliation(
         team: Int!
@@ -51,18 +44,5 @@ type Mutation {
         user: Int!
         team: Int!
         access: Access!
-    ): BooleanPayload!
-    add_term(
-        name: String!
-        description: String,
-        abbreviation: String,
-        synonyms: [String]
-        authors: [Int],
-        references: [Int],
-        parents: [Int]
-    ): BooleanPayload!
-    add_country(
-        name: String!
-        code: String!
     ): BooleanPayload!
 }

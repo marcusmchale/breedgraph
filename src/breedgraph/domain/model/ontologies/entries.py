@@ -1,8 +1,7 @@
-from pydantic import Field, root_validator
-
+from pydantic import Field
 from typing import List
 
-from src.breedgraph.adapters.repositories.base import Entity
+from src.breedgraph.domain.model.base import Entity
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data

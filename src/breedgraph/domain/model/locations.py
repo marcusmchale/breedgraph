@@ -1,7 +1,7 @@
 from pydantic import BaseModel, field_validator, ValidationError, Field, computed_field
 import re
 
-from src.breedgraph.adapters.repositories.base import Entity, Aggregate
+from src.breedgraph.domain.model.base import Entity, Aggregate
 
 
 from typing import List

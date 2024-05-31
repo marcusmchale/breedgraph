@@ -6,7 +6,7 @@ from src.breedgraph.domain import events
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError
 )
-
+from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.notifications import emails
 from src.breedgraph.domain.model.accounts import Access, Authorisation
 
@@ -33,10 +33,10 @@ async def email_user_allowed(
 
 async def send_user_verify_url(
         event: events.accounts.AccountAdded,
-        uow: "AbstractUnitOfWork",
+        uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=event.user)
         if not account:
             raise NoResultFoundError
@@ -59,36 +59,40 @@ async def email_verified(
 ):
     pass
 
-async def email_admins_request(
+async def process_affiliation_request(
         event: events.accounts.AffiliationRequested,
-        uow: "AbstractUnitOfWork",
+        uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=event.user)
-        organisation = await uow.organisations.get(team_id=event.team)
-        team = organisation.teams[event.team]
 
-        # todo consider implementing a method to fetch a list of ids in the repository
-        admins = [await uow.accounts.get(user_id=admin_id) for admin_id in team.admins]
+        affiliation = account.get_affiliation(team=event.team, access=event.access)
+        if account.user.id in affiliation.admins:
+            # Automatically approve if user is an admin, don't need to email
+            affiliation.authorisation = Authorisation.AUTHORISED
+            await uow.commit()
+        else:
+            organisation = await uow.organisations.get(team_id=event.team)
+            team = organisation.get_team(team_id = event.team)
+            message = emails.AffiliationRequestedMessage(
+                requesting_user = account.user,
+                team = team,
+                access = Access[event.access]
+            )
+            admins = [a.user async for a in uow.accounts.get_all(user_ids=affiliation.admins)]
+            await notifications.send(
+                admins,
+                message
+            )
 
-        message = emails.AffiliationRequestedMessage(
-            requesting_user = account.user,
-            team = team,
-            access = Access[event.access]
-        )
-        await notifications.send(
-            [admin.user for admin in admins],
-            message
-        )
 
-
-async def email_user_approved(
+async def notify_user_approved(
         event: events.accounts.AffiliationApproved,
-        uow: "AbstractUnitOfWork",
+        uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=event.user)
         organisation = await uow.organisations.get(team_id=event.team)
         team = organisation.teams[event.team]

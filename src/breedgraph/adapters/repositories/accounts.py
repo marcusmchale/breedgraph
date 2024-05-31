@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from src.breedgraph.custom_exceptions import ProtectedNodeError, IdentityExistsError, IllegalOperationError
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
-    Affiliation,
+    Affiliation, AffiliationStored,
     Authorisation, Access,
     AccountInput, AccountStored
 )
@@ -10,6 +10,7 @@ from src.breedgraph.domain.model.accounts import (
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
 from src.breedgraph.adapters.repositories.base import BaseRepository
+from src.breedgraph.domain.events.accounts import AccountAdded
 
 # for typing only
 from typing import AsyncGenerator
@@ -29,7 +30,9 @@ class Neo4jAccountRepository(BaseRepository):
 
     async def _create(self, account: AccountInput) -> AccountStored:
         user = await self._create_user(account.user)
-        return AccountStored(user=user)
+        account = AccountStored(user=user)
+        account.events.append(AccountAdded(user=account.user.id))
+        return account
 
     async def _create_user(self, user: UserInput) -> UserStored:
         logger.debug(f"Create user: {user}")
@@ -69,13 +72,17 @@ class Neo4jAccountRepository(BaseRepository):
         return self.record_to_account(record) if record else None
 
     async def _get_all(self, **kwargs) -> AsyncGenerator[AccountStored, None]:
+
+        user_ids = kwargs.get('user_ids')
         team_ids = kwargs.get('team_ids')
         access_types = kwargs.get('access_types')
         authorisations = kwargs.get('authorisations')
+
         if not any([team_ids, access_types, authorisations]):
-            result = await self.tx.run(
-                queries['accounts']['get_accounts']
-            )
+            if user_ids:
+                result = await self.tx.run(queries['accounts']['get_accounts'], user_ids = user_ids)
+            else:
+                result = await self.tx.run(queries['accounts']['get_all_accounts'])
         elif team_ids and not any([access_types, authorisations]):
             result = await self.tx.run(
                 queries['accounts']['get_accounts_by_teams'],
@@ -128,7 +135,6 @@ class Neo4jAccountRepository(BaseRepository):
             )
 
     async def _update_affiliations(self, user: UserStored, affiliations: TrackedList[Tracked|Affiliation]):
-
         for i in affiliations.changed.union(affiliations.added):
             await self._set_affiliation(user, affiliations[i])
 
@@ -181,9 +187,11 @@ class Neo4jAccountRepository(BaseRepository):
         ) if record else None
 
     @staticmethod
-    def record_to_affiliation(record) -> Affiliation:
-        return Affiliation(
-            team=record['team_id'],
+    def record_to_affiliation(record) -> AffiliationStored:
+        return AffiliationStored(
+            team=record['team'],
+            teams=record['teams'],  # includes children teams, i.e. those affected by this affiliation if heritable
+            admins=record['admins'],
             authorisation=Authorisation[record['authorisation']],
             access=Access[record['access']],
             heritable=record['heritable']

@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.domain.commands.organisations import (
-    AddTeam, RemoveTeam,
+    AddTeam, RemoveTeam, EditTeam
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation

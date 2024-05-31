@@ -56,4 +56,3 @@ async def test_change_user_details_on_account(neo4j_tx, user_input_generator):
 
     retrieved_stored_account = await accounts_repo.get(user_id=stored_account.user.id)
     assert retrieved_stored_account.user == stored_account.user
-

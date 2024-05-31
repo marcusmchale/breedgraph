@@ -1,0 +1,6 @@
+extend type Mutation {
+    add_country(
+        name: String!
+        code: String!
+    ): BooleanPayload!
+}

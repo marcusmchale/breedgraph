@@ -1,9 +1,4 @@
-MATCH (write_user: User {id: $write_user})
-MATCH (person: Person {id: $person_id})
-
-// Track and timestamp updates
-MERGE (write_user)-[:UPDATED]->(pu:PeopleUpdates)
-CREATE (pu)-[:UPDATED {time:datetime.transaction()}]-(person)
+MATCH (person: Person {id: $id})
 SET
   person.name = $name,
   person.fullname = $fullname,
@@ -13,6 +8,19 @@ SET
   person.orcid = $orcid,
   person.description = $description
 // Update relationships
+WITH person
+CALL {
+  WITH person
+  MATCH (person)-[is_user:IS_USER]->(user:User)
+  WHERE NOT user.id = $user
+  DELETE is_user
+  WITH DISTINCT person
+  MATCH (user: User {id: $user})
+  MERGE (person)-[is_user:IS_USER]->(user)
+  ON CREATE SET is_user.time = datetime.transaction()
+  RETURN
+    collect(user.id)[0] as user
+}
 CALL {
   WITH person
   MATCH (person)-[at_location:AT_LOCATION]->(location:Location)
@@ -52,10 +60,11 @@ CALL {
   RETURN
     collect(title.id) as titles
 }
-RETURN person {
-  .*,
-  user: user,
-  locations:locations,
-  roles:roles,
-  titles: titles
-}
+RETURN
+  person {
+    .*,
+    user: user,
+    locations: locations,
+    roles: roles,
+    titles: titles
+  }

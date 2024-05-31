@@ -27,7 +27,7 @@ async def add_first_account(
         cmd: commands.accounts.AddFirstAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with (uow):
+    async with uow.get_repositories() as uow:
         async for _ in uow.accounts.get_all():
             raise UnauthorisedOperationError("This operation is only permitted when no accounts have been registered")
         user = UserInput(
@@ -46,22 +46,23 @@ async def add_first_account(
 
         account: AccountInput = AccountInput(user=user)
         account: AccountStored = await uow.accounts.create(account)
+
         account.affiliations.append(Affiliation(
                 team=organisation.root.id,
                 access=Access.ADMIN,
-                authorisation = Authorisation.AUTHORISED
+                authorisation = Authorisation.AUTHORISED,
+                heritable=True
             )
         )
-        account.events.append(events.accounts.AccountAdded(user=account.user.id))
         await uow.commit()
 
 async def add_account(
         cmd: commands.accounts.AddAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
-
+    async with uow.get_repositories() as uow:
         # Registration email must be included in the allowed emails of some other account
+        # todo consider using a view for this, simply all allowed emails (private view)
         async for account in uow.accounts.get_all(
                 access_types=[Access.ADMIN],
                 authorisations=[Authorisation.AUTHORISED]
@@ -94,16 +95,31 @@ async def add_account(
         )
 
         account: AccountInput = AccountInput(user=user)
-        account: AccountStored = await uow.accounts.create(account)
-
-        account.events.append(events.accounts.AccountAdded(user=account.user.id))
+        await uow.accounts.create(account)
         await uow.commit()
+
+async def edit_user(
+        cmd: commands.accounts.EditUser,
+        uow: unit_of_work.AbstractUnitOfWork
+):
+    async with uow.get_repositories as uow:
+        account = await uow.accounts.get(user_id=cmd.user)
+        if cmd.name is not None:
+            account.user.name = cmd.name
+        if cmd.fullname is not None:
+            account.user.fullname = cmd.fullname
+        if cmd.email is not None:
+            account.user.email = cmd.email
+        if cmd.password_hash is not None:
+            account.user.password_hash = cmd.password_hash
+        await uow.commit()
+
 
 async def verify_email(
         cmd: commands.accounts.VerifyEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         ts = URLSafeTimedSerializer(config.SECRET_KEY)
 
         try:
@@ -116,15 +132,15 @@ async def verify_email(
         if account is None:
             raise NoResultFoundError
 
-        account.user.email_verified = True
+        account.verify_email()
 
-        # now remove allowed emails, this results in the ALLOWED_REGISTRATION relationship being created
+        # now remove allowed emails and establish the ALLOWED_REGISTRATION relationship
+        # todo this relationship is not currently used but may be useful in auditing DB usage and admin activities
         async for admin in uow.accounts.get_all(access_types=[Access.ADMIN], authorisations=[Authorisation.AUTHORISED]):
             for e in admin.allowed_emails:
                 if e.casefold() == account.user.email.casefold():
                     admin.allowed_emails.remove(e)
 
-        account.events.append(events.accounts.EmailVerified(user=account.user.id))
         await uow.commit()
 
 async def login(
@@ -139,101 +155,54 @@ async def add_email(
         cmd: commands.accounts.AddEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         if await uow.accounts.get(email=cmd.email):
             raise IdentityExistsError("This email is already registered to an account")
 
-        account = await uow.accounts.get(user_id=cmd.user)
-
-        account.allowed_emails.append(cmd.email)
-        account.events.append(events.accounts.EmailAdded(email=cmd.email))
+        account:AccountStored = await uow.accounts.get(user_id=cmd.user)
+        account.allow_email(cmd.email)
         await uow.commit()
 
 async def remove_email(
         cmd: commands.accounts.RemoveEmail,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=cmd.user)
         try:
             account.allowed_emails.remove(cmd.email)
         except ValueError:
             raise NoResultFoundError("Email not found among those allowed by this account")
-        account.events.append(events.accounts.EmailRemoved(email=cmd.email))
         await uow.commit()
 
 async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
-        account = await uow.accounts.get(user_id=cmd.user)
-        organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.teams[cmd.team]
-
-        for a in account.affiliations:
-            if a.team == cmd.team and a.access == cmd.access:
-                if a.authorisation in [Authorisation.RETIRED, Authorisation.DENIED]:
-                    a.authorisation = Authorisation.REQUESTED
-                    await uow.commit()
-                    return
-                elif a.authorisation == Authorisation.REQUESTED:
-                    logger.debug("Repeated request, do nothing")
-                    return
-                elif a.authorisation == Authorisation.AUTHORISED:
-                    logger.debug("Request already approved, do nothing")
-                    return
-
-        if cmd.user in team.admins:
-            authorisation = Authorisation.AUTHORISED
-        else:
-            authorisation = Authorisation.REQUESTED
-            account.events.append(
-                events.accounts.AffiliationRequested(
-                    user=cmd.user,
-                    team=cmd.team,
-                    access=Access[cmd.access]
-                )
-            )
-        affiliation = Affiliation(
-            team= cmd.team,
-            authorisation=authorisation,
-            access=Access[cmd.access]
-        )
-        account.affiliations.append(affiliation)
+    async with uow.get_repositories() as uow:
+        account: AccountStored = await uow.accounts.get(user_id=cmd.user)
+        account.request_affiliation(cmd.team, Access[cmd.access])
         await uow.commit()
 
 async def approve_affiliation(
         cmd: commands.accounts.ApproveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
-        requesting_account = await uow.accounts.get(user_id=cmd.user)
+    async with uow.get_repositories() as uow:
+        account = await uow.accounts.get(user_id=cmd.user)
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.teams[cmd.team]
+        team = organisation.get_team(team_id=cmd.team)
         if not cmd.admin in team.admins:
-            raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
-        if not requesting_account.user.id in team.read_requests:
-            raise UnauthorisedOperationError("The request to apply this affiliation was not found")
-        affiliation = Affiliation(
-            team=cmd.team,
-            access=Access[cmd.access],
-            authorisation=Authorisation.AUTHORISED,
-            heritable=cmd.heritable
-        )
-        requesting_account.affiliations.append(affiliation)
-        requesting_account.events.append(events.accounts.AffiliationApproved(
-            user=cmd.user,
-            team=cmd.team,
-            access=cmd.access
-        ))
+            raise UnauthorisedOperationError("Only admins for the given team can perform this operation")
+
+        account.approve_affiliation(cmd.team, Access[cmd.access], cmd.heritable)
         await uow.commit()
 
 async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
         team = organisation.teams[cmd.team]
         if not cmd.admin in team.admins:

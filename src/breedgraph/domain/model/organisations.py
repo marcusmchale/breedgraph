@@ -19,11 +19,15 @@ class  TeamInput(TeamBase):
 
 class TeamStored(TeamBase, Entity):
     children: List[int] = Field(frozen=True, default=list())
+
     admins: List[int] = Field(frozen=True, default=list())
     readers: List[int] = Field(frozen=True, default=list())
     writers: List[int] = Field(frozen=True, default=list())
+    curators: List[int] = Field(frozen=True, default=list())
+
     read_requests: List[int] = Field(frozen=True, default=list())
     write_requests: List[int] = Field(frozen=True, default=list())
+    curate_requests: List[int] = Field(frozen=True, default=list())
     admin_requests: List[int] = Field(frozen=True, default=list())
 
 class TeamOutput(TeamStored):
@@ -55,6 +59,9 @@ class Organisation(Aggregate):
     def add_team(self, team: TeamInput) -> int:  # returns temporary ID in case it is needed
         if not team.parent in self.teams:
             raise ValueError("Parent team is not in this organisation")
+        for tid in self.teams[team.parent].children:
+            if self.teams[tid].name.casefold() == team.name.casefold():
+                raise ValueError("The parent team already has a child with this name")
         temp_id = -len(self.teams) - 1
         self.teams[temp_id] = team
         return temp_id
@@ -65,10 +72,18 @@ class Organisation(Aggregate):
             raise ValueError("Cannot remove a team with children")
         self.teams.pop(team_id)
 
-    def get_team(self, name: str, parent_id: None|int):
-        if parent_id is None:
+    def get_team(self, team_id: int=None, name: str=None, parent_id: None|int = None):
+        if team_id is not None:
+            return self.teams[team_id]
+        elif parent_id is None:
             if name.casefold == self.root.name.casefold():
                 return self.root
+            else:
+                teams = [t for t in self.teams.values() if t.name.casefold() == name.casefold()]
+                if len(teams) == 1:
+                    return teams[0]
+                else:
+                    raise ValueError("More than one team with a matching name, try specifying the parent")
         else:
             parent = self.teams[parent_id]
             for t in parent.children:
