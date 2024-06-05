@@ -190,11 +190,11 @@ class Neo4jAccountRepository(BaseRepository):
     def record_to_affiliation(record) -> AffiliationStored:
         return AffiliationStored(
             team=record['team'],
-            teams=record['teams'],  # includes children teams, i.e. those affected by this affiliation if heritable
-            admins=record['admins'],
             authorisation=Authorisation[record['authorisation']],
             access=Access[record['access']],
-            heritable=record['heritable']
+            heritable=record['heritable'],
+            inherits_to=record['inherits_to'],
+            admins=record['admins']
         ) if record else None
 
     def record_to_account(self, record: Record) -> AccountStored:

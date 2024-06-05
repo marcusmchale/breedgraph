@@ -7,7 +7,7 @@ RETURN
     roles: [(person)-[:HAS_ROLE]->(role:PersonRole)|role.id],
     titles:  [(person)-[:AT_LOCATION]->(title:PersonTitle)|title.id]
   },
-  controller {
+  {
     writes: [
       (person)<-[write:CREATED|UPDATED]-(:UserPeople)<-[:CREATED]-(user:User) |
       {user:user.id, time: write.time}
@@ -16,4 +16,4 @@ RETURN
       (person)<-[controls:CONTROLS]-(:TeamPeople)<-[:CONTROLS]-(team:Team) |
       {team: team.id, release: controls.release, time: controls.time}
     ]
-  }
+  } as controller

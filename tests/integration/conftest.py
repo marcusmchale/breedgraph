@@ -18,21 +18,15 @@ async def stored_account_with_affiliations(user_input_generator, neo4j_tx) -> Ac
     organisations_repo = Neo4jOrganisationRepository(neo4j_tx)
     organisation = await organisations_repo.create(team_input)
 
-    affiliation_write = Affiliation(
-        access=Access.WRITE,
-        authorisation=Authorisation.AUTHORISED,
-        team=organisation.root.id,
-        heritable=False
-    )
-    affiliation_read = Affiliation(
-        access=Access.READ,
-        authorisation=Authorisation.AUTHORISED,
-        team=organisation.root.id,
-        heritable=False
-    )
-    stored_account.affiliations.append(affiliation_write)
-    stored_account.affiliations.append(affiliation_read)
-
+    for a in Access:
+        stored_account.affiliations.append(
+            Affiliation(
+                access=Access[a],
+                authorisation=Authorisation.AUTHORISED,
+                team=organisation.root.id,
+                heritable=False
+            )
+        )
     await accounts_repo.update_seen()
     return stored_account
 

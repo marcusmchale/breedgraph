@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked
 from src.breedgraph.custom_exceptions import ProtectedNodeError
 
-from src.breedgraph.domain.model.base import Aggregate, Release
+from src.breedgraph.domain.model.base import Aggregate
 
 class BaseRepository(ABC):
 
@@ -65,10 +65,3 @@ class BaseRepository(ABC):
     @abstractmethod
     async def _update(self, aggregate: Tracked|Aggregate):
         raise NotImplementedError
-
-class ControlledRepository(BaseRepository, ABC):
-
-    def __init__(self, user:int, release: Release= Release.PRIVATE):
-        super().__init__()
-        self.user = user
-        self.release = release

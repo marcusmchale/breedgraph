@@ -9,13 +9,15 @@ from asyncio import CancelledError
 # Typing only
 from typing import Self
 from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
-from src.breedgraph.adapters.repositories.base import BaseRepository, ControlledRepository
+from src.breedgraph.adapters.repositories.base import BaseRepository
+from src.breedgraph.adapters.repositories.controlled import ControlledRepository
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
 from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 from src.breedgraph.adapters.repositories.people import Neo4jPeopleRepository
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from src.breedgraph.domain.events import Event
+from src.breedgraph.domain.model.accounts import AccountStored
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +77,12 @@ class AbstractUnitOfWork(ABC):
             yield self.events.pop(0)
 
 class Neo4jRepoHolder(AbstractRepoHolder):
-    def __init__(self, tx: AsyncTransaction, user_id: int = None):
+    def __init__(self, tx: AsyncTransaction, account: AccountStored = None):
         self.tx = tx
         self.accounts = Neo4jAccountRepository(self.tx)
         self.organisations = Neo4jOrganisationRepository(self.tx)
         self.ontologies = Neo4jOntologyRepository(self.tx)
-        self.people = Neo4jPeopleRepository(self.tx, user=user_id)
+        self.people = Neo4jPeopleRepository(self.tx, account=account)
 
     async def commit(self):
         await self.accounts.update_seen()
@@ -109,12 +111,12 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         )
 
     @asynccontextmanager
-    async def _get_repositories(self, user_id: int = None):
+    async def _get_repositories(self, account: AccountStored = None):
         logger.debug("Start neo4j session")
         session: AsyncSession = self.driver.session()
         logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
-        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id)
+        repo_holder = Neo4jRepoHolder(tx=tx, account=account)
         try:
             yield repo_holder
         finally:

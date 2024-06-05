@@ -2,7 +2,7 @@ import logging
 
 from pydantic import BaseModel
 
-from .base import Aggregate, Entity, RecordController
+from .base import Aggregate, Entity
 
 from typing import List
 
@@ -27,16 +27,11 @@ class Person(BaseModel):
     roles: List[int]|None = None  # references to PersonRole in ontology
     titles: List[int]|None = None  # references to PersonTitle in ontology
 
-class PersonStored(Person, Entity):
-    pass
-
-class PersonRecord(Aggregate):
-    person: PersonStored
-    controller: RecordController
+class PersonStored(Person, Entity, Aggregate):
 
     @property
     def root(self) -> Entity:
-        return self.person
+        return self
 
     @property
     def protected(self) -> str | None:

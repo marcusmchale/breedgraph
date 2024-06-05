@@ -8,7 +8,7 @@ from .base import Entity, Aggregate
 from src.breedgraph.domain.events import Event
 from src.breedgraph.domain.events.accounts import EmailAdded, EmailVerified, AffiliationRequested, AffiliationApproved
 
-from typing import List, Generator
+from typing import List, Dict, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,12 @@ class Affiliation(BaseModel):
     heritable: bool  # if heritable equivalent access is provided to all children, recursively
 
 class AffiliationStored(Affiliation):
-    teams: List[int] = Field(frozen=True)  # list of team ids that this applies to, including inheritance
+    inherits_to: List[int] = Field(frozen=True)  # list of teams (ids only) that contribute to the team attribute
     admins: List[int] = Field(frozen=True)  # user ids that have admin privilege for the associated "team"
+
+    @property
+    def teams(self):
+        return [self.team] + self.inherits_to
 
 class AccountBase(BaseModel):
     user: UserBase

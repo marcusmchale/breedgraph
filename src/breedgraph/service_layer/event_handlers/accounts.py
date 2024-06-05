@@ -1,7 +1,6 @@
 from itsdangerous import URLSafeTimedSerializer
 from src.breedgraph import config
 
-#from src.breedgraph.views.accounts import teams
 from src.breedgraph.domain import events
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError

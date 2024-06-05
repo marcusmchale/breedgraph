@@ -18,14 +18,3 @@ class AffiliationApproved(Event):
     user: int
     team: int
     access: str
-
-#
-#class AffiliationConfirmed(Event):
-#    user_id: int
-#    team_name: str
-#
-#
-#class AdminGranted(Event):
-#    user_id: int
-#    team_name: str
-#

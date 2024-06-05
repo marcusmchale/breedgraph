@@ -1,0 +1,5 @@
+MATCH (person: Person {id: $person_id})
+MATCH (control_team:Team {id: $team_id})
+MERGE (control_team)-[:CONTROLS]->(tp:TeamPeople)
+MERGE (tp)-[controls:CONTROLS]->(person)
+ON CREATE SET controls.release = $release, controls.time = datetime.transaction()

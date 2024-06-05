@@ -1,5 +1,4 @@
-MATCH (writer: User {id: $writer})-[:WRITE {authorisation:'AUTHORISED'}]->(team:Team)
-WITH writer, collect(team) AS controllers
+MATCH (writer: User {id: $writer})
 
 MERGE (counter: count {name: 'person'})
   ON CREATE SET counter.count = 0
@@ -18,18 +17,16 @@ CREATE (up)-[created:CREATED {time:datetime.transaction()}]->(person: Person {
 })
 WITH
   person,
-  controllers,
   [{user:writer.id, time:created.time}] as writes
 // Establish controls
 CALL {
-  WITH person, controllers
-  UNWIND controllers AS control_team_id
-  MATCH (team:Team {id: control_team_id})
-  MERGE (team)-[:CONTROLS]->(tp:TeamPeople)
+  WITH person
+  MATCH (control_team:Team) WHERE control_team.id in $writes_for
+  MERGE (control_team)-[:CONTROLS]->(tp:TeamPeople)
   CREATE (tp)-[controls:CONTROLS {release: $release, time:datetime.transaction()}]->(person)
   RETURN
     collect({
-      team: team.id,
+      team: control_team.id,
       release: controls.release,
       time: controls.time
     }) AS controls
