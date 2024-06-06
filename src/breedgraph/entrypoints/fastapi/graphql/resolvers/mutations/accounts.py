@@ -5,7 +5,7 @@ from src.breedgraph import config
 from src.breedgraph.domain.commands.accounts import (
     AddFirstAccount,
     AddAccount,
-    EditUser,
+    UpdateUser,
     Login,
     VerifyEmail,
     AddEmail, RemoveEmail,
@@ -120,7 +120,7 @@ async def edit_user(
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     else:
         password_hash = password
-    cmd = EditUser(
+    cmd = UpdateUser(
         user=account.user.id,
         name=name,
         fullname=fullname,

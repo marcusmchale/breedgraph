@@ -3,6 +3,8 @@ import logging
 from abc import ABC, abstractmethod
 from neo4j import AsyncTransaction, AsyncResult, Record
 
+from src.breedgraph.custom_exceptions import IllegalOperationError
+
 from src.breedgraph.domain.model.organisations import (
     TeamInput,
     TeamStored,
@@ -24,7 +26,7 @@ class Neo4jOrganisationRepository(BaseRepository):
 
     async def _create(self, team: TeamInput) -> Organisation:
         team = await self._create_team(team)
-        return Organisation(root_id=team.id, teams={team.id: team})
+        return Organisation(root_id=team.id, members={team.id: team})
 
     async def _create_team(self, team: TeamInput) -> TeamStored:
         logger.debug(f"Create team: {team}")
@@ -68,17 +70,21 @@ class Neo4jOrganisationRepository(BaseRepository):
             yield Organisation.from_list(teams)
 
     async def _set_team(self, team: TeamStored):
+        if team.parent is None:
+            await self.tx.run(queries['organisations']['remove_parent'], team=team.id)
+
         logger.debug(f"Set team: {team}")
         await self.tx.run(
             queries['organisations']['set_team'],
             team=team.id,
             name=team.name,
             name_lower=team.name.casefold(),
-            fullname=team.fullname
+            fullname=team.fullname,
+            parent=team.parent
         )
 
     async def _remove(self, organisation: Organisation):
-        for team_id in organisation.teams.keys():
+        for team_id in organisation.members.keys():
             await self._remove_team(team_id)
 
     async def _remove_team(self, team_id: int):
@@ -91,7 +97,7 @@ class Neo4jOrganisationRepository(BaseRepository):
         if not organisation.changed:
             return
 
-        await self._update_teams(organisation.teams)
+        await self._update_teams(organisation.members)
 
     async def _update_teams(self, teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
         await self._create_teams(teams)
@@ -105,6 +111,11 @@ class Neo4jOrganisationRepository(BaseRepository):
                 stored_team = await self._create_team(team)
                 teams.silent_set(stored_team.id, stored_team)
                 teams.silent_remove(team_id)
+                # need to also replace in children of parent
+                if stored_team.parent is not None:
+                    # children is a "Frozen" attribute so is not converted to a tracked list.
+                    teams[stored_team.parent].children.remove(team_id)
+                    teams[stored_team.parent].children.append(stored_team.id)
             else:
                 raise ValueError("An instance of TeamInput is required for team creation")
 
@@ -112,10 +123,24 @@ class Neo4jOrganisationRepository(BaseRepository):
         for team_id in teams.removed.keys():
             await self._remove_team(team_id)
 
+    async def _parent_is_child(self, team: TeamStored):
+        result = await self.tx.run(
+            queries['organisations']['parent_is_child'],
+            team=team.id,
+            parent=team.parent
+        )
+        record = await result.single()
+        return record.value()
+
     async def _update_changed_teams(self, teams: TrackedDict[int, Tracked|TeamInput|TeamStored]):
         for team_id in teams.changed:
             team = teams[team_id]
+            if 'parent' in team.changed and isinstance(team, TeamStored):
+                if await self._parent_is_child(team):
+                    raise IllegalOperationError(f"Parent change would result in a cycle: team:{team.id}, parent:{team.parent}")
+
             await self._set_team(team)
+
 
     @staticmethod
     def team_record_to_team(record) -> TeamStored:

@@ -7,7 +7,7 @@ COMMAND_HANDLERS = {
     commands.setup.LoadReadModel: setup.load_read_model,
     commands.accounts.AddFirstAccount: accounts.add_first_account,
     commands.accounts.AddAccount: accounts.add_account,
-    commands.accounts.EditUser: accounts.edit_user,
+    commands.accounts.UpdateUser: accounts.edit_user,
     commands.accounts.AddEmail: accounts.add_email,
     commands.accounts.RemoveEmail: accounts.remove_email,
     commands.accounts.VerifyEmail: accounts.verify_email,
@@ -17,7 +17,7 @@ COMMAND_HANDLERS = {
     commands.accounts.RemoveAffiliation: accounts.remove_affiliation,
     commands.organisations.AddTeam: organisations.add_team,
     commands.organisations.RemoveTeam: organisations.remove_team,
-    commands.organisations.EditTeam: organisations.edit_team,
+    commands.organisations.UpdateTeam: organisations.edit_team,
     commands.countries.AddCountry: locations.add_country,
     commands.ontologies.AddTerm: ontologies.add_term
 }  # type: Dict[Type[commands.base.Command], Callable]

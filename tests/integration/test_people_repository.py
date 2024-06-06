@@ -22,7 +22,8 @@ async def test_create_and_get_person(
         name=person_input['name'],
         fullname=person_input['name'],
         email=person_input['email'],
-        user=1
+        user=1,
+        teams=[1]
     )
     # Person is created private
     stored: PersonStored = await repo.create(person)

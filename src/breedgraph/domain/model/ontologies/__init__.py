@@ -7,7 +7,6 @@ from .events import Exposure, Event
 
 from .germplasm import Sourcing, Maintenance, Attribute
 
-from .facilities import FacilityType
 from .locations import LocationType
 from .designs import Design
 from .layout import LayoutType

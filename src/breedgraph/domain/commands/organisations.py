@@ -10,7 +10,7 @@ class RemoveTeam(Command):
     user: int
     team: int
 
-class EditTeam(Command):
+class UpdateTeam(Command):
     user: int
     team: int
     name: Optional[str] = None

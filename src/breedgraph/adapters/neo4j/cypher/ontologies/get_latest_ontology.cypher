@@ -1,6 +1,6 @@
 MATCH (version:OntologyVersion)
 WITH version
-ORDER BY version.id
+ORDER BY version.id DESCENDING
 LIMIT 1
 OPTIONAL MATCH
   (version)<-[:IN_VERSION]-(entry: OntologyEntry)

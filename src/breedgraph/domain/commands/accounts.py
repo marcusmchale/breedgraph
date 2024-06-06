@@ -15,7 +15,7 @@ class AddAccount(Command):
     email: str
     password_hash: str
 
-class EditUser(Command):
+class UpdateUser(Command):
     user: int
     name: str|None = None
     fullname: str|None = None

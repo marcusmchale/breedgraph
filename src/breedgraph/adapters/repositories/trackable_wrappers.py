@@ -24,7 +24,8 @@ class Tracked(ObjectProxy):
 
         for attr, field in wrapped.model_fields.items():
             if field.frozen:
-                continue  # no need to track changes to frozen fields
+                continue  # no tracking changes to frozen fields,
+                # note that frozen fields can still be mutated, e.g. list can be appended to
             elif attr == 'events':
                 continue  # also don't want to track collected events, they are just to be consumed
             self.__wrapped__.__setattr__(attr, self._get_tracked(attr))
@@ -176,6 +177,14 @@ class TrackedList(ObjectProxy, MutableSequence):
 
         self.__wrapped__.__delitem__(i)
         self.on_changed()
+
+    def silent_remove(self, value):
+        i = self.__wrapped__.index(value)
+        self.__wrapped__.delitem(i)
+
+    def silent_append(self, value):
+        i = self.__wrapped__.index(value)
+        self.__wrapped__.append(i)
 
     #def __len__(self):
     #    return self.__wrapped__.__len__()
@@ -341,7 +350,7 @@ class TrackedDict(ObjectProxy, MutableMapping):
         self.__wrapped__.__delitem__(key)
         self.on_changed()
 
-    def silent_set(self, key, value) -> None: # remove an item without recording the change
+    def silent_set(self, key, value) -> None: # set an item without recording the change
         self.__wrapped__.__setitem__(key, self._get_tracked(key, value))
 
     def silent_remove(self, key) -> None: # remove an item without recording the change

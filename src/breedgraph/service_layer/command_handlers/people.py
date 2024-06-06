@@ -19,7 +19,7 @@ async def add_person(
         cmd: commands.people.AddPerson,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         person = Person(**cmd)
         await uow.people.create(person)
         await uow.commit()

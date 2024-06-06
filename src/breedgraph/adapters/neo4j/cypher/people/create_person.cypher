@@ -41,24 +41,28 @@ CALL {
 }
 CALL {
   WITH person
-  UNWIND $locations AS location_id
-  MATCH (location: Location {id: location_id})
+  MATCH (team: Team) WHERE team.id IN $teams
+  CREATE (person)-[in_team:IN_TEAM {time:datetime.transaction()}]->(team)
+  RETURN
+    collect(team.id) AS teams
+}
+CALL {
+  WITH person
+  MATCH (location: Location) WHERE location.id IN $locations
   CREATE (person)-[at_location:AT_LOCATION {time:datetime.transaction()}]->(location)
   RETURN
     collect(location.id) AS locations
 }
 CALL {
   WITH person
-  UNWIND $roles AS role_id
-  MATCH (role: PersonRole {id: role_id})
+  MATCH (role: PersonRole) WHERE role.id IN $roles
   CREATE (person)-[has_role:HAS_ROLE {time:datetime.transaction()}]->(role)
   RETURN
     collect(role.id) AS roles
 }
 CALL {
   WITH person
-  UNWIND $titles AS title_id
-  MATCH (title: Title {id: title_id})
+  MATCH (title: Title) WHERE title.id IN $titles
   CREATE (person)-[has_title:HAS_TITLE {time:datetime.transaction()}]->(title)
   RETURN
     collect(title.id) AS titles
@@ -67,6 +71,7 @@ RETURN
   person {
   .*,
     user: user,
+    teams: teams,
     locations:locations,
     roles:roles,
     titles: titles

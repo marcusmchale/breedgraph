@@ -36,7 +36,7 @@ class ControlledRepository(BaseRepository, ABC):
         if self.account is None:
             raise ValueError("Only registered accounts may create controlled records")
 
-        elif not self.writes_for:
+        elif not self.writes_for: 
             raise UnauthorisedOperationError(f"Account does not have a stored write affiliation: {self.account.user.id}")
 
         return await self._create_controlled(aggregate_input)

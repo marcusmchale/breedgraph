@@ -292,73 +292,72 @@ async def test_non_admin_requests_read_from_root_then_approved_for_child(
     else:
         raise NoResultFoundError("Couldn't find the approved read in the users account")
 
-#@pytest.mark.asyncio(scope="session")
-#async def test_admin_removes_approved_read(client, user_input_generator, admin_login_token, second_user_login_token):
-#    admin_name = user_input_generator.user_inputs[0]['name']
-#    teams_request_response = await post_to_teams(
-#        client,
-#        admin_login_token
-#    )
-#    teams_payload = get_verified_payload(teams_request_response, "teams")
-#    assert teams_payload.get('result')
-#    for t in teams_payload.get('result'):
-#        for u in t.get('readers', []):
-#            if u.get('name') != admin_name:
-#                remove_response = await post_to_remove_affiliation(
-#                    client,
-#                    admin_login_token,
-#                    user=u.get('id'),
-#                    team=t.get('id'),
-#                    access=Access.READ
-#                )
-#                remove_payload = get_verified_payload(remove_response, "remove_affiliation")
-#                assert_payload_success(remove_payload)
-#
-#                # confirm the affiliation is no longer in the second users account
-#                second_user_account_response = await post_to_account(
-#                    client,
-#                    second_user_login_token
-#                )
-#                second_user_account = get_verified_payload(second_user_account_response, "account")['result']
-#                for tt in second_user_account['reads']:
-#                    if t.get('id') == tt['id']:
-#                        raise ValueError("Read is still in the users account")
-#
-#    teams_request_response = await post_to_teams(
-#        client,
-#        admin_login_token
-#    )
-#    teams_payload = get_verified_payload(teams_request_response, "teams")
-#    assert teams_payload.get('result')
-#    for t in teams_payload.get('result'):
-#        for u in t.get('readers', []):
-#            if u.get('name') != admin_name:
-#                raise ValueError("Other users are still listed as readers")
-#
-#@pytest.mark.asyncio(scope="session")
-#async def test_second_user_changes_details(client, user_input_generator, second_user_login_token):
-#    second_user_account_response = await post_to_account(
-#        client,
-#        second_user_login_token
-#    )
-#    second_user_account = get_verified_payload(second_user_account_response, "account")['result']
-#
-#    new_details = user_input_generator.new_user_input()
-#    edit_response = await post_to_edit_user(
-#        client,
-#        token=second_user_login_token,
-#        name=new_details['name'],
-#        email=new_details['email'],
-#        password = new_details['password']
-#    )
-#    edit_payload = get_verified_payload(edit_response, "edit_user")
-#    assert_payload_success(edit_payload)
-#
-#    changed_user_account_response = await post_to_account(
-#        client,
-#        second_user_login_token
-#    )
-#    changed_user_account = get_verified_payload(changed_user_account_response, "account")['result']
-#    assert second_user_account != changed_user_account
-#    assert changed_user_account
+@pytest.mark.asyncio(scope="session")
+async def test_admin_removes_approved_read(client, user_input_generator, admin_login_token, second_user_login_token):
+    admin_name = user_input_generator.user_inputs[0]['name']
+    teams_request_response = await post_to_teams(
+        client,
+        admin_login_token
+    )
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    assert teams_payload.get('result')
+    for t in teams_payload.get('result'):
+        for u in t.get('readers', []):
+            if u.get('name') != admin_name:
+                remove_response = await post_to_remove_affiliation(
+                    client,
+                    admin_login_token,
+                    user=u.get('id'),
+                    team=t.get('id'),
+                    access=Access.READ
+                )
+                remove_payload = get_verified_payload(remove_response, "remove_affiliation")
+                assert_payload_success(remove_payload)
 
+                # confirm the affiliation is no longer in the second users account
+                second_user_account_response = await post_to_account(
+                    client,
+                    second_user_login_token
+                )
+                second_user_account = get_verified_payload(second_user_account_response, "account")['result']
+                for tt in second_user_account['reads']:
+                    if t.get('id') == tt['id']:
+                        raise ValueError("Read is still in the users account")
+
+    teams_request_response = await post_to_teams(
+        client,
+        admin_login_token
+    )
+    teams_payload = get_verified_payload(teams_request_response, "teams")
+    assert teams_payload.get('result')
+    for t in teams_payload.get('result'):
+        for u in t.get('readers', []):
+            if u.get('name') != admin_name:
+                raise ValueError("Other users are still listed as readers")
+
+@pytest.mark.asyncio(scope="session")
+async def test_second_user_changes_details(client, user_input_generator, second_user_login_token):
+    second_user_account_response = await post_to_account(
+        client,
+        second_user_login_token
+    )
+    second_user_account = get_verified_payload(second_user_account_response, "account")['result']
+
+    new_details = user_input_generator.new_user_input()
+    edit_response = await post_to_edit_user(
+        client,
+        token=second_user_login_token,
+        name=new_details['name'],
+        email=new_details['email'],
+        password = new_details['password']
+    )
+    edit_payload = get_verified_payload(edit_response, "edit_user")
+    assert_payload_success(edit_payload)
+
+    changed_user_account_response = await post_to_account(
+        client,
+        second_user_login_token
+    )
+    changed_user_account = get_verified_payload(changed_user_account_response, "account")['result']
+    assert second_user_account != changed_user_account
+    assert changed_user_account

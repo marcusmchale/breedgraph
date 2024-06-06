@@ -73,7 +73,7 @@ async def process_affiliation_request(
             await uow.commit()
         else:
             organisation = await uow.organisations.get(team_id=event.team)
-            team = organisation.get_team(team_id = event.team)
+            team = organisation.get_member(member_id = event.team)
             message = emails.AffiliationRequestedMessage(
                 requesting_user = account.user,
                 team = team,
@@ -94,7 +94,7 @@ async def notify_user_approved(
     async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=event.user)
         organisation = await uow.organisations.get(team_id=event.team)
-        team = organisation.teams[event.team]
+        team = organisation.get_member(member_id=event.team)
 
         message = emails.AffiliationApprovedMessage(
             user = account.user,

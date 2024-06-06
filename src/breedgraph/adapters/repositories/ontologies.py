@@ -20,7 +20,7 @@ from typing import Set, AsyncGenerator, Protocol
 from src.breedgraph.domain.model.ontologies import (
     Ontology, Version, VersionStored,
     OntologyEntry,
-    # although the below may look unused they are accessed by globals below
+    # although the below may look unused they are accessed by globals below  # todo consider refactoring this
     Term,
     Subject,
     Trait, Condition, Exposure,
@@ -71,6 +71,27 @@ class Neo4jOntologyRepository(BaseRepository):
         record = await result.single()
         return VersionStored(**record['version'])
 
+    async def _fork_version(self, ontology: TrackedOntology, new_version: Version = None)-> None:
+        if new_version is None:
+            new_version = Version(
+                major=ontology.version.major,
+                minor=ontology.version.minor,
+                patch=ontology.version.patch + 1,
+                comment=ontology.version.comment
+            )
+        result = await self.tx.run(
+            queries['ontologies']['fork_version'],
+            version_id=ontology.version.id,
+            major=new_version.major,
+            minor=new_version.minor ,
+            patch=new_version.patch,
+            comment=new_version.comment
+        )
+        record = await result.single()
+        new_version_stored = VersionStored(**record['version'])
+        ontology.version = new_version_stored
+
+
     async def _get_versions(self):
         pass
         #version_tuple = re.split('\.|-', record['ontology']['version'], 3)
@@ -97,31 +118,31 @@ class Neo4jOntologyRepository(BaseRepository):
                 version=version_id
             )
 
-    async def _update_entries(self, entries: TrackedDict[int, Tracked|OntologyEntry], version_id):
+    async def _update_entries(self, entries: TrackedDict[int, Tracked|OntologyEntry], version: Tracked|VersionStored):
         for entry_id in entries.added:
             entry = entries[entry_id]
             if entry.id < 0:
-                 await self._create_entry(entry, version_id)
+                 await self._create_entry(entry, version.id)
             else:
-                # todo this is needed to support copying an entry from an earlier version
-                raise NotImplementedError(
-                    "An entry was added that was already stored,"
-                    " support for this has not been implemented"
-                )
+                # todo this will be needed to support copying an entry from an earlier version of the ontology
+                raise NotImplementedError
+
         for entry_id in entries.changed:
             entry = entries[entry_id]
             if entry.changed.intersection(self.material_changes):
-                # Fork to a new entry
-                new_entry = await self._create_entry(entry, version_id)
-                # Add this without tracking to the entries map
+                new_entry = await self._create_entry(entry, version.id)
+                # Add this without tracking to the entries map (already added)
                 entries.silent_set(new_entry.id, new_entry)
-                # and remove the old one
+                # and remove the old one also without tracking
+                await self._remove_entry(entry, version.id)
                 entries.silent_remove(entry_id)
-                # move all mappings from the old reference to this new one.
-                # todo work out how to apply this remapping,
-                # need to actually change references in db, or do this during the fork?
             else:
-                await self._update_entry(entry, version_id)
+                await self._update_entry(entry, version.id)
+
+        for entry_id in entries.removed:
+            entry = entries[entry_id]
+            if entry.id >= 0:
+                 await self._remove_entry(entry, version.id)
 
     async def _create_entry(self, entry: OntologyEntry, version_id: int) -> OntologyEntry:
         params = dict(entry)
@@ -151,6 +172,9 @@ class Neo4jOntologyRepository(BaseRepository):
         )
         record = await result.single()
         return self.record_to_entry(record['entry'])
+
+    async def _remove_entry(self, entry: OntologyEntry, version_id: int) -> None:
+        await self.tx.run(queries['ontologies']['remove_entry'], entry=entry.id, version=version_id)
 
     @staticmethod
     def record_to_entry(record: Record) -> OntologyEntry:
@@ -184,4 +208,13 @@ class Neo4jOntologyRepository(BaseRepository):
         raise NotImplementedError
 
     async def _update(self, ontology: TrackedOntology):
-        await self._update_entries(ontology.entries, ontology.version.id)
+        if any([
+            ontology.entries.added,
+            ontology.entries.removed,
+            ontology.entries.changed and any([
+                entry.changed.intersection(self.material_changes) for entry in ontology.entries.values()
+            ])
+        ]):
+            await self._fork_version(ontology)
+        await self._update_entries(ontology.entries, ontology.version)
+

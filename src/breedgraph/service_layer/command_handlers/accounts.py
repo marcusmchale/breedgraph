@@ -36,13 +36,12 @@ async def add_first_account(
             email=cmd.email,
             password_hash=cmd.password_hash
         )
-
         team = TeamInput(
             name=cmd.team_name,
             fullname=cmd.team_fullname if cmd.team_fullname else cmd.team_name
         )
-
         organisation: Organisation = await uow.organisations.create(team)
+
 
         account: AccountInput = AccountInput(user=user)
         account: AccountStored = await uow.accounts.create(account)
@@ -99,10 +98,10 @@ async def add_account(
         await uow.commit()
 
 async def edit_user(
-        cmd: commands.accounts.EditUser,
+        cmd: commands.accounts.UpdateUser,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow.get_repositories as uow:
+    async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=cmd.user)
         if cmd.name is not None:
             account.user.name = cmd.name
@@ -191,7 +190,7 @@ async def approve_affiliation(
     async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=cmd.user)
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.get_team(team_id=cmd.team)
+        team = organisation.get_member(member_id=cmd.team)
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only admins for the given team can perform this operation")
 
@@ -202,9 +201,9 @@ async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow.get_repositories as uow:
+    async with uow.get_repositories() as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.teams[cmd.team]
+        team = organisation.get_member(member_id=cmd.team)
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
         account = await uow.accounts.get(user_id=cmd.user)

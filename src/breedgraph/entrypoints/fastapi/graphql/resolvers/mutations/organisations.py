@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.domain.commands.organisations import (
-    AddTeam, RemoveTeam, EditTeam
+    AddTeam, RemoveTeam, UpdateTeam
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
@@ -66,7 +66,7 @@ async def edit_team(
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {account.user.id} edits team: {team}")
-    cmd = EditTeam(
+    cmd = UpdateTeam(
         user=account.user.id,
         team=team,
         name=name,

@@ -4,7 +4,7 @@ import re
 from src.breedgraph.domain.model.base import Entity, Aggregate
 
 
-from typing import List
+from typing import List, Dict
 
 
 class Coordinate(BaseModel):
@@ -32,23 +32,31 @@ class Location(BaseModel):
 class LocationStored(Location, Entity):
     id: int
 
-class Facility(Location):
-    type: int  # reference to facility type in ontology
+
+class Region(Aggregate):
+    root_id: int
+    locations: Dict[int, Location|LocationStored]
+
+    @classmethod
+    def from_list(cls, locations_list: List[LocationStored]):
+        root_id = None
+        teams_map = dict()
+        for team in teams_list:
+            teams_map[team.id] = team
+            if team.parent is None:
+                root_id = team.id
+        return cls(root_id=root_id, teams=teams_map)
 
 
-class Region(BaseModel):
-
-    locations: List[Location]
-
-    def __hash__(self):
-        return hash(self.root.code)
-
-    @computed_field
     @property
-    def root(self) -> Location:
-        # get from view but allow new according to ISO_3166-1_alpha-3
-        # https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
-        return self.locations[0]
+    def root(self) -> LocationStored:
+        return self.locations[self.root_id]
+
+    @property
+    def protected(self) -> str|None:
+        if self.root.children:
+            return "Cannot delete an organisation while its root has children"
+
 
     @field_validator('locations')
     def validate_code(cls, v):

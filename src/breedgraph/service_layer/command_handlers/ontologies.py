@@ -20,7 +20,7 @@ async def add_term(
         cmd: commands.ontologies.AddTerm,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow:
+    async with uow.get_repositories() as uow:
         ontology = await uow.ontologies.get()
         term = Term(
             name = cmd.name,

@@ -16,3 +16,5 @@ async def test_add_term(client, second_user_login_token, lorem_text_generator):
         synonyms=[lorem_text_generator.new_text(10),lorem_text_generator.new_text(5)]
     )
     assert_payload_success(get_verified_payload(response, "add_term"))
+
+
