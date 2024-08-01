@@ -11,7 +11,7 @@ from src.breedgraph.domain.commands.accounts import (
     AddEmail, RemoveEmail,
     RequestAffiliation, ApproveAffiliation, RemoveAffiliation
 )
-from src.breedgraph.domain.model.accounts import Access
+from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.authentication import Token
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 

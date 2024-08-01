@@ -13,7 +13,8 @@ from pydantic import BaseModel, field_validator, ValidationError
 
 from src.breedgraph.domain.model.layouts import Position
 
-from src.breedgraph.adapters.repositories.base import Entity, Aggregate, AggregateRoot
+from src.breedgraph.domain.model.base import StoredEntity, Aggregate
+
 
 from typing import List
 
@@ -28,7 +29,6 @@ class Unit(BaseModel):
     code: str|None = None
     description: str|None = None
 
-    # In BreedCAFS we had to store observations made on a field with mixed germplasm
     germplasm: List[int] # refs to GermplasmEntryStored
 
     location: int|None = None # ref to LocationStored
@@ -37,28 +37,25 @@ class Unit(BaseModel):
     position: Position|None = None
 
     studies: List[int]  # Study ID can be used to find the relevant investigations/programs
-    events: List[int]  # Event ID to find history of events for this unit
-    conditions: List[int]  # Condition ID to find conditions for this unit
-    variables: List[int]  # Variable ID associated with this unit
 
-    parents: List[int]  # must support multiple parents, for example when pooling samples.
+    parameters: List[int]  # Condition ID to find conditions for this unit
+    variables: List[int]  # Variable ID associated with this unit
+    events: List[int]  # Event ID to find history of events for this unit
+
+    parents: List[int]  # must support multiple parents,
+      # for example when pooling samples or making observations on a group of trees within a field
+      # In Breedcafs we saw this when harvest needed to be pooled for assessment.
+      #   Here the unit is derived from multiple parent units that are described elsewhere
     children: List[int]
 
-class UnitStored(Unit, Entity):
+class UnitStored(Unit, StoredEntity):
     pass
 
-class UnitRoot(Unit, AggregateRoot):
-
-    @field_validator
-    def validate_parents(cls, value):
-        if value:
-            raise ValidationError("Unit root should have no parents")
-
 class UnitTree(Aggregate):
-    units: List[Unit|UnitRoot]
+    units: List[Unit]
 
     @property
-    def root(self) -> UnitRoot:
+    def root(self) -> Unit:
         return self.units[0]
 
     @property

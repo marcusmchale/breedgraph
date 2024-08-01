@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
+from neo4j import AsyncTransaction
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
@@ -8,10 +9,19 @@ from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, Tra
 from src.breedgraph.adapters.repositories.base import BaseRepository
 
 from src.breedgraph.domain.model.accounts import AccountStored
-from src.breedgraph.domain.model.base import Aggregate
-from src.breedgraph.domain.model.controls import Release, Control, WriteStamp, RecordController
+from src.breedgraph.domain.model.organisations import Organisation
+from src.breedgraph.domain.model.controls import (
+    Control,
+    WriteStamp,
+    Controller,
+    ControlledModel,
+    ControlledAggregate
+)
 
-from typing import List, Tuple, AsyncGenerator
+from src.breedgraph.adapters.neo4j.cypher import controls
+
+
+from typing import List, Tuple, AsyncGenerator, Set, ClassVar
 
 import logging
 
@@ -19,127 +29,126 @@ logger = logging.getLogger(__name__)
 
 class ControlledRepository(BaseRepository, ABC):
 
-    def __init__(self, account: AccountStored):
+    def __init__(
+            self,
+            user_id: int = None,
+            read_teams: List[int] = None,
+            write_teams: List[int] = None,
+            admin_teams: List[int] = None,
+            curate_teams: List[int] = None
+    ):
         super().__init__()
-        self.account: AccountStored = account
-        self.writes_for = self.account.writes if self.account else []
-
-    def set_writes_for(self, writes: List[int]):
-        self.writes_for = [i for i in writes if i in self.account.writes]
-        if not self.writes_for:
-            logger.debug("Setting writes to empty list")
+        self.user_id = user_id
+        self.read_teams = read_teams if read_teams is not None else []
+        self.write_teams = write_teams if write_teams is not None else []
+        self.admin_teams = admin_teams if admin_teams is not None else []
+        self.curate_teams = curate_teams if curate_teams is not None else []
 
     async def _create(
             self,
             aggregate_input: BaseModel
-    ) -> Aggregate:
-        if self.account is None:
-            raise ValueError("Only registered accounts may create controlled records")
+    ) -> ControlledAggregate:
+        if self.user_id is None:
+            raise ValueError("Only registered users may create controlled records")
 
-        elif not self.writes_for: 
-            raise UnauthorisedOperationError(f"Account does not have a stored write affiliation: {self.account.user.id}")
-
-        return await self._create_controlled(aggregate_input)
+        aggregate = await self._create_controlled(aggregate_input)
+        return aggregate.redacted(self.read_teams)
 
     @abstractmethod
-    async def _create_controlled(self, aggregate_input: BaseModel) -> Aggregate:
+    async def _create_controlled(self, aggregate_input: BaseModel) -> ControlledAggregate:
         raise NotImplementedError
 
-    async def _get(self, **kwargs):
-        aggregate, controller = await self._get_controlled(**kwargs)
-        if controller.can_read(self.account):
-            return aggregate
-        else:
-            raise UnauthorisedOperationError("Account cannot access this aggregate")
-
-    async def _get_controlled(self, **kwargs) -> Tuple[Aggregate, RecordController]:
-        raise NotImplementedError
-
-    async def _get_all(self, **kwargs) -> AsyncGenerator[Aggregate, None]:
-        async for aggregate, controller in self._get_all_controlled():
-            if controller.can_read(self.account):
-                yield aggregate
+    async def _get(self, **kwargs) -> ControlledAggregate:
+        aggregate = await self._get_controlled(**kwargs)
+        if aggregate is not None:
+            return aggregate.redacted(self.read_teams)
 
     @abstractmethod
-    def _get_all_controlled(self) -> AsyncGenerator[Tuple[Aggregate, RecordController], None]:
+    async def _get_controlled(self, **kwargs) -> ControlledAggregate:
         raise NotImplementedError
+
+    async def _get_all(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
+        async for aggregate in self._get_all_controlled():
+            redacted = aggregate.redacted(self.read_teams)
+            if redacted is not None:
+                yield redacted
 
     @abstractmethod
-    async def _get_controller(self, aggregate: Aggregate) -> RecordController:
+    def _get_all_controlled(self) -> AsyncGenerator[ControlledAggregate, None]:
         raise NotImplementedError
 
-    async def _remove(self, aggregate: Aggregate):
-        controller = await self._get_controller(aggregate)
-        if controller.can_curate(self.account):
-            await self._remove_controlled(aggregate)
+    async def _remove(self, aggregate: ControlledAggregate):
+        await self._remove_controlled(aggregate)
 
     @abstractmethod
-    async def _remove_controlled(self, aggregate: Aggregate):
+    async def _remove_controlled(self, aggregate: ControlledAggregate):
+        # ensure admin access to relevant records that make up the aggregate
         raise NotImplementedError
 
-    async def _update(self, aggregate: Aggregate|Tracked):
-        controller = await self._get_controller(aggregate)
+    async def _update(self, aggregate: ControlledAggregate|Tracked):
         if not aggregate.changed:
             return
-        if controller.can_curate(self.account):
-            await self._update_controlled(aggregate)
+
+        if self.user_id is None:
+            raise ValueError("Only registered accounts may create controlled records")
+
+        await self._update_controlled(aggregate)
 
     @abstractmethod
-    async def _update_controlled(self, aggregate: Aggregate|Tracked):
+    async def _update_controlled(self, aggregate: ControlledAggregate|Tracked):
+        # ensure curate access to relevant records that make up the aggregate
         raise NotImplementedError
 
-    async def set_release(self, aggregate: Aggregate, release: Release):
-        controller = await self._get_controller(aggregate)
-        if controller.can_release(self.account):
-            await self._set_release(aggregate, release)
-        else:
-            raise ValueError("Only admins for a record controller can change release")
+    async def _update_entity_controller(self, entity: Tracked | ControlledModel):
+        controller = entity.controller
+        if controller.changed:
+            for i in controller.controls.changed:
+                control = controller.controls[i]
+                await self._update_control(entity, control)
+            for i in controller.controls.added:
+                control = controller.controls[i]
+                await self._create_control(entity, control)
+            for i in controller.controls.removed:
+                control = controller.controls[i]
+                await self._remove_control(entity, control)
 
     @abstractmethod
-    async def _set_release(self, aggregate, release):
+    async def _update_control(self, entity: ControlledModel, control: Control):
         raise NotImplementedError
-
-    async def add_control(self, aggregate: Aggregate, team: int):
-        controller = await self._get_controller(aggregate)
-        if controller.can_release(self.account):
-            await self._add_control(aggregate, team, controller.release)
-        else:
-            raise UnauthorisedOperationError("Only admins for a record controller can add more controls")
 
     @abstractmethod
-    async def _add_control(self, aggregate:Aggregate, team: int, release: Release):
+    async def _create_control(self, entity: ControlledModel, control: Control):
         raise NotImplementedError
-
-    async def remove_control(self, aggregate: Aggregate, team: int):
-        if team in self.account.admins:
-            controller = await self._get_controller(aggregate)
-            if len(controller.controls) == 1:
-                raise ValueError("The last controller for a record can not be removed")
-            await self._remove_control(aggregate, team)
-        else:
-            raise UnauthorisedOperationError("Control can only be removed by admins for the given team")
 
     @abstractmethod
-    async def _remove_control(self, aggregate:Aggregate, team: int):
+    async def _remove_control(self, entity: ControlledModel, control: Control):
         raise NotImplementedError
 
-    @staticmethod
-    def record_to_controller(record):
-        return RecordController(
-            controls=[
-                Control(
-                    time=c['time'].to_native(),
-                    team=c['team'],
-                    release=c['release']
-                )
-                for c in record['controls']
-            ],
-            writes=[
-                WriteStamp(
-                    time=w['time'].to_native(),
-                    user=w['user']
-                ) for w in record['writes']
-            ]
+class Neo4jControlledRepository(ControlledRepository, ABC):
+
+    def __init__(self, tx: AsyncTransaction, **kwargs):
+        super().__init__(**kwargs)
+        self.tx = tx
+
+    async def _update_control(self, entity: ControlledModel, control: Control):
+        await self.tx.run(
+            controls.set_control(label=entity.label, plural=entity.plural),
+            team_id=control.team,
+            release=control.release,
+            entity_id=entity.id
         )
 
+    async def _create_control(self, entity: ControlledModel, control: Control):
+        await self.tx.run(
+            controls.create_control(label=entity.label, plural=entity.plural),
+            team_id=control.team,
+            release=control.release,
+            entity_id=entity.id
+        )
 
+    async def _remove_control(self, entity: ControlledModel, control: Control):
+        await self.tx.run(
+            controls.remove_control(label=entity.label, plural=entity.plural),
+            team_id=control.team,
+            entity_id=entity.id
+        )

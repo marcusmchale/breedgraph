@@ -3,9 +3,9 @@ from ariadne import ObjectType
 from typing import List
 from src.breedgraph.domain.model.accounts import (
     AccountStored, AccountOutput,
-    Access, Authorisation,
     UserOutput
 )
+from src.breedgraph.domain.model.organisations import Access, Authorisation
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 

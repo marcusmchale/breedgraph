@@ -7,11 +7,7 @@ from src.breedgraph.custom_exceptions import (
 )
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.notifications import emails
-from src.breedgraph.domain.model.accounts import Access, Authorisation
-
-from src.breedgraph.domain.model.organisations import (
-    TeamStored
-)
+from src.breedgraph.domain.model.organisations import Access, Authorisation
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -73,7 +69,7 @@ async def process_affiliation_request(
             await uow.commit()
         else:
             organisation = await uow.organisations.get(team_id=event.team)
-            team = organisation.get_member(member_id = event.team)
+            team = organisation.get_node(node_id= event.team)
             message = emails.AffiliationRequestedMessage(
                 requesting_user = account.user,
                 team = team,
@@ -94,7 +90,7 @@ async def notify_user_approved(
     async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=event.user)
         organisation = await uow.organisations.get(team_id=event.team)
-        team = organisation.get_member(member_id=event.team)
+        team = organisation.get_node(node_id=event.team)
 
         message = emails.AffiliationApprovedMessage(
             user = account.user,

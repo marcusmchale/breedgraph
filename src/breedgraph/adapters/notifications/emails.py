@@ -4,8 +4,8 @@ import logging
 from email.mime.text import MIMEText
 
 from src.breedgraph.config import SITE_NAME
-from src.breedgraph.domain.model.accounts import UserBase, Access
-from src.breedgraph.domain.model.organisations import TeamBase
+from src.breedgraph.domain.model.accounts import UserBase
+from src.breedgraph.domain.model.organisations import Access, TeamBase
 from src.breedgraph.config import get_base_url
 from email.message import EmailMessage
 

@@ -16,3 +16,9 @@ class Season(TimeDescriptor):
 class SeasonStored(Season):
     id: int
 
+class TimePeriod(TimeDescriptor):
+    start: TimeDescriptor
+    end: TimeDescriptor
+
+class TimePoint(TimeDescriptor):
+    time: TimeDescriptor

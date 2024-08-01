@@ -1,9 +1,9 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.people import (
-    Person, PersonStored
+    PersonBase, PersonStored
 )
-from src.breedgraph.domain.model.ontologies import Term
+from src.breedgraph.domain.model.ontology import Term
 from src.breedgraph.custom_exceptions import (
     IdentityExistsError,
     UnauthorisedOperationError,
@@ -20,6 +20,6 @@ async def add_person(
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow.get_repositories() as uow:
-        person = Person(**cmd)
+        person = PersonBase(**cmd.model_dump())
         await uow.people.create(person)
         await uow.commit()

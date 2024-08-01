@@ -14,7 +14,7 @@ from src.breedgraph.adapters.notifications import notifications
 from src.breedgraph.config import get_base_url, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
 from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.messagebus import MessageBus
-
+from src.breedgraph.adapters.redis.read_model import ReadModel
 from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
 
 from tests.inputs import UserInputGenerator, LoremTextGenerator
@@ -42,14 +42,15 @@ async def neo4j_tx(neo4j_uow):
 @pytest_asyncio.fixture(scope="session")
 async def email_notifications() -> notifications.EmailNotifications:
     yield notifications.EmailNotifications()
+
 #
-#@pytest_asyncio.fixture(scope="session")
-#async def bus(neo4j_uow, email_notifications) -> MessageBus:
-#    bus = await bootstrap.bootstrap(
-#        uow=neo4j_uow,
-#        notifications=email_notifications
-#    )
-#    yield bus
+@pytest_asyncio.fixture(scope="session")
+async def bus(neo4j_uow, email_notifications) -> MessageBus:
+    bus = await bootstrap.bootstrap(
+        uow=neo4j_uow,
+        notifications=email_notifications
+    )
+    yield bus
 #
 #@pytest_asyncio.fixture(scope="session")
 #async def quiet_bus() -> MessageBus:
@@ -59,6 +60,11 @@ async def email_notifications() -> notifications.EmailNotifications:
 #    )
 #    yield bus
 #
+
+@pytest_asyncio.fixture(scope="session")
+async def read_model(bus) -> ReadModel:
+    yield bus.read_model
+    await bus.read_model.connection.aclose()
 
 @pytest_asyncio.fixture(scope="session")
 async def session_database() -> None:

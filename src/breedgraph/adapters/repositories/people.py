@@ -4,48 +4,40 @@ from neo4j import AsyncTransaction, Record
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from src.breedgraph.adapters.neo4j.cypher import queries, controls
 
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked
-from src.breedgraph.adapters.repositories.controlled import ControlledRepository
+from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
+from src.breedgraph.adapters.repositories.controlled import Neo4jControlledRepository
 
 from typing import AsyncGenerator
 
 from src.breedgraph.domain.model.base import Aggregate
-from src.breedgraph.domain.model.people import Person, PersonStored
-from src.breedgraph.domain.model.controls import RecordController, Release
+from src.breedgraph.domain.model.people import PersonInput, PersonStored
+from src.breedgraph.domain.model.controls import Controller, ReadRelease, Control
 from src.breedgraph.domain.model.accounts import AccountStored
 
-from typing import Tuple, List
+from typing import Tuple, List, Protocol
 
 logger = logging.getLogger(__name__)
 
-class Neo4jPeopleRepository(ControlledRepository):
 
-    def __init__(self, tx: AsyncTransaction, account:AccountStored|None):
-        super().__init__(account)
-        self.tx = tx
+class Neo4jPeopleRepository(Neo4jControlledRepository):
+
 
     async def _create_controlled(
             self,
-            person: Person
+            person: PersonInput
     ) -> PersonStored:
-        result = await self.tx.run(
-            queries['people']['create_person'],
-            {
-                **dict(person),
-                'writer': self.account.user.id,
-                'writes_for': self.writes_for,
-                'release': Release.PRIVATE,
-            }
-        )
+        params = person.model_dump()
+        params['writer'] = self.account.user.id
+        result = await self.tx.run(queries['people']['create_person'], params)
         record = await result.single()
         return PersonStored(**record['person'])
 
     async def _get_controlled(
             self,
             person_id: int = None
-    ) -> Tuple[PersonStored, RecordController]|None:
+    ) -> PersonStored|None:
         if person_id is None:
             raise TypeError(f"person_id is required")
 
@@ -55,50 +47,37 @@ class Neo4jPeopleRepository(ControlledRepository):
         )
         record = await result.single()
         if record:
-            return PersonStored(**record['person']), self.record_to_controller(record['controller'])
+            person = PersonStored(**record['person'])
+            return person
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[Tuple[PersonStored, RecordController], None]:
+    async def _get_all_controlled(self) -> AsyncGenerator[PersonStored, None]:
         result = await self.tx.run(queries['people']['get_people'])
         async for record in result:
-            yield PersonStored(**record['person']), self.record_to_controller(record['controller'])
-
-    async def _get_controller(self, person: PersonStored) -> RecordController:
-        result = await self.tx.run(queries['people']['get_controller'], person_id=person.id)
-        record = await result.single()
-        return self.record_to_controller(record)
+            yield PersonStored(**record['person'])
 
     async def _remove_controlled(self, person: PersonStored):
+        if not person.controller.can_admin(self.account):
+            raise UnauthorisedOperationError("Person can only be removed by an admin for the person record")
+
         await self.tx.run(queries['people']['remove_person'], person_id=person.id)
 
     async def _update_controlled(self, person: PersonStored|Tracked):
-        await self.tx.run(
-            queries['people']['set_person'],
-            {
-                **dict(person),
-                'writer':self.account.user.id
-            })
+        if person.changed:
+            if 'controller' in person.changed:
+                if not person.controller.can_admin(self.account):
+                    raise UnauthorisedOperationError("Only admins can change controls")
 
-    async def _set_release(self, person: PersonStored|Tracked, release: Release):
-        await self.tx.run(
-            queries['people']['set_release'],
-            person_id = person.id,
-            controllers = self.account.admins,
-            release = release
-        )
+                await self._update_entity_controller(person)
 
-    async def _add_control(self, person: PersonStored, team: int, release: Release):
-        await self.tx.run(
-            queries['people']['add_control'],
-            person_id = person.id,
-            team_id = team,
-            release = release
-        )
+            if person.changed != {'controller'}:
+                if not person.controller.can_curate(self.account):
+                    raise UnauthorisedOperationError("Updates can only be performed by accounts with curate control")
 
-    async def _remove_control(self, person: PersonStored, team: int):
-        await self.tx.run(
-            queries['people']['remove_control'],
-            person_id=person.id,
-            team_id=team
-        )
+                await self._update_person(person)
+
+    async def _update_person(self, person: PersonStored):
+        params = person.model_dump()
+        params['writer'] = self.account.user.id
+        await self.tx.run(queries['people']['set_person'], params)

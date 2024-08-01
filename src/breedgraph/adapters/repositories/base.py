@@ -16,16 +16,15 @@ class BaseRepository(ABC):
     def _track(self, aggregate: Aggregate) -> Tracked|Aggregate:
         tracked = Tracked(aggregate)
         self.seen.add(tracked)
-
         return tracked
 
-    async def create(self, aggregate_input: BaseModel) -> Tracked|Aggregate:
+    async def create(self, aggregate_input: BaseModel|None = None) -> Tracked|Aggregate:
         aggregate = await self._create(aggregate_input)
         tracked_aggregate = self._track(aggregate)
         return tracked_aggregate
 
     @abstractmethod
-    async def _create(self, aggregate_input: BaseModel) -> Aggregate:
+    async def _create(self, aggregate_input: BaseModel|None) -> Aggregate:
         raise NotImplementedError
 
     async def get(self, **kwargs) -> Tracked|Aggregate:

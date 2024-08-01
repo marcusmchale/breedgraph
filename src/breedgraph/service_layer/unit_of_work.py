@@ -14,7 +14,7 @@ from src.breedgraph.adapters.repositories.controlled import ControlledRepository
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
 from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
-from src.breedgraph.adapters.repositories.people import Neo4jPeopleRepository
+from src.breedgraph.adapters.repositories.germplasms import Neo4jGermplasmRepository
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from src.breedgraph.domain.events import Event
 from src.breedgraph.domain.model.accounts import AccountStored
@@ -30,7 +30,7 @@ class AbstractRepoHolder(ABC):
     accounts: BaseRepository
     organisations: BaseRepository
     ontologies: BaseRepository
-    people: ControlledRepository
+    germplasm: ControlledRepository
 
     @abstractmethod
     async def commit(self):
@@ -50,9 +50,9 @@ class AbstractRepoHolder(ABC):
         for ontology in self.ontologies.seen:
             while ontology.events:
                 yield ontology.events.pop(0)
-        for person in self.people.seen:
-            while person.events:
-                yield person.events.pop(0)
+        for germplasm in self.germplasm.seen:
+            while germplasm.events:
+                yield germplasm.events.pop(0)
 
 
 class AbstractUnitOfWork(ABC):
@@ -82,13 +82,16 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         self.accounts = Neo4jAccountRepository(self.tx)
         self.organisations = Neo4jOrganisationRepository(self.tx)
         self.ontologies = Neo4jOntologyRepository(self.tx)
-        self.people = Neo4jPeopleRepository(self.tx, account=account)
+        if account is not None:
+            self.germplasm = Neo4jGermplasmRepository(self.tx, user_id = account.user.id)
+        else:
+            self.germplasm = Neo4jGermplasmRepository(self.tx)
 
     async def commit(self):
         await self.accounts.update_seen()
         await self.organisations.update_seen()
         await self.ontologies.update_seen()
-        await self.people.update_seen()
+        await self.germplasm.update_seen()
         logger.debug("Transaction commit")
         await self.tx.commit()
 

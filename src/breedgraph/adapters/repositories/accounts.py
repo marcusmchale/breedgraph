@@ -2,10 +2,9 @@ from abc import ABC, abstractmethod
 from src.breedgraph.custom_exceptions import ProtectedNodeError, IdentityExistsError, IllegalOperationError
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
-    Affiliation, AffiliationStored,
-    Authorisation, Access,
     AccountInput, AccountStored
 )
+from src.breedgraph.domain.model.organisations import Affiliation, Access, Authorisation
 
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
@@ -96,14 +95,14 @@ class Neo4jAccountRepository(BaseRepository):
             if not team_ids and any([access_types, authorisations]):
                 result = await self.tx.run(
                     queries['accounts']['get_accounts_by_affiliation'],
-                    access_types=[a.name for a in access_types],
-                    authorisations=[a.name for a in authorisations]
+                    access_types=[a for a in access_types],
+                    authorisations=[a for a in authorisations]
                 )
             else:
                 result = await self.tx.run(
                     queries['accounts']['get_accounts_by_teams_affiliation'],
-                    access_types=[a.name for a in access_types],
-                    authorisations=[a.name for a in authorisations]
+                    access_types=[a for a in access_types],
+                    authorisations=[a for a in authorisations]
                 )
         async for record in result:
             yield self.record_to_account(record)
@@ -116,7 +115,7 @@ class Neo4jAccountRepository(BaseRepository):
 
     async def _update(self, account: Tracked|AccountStored):
         await self._set_user(account.user)
-        await self._update_affiliations(account.user, account.affiliations)
+#        await self._update_affiliations(account.user, account.affiliations)
         await self._update_allowed_emails(account.user, account.allowed_emails)
 
 
@@ -133,31 +132,6 @@ class Neo4jAccountRepository(BaseRepository):
                 email_verified = user.email_verified,
                 password_hash = user.password_hash
             )
-
-    async def _update_affiliations(self, user: UserStored, affiliations: TrackedList[Tracked|Affiliation]):
-        for i in affiliations.changed.union(affiliations.added):
-            await self._set_affiliation(user, affiliations[i])
-
-        for aff in affiliations.removed:
-            await self._remove_affiliation(user, aff)
-
-    async def _set_affiliation(self, user: UserStored, affiliation: Affiliation)-> None:
-        await self.tx.run(
-            queries['accounts'][f'set_{affiliation.access.casefold()}'],
-            user=user.id,
-            team=affiliation.team,
-            authorisation=affiliation.authorisation,
-            heritable=affiliation.heritable
-        )
-
-    async def _remove_affiliation(self, user: UserStored, affiliation: Affiliation):
-        if affiliation.authorisation in [Authorisation.RETIRED, Authorisation.DENIED]:
-            return
-        elif affiliation.authorisation == Authorisation.REQUESTED:
-            affiliation.authorisation = Authorisation.DENIED
-        elif affiliation.authorisation == Authorisation.AUTHORISED:
-            affiliation.authorisation = Authorisation.RETIRED
-        await self._set_affiliation(user, affiliation)
 
     async def _update_allowed_emails(self, user: UserStored, allowed_emails: TrackedList[str]):
         # Then create/remove allowed_emails (changes are not tracked for strings)
@@ -186,21 +160,9 @@ class Neo4jAccountRepository(BaseRepository):
             password_hash=record['password_hash']
         ) if record else None
 
-    @staticmethod
-    def record_to_affiliation(record) -> AffiliationStored:
-        return AffiliationStored(
-            team=record['team'],
-            authorisation=Authorisation[record['authorisation']],
-            access=Access[record['access']],
-            heritable=record['heritable'],
-            inherits_to=record['inherits_to'],
-            admins=record['admins']
-        ) if record else None
-
     def record_to_account(self, record: Record) -> AccountStored:
         return AccountStored(
             user=self.user_record_to_user(record['user']),
-            affiliations = [self.record_to_affiliation(r) for r in record['affiliations']],
             allowed_emails=record['allowed_emails'],
             allowed_users=record['allowed_users']
         ) if record else None

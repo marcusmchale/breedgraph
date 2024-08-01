@@ -1,4 +1,8 @@
-MATCH (person: Person {id: $id})
+MATCH
+  (writer: User {id: $writer}),
+  (person: Person {id: $id})
+MERGE (writer)-[:CREATED]->(up:UserPeople)
+CREATE (up)-[:UPDATED {time:datetime.transaction()}]->(person)
 SET
   person.name = $name,
   person.fullname = $fullname,
@@ -18,8 +22,7 @@ CALL {
   MATCH (user: User {id: $user})
   MERGE (person)-[is_user:IS_USER]->(user)
   ON CREATE SET is_user.time = datetime.transaction()
-  RETURN
-    collect(user.id)[0] as user
+  RETURN collect(user.id)[0] as user
 }
 CALL {
   WITH person
@@ -30,8 +33,7 @@ CALL {
   MATCH (team: Team) WHERE team.id in $teams
   MERGE (person)-[in_team:IN_TEAM]->(team)
   ON CREATE SET in_team.time = datetime.transaction()
-  RETURN
-    collect(team.id) as teams
+  RETURN collect(team.id) as teams
 }
 CALL {
   WITH person
@@ -42,8 +44,7 @@ CALL {
   MATCH (location: Location) WHERE location.id in $locations
   MERGE (person)-[at_location:AT_LOCATION]->(location)
   ON CREATE SET at_location.time = datetime.transaction()
-  RETURN
-    collect(location.id) as locations
+  RETURN collect(location.id) as locations
 }
 CALL {
   WITH person
@@ -54,8 +55,7 @@ CALL {
   MATCH (role: PersonRole) WHERE role.id in $roles
   MERGE (person)-[has_role:HAS_ROLE]->(role)
   ON CREATE SET has_role.time = datetime.transaction()
-  RETURN
-    collect(role.id) as roles
+  RETURN collect(role.id) as roles
 }
 CALL {
   WITH person
@@ -66,8 +66,7 @@ CALL {
   MATCH (title: PersonTitle) WHERE title.id in $titles
   MERGE (person)-[has_title:HAS_TITLE]->(title)
   ON CREATE SET has_title.time = datetime.transaction()
-  RETURN
-    collect(title.id) as titles
+  RETURN collect(title.id) as titles
 }
 RETURN
   person {
@@ -76,5 +75,15 @@ RETURN
     teams: teams,
     locations: locations,
     roles: roles,
-    titles: titles
+    titles: titles,
+    controller: {
+      controls: [
+        (person)<-[controls:CONTROLS]-(:TeamPeople)<-[:CONTROLS]-(team:Team) |
+        {team: team.id, release: controls.release, time: controls.time}
+      ],
+      writes: [
+        (person)<-[write:CREATED|UPDATED]-(:UserPeople)<-[:CREATED]-(writer:User) |
+        {user:writer.id, time: write.time}
+      ]
+    }
   }

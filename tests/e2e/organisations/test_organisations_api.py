@@ -9,6 +9,9 @@ from tests.e2e.organisations.post_methods import (
 
 from tests.e2e.payload_helpers import get_verified_payload
 
+from src.breedgraph.domain.model.organisations import Authorisation
+
+
 @pytest.mark.asyncio(scope="session")
 async def test_admin_renames_team(client, user_input_generator, admin_login_token):
     teams_request_response = await post_to_teams(

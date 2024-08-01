@@ -17,21 +17,23 @@ CREATE (up)-[created:CREATED {time:datetime.transaction()}]->(person: Person {
 })
 WITH
   person,
-  [{user:writer.id, time:created.time}] as writes
+  [{user:writer.id, time:created.time}] AS writes
 // Establish controls
 CALL {
-  WITH person
-  MATCH (control_team:Team) WHERE control_team.id in $writes_for
-  MERGE (control_team)-[:CONTROLS]->(tp:TeamPeople)
-  CREATE (tp)-[controls:CONTROLS {release: $release, time:datetime.transaction()}]->(person)
-  RETURN
-    collect({
-      team: control_team.id,
-      release: controls.release,
-      time: controls.time
-    }) AS controls
+WITH person
+UNWIND $controller['controls'] AS control
+MATCH (control_team:Team)
+  WHERE control_team.id = control['team']
+MERGE (control_team)-[:CONTROLS]->(tp:TeamPeople)
+CREATE (tp)-[controls:CONTROLS {release: control['release'], time: datetime.transaction()}]->(person)
+RETURN
+  collect({
+    team:    control_team.id,
+    release: controls.release,
+    time:    controls.time
+  }) as controls
 }
-// Update relationships
+// Create relationships
 CALL {
   WITH person
   MATCH (user: User {id: $user})
@@ -69,14 +71,11 @@ CALL {
 }
 RETURN
   person {
-  .*,
+    .*,
     user: user,
     teams: teams,
-    locations:locations,
-    roles:roles,
-    titles: titles
-  },
-  {
-    writes: writes,
-    controls:controls
-  } as controller
+    locations: locations,
+    roles: roles,
+    titles: titles,
+    controller: {controls: controls, writes: writes}
+  }

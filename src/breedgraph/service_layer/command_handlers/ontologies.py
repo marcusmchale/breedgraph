@@ -1,10 +1,10 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.accounts import (
+from src.breedgraph.domain.model.organisations import (
     Authorisation, Access,
     Affiliation,
 )
-from src.breedgraph.domain.model.ontologies import Term
+from src.breedgraph.domain.model.ontology import Term
 from src.breedgraph.custom_exceptions import (
     IdentityExistsError,
     UnauthorisedOperationError,
@@ -31,5 +31,5 @@ async def add_term(
             references = cmd.references if cmd.references is not None else list(),
             parents=cmd.parents if cmd.parents is not None else list(),
         )
-        ontology.add_entry(term)
+        ontology._add_entry(term)
         await uow.commit()

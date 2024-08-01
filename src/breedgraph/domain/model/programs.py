@@ -2,17 +2,18 @@ import logging
 
 from enum import Enum, IntEnum
 from pydantic import BaseModel, Field, field_validator
+from time_descriptors import TimeDescriptor
 from datetime import datetime
 
-from src.breedgraph.domain.model.ontologies import (
-    ConditionStored,
-    SubjectStored,
-    DesignStored,
-    EventTypeStored,
-    GermplasmStored, VariableStored
+from src.breedgraph.domain.model.ontology import (
+    Condition,
+    Subject,
+    Design,
+    EventEntry, Variable, Parameter
 )
-from src.breedgraph.domain.model.people import Person
-from src.breedgraph.domain.model.locations import LocationStored
+from src.breedgraph.domain.model.germplasm import GermplasmEntryStored
+from src.breedgraph.domain.model.people import PersonBase
+from src.breedgraph.domain.model.regions import LocationStored
 from src.breedgraph.domain.model.references import (
     Reference,
     IdentifiedReference,
@@ -21,47 +22,65 @@ from src.breedgraph.domain.model.references import (
     LegalReference
 )
 
-from src.breedgraph.adapters.repositories.base import Entity, Aggregate, AggregateRoot
+from src.breedgraph.domain.model.base import StoredEntity, Aggregate
 
-from typing import List
+from typing import List, Set
 
 logger = logging.getLogger(__name__)
 
-class ObservationLevel(BaseModel):
-    subject: SubjectStored = Field(frozen=True)
-    order: int  # e.g. field = 1, plant = 6
+class FactorLevel(BaseModel):
+    """
+    MIAPPE DM60: exposure or condition that is being tested.
+
+    Factor should be a reference to Event or Parameter in the ontology.
+    Level should define a value for this that is being assessed
+
+    Factors may vary beyond typical exposures or conditions,
+    E.g. In Bolero, we might consider Germplasm as a factor
+     in this case "Genotype" may be defined as a condition,
+     with the levels then corresponding to germplasm references
+    """
+    factor: int
+    level: str|int|float
 
 class Study(BaseModel):
     """
-    This is like the Study concept in BrAPI/ISA
+    This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
     name: str
 
     fullname: str|None = None
     description: str|None = None
-    external_id: str|None = None # an permanent external identifier, e.g. DOI
+    external_id: str|None = None # a permanent external identifier, e.g. DOI
 
-    location: LocationStored = Field(frozen=True)
-    design: DesignStored = Field(frozen=True)
-    germplasm: List[GermplasmStored]  # germplasm references
-    variables: List[VariableStored] = Field(frozen=True)
-    conditions: List[ConditionStored]
-    events: List[EventTypeStored]
-    observation_levels: List[ObservationLevel]
+    variables: List[int]
+    parameters: List[int]
+    events: List[int]
 
-    licence: LegalReference  # for usage of data associated with this experiment
-    references: List[Reference]
+    # Each entry in outside set is a unique set of FactorLevels
+    # All sets of factor levels is defined by experimental unit ~ factor_level
+    factors: Set[Set[FactorLevel]]
 
-    start: datetime
-    end: None|datetime
+    germplasm: List[int]
+    location: int
+    design: int
+
+    units: List[int]
+
+    licence: int  # for usage of data associated with this experiment
+    references: List[int]
+
+    start: TimeDescriptor
+    end: None|TimeDescriptor
 
     cultural_practices: str
     # data: [DataReference]
     documentation: [Reference]
-    contacts: List[Person]
+    contacts: List[PersonBase]
 
-class StudyStored(Study, Entity):
+
+class StudyStored(Study, StoredEntity):
     pass
 
 class Investigation(BaseModel):
@@ -82,12 +101,12 @@ class Investigation(BaseModel):
 
     program: int  # internal reference to program ID
 
-    contacts: List[Person]
+    contacts: List[PersonBase]
 
     publications: List[PublicationReference]
     references: List[Reference]
 
-class InvestigationStored(Investigation, Entity):
+class InvestigationStored(Investigation, StoredEntity):
     pass
 
 class Program(BaseModel):
@@ -96,12 +115,12 @@ class Program(BaseModel):
 
     investigations: List[InvestigationStored]
 
-    leader: Person
+    leader: PersonBase
 
     funding: List[Reference]
     references: List[Reference]
 
     investigations: List[Investigation]
 
-class ProgramStored(Program, Entity):
+class ProgramStored(Program, StoredEntity):
     pass

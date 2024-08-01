@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-from src.breedgraph.domain.model.people import Person
+from src.breedgraph.domain.model.people import PersonBase
 
 from typing import List
 
@@ -30,7 +30,7 @@ class PublicationReference(Reference):
     title: str
     date: datetime
     doi: None|str
-    authors: None|List[Person|str]
+    authors: None|List[PersonBase | str]
 
 class PublicationStored(PublicationReference):
     id: int

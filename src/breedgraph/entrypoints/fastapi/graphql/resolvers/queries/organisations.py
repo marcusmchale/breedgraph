@@ -1,7 +1,8 @@
 from ariadne import ObjectType
 
 from typing import List
-from src.breedgraph.domain.model.organisations import TeamOutput
+#from src.breedgraph.domain.model.organisations import TeamOutput
+from src.breedgraph.domain.model.organisations import Organisation, TeamOutput
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query

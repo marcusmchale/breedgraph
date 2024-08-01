@@ -1,11 +1,8 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.accounts import (
-    Authorisation, Access,
-    Affiliation,
-)
 from src.breedgraph.domain.model.organisations import (
-    TeamInput, TeamStored, Organisation
+    TeamInput, TeamStored, Organisation,
+    Authorisation, Access, Affiliation,
 )
 from src.breedgraph.custom_exceptions import (
     IdentityExistsError,
@@ -39,20 +36,20 @@ async def add_team(
 
         if cmd.parent is not None:
             organisation = await uow.organisations.get(team_id=team_input.parent)
-            parent = organisation.members[team_input.parent]
+            parent = organisation.nodes[team_input.parent]
             if not account.user.id in parent.admins:
                 raise UnauthorisedOperationError("Only admins for the parent team can add a child team")
 
             for t in parent.children:
-                team = organisation.members[t]
+                team = organisation.nodes[t]
                 if team.name.casefold() == team_input.name.casefold():
                     raise IdentityExistsError("The chosen parent team already has a child team with this name")
 
-            organisation.add_member(team_input)
+            organisation._add_node(team_input)
             await uow.organisations.update_seen()
             # get the team ID to add an admin affiliation to the account
             updated_organisation = await uow.organisations.get(team_id=team_input.parent)
-            stored_team: TeamStored = updated_organisation.get_member(
+            stored_team: TeamStored = updated_organisation.get_node(
                 name=team_input.name,
                 parent_id=team_input.parent
             )
@@ -80,7 +77,7 @@ async def remove_team(
 ):
     async with uow.get_repositories() as uow:
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.members[cmd.team]
+        team = organisation.nodes[cmd.team]
 
         if not cmd.user in team.admins:
             raise UnauthorisedOperationError("Only admins for the given team can remove it")
@@ -88,7 +85,7 @@ async def remove_team(
         if team.children:
             raise ProtectedNodeError("Cannot remove a team with children")
 
-        organisation.remove_member(team.id)
+        organisation.remove_node(team.id)
 
         await uow.commit()
 
@@ -98,7 +95,7 @@ async def edit_team(
 ):
     async with uow.get_repositories() as uow:
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.members[cmd.team]
+        team = organisation.nodes[cmd.team]
 
         if not cmd.user in team.admins:
             raise UnauthorisedOperationError("Only admins for the given team can remove it")

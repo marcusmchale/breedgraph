@@ -1,6 +1,7 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.domain.model.organisations import TeamOutput
+from src.breedgraph.domain.model.organisations import Organisation
 from src.breedgraph.domain.model.accounts import AccountOutput, UserOutput
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
 from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository

@@ -29,8 +29,6 @@ from tests.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 from src.breedgraph.custom_exceptions import TooManyRetries, NoResultFoundError
-from src.breedgraph.domain.model.accounts import Access, Authorisation
-
 
 def assert_payload_success(payload):
     assert payload['status'] == GQLStatus.SUCCESS.name

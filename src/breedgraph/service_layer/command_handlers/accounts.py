@@ -5,12 +5,12 @@ from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands, events
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
-    Authorisation, Access,
-    Affiliation,
     AccountInput, AccountStored
 )
 from src.breedgraph.domain.model.organisations import (
-    TeamInput, TeamStored, Organisation
+    TeamInput, TeamStored, Organisation,
+    Authorisation, Access,
+    Affiliation,
 )
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
@@ -190,7 +190,7 @@ async def approve_affiliation(
     async with uow.get_repositories() as uow:
         account = await uow.accounts.get(user_id=cmd.user)
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.get_member(member_id=cmd.team)
+        team = organisation.get_node(node_id=cmd.team)
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only admins for the given team can perform this operation")
 
@@ -203,7 +203,7 @@ async def remove_affiliation(
 ):
     async with uow.get_repositories() as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.get_member(member_id=cmd.team)
+        team = organisation.get_node(node_id=cmd.team)
         if not cmd.admin in team.admins:
             raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
         account = await uow.accounts.get(user_id=cmd.user)

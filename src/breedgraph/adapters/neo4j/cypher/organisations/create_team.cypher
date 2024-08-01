@@ -1,20 +1,16 @@
+MATCH (admin: User {id: $admin})
 MERGE (counter:Counter {name: 'team'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (team: Team {
+CREATE (admin)-[affiliation: ADMIN {authorisation:'AUTHORISED', heritable:true}]-> (team: Team {
   id: counter.count,
   name: $name,
   name_lower: $name_lower,
   fullname: $fullname
 })
 RETURN team {
-  .*,
-  parent: Null,
-  children: [],
-  readers: [],
-  writers: [],
-  admins: [],
-  read_requests: [],
-  write_requests: [],
-  admin_requests: []
+  . *,
+  affiliations: {
+    ADMIN : [affiliation {.*, id: admin.id}]
+  }
 }
