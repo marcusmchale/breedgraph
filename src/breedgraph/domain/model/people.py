@@ -2,13 +2,11 @@ import logging
 
 from pydantic import BaseModel
 
-from .accounts import AccountStored
-from .controls import ControlledModel, ControlledAggregate, ReadRelease
+from .controls import ControlledModel, ControlledAggregate, Access
 
-from typing import List, ClassVar
+from typing import List, Set, ClassVar
 
 logger = logging.getLogger(__name__)
-
 
 class PersonBase(BaseModel):
     label: ClassVar[str] = 'Person'
@@ -32,10 +30,14 @@ class PersonBase(BaseModel):
     roles: List[int]|None = None  # references to PersonRole in ontology
     titles: List[int]|None = None  # references to PersonTitle in ontology
 
-class PersonInput(PersonBase, ControlledModel):
+class PersonInput(PersonBase):
     pass
 
 class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
+
+    @property
+    def controlled_models(self) -> List[ControlledModel]:
+        return []
 
     @property
     def root(self) -> ControlledModel:
@@ -45,28 +47,31 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         return None
 
-    def redacted(self, account: AccountStored):
-        if not self.controller.can_read(account):
+    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'PersonStored|None':
 
-            if not account:
+        if read_teams is None:
+            read_teams = set()
+
+        if self.controller.has_access(Access.READ, user_id, read_teams):
+            return self
+        else:
+            if user_id is None:
                 return None
 
-            person: PersonStored = self.model_copy()
-
-            person.name = self._redacted_str
-            person.fullname = None
-            person.email = None
-            person.mail = None
-            person.phone = None
-            person.orcid = None
-            person.description = None
-            person.user = None
-            person.teams = None
-            person.locations = None
-            person.roles = None
-            person.titles = None
-
-            return person
-
-        else:
-            return self
+            redacted: PersonStored = self.model_copy(
+                deep=True,
+                update = {
+                    'name' : self._redacted_str,
+                    'fullname' : self._redacted_str if self.fullname is not None else None,
+                    'email' : self._redacted_str if self.email is not None else None,
+                    'phone' : self._redacted_str if self.phone is not None else None,
+                    'orcid' : self._redacted_str if self.orcid is not None else None,
+                    'description' : self._redacted_str if self.description is not None else None,
+                    'user' : None,
+                    'teams' : list(),
+                    'locations' : list(),
+                    'roles' : list(),
+                    'titles' : list()
+                }
+            )
+            return redacted

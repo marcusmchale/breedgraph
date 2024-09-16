@@ -15,6 +15,8 @@ wrapt==1.16.0
 networkx~=3.3
 pydantic_core~=2.18.4
 
+numpy~=2.0.1
+
 # below are required for testing only
 httpx==0.27.0
 pytest~=8.1.1
@@ -22,6 +24,7 @@ requests~=2.31.0
 faker~=24.8.0
 setuptools~=59.6.0
 
-
 typing_extensions~=4.10.0
 
+pytest-asyncio~=0.23.6
+asgi-lifespan~=2.1.0

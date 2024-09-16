@@ -12,4 +12,4 @@ RETURN team {
      WRITE : [(team)<-[affiliation:WRITE]-(user:User) | affiliation {.*, id: user.id}],
      CURATE : [(team)<-[affiliation:CURATE]-(user:User) | affiliation {.*, id: user.id}]
   }
-}, [(team)-[include:INCLUDES]->(member:Team) | [team.id, member.id, {relationship:type(include)}]] as includes
+}, [(team)-[include:INCLUDES]->(member:Team) | [team.id, member.id, {label:type(include)}]] as includes

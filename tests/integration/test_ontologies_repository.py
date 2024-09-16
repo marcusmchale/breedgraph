@@ -10,7 +10,7 @@ from src.breedgraph.domain.model.ontology import (
     ScaleType, ScaleCategory, Scale,
     Variable,
     Condition, Parameter,
-    Exposure, EventEntry
+    Exposure, EventType
 )
 
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
@@ -19,43 +19,43 @@ from src.breedgraph.custom_exceptions import NoResultFoundError
 from typing import List
 
 @pytest.mark.asyncio(scope="session")
-async def test_create_and_get(neo4j_tx, lorem_text_generator):
-    repo = Neo4jOntologyRepository(neo4j_tx)
-    assert await repo.get() is None
-    stored_ontology = await repo.create()
+async def test_get(ontologies_repo):
+    stored_ontology = await ontologies_repo.get()
+    if stored_ontology is None:
+        stored_ontology = await ontologies_repo.create()
+
     assert stored_ontology.root.id == stored_ontology.version.id
-    retrieved_ontology = await repo.get(version_id=stored_ontology.version.id)
+
+    retrieved_ontology = await ontologies_repo.get(version_id=stored_ontology.version.id)
     assert retrieved_ontology.version == stored_ontology.version
 
 @pytest.mark.asyncio(scope="session")
-async def test_add_term(neo4j_tx, lorem_text_generator):
-    repo = Neo4jOntologyRepository(neo4j_tx)
-    ontology = await repo.get()
-    version = ontology.version
+async def test_add_term(ontologies_repo, lorem_text_generator):
+    latest_ontology = await ontologies_repo.get()
+    version = latest_ontology.version
     new_term = Term(name=lorem_text_generator.new_text())
-    ontology.add_term(new_term)
-    await repo.update_seen()
+    latest_ontology.add_term(new_term)
+    await ontologies_repo.update_seen()
     # ensure the version has forked
-    assert ontology.version > version
-    assert next(ontology.get_entries(label=Term.label))
-    entry_id, entry = next(ontology.get_entries(new_term.name))
+    assert latest_ontology.version > version
+    assert latest_ontology.get_entry(entry=new_term.name, label=Term.label)
+    entry_id, entry = latest_ontology.get_entry(new_term.name)
     # ensure the entry has a stored ID
     assert entry_id > 0
 
 @pytest.mark.asyncio(scope="session")
-async def test_add_synonym_to_term_causes_patch_fork(neo4j_tx, lorem_text_generator):
-    repo = Neo4jOntologyRepository(neo4j_tx)
-    ontology = await repo.get()
-    version = ontology.version
-    term_id, term = next(ontology.get_entries(label=Term.label))
+async def test_add_synonym_to_term_causes_patch_fork(ontologies_repo, lorem_text_generator):
+    latest_ontology = await ontologies_repo.get()
+    version = latest_ontology.version
+    term_id, term = latest_ontology.get_entry(label=Term.label)
     synonym = lorem_text_generator.new_text()
     term.synonyms.append(synonym)
-    await repo.update_seen()
+    await ontologies_repo.update_seen()
     # ensure version has only applied a patch fork to reflect this immaterial change
-    assert ontology.version.as_tuple()[0:1] == version.as_tuple()[0:1]
-    assert ontology.version.as_tuple()[2] > version.as_tuple()[2]
-    assert len(ontology.entries) == len(ontology.entries)
-    assert next(ontology.get_entries(synonym))
+    assert latest_ontology.version.as_tuple()[0:1] == version.as_tuple()[0:1]
+    assert latest_ontology.version.as_tuple()[2] > version.as_tuple()[2]
+    assert len(latest_ontology.entries) == len(latest_ontology.entries)
+    assert next(latest_ontology.get_entries(synonym))
 
 @pytest.mark.asyncio(scope="session")
 async def test_rename_term_causes_minor_fork(neo4j_tx, lorem_text_generator):
@@ -246,12 +246,12 @@ async def test_create_event(neo4j_tx, lorem_text_generator):
     exposure_id = ontology.add_exposure(exposure)
     method_id, _ = ontology.get_entry(label=ObservationMethod.label)
     scale_id, _ = ontology.get_entry(label=Scale.label)
-    new_event = EventEntry(name=lorem_text_generator.new_text())
+    new_event = EventType(name=lorem_text_generator.new_text())
     with pytest.raises(TypeError):
         ontology.add_event(new_event)
     ontology.add_event(new_event, exposure=exposure_id, method=method_id, scale=scale_id)
     await repo.update_seen()
     exposure_id, _ = ontology.get_entry(exposure.name, label=Exposure.label)
-    event_id, event = ontology.get_entry(new_event.name, label=EventEntry.label)
+    event_id, event = ontology.get_entry(new_event.name, label=EventType.label)
     assert event_id > 0
     assert {exposure_id, method_id, scale_id} == ontology.get_descendants(event_id)

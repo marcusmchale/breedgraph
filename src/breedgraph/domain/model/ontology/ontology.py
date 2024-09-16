@@ -2,20 +2,19 @@ import bisect
 import networkx as nx
 
 from pydantic import BaseModel, computed_field, Field
-from datetime import datetime
 
-from src.breedgraph.domain.model.base import StoredEntity, DiGraphAggregate
-from src.breedgraph.domain.model.graph import PyDiGraph
+from src.breedgraph.domain.model.base import StoredModel, DiGraphAggregate
 
+from .subjects import Subject
 from .entries import OntologyEntry, OntologyRelationshipLabel, Term
-from .variables import Subject, Scale, ScaleType, ScaleCategory, ObservationMethod, Trait, Variable
+from .variables import Scale, ScaleType, ScaleCategory, ObservationMethod, Trait, Variable
 from .germplasm import GermplasmMethod
 from .parameters import Condition, Parameter
-from .events import Exposure, EventEntry
+from .event_type import Exposure, EventType
 from .designs import Design
-from .layout import Layout
+from .layout_type import LayoutType
 from .people import Role, Title
-from .locations import Location
+from .location_type import LocationType
 
 from functools import total_ordering
 from typing import List, Tuple, ClassVar, Generator
@@ -41,7 +40,7 @@ class Version(BaseModel):
         return self.as_tuple() == other.as_tuple()
 
 
-class VersionStored(Version, StoredEntity):
+class VersionStored(Version, StoredModel):
     label: ClassVar[str] = 'OntologyVersion'
     plural: ClassVar[str] = 'OntologyVersions'
     """
@@ -56,10 +55,9 @@ class Ontology(DiGraphAggregate):
     licence: int | None = None  # id for internal LegalReference
     copyright: int | None = None  # id for internal LegalReference
 
-
     @computed_field
     @property
-    def root(self) -> StoredEntity:
+    def root(self) -> StoredModel:
         return self.version
 
     @property
@@ -75,7 +73,9 @@ class Ontology(DiGraphAggregate):
             label: str | None= None
     ) -> Generator[Tuple[int,OntologyEntry], None, None]:
         if isinstance(entry, int) and entry in self.graph:
-            yield entry, self.graph.nodes[entry].get('model')
+            model = self.graph.nodes[entry].get('model')
+            if label is None or model.label == label:
+                yield entry, model
         else:
             for i, d in self.graph.nodes(data=True):
                 if all([
@@ -122,11 +122,11 @@ class Ontology(DiGraphAggregate):
     def add_relationship(
             self,
             source_id: int,
-            target_id: int,
+            sink_id: int,
             label: OntologyRelationshipLabel,
             **kwargs
     ):
-        self._add_edge(source_id, target_id, label=label, **kwargs)
+        self._add_edge(source_id, sink_id, label=label, **kwargs)
 
     def add_term(
             self,
@@ -142,8 +142,8 @@ class Ontology(DiGraphAggregate):
     def add_subject(self, subject: Subject, parents: List[int] = None, children: List[int] = None) -> int:
         return self._add_entry(subject, parents, children)
 
-    def increment_edge_rank(self, source_id, target_id):
-        self.graph.edges[source_id, target_id]['rank'] += 1
+    def increment_edge_rank(self, source_id, sink_id):
+        self.graph.edges[source_id, sink_id]['rank'] += 1
 
     def add_category(
             self,
@@ -173,7 +173,7 @@ class Ontology(DiGraphAggregate):
             if scale_model.type == ScaleType.NOMINAL:
                 self.add_relationship(
                     source_id=scale,
-                    target_id=category_id,
+                    sink_id=category_id,
                     label=OntologyRelationshipLabel.HAS_CATEGORY
                 )
             elif scale_model.type == ScaleType.ORDINAL:
@@ -191,7 +191,7 @@ class Ontology(DiGraphAggregate):
                             self.increment_edge_rank(scale, category_index)
                 self.add_relationship(
                     source_id=scale,
-                    target_id=category_id,
+                    sink_id=category_id,
                     label=OntologyRelationshipLabel.HAS_CATEGORY,
                     rank=rank
                 )
@@ -224,7 +224,7 @@ class Ontology(DiGraphAggregate):
                     )
                 self._add_edge(
                     source_id=scale_id,
-                    target_id=category_id,
+                    sink_id=category_id,
                     label=OntologyRelationshipLabel.HAS_CATEGORY,
                     rank=rank
                 )
@@ -282,7 +282,7 @@ class Ontology(DiGraphAggregate):
         for subject in subjects:
             self._add_edge(
                 source_id=subject,
-                target_id=trait_id,
+                sink_id=trait_id,
                 label=OntologyRelationshipLabel.HAS_TRAIT
             )
         return trait_id
@@ -310,14 +310,14 @@ class Ontology(DiGraphAggregate):
             raise ValueError("The provided entry ID does not correspond to a Method")
         self._add_edge(
             source_id=source_id,
-            target_id=method_id,
+            sink_id=method_id,
             label=OntologyRelationshipLabel.USES_METHOD
         )
         if not isinstance(self.get_entry(scale_id)[1], Scale):
             raise ValueError("The provided entry ID does not correspond to a Scale")
         self._add_edge(
             source_id=source_id,
-            target_id=scale_id,
+            sink_id=scale_id,
             label=OntologyRelationshipLabel.USES_SCALE
         )
 
@@ -338,7 +338,7 @@ class Ontology(DiGraphAggregate):
             raise ValueError("The provided scale ID does not correspond to an Scale")
 
         variable_id = self._add_entry(variable, parents, children)
-        self._add_edge(source_id=variable_id, target_id=trait, label=OntologyRelationshipLabel.DESCRIBES_TRAIT)
+        self._add_edge(source_id=variable_id, sink_id=trait, label=OntologyRelationshipLabel.DESCRIBES_TRAIT)
         self._link_method_and_scale(variable_id, method, scale)
         return variable_id
 
@@ -357,7 +357,7 @@ class Ontology(DiGraphAggregate):
         parameter_id = self._add_entry(parameter, parents, children)
         if not isinstance(self.get_entry(condition)[1], Condition):
             raise ValueError("The provided entry ID does not correspond to a Condition")
-        self._add_edge(source_id=parameter_id, target_id=condition, label=OntologyRelationshipLabel.DESCRIBES_CONDITION)
+        self._add_edge(source_id=parameter_id, sink_id=condition, label=OntologyRelationshipLabel.DESCRIBES_CONDITION)
         self._link_method_and_scale(parameter_id, method, scale)
         return parameter_id
 
@@ -366,7 +366,7 @@ class Ontology(DiGraphAggregate):
 
     def add_event(
             self,
-            event: EventEntry,
+            event: EventType,
             exposure: int,
             method: int,
             scale: int,
@@ -376,14 +376,14 @@ class Ontology(DiGraphAggregate):
         event_id = self._add_entry(event, parents, children)
         if not isinstance(self.get_entry(exposure)[1], Exposure):
             raise ValueError("The provided entry ID does not correspond to an Exposure")
-        self._add_edge(source_id=event_id, target_id=exposure, label=OntologyRelationshipLabel.DESCRIBES_EXPOSURE)
+        self._add_edge(source_id=event_id, sink_id=exposure, label=OntologyRelationshipLabel.DESCRIBES_EXPOSURE)
         self._link_method_and_scale(event_id, method, scale)
         return event_id
 
-    def add_location(self, location: Location, parents: List[int] = None, children: List[int] = None) -> int:
+    def add_location(self, location: LocationType, parents: List[int] = None, children: List[int] = None) -> int:
         return self._add_entry(location, parents, children)
 
-    def add_layout(self, layout: Layout, parents: List[int] = None, children: List[int] = None) -> int:
+    def add_layout(self, layout: LayoutType, parents: List[int] = None, children: List[int] = None) -> int:
         return self._add_entry(layout, parents, children)
 
     def add_design(self, design: Design, parents: List[int] = None, children: List[int] = None) -> int:

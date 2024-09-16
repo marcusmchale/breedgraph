@@ -1,7 +1,7 @@
 from src.breedgraph.domain.model.ontology.entries import OntologyEntry
 from typing import ClassVar
 
-class Location(OntologyEntry):
+class LocationType(OntologyEntry):
     label: ClassVar[str] = 'LocationType'
     plural: ClassVar[str] = 'LocationTypes'
     """

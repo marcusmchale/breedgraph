@@ -1,6 +1,6 @@
 from src.breedgraph.config import GQL_API_PATH
 
-from src.breedgraph.domain.model.accounts import Access
+from src.breedgraph.domain.model.controls import Access
 
 async def post_to_add_first_account(client, name: str, email: str, password: str, team_name: str):
     json={

@@ -12,7 +12,7 @@ from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
 from src.breedgraph.adapters.repositories.base import BaseRepository
 from src.breedgraph.adapters.repositories.controlled import ControlledRepository
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
-from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
+from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationsRepository
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 from src.breedgraph.adapters.repositories.germplasms import Neo4jGermplasmRepository
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
@@ -80,7 +80,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
     def __init__(self, tx: AsyncTransaction, account: AccountStored = None):
         self.tx = tx
         self.accounts = Neo4jAccountRepository(self.tx)
-        self.organisations = Neo4jOrganisationRepository(self.tx)
+        self.organisations = Neo4jOrganisationsRepository(self.tx)
         self.ontologies = Neo4jOntologyRepository(self.tx)
         if account is not None:
             self.germplasm = Neo4jGermplasmRepository(self.tx, user_id = account.user.id)

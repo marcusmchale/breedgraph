@@ -1,50 +1,22 @@
-MATCH (writer: User {id:$writer})
-
 MERGE (counter: count {name: 'location'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-
-MERGE (writer)-[:CREATED]->(ul:UserLocations)
-CREATE (ul)-[created:CREATED {time:datetime.transaction()}]->(location: Location {
+CREATE (location: Location {
   id: counter.count,
   name: $name,
-  fullname: $fullname,
+  synonyms: $synonyms,
   description: $description,
   code: $code,
   address: $address
 })
-
 WITH
-  location,
-  [{user:writer.id, time:created.time}] AS writes
-// Establish controls
-CALL {
-WITH location
-UNWIND $controller['controls'] AS control
-MATCH (control_team:Team)
-  WHERE control_team.id = control['team']
-MERGE (control_team)-[:CONTROLS]->(tl:TeamLocations)
-CREATE (tl)-[controls:CONTROLS {release: control['release'], time: datetime.transaction()}]->(location)
-RETURN
-  collect({
-    team:    control_team.id,
-    release: controls.release,
-    time:    controls.time
-  }) as controls
-}
-// Link to parent
-CALL {
-  WITH location
-  MATCH (parent:Location {id: $parent})
-  CREATE (location)-[:WITHIN_LOCATION]->(parent)
-  RETURN collect(parent.id)[0] as parent
-}
+  location
 // Link to type
 CALL {
   WITH location
-  MATCH (type:LocationType {id: $type})
+  MATCH (type: LocationType {id: $type})
   CREATE (location)-[:OF_LOCATION_TYPE]->(type)
-  RETURN type.id as type
+  RETURN collect(type.id)[0] as type
 }
 // Create coordinates
 CALL {
@@ -63,12 +35,6 @@ CALL {
 RETURN
   location {
     .*,
-    coordinates: coordinates,
-    parent: parent,
-    children: [],
     type: type,
-    controller: {
-      writes: writes,
-      controls: controls
-    }
+    coordinates: coordinates
   }

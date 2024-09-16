@@ -1,40 +1,26 @@
-MATCH (writer: User {id: $writer})
-
 MERGE (counter: count {name: 'germplasm'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-
-MERGE (writer)-[:CREATED]->(ug:UserGermplasm)
-CREATE (ug)-[created:CREATED {time:datetime.transaction()}]->(entry: GermplasmEntry {
+CREATE (entry: GermplasmEntry {
   id: counter.count,
   name: $name,
   synonyms: $synonyms,
   description:  $description,
-  reproduction: $reproduction
+  reproduction: $reproduction,
+  time: datetime($time['str']),
+  time_unit: $time['unit'],
+  time_step: $time['step']
 })
+
 WITH entry
-// Create controls
+// Link methods
 CALL {
   WITH entry
-  UNWIND $controls AS control
-  MATCH (control_team:Team)
-    WHERE control_team.id = control['team']
-  MERGE (control_team)-[:CONTROLS]->(tp:TeamGermplasm)
-  CREATE (tp)-[controls:CONTROLS {release: control['release'], time: datetime.transaction()}]->(entry)
+  UNWIND $methods as method_id
+  MATCH (method: GermplasmMethod {id: method_id})
+  CREATE (entry)-[uses_method:USES_METHOD {time:datetime.transaction()}]->(method)
   RETURN
-  collect({
-    team:    control_team.id,
-    release: controls.release,
-    time:    controls.time
-  }) AS controls
-}
-// Link method
-CALL {
-  WITH entry
-  MATCH (maintenance: GermplasmMethod {id: $maintenance})
-  CREATE (entry)-[uses_method:USES_METHOD {time:datetime.transaction()}]->(maintenance)
-  RETURN
-    collect(maintenance.id)[0] AS maintenance
+    collect(method.id) AS methods
 }
 // Link references
 CALL {
@@ -47,13 +33,6 @@ CALL {
 }
 RETURN entry {
        .*,
-         maintenance:maintenance,
-         references:references,
-         controller: {
-          controls: controls,
-          writes: [
-            (germplasm)<-[write:CREATED|UPDATED]-(:UserGermplasm)<-[:CREATED]-(user:User) |
-            {user:user.id, time: write.time}
-          ]
-       }
+         methods: methods,
+         references:references
      }

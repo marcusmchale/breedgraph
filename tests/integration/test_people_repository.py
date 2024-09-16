@@ -1,6 +1,4 @@
 import pytest
-import pytest_asyncio
-from datetime import datetime
 from src.breedgraph.domain.model.controls import Control, ReadRelease, Controller
 from src.breedgraph.domain.model.people import PersonInput, PersonStored
 
@@ -8,58 +6,76 @@ from src.breedgraph.adapters.repositories.people import Neo4jPeopleRepository
 
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_and_get_person(
-        neo4j_tx,
-        stored_account_with_affiliations,
-        stored_account_without_affiliations,
-        user_input_generator
-):
-    repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_with_affiliations)
+def get_person_input(user_input_generator, stored_organisation):
     person_input = user_input_generator.new_user_input()
-    person = PersonInput(
+    return PersonInput(
         name=person_input['name'],
         fullname=person_input['name'],
         email=person_input['email'],
         user=1,
-        teams=[1],
-        controller = Controller(
-            controls=[Control(team=stored_account_with_affiliations.reads[0], release=ReadRelease.PRIVATE)]
-        )
+        teams=[1]
     )
-    # Person is created private
-    stored: PersonStored = await repo.create(person)
-    retrieved_private: PersonStored = await repo.get(person_id = stored.id)
 
-    assert stored.name == retrieved_private.name
+@pytest.mark.asyncio(scope="session")
+async def test_create_and_get(
+        neo4j_tx,
+        stored_account,
+        stored_organisation,
+        user_input_generator
+):
+    repo = Neo4jPeopleRepository(
+        neo4j_tx,
+        user_id=stored_account.user.id,
+        read_teams=[stored_organisation.root.id],
+        write_teams=[stored_organisation.root.id]
+    )
+    person_input = get_person_input(user_input_generator, stored_organisation)
+    stored_person: PersonStored = await repo.create(person_input)
+    retrieved_person: PersonStored = await repo.get(person_id = stored_person.id)
+    assert stored_person.name == retrieved_person.name
     async for person in repo.get_all():
-        if person.name == person_input['name']:
+        if person.name == person_input.name:
             break
     else:
         raise NoResultFoundError("Couldn't find created person by get all")
-    # Confirm other registered users see redacted version
-    registered_repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_without_affiliations)
-    retrieved_registered = await registered_repo.get(person_id = stored.id)
-    assert retrieved_registered.name == PersonStored._redacted_str
-    async for r in registered_repo.get_all():
-        assert r.name == PersonStored._redacted_str
 
-    # Confirm the public can't see it yet
-    public_repo = Neo4jPeopleRepository(neo4j_tx, account=None)
-    assert await public_repo.get(person_id = stored.id) is None
-    async for _ in public_repo.get_all():
-        raise UnauthorisedOperationError("Public users can get all including the private person")
+@pytest.mark.asyncio(scope="session")
+async def test_get_without_read(
+            neo4j_tx,
+            stored_account,
+            stored_organisation,
+            user_input_generator
+    ):
+    # Confirm without read we see a redacted version if registered and get None if not
+    repo = Neo4jPeopleRepository(
+        neo4j_tx,
+        user_id=stored_account.user.id
+    )
+    retrieved = await repo.get(person_id=1)
+    assert retrieved.name == PersonStored._redacted_str
+    repo = Neo4jPeopleRepository(
+        neo4j_tx
+    )
+    assert await repo.get(person_id=1) is None
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_release_to_registered(
         neo4j_tx,
-        stored_account_with_affiliations,
-        stored_account_without_affiliations,
+        stored_account,
+        second_account,
+        stored_organisation,
         user_input_generator
 ):
-    repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_with_affiliations)
+    repo = Neo4jPeopleRepository(
+        neo4j_tx,
+        user_id=stored_account.user.id,
+        read_teams={stored_organisation.root.id},
+        write_teams={stored_organisation.root.id},
+        admin_teams={stored_organisation.root.id}
+    )
     person: PersonStored = await repo.get(person_id=1)
-    person.set_release(release=ReadRelease.REGISTERED, account=stored_account_with_affiliations)
+    person.set_release(team_id=stored_organisation.root.id, release=ReadRelease.REGISTERED)
     await repo.update_seen()
 
     retrieved: PersonStored = await repo.get(person_id=person.id)
@@ -68,36 +84,43 @@ async def test_release_to_registered(
         if p.name == person.name:
             break
         else:
-            raise NoResultFoundError("Couldn't find person by get all in private")
+            raise NoResultFoundError("Private repo couldn't get person by get all")
 
-    # Confirm other registered users cannot see it yet
-    registered_repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_without_affiliations)
+    registered_repo = Neo4jPeopleRepository(neo4j_tx, user_id=second_account.user.id)
     retrieved_from_registered = await registered_repo.get(person_id=person.id)
     assert retrieved_from_registered
     async for p in registered_repo.get_all():
         if p.name == person.name:
             break
         else:
-            raise NoResultFoundError("Couldn't find created person by get all")
+            raise NoResultFoundError("Registered repo can't get person by get all")
 
     # Confirm the public can't see it yet
-    public_repo = Neo4jPeopleRepository(neo4j_tx, account=None)
+    public_repo = Neo4jPeopleRepository(neo4j_tx)
     retrieved_from_unregistered =  await public_repo.get(person_id=person.id)
+
     assert retrieved_from_unregistered is None
     async for _ in public_repo.get_all():
-        raise UnauthorisedOperationError("Public users can get all including the private person")
+        raise UnauthorisedOperationError("Public repo can get private released person")
 
 
 @pytest.mark.asyncio(scope="session")
 async def test_release_to_public(
         neo4j_tx,
-        stored_account_with_affiliations,
-        stored_account_without_affiliations,
+        stored_account,
+        second_account,
+        stored_organisation,
         user_input_generator
 ):
-    repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_with_affiliations)
+    repo = Neo4jPeopleRepository(
+        neo4j_tx,
+        user_id=stored_account.user.id,
+        read_teams={stored_organisation.root.id},
+        write_teams={stored_organisation.root.id},
+        admin_teams={stored_organisation.root.id}
+    )
     person = await repo.get(person_id=1)
-    person.set_release(ReadRelease.PUBLIC, stored_account_with_affiliations)
+    person.set_release(team_id=stored_organisation.root.id, release=ReadRelease.PUBLIC)
     await repo.update_seen()
 
     retrieved: PersonStored = await repo.get(person_id=person.id)
@@ -106,37 +129,44 @@ async def test_release_to_public(
         if p.name == person.name:
             break
         else:
-            raise NoResultFoundError("Couldn't find person by get all in private")
+            raise NoResultFoundError("Private repo can't get person by get all")
 
-    # Confirm other registered users cannot see it yet
-    registered_repo = Neo4jPeopleRepository(neo4j_tx, account=stored_account_without_affiliations)
+    # Confirm other registered users can see the un-redacted version
+    registered_repo = Neo4jPeopleRepository(neo4j_tx, user_id = second_account.user.id)
     retrieved_from_registered = await registered_repo.get(person_id=person.id)
-    assert retrieved_from_registered
+    assert retrieved_from_registered.name == person.name
     async for p in registered_repo.get_all():
         if p.name == person.name:
             break
         else:
-            raise NoResultFoundError("Couldn't find created person by get all in registered")
+            raise NoResultFoundError("Registered repo can't get person by get all")
 
-    # Confirm the public can't see it yet
-    public_repo = Neo4jPeopleRepository(neo4j_tx, account=None)
+    # Confirm the public can see it
+    public_repo = Neo4jPeopleRepository(neo4j_tx)
     retrieved_from_public = await public_repo.get(person_id=person.id)
     assert retrieved_from_public
     async for p in public_repo.get_all():
         if p.name == person.name:
             break
         else:
-            raise NoResultFoundError("Couldn't find created person by get all in public")
+            raise NoResultFoundError("Public repo can't get person by get all")
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_edit_person(neo4j_tx, stored_account_with_affiliations, user_input_generator):
-    people_repo = Neo4jPeopleRepository(neo4j_tx, account = stored_account_with_affiliations)
-    person = await people_repo.get(person_id=1)
+async def test_edit_person(neo4j_tx, stored_account, stored_organisation, user_input_generator):
+    repo = Neo4jPeopleRepository(
+        neo4j_tx,
+        user_id=stored_account.user.id,
+        read_teams={stored_organisation.root.id},
+        write_teams={stored_organisation.root.id},
+        curate_teams={stored_organisation.root.id}
+    )
+    person = await repo.get(person_id=1)
 
     new_input = user_input_generator.new_user_input()
     person.name = new_input['name']
-    await people_repo.update_seen()
-    changed_person = await people_repo.get(person_id=1)
+    await repo.update_seen()
+    changed_person = await repo.get(person_id=1)
     assert changed_person.name == new_input['name']
+
 

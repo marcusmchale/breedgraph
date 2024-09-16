@@ -2,7 +2,7 @@ import networkx as nx
 from pydantic import BaseModel, field_validator, ValidationError, Field, computed_field, model_validator, ConfigDict
 from enum import Enum
 
-from src.breedgraph.domain.model.base import TreeAggregate, StoredEntity, LabeledModel
+from src.breedgraph.domain.model.base import TreeAggregate, StoredModel, LabeledModel
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
 from src.breedgraph.adapters.repositories.trackable_wrappers import TrackedDict
@@ -39,7 +39,7 @@ class TeamBase(LabeledModel):
 class TeamInput(TeamBase):
     pass
 
-class TeamStored(TeamBase, StoredEntity):
+class TeamStored(TeamBase, StoredModel):
     affiliations: dict[Access, dict[int, Affiliation]] = {a: dict() for a in Access}
 
     def __init__(self, **kwargs):
@@ -72,7 +72,7 @@ class Organisation(TreeAggregate):
 
         team_id = self._add_node(team)
         if parent_id is not None:
-            self._add_edge(parent_id, team_id, label='INCLUDES')
+            self._add_edge(source_id=parent_id, sink_id=team_id)
 
         return team_id
 

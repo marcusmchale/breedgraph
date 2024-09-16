@@ -1,11 +1,7 @@
-MATCH (writer: User {id: $writer})
-
 MERGE (counter: count {name: 'person'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-
-MERGE (writer)-[:CREATED]->(up:UserPeople)
-CREATE (up)-[created:CREATED {time:datetime.transaction()}]->(person: Person {
+CREATE (person: Person {
   id:          counter.count,
   name:        $name,
   fullname:    $fullname,
@@ -16,24 +12,7 @@ CREATE (up)-[created:CREATED {time:datetime.transaction()}]->(person: Person {
   description: $description
 })
 WITH
-  person,
-  [{user:writer.id, time:created.time}] AS writes
-// Establish controls
-CALL {
-WITH person
-UNWIND $controller['controls'] AS control
-MATCH (control_team:Team)
-  WHERE control_team.id = control['team']
-MERGE (control_team)-[:CONTROLS]->(tp:TeamPeople)
-CREATE (tp)-[controls:CONTROLS {release: control['release'], time: datetime.transaction()}]->(person)
-RETURN
-  collect({
-    team:    control_team.id,
-    release: controls.release,
-    time:    controls.time
-  }) as controls
-}
-// Create relationships
+  person
 CALL {
   WITH person
   MATCH (user: User {id: $user})
@@ -76,6 +55,5 @@ RETURN
     teams: teams,
     locations: locations,
     roles: roles,
-    titles: titles,
-    controller: {controls: controls, writes: writes}
+    titles: titles
   }

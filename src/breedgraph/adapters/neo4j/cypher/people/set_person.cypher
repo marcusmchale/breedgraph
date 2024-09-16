@@ -1,8 +1,5 @@
 MATCH
-  (writer: User {id: $writer}),
   (person: Person {id: $id})
-MERGE (writer)-[:CREATED]->(up:UserPeople)
-CREATE (up)-[:UPDATED {time:datetime.transaction()}]->(person)
 SET
   person.name = $name,
   person.fullname = $fullname,
@@ -75,15 +72,5 @@ RETURN
     teams: teams,
     locations: locations,
     roles: roles,
-    titles: titles,
-    controller: {
-      controls: [
-        (person)<-[controls:CONTROLS]-(:TeamPeople)<-[:CONTROLS]-(team:Team) |
-        {team: team.id, release: controls.release, time: controls.time}
-      ],
-      writes: [
-        (person)<-[write:CREATED|UPDATED]-(:UserPeople)<-[:CREATED]-(writer:User) |
-        {user:writer.id, time: write.time}
-      ]
-    }
+    titles: titles
   }

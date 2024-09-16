@@ -1,126 +1,175 @@
 import logging
 
-from enum import Enum, IntEnum
-from pydantic import BaseModel, Field, field_validator
-from time_descriptors import TimeDescriptor
+from pydantic import BaseModel
+from time_descriptors import PyDT64
 from datetime import datetime
 
-from src.breedgraph.domain.model.ontology import (
-    Condition,
-    Subject,
-    Design,
-    EventEntry, Variable, Parameter
-)
-from src.breedgraph.domain.model.germplasm import GermplasmEntryStored
-from src.breedgraph.domain.model.people import PersonBase
-from src.breedgraph.domain.model.regions import LocationStored
-from src.breedgraph.domain.model.references import (
-    Reference,
-    IdentifiedReference,
-    PublicationReference,
-    DataReference,
-    LegalReference
-)
 
-from src.breedgraph.domain.model.base import StoredEntity, Aggregate
+from src.breedgraph.domain.model.base import StoredModel, Aggregate
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access
+from src.breedgraph.domain.model.references import ExternalReference, FileReference
+
 
 from typing import List, Set
 
 logger = logging.getLogger(__name__)
 
-class FactorLevel(BaseModel):
-    """
-    MIAPPE DM60: exposure or condition that is being tested.
 
-    Factor should be a reference to Event or Parameter in the ontology.
-    Level should define a value for this that is being assessed
-
-    Factors may vary beyond typical exposures or conditions,
-    E.g. In Bolero, we might consider Germplasm as a factor
-     in this case "Genotype" may be defined as a condition,
-     with the levels then corresponding to germplasm references
-    """
-    factor: int
-    level: str|int|float
-
-class Study(BaseModel):
+class StudyBase(BaseModel):
     """
     This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
     name: str
-
     fullname: str|None = None
     description: str|None = None
-    external_id: str|None = None # a permanent external identifier, e.g. DOI
 
-    variables: List[int]
-    parameters: List[int]
-    events: List[int]
+    external_id: str|None = None  # a permanent external identifier, should we make this UUID?
 
-    # Each entry in outside set is a unique set of FactorLevels
-    # All sets of factor levels is defined by experimental unit ~ factor_level
-    factors: Set[Set[FactorLevel]]
+    # MIAPPE V1.1 (DM-28) General description of the cultural practices associated with the study.
+    practices: str|None = None
 
-    germplasm: List[int]
-    location: int
-    design: int
+    start: PyDT64 | None
+    end: PyDT64 | None
 
-    units: List[int]
+    # MIAPPE DM60: exposure or condition that is being tested.
+    factors: List[int]  # list of StudyTerm IDs, these terms should be linked to Parameter or Event in the ontology
+    observations: List[int]  # list of StudyTerm IDs. These should be linked to Variable in the ontology
 
-    licence: int  # for usage of data associated with this experiment
-    references: List[int]
+    # Germplasm, Location are defined for units, to retrieve from there for read operations
+    # Units in turn are accessed through factors/observations
+    design: int | None  # Reference to Design in Ontology
 
-    start: TimeDescriptor
-    end: None|TimeDescriptor
+    licence: int | None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
-    cultural_practices: str
-    # data: [DataReference]
-    documentation: [Reference]
-    contacts: List[PersonBase]
+    references: List[int] # list of other references by IDs
 
 
-class StudyStored(Study, StoredEntity):
+class StudyInput(StudyBase):
     pass
 
-class Investigation(BaseModel):
+class StudyStored(StudyBase, ControlledModel):
+
+    def redacted(self) -> 'ControlledModel':
+        return self.model_copy(deep=True, update={
+            'name': self.redacted_str,
+            'fullname': self.redacted_str if self.fullname is not None else None,
+            'description': self.redacted_str if self.description is not None else None,
+            'external_id': self.redacted_str if self.external_id is not None else None,
+            'practices': self.redacted_str if self.practices is not None else None,
+            'start': None,
+            'end': None,
+            'factors': list(),
+            'observations': list(),
+            'design': None,
+            'licence': None,
+            'references': list()
+        })
+
+
+class TrialBase(BaseModel):
     """
     This is like the Trial concept in BrAPI,
     But using the more widespread terminology from ISA
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
-    name: str  #
 
-    fullname: None | str
-    description: None | str
+    name: str
+    fullname: str|None = None
+    description: str|None = None
 
     start: datetime
     end: None | datetime
 
-    studies: List[StudyStored]
+    studies: dict[int, StudyInput|StudyStored]  # keyed by ID or assigned a temporary ID for inputs
 
-    program: int  # internal reference to program ID
+    contacts: List[int] # list of Person by ID suitable to contact for queries about this study.
+    publications: List[int]  # list of PublicationReference by ID
+    references: List[int]  # list of other reference by ID
 
-    contacts: List[PersonBase]
-
-    publications: List[PublicationReference]
-    references: List[Reference]
-
-class InvestigationStored(Investigation, StoredEntity):
+class TrialInput(TrialBase):
     pass
 
-class Program(BaseModel):
-    name: str # e.g. Bolero
-    fullname: str
+class TrialStored(TrialBase, ControlledModel):
 
-    investigations: List[InvestigationStored]
+    def redacted(self) -> 'TrialStored':
 
-    leader: PersonBase
+        return self.model_copy(deep=True, update={
+            'name': self.redacted_str,
+            'fullname': self.redacted_str if self.fullname is not None else None,
+            'description': self.redacted_str if self.description is not None else None,
+            'start': None,
+            'end': None,
+            'factors': list(),
+            'observations': list(),
+            'design': None,
+            'licence': None,
+            'references': list()
+        })
 
-    funding: List[Reference]
-    references: List[Reference]
 
-    investigations: List[Investigation]
+class ProgramBase(BaseModel):
+    name: str
+    fullname: str|None = None
+    description: str|None = None
 
-class ProgramStored(Program, StoredEntity):
+    leader: int  # PersonStored by ID
+
+    trials: dict[int, TrialInput|TrialStored] # keyed by ID or assigned a temporary ID for inputs
+    references: List[int]  # list of reference IDs
+
+class ProgramInput(ProgramBase):
     pass
+
+class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
+
+    @property
+    def controlled_models(self) -> List[ControlledModel]:
+        # We have distinct controls on trials and nested studies.
+        # Trials may then be shared without sharing associated studies
+        trials = list(self.trials.values())
+        studies = [study for trial in trials for study in trial.studies.values()]
+        references = [self.references]
+
+        return trials + studies + references
+
+    @property
+    def root(self) -> StoredModel:
+        return self
+
+    @property
+    def protected(self) -> str | None:
+        if self.trials:
+            return "Programs with established trials may not be removed"
+
+    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ProgramStored':
+        if read_teams is None:
+            read_teams = set()
+
+        redacted = self.model_copy(deep=True)
+
+        for trial_key, trial in self.trials.items():
+            if not trial.controller.has_access(Access.READ, user_id, read_teams):
+                if user_id is None:
+                    redacted.trials.pop(trial_key)
+                else:
+                    redacted.trials[trial_key] = trial.redacted()
+            else:
+                for study_key, study in trial.studies.values():
+                    if not study.controller.has_access(Access.READ, user_id, read_teams):
+                        if user_id is None:
+                            redacted.trials[trial_key].pop(study_key)
+                        else:
+                            redacted.trials[trial_key] = study.redacted()
+
+        if user_id is None:
+            redacted.references[:] = [
+                r for r in redacted.references if r.controller.has_access(Access.READ, user_id, read_teams)
+            ]
+        else:
+            redacted.references[:] = [
+                r if r.controller.has_access(Access.READ, user_id, read_teams) else r.redacted() for r in redacted.references
+            ]
+
+        return redacted
+

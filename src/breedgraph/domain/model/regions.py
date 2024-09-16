@@ -1,14 +1,9 @@
-from pydantic import BaseModel, field_validator, ValidationError, Field, computed_field, model_serializer, field_serializer
-import re
+from pydantic import BaseModel
 
-from src.breedgraph.domain.model.accounts import AccountStored
-from src.breedgraph.domain.model.base import StoredEntity, TreeAggregate
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate
+from src.breedgraph.domain.model.base import LabeledModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate
 
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedSet, TrackedDict, TrackedList
-
-from typing import List, Dict, ClassVar
-
+from typing import List, ClassVar
 
 class GeoCoordinate(BaseModel):  # ISO 6709
     latitude: float
@@ -17,35 +12,52 @@ class GeoCoordinate(BaseModel):  # ISO 6709
     uncertainty: float = None
     description: str = None
 
-class LocationBase(BaseModel):
+class LocationBase(LabeledModel):
+    label: ClassVar[str] = 'Location'
+    plural: ClassVar[str] = 'Locations'
 
     name: str
+    synonyms: List[str] = list()
     type: int  # reference to location type in ontology
 
-    fullname: str|None = None
     description: str|None = None
     code: str|None = None  # can be country code, zip code, code for a field etc.
     address: str|None = None
 
-    coordinates: list[GeoCoordinate] = [] # if more than one then interpreted as a polygon specifying boundaries
-    parent: int|None = None
+    coordinates: list[GeoCoordinate] = list() # if more than one then interpreted as a polygon specifying boundaries
 
+    @property
+    def names(self):
+        return [self.name] + self.synonyms
 
-class LocationInput(LocationBase, ControlledModel):
+    def __hash__(self):
+        return hash(self.name)
+
+class LocationInput(LocationBase):
     pass
 
 class LocationStored(LocationBase, ControlledModel):
-    label: ClassVar[str] = 'Location'
-    plural: ClassVar[str] = 'Locations'
 
-    children: List[int] = Field(frozen=True)
+    def redacted(self):
+        return self.model_copy(deep=True, update={
+            'name': self.redacted_str,
+            'synonyms': [self.redacted_str for _ in self.synonyms],
+            # type is still visible, this node is only seen when root of aggregate.
+            'description': self.redacted_str if self.description is not None else self.description,
+            'code': self.redacted_str if self.code is not None else self.code,
+            'address': self.redacted_str if self.address is None else self.address,
+            'coordinates': list()
+        })
 
-class Region(TreeAggregate, ControlledAggregate):
+class Region(ControlledTreeAggregate):
 
-    def redact(self, account: AccountStored):
-        for key, member in self.nodes.items():
-            if isinstance(member, LocationStored):
-                if not member.controller.can_read(account):
-                    self.nodes[key] = None
+    def add_location(self, location: LocationInput, parent_id: int|None):
+        if parent_id is not None:
+            sources = {parent_id: None}
+        else:
+            sources = None
 
-    nodes: Dict[int, LocationInput | LocationStored | None]
+        return super().add_entry(location, sources)
+
+    def get_location(self, location: str|int):
+        return super().get_entry(location)

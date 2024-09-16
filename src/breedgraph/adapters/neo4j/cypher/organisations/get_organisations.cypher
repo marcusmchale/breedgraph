@@ -11,6 +11,6 @@ RETURN [ team IN organisation |
     WRITE:[(team)< - [affiliation:WRITE] -(user:User) | affiliation {. *, id:user.id}],
     CURATE:[(team)< - [affiliation:CURATE] -(user:User) | affiliation {. *, id:user.id}]
     },
-    includes: [(team)- [includes:INCLUDES] - >(member:Team) | [team.id, member.id, {relationship:type(includes)}]]
+    includes: [(team)- [includes:INCLUDES] - >(member:Team) | [team.id, member.id, {label:type(includes)}]]
   }
 ] AS organisation

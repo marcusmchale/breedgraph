@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 from pydantic import BaseModel, Field
 
-from .base import StoredEntity, Aggregate
+from .base import StoredModel, Aggregate
 
 from src.breedgraph.domain.events.accounts import EmailAdded, EmailVerified
 
@@ -23,12 +23,12 @@ class UserInput(UserBase):
     password_hash: str
     email_verified: bool = False
 
-class UserStored(UserBase, StoredEntity):
+class UserStored(UserBase, StoredModel):
     password_hash: str
     email_verified: bool = False
     person: None|int = None  #ID for the corresponding Person
 
-class UserOutput(UserBase, StoredEntity):
+class UserOutput(UserBase, StoredModel):
     pass
 
 class AccountBase(BaseModel):

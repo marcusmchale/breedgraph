@@ -11,8 +11,8 @@ from src.breedgraph.domain.model.ontology import (
     Subject,
     Trait, Variable,
     Condition, Parameter,
-    Exposure, EventEntry,
-    Location, Layout, Design, Role, Title,
+    Exposure, EventType,
+    LocationType, LayoutType, Design, Role, Title,
     GermplasmMethod
 )
 from src.breedgraph.custom_exceptions import IllegalOperationError
@@ -27,11 +27,11 @@ def first_ontology(lorem_text_generator, first_version_stored) -> Ontology:
     return Ontology(version=first_version_stored)
 
 @pytest.mark.asyncio
-async def test_add_and_get_entry(first_ontology, lorem_text_generator):
+async def test_add_and_get(first_ontology, lorem_text_generator):
     name = lorem_text_generator.new_text(10)
     alt_name = lorem_text_generator.new_text(20)
     term = Term(name=name, synonyms=[alt_name])
-    temp_id = first_ontology._add_entry(term)
+    temp_id = first_ontology.add_term(term)
     assert first_ontology.size == 1
     assert first_ontology.get_entry(temp_id)[1].name == name
     assert first_ontology.get_entry(name)[1].name == name
@@ -42,11 +42,11 @@ async def test_add_and_get_entry(first_ontology, lorem_text_generator):
     assert first_ontology.get_entry(lorem_text_generator.new_text(5)) is None
 
 @pytest.mark.asyncio
-async def test_add_entry_prevents_duplicate_names(first_ontology, lorem_text_generator):
+async def test_add_prevents_duplicate_names(first_ontology, lorem_text_generator):
     name = lorem_text_generator.new_text(10)
     alt_name = lorem_text_generator.new_text(20)
     term = Term(name=name, synonyms=[alt_name])
-    first_ontology._add_entry(term)
+    first_ontology.add_term(term)
     with pytest.raises(ValueError):
         new_term1 = Term(name=term.name)
         first_ontology.add_term(new_term1)
@@ -55,14 +55,14 @@ async def test_add_entry_prevents_duplicate_names(first_ontology, lorem_text_gen
         first_ontology.add_term(new_term2)
 
 @pytest.mark.asyncio
-async def test_add_entry_prevents_cycles(first_ontology, lorem_text_generator):
-    first_id = first_ontology._add_entry(Term(name=lorem_text_generator.new_text(10)))
-    second_id = first_ontology._add_entry(
+async def test_add_prevents_cycles(first_ontology, lorem_text_generator):
+    first_id = first_ontology.add_term(Term(name=lorem_text_generator.new_text(10)))
+    second_id = first_ontology.add_term(
         Term(name=lorem_text_generator.new_text(5)),
         parents=[first_id]
     )
     with pytest.raises(IllegalOperationError):
-        first_ontology._add_entry(
+        first_ontology.add_term(
             Term(name=lorem_text_generator.new_text(5)),
             parents=[second_id],
             children=[first_id]
@@ -70,7 +70,7 @@ async def test_add_entry_prevents_cycles(first_ontology, lorem_text_generator):
 
 @pytest.mark.asyncio
 async def test_add_relationship_prevents_loops(first_ontology, lorem_text_generator):
-    first_id = first_ontology._add_entry(Term(name=lorem_text_generator.new_text(10)))
+    first_id = first_ontology.add_term(Term(name=lorem_text_generator.new_text(10)))
     with pytest.raises(IllegalOperationError):
         first_ontology.add_relationship(first_id, first_id, label=OntologyRelationshipLabel.RELATES_TO)
 
@@ -191,7 +191,7 @@ async def test_add_parameter(first_ontology, lorem_text_generator):
 
 @pytest.mark.asyncio
 async def test_add_event(first_ontology, lorem_text_generator):
-    event = EventEntry(name = lorem_text_generator.new_text(10))
+    event = EventType(name = lorem_text_generator.new_text(10))
     subject = Subject(name=lorem_text_generator.new_text(10))
     subject_id = first_ontology.add_subject(subject)
     exposure = Exposure(name=lorem_text_generator.new_text(10), synonyms=[lorem_text_generator.new_text(5)])
@@ -203,18 +203,18 @@ async def test_add_event(first_ontology, lorem_text_generator):
     scale_id = first_ontology.add_scale(scale)
     first_ontology.add_event(event, exposure=exposure_id, method=method_id, scale=scale_id)
     with pytest.raises(ValueError):
-        new_event = EventEntry(name=lorem_text_generator.new_text(10))
+        new_event = EventType(name=lorem_text_generator.new_text(10))
         first_ontology.add_event(new_event, exposure=method_id, method=method_id, scale=scale_id)
 
 @pytest.mark.asyncio
 async def test_add_location(first_ontology, lorem_text_generator):
-    location = Location(name=lorem_text_generator.new_text(10))
+    location = LocationType(name=lorem_text_generator.new_text(10))
     first_ontology.add_location(location)
     assert first_ontology.get_entry(label=location.label)
 
 @pytest.mark.asyncio
 async def test_add_layout(first_ontology, lorem_text_generator):
-    layout = Layout(name=lorem_text_generator.new_text(10))
+    layout = LayoutType(name=lorem_text_generator.new_text(10))
     first_ontology.add_layout(layout)
     assert first_ontology.get_entry(label=layout.label)
 

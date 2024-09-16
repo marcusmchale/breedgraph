@@ -5,7 +5,6 @@ from neo4j import AsyncTransaction, AsyncResult, Record
 
 from src.breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
-from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.organisations import (
     TeamInput,
     TeamStored,
@@ -18,15 +17,15 @@ from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict, TrackedGraph
 from src.breedgraph.adapters.repositories.base import BaseRepository
 
-from typing import AsyncGenerator, List, Dict
+from typing import AsyncGenerator, Set, Dict
 
 logger = logging.getLogger(__name__)
 
-class Neo4jOrganisationRepository(BaseRepository):
+class Neo4jOrganisationsRepository(BaseRepository):
 
-    def __init__(self, tx: AsyncTransaction, account:AccountStored = None):
+    def __init__(self, tx: AsyncTransaction, user_id: int|None = None):
         super().__init__()
-        self.account: AccountStored = account
+        self.user_id: int|None = user_id
         self.tx = tx
 
     async def _create(self, team: TeamInput, *args) -> Organisation:
@@ -34,8 +33,8 @@ class Neo4jOrganisationRepository(BaseRepository):
         return Organisation(nodes=[team])
 
     async def _create_team(self, team: TeamInput) -> TeamStored:
-        if self.account is None:
-            raise UnauthorisedOperationError("Account required to create a team")
+        if self.user_id is None:
+            raise UnauthorisedOperationError("User ID required to create a team")
 
         logger.debug(f"Create team: {team}")
         result: AsyncResult = await self.tx.run(
@@ -43,7 +42,7 @@ class Neo4jOrganisationRepository(BaseRepository):
             name=team.name,
             name_lower=team.name.casefold(),
             fullname=team.fullname,
-            admin=self.account.user.id
+            admin=self.user_id
         )
         record: Record = await result.single()
         return self.team_record_to_team(record['team'])
@@ -77,15 +76,18 @@ class Neo4jOrganisationRepository(BaseRepository):
                     team=team.id
                 )
 
-    async def _remove_team(self, team_id: int):
+    async def _delete_team(self, team_id: int):
         await self.tx.run(
-            queries['organisations']['remove_team'],
+            queries['organisations']['delete_team'],
             team=team_id
         )
 
     async def _get(self, team_id=None) -> Organisation:
         if team_id is None:
-            raise ValueError(f"Get organisation requires team_id")
+            try:
+                return await anext(self._get_all())
+            except StopAsyncIteration:
+                return None
 
         result: AsyncResult = await self.tx.run(
             queries['organisations']['get_organisation'],
@@ -114,7 +116,7 @@ class Neo4jOrganisationRepository(BaseRepository):
 
     async def _remove(self, organisation: Organisation):
         for team_id in organisation.teams.keys():
-            await self._remove_team(team_id)
+            await self._delete_team(team_id)
 
     async def _update(self, organisation: Tracked|Organisation):
         if not organisation.changed:
@@ -125,13 +127,14 @@ class Neo4jOrganisationRepository(BaseRepository):
             if isinstance(team, TeamInput):
                 stored_team = await self._create_team(team)
                 organisation.graph.replace_with_stored(node_id, stored_team)
+
             elif isinstance(team, TeamStored):
                 pass
             else:
                 raise ValueError("Only TeamInput and TeamStored may be added to organisation")
 
         for node_id in organisation.graph.removed_nodes:
-            await self._remove_team(node_id)
+            await self._delete_team(node_id)
 
         for node_id in organisation.graph.changed_nodes:
             team = organisation.get_team(node_id)
@@ -139,18 +142,21 @@ class Neo4jOrganisationRepository(BaseRepository):
                 raise ValueError("Can only commit changes to stored teams")
             await self._set_team(team)
 
-        await self. _create_edges(list(organisation.graph.added_edges))
-        await self._remove_edges(list(organisation.graph.removed_edges))
+        await self._create_edges(organisation.graph.added_edges)
+        await self._delete_edges(organisation.graph.removed_edges)
 
-    async def _create_edges(self, edges: List[tuple[int, int]]):
-        await self.tx.run(queries['organisations']['create_edges'], edges=edges)
+    async def _create_edges(self, edges: Set[tuple[int, int]]):
+        if edges:
+            await self.tx.run(queries['organisations']['create_edges'], edges=list(edges))
 
-    async def _remove_edges(self, edges: List[tuple[int, int]]):
-        await self.tx.run(queries['organisations']['remove_edges'], edges=edges)
+    async def _delete_edges(self, edges: Set[tuple[int, int]]):
+        if edges:
+            await self.tx.run(queries['organisations']['delete_edges'], edges=list(edges))
 
     @staticmethod
     def team_record_to_team(record) -> TeamStored:
         for key, value in record['affiliations'].items():
             record['affiliations'][Access[key]] = {v['id']: Affiliation(authorisation = v['authorisation'], heritable = v['heritable']) for v in value}
         return TeamStored(**record)
+
 

@@ -9,13 +9,10 @@ from src.breedgraph.domain.model.ontology import (
 )
 from src.breedgraph.domain.model.germplasm import (
     GermplasmEntryInput, GermplasmEntryStored,
-    Germplasm, GermplasmSourceType,
-    Reproduction,
-    SourceDetails
+    Germplasm, GermplasmSourceType
 )
 from src.breedgraph.domain.model.controls import Control, Controller, ReadRelease
-
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from src.breedgraph.domain.model.time_descriptors import PyDT64
 
 @pytest_asyncio.fixture
 def germplasm_method(lorem_text_generator) -> GermplasmMethod:
@@ -43,6 +40,13 @@ def account():
     )
 
 @pytest_asyncio.fixture
+def first_entry(lorem_text_generator):
+    return GermplasmEntryInput(
+        name=lorem_text_generator.new_text(10),
+        synonyms=[lorem_text_generator.new_text(5)]
+    )
+
+@pytest_asyncio.fixture
 def first_team(account):
     yield TeamStored(
         id=1,
@@ -53,68 +57,63 @@ def first_team(account):
     )
 
 @pytest_asyncio.fixture
-def first_entry(lorem_text_generator, first_team):
-    return GermplasmEntryInput(
-        name=lorem_text_generator.new_text(10),
-        synonyms=[lorem_text_generator.new_text(5)],
+def first_entry_stored(lorem_text_generator, first_entry, first_team):
+    return GermplasmEntryStored(
+        **first_entry.model_dump(),
+        id=1,
         controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)})
     )
-
-def new_entry(lorem_text_generator, first_team):
-    return GermplasmEntryInput(
-        name=lorem_text_generator.new_text(10),
-        synonyms=[lorem_text_generator.new_text(5)],
-        controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)})
-    )
-
-@pytest_asyncio.fixture
-def seed_source_details(lorem_text_generator) -> SourceDetails:
-    return SourceDetails(label=GermplasmSourceType.SEED)
 
 @pytest.mark.asyncio
 async def test_germplasm_add_and_get_entry(lorem_text_generator, first_germplasm, first_entry):
-    entry_id = first_germplasm.add_entry(first_entry, sources=[])
+    entry_id = first_germplasm.add_entry(first_entry)
     assert first_germplasm.size == 1
     assert first_germplasm.get_entry(entry_id) == first_entry
     assert first_germplasm.get_entry(first_entry.name) == first_entry
     assert first_germplasm.get_entry(first_entry.synonyms[0]) == first_entry
 
-@pytest.mark.asyncio
-async def test_germplasm_multiple_roots_fails(lorem_text_generator, first_germplasm, first_entry):
-    first_germplasm.add_entry(first_entry, sources=[])
-    with pytest.raises(ValueError):
-        first_germplasm.add_entry(first_entry, sources=[])
+
+@pytest_asyncio.fixture
+def second_entry_stored(lorem_text_generator, first_entry, first_team):
+    return GermplasmEntryStored(
+        name=lorem_text_generator.new_text(10),
+        synonyms=[lorem_text_generator.new_text(5)],
+        id=2,
+        controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)}),
+        time=PyDT64("2024")
+    )
 
 @pytest.mark.asyncio
 async def test_build_and_read(
         lorem_text_generator,
+        account,
         first_team,
         first_germplasm,
-        first_entry,
-        seed_source_details
+        first_entry_stored, second_entry_stored
 ):
-    first_entry_id = first_germplasm.add_entry(first_entry, sources=[])
-    second_entry = new_entry(lorem_text_generator, first_team)
+    first_entry_id = first_germplasm.add_entry(first_entry_stored)
+
     second_entry_id = first_germplasm.add_entry(
-        second_entry,
-        sources=[(first_entry_id, seed_source_details)]
+        second_entry_stored,
+        sources={first_entry_id: {'type': GermplasmSourceType.SEED}}
     )
-    redacted_for_read_team = first_germplasm.redacted({first_team.id})
+    redacted_for_read_team = first_germplasm.redacted(user_id=account.user.id, read_teams={first_team.id})
     assert redacted_for_read_team.size == 2
-    redacted_for_other_team = first_germplasm.redacted({2})
-    assert redacted_for_other_team.size == 1
-    assert redacted_for_other_team.root.name == Germplasm._redacted_str
+    assert first_entry_id in redacted_for_read_team.get_sources(second_entry_id)
+    assert second_entry_id in redacted_for_read_team.get_sinks(first_entry_id)
+
+    redacted_for_registered = first_germplasm.redacted(user_id=account.user.id)
+    assert redacted_for_registered.size == 1
+    assert redacted_for_registered.root.name == Germplasm._redacted_str
     redacted_for_public = first_germplasm.redacted()
     assert redacted_for_public.size == 1
     assert redacted_for_public.root.name == Germplasm._redacted_str
-
-    second_entry.set_release(ReadRelease.REGISTERED, first_team.id)
-    redacted_for_other_team_after_release_to_registered = first_germplasm.redacted({2})
-    assert redacted_for_other_team_after_release_to_registered.size == 2
+    second_entry_stored.set_release(first_team.id, ReadRelease.REGISTERED)
+    redacted_for_registered_after_release_to_registered = first_germplasm.redacted(user_id=account.user.id)
+    assert redacted_for_registered_after_release_to_registered.size == 2
     redacted_for_public_after_release_to_registered = first_germplasm.redacted()
     assert redacted_for_public_after_release_to_registered.size == 1
-
-    second_entry.set_release(ReadRelease.PUBLIC, first_team.id)
+    second_entry_stored.set_release(first_team.id, ReadRelease.PUBLIC)
     redacted_for_public_after_release_to_public = first_germplasm.redacted()
     assert redacted_for_public_after_release_to_public.size == 2
 

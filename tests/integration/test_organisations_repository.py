@@ -3,7 +3,7 @@ import pytest_asyncio
 
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.organisations import TeamInput, TeamStored, Access, Authorisation, Affiliation, Organisation
-from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationRepository
+from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationsRepository
 
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
@@ -14,11 +14,10 @@ async def create_team_input(user_input_generator) -> TeamInput:
         fullname = user_input['team_name']
     )
 
-
 @pytest.mark.asyncio(scope="session")
 async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator, stored_account):
     team_input = await create_team_input(user_input_generator)
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     organisation = await organisations_repo.create(team_input)
     # test that retrieve by id works
     retrieved_from_root_id = await organisations_repo.get(team_id=organisation.root.id)
@@ -54,7 +53,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
 
 @pytest.mark.asyncio(scope='session')
 async def test_request_remove_affiliation(neo4j_tx, user_input_generator, stored_account, second_account):
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
     assert stored_account.user.id in organisation.get_affiliates(organisation.root.id)
@@ -83,7 +82,7 @@ async def test_request_remove_affiliation(neo4j_tx, user_input_generator, stored
 
 @pytest.mark.asyncio(scope='session')
 async def test_request_authorise_revoke_affiliation(neo4j_tx, user_input_generator, stored_account, second_account):
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
     assert stored_account.user.id in organisation.get_affiliates(organisation.root.id)
@@ -119,7 +118,7 @@ async def test_request_authorise_revoke_affiliation(neo4j_tx, user_input_generat
 @pytest.mark.asyncio(scope="session")
 async def test_remove_team(neo4j_tx, user_input_generator, stored_account):
     team_input = await create_team_input(user_input_generator)
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     organisation = await organisations_repo.create(team_input)
     new_team_input = await create_team_input(user_input_generator)
     organisation.add_team(new_team_input, parent_id=organisation.root.id)
@@ -135,7 +134,7 @@ async def test_remove_team(neo4j_tx, user_input_generator, stored_account):
 
 @pytest.mark.asyncio(scope="session")
 async def test_edit_team_name(neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
 
@@ -151,7 +150,7 @@ async def test_edit_team_name(neo4j_tx, user_input_generator, stored_account):
 
 @pytest.mark.asyncio(scope="session")
 async def test_move_team_without_cycles(neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, account=stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
 
@@ -172,7 +171,7 @@ async def test_move_team_without_cycles(neo4j_tx, user_input_generator, stored_a
 
 @pytest.mark.asyncio(scope="session")
 async def test_split_and_merge_organisation(neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationRepository(neo4j_tx, stored_account)
+    organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
     second_team_input = await create_team_input(user_input_generator)

@@ -2,7 +2,7 @@ from pydantic import Field
 from typing import List, ClassVar
 from abc import ABC
 from enum import Enum
-from src.breedgraph.domain.model.base import StoredEntity
+from src.breedgraph.domain.model.base import StoredModel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
@@ -15,21 +15,32 @@ Ontologies are designed to allow flexible annotation and description of complex 
 
 class OntologyRelationshipLabel(str, Enum):
     RELATES_TO = 'RELATES_TO' # a generic directed relationship between entries
+    # To define scale categories
     HAS_CATEGORY = 'HAS_CATEGORY' # Scale -> Category
+
+    # To define unit subjects (see block outside ontology)
+    OF_SUBJECT = 'OF_SUBJECT' # Unit -> Subject
+
+    # To define subject traits/conditions/exposures
+    #  - we prefer outgoing edges from subject in the ontology as subject has a lot of income edges from units
     HAS_TRAIT = 'HAS_TRAIT'  # Subject -> Trait
     HAS_CONDITION = 'HAS_CONDITION'  # Subject -> Condition
-    HAS_EXPOSURE = 'HAS_EXPOSURE'  # EventEntry -> Exposure
+    HAS_EXPOSURE = 'HAS_EXPOSURE'  # Subject -> Exposure
+
+    # Similarly, Variable/Prameter and EventType have a lot of incoming edges from StudyTerms
+    # so prefer outgoing edges from these
     DESCRIBES_TRAIT = 'DESCRIBES_TRAIT' # Variable -> Trait
     DESCRIBES_CONDITION = 'DESCRIBES_CONDITION'  # Parameter -> Condition
-    DESCRIBES_EXPOSURE = 'DESCRIBES_EVENT' # EventEntry -> Exposure
+    DESCRIBES_EXPOSURE = 'DESCRIBES_EXPOSURE' # EventType -> Exposure
+
     USES_METHOD = 'USES_METHOD' # Variable/Parameter/EventEntry -> Method
     USES_SCALE = 'USES_SCALE' # Variable/Parameter/EventEntry -> Scale
 
-class OntologyEntry(StoredEntity, ABC):
+class OntologyEntry(StoredModel, ABC):
     label: ClassVar[str] = 'OntologyEntry'
     plural: ClassVar[str] = 'OntologyEntries'
 
-    # Has an ID if stored, not currently using full input/output/stored model classes for ontology entries
+    # Has a positive ID if stored, not using input/output/stored model classes for ontology entries
     id: int|None = None
 
     name: str

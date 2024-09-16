@@ -6,10 +6,11 @@ import logging
 import networkx as nx
 
 from functools import wraps
-from pydantic import BaseModel, TypeAdapter
+
+from pydantic import BaseModel, TypeAdapter, GetCoreSchemaHandler, model_serializer
 from pydantic_core import core_schema, SchemaSerializer
 
-from typing import List, Set, Callable, Hashable, Any
+from typing import List, Set, Callable, Hashable, Any, Tuple
 
 from wrapt import ObjectProxy
 
@@ -85,6 +86,51 @@ class Tracked(ObjectProxy):
         return self._self_changed
 
     @property
+    def added_models(self) -> Set['Tracked']:
+        """
+        :return: Returns a list of added models from an aggregate
+        Used in controlled models to verify write access, create new controllers and record write.
+        """
+        added_models: Set['Tracked'] = set()
+        for attr in self.changed:
+            value = getattr(self.__wrapped__, attr)
+            if isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_added_models(added_models)
+        return added_models
+
+    @property
+    def removed_models(self) -> Set['Tracked']:
+        """
+        :return: Returns a list of removed models from an aggregate
+        Used in controlled models to verify curate access.
+        """
+        removed_models: Set['Tracked'] = set()
+        for attr in self.changed:
+            value = getattr(self.__wrapped__, attr)
+            if isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_removed_models(removed_models)
+        return removed_models
+
+    @property
+    def changed_models(self) -> Set['Tracked']:
+        """
+        :return: Returns a list of changed models from an aggregate
+        Used in controlled models to verify curate access and track writes
+        """
+        changed_models: Set['Tracked'] = set()
+        if self.changed and hasattr(self, 'id'):
+            changed_models.add(self)
+
+        for attr in self.changed:
+            value = getattr(self.__wrapped__, attr)
+            if isinstance(value, Tracked) and hasattr(value, 'id'):
+                changed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_changed_models(changed_models)
+
+        return changed_models
+
+    @property
     def on_changed(self) -> Callable:
         def call_all():
             for callback in self._self_on_changed:
@@ -105,7 +151,10 @@ class Tracked(ObjectProxy):
 
     def model_dump(self):
         return self.__wrapped__.model_dump()
+    # todo look at serialization to suppress the warning when serializing
 
+    def __deepcopy__(self, *args, **kwargs):
+        self.__wrapped__ = self.__wrapped__.model_copy(**kwargs)
 
 class TrackedList(ObjectProxy, MutableSequence):
     """
@@ -120,7 +169,7 @@ class TrackedList(ObjectProxy, MutableSequence):
         super().__init__(d)
 
         self._self_changed: Set[int] = set()  # record the index of any changed element
-        self._self_added: Set[int] = set()
+        self._self_added: Set[int] = set() # record the index of any added element
         self._self_removed = list()
 
         self._self_on_changed = [on_changed]
@@ -133,8 +182,33 @@ class TrackedList(ObjectProxy, MutableSequence):
     def changed(self) -> Set[int]:
         return self._self_changed
 
+    def collect_added_models(self, added_models: Set[Tracked]):
+        for i in self.added:
+            value = self.__wrapped__.__getitem__(i)
+            if isinstance(value, Tracked):
+                added_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_added_models(added_models)
+
+    def collect_removed_models(self, removed_models: Set[Tracked]):
+        for i in self.removed:
+            value = self.__wrapped__.__getitem__(i)
+            if isinstance(value, Tracked):
+                removed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_removed_models(removed_models)
+
+    def collect_changed_models(self, changed_models: Set[Tracked]):
+        for i in self.changed:
+            value = self.__wrapped__.__getitem__(i)
+            if isinstance(value, Tracked):
+                changed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_changed_models(changed_models)
+
+
     @property
-    def added(self):
+    def added(self) -> Set[int]:
         return self._self_added
 
     @property
@@ -249,7 +323,7 @@ class TrackedList(ObjectProxy, MutableSequence):
     def __get_pydantic_core_schema__(cls, source_type, handler):
         _ = source_type
         schema = core_schema.no_info_after_validator_function(
-            cls._validate,
+            cls.validate,
             handler(list),
             serialization=core_schema.plain_serializer_function_ser_schema(
                 list,
@@ -261,7 +335,7 @@ class TrackedList(ObjectProxy, MutableSequence):
         return schema
 
     @classmethod
-    def _validate(cls, value: "TrackedList"):
+    def validate(cls, value: "TrackedList"):
         return cls(value)
 
 
@@ -296,6 +370,29 @@ class TrackedSet(ObjectProxy, MutableSet):
     @property
     def changed(self) -> Set[int]:
         return self._self_changed
+
+    def collect_added_models(self, added_models: Set[Tracked]):
+        for value in self:
+            if hash(value) in self.added:
+                if isinstance(value, Tracked):
+                    added_models.add(value)
+                elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                    value.collect_added_models(added_models)
+
+    def collect_removed_models(self, removed_models: Set[Tracked]):
+        for value in self.removed:
+            if isinstance(value, Tracked):
+                removed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_removed_models(removed_models)
+
+    def collect_changed_models(self, changed_models: Set[Tracked]):
+        for value in self:
+            if hash(value) in self.changed:
+                if isinstance(value, Tracked):
+                    changed_models.add(value)
+                elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                    value.collect_changed_models(changed_models)
 
     @property
     def added(self) -> Set[int]:
@@ -373,7 +470,7 @@ class TrackedSet(ObjectProxy, MutableSet):
     def __get_pydantic_core_schema__(cls, source_type, handler):
         _ = source_type
         schema = core_schema.no_info_after_validator_function(
-            cls._validate,
+            cls.validate,
             handler(set),
             serialization=core_schema.plain_serializer_function_ser_schema(
                 set,
@@ -385,7 +482,7 @@ class TrackedSet(ObjectProxy, MutableSet):
         return schema
 
     @classmethod
-    def _validate(cls, value: "TrackedSet"):
+    def validate(cls, value: "TrackedSet"):
         return cls(value)
 
 
@@ -410,6 +507,28 @@ class TrackedDict(ObjectProxy, MutableMapping):
     @property
     def changed(self) -> Set[Hashable]:
         return self._self_changed
+
+    def collect_added_models(self, added_models: Set[Tracked]):
+        for key, value in self.added:
+            if isinstance(value, Tracked):
+                added_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_added_models(added_models)
+
+    def collect_removed_models(self, removed_models: Set[Tracked]):
+        for key, value in self.removed:
+            if isinstance(value, Tracked):
+                removed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_removed_models(removed_models)
+
+    def collect_changed_models(self, changed_models: Set[Tracked]):
+        for key, value in self.changed:
+            if isinstance(value, Tracked):
+                changed_models.add(value)
+            elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                value.collect_changed_models(changed_models)
+
 
     @property
     def added(self) -> Set[Hashable]:
@@ -498,7 +617,7 @@ class TrackedDict(ObjectProxy, MutableMapping):
     def __get_pydantic_core_schema__(cls, source_type, handler):
         _ = source_type
         schema = core_schema.no_info_after_validator_function(
-            cls._validate,
+            cls.validate,
             handler(dict),
             serialization=core_schema.plain_serializer_function_ser_schema(
                 dict,
@@ -510,7 +629,7 @@ class TrackedDict(ObjectProxy, MutableMapping):
         return schema
 
     @classmethod
-    def _validate(cls, value: "TrackedDict"):
+    def validate(cls, value: "TrackedDict"):
         return cls(value)
 
 
@@ -543,24 +662,50 @@ class TrackedGraph(ObjectProxy, nx.DiGraph):
         return self.__wrapped__._node.added.copy()
 
     @property
-    def removed_nodes(self) -> Set[int]:
+    def removed_nodes(self) -> dict[int, Any]:
         return self.__wrapped__._node.removed.copy()
 
     @property
     def changed_nodes(self) -> Set[int]:
         return self.__wrapped__._node.changed.copy()
 
+    def collect_added_models(self, added_models: Set[Tracked]):
+        for i in self.added_nodes:
+            model = self.nodes[i]['model']
+            added_models.add(model)
+
+    def collect_removed_models(self, removed_models: Set[Tracked]):
+        for value in self.removed_nodes.values():
+            model = value['model']
+            removed_models.add(model)
+
+    def collect_changed_models(self, changed_models: Set[Tracked]):
+        for i in self.changed_nodes:
+            model = self.nodes[i]['model']
+            changed_models.add(model)
+        # For write tracking purposes, changes include added/removed incoming edges.
+        for source, sink in self.added_edges|self.removed_edges:
+            if sink in self.added_nodes|self.removed_nodes.keys():
+                continue
+            sink_model = self.nodes[sink]['model']
+            changed_models.add(sink_model)
+
     def replace_with_stored(self, old_id, new_model: BaseModel):
-        self.__wrapped__.nodes[old_id]['model'] = new_model
-        # remove references to old node in tracking
+        # get list of references to old node so can later remove them from tracking
         pred = list(self.__wrapped__.predecessors(old_id))
         nx.relabel_nodes(self.__wrapped__, {old_id: new_model.id}, copy=False)
+        #self.__wrapped__.nodes[new_model.id].silent_set('model', new_model)
+
+        self.__wrapped__._adj.changed.discard(old_id)
         for p in pred:
             self.__wrapped__._adj[p].added.remove(old_id)
             del self.__wrapped__._adj[p].removed[old_id]
+
         self.__wrapped__._node.added.discard(old_id)
         self.__wrapped__._node.changed.discard(old_id)
         del self.__wrapped__._node.removed[old_id]
+
+        self.__wrapped__.nodes[new_model.id].silent_set('model', new_model)
 
 
     @property

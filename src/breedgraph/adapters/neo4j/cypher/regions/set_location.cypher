@@ -1,29 +1,13 @@
-MATCH
-  (writer: User {id:$writer}),
-  (location: Location {id:$id})
-MERGE (writer)-[:CREATED]->(ul:UserLocations)
-CREATE (ul)-[:UPDATED {time:datetime.transaction()}]->(location)
+MATCH (location: Location {id:$id})
 SET
   location.name = $name,
-  location.fullname = $fullname,
+  location.synonyms = $synonyms,
   location.description = $description,
   location.code = $code,
   location.address = $address
 WITH
   location
-// Link to parent
-CALL {
-  WITH location
-  MATCH (location)-[within:WITHIN_LOCATION]->(parent: Location)
-  WHERE NOT location.id = $parent
-  DELETE within
-  WITH DISTINCT location
-  MATCH (parent:Location {id: $parent})
-  MERGE (location)-[within:WITHIN_LOCATION]->(parent)
-  ON CREATE SET within.time = datetime.transaction()
-  RETURN collect(parent.id)[0] as parent
-}
-// Link to type
+// Link type
 CALL {
   WITH location
   MATCH (location)-[of_type:OF_LOCATION_TYPE]->(type:LocationType)
@@ -56,11 +40,5 @@ RETURN
   location {
     .*,
     coordinates: coordinates,
-    parent: parent,
-    children: [(location)<-[:WITHIN_LOCATION]-(child:Location)|child.id],
-    type: type,
-    controller: {
-      writes: writes,
-      controls: controls
-    }
+    type: type
   }

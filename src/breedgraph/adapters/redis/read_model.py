@@ -37,8 +37,8 @@ class ReadModel:
 
     async def get_countries(self) -> AsyncGenerator[LocationInput|LocationStored, None]:
         logger.info(f"Getting countries")
-        countries_bytes = await self.connection.smembers("country")
-        for country in countries_bytes:
+        countries_bytes = await self.connection.hgetall("country")
+        for code, country in countries_bytes.items():
             country_json = json.loads(country)
             if country_json.get('id'):
                 yield LocationStored(**country_json)

@@ -16,6 +16,8 @@ from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.messagebus import MessageBus
 from src.breedgraph.adapters.redis.read_model import ReadModel
 from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
+from src.breedgraph.domain.model.ontology import Ontology
+from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 
 from tests.inputs import UserInputGenerator, LoremTextGenerator
 
@@ -84,3 +86,14 @@ async def user_input_generator() -> UserInputGenerator:
 @pytest_asyncio.fixture(scope="session")
 async def lorem_text_generator() -> LoremTextGenerator:
     yield LoremTextGenerator()
+
+@pytest_asyncio.fixture(scope='session')
+async def ontologies_repo(neo4j_tx) -> Neo4jOntologyRepository:
+    yield Neo4jOntologyRepository(neo4j_tx)
+
+@pytest_asyncio.fixture(scope='session')
+async def ontology(ontologies_repo) -> Ontology:
+    ontology = await ontologies_repo.get()
+    if not ontology:
+        ontology = await ontologies_repo.create()
+    return ontology

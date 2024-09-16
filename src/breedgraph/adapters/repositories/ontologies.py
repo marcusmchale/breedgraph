@@ -44,14 +44,6 @@ class Neo4jOntologyRepository(BaseRepository):
         'categories'
         'trait', 'condition', 'exposure','method','scale'
     }
-    optional_attributes: Set[str] = {
-        'subjects',
-        'type',
-        'trait', 'condition', 'exposure',
-        'method',
-        'scale',
-        'categories'
-    }
     def __init__(self, tx: AsyncTransaction):
         super().__init__()
         self.tx = tx
@@ -182,30 +174,33 @@ class Neo4jOntologyRepository(BaseRepository):
     #        )
     #
     async def _create_entry(self, entry: OntologyEntry, version_id: int) -> OntologyEntry:
-        params = dict(entry)
-        for p in self.optional_attributes:
-            if not p in params:
-                params[p] = None
-        params['version_id'] = version_id
+        params = entry.model_dump()
+        params.pop('id')
+        authors = params.pop('authors')
+        references = params.pop('references')
         query = ontology_entries.create_ontology_entry(entry.label)
         result = await self.tx.run(
             query=query,
-            **params
+            params=params,
+            authors=authors,
+            references=references,
+            version_id=version_id
         )
         record = await result.single()
         return self.record_to_entry(record['entry'])
 
     async def _update_entry(self, entry: OntologyEntry) -> OntologyEntry:
-        params = dict(entry)
-        for p in self.optional_attributes:
-            if not p in params:
-                params[p] = None
-
-        params['entry_id'] = entry.id
+        params = entry.model_dump()
+        entry_id = params.pop('id')
+        authors = params.pop('authors')
+        references = params.pop('references')
         query = ontology_entries.update_ontology_entry(entry.label)
         result = await self.tx.run(
             query=query,
-            **params
+            params=params,
+            authors=authors,
+            references=references,
+            entry_id=entry_id
         )
         record = await result.single()
         return self.record_to_entry(record['entry'])
@@ -245,7 +240,7 @@ class Neo4jOntologyRepository(BaseRepository):
             await self._fork_version(ontology, version_change=VersionChange.PATCH)
 
         for entry_id in ontology.graph.added_nodes:
-            _, entry = next(ontology.get_entries(entry_id))
+            _, entry = ontology.get_entry(entry_id)
             if entry_id < 0:
                 stored_entry = await self._create_entry(entry, ontology.version.id)
                 ontology.graph.replace_with_stored(entry_id, stored_entry)
@@ -265,4 +260,5 @@ class Neo4jOntologyRepository(BaseRepository):
         for entry_id, entry in ontology.graph.removed_nodes:
             if entry_id >= 0:
                 await self._remove_entry(entry, ontology.version.id)
+
 

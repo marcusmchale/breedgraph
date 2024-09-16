@@ -4,29 +4,32 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, ClassVar, Any, Set, Tuple, TypedDict
 import networkx as nx
 
-from typing import TYPE_CHECKING
+from typing import Type
 
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.graph import PyDiGraph
 from src.breedgraph.domain.events.accounts import Event
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class LabeledModel(BaseModel):
     label: ClassVar[str] = None
     plural: ClassVar[str] = None
 
-class StoredEntity(ABC, LabeledModel):
-
+class StoredModel(ABC, LabeledModel):
     id: int = Field(frozen=True)
 
     def __hash__(self):
         return hash(self.id)
 
 class Aggregate(ABC, BaseModel):
-    events: List[Event] = list()
+    events: List[Event] = Field(default=list(), exclude=True)
 
     @property
     @abstractmethod
-    def root(self) -> StoredEntity:
+    def root(self) -> StoredModel:
         raise NotImplementedError
 
     @property
@@ -41,11 +44,14 @@ class Aggregate(ABC, BaseModel):
 
 
 class DiGraphAggregate(Aggregate):
+    default_edge_label: ClassVar[str] = None
+    default_model_class: ClassVar[Type[StoredModel]]
     graph: PyDiGraph = Field(default_factory=lambda: nx.DiGraph())
+
     _temp_id: int = 0  # each instance starts with temp_id 0, these decrement with each access request
     # when committed by repository, temporary IDs should all be replaced and this value reset to 0
 
-    def __init__(self, nodes: List[LabeledModel] = None, edges: List[Tuple[int, int, dict]]|None = None, **kwargs):
+    def __init__(self, nodes: List[LabeledModel] = None, edges: List[Tuple[int, int, dict|None]]|None = None, **kwargs):
         super().__init__(**kwargs)
         if nodes is not None:
             self._add_nodes(nodes)
@@ -58,7 +64,7 @@ class DiGraphAggregate(Aggregate):
         return self._temp_id
 
     @abstractmethod
-    def root(self) -> StoredEntity:
+    def root(self) -> StoredModel:
         raise NotImplementedError
 
     @property
@@ -70,7 +76,7 @@ class DiGraphAggregate(Aggregate):
         if self.graph.number_of_nodes() > 1:
             return "Cannot delete DiGraph with more than one node"
 
-    def _add_node(self, model: BaseModel) -> int:
+    def _add_node(self, model: LabeledModel) -> int:
         """
         Add a node to the graph 
         :param model: BaseModel to be added to the graph as a node
@@ -83,29 +89,30 @@ class DiGraphAggregate(Aggregate):
 
         if node_id in self.graph.nodes:
             raise ValueError("Duplicate node")
+
         self.graph.add_node(node_id, model=model, label=model.label)
         return node_id
 
-    def _add_nodes(self, nodes: List[BaseModel]) -> List[int]:
+    def _add_nodes(self, nodes: List[LabeledModel]) -> List[int]:
         return [self._add_node(node) for node in nodes]
 
-    def _add_edge(self, source_id: int, target_id: int, label: str, **kwargs):
-        # use kwargs to store additional properties on an edge
-        # label is equivalent to "type" in neo4j
+    def _add_edge(self, source_id: int, sink_id: int, **kwargs):
+        # may use kwargs to store additional properties on an edge
         if not source_id in self.graph:
             raise ValueError(f"Source node not found: {source_id}")
-        if not target_id in self.graph:
-            raise ValueError(f"Target node not found: {target_id}")
-        if target_id == source_id:
+        if not sink_id in self.graph:
+            raise ValueError(f"Sink node not found: {sink_id}")
+        if sink_id == source_id:
             raise IllegalOperationError(f"Self-loop references are not supported")
-        if target_id in self.get_ancestors(source_id):
+        if sink_id in self.get_ancestors(source_id):
             raise IllegalOperationError(f"This edge would create a cycle which are not supported")
 
-        self.graph.add_edge(source_id, target_id, label=label, **kwargs)
+        self.graph.add_edge(source_id, sink_id, **kwargs)
 
     def _add_edges(self, edges: List[Tuple[int, int, dict]]):
         for edge in edges:
-            self._add_edge(edge[0], edge[1], **edge[2])
+
+            self._add_edge(edge[0], edge[1], **edge[2] if edge[2] else {})
 
     def _remove_nodes(self, node_ids: List[int] | int):
         if isinstance(node_ids, int):
@@ -137,6 +144,14 @@ class DiGraphAggregate(Aggregate):
         self.graph.remove_edges_from(list(self.graph.in_edges(node_id)))
         self.graph.add_edges_from([(source_id, node_id) for source_id in sources])
 
+    @staticmethod
+    def remove_node_and_reconnect(graph: nx.DiGraph, node_id: int, label: str=None):
+        for in_src, _ in graph.in_edges(node_id):
+            for _, out_dst in graph.out_edges(node_id):
+                graph.add_edge(in_src, out_dst, label=label)
+        graph.remove_node(node_id)
+
+
 class RootedAggregate(DiGraphAggregate):
     """ An aggregate a single source node is an ancestor of all nodes """
 
@@ -158,7 +173,7 @@ class RootedAggregate(DiGraphAggregate):
         return next(nx.topological_sort(self.graph))
 
     @computed_field
-    def root(self) -> StoredEntity | None:
+    def root(self) -> LabeledModel | None:
         try:
             root_id = self.get_root_id()
         except StopIteration:
@@ -175,24 +190,35 @@ class RootedAggregate(DiGraphAggregate):
     def entries(self) -> List[BaseModel]:
         return nx.get_node_attributes(self.graph, 'model')
 
-    def insert_root(self, entry: BaseModel, label: str, **kwargs) -> int:
-        """Allows inserting a new root node that will become the source for the current root node"""
+    def insert_root(self, entry: LabeledModel, details: dict = None) -> int:
+        """
+        Allows inserting a new root node that will become the source for the current root node
+        kwargs are added to the edge between these
+        """
         root_id = self.get_root_id()
         entry_id = self._add_node(entry)
-        self._add_edge(entry_id, root_id, label=label, **kwargs)
+        self._add_edge(entry_id, root_id, **details if details else {})
         return entry_id
 
-    def add_entry(self, entry: BaseModel, sources: List[Tuple[int, Dict|BaseModel]]) -> int:
-        """Returns the temporary ID for the germplasm entered into the graph"""
+    def add_entry(self, entry: LabeledModel, sources: Dict[int, dict] = None) -> int:
+        """Returns the temporary ID for the entry in the graph"""
         if self.graph and not sources:
-            raise ValueError("Multiple root nodes are not supported")
-        for source in sources:
-            if source[0] not in self.graph.nodes:
-                raise ValueError(f"Source not found: {source}")
+            logger.debug("Replacing the root node")
+            return self.insert_root(entry)
+
         entry_id = self._add_node(entry)
-        for source, details in sources:
-            self._add_edge(source, entry_id, **dict(details))
+        if sources:
+            for source, details in sources.items():
+                self._add_edge(source, entry_id, **details if details else {})
+
         return entry_id
+
+    def remove_entry(self, entry_id: int):
+        """Remove an entry matching the ID from the graph"""
+        if self.get_sinks(entry_id):
+            raise IllegalOperationError("Cannot remove a node with sinks")
+
+        self.graph.remove_node(entry_id)
 
     def get_entry(self, entry: int | str) -> BaseModel:
         """ Search by integer ID or by name """
@@ -202,6 +228,12 @@ class RootedAggregate(DiGraphAggregate):
             for e in self.entries.values():
                 if entry.casefold() in [n.casefold() for n in e.names]:
                     return e
+
+    def get_sources(self, entry_id: int) -> Dict[int, dict]:
+        return {e[0] : e[2]  for e in self.graph.in_edges(entry_id, data=True)}
+
+    def get_sinks(self, entry_id: int) -> Dict[int, dict]:
+        return {e[1] : e[2]  for e in self.graph.out_edges(entry_id, data=True)}
 
 
 class TreeAggregate(RootedAggregate):
@@ -217,3 +249,4 @@ class TreeAggregate(RootedAggregate):
 
     def change_source(self, node_id: int, parent_id: int):
         self._change_sources(node_id, {parent_id})
+

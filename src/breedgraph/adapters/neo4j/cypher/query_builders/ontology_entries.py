@@ -10,14 +10,8 @@ def create_ontology_entry(label):
     MERGE (c:Counter {{name:'ontology_entry'}})
     ON CREATE SET c.count = 0
     SET c.count = c.count + 1
-    CREATE (entry: {label}: OntologyEntry {{
-      id: c.count,
-      name: $name,
-      abbreviation: $abbreviation,
-      synonyms: $synonyms,
-      description: $description,
-      type: $type
-    }})-[:IN_VERSION]->(v)
+    CREATE (entry: {label}: OntologyEntry {{id: c.count}})-[:IN_VERSION]->(v)
+    SET entry += $params
     WITH entry
     // Link authors
     CALL {{
@@ -53,12 +47,7 @@ def update_ontology_entry(label):
 
   query = f"""
     MATCH (entry: OntologyEntry {{id: $entry_id}})
-    SET
-      entry.name = $name,
-      entry.abbreviation = $abbreviation,
-      entry.synonyms = $synonyms,
-      entry.description = $description,
-      entry.type = $type
+    SET entry += $params
     WITH entry
     // Link authors
     CALL {{

@@ -1,9 +1,9 @@
 from src.breedgraph.domain.model.ontology.entries import OntologyEntry
 from typing import ClassVar
 
-class Layout(OntologyEntry):
-    label: ClassVar[str] = 'Layout'
-    plural: ClassVar[str] = 'Layouts'
+class LayoutType(OntologyEntry):
+    label: ClassVar[str] = 'LayoutType'
+    plural: ClassVar[str] = 'LayoutTypes'
     """
     e.g. rows, grid, measured distance
     Must define interpretation for x, y, and z parameters

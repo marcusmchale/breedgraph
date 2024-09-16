@@ -1,20 +1,13 @@
 import logging
 
-from abc import ABC, abstractmethod
-from neo4j import AsyncTransaction, AsyncResult, Record
-from neo4j.exceptions import ConstraintError
+from neo4j import AsyncResult, Record
 
 from src.breedgraph.domain.model.regions import (
-    Region, LocationInput, LocationStored, GeoCoordinate
+    Region, LocationInput, LocationStored
 )
-from src.breedgraph.adapters.neo4j.cypher import queries, controls
+from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict
-
 from src.breedgraph.adapters.repositories.controlled import Neo4jControlledRepository
-from src.breedgraph.domain.model.controls import Controller, ReadRelease, ControlledAggregate, Control
-from src.breedgraph.domain.model.accounts import AccountStored
-
-from src.breedgraph.custom_exceptions import ProtectedNodeError, IllegalOperationError, UnauthorisedOperationError
 
 from typing import Set, AsyncGenerator, Tuple, List
 
@@ -23,122 +16,99 @@ logger = logging.getLogger(__name__)
 class Neo4jRegionsRepository(Neo4jControlledRepository):
 
     async def _create_controlled(self, location: LocationInput) -> Region:
-        if location.parent:
-            raise ValueError("Root of region must have no parent")
+        async for region in self._get_all_controlled():
+            if location.name.casefold() in [name.casefold for name in region.root.names]:
+                raise ValueError("This name is in use for the root on an existing region")
+            if region.root.code is not None:
+                if region.root.code.casefold() == location.code.casefold():
+                    raise ValueError("This code is in use for the root on an existing region")
 
         stored_location = await self._create_location(location)
-        return Region(root_id=stored_location.id, nodes={stored_location.id: stored_location})
+        return Region(nodes=[stored_location])
 
     async def _create_location(self, location: LocationInput) -> LocationStored:
         logger.debug(f"Create location: {location}")
-        params = location.model_dump()
-        params['writer'] = self.account.user.id
-        result: AsyncResult = await self.tx.run(
-            queries['regions']['create_location'],
-            params
-        )
+        result: AsyncResult = await self.tx.run(queries['regions']['create_location'], **location.model_dump())
         record: Record = await result.single()
         return LocationStored(**record['location'])
 
-    async def _get_controlled(self, member_id: int = None) -> Region | None:
-        if member_id is None:
-            raise ValueError(f"Get region requires location_id")
+    async def _update_location(self, location: LocationStored) -> LocationStored:
+        logger.debug(f"Set location: {location}")
+        result: AsyncResult = await self.tx.run(queries['regions']['set_location'], location.model_dump())
+        record: Record = await result.single()
+        return LocationStored(**record['location'])
 
-        result: AsyncResult = await self.tx.run(
-            queries['regions']['get_region'],
-            location=member_id
-        )
-        record = await result.single()
-        if record:
-            locations = [LocationStored(**l) for l in record['locations']]
-            region = Region.from_lists(locations)
-            return region
+    async def _delete_locations(self, location_ids: List[int]) -> None:
+        logger.debug(f"Remove locations: {location_ids}")
+        await self.tx.run(queries['regions']['remove_locations'], location_ids=location_ids)
+
+    async def _get_controlled(self, location_id: int = None) -> Region | None:
+        if location_id is None:
+            try:
+                return await anext(self._get_all_controlled())
+            except StopAsyncIteration:
+                return None
+
+        result: AsyncResult = await self.tx.run( queries['regions']['read_region'], location_id=location_id)
+
+        nodes = []
+        edges = []
+        async for record in result:
+            location = LocationStored(**record.get('location'))
+            nodes.append(location)
+            parent_id = record.get('location').get('parent_id', None)
+            if parent_id is not None:
+                edges.append((parent_id, location.id, None))
+
+        if nodes:
+            import pdb; pdb.set_trace()
+            return Region(nodes=nodes, edges=edges)
         else:
             return None
 
     async def _get_all_controlled(self) -> AsyncGenerator[Region, None]:
-        result: AsyncResult = await self.tx.run(queries['regions']['get_regions'])
+        result: AsyncResult = await self.tx.run(queries['regions']['read_regions'])
         async for record in result:
-            locations = [LocationStored(**l) for l in record['locations']]
-            yield Region.from_lists(locations)
+            locations = [LocationStored(**l) for l in record['region']]
+            edges = [
+                (entry.get('parent_id'), entry.get('id'), None) for entry in record['region'] if entry.get('parent_id') is not None
+            ]
+            yield Region(nodes=locations, edges=edges)
 
     async def _remove_controlled(self, region: Region) -> None:
-        for location in region.nodes.values():
-            if not location.can_admin(self.account):
-                raise UnauthorisedOperationError("Region can only be removed by an admin for all its locations")
-        try:
-            await self._remove_locations(locations=[location for location in region.nodes.values() if location.id > 0])
+        await self._delete_locations(list(region.graph.nodes.keys()))
 
-        except ConstraintError:
-            raise ProtectedNodeError("A location in this region has relationships that cannot be removed")
+    async def _update_controlled(self, region: Tracked | Region):
+        if not region.changed:
+            return
 
-    async def _remove_locations(self, locations: List[LocationStored]) -> None:
-        logger.debug(f"Remove locations: {locations}")
-        await self.tx.run(
-            queries['regions']['remove_locations'],
-            locations = [location.id for location in locations]
-        )
+        for location_id in region.graph.added_nodes:
+            location = region.get_entry(location_id)
 
-    async def _update_members(self, members: TrackedDict[int, Tracked|LocationInput|LocationStored]):
-        for location_id in members.added:
-            location_id: int
-            location = members[location_id]
-            if location_id < 0:
+            if isinstance(location, LocationInput):
                 stored_location = await self._create_location(location)
-                members.silent_set(stored_location.id, stored_location)
-                members.silent_remove(location_id)
-                if location.parent:
-                    members[stored_location.parent].children.remove(location_id)
-                    members[stored_location.parent].children.append(stored_location.id)
+                region.graph.replace_with_stored(location_id, stored_location)
 
-            else:
-                # todo this would be needed to support incorporating a location from another region
-                raise NotImplementedError
+        if region.graph.removed_nodes:
+            await self._delete_locations(list(region.graph.removed_nodes))
 
-        for location_id in members.changed:
-            location_id: int
-            location = members[location_id]
+        for node_id in region.graph.changed_nodes:
+
+            location = region.get_location(node_id)
+            if not isinstance(location, LocationStored):
+                raise ValueError("Can only commit changes to stored locations")
+
             await self._update_location(location)
 
-        await self._remove_locations(locations=[members[location_id] for location_id in members.removed.keys()])
-        for location in members.removed.values():
-            if location.parent:
-                members[location.parent].children.remove(location.id)
+        await self._create_edges(region.graph.added_edges)
+        await self._delete_edges(region.graph.removed_edges)
+
+    async def _create_edges(self, edges: Set[Tuple[int, int]]):
+        if edges:
+            await self.tx.run(queries['regions']['create_edges'], edges=list(edges))
+
+    async def _delete_edges(self, edges: Set[tuple[int, int]]):
+        if edges:
+            await self.tx.run(queries['regions']['delete_edges'], edges=list(edges))
 
 
-    async def _update_location(self, location: LocationStored) -> LocationStored:
-        logger.debug(f"Update location: {location}")
-        params = location.model_dump()
-        params['writer'] = self.account.user.id
-        result: AsyncResult = await self.tx.run(
-            queries['regions']['set_location'],
-            params
-        )
-        record: Record = await result.single()
-        return LocationStored(**record['location'])
-
-    async def _update_controlled(self, region: Tracked|Region):
-        await self._update_members(region.nodes)
-
-    async def _update_control(self, entity_id: int, control: Control):
-        await self.tx.run(
-            controls.set_control(label='Location', plural='Locations'),
-            team_id=control.team,
-            release=control.release,
-            entity_id=entity_id
-        )
-
-    async def _create_control(self, entity_id: int, control: Control):
-        await self.tx.run(
-            controls.create_control(label='Location', plural='Locations'),
-            team_id=control.team,
-            release=control.release,
-            entity_id=entity_id
-        )
-
-    async def _remove_control(self, entity_id: int, control: Control):
-        await self.tx.run(
-            controls.remove_control(label='Location', plural='Locations '),
-            team_id=control.team,
-            entity_id=entity_id
-        )
