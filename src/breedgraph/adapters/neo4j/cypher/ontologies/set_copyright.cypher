@@ -1,6 +1,6 @@
 MATCH (version: OntologyVersion {id: $version_id})
-OPTIONAL MATCH (version)<-[l:COPYRIGHT_FOR]-()
+OPTIONAL MATCH (version)-[l:USES_COPYRIGHT]->()
 DELETE l
 WITH version
-MATCH (copyright: LegalReference {id: $copyright_id})
-CREATE (version)<-[:COPYRIGHT_FOR]-(copyright)
+MATCH (copyright: Reference {id: $copyright_id})
+CREATE (version)-[:USES_COPYRIGHT]-(copyright)

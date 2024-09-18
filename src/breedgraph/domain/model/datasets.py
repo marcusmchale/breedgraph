@@ -1,17 +1,13 @@
 from typing import List, ClassVar, Set
 
 from pydantic import Field
-
+from numpy import datetime64
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.references import (
-    DataFileInput, DataFileStored,
-    DataExternalInput, DataExternalStored
-)
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access
 
 
-class Record(LabeledModel):
+class DataRecordBase(LabeledModel):
     label: ClassVar[str] = 'Record'
     plural: ClassVar[str] = 'Records'
 
@@ -21,36 +17,40 @@ class Record(LabeledModel):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    data: List[DataFileInput|DataFileStored|DataExternalInput|DataExternalStored] = list()
-    # to link supporting data, e.g. raw data
+    references: List[int] = list()
+    # to link supporting data in references repository
+    # e.g. raw data or another repository with supporting data
 
-    people: List[int]  # reference to PersonStored that are responsible for this record.
 
+class DataRecordInput(DataRecordBase):
+    pass
 
-class StudyTerm(ControlledModel, ControlledAggregate):
+class DataRecordStored(DataRecordBase, StoredModel):
+    submitted: PyDT64 = Field(frozen=True)
+
+class DataSetBase(LabeledModel):
     """
-    Records are aggregated per term, per study.
+        DataRecords are aggregated per term into a DataSet.
+        Typically, a dataset will be referenced by a single study,
+        though multiple studies may reference a common dataset.
 
-    Term is a reference to Variable, EventType or Parameter in the ontology.
+        "Term" is a reference to Variable, EventType or Parameter in the ontology.
+        "Unit_Records" is a map keyed by "Unit" ID (see blocks repository) with values of DataRecord
+        """
+    label: ClassVar[str] = 'DataSet'
+    plural: ClassVar[str] = 'DataSets'
 
-    Grouping according to study is most appropriate for access control and
-    to ensure consistency and avoid duplication in data mergers.
+    term: int
+    unit_records: dict[int, List[DataRecordStored|DataRecordInput]] = dict()
 
-    The records map is keyed by Unit ID (units are aggregated into blocks)
+    contributors: List[int] = list() # PersonStored that contributed to this dataset by ID
+    references: List[int] = list() # to link supporting data in references repository
+    # e.g. raw data or another repository with supporting data
 
-    Terminology to consider for other abstractions:
-    observations (for a variable),
-    event instances (for an event type)
-    or parameter levels (for a parameter).
-    """
-    label: ClassVar[str] = 'StudyTerm'
-    plural: ClassVar[str] = 'StudyTerms'
+class DataSetInput(DataSetBase):
+    pass
 
-    study: int = Field(frozen=True) # reference to Study
-    term: int = Field(frozen=True) # reference to Variable/Parameter/EventType in ontology
-
-    records: dict[int, List[Record]]
-    # key in records is unit ID
+class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
@@ -62,9 +62,9 @@ class StudyTerm(ControlledModel, ControlledAggregate):
 
     @property
     def protected(self) -> str | None:
-        for key, value in self.records.items():
-            if value:
-                return "StudyTerm with records may not be removed"
+        for unit, records in self.unit_records.items():
+            if records:
+                return "DataSet with records may not be removed"
 
     def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ControlledAggregate|None':
         if read_teams is None:
@@ -77,7 +77,7 @@ class StudyTerm(ControlledModel, ControlledAggregate):
                 return None
             else:
                 redacted = self.model_copy(deep=True)
-                for key, value in redacted.records.items():
+                for key, value in redacted.unit_records.items():
                     for record in value:
                         record.value = self.redacted_str if record.value is not None else None
                         record.start = None

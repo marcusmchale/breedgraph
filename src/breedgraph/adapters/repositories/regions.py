@@ -22,7 +22,6 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
             if region.root.code is not None:
                 if region.root.code.casefold() == location.code.casefold():
                     raise ValueError("This code is in use for the root on an existing region")
-
         stored_location = await self._create_location(location)
         return Region(nodes=[stored_location])
 
@@ -32,11 +31,9 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
         record: Record = await result.single()
         return LocationStored(**record['location'])
 
-    async def _update_location(self, location: LocationStored) -> LocationStored:
+    async def _update_location(self, location: LocationStored):
         logger.debug(f"Set location: {location}")
-        result: AsyncResult = await self.tx.run(queries['regions']['set_location'], location.model_dump())
-        record: Record = await result.single()
-        return LocationStored(**record['location'])
+        await self.tx.run(queries['regions']['set_location'], location.model_dump())
 
     async def _delete_locations(self, location_ids: List[int]) -> None:
         logger.debug(f"Remove locations: {location_ids}")
@@ -61,7 +58,6 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
                 edges.append((parent_id, location.id, None))
 
         if nodes:
-            import pdb; pdb.set_trace()
             return Region(nodes=nodes, edges=edges)
         else:
             return None

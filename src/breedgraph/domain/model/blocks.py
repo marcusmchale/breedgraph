@@ -100,6 +100,9 @@ class Block(ControlledRootedAggregate):
 
         return super().add_entry(unit, sources)
 
+    def get_unit(self, unit_id: int):
+        return self.graph.nodes[unit_id].get('model')
+
     def merge_block(self, observation_group: 'Block', parent_id: int):
         """
         A merger requires:

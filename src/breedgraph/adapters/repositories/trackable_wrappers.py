@@ -86,12 +86,12 @@ class Tracked(ObjectProxy):
         return self._self_changed
 
     @property
-    def added_models(self) -> Set['Tracked']:
+    def added_models(self) -> List['Tracked']:
         """
         :return: Returns a list of added models from an aggregate
         Used in controlled models to verify write access, create new controllers and record write.
         """
-        added_models: Set['Tracked'] = set()
+        added_models: List['Tracked'] = list()
         for attr in self.changed:
             value = getattr(self.__wrapped__, attr)
             if isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
@@ -99,12 +99,12 @@ class Tracked(ObjectProxy):
         return added_models
 
     @property
-    def removed_models(self) -> Set['Tracked']:
+    def removed_models(self) -> List['Tracked']:
         """
         :return: Returns a list of removed models from an aggregate
         Used in controlled models to verify curate access.
         """
-        removed_models: Set['Tracked'] = set()
+        removed_models: List['Tracked'] = list()
         for attr in self.changed:
             value = getattr(self.__wrapped__, attr)
             if isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
@@ -112,19 +112,19 @@ class Tracked(ObjectProxy):
         return removed_models
 
     @property
-    def changed_models(self) -> Set['Tracked']:
+    def changed_models(self) -> List['Tracked']:
         """
         :return: Returns a list of changed models from an aggregate
         Used in controlled models to verify curate access and track writes
         """
-        changed_models: Set['Tracked'] = set()
+        changed_models: List['Tracked'] = list()
         if self.changed and hasattr(self, 'id'):
-            changed_models.add(self)
+            changed_models.append(self)
 
         for attr in self.changed:
             value = getattr(self.__wrapped__, attr)
             if isinstance(value, Tracked) and hasattr(value, 'id'):
-                changed_models.add(value)
+                changed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_changed_models(changed_models)
 
@@ -182,27 +182,26 @@ class TrackedList(ObjectProxy, MutableSequence):
     def changed(self) -> Set[int]:
         return self._self_changed
 
-    def collect_added_models(self, added_models: Set[Tracked]):
+    def collect_added_models(self, added_models: List[Tracked]):
         for i in self.added:
             value = self.__wrapped__.__getitem__(i)
             if isinstance(value, Tracked):
-                added_models.add(value)
+                added_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_added_models(added_models)
 
-    def collect_removed_models(self, removed_models: Set[Tracked]):
-        for i in self.removed:
-            value = self.__wrapped__.__getitem__(i)
+    def collect_removed_models(self, removed_models: List[Tracked]):
+        for value in self.removed:
             if isinstance(value, Tracked):
-                removed_models.add(value)
+                removed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_removed_models(removed_models)
 
-    def collect_changed_models(self, changed_models: Set[Tracked]):
+    def collect_changed_models(self, changed_models: List[Tracked]):
         for i in self.changed:
             value = self.__wrapped__.__getitem__(i)
             if isinstance(value, Tracked):
-                changed_models.add(value)
+                changed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_changed_models(changed_models)
 
@@ -288,9 +287,6 @@ class TrackedList(ObjectProxy, MutableSequence):
         self.on_changed()
 
     def __delitem__(self, i: int):
-        if i in self.added or self.changed:
-            raise ValueError("This item can't be removed until changes have been committed")
-
         self._shift_indices(self.added, i + 1, False)
         self._shift_indices(self.changed, i + 1, False)
 
@@ -371,26 +367,26 @@ class TrackedSet(ObjectProxy, MutableSet):
     def changed(self) -> Set[int]:
         return self._self_changed
 
-    def collect_added_models(self, added_models: Set[Tracked]):
+    def collect_added_models(self, added_models: List[Tracked]):
         for value in self:
             if hash(value) in self.added:
                 if isinstance(value, Tracked):
-                    added_models.add(value)
+                    added_models.append(value)
                 elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                     value.collect_added_models(added_models)
 
-    def collect_removed_models(self, removed_models: Set[Tracked]):
+    def collect_removed_models(self, removed_models: List[Tracked]):
         for value in self.removed:
             if isinstance(value, Tracked):
-                removed_models.add(value)
+                removed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_removed_models(removed_models)
 
-    def collect_changed_models(self, changed_models: Set[Tracked]):
+    def collect_changed_models(self, changed_models: List[Tracked]):
         for value in self:
             if hash(value) in self.changed:
                 if isinstance(value, Tracked):
-                    changed_models.add(value)
+                    changed_models.append(value)
                 elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                     value.collect_changed_models(changed_models)
 
@@ -508,24 +504,26 @@ class TrackedDict(ObjectProxy, MutableMapping):
     def changed(self) -> Set[Hashable]:
         return self._self_changed
 
-    def collect_added_models(self, added_models: Set[Tracked]):
-        for key, value in self.added:
+    def collect_added_models(self, added_models: List[Tracked]):
+        for key in self.added:
+            value = self[key]
             if isinstance(value, Tracked):
-                added_models.add(value)
+                added_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_added_models(added_models)
 
-    def collect_removed_models(self, removed_models: Set[Tracked]):
+    def collect_removed_models(self, removed_models: List[Tracked]):
         for key, value in self.removed:
             if isinstance(value, Tracked):
-                removed_models.add(value)
+                removed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_removed_models(removed_models)
 
-    def collect_changed_models(self, changed_models: Set[Tracked]):
-        for key, value in self.changed:
+    def collect_changed_models(self, changed_models: List[Tracked]):
+        for key in self.changed:
+            value = self[key]
             if isinstance(value, Tracked):
-                changed_models.add(value)
+                changed_models.append(value)
             elif isinstance(value, (TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.collect_changed_models(changed_models)
 
@@ -590,8 +588,6 @@ class TrackedDict(ObjectProxy, MutableMapping):
         self.on_changed()
 
     def __delitem__(self, key) -> None:
-        #if key in self.added or key in self.changed:
-        #    raise ValueError("Key can't be removed until changes have been committed")
         self.removed[key] = self[key]
         self.__wrapped__.__delitem__(key)
         self.on_changed()
@@ -601,6 +597,20 @@ class TrackedDict(ObjectProxy, MutableMapping):
 
     def silent_remove(self, key) -> None: # remove an item without recording the change
         self.__wrapped__.__delitem__(key)
+
+    def replace_with_stored(self, old_id, new_model: BaseModel):
+        if old_id in self._self_changed:
+            self._self_changed.remove(old_id)
+            self._self_changed.add(new_model.id)
+        if old_id in self._self_added:
+            self._self_added.remove(old_id)
+            self._self_added.add(new_model.id)
+        if old_id in self._self_removed:
+            self._self_removed.pop(old_id)
+            self._self_removed[new_model.id] = new_model
+
+        self.silent_remove(old_id)
+        self.silent_set(new_model.id, new_model)
 
     #def __len__(self):
     #    return self.__wrapped__.__len__()
@@ -669,26 +679,28 @@ class TrackedGraph(ObjectProxy, nx.DiGraph):
     def changed_nodes(self) -> Set[int]:
         return self.__wrapped__._node.changed.copy()
 
-    def collect_added_models(self, added_models: Set[Tracked]):
+    def collect_added_models(self, added_models: List[Tracked]):
         for i in self.added_nodes:
             model = self.nodes[i]['model']
-            added_models.add(model)
+            added_models.append(model)
 
-    def collect_removed_models(self, removed_models: Set[Tracked]):
+    def collect_removed_models(self, removed_models: List[Tracked]):
         for value in self.removed_nodes.values():
             model = value['model']
-            removed_models.add(model)
+            removed_models.append(model)
 
-    def collect_changed_models(self, changed_models: Set[Tracked]):
+    def collect_changed_models(self, changed_models: List[Tracked]):
         for i in self.changed_nodes:
             model = self.nodes[i]['model']
-            changed_models.add(model)
+            changed_models.append(model)
         # For write tracking purposes, changes include added/removed incoming edges.
         for source, sink in self.added_edges|self.removed_edges:
             if sink in self.added_nodes|self.removed_nodes.keys():
                 continue
             sink_model = self.nodes[sink]['model']
-            changed_models.add(sink_model)
+            if sink_model in changed_models:
+                continue
+            changed_models.append(sink_model)
 
     def replace_with_stored(self, old_id, new_model: BaseModel):
         # get list of references to old node so can later remove them from tracking

@@ -1,14 +1,13 @@
 import logging
 
-from pydantic import BaseModel
-
+from .base import LabeledModel
 from .controls import ControlledModel, ControlledAggregate, Access
 
 from typing import List, Set, ClassVar
 
 logger = logging.getLogger(__name__)
 
-class PersonBase(BaseModel):
+class PersonBase(LabeledModel):
     label: ClassVar[str] = 'Person'
     plural: ClassVar[str] = 'People'
 

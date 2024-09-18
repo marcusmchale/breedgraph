@@ -45,7 +45,6 @@ async def neo4j_tx(neo4j_uow):
 async def email_notifications() -> notifications.EmailNotifications:
     yield notifications.EmailNotifications()
 
-#
 @pytest_asyncio.fixture(scope="session")
 async def bus(neo4j_uow, email_notifications) -> MessageBus:
     bus = await bootstrap.bootstrap(
@@ -71,12 +70,10 @@ async def read_model(bus) -> ReadModel:
 @pytest_asyncio.fixture(scope="session")
 async def session_database() -> None:
     uow = unit_of_work.Neo4jUnitOfWork()
-    # yield clear db
     async with uow.get_repositories() as uow:
         await uow.tx.run("MATCH (n) DETACH DELETE n")
         await uow.commit()
     yield
-
 
 @pytest_asyncio.fixture(scope="session")
 async def user_input_generator() -> UserInputGenerator:
@@ -87,13 +84,3 @@ async def user_input_generator() -> UserInputGenerator:
 async def lorem_text_generator() -> LoremTextGenerator:
     yield LoremTextGenerator()
 
-@pytest_asyncio.fixture(scope='session')
-async def ontologies_repo(neo4j_tx) -> Neo4jOntologyRepository:
-    yield Neo4jOntologyRepository(neo4j_tx)
-
-@pytest_asyncio.fixture(scope='session')
-async def ontology(ontologies_repo) -> Ontology:
-    ontology = await ontologies_repo.get()
-    if not ontology:
-        ontology = await ontologies_repo.create()
-    return ontology

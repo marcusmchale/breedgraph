@@ -1,7 +1,7 @@
 MERGE (counter: count {name: 'germplasm'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (entry: GermplasmEntry {
+CREATE (entry: Germplasm {
   id: counter.count,
   name: $name,
   synonyms: $synonyms,

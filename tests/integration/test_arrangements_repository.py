@@ -4,7 +4,6 @@ import pytest_asyncio
 from src.breedgraph.domain.model.layouts import Arrangement, LayoutInput, LayoutStored
 
 from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsRepository
-from tests.integration.conftest import field_location
 
 
 @pytest.mark.asyncio(scope="session")

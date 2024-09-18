@@ -1,21 +1,20 @@
 import logging
 
 from pydantic import BaseModel
-from time_descriptors import PyDT64
-from datetime import datetime
 
-
-from src.breedgraph.domain.model.base import StoredModel, Aggregate
+from src.breedgraph.domain.model.base import StoredModel, LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access
-from src.breedgraph.domain.model.references import ExternalReference, FileReference
+from src.breedgraph.domain.model.time_descriptors import PyDT64
 
-
-from typing import List, Set
+from typing import List, Set, ClassVar
 
 logger = logging.getLogger(__name__)
 
 
-class StudyBase(BaseModel):
+class StudyBase(LabeledModel):
+    label: ClassVar[str] = 'Study'
+    plural: ClassVar[str] = 'Studies'
+
     """
     This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
@@ -23,26 +22,25 @@ class StudyBase(BaseModel):
     name: str
     fullname: str|None = None
     description: str|None = None
-
     external_id: str|None = None  # a permanent external identifier, should we make this UUID?
-
     # MIAPPE V1.1 (DM-28) General description of the cultural practices associated with the study.
     practices: str|None = None
 
-    start: PyDT64 | None
-    end: PyDT64 | None
+    start: PyDT64 | None = None
+    end: PyDT64 | None = None
 
     # MIAPPE DM60: exposure or condition that is being tested.
-    factors: List[int]  # list of StudyTerm IDs, these terms should be linked to Parameter or Event in the ontology
-    observations: List[int]  # list of StudyTerm IDs. These should be linked to Variable in the ontology
+    factors: List[int] = list()  # list of DataSet IDs, these would typically be linked to a Parameter or Event in the ontology
+
+    observations: List[int] = list()  # list of DataSet IDs. These would typically be linked to a Variable in the ontology
 
     # Germplasm, Location are defined for units, to retrieve from there for read operations
     # Units in turn are accessed through factors/observations
-    design: int | None  # Reference to Design in Ontology
+    design: int | None = None  # Reference to Design in Ontology
 
-    licence: int | None  # A single LegalReference for usage of data associated with factors/observations in this experiment
+    licence: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
-    references: List[int] # list of other references by IDs
+    references: List[int] = list() # list of other references by IDs
 
 
 class StudyInput(StudyBase):
@@ -67,30 +65,31 @@ class StudyStored(StudyBase, ControlledModel):
         })
 
 
-class TrialBase(BaseModel):
+class TrialBase(LabeledModel):
     """
     This is like the Trial concept in BrAPI,
     But using the more widespread terminology from ISA
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
+    label: ClassVar[str] = 'Trial'
+    plural: ClassVar[str] = 'Trials'
 
     name: str
     fullname: str|None = None
     description: str|None = None
 
-    start: datetime
-    end: None | datetime
+    start: PyDT64|None = None
+    end: PyDT64|None = None
 
-    studies: dict[int, StudyInput|StudyStored]  # keyed by ID or assigned a temporary ID for inputs
-
-    contacts: List[int] # list of Person by ID suitable to contact for queries about this study.
-    publications: List[int]  # list of PublicationReference by ID
-    references: List[int]  # list of other reference by ID
+    contacts: List[int] = list() # list of Person by ID suitable to contact for queries about this study.
+    references: List[int] = list()  # list of reference by ID
 
 class TrialInput(TrialBase):
     pass
 
 class TrialStored(TrialBase, ControlledModel):
+
+    studies: dict[int, StudyStored|StudyInput] = dict() # keyed by ID or assigned a temporary ID for inputs
 
     def redacted(self) -> 'TrialStored':
 
@@ -107,31 +106,34 @@ class TrialStored(TrialBase, ControlledModel):
             'references': list()
         })
 
+    def add_study(self, study: StudyInput):
+        temp_key = -len(self.studies) - 1
+        self.studies[temp_key] = study
 
-class ProgramBase(BaseModel):
+class ProgramBase(LabeledModel):
+    label: ClassVar[str] = 'Program'
+    plural: ClassVar[str] = 'Programs'
+
     name: str
     fullname: str|None = None
     description: str|None = None
-
-    leader: int  # PersonStored by ID
-
-    trials: dict[int, TrialInput|TrialStored] # keyed by ID or assigned a temporary ID for inputs
-    references: List[int]  # list of reference IDs
+    contacts: List[int] = list() # list of Person by ID suitable to contact for queries about this program.
+    references: List[int] = list()  # list of reference IDs
 
 class ProgramInput(ProgramBase):
     pass
 
 class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
 
+    trials: dict[int, TrialStored|TrialInput] = dict()  # keyed by ID or assigned a temporary ID for inputs
+
     @property
     def controlled_models(self) -> List[ControlledModel]:
         # We have distinct controls on trials and nested studies.
         # Trials may then be shared without sharing associated studies
         trials = list(self.trials.values())
-        studies = [study for trial in trials for study in trial.studies.values()]
-        references = [self.references]
-
-        return trials + studies + references
+        studies = [study for trial in trials if hasattr(trial, 'studies') for study in trial.studies.values()]
+        return trials + studies
 
     @property
     def root(self) -> StoredModel:
@@ -146,30 +148,36 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
         if read_teams is None:
             read_teams = set()
 
-        redacted = self.model_copy(deep=True)
+        if self.controller.has_access(Access.READ, user_id, read_teams):
+            aggregate = self
+        else:
+            aggregate = self.model_copy(deep=True)
 
         for trial_key, trial in self.trials.items():
             if not trial.controller.has_access(Access.READ, user_id, read_teams):
                 if user_id is None:
-                    redacted.trials.pop(trial_key)
+                    aggregate.trials.pop(trial_key)
                 else:
-                    redacted.trials[trial_key] = trial.redacted()
+                    aggregate.trials[trial_key] = trial.redacted()
             else:
-                for study_key, study in trial.studies.values():
+                for study_key, study in trial.studies.items():
                     if not study.controller.has_access(Access.READ, user_id, read_teams):
                         if user_id is None:
-                            redacted.trials[trial_key].pop(study_key)
+                            aggregate.trials[trial_key].pop(study_key)
                         else:
-                            redacted.trials[trial_key] = study.redacted()
+                            aggregate.trials[trial_key][study_key] = study.redacted()
 
         if user_id is None:
-            redacted.references[:] = [
-                r for r in redacted.references if r.controller.has_access(Access.READ, user_id, read_teams)
+            aggregate.references[:] = [
+                r for r in aggregate.references if r.controller.has_access(Access.READ, user_id, read_teams)
             ]
         else:
-            redacted.references[:] = [
-                r if r.controller.has_access(Access.READ, user_id, read_teams) else r.redacted() for r in redacted.references
+            aggregate.references[:] = [
+                r if r.controller.has_access(Access.READ, user_id, read_teams) else r.redacted() for r in aggregate.references
             ]
 
-        return redacted
+        return aggregate
 
+    def add_trial(self, trial: TrialInput):
+        temp_key = -len(self.trials) - 1
+        self.trials[temp_key] = trial

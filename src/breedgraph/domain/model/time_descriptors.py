@@ -43,7 +43,6 @@ class _DT64PydanticAnnotation:
         )
 
         def validate_from_neo4j(value: Neo4jDateTime, info: ValidationInfo) -> datetime64:
-            import pdb; pdb.set_trace()
             iso = value.isoformat()
             return datetime64(iso)
 
@@ -78,5 +77,5 @@ class _DT64PydanticAnnotation:
     ) -> JsonSchemaValue:
         return handler(core_schema.int_schema())
 
-PyDT64 = Annotated[datetime64, _DT64PydanticAnnotation]
+PyDT64 = Annotated[datetime64|str|Neo4jDateTime, _DT64PydanticAnnotation]
 

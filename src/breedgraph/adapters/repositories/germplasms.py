@@ -41,9 +41,7 @@ class Neo4jGermplasmRepository(Neo4jControlledRepository):
 
     async def _update_entry(self, entry: GermplasmEntryStored):
         logger.debug(f"Set germplasm entry: {entry}")
-        result = await self.tx.run(queries['germplasm']['set_entry'], **entry.model_dump())
-        record = await result.single()
-        return self.record_to_entry(record.get('entry'))
+        await self.tx.run(queries['germplasm']['set_entry'], **entry.model_dump())
 
     async def _delete_entries(self, entry_ids: List[int]):
         logger.debug(f"Delete germplasm entries: {entry_ids}")

@@ -1,2 +1,2 @@
-MATCH (entry: GermplasmEntry) where entry.id in $entry_ids
+MATCH (entry: Germplasm) where entry.id in $entry_ids
 DETACH DELETE (entry)

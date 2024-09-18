@@ -55,13 +55,13 @@ def update_ontology_entry(label):
       OPTIONAL MATCH (author: Person)-[authored:AUTHORED]->(entry)
       WHERE NOT author.id in $authors
       DELETE authored
-      WITH DISTINCT entry
+    }}
+    CALL {{ 
+      WITH entry
       UNWIND $authors as author_id
       MATCH (author: Person {{id: author_id}})
       MERGE (author)-[authored:AUTHORED]->(entry)
       ON CREATE SET authored.time = datetime.transaction()
-      RETURN
-        collect(author.id) as authors
     }}
     // Link References
     CALL {{
@@ -69,19 +69,14 @@ def update_ontology_entry(label):
       OPTIONAL MATCH (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
       WHERE NOT reference.id in $references
       DELETE ref_for
-      WITH DISTINCT entry
+    }}
+    CALL {{
+      WITH entry
       UNWIND $references as ref_id
       MATCH (reference: Reference {{id: ref_id}})
       MERGE (reference)-[ref_for:REFERENCE_FOR]->(entry)
       ON CREATE SET ref_for.time = datetime.transaction()      
-      RETURN
-        collect(reference.id) as references
     }}   
-    RETURN entry {{
-      .*,
-      labels: labels(entry),
-      authors: authors,
-      references: references
-    }}       
+    RETURN NULL 
   """
   return query

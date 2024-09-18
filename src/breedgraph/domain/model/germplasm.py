@@ -30,8 +30,8 @@ class Reproduction(str, Enum):
     APOMIXIS = 'APOMIXIS' # e.g. clonal seed production
 
 class GermplasmEntry(LabeledModel):
-    label: ClassVar[str] = 'GermplasmEntry'
-    plural: ClassVar[str] = 'GermplasmEntries'
+    label: ClassVar[str] = 'Germplasm'
+    plural: ClassVar[str] = 'Germplasms'
 
     """
     Germplasm entries may include:

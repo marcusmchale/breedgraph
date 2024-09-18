@@ -14,6 +14,7 @@ from typing import Set, AsyncGenerator, Tuple, List
 
 logger = logging.getLogger(__name__)
 
+
 class Neo4jBlocksRepository(Neo4jControlledRepository):
 
     async def _create_controlled(self, unit: UnitInput) -> Block:
@@ -35,11 +36,9 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
                 position['end'] = datetime64(position['end'], (position['end_unit'], position['end_step']))
         return UnitStored(**record)
 
-    async def _update_unit(self, unit: UnitStored) -> UnitStored:
+    async def _update_unit(self, unit: UnitStored):
         logger.debug(f"Set unit: {unit}")
-        result: AsyncResult = await self.tx.run(queries['blocks']['set_unit'], unit.model_dump())
-        record: Record = await result.single()
-        return UnitStored(**record['unit'])
+        await self.tx.run(queries['blocks']['set_unit'], unit.model_dump())
 
     async def _delete_units(self, unit_ids: List[int]) -> None:
         logger.debug(f"Remove units: {unit_ids}")
@@ -52,12 +51,12 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
             except StopAsyncIteration:
                 return None
 
-        result: AsyncResult = await self.tx.run( queries['blocks']['read_unit'], unit_id=unit_id)
+        result: AsyncResult = await self.tx.run( queries['blocks']['read_block'], unit_id=unit_id)
 
         nodes = []
         edges = []
         async for record in result:
-            unit = UnitStored(**record.get('unit'))
+            unit = self.record_to_unit(record.get('unit'))
             nodes.append(unit)
             parent_id = record.get('unit').get('parent_id', None)
             if parent_id is not None:
@@ -72,7 +71,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
     async def _get_all_controlled(self) -> AsyncGenerator[Block, None]:
         result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
         async for record in result:
-            units = [UnitStored(**l) for l in record['block']]
+            units = [self.record_to_unit(l) for l in record['block']]
             edges = [(unit.get('parent_id'), unit.get('id'), None) for unit in record.get('block') if unit.get('parent_id') is not None]
             yield Block(nodes=units, edges=edges)
 

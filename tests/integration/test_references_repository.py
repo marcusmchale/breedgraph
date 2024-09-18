@@ -19,7 +19,6 @@ from src.breedgraph.domain.model.references import (
 from src.breedgraph.adapters.repositories.references import Neo4jReferencesRepository
 
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
-from tests.conftest import lorem_text_generator
 
 def get_external_reference_input(lorem_text_generator):
     return ExternalReferenceInput(

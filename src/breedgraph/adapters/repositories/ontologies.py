@@ -189,21 +189,19 @@ class Neo4jOntologyRepository(BaseRepository):
         record = await result.single()
         return self.record_to_entry(record['entry'])
 
-    async def _update_entry(self, entry: OntologyEntry) -> OntologyEntry:
+    async def _update_entry(self, entry: OntologyEntry):
         params = entry.model_dump()
         entry_id = params.pop('id')
         authors = params.pop('authors')
         references = params.pop('references')
         query = ontology_entries.update_ontology_entry(entry.label)
-        result = await self.tx.run(
+        await self.tx.run(
             query=query,
             params=params,
             authors=authors,
             references=references,
             entry_id=entry_id
         )
-        record = await result.single()
-        return self.record_to_entry(record['entry'])
 
     async def _remove_entry(self, entry: OntologyEntry, version_id: int) -> None:
         await self.tx.run(queries['ontologies']['remove_entry'], entry=entry.id, version=version_id)

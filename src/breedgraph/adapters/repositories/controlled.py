@@ -5,7 +5,14 @@ from neo4j import AsyncTransaction
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked
+from src.breedgraph.adapters.repositories.trackable_wrappers import (
+    Tracked,
+    TrackedList,
+    TrackedSet,
+    TrackedDict,
+    TrackedGraph
+)
+
 from src.breedgraph.adapters.repositories.base import BaseRepository
 
 from src.breedgraph.domain.model.controls import (
@@ -119,6 +126,7 @@ class ControlledRepository(BaseRepository):
             model_class = self.get_model_class(model)
             model.controller = await self._get_controller(model_class, model.id)
 
+
     async def _get(self, **kwargs) -> ControlledAggregate:
         aggregate = await self._get_controlled(**kwargs)
         if aggregate is not None:
@@ -163,7 +171,7 @@ class ControlledRepository(BaseRepository):
         if self.user_id is None:
             raise UnauthorisedOperationError("Only registered accounts may update controlled records")
 
-        if (aggregate.added_models | aggregate.changed_models) and not self.write_teams:
+        if not self.write_teams and (aggregate.added_models or aggregate.changed_models):
             raise UnauthorisedOperationError("Write affiliation is required to add to or change controlled records")
 
         for model in aggregate.removed_models:
@@ -176,16 +184,37 @@ class ControlledRepository(BaseRepository):
                     raise UnauthorisedOperationError(
                         f"Changes to {model.label} controller changes requires admin affiliation to a control team for the corresponding record"
                     )
-            if model.changed != {'controller'}:
+
+            if model.changed and model.changed != {'controller'}:
                 if not model.controller.has_access(Access.CURATE, access_teams=self.curate_teams):
-                    raise UnauthorisedOperationError("Curate affiliation is required to change controlled records")
+                    for attr in model.changed:
+                        value = getattr(model, attr)
+                        if isinstance(value, (TrackedList, TrackedSet, TrackedDict)):
+                            if value.added:
+                                raise UnauthorisedOperationError(
+                                    "Curate affiliation is required to add to collections in controlled models"
+                                )
+                            if value.removed:
+                                raise UnauthorisedOperationError(
+                                    "Curate affiliation is required to remove from collections in controlled models"
+                                )
+                        elif isinstance(value, TrackedGraph):
+                            if value.added_nodes or value.added_edges:
+                                raise UnauthorisedOperationError(
+                                    "Curate affiliation is required to add nodes or edges to controlled graph models"
+                                )
+                            if value.removed_nodes or value.removed_edges:
+                                raise UnauthorisedOperationError(
+                                    "Curate affiliation is required to remove nodes or edges from controlled graph models"
+                                )
+                        else:
+                            raise UnauthorisedOperationError("Curate affiliation is required to change controlled records")
 
         await self._update_controlled(aggregate)
 
         for model in aggregate.added_models:
             if not isinstance(model, ControlledModel):
                 raise ValueError(f"Something went wrong, {type(model)} has been added to a controlled aggregate")
-
             await self._create_controller(model)
             model_class = self.get_model_class(model)
             await self._record_write(entity_class=model_class, entity_id=model.id, user_id=self.user_id)

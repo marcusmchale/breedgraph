@@ -11,6 +11,7 @@ CREATE (location: Location {
 })
 WITH
   location
+
 // Link to type
 CALL {
   WITH location

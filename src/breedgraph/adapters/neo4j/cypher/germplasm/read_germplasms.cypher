@@ -1,5 +1,5 @@
-MATCH (root: GermplasmEntry) WHERE NOT (root)<-[:SOURCE_FOR]-(:GermplasmEntry)
-OPTIONAL MATCH (root)-[:SOURCE_FOR*]->(child:GermplasmEntry)
+MATCH (root: Germplasm) WHERE NOT (root)<-[:SOURCE_FOR]-(:Germplasm)
+OPTIONAL MATCH (root)-[:SOURCE_FOR*]->(child:Germplasm)
 WITH root, coalesce(collect(child), []) AS children
 WITH root + children AS germplasm
 RETURN [entry IN germplasm |
@@ -7,6 +7,6 @@ RETURN [entry IN germplasm |
   . *,
     methods:[(entry)-[:USES_METHOD]->(method:GermplasmMethod) | method.id],
     references:[(entry)<-[:REFERENCE_FOR]->(reference:Reference) | reference.id],
-    sources: [(source:GermplasmEntry)- [source_for:SOURCE_FOR] - >(entry) | [source.id, entry.id, {type:source_for.type}]]
+    sources: [(source:Germplasm)- [source_for:SOURCE_FOR] - >(entry) | [source.id, entry.id, {type:source_for.type}]]
   }
 ] AS germplasm

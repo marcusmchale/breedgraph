@@ -12,7 +12,7 @@ from src.breedgraph.domain.model.regions import LocationInput, LocationStored
 from src.breedgraph.views.regions import countries
 
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
-from tests.integration.conftest import stored_organisation
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_extend_region(
@@ -49,7 +49,6 @@ async def test_make_sub_region_private(
     region = await regions_repo.get()
     county = region.get_location(county_id)
     assert county.controller.release == ReadRelease.PRIVATE
-
     registered_repo = Neo4jRegionsRepository(
         neo4j_tx,
         user_id=stored_account.user.id

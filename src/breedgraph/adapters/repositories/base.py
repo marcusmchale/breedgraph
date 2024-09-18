@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Set, AsyncGenerator
+from typing import Dict, AsyncGenerator
 
 from pydantic import BaseModel
 
@@ -11,11 +11,14 @@ from src.breedgraph.domain.model.base import Aggregate
 class BaseRepository(ABC):
 
     def __init__(self):
-        self.seen: Set[Tracked|Aggregate] = set()
+        self.seen: Dict[Tracked|Aggregate,Tracked|Aggregate] = dict()
 
     def _track(self, aggregate: Aggregate) -> Tracked|Aggregate:
+        if aggregate in self.seen:
+            return self.seen[aggregate]
+
         tracked = Tracked(aggregate)
-        self.seen.add(tracked)
+        self.seen[tracked]=tracked
         return tracked
 
     async def create(self, aggregate_input: BaseModel|None = None) -> Tracked|Aggregate:
@@ -50,7 +53,7 @@ class BaseRepository(ABC):
             raise ProtectedNodeError(aggregate.protected)
 
         await self._remove(aggregate)
-        self.seen.remove(aggregate)
+        self.seen.pop(aggregate)
 
     @abstractmethod
     async def _remove(self, aggregate: Tracked|Aggregate) -> None:

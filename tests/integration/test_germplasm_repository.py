@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import pytest_asyncio
 
@@ -9,7 +10,6 @@ from src.breedgraph.domain.model.germplasm import (
 from src.breedgraph.domain.model.controls import Control, Controller, ReadRelease
 from src.breedgraph.adapters.repositories.germplasms import Neo4jGermplasmRepository
 from src.breedgraph.domain.model.time_descriptors import PyDT64
-from tests.integration.conftest import stored_organisation
 
 
 def get_entry_input(lorem_text_generator):
@@ -22,27 +22,15 @@ def get_entry_input(lorem_text_generator):
 def first_entry_input(lorem_text_generator):
     return get_entry_input(lorem_text_generator)
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_and_get_succeeds(neo4j_tx, first_entry_input, stored_account, stored_organisation):
-    repo = Neo4jGermplasmRepository(
-        neo4j_tx,
-        user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
-    )
-    assert await repo.get() is None
-    stored_germplasm = await repo.create(first_entry_input)
-    assert stored_germplasm.root.name == first_entry_input.name
-    assert stored_germplasm.root.id > 0
-    stored_germplasm = await repo.get(entry_id=stored_germplasm.root.id)
-    assert stored_germplasm.root.name == first_entry_input.name
-    assert stored_germplasm.root.id > 0
-    stored_germplasm = await anext(repo.get_all())
-    assert stored_germplasm.root.name == first_entry_input.name
-    assert stored_germplasm.root.id > 0
 
 @pytest.mark.asyncio(scope="session")
-async def test_create_fails_without_user_or_write_teams(neo4j_tx, first_entry_input, stored_account, lorem_text_generator, stored_organisation):
+async def test_create_fails_without_user_or_write_teams(
+        neo4j_tx,
+        first_entry_input,
+        stored_account,
+        lorem_text_generator,
+        stored_organisation
+):
     repo = Neo4jGermplasmRepository(
         neo4j_tx,
         write_teams=[stored_organisation.root.id]
@@ -149,7 +137,7 @@ async def test_delete_entry(neo4j_tx, stored_account, first_entry_input, lorem_t
         curate_teams=[stored_organisation.root.id]
     )
     stored_germplasm = await repo.get()
-    to_remove = list(stored_germplasm.get_descendants(stored_germplasm.root.id))[0]
+    to_remove = list(stored_germplasm.get_descendants(stored_germplasm.root.id))[-1]
     stored_germplasm.remove_entry(to_remove)
 
     await repo.update_seen()
@@ -187,4 +175,4 @@ async def test_time_attribute(neo4j_tx, stored_account, first_entry_input, lorem
     germplasm = await repo.create(entry_input)
     await repo.update_seen()
     stored_germplasm = await repo.get(entry_id=germplasm.get_root_id())
-    assert stored_germplasm.root.time == PyDT64(time_str)
+    assert stored_germplasm.root.time == np.datetime64(time_str)

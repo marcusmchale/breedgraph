@@ -5,7 +5,7 @@ from typing import List, Dict, ClassVar, Any, Set, Tuple, TypedDict
 import networkx as nx
 
 from typing import Type
-
+from abc import abstractmethod
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.graph import PyDiGraph
 from src.breedgraph.domain.events.accounts import Event
@@ -15,8 +15,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 class LabeledModel(BaseModel):
-    label: ClassVar[str] = None
-    plural: ClassVar[str] = None
+
+    @property
+    @abstractmethod
+    def label(self) -> str:
+        """The label for this class of model"""
+        raise NotImplementedError
+
+
+    @property
+    @abstractmethod
+    def plural(self) -> str:
+        """The plural of the label for this class of model"""
+        raise NotImplementedError
+
 
 class StoredModel(ABC, LabeledModel):
     id: int = Field(frozen=True)
