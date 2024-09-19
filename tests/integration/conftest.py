@@ -347,7 +347,9 @@ async def blocks_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jBlo
         neo4j_tx,
         user_id=stored_account.user.id,
         read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        write_teams=[stored_organisation.root.id],
+        curate_teams=[stored_organisation.root.id],
+        admin_teams=[stored_organisation.root.id]
     )
 
 @pytest_asyncio.fixture(scope="session")

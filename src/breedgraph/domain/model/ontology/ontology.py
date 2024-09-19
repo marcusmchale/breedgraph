@@ -19,6 +19,13 @@ from .location_type import LocationType
 from functools import total_ordering
 from typing import List, Tuple, ClassVar, Generator
 
+from enum import IntEnum
+
+class VersionChange(IntEnum):
+    MAJOR = 0
+    MINOR = 1
+    PATCH = 2
+
 @total_ordering
 class Version(BaseModel):
     major: int = 0
@@ -39,6 +46,16 @@ class Version(BaseModel):
     def __eq__(self, other):
         return self.as_tuple() == other.as_tuple()
 
+    def increment(self, version_change:VersionChange = VersionChange.PATCH):
+        if version_change is VersionChange.PATCH:
+            self.patch += 1
+        elif version_change is VersionChange.MINOR:
+            self.minor += 1
+            self.patch = 0
+        else:
+            self.major += 1
+            self.minor = 0
+            self.patch = 0
 
 class VersionStored(Version, StoredModel):
     label: ClassVar[str] = 'OntologyVersion'

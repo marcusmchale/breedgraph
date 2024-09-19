@@ -15,9 +15,6 @@ from src.breedgraph.config import get_base_url, MAIL_HOST, MAIL_PORT, MAIL_USERN
 from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.messagebus import MessageBus
 from src.breedgraph.adapters.redis.read_model import ReadModel
-from src.breedgraph.domain.commands.accounts import AddFirstAccount, VerifyEmail
-from src.breedgraph.domain.model.ontology import Ontology
-from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 
 from tests.inputs import UserInputGenerator, LoremTextGenerator
 

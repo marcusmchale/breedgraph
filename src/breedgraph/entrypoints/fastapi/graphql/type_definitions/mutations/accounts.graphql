@@ -1,12 +1,4 @@
 extend type Mutation {
-    add_first_account(
-        name: String!
-        fullname: String
-        email: String!
-        password: String!
-        team_name: String!
-        team_fullname: String
-    ): BooleanPayload!
     add_account(
         name: String!
         fullname: String

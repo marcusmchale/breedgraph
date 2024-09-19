@@ -23,54 +23,30 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def add_first_account(
-        cmd: commands.accounts.AddFirstAccount,
-        uow: unit_of_work.AbstractUnitOfWork
-):
-    async with uow.get_repositories() as uow:
-        async for _ in uow.accounts.get_all():
-            raise UnauthorisedOperationError("This operation is only permitted when no accounts have been registered")
-        user = UserInput(
-            name=cmd.name,
-            fullname=cmd.fullname if cmd.fullname else cmd.name,
-            email=cmd.email,
-            password_hash=cmd.password_hash
-        )
-        team = TeamInput(
-            name=cmd.team_name,
-            fullname=cmd.team_fullname if cmd.team_fullname else cmd.team_name
-        )
-        organisation: Organisation = await uow.organisations.create(team)
-
-
-        account: AccountInput = AccountInput(user=user)
-        account: AccountStored = await uow.accounts.create(account)
-
-        account.affiliations.append(Affiliation(
-                team=organisation.root.id,
-                access=Access.ADMIN,
-                authorisation = Authorisation.AUTHORISED,
-                heritable=True
-            )
-        )
-        await uow.commit()
-
 async def add_account(
         cmd: commands.accounts.AddAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow.get_repositories() as uow:
         # Registration email must be included in the allowed emails of some other account
-        # todo consider using a view for this, simply all allowed emails (private view)
+        # unless no accounts exist yet
+        first_account = True
+        if await uow.accounts.get():
+            first_account = False
+
+        # todo create a view for allowed emails
         async for account in uow.accounts.get_all(
-                access_types=[Access.ADMIN],
-                authorisations=[Authorisation.AUTHORISED]
+                # todo, consider restricting invites to admins
+                # though this would requires a team affiliation so breaks the early registration workflow
+                #access_types=[Access.ADMIN],
+                #authorisations=[Authorisation.AUTHORISED]
         ):
             account: AccountStored
             if cmd.email.casefold() in [i.casefold() for i in account.allowed_emails]:
                 break
         else:
-            raise UnauthorisedOperationError("Email is not allowed")
+            if not first_account:
+                raise UnauthorisedOperationError("Email is not allowed")
 
         # Check for accounts with same email but not verified
         existing_email: AccountStored = await uow.accounts.get(email=cmd.email)

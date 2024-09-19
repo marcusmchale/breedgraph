@@ -17,4 +17,4 @@ from .designs import Design
 from .layout_type import LayoutType
 from .people import Role, Title
 from .germplasm import GermplasmMethod
-from .ontology import Ontology, Version, VersionStored
+from .ontology import Ontology, Version, VersionStored, VersionChange

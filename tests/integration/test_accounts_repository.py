@@ -1,5 +1,4 @@
 import pytest
-from pydantic import ValidationError
 
 from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
@@ -48,9 +47,6 @@ async def test_change_user_details_on_account(neo4j_tx, user_input_generator):
     stored_account.user.name = changed_account_input.user.name
     stored_account.user.email = changed_account_input.user.email
     stored_account.user.fullname = changed_account_input.user.name
-
-    with pytest.raises(ValidationError):
-        stored_account.user.id = 0
 
     await accounts_repo.update_seen()
 

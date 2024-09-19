@@ -1,6 +1,8 @@
 type Query {
     account: AccountPayload!  # see own account details
-    teams (team_id: Int): TeamsPayload! # see teams visible to the user
+    organisations: TeamsPayload!
+    team (team_id: Int!): TeamPayload! # see team
+
     users (user_id: Int): UsersPayload! # see accounts for admin
     countries: CountriesPayload!
 }

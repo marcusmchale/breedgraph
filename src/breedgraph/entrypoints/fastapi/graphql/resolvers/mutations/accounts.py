@@ -3,7 +3,6 @@ from itsdangerous import URLSafeTimedSerializer
 
 from src.breedgraph import config
 from src.breedgraph.domain.commands.accounts import (
-    AddFirstAccount,
     AddAccount,
     UpdateUser,
     Login,
@@ -18,34 +17,26 @@ from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
-from typing import List, Optional
-
 import logging
 logger = logging.getLogger(__name__)
 
-# todo modify this field so it is only available
-#  based on an envar so can disable it after setup
-@graphql_mutation.field("add_first_account")
+@graphql_mutation.field("add_account")
 @graphql_payload
-async def add_first_account(
+async def add_account(
         _,
         info,
         name: str,
+        fullname: str,
         email: str,
-        password: str,
-        team_name: str,
-        fullname: Optional[str] = None,
-        team_fullname: Optional[str] = None
+        password: str
 ) -> bool:
-    logger.debug("Add first account")
+    logger.debug(f"Add account: {name}")
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    cmd = AddFirstAccount(
+    cmd = AddAccount(
         name=name,
         fullname=fullname,
         password_hash=password_hash,
-        email=email,
-        team_name=team_name,
-        team_fullname=team_fullname
+        email=email
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -80,27 +71,6 @@ async def login(
         else:
             raise UnauthorisedOperationError(fail_message)
 
-@graphql_mutation.field("add_account")
-@graphql_payload
-async def add_account(
-        _,
-        info,
-        name: str,
-        fullname: str,
-        email: str,
-        password: str
-) -> bool:
-    logger.debug(f"Add account: {name}")
-    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    cmd = AddAccount(
-        name=name,
-        fullname=fullname,
-        password_hash=password_hash,
-        email=email
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
 @graphql_mutation.field("edit_user")
 @graphql_payload
 async def edit_user(
@@ -111,17 +81,17 @@ async def edit_user(
         email: str|None = None,
         password: str|None = None
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Edit user: {account.user.id}")
+    logger.debug(f"Edit user: {user_id}")
     if password is not None:
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     else:
         password_hash = password
     cmd = UpdateUser(
-        user=account.user.id,
+        user=user_id,
         name=name,
         fullname=fullname,
         password_hash=password_hash,
@@ -145,23 +115,23 @@ async def verify_email(
 @graphql_mutation.field("add_email")
 @graphql_payload
 async def add_email(_, info, email: str) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Add email ({email}) to allowed emails for user {account.user}")
-    await info.context['bus'].handle(AddEmail(user=account.user.id, email=email))
+    logger.debug(f"Add email ({email}) to allowed emails for user {user_id}")
+    await info.context['bus'].handle(AddEmail(user=user_id, email=email))
     return True
 
 @graphql_mutation.field("remove_email")
 @graphql_payload
 async def remove_email(_, info, email: str) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Remove email ({email}) from allowed emails for user {account.user}")
-    await info.context['bus'].handle(RemoveEmail(user=account.user.id, email=email))
+    logger.debug(f"Remove email ({email}) from allowed emails for user {user_id}")
+    await info.context['bus'].handle(RemoveEmail(user=user_id, email=email))
     return True
 
 @graphql_mutation.field("request_affiliation")
@@ -172,13 +142,13 @@ async def request_affiliation(
         team: int,
         access: Access
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} requests read access from team: {team}")
+    logger.debug(f"User {user_id} requests read access from team: {team}")
     cmd = RequestAffiliation(
-        user=account.user.id,
+        user=user_id,
         team=team,
         access=access
     )
@@ -195,13 +165,13 @@ async def approve_affiliation(
         access: Access,
         heritable: bool = False
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    admin_id = info.context.get('admin_id')
+    if admin_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Admin {account.user.id} approving read access to team: {team}")
+    logger.debug(f"Admin {admin_id} approving read access to team {team} for user {user}")
     cmd = ApproveAffiliation(
-        admin=account.user.id,
+        admin=admin_id,
         user=user,
         team=team,
         access=access,
@@ -219,13 +189,13 @@ async def remove_affiliation(
         team: int,
         access: Access
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    admin_id = info.context.get('user_id')
+    if admin_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Admin {account.user.id} removing read access to team: {team}")
+    logger.debug(f"Admin {admin_id} removing read access to team: {team} for user {user}")
     cmd = RemoveAffiliation(
-        admin=account.user.id,
+        admin=admin_id,
         user=user,
         team=team,
         access=access

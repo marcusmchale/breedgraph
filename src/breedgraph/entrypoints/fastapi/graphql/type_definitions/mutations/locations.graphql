@@ -1,5 +1,5 @@
 extend type Mutation {
-    add_country(
+    add_location(
         name: String!
         code: String!
     ): BooleanPayload!

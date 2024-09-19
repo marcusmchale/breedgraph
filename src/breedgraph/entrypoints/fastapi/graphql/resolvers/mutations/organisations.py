@@ -19,13 +19,13 @@ async def add_team(
         fullname: Optional[str] = None,
         parent: Optional[int] = None
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} adds team: {name}")
+    logger.debug(f"User {user_id} adds team: {name}")
     cmd = AddTeam(
-        user=account.user.id,
+        user=user_id,
         name=name,
         fullname=fullname,
         parent=parent
@@ -40,13 +40,13 @@ async def remove_team(
         info,
         team: int
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} removes team: {team}")
+    logger.debug(f"User {user_id} removes team: {team}")
     cmd = RemoveTeam(
-        user=account.user.id,
+        user=user_id,
         team=team
     )
     await info.context['bus'].handle(cmd)
@@ -61,13 +61,13 @@ async def edit_team(
         name: str|None = None,
         fullname: str|None = None
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user_id = info.context.get('user_id')
+    if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} edits team: {team}")
+    logger.debug(f"User {user_id} edits team: {team}")
     cmd = UpdateTeam(
-        user=account.user.id,
+        user=user_id,
         team=team,
         name=name,
         fullname=fullname

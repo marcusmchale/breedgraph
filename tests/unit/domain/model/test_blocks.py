@@ -1,13 +1,11 @@
 import pytest
 
 from src.breedgraph.domain.model.blocks import (
-    TemporalLayoutReference,
-    TemporalLocationReference,
+    Position,
     UnitInput,
     UnitStored,
     Block
 )
-from src.breedgraph.domain.model.time_descriptors import PyDT64
 from src.breedgraph.domain.model.controls import Controller, Control, ReadRelease
 from tests.conftest import lorem_text_generator
 
@@ -19,8 +17,7 @@ def get_unit_input(lorem_text_generator):
         synonyms=[lorem_text_generator.new_text(5)],
         description=lorem_text_generator.new_text(10),
         germplasm=1,
-        locations=[TemporalLocationReference(location=1, start='2001', end='2004')],
-        layouts=[TemporalLayoutReference(layout=1, start='2001')]
+        positions=[Position(location=1, start='2001', end='2004'), Position(location=1, layout=2, coordinates=[1,1], start='2001', end='2004')]
     )
 
 @pytest.fixture

@@ -53,29 +53,26 @@ async def lifespan(fast_api_app: FastAPI):
     bus: MessageBus = await bootstrap.bootstrap()
     app.bus = bus
 
-    async def get_account_for_request(request: Request) -> Optional[AccountStored]:
+    async def get_user_id(request: Request) -> Optional[AccountStored]:
         token = request.headers.get('token')
         if token is not None:
-            async with bus.uow.get_repositories() as uow:
-                ts = URLSafeTimedSerializer(SECRET_KEY)
+            ts = URLSafeTimedSerializer(SECRET_KEY)
+            try:
+                user_id = ts.loads(token, salt=LOGIN_SALT, max_age=TOKEN_EXPIRES_MINUTES * 60)
+                return user_id
 
-                try:
-                    user_id = ts.loads(token, salt=LOGIN_SALT, max_age=TOKEN_EXPIRES_MINUTES * 60)
-                except SignatureExpired as e:
-                    logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
-                    # return RedirectResponse(
-                    #    url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
-                    raise UnauthorisedOperationError("The login token has expired")
-
-                if user_id is not None:
-                    return await uow.accounts.get(user_id=user_id)
+            except SignatureExpired as e:
+                logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
+                # return RedirectResponse(
+                #    url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}")  # return redirect to front end
+                raise UnauthorisedOperationError("The login token has expired")
 
     async def get_context_value(request: Request, _):
         logger.debug("get context value")
         return {
             "request": request,
             "bus": bus,
-            "account": await get_account_for_request(request)
+            "user_id": await get_user_id(request)
         }
 
     # create the schema instance for use in the graphql route

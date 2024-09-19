@@ -21,7 +21,7 @@ With pooling, e.g. the unit represents a pool of leaves, the subject would still
 
 
 """
-from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError
+from pydantic import BaseModel, field_validator, ValidationInfo
 
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate
@@ -30,18 +30,11 @@ from typing import List, ClassVar
 
 class Position(BaseModel):
     location: int
-    layout: int | None # ref to LayoutStored
-    coordinates: list | None  # list of axis values should correspond to layout,
+    layout: int | None = None # ref to LayoutStored
+    coordinates: list | None = None  # list of axis values should correspond to layout,
     start: PyDT64
     end: PyDT64|None = None
 
-    @field_validator('coordinates')
-    def validate_coordinates_have_layout(cls, coordinates: list, info: ValidationInfo):
-        # currently not validating that coordinates match the layout axes as we would need to load the layout
-        # todo consider whether the above is a good idea
-        if coordinates and not info.data.get('layout'):
-            raise ValidationError("Position requires a layout")
-        return coordinates
 
 class Unit(LabeledModel):
     """

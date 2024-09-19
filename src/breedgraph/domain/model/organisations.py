@@ -46,7 +46,8 @@ class TeamStored(TeamBase, StoredModel):
         super().__init__(**kwargs)
 
 class TeamOutput(TeamStored):
-    pass
+    parent: int|None
+    children: list[int]
 
 class Organisation(TreeAggregate):
 
@@ -58,6 +59,14 @@ class Organisation(TreeAggregate):
         else:
             raise ValueError('Root must have a heritable authorisation affiliation')
 
+    def to_output_map(self) -> dict[int, TeamOutput]:
+        # this creates a dictionary where each node maps to list of neighbours
+        return {node: TeamOutput(
+            **self.get_team(node).model_dump(),
+            parent=self.get_parent_id(node),
+            children=self.get_children_ids(node)
+        ) for node in self.graph}
+
     def get_team(self, team: int|str) -> TeamStored|TeamInput:
         if isinstance(team, int):
             return self.graph.nodes[team].get('model')
@@ -66,15 +75,34 @@ class Organisation(TreeAggregate):
                 if t.name.casefold() == team.casefold():
                     return t
 
+    def get_parent_id(self, team: int) -> int:
+        in_edges = list(self.graph.in_edges(team))
+        if in_edges:
+            return in_edges[0][1]
+
+    def get_children_ids(self, team: int) -> List[int]:
+        return [edge[1] for edge in self.graph.out_edges(team)]
+
     def add_team(self, team: TeamInput, parent_id: int|None=None):
         if parent_id is not None and not parent_id in self.graph.nodes:
             raise ValueError("Parent not found")
+
+        if parent_id is not None:
+            for child_id, child_team in self.get_sinks(parent_id):
+                if child_team.name.lower() == team.name.lower():
+                    raise ValueError('The parent team already has a child with this name')
 
         team_id = self._add_node(team)
         if parent_id is not None:
             self._add_edge(source_id=parent_id, sink_id=team_id)
 
         return team_id
+
+    def remove_team(self, team_id: int):
+        if self.get_sinks(team_id):
+            raise IllegalOperationError("Cannot remove a team with children")
+
+        self.graph.remove_node(team_id)
 
     @computed_field
     def teams(self) -> List[TeamStored|TeamInput]:

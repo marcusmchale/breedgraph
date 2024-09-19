@@ -5,7 +5,7 @@ from accounts.test_registration_api import get_verified_payload, assert_payload_
 
 
 @pytest_asyncio.fixture(scope="session")
-async def admin_login_token(client, user_input_generator) -> str:
+async def first_user_login_token(client, user_input_generator) -> str:
     first_user_input = user_input_generator.user_inputs[0]
 
     login_response = await post_to_login(

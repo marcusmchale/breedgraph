@@ -5,7 +5,6 @@ from . import regions, organisations, accounts, setup, ontologies
 
 COMMAND_HANDLERS = {
     commands.setup.LoadReadModel: setup.load_read_model,
-    commands.accounts.AddFirstAccount: accounts.add_first_account,
     commands.accounts.AddAccount: accounts.add_account,
     commands.accounts.UpdateUser: accounts.edit_user,
     commands.accounts.AddEmail: accounts.add_email,

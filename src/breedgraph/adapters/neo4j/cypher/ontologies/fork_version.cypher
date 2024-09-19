@@ -1,4 +1,4 @@
-MATCH (version: OntologyVersion {id: $version_id})
+MATCH (version: OntologyVersion {id: $id})
 CALL apoc.refactor.cloneNodes([version], TRUE)
 YIELD output
 MATCH (counter: Counter {name: 'ontology_version'})
@@ -9,6 +9,6 @@ SET output += {
   minor: $minor,
   patch: $patch,
   comment: $comment,
-  time:timestamp()
+  time:datetime.transaction()
 }
 RETURN output {.*} as version

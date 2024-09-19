@@ -50,14 +50,50 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
         }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
+async def post_to_organisations(client, token:str):
+    json = {
+        "query": (
+            " query { "
+            "  organisations {"
+            "    status, "
+            "    result { "
+            "       name, "
+            "       fullname, "
+            "       id, "
+            "       parent { "
+            "           name,"
+            "           fullname, "
+            "           id, "
+            "           children {name, fullname, id}"
+            "       }, "
+            "       children { "
+            "           name, "
+            "           fullname, "
+            "           id, "
+            "           parent {name, fullname, id}"
+            "       }, "
+            "       affiliations { "
+            "           read { user { id, name, fullname, email }} "
+            "           write { user { id, name, fullname, email }} "
+            "           admin { user { id, name, fullname, email }} "
+            "           curate { user { id, name, fullname, email }} "
+            "       }, "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        )
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_teams(client, token:str, team_id: None|int = None):
+
+async def post_to_team(client, token:str, team_id: int):
     json = {
         "query": (
             " query ("
-            "   $team_id : Int"
+            "   $team_id : Int!"
             " ) { "
-            "  teams ( "
+            "  team ( "
             "  team_id: $team_id,"
             "  ) {"
             "    status, "
@@ -77,12 +113,12 @@ async def post_to_teams(client, token:str, team_id: None|int = None):
             "           id, "
             "           parent {name, fullname, id}"
             "       }, "
-            "       readers {name, fullname, id, email}, "
-            "       writers {name, fullname, id, email}, "
-            "       admins {name, fullname, id, email}, "
-            "       read_requests {name, fullname, id, email}, "
-            "       write_requests {name, fullname, id, email}, "
-            "       admin_requests {name, fullname, id, email} "  
+            "       affiliations { "
+            "           read { user { id, name, fullname, email }} "
+            "           write { user { id, name, fullname, email }} "
+            "           admin { user { id, name, fullname, email }} "
+            "           curate { user { id, name, fullname, email }} "
+            "       }, "
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -94,6 +130,27 @@ async def post_to_teams(client, token:str, team_id: None|int = None):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
+
+async def post_to_remove_team(client, token:str, team: int):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $team: Int!"
+            " ) { "
+            "  remove_team( "
+            "    team: $team "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "team": team
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
 async def post_to_edit_team(client, token:str, team: int, name: str, fullname: str):
     json = {
@@ -119,27 +176,6 @@ async def post_to_edit_team(client, token:str, team: int, name: str, fullname: s
             "team": team,
             "name": name,
             "fullname": fullname
-        }
-    }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
-
-async def post_to_remove_team(client, token:str, team: int):
-    json = {
-        "query": (
-            " mutation ( "
-            "  $team: Int!"
-            " ) { "
-            "  remove_team( "
-            "    team: $team "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "team": team
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

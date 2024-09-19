@@ -27,6 +27,12 @@ type TeamsPayload {
     errors: [Error]
 }
 
+type TeamPayload {
+    status: QueryStatus!
+    result: Team
+    errors: [Error]
+}
+
 type AccountPayload {
     status: QueryStatus!
     result: Account

@@ -80,7 +80,7 @@ def second_entry_stored(lorem_text_generator, first_entry, first_team):
         synonyms=[lorem_text_generator.new_text(5)],
         id=2,
         controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)}),
-        time=PyDT64("2024")
+        time="2024"
     )
 
 @pytest.mark.asyncio

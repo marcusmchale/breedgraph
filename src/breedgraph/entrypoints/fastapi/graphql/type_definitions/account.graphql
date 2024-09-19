@@ -1,4 +1,18 @@
-enum Access {READ, WRITE, ADMIN}
+enum Access {READ, WRITE, ADMIN, CURATE}
+enum Authorisation {REQUESTED, AUTHORISED, REVOKED}
+
+type Affiliation {
+    user: User
+    authorisation: Authorisation
+    heritable: Boolean!
+}
+
+type Affiliations {
+    read: [Affiliation]
+    write: [Affiliation]
+    admin: [Affiliation]
+    curate: [Affiliation]
+}
 
 type Team {
     id: Int!
@@ -6,12 +20,7 @@ type Team {
     fullname: String!
     parent: Team
     children: [Team]
-    readers: [User]
-    writers: [User]
-    admins: [User]
-    read_requests: [User]
-    write_requests: [User]
-    admin_requests: [User]
+    affiliations: Affiliations
 }
 
 type User {
@@ -22,8 +31,7 @@ type User {
 }
 
 type Account {
-    user: User!,
-    reads: [Team]
-    writes: [Team]
-    admins: [Team]
+    user: User!
+    allowed_emails: [String]
+    allowed_users: [User]
 }

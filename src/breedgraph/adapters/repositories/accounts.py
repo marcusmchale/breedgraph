@@ -48,7 +48,7 @@ class Neo4jAccountRepository(BaseRepository):
         record = await result.single()
         return self.user_record_to_user(record['user'])
 
-    async def _get(self, user_id=None, name=None, email=None) -> AccountStored:
+    async def _get(self, user_id=None, name=None, email=None) -> AccountStored|None:
         if user_id is not None:
             result: AsyncResult = await self.tx.run(
                 queries['accounts']['get_account'],
@@ -65,13 +65,15 @@ class Neo4jAccountRepository(BaseRepository):
                 email_lower=email.casefold()
             )
         else:
-            raise TypeError(f"Get account requires user_id, name or email")
+            try:
+                return await anext(self._get_all())
+            except StopAsyncIteration:
+                return None
 
         record: "Record" = await result.single()
         return self.record_to_account(record) if record else None
 
     async def _get_all(self, **kwargs) -> AsyncGenerator[AccountStored, None]:
-
         user_ids = kwargs.get('user_ids')
         team_ids = kwargs.get('team_ids')
         access_types = kwargs.get('access_types')

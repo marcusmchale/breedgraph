@@ -1,21 +1,7 @@
-MATCH
-  (admin:User {id:$user})
-WITH
-coalesce([(admin)-[:ADMIN {authorisation: 'AUTHORISED'}]->(team:Team) | team], []) +
-[(admin)-[:ADMIN {heritable:True, authorisation: 'AUTHORISED'}]->(:Team)<-[:CONTRIBUTES_TO*]-(team: Team) | team] as teams
-UNWIND teams as team
-CALL {
-  WITH team
-  MATCH (user: User)-[affiliation:READ|WRITE|ADMIN]->(team)
-  RETURN
-    collect(user) as users
-}
-CALL {
-  WITH team
-  OPTIONAL MATCH (user: User)-[affiliation:READ|WRITE|ADMIN {heritable:True}]->(:Team)<-[:CONTRIBUTES_TO*]-(team)
-  RETURN
-    collect(user) as inherited_users
-}
-WITH users + inherited_users as users
-UNWIND users as user
-RETURN DISTINCT user {.id, .name, .fullname, .email}
+MATCH (admin: User {id: $admin_id})
+WITH [(user)-[:ADMIN]->(team:Team)|team] +
+     [(user)-[:ADMIN {heritable:True}]->(:Team)-[:INCLUDES*]->(team)|team]
+AS admin_teams
+UNWIND admin_teams as team
+MATCH (user)-[:READ|WRITE|ADMIN|CURATE]->(team)
+RETURN user {.id, .name, .fullname, .email}

@@ -1,14 +1,6 @@
 from .base import Command
 from typing import Optional
 
-class AddFirstAccount(Command):
-    name: str
-    fullname: str|None = None
-    email: str
-    password_hash: str
-    team_name: str
-    team_fullname: str|None = None
-
 class AddAccount(Command):
     name: str
     fullname: str|None = None

@@ -31,7 +31,7 @@ class LabeledModel(BaseModel):
 
 
 class StoredModel(ABC, LabeledModel):
-    id: int = Field(frozen=True)
+    id: int
 
     def __hash__(self):
         return hash(self.id)

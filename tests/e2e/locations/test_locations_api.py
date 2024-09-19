@@ -7,8 +7,8 @@ from tests.e2e.payload_helpers import get_verified_payload
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
-async def test_get_countries_add_new(client, admin_login_token):
-    response = await post_to_countries(client, admin_login_token)
+async def test_get_countries_add_new(client, first_user_login_token):
+    response = await post_to_countries(client, first_user_login_token)
     payload = get_verified_payload(response, "countries")
     assert payload['result']
     # todo add new country and test is found

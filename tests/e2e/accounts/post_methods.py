@@ -2,24 +2,20 @@ from src.breedgraph.config import GQL_API_PATH
 
 from src.breedgraph.domain.model.controls import Access
 
-async def post_to_add_first_account(client, name: str, email: str, password: str, team_name: str):
+async def post_to_add_account(client, name: str, email: str, password: str):
     json={
         "query": (
             " mutation ( "
             "  $name: String!,"
             "  $fullname: String,"
             "  $email: String!,"
-            "  $password: String!,"
-            "  $team_name: String!,"
-            "  $team_fullname: String"
+            "  $password: String!"
             " ) { "
-            "  add_first_account( "
+            "  add_account( "
             "    name: $name, "
             "    fullname: $fullname, "
             "    email: $email, "
-            "    password: $password, "
-            "    team_name: $team_name, "
-            "    team_fullname: $team_fullname"
+            "    password: $password "
             "  ) { "
             "    status, "
             "    result, "
@@ -31,9 +27,7 @@ async def post_to_add_first_account(client, name: str, email: str, password: str
             "name": name,
             "fullname": name,
             "email": email,
-            "password": password,
-            "team_name": team_name,
-            "team_fullname": team_name
+            "password": password
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json)
@@ -125,37 +119,6 @@ async def post_to_remove_email(client, token: str, email: str):
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
-
-
-async def post_to_add_account(client, name: str, email: str, password: str):
-    json={
-        "query": (
-            " mutation ( "
-            "  $name: String!,"
-            "  $fullname: String,"
-            "  $email: String!,"
-            "  $password: String!"
-            " ) { "
-            "  add_account( "
-            "    name: $name, "
-            "    fullname: $fullname, "
-            "    email: $email, "
-            "    password: $password "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "name": name,
-            "fullname": name,
-            "email": email,
-            "password": password
-        }
-    }
-    return await client.post(f"{GQL_API_PATH}/", json=json)
 
 
 async def post_to_account(client, token:str):

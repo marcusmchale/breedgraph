@@ -54,5 +54,5 @@ async def test_update_records(
     records.append(new_record)
     await datasets_repo.update_seen()
     retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
-    import pdb; pdb.set_trace()
+    assert len(retrieved.unit_records[tree_block.root.id]) == len(records)
 

@@ -6,20 +6,19 @@ We force a fork on "material" changes so this won't happen when these details ar
  # todo consider how to handle this
 """
 import logging
-import re
 import networkx as nx
-from enum import IntEnum
 from neo4j import AsyncTransaction, Record
 
 from src.breedgraph.adapters.neo4j.cypher import queries, ontology_entries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedDict, TrackedGraph
 from src.breedgraph.adapters.repositories.base import BaseRepository
+from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
 from typing import Set, AsyncGenerator, Protocol
 
 from src.breedgraph.domain.model.ontology import (
-    Ontology, Version, VersionStored,
-    OntologyEntry
+    Version, VersionStored, VersionChange,
+    Ontology, OntologyEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,11 +29,6 @@ class TrackedOntology(Protocol):
     licence: int|None
     copyright: int|None
     changed: bool
-
-class VersionChange(IntEnum):
-    MAJOR = 0
-    MINOR = 1
-    PATCH = 2
 
 class Neo4jOntologyRepository(BaseRepository):
     # entry attributes that require forking to a new entry when changed
@@ -54,34 +48,6 @@ class Neo4jOntologyRepository(BaseRepository):
         if record is not None:
             return VersionStored(**record['version'])
 
-    async def get_next_version(self, version_change: VersionChange = VersionChange.PATCH) -> Version:
-        latest_version = await self.get_latest_version()
-        if latest_version is None:  # i.e. None yet stored
-            version = Version(major=0, minor=0, patch=0, comment='default')
-        else:
-            if version_change is VersionChange.PATCH:
-                version = Version(
-                    major=latest_version.major,
-                    minor=latest_version.minor,
-                    patch=latest_version.patch + 1,
-                    comment='default'
-                )
-            elif version_change is VersionChange.MINOR:
-                version = Version(
-                    major=latest_version.major,
-                    minor=latest_version.minor + 1,
-                    patch=0,
-                    comment='default'
-                )
-            else:  # version_change is VersionChange.MAJOR
-                version = Version(
-                    major=latest_version.major + 1,
-                    minor=0,
-                    patch=0,
-                    comment='default'
-                )
-        return version
-
     async def _create(self, version: Version|None = None) -> Ontology:
         """
         This will create a fork of the latest version.
@@ -91,11 +57,13 @@ class Neo4jOntologyRepository(BaseRepository):
 
         """
         latest = await self.get_latest_version()
+
         if version is None:
-            version = await self.get_next_version(version_change=VersionChange.MAJOR)
-        else:
-            if not version > latest:
-                raise ValueError(f"New version numbers must be higher than the latest stored version: {latest}")
+            version = latest
+            version.increment(VersionChange.MAJOR)
+
+        if not version > latest:
+            raise ValueError(f"New version numbers must be higher than the latest stored version")
 
         new_version = await self._create_version(version)
 
@@ -104,6 +72,7 @@ class Neo4jOntologyRepository(BaseRepository):
         else:
             ontology = await self.get()
             ontology.version = new_version
+            import pdb; pdb.set_trace()
 
         return ontology
 
@@ -122,20 +91,14 @@ class Neo4jOntologyRepository(BaseRepository):
             self,
             ontology: TrackedOntology,
             version_change: VersionChange = VersionChange.PATCH
-    )-> None:
-        new_version = await self.get_next_version(version_change)
-
+    ) -> None:
+        ontology.version.increment(version_change)
         result = await self.tx.run(
             queries['ontologies']['fork_version'],
-            version_id=ontology.version.id,
-            major=new_version.major,
-            minor=new_version.minor ,
-            patch=new_version.patch,
-            comment=new_version.comment
+            **ontology.version.model_dump()
         )
         record = await result.single()
-        new_version_stored = VersionStored(**record['version'])
-        ontology.version = new_version_stored
+        ontology.version.id = record.get('version').get('id')
 
     async def _get(self, version_id: int = None) -> Ontology|None:
         if version_id is None:
@@ -224,7 +187,6 @@ class Neo4jOntologyRepository(BaseRepository):
     async def _update(self, ontology: TrackedOntology|Ontology):
         if not ontology.changed:
             return
-
         if any([
             ontology.graph.added_nodes,
             ontology.graph.removed_nodes,
