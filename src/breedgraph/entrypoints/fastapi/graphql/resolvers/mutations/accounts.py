@@ -8,7 +8,7 @@ from src.breedgraph.domain.commands.accounts import (
     Login,
     VerifyEmail,
     AddEmail, RemoveEmail,
-    RequestAffiliation, ApproveAffiliation, RemoveAffiliation
+    RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation
 )
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.authentication import Token
@@ -146,7 +146,7 @@ async def request_affiliation(
     if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {user_id} requests read access from team: {team}")
+    logger.debug(f"User {user_id} requests {access} for team: {team}")
     cmd = RequestAffiliation(
         user=user_id,
         team=team,
@@ -165,13 +165,13 @@ async def approve_affiliation(
         access: Access,
         heritable: bool = False
 ) -> bool:
-    admin_id = info.context.get('admin_id')
-    if admin_id is None:
+    agent_id = info.context.get('user_id')
+    if agent_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Admin {admin_id} approving read access to team {team} for user {user}")
+    logger.debug(f"Agent {agent_id} approving {access} to team {team} for user {user}")
     cmd = ApproveAffiliation(
-        admin=admin_id,
+        agent=agent_id,
         user=user,
         team=team,
         access=access,
@@ -185,17 +185,40 @@ async def approve_affiliation(
 async def remove_affiliation(
         _,
         info,
+        team: int,
+        access: Access
+) -> bool:
+    agent_id = info.context.get('user_id')
+    if agent_id is None:
+        raise UnauthorisedOperationError("Please provide a valid token")
+
+    logger.debug(f"Agent {agent_id} removing {access} for team: {team}")
+    cmd = RemoveAffiliation(
+        agent=agent_id,
+        user=agent_id,
+        team=team,
+        access=access
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+
+@graphql_mutation.field("revoke_affiliation")
+@graphql_payload
+async def revoke_affiliation(
+        _,
+        info,
         user: int,
         team: int,
         access: Access
 ) -> bool:
-    admin_id = info.context.get('user_id')
-    if admin_id is None:
+    agent_id = info.context.get('user_id')
+    if agent_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"Admin {admin_id} removing read access to team: {team} for user {user}")
-    cmd = RemoveAffiliation(
-        admin=admin_id,
+    logger.debug(f"Agent {agent_id} removing {access} for team: {team} for user {user}")
+    cmd = RevokeAffiliation(
+        agent=agent_id,
         user=user,
         team=team,
         access=access

@@ -108,9 +108,8 @@ async def test_add_entry(neo4j_tx, stored_account, first_entry_input, lorem_text
         sources = {stored_germplasm.root.id: {'type': GermplasmSourceType.SEED}}
     )
     await repo.update_seen()
+    for key, value in stored_germplasm.get_sink_edges(stored_germplasm.get_root_id()).items():
 
-
-    for key, value in stored_germplasm.get_sinks(stored_germplasm.get_root_id()).items():
         if value.get('type') == GermplasmSourceType.SEED:
             break
     else:
@@ -122,7 +121,7 @@ async def test_add_entry(neo4j_tx, stored_account, first_entry_input, lorem_text
         sources = {stored_germplasm.root.id: None}
     )
     await repo.update_seen()
-    for key, value in stored_germplasm.get_sinks(stored_germplasm.get_root_id()).items():
+    for key, value in stored_germplasm.get_sink_edges(stored_germplasm.get_root_id()).items():
         if value.get('type') == GermplasmSourceType.UNKNOWN:
             break
     else:

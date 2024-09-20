@@ -1,15 +1,19 @@
 import networkx as nx
-from pydantic import BaseModel, field_validator, ValidationError, Field, computed_field, model_validator, ConfigDict
+import copy
+
+from pydantic import BaseModel, computed_field
 from enum import Enum
 
 from src.breedgraph.domain.model.base import TreeAggregate, StoredModel, LabeledModel
-
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
-from src.breedgraph.adapters.repositories.trackable_wrappers import TrackedDict
-from typing import Set, List, Dict, ClassVar, Self, Tuple, TypedDict
 
+from src.breedgraph.domain.events.accounts import AffiliationRequested, AffiliationApproved
+
+from typing import List, ClassVar, Tuple
 
 import logging
+
+
 logger = logging.getLogger(__name__)
 
 class Access(str, Enum):
@@ -45,27 +49,23 @@ class TeamStored(TeamBase, StoredModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def redacted(self):
+        return self.model_copy(deep=True, update={'affiliations':dict()})
+
 class TeamOutput(TeamStored):
     parent: int|None
     children: list[int]
 
 class Organisation(TreeAggregate):
 
-    def __init__(self, nodes: List[TeamStored|TeamInput], edges: List[Tuple[int, int, dict]]|None = None):
+    def __init__(self, nodes: List[TeamStored|TeamInput] = None, edges: List[Tuple[int, int, dict]]|None = None):
         super().__init__(nodes=nodes, edges=edges)
-        for a in self.root.affiliations.get(Access.ADMIN, dict()).values():
-            if a.heritable and a.authorisation is Authorisation.AUTHORISED:
-                break
-        else:
-            raise ValueError('Root must have a heritable authorisation affiliation')
-
-    def to_output_map(self) -> dict[int, TeamOutput]:
-        # this creates a dictionary where each node maps to list of neighbours
-        return {node: TeamOutput(
-            **self.get_team(node).model_dump(),
-            parent=self.get_parent_id(node),
-            children=self.get_children_ids(node)
-        ) for node in self.graph}
+        if nodes:
+            for a in self.root.affiliations.get(Access.ADMIN, dict()).values():
+                if a.heritable and a.authorisation is Authorisation.AUTHORISED:
+                    break
+            else:
+                raise ValueError('Root must have a heritable authorisation affiliation')
 
     def get_team(self, team: int|str) -> TeamStored|TeamInput:
         if isinstance(team, int):
@@ -87,15 +87,19 @@ class Organisation(TreeAggregate):
         if parent_id is not None and not parent_id in self.graph.nodes:
             raise ValueError("Parent not found")
 
-        if parent_id is not None:
-            for child_id, child_team in self.get_sinks(parent_id):
-                if child_team.name.lower() == team.name.lower():
-                    raise ValueError('The parent team already has a child with this name')
+        try:
+            if parent_id is not None:
+                for child_id, child_team in self.get_sinks(parent_id).items():
+
+                    if child_team.name.lower() == team.name.lower():
+                        raise ValueError('The parent team already has a child with this name')
+
+        except TypeError:
+            import pdb; pdb.set_trace()
 
         team_id = self._add_node(team)
         if parent_id is not None:
             self._add_edge(source_id=parent_id, sink_id=team_id)
-
         return team_id
 
     def remove_team(self, team_id: int):
@@ -152,7 +156,7 @@ class Organisation(TreeAggregate):
                     affiliates = affiliates.union(set([u for u,a in predecessor.affiliations.get(Access[access_level], {}).items() if a.authorisation in authorisation_levels and a.heritable]))
         return affiliates
 
-    def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = False) -> None:
+    def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = True) -> None:
         if not agent_id == user_id:
             raise IllegalOperationError("Requests may only be made by the given user")
 
@@ -169,7 +173,10 @@ class Organisation(TreeAggregate):
 
         if not access in team.affiliations:
             team.affiliations[access] = dict()
+
         team.affiliations[access][user_id] = Affiliation(authorisation=Authorisation.REQUESTED, heritable=heritable)
+
+        self.events.append(AffiliationRequested(user=user_id, team=team_id, access=access))
 
     def remove_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int):
         if not any([
@@ -212,6 +219,7 @@ class Organisation(TreeAggregate):
             authorisation=Authorisation.AUTHORISED,
             heritable=heritable
         )
+        self.events.append(AffiliationApproved(user=user_id, team=team_id, access=access))
 
     def revoke_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):
@@ -220,3 +228,34 @@ class Organisation(TreeAggregate):
         team = self.get_team(team_id)
         affiliation = team.affiliations[access][user_id]
         affiliation.authorisation = Authorisation.REVOKED
+
+    def redacted(self, user_id: int = None) -> 'Organisation':
+        g = copy.deepcopy(self.graph)
+        root_id = self.get_root_id()
+        for node_id in list(g.nodes):
+            entry: TeamStored = g.nodes[node_id]['model']
+            readers = self.get_affiliates(node_id, access=Access.READ)
+            writers = self.get_affiliates(node_id, access=Access.WRITE)
+            admins =  self.get_affiliates(node_id, access=Access.ADMIN)
+            curators = self.get_affiliates(node_id, access=Access.CURATE)
+
+            if not user_id in admins:
+                g.nodes[node_id]['model'] = entry.redacted()
+
+            if not user_id in readers | admins | writers | curators:
+                if node_id == root_id:
+                    pass
+                else:
+                    self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
+
+        aggregate = self.__class__()
+        aggregate.graph = g
+        return aggregate
+
+    def to_output_map(self) -> dict[int, TeamOutput]:
+        # this creates a dictionary where each node maps to list of neighbours
+        return {node: TeamOutput(
+            **self.get_team(node).model_dump(),
+            parent=self.get_parent_id(node),
+            children=self.get_children_ids(node)
+        ) for node in self.graph}

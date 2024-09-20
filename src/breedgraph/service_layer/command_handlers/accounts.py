@@ -2,7 +2,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from src.breedgraph import config
 from src.breedgraph.service_layer import unit_of_work
-from src.breedgraph.domain import commands, events
+from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
     AccountInput, AccountStored
@@ -154,40 +154,50 @@ async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow.get_repositories() as uow:
-        account: AccountStored = await uow.accounts.get(user_id=cmd.user)
-        account.request_affiliation(cmd.team, Access[cmd.access])
+    async with uow.get_repositories(user_id=cmd.user) as uow:
+        organisation = await uow.organisations.get(team_id=cmd.team)
+        organisation.request_affiliation(agent_id=cmd.user, user_id=cmd.user, team_id=cmd.team, access=cmd.access)
         await uow.commit()
 
 async def approve_affiliation(
         cmd: commands.accounts.ApproveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow.get_repositories() as uow:
-        account = await uow.accounts.get(user_id=cmd.user)
+    async with uow.get_repositories(user_id=cmd.agent) as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.get_node(node_id=cmd.team)
-        if not cmd.admin in team.admins:
-            raise UnauthorisedOperationError("Only admins for the given team can perform this operation")
-
-        account.approve_affiliation(cmd.team, Access[cmd.access], cmd.heritable)
+        organisation.authorise_affiliation(
+            agent_id = cmd.agent,
+            team_id = cmd.team,
+            user_id = cmd.user,
+            access=cmd.access,
+            heritable=cmd.heritable
+        )
         await uow.commit()
 
 async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
         uow: unit_of_work.AbstractUnitOfWork
 ):
-    async with uow.get_repositories() as uow:
+    async with uow.get_repositories(user_id=cmd.agent) as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.get_node(node_id=cmd.team)
-        if not cmd.admin in team.admins:
-            raise UnauthorisedOperationError("Only an admins for the given team can perform this operation")
-        account = await uow.accounts.get(user_id=cmd.user)
-        for a in account.affiliations:
-            if all([
-                a.team == cmd.team,
-                a.access == cmd.access
-            ]):
-                account.affiliations.remove(a)
-                break
+        organisation.remove_affiliation(
+            agent_id = cmd.agent,
+            team_id = cmd.team,
+            user_id = cmd.user,
+            access=cmd.access
+        )
+        await uow.commit()
+
+async def revoke_affiliation(
+        cmd: commands.accounts.RevokeAffiliation,
+        uow: unit_of_work.AbstractUnitOfWork
+):
+    async with uow.get_repositories(user_id=cmd.agent) as uow:
+        organisation = await uow.organisations.get(team_id=cmd.team)
+        organisation.revoke_affiliation(
+            agent_id = cmd.agent,
+            team_id = cmd.team,
+            user_id = cmd.user,
+            access=cmd.access
+        )
         await uow.commit()

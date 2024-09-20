@@ -142,7 +142,7 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
             entry = g.nodes[node_id]['model']
             if not entry.controller.has_access(Access.READ, user_id, read_teams):
                 if node_id == root_id:
-                    redacted_root = self.root.redacted()
+                    redacted_root = entry.redacted()
                     g.nodes[node_id]['model'] = redacted_root
                 else:
                     self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)

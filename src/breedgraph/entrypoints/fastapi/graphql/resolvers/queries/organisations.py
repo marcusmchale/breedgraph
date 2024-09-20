@@ -3,6 +3,7 @@ from ariadne import ObjectType
 from typing import List
 #from src.breedgraph.domain.model.organisations import TeamOutput
 from src.breedgraph.domain.model.organisations import Organisation, TeamOutput
+from src.breedgraph.domain.model.controls import Access
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 team = ObjectType("Team")
 affiliations = ObjectType("Affiliations")
-#affiliation = ObjectType("Affiliation")
+affiliation = ObjectType("Affiliation")
+user = ObjectType("User")
 
 @graphql_query.field("organisations")
 @graphql_payload
@@ -41,12 +43,34 @@ def resolve_parent(obj, info):
 def resolve_children(obj, info):
     return [info.context.get('teams_map').get(child) for child in obj.children]
 
-@team.field("affiliations")
-async def resolve_affiliations(obj, info):
-    await inject_users_map(info.context)
-    return [info.context.get('users_map').get(i) for i in obj.readers]
-
 @affiliations.field("read")
 def resolve_read(obj, info):
-    raise NotImplementedError
+    return [
+        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
+        for key, value in obj.get(Access.READ).items()
+    ]
 
+@affiliations.field("write")
+def resolve_write(obj, info):
+    return [
+        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
+        for key, value in obj.get(Access.WRITE).items()
+    ]
+
+@affiliations.field("curate")
+def resolve_curate(obj, info):
+    return [
+        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
+        for key, value in obj.get(Access.CURATE).items()
+    ]
+@affiliations.field("admin")
+def resolve_admin(obj, info):
+    return [
+        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
+        for key, value in obj.get(Access.ADMIN).items()
+    ]
+
+@affiliation.field("user")
+async def resolve_user(obj, info):
+    await inject_users_map(info.context)
+    return info.context.get('users_map', {}).get(obj.get('user'))

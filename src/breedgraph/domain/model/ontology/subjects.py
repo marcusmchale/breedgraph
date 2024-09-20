@@ -13,7 +13,6 @@ In considering the Planteome ontologies:
     https://doi.org/10.1093/nar/gkad1028
 
 Most Subject descriptions are well detailed in the Plant Ontology, references to this should be encouraged.
-
 """
 
 from src.breedgraph.domain.model.ontology.entries import OntologyEntry

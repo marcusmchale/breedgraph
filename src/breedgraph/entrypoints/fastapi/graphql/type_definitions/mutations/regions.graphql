@@ -2,5 +2,7 @@ extend type Mutation {
     add_location(
         name: String!
         code: String!
+        type: Int!
+        parent: Int!
     ): BooleanPayload!
 }

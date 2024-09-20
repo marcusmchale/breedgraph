@@ -34,14 +34,20 @@ class RequestAffiliation(Command):
     access: str
 
 class ApproveAffiliation(Command):
-    admin: int
+    agent: int
     user: int
     team: int
     access: str
     heritable: bool
 
 class RemoveAffiliation(Command):
-    admin: int
+    agent: int
+    user: int
+    team: int
+    access: str
+
+class RevokeAffiliation(Command):
+    agent: int
     user: int
     team: int
     access: str

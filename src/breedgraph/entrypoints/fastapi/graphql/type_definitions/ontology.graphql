@@ -1,0 +1,54 @@
+type Version {
+    major: Int!
+    minor: Int!
+    patch: Int!
+    comment: String!
+}
+
+enum ObservationMethodType{
+    MEASUREMENT,
+    COUNTING,
+    ESTIMATION,
+    COMPUTATION,
+    PREDICTION,
+    DESCRIPTION,
+    CLASSIFICATION
+}
+enum ScaleType {
+    DATE,
+    DURATION,
+    NUMERICAL,
+    NOMINAL,
+    ORDINAL,
+    TEXT,
+    CODE
+}
+
+type OntologyEntry {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+    parents: [Int]
+    children: [Int]
+    """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
+    type: String
+    """Subjects for trait"""
+    subjects: [Int]
+    """Categories for scale"""
+    categories: [Int]
+    """Trait for variable"""
+    trait: Int
+    """Condition for parameter"""
+    condition: Int
+    """Exposure for event"""
+    exposure: Int
+    """Method for variable/parameter/event"""
+    method: Int
+    """Scale for variable/parameter/event"""
+    scale: Int
+    """Rank for ordinal scale categories"""
+    rank: Int
+}

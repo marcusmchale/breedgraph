@@ -17,14 +17,14 @@ async def post_to_countries(client, token:str):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_add_country(client, token:str, name: str, code: str):
+async def post_to_add_location(client, token:str, name: str, code: str):
     json = {
         "query": (
             " mutation ( "
             "  $name: String!,"
             "  $code: String"
             " ) { "
-            "  add_country( "
+            "  add_location( "
             "    name: $name, "
             "    code: $code"
             "  ) { "

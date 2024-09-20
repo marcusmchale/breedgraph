@@ -55,7 +55,7 @@ class AffiliationRequestedMessage(Email):
         self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access requested'
         body = (
             f'Admin notification:\n'
-            f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.fullname}.\n'
+            f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.name}.\n'
             f'Please consider authorising this request.'
         )
         self.message.set_content(body)
@@ -68,7 +68,7 @@ class AffiliationApprovedMessage(Email):
         self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access approved'
         body = (
             f'Hi {user.fullname},\n'
-            f'Your account was approved for {access.name.casefold()} access to {team.fullname}.\n'
+            f'Your account was approved for {access.name.casefold()} access to {team.name}.\n'
         )
         self.message.set_content(body)
 

@@ -1,10 +1,6 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.organisations import TeamOutput
-from src.breedgraph.domain.model.organisations import Organisation
-from src.breedgraph.domain.model.accounts import AccountOutput, UserOutput
-from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
-from src.breedgraph.adapters.repositories.organisations import Neo4jOrganisationsRepository
+from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.controls import Access
 
 from typing import AsyncGenerator
@@ -13,7 +9,6 @@ from neo4j import AsyncResult, AsyncSession, AsyncTransaction
 import logging
 
 logger= logging.getLogger(__name__)
-logger.debug("load teams views")
 
 async def access_teams(uow: unit_of_work.Neo4jUnitOfWork, user: int) -> dict[Access, list[int]]:
     session: AsyncSession = uow.driver.session()

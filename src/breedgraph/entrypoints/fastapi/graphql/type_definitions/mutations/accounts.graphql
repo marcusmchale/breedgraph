@@ -33,6 +33,10 @@ extend type Mutation {
         heritable: Boolean
     ): BooleanPayload!
     remove_affiliation(
+        team: Int!
+        access: Access!
+    ): BooleanPayload!
+    revoke_affiliation(
         user: Int!
         team: Int!
         access: Access!

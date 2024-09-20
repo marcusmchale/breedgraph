@@ -67,8 +67,8 @@ class AbstractUnitOfWork(ABC):
     events: List[Event] = list()
 
     @asynccontextmanager
-    async def get_repositories(self, user_id: int = None):
-        async with self._get_repositories(user_id) as repo_holder:
+    async def get_repositories(self, user_id: int = None, redacted: bool = True):
+        async with self._get_repositories(user_id, redacted) as repo_holder:
             try:
                 yield repo_holder
             finally:
@@ -77,7 +77,7 @@ class AbstractUnitOfWork(ABC):
 
     @abstractmethod
     @asynccontextmanager
-    async def _get_repositories(self, user_id: int = None) -> AbstractRepoHolder:
+    async def _get_repositories(self, user_id: int = None, redacted: bool = True) -> AbstractRepoHolder:
         raise NotImplementedError
 
     def collect_events(self):
@@ -89,6 +89,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             self,
             tx: AsyncTransaction,
             user_id: int = None,
+            redacted: bool = True,
             read_teams: Set[int] = None,
             write_teams: Set[int] = None,
             admin_teams: Set[int] = None,
@@ -97,13 +98,14 @@ class Neo4jRepoHolder(AbstractRepoHolder):
     ):
         self.tx = tx
         self.accounts = Neo4jAccountRepository(self.tx)
-        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=user_id)
+        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=user_id, redacted=redacted)
         self.ontologies = Neo4jOntologyRepository(self.tx)
         # The below are controlled repositories so require account read/write/curate/admin teams
         # and the default release for new entries
         repo_params = {
             'tx': self.tx,
             'user_id': user_id,
+            'redacted': redacted,
             'read_teams':read_teams,
             'write_teams': write_teams,
             'curate_teams': curate_teams,
@@ -152,17 +154,18 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         )
 
     @asynccontextmanager
-    async def _get_repositories(self, user_id: int = None):
+    async def _get_repositories(self, user_id: int = None, redacted: bool = True):
         logger.debug("Start neo4j session")
         session: AsyncSession = self.driver.session()
         logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
+
         if user_id is not None:
             access_teams = await views.accounts.access_teams(uow=self, user=user_id)
         else:
             access_teams = {'read_teams': [], 'write_teams': [], 'curate_teams': [], 'admin_teams': []}
 
-        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, **access_teams)
+        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, redacted= redacted, **access_teams)
         try:
             yield repo_holder
         finally:

@@ -1,12 +1,8 @@
 import pytest
-from src.breedgraph.domain.model.controls import Control, ReadRelease, Controller
-from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, DataRecordInput, DataRecordStored
+from src.breedgraph.domain.model.datasets import DataSetStored, DataRecordInput
 
-from src.breedgraph.adapters.repositories.datasets import Neo4jDatasetsRepository
 
-from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
-from tests.integration.conftest import tree_block
-
+from src.breedgraph.custom_exceptions import NoResultFoundError
 
 @pytest.mark.asyncio(scope="session")
 async def test_get(

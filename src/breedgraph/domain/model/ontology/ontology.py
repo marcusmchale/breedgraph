@@ -31,7 +31,7 @@ class Version(BaseModel):
     major: int = 0
     minor: int = 0
     patch: int = 0
-    comment: str = ''
+    comment: str = 'default'
 
     @property
     def name(self) -> str:

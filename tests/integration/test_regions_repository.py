@@ -1,29 +1,20 @@
 import pytest
-import pytest_asyncio
-from datetime import datetime
-from src.breedgraph.domain.model.controls import Control, ReadRelease, Controller
-from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored
 
+from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.adapters.repositories.regions import Neo4jRegionsRepository
-from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
-
-from src.breedgraph.domain.model.regions import LocationInput, LocationStored
-
-from src.breedgraph.views.regions import countries
-
-from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from src.breedgraph.domain.model.regions import LocationInput
 
 
 @pytest.mark.asyncio(scope="session")
 async def test_extend_region(
         ontology, state_type,
         lorem_text_generator,
-        regions_repo
+        regions_repo,
+        example_region
 ):
     region = await regions_repo.get()
-    county_type_id, country_type_value = ontology.get_entry(entry='county', label="LocationType")
     county_input = LocationInput(
-        type=county_type_id,
+        type=state_type.id,
         name=lorem_text_generator.new_text()
     )
     region.add_location(location=county_input, parent_id=region.root.id)

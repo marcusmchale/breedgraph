@@ -50,3 +50,15 @@ type CountriesPayload {
     result: [Country]
     errors: [Error]
 }
+
+type VersionPayload {
+    status: QueryStatus!
+    result: Version
+    errors: [Error]
+}
+
+type OntologyEntryPayload {
+    status: QueryStatus!
+    result: OntologyEntry
+    errors: [Error]
+}

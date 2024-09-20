@@ -35,3 +35,4 @@ type Account {
     allowed_emails: [String]
     allowed_users: [User]
 }
+

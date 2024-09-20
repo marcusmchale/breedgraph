@@ -39,6 +39,7 @@ class ControlledRepository(BaseRepository):
     def __init__(
             self,
             user_id: int = None,
+            redacted: bool = True,
             read_teams: Set[int] = None,
             write_teams: Set[int] = None,
             admin_teams: Set[int] = None,
@@ -56,6 +57,7 @@ class ControlledRepository(BaseRepository):
         """
         super().__init__()
         self.user_id = user_id
+        self.redacted = redacted
         self.read_teams = read_teams if read_teams is not None else set()
         self.write_teams = write_teams if write_teams is not None else set()
         self.admin_teams = admin_teams if admin_teams is not None else set()
@@ -90,7 +92,10 @@ class ControlledRepository(BaseRepository):
 
         aggregate = await self._create_controlled(aggregate_input)
         await self._create_controllers(aggregate)
-        return aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
+        if self.redacted:
+            return aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
+        else:
+            return aggregate
 
     @abstractmethod
     async def _create_controlled(
@@ -131,7 +136,10 @@ class ControlledRepository(BaseRepository):
         aggregate = await self._get_controlled(**kwargs)
         if aggregate is not None:
             await self._insert_controllers(aggregate)
-            return aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
+            if self.redacted:
+                return aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
+            else:
+                return aggregate
 
     @abstractmethod
     async def _get_controlled(self, **kwargs) -> ControlledAggregate:
@@ -140,9 +148,12 @@ class ControlledRepository(BaseRepository):
     async def _get_all(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
         async for aggregate in self._get_all_controlled():
             await self._insert_controllers(aggregate)
-            redacted = aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
-            if redacted is not None:
-                yield redacted
+            if self.redacted:
+                redacted = aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
+                if redacted is not None:
+                    yield redacted
+            else:
+                yield aggregate
 
     @abstractmethod
     def _get_all_controlled(self) -> AsyncGenerator[ControlledAggregate, None]:

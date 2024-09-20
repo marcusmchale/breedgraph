@@ -22,6 +22,7 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
             if region.root.code is not None:
                 if region.root.code.casefold() == location.code.casefold():
                     raise ValueError("This code is in use for the root on an existing region")
+
         stored_location = await self._create_location(location)
         return Region(nodes=[stored_location])
 

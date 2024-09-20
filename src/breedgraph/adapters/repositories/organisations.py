@@ -23,14 +23,19 @@ logger = logging.getLogger(__name__)
 
 class Neo4jOrganisationsRepository(BaseRepository):
 
-    def __init__(self, tx: AsyncTransaction, user_id: int|None = None):
+    def __init__(self, tx: AsyncTransaction, user_id: int|None = None, redacted: bool = True):
         super().__init__()
         self.user_id: int|None = user_id
         self.tx = tx
+        self.redacted = redacted
 
     async def _create(self, team: TeamInput, *args) -> Organisation:
         team = await self._create_team(team)
-        return Organisation(nodes=[team])
+        org = Organisation(nodes=[team])
+        if self.redacted:
+            return org.redacted(self.user_id)
+        else:
+            return org
 
     async def _create_team(self, team: TeamInput) -> TeamStored:
         if self.user_id is None:
@@ -82,7 +87,7 @@ class Neo4jOrganisationsRepository(BaseRepository):
             team=team_id
         )
 
-    async def _get(self, team_id=None) -> Organisation:
+    async def _get(self, team_id=None) -> Organisation|None:
         if team_id is None:
             try:
                 return await anext(self._get_all())
@@ -102,8 +107,12 @@ class Neo4jOrganisationsRepository(BaseRepository):
             nodes.append(team)
             for edge in record.get('includes', []):
                 edges.append(edge)
+        org = Organisation(nodes=nodes, edges=edges)
+        if self.redacted:
+            return org.redacted(self.user_id)
+        else:
+            return org
 
-        return Organisation(nodes=nodes, edges=edges)
 
     async def _get_all(self) -> AsyncGenerator[Organisation, None]:
         result: AsyncResult = await self.tx.run(
@@ -112,7 +121,11 @@ class Neo4jOrganisationsRepository(BaseRepository):
         async for record in result:
             teams = [self.team_record_to_team(team) for team in record['organisation']]
             edges = [edge for team in record['organisation'] for edge in team.get('includes', [])]
-            yield Organisation(nodes=teams, edges=edges)
+            org = Organisation(nodes=teams, edges=edges)
+            if self.redacted:
+                yield org.redacted(self.user_id)
+            else:
+                yield org
 
     async def _remove(self, organisation: Organisation):
         for team_id in organisation.teams.keys():

@@ -42,7 +42,6 @@ from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, Da
 
 
 from tests.integration.test_accounts_repository import create_account_input
-from tests.integration.test_organisations_repository import create_team_input
 
 @pytest_asyncio.fixture(scope="session")
 async def accounts_repo(neo4j_tx):
@@ -124,7 +123,6 @@ async def state_type(ontology, ontologies_repo) -> LocationType:
          )
         ontology.add_location(state_type)
         await ontologies_repo.update_seen()
-
     _, state_type = ontology.get_entry(entry="State", label="LocationType")
     yield state_type
 
@@ -232,6 +230,7 @@ async def example_region(regions_repo, read_model, country_type) -> Region:
             break
     else:
         raise ValueError('No input LocationInputs found in read model countries')
+
     stored: Region = await regions_repo.create(country_input)
     yield stored
 

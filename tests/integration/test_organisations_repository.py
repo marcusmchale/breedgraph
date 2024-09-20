@@ -19,6 +19,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
     team_input = await create_team_input(user_input_generator)
     organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     organisation = await organisations_repo.create(team_input)
+
     # test that retrieve by id works
     retrieved_from_root_id = await organisations_repo.get(team_id=organisation.root.id)
     assert retrieved_from_root_id.root.name == team_input.name
@@ -153,13 +154,12 @@ async def test_move_team_without_cycles(neo4j_tx, user_input_generator, stored_a
     organisations_repo = Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
-
     second_team_input = await create_team_input(user_input_generator)
     organisation.add_team(second_team_input, parent_id=organisation.root.id)
     third_team_input = await create_team_input(user_input_generator)
     organisation.add_team(third_team_input, parent_id=organisation.root.id)
-
     await organisations_repo.update_seen()
+
     second_team = organisation.get_team(second_team_input.name)
     third_team = organisation.get_team(third_team_input.name)
     organisation.change_source(third_team.id, second_team.id)

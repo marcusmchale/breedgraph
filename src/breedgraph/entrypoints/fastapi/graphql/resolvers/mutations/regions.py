@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 async def add_location(
         _,
         info,
-        user: int,
         name: str,
-        type: int,
+
+        ontology_type: int,
         fullname: str = None,
         description: str = None,
         code: str = None,
@@ -27,15 +27,15 @@ async def add_location(
         coordinates: List[GeoCoordinate] = None,
         parent: int | None = None
 ) -> bool:
-    account = info.context.get('account')
-    if account is None:
+    user = info.context.get('user_id')
+    if user is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {account.user.id} adds team: {name}")
+    logger.debug(f"User {user_id} adding location: {name}")
     cmd = AddLocation(
         user=account.user.id,
         name=name,
-        type=type,
+        type=ontology_type,
         fullname=fullname,
         description=description,
         code=code,

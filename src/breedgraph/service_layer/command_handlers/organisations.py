@@ -57,12 +57,11 @@ async def edit_team(
         cmd: commands.organisations.UpdateTeam,
         uow: unit_of_work.Neo4jUnitOfWork
 ):
-    async with uow.get_repositories() as uow:
+    async with uow.get_repositories(user_id=cmd.user) as uow:
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
-        team = organisation.nodes[cmd.team]
-
-        if not cmd.user in team.admins:
-            raise UnauthorisedOperationError("Only admins for the given team can remove it")
+        team = organisation.get_team(cmd.team)
+        if not cmd.user in organisation.get_affiliates(cmd.team, Access.ADMIN):
+            raise UnauthorisedOperationError("Only admins for the given team can edit team details")
 
         if cmd.name is not None:
             team.name = cmd.name

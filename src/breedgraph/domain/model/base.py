@@ -241,12 +241,17 @@ class RootedAggregate(DiGraphAggregate):
                 if entry.casefold() in [n.casefold() for n in e.names]:
                     return e
 
-    def get_sources(self, entry_id: int) -> Dict[int, dict]:
-        return {e[0] : e[2]  for e in self.graph.in_edges(entry_id, data=True)}
+    def get_sources(self, entry_id: int) -> Dict[int, BaseModel]:
+        return {e[0] : self.get_entry(e[1])  for e in self.graph.in_edges(entry_id)}
 
-    def get_sinks(self, entry_id: int) -> Dict[int, dict]:
-        return {e[1] : e[2]  for e in self.graph.out_edges(entry_id, data=True)}
+    def get_sinks(self, entry_id: int) -> Dict[int, BaseModel]:
+        return {e[1] : self.get_entry(e[1])  for e in self.graph.out_edges(entry_id)}
 
+    def get_source_edges(self, entry_id: int) -> Dict[int, dict]:
+        return {e[0]: e[2] for e in self.graph.in_edges(entry_id, data=True)}
+
+    def get_sink_edges(self, entry_id: int) -> Dict[int, dict]:
+        return {e[0]: e[2] for e in self.graph.out_edges(entry_id, data=True)}
 
 class TreeAggregate(RootedAggregate):
     """An aggregate where nodes in the graph each have a single source"""

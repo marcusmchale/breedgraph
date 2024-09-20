@@ -5,15 +5,15 @@ from src.breedgraph.domain.model.accounts import (
     AccountStored, AccountOutput,
     UserOutput
 )
-from src.breedgraph.domain.model.organisations import Access, Authorisation
+#from src.breedgraph.domain.model.organisations import Access, Authorisation
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
-#from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
-#    inject_users_map,
+from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+    inject_users_map,
 #    inject_teams_map
-#)
+)
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
 
@@ -22,17 +22,17 @@ logger = logging.getLogger(__name__)
 
 account = ObjectType("Account")
 
-#@graphql_query.field("users")
-#@graphql_payload
-#async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
-#    await inject_users_map(info.context)
-#    users_map = info.context.get('users_map')
-#    # then return the list of values
-#    if user_id:
-#        return [users_map[user_id]]
-#    else:
-#        return list(users_map.values())
-#
+@graphql_query.field("users")
+@graphql_payload
+async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
+    await inject_users_map(info.context)
+    users_map = info.context.get('users_map')
+    # then return the list of values
+    if user_id:
+        return [users_map[user_id]]
+    else:
+        return list(users_map.values())
+
 @graphql_query.field("account")
 @graphql_payload
 async def get_account(_, info) -> AccountOutput:
@@ -42,7 +42,7 @@ async def get_account(_, info) -> AccountOutput:
 
     bus = info.context.get('bus')
     async with bus.uow.get_repositories() as uow:
-        account_ = uow.accounts.get(user_id)
+        account_ = uow.accounts.get(user_id=user_id)
         if account_ is None:
             raise NoResultFoundError
         else:

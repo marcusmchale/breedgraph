@@ -8,11 +8,13 @@ from src.breedgraph.custom_exceptions import (
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.adapters.notifications import emails
 from src.breedgraph.domain.model.organisations import Access, Authorisation
+from src.breedgraph.domain.model.accounts import UserOutput
 
 from typing import TYPE_CHECKING
+
+
 if TYPE_CHECKING:
     from src.breedgraph.adapters.notifications.notifications import EmailNotifications, AbstractNotifications
-    from src.breedgraph.adapters.redis.read_model import ReadModel
     from src.breedgraph.service_layer.unit_of_work import AbstractUnitOfWork
 
 
@@ -59,25 +61,28 @@ async def process_affiliation_request(
         uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):
-    async with uow.get_repositories() as uow:
-        account = await uow.accounts.get(user_id=event.user)
+    async with uow.get_repositories(redacted=False) as uow:
+        organisation = await uow.organisations.get(team_id = event.team)
+        team = organisation.get_team(event.team)
+        request = team.affiliations.get(event.access).get(event.user)
+        admins = organisation.get_affiliates(team_id=event.team, access=Access.ADMIN)
 
-        affiliation = account.get_affiliation(team=event.team, access=event.access)
-        if account.user.id in affiliation.admins:
+        if event.user in admins:
             # Automatically approve if user is an admin, don't need to email
-            affiliation.authorisation = Authorisation.AUTHORISED
+            request.authorisation = Authorisation.AUTHORISED
             await uow.commit()
         else:
-            organisation = await uow.organisations.get(team_id=event.team)
-            team = organisation.get_node(node_id= event.team)
+            account = await uow.accounts.get(user_id=event.user)
+            user = UserOutput(**account.user.model_dump())
             message = emails.AffiliationRequestedMessage(
-                requesting_user = account.user,
+                requesting_user = user,
                 team = team,
                 access = Access[event.access]
             )
-            admins = [a.user async for a in uow.accounts.get_all(user_ids=affiliation.admins)]
+            admin_accounts = [await uow.accounts.get(user_id=a) for a in admins]
+            admin_users = [a.user for a in admin_accounts]
             await notifications.send(
-                admins,
+                admin_users,
                 message
             )
 
@@ -87,13 +92,13 @@ async def notify_user_approved(
         uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):
-    async with uow.get_repositories() as uow:
+    async with uow.get_repositories(redacted=False) as uow:
+        organisation = await uow.organisations.get(team_id = event.team)
+        team = organisation.get_team(event.team)
         account = await uow.accounts.get(user_id=event.user)
-        organisation = await uow.organisations.get(team_id=event.team)
-        team = organisation.get_node(node_id=event.team)
-
+        user = UserOutput(**account.user.model_dump())
         message = emails.AffiliationApprovedMessage(
-            user = account.user,
+            user = user,
             team = team,
             access = Access[event.access]
         )
@@ -101,4 +106,3 @@ async def notify_user_approved(
             [account.user],
             message
         )
-

@@ -10,9 +10,8 @@ import networkx as nx
 from neo4j import AsyncTransaction, Record
 
 from src.breedgraph.adapters.neo4j.cypher import queries, ontology_entries
-from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedDict, TrackedGraph
+from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedGraph
 from src.breedgraph.adapters.repositories.base import BaseRepository
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
 from typing import Set, AsyncGenerator, Protocol
 
@@ -59,11 +58,14 @@ class Neo4jOntologyRepository(BaseRepository):
         latest = await self.get_latest_version()
 
         if version is None:
-            version = latest
-            version.increment(VersionChange.MAJOR)
-
-        if not version > latest:
-            raise ValueError(f"New version numbers must be higher than the latest stored version")
+            if latest is None:
+                version = Version()
+            else:
+                version = latest
+                version.increment(VersionChange.MAJOR)
+        else:
+            if not version > latest:
+                raise ValueError(f"New version numbers must be higher than the latest stored version")
 
         new_version = await self._create_version(version)
 
@@ -72,7 +74,6 @@ class Neo4jOntologyRepository(BaseRepository):
         else:
             ontology = await self.get()
             ontology.version = new_version
-            import pdb; pdb.set_trace()
 
         return ontology
 
@@ -104,7 +105,7 @@ class Neo4jOntologyRepository(BaseRepository):
         if version_id is None:
             version = await self.get_latest_version()
             if version is None:
-                return None
+                return await self._create()
 
             version_id = version.id
 

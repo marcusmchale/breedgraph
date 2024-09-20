@@ -11,9 +11,9 @@ async def inject_teams_map(context):
     bus = context.get('bus')
     teams_map = dict()
     organisation_roots = list()
+
     async with bus.uow.get_repositories(user_id=user_id) as uow:
         async for org in uow.organisations.get_all():
-            import pdb; pdb.set_trace()
             teams_map.update(org.to_output_map())
             organisation_roots.append(org.root.id)
 

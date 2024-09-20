@@ -89,6 +89,7 @@ async def test_release_to_registered(
 
     assert retrieved_from_unregistered is None
     async for _ in public_repo.get_all():
+        import pdb; pdb.set_trace()
         raise UnauthorisedOperationError("Public repo can get private released person")
 
 

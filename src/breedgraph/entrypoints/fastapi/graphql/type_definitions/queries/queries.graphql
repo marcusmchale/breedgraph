@@ -1,8 +1,25 @@
 type Query {
-    account: AccountPayload!  # see own account details
+    """Get own account details for administrative tasks"""
+    account: AccountPayload!
+    """Get user details for administrative tasks"""
+    users (user_id: Int): UsersPayload! # see users for admin
+    """
+    Get a list of organisation "root" teams.
+    These are top-level team in the organisation hierarchy.
+    Visibility of teams within an organisation is dependent on affiliations.
+    Navigation of these details is achieved by resolvers on the parent/children attributes.
+    """
     organisations: TeamsPayload!
+    """
+    Get a single team details
+    As with organisations, the organisation can be explored from this node.
+    """
     team (team_id: Int!): TeamPayload! # see team
-
-    users (user_id: Int): UsersPayload! # see accounts for admin
+    """Get a list of countries for use in top level region creation"""
     countries: CountriesPayload!
+    """Get the latest ontology version"""
+    ontology_version: VersionPayload!
+    ontology_entry (entry_id: Int!): OntologyEntryPayload
+
+
 }
