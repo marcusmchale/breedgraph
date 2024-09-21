@@ -40,7 +40,6 @@ from src.breedgraph.domain.model.regions import LocationInput, LocationStored, R
 
 from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, DataRecordInput
 
-
 from tests.integration.test_accounts_repository import create_account_input
 
 @pytest_asyncio.fixture(scope="session")
@@ -94,7 +93,7 @@ async def tree_subject(ontology, ontologies_repo) -> Subject:
              name='Tree',
              description='Trees have roots and leaves'
          )
-        ontology.add_subject(subject)
+        ontology.add_entry(subject)
         await ontologies_repo.update_seen()
 
     _, subject = ontology.get_entry(entry="Tree", label="Subject")
@@ -107,7 +106,7 @@ async def country_type(ontology, ontologies_repo) -> LocationType:
              name='Country',
              description='Country and three digit code according to ISO 3166-1 alpha-3'
          )
-        ontology.add_location(country_type)
+        ontology.add_entry(country_type)
         await ontologies_repo.update_seen()
 
     _, country_type = ontology.get_entry(entry="Country", label="LocationType")
@@ -121,7 +120,7 @@ async def state_type(ontology, ontologies_repo) -> LocationType:
              synonyms=['Department', 'County'],
              description='Political subdivision of a country'
          )
-        ontology.add_location(state_type)
+        ontology.add_entry(state_type)
         await ontologies_repo.update_seen()
     _, state_type = ontology.get_entry(entry="State", label="LocationType")
     yield state_type
@@ -134,7 +133,7 @@ async def field_type(ontology, ontologies_repo) -> LocationType:
              synonyms=['Farm', 'Plot'],
              description='Cultivated area of land'
          )
-        ontology.add_location(field_type)
+        ontology.add_entry(field_type)
         await ontologies_repo.update_seen()
 
     _, field_type = ontology.get_entry(entry="Field", label="LocationType")
@@ -148,7 +147,7 @@ async def row_layout_type(ontology, ontologies_repo) -> LayoutType:
             synonyms=['Drills'],
             description="Rows position described by a row index then an index from start of row"
         )
-        ontology.add_layout(row_layout_type)
+        ontology.add_entry(row_layout_type)
         await ontologies_repo.update_seen()
 
     _, row_layout_type = ontology.get_entry(entry="Rows", label="LayoutType")
@@ -162,7 +161,7 @@ async def grid_layout_type(ontology, ontologies_repo) -> LayoutType:
              synonyms=['matrix'],
              description='A matrix arrangement of n-dimensions'
          )
-        ontology.add_layout(grid_type)
+        ontology.add_entry(grid_type)
         await ontologies_repo.update_seen()
 
     _, grid_layout_type = ontology.get_entry(entry="grid", label="LayoutType")
@@ -172,7 +171,7 @@ async def grid_layout_type(ontology, ontologies_repo) -> LayoutType:
 async def height_trait(ontology, ontologies_repo, tree_subject) -> Trait:
     if ontology.get_entry(entry="Height", label="Trait") is None:
         trait = Trait(name="Height", synonyms=["hauteur"], description="Distance from the ground level to the top")
-        ontology.add_trait(trait, subjects=[tree_subject.id])
+        ontology.add_entry(trait, subjects=[tree_subject.id])
         await ontologies_repo.update_seen()
 
     _, height_trait = ontology.get_entry(entry="Height", label="Trait")
@@ -182,7 +181,7 @@ async def height_trait(ontology, ontologies_repo, tree_subject) -> Trait:
 async def cm_scale(ontology, ontologies_repo) -> Scale:
     if ontology.get_entry(entry="cm", label="Scale") is None:
         scale = Scale(name="cm", synonyms=["centimeters"], description="centimetres scale", type=ScaleType.NUMERICAL)
-        ontology.add_scale(scale)
+        ontology.add_entry(scale)
         await ontologies_repo.update_seen()
 
     _, scale = ontology.get_entry(entry="centimeters", label="Scale")
@@ -197,7 +196,7 @@ async def tape_method(ontology, ontologies_repo) -> ObservationMethod:
             description="measurement against a known length reference",
             type=ObservationMethodType.MEASUREMENT
         )
-        ontology.add_observation_method(method)
+        ontology.add_entry(method)
         await ontologies_repo.update_seen()
 
     _, method = ontology.get_entry(entry="tape", label="ObservationMethod")
@@ -207,7 +206,7 @@ async def tape_method(ontology, ontologies_repo) -> ObservationMethod:
 async def height_variable(ontology, ontologies_repo, height_trait, cm_scale, tape_method) -> Variable:
     if ontology.get_entry(entry="Height", label="Variable") is None:
         variable = Variable(name="Height", synonyms=["hauteur"], description="Height from the ground")
-        ontology.add_variable(variable, trait=height_trait.id, scale=cm_scale.id, method=tape_method.id)
+        ontology.add_entry(variable, trait=height_trait.id, scale=cm_scale.id, method=tape_method.id)
         await ontologies_repo.update_seen()
 
     _, variable = ontology.get_entry(entry="Height", label="Variable")
@@ -283,7 +282,7 @@ async def crossing_method(ontology, ontologies_repo) -> GermplasmMethod:
              synonyms=['Cross', 'Cross-fertilization, Cross-pollination', 'Hybridization', 'Hybridisation'],
              description='Crossing of two distinct varieties to form a hybrid'
          )
-        ontology.add_germplasm_method(crossing_method)
+        ontology.add_entry(crossing_method)
         await ontologies_repo.update_seen()
 
     _, crossing_method = ontology.get_entry(entry="Crossing", label="GermplasmMethod")

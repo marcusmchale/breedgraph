@@ -1,4 +1,5 @@
 input OntologyEntryInput {
+    label: OntologyLabel!
     name: String!
     description: String
     abbreviation: String
@@ -13,105 +14,47 @@ input OntologyEntryInput {
     """
     parents: [Int]
     children: [Int]
+    """
+    Scale and ObservationMethod entries require an additional type parameter,
+    ScaleType or ObservationMethodType respectively.
+    """
+    type: String
+    """
+    When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
+    """
+    categories: [Int]
+    """
+    When defining a Variable, Parameter or Event, a Scale identifier is required.
+    """
+    scale: Int
+    """
+    When creating a category for an ordinal scale, a rank must be provided.
+    """
+    rank: Int
+    """
+    When creating a trait, subjects must be specified by ID
+    """
+    subjects: [Int]
+    """
+    When creating a variable, a Trait identifier is required.
+    """
+    trait: Int
+    """
+    When defining a Variable an ObservationMethod is required.
+    When defining a Parameter a ControlMethod identifier is required.
+    When defining an Event, either ObservationMethod or ControlMethod is required.
+    """
+    method: Int
+    """
+    When creating a parameter, a Condition identifier is required.
+    """
+    condition: Int
+    """
+    When creating an Event, an Exposure identifier is required.
+    """
+    exposure: Int
 }
 
 extend type Mutation {
-    """Term is for generic entries that may relate other key terms in the ontology"""
-    add_term(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Subjects are the types of units being observed in a study.
-    These also may provide an indication of relevant traits in the ontology.
-    For example, a "Tree", "Field" and "Rhizosphere" may all be subjects.
-    It is useful to arrange related subjects in the graph with parent, child relationships.
-    For example "Field" may be a parent of "Tree"
-    """
-    add_subject(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Location types allow description of locations as members of a region.
-    For example, the top level of a region heirarchy would have the "Country" location type.
-    """
-    add_location_type(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Layout types allow description of arrangements.
-    For example, a grid layout or a row layout.
-    """
-    add_layout_type(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Design types are used to describe a study.
-    """
-    add_design_type(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Roles are used to describe people
-    """
-    add_role(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Titles are used to describe people
-    """
-    add_title(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Germplasm methods describe maintenance or sourcing methods for germplasm entries.
-    """
-    add_germplasm_method(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Observation methods are used to describe variables, parameters and event instances.
-    This entry should include details about the way a value is generated.
-    For example;
-    name = "Height measurement",
-    description = "The vertical distance from the ground surface to the highest point on the subject"
-
-    Observation methods have an additional type variable,
-    that must be one of the established ObservationMethodTypes,
-    i.e. measurement, counting etc.
-
-    """
-    add_observation_method(entry: OntologyEntryInput!, method_type: ObservationMethodType!): BooleanPayload!
-    """
-    Scales describe the units used for values associated with variables, parameters and event instances.
-    For example, name= "centimeters"
-
-    Scales have an additional "type" variable
-    that must be one of the established ScaleTypes,
-    i.e. nominal, numerical etc.
-
-    """
-    add_scale(entry: OntologyEntryInput, scale_type: ScaleType, categories: [Int]): BooleanPayload!
-    """
-    Categories may be associated with ordinal or nominal scales.
-    """
-    add_category(entry: OntologyEntryInput, scale: Int!, rank: Int): BooleanPayload!
-    """
-    Traits are observed properties of the subjects and are required to define variables.
-    e.g. "Height"
-
-    Subjects may be optionally added to traits to describe the relevance.
-    E.g. "Height" is relevant to a tree but not a field/
-
-    """
-    add_trait(entry: OntologyEntryInput, subjects: [Int!]!): BooleanPayload!
-    """
-    Variables link a trait with a method and scale into a single term that is then linked to datasets.
-    e.g. Trait = "Height", Method = "Height Measurement", Scale = "Centimeters"
-    """
-    add_variable(entry: OntologyEntryInput, trait: Int!, method: Int!, scale: Int!): BooleanPayload!
-    """
-    Conditions describe the experimental setting and are required to define parameters.
-    e.g. Light level
-    """
-    add_condition(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Parameters link a condition with a method and scale to a single term that is then linked to datasets.
-    Parameters should describe quantities/qualities that are fixed or definite throughout an experiment.
-    e.g.  Condition = "Light level, Method = "Fluorescent lighting", Scale = "Micro Einsteins"
-    """
-    add_parameter(entry: OntologyEntryInput, condition: Int!, method: Int!, scale: Int!): BooleanPayload!
-    """
-    Exposures describe temporary occurrences within an experimental setting and are required to define events.
-    e.g. fertilizer application
-    """
-    add_exposure(entry: OntologyEntryInput): BooleanPayload!
-    """
-    Events link an exposure with a method and scale into a single term that is then linked to datasets.
-    e.g. Exposure = fertilizer application, Method = "Hand dispersion", Scale = "kg/ha"
-    """
-    add_event(entry: OntologyEntryInput, exposure: Int!, method: Int!, scale: Int!): BooleanPayload!
+    ontology_add_entry(entry: OntologyEntryInput): BooleanPayload!
 }

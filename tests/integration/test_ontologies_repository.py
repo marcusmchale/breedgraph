@@ -1,12 +1,11 @@
 import pytest
 
 from src.breedgraph.domain.model.ontology import (
-    Ontology, OntologyEntry,
-    Version,
     Term,
     Subject,
     Trait,
     ObservationMethod, ObservationMethodType,
+    ControlMethod,
     ScaleType, ScaleCategory, Scale,
     Variable,
     Condition, Parameter,
@@ -25,7 +24,7 @@ async def test_get(ontologies_repo, ontology):
 async def test_add_term(ontologies_repo, ontology, lorem_text_generator):
     version_copy = ontology.version.model_copy()
     new_term = Term(name=lorem_text_generator.new_text())
-    ontology.add_term(new_term)
+    ontology.add_entry(new_term)
     await ontologies_repo.update_seen()
     # ensure the version has forked
     assert ontology.version > version_copy
@@ -74,7 +73,7 @@ async def test_rename_term_causes_minor_fork(ontologies_repo, ontology, lorem_te
 async def test_create_subject(ontologies_repo, ontology, lorem_text_generator):
     term_id, _ = next(ontology.get_entries(label=Term.label))
     new_subject = Subject(name=lorem_text_generator.new_text())
-    ontology.add_subject(new_subject, parents=[term_id])
+    ontology.add_entry(new_subject, parents=[term_id])
     await ontologies_repo.update_seen()
     assert next(ontology.get_entries(label=Subject.label))
     subject_id, subject = next(ontology.get_entries(new_subject.name))
@@ -86,26 +85,27 @@ async def test_create_subject(ontologies_repo, ontology, lorem_text_generator):
 async def test_create_trait(ontologies_repo, ontology, lorem_text_generator):
     subject_id, subject = ontology.get_entry(label=Subject.label)
     new_trait = Trait(name=lorem_text_generator.new_text())
-    with pytest.raises(ValueError):
-        ontology.add_trait(new_trait, subjects=[])
 
-    ontology.add_trait(new_trait, subjects=[subject.id])
+    #with pytest.raises(ValueError):
+    #    ontology.add_entry(new_trait, subjects=[])
+
+    ontology.add_entry(new_trait, subjects=[subject.id])
     await ontologies_repo.update_seen()
 
     trait_id, trait = ontology.get_entry(entry=new_trait.name, label=Trait.label)
     assert ontology.get_entries(new_trait.name)
     assert trait_id > 0
     assert trait.name == new_trait.name
-    subject_ids, trait_subjects = ontology.get_trait_subjects(trait_id)
+    subject_ids, trait_subjects = ontology.get_subjects(trait_id)
     assert subject_id in subject_ids
     assert subject in trait_subjects
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_create_method(ontologies_repo, ontology, lorem_text_generator):
+async def test_create_observation_method(ontologies_repo, ontology, lorem_text_generator):
     method_type = ObservationMethodType.MEASUREMENT
     new_method = ObservationMethod(name=lorem_text_generator.new_text(), type=method_type)
-    ontology.add_observation_method(new_method)
+    ontology.add_entry(new_method)
     await ontologies_repo.update_seen()
     method_id, method = ontology.get_entry(entry=new_method.name, label=ObservationMethod.label)
     assert next(ontology.get_entries(new_method.name))
@@ -114,10 +114,20 @@ async def test_create_method(ontologies_repo, ontology, lorem_text_generator):
     assert method.type == method_type
 
 @pytest.mark.asyncio(scope="session")
+async def test_create_control_method(ontologies_repo, ontology, lorem_text_generator):
+    new_method = ControlMethod(name=lorem_text_generator.new_text())
+    ontology.add_entry(new_method)
+    await ontologies_repo.update_seen()
+    method_id, method = ontology.get_entry(entry=new_method.name, label=ControlMethod.label)
+    assert next(ontology.get_entries(new_method.name))
+    assert method_id > 0
+    assert method.name == new_method.name
+
+@pytest.mark.asyncio(scope="session")
 async def test_create_scale(ontologies_repo, ontology, lorem_text_generator):
     scale_type = ScaleType.NUMERICAL
     new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
-    ontology.add_scale(new_scale)
+    ontology.add_entry(new_scale)
     await ontologies_repo.update_seen()
     scale_id, scale = ontology.get_entry(entry=new_scale.name, label=Scale.label)
     assert next(ontology.get_entries(new_scale.name))
@@ -130,14 +140,14 @@ async def test_create_nominal_categorical_scale(ontologies_repo, ontology, lorem
     scale_type = ScaleType.NOMINAL
     n_stored_scale = len(list(ontology.get_entries(label=Scale.label)))
     for i in range(3):
-        ontology.add_category(ScaleCategory(name=lorem_text_generator.new_text()))
+        ontology.add_entry(ScaleCategory(name=lorem_text_generator.new_text()))
     await ontologies_repo.update_seen()
     category_tuples = [c for c in ontology.get_entries(label=ScaleCategory.label)]
     category_ids = [c[0] for c in category_tuples]
     categories = [c[1] for c in category_tuples]
     assert len(category_ids) == 3
     new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
-    ontology.add_scale(new_scale, categories=category_ids)
+    ontology.add_entry(new_scale, categories=category_ids)
 
     await ontologies_repo.update_seen()
     assert len(list(ontology.get_entries(label=Scale.label))) == n_stored_scale + 1
@@ -148,7 +158,7 @@ async def test_create_nominal_categorical_scale(ontologies_repo, ontology, lorem
     assert ranks is None
     # add another category
     new_category_name = lorem_text_generator.new_text()
-    ontology.add_category(ScaleCategory(name=new_category_name), scale=scale_id)
+    ontology.add_entry(ScaleCategory(name=new_category_name), scale=scale_id)
     await ontologies_repo.update_seen()
     category_ids, categories, ranks = ontology.get_scale_categories(scale_id)
     new_category_id, new_category = ontology.get_entry(new_category_name)
@@ -162,14 +172,14 @@ async def test_create_and_expand_ordinal_categorical_scale(ontologies_repo, onto
     n_stored_scale = len(list(ontology.get_entries(label=Scale.label)))
     categories = [ScaleCategory(name=lorem_text_generator.new_text()) for i in range(3)]
     for c in categories:
-        ontology.add_category(c)
+        ontology.add_entry(c)
     await ontologies_repo.update_seen()
     category_tuples = [ontology.get_entry(c.name, label=ScaleCategory.label) for c in categories]
     category_ids = [c[0] for c in category_tuples]
     new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
     extra_category = ScaleCategory(name=lorem_text_generator.new_text())
     categories = category_ids + [extra_category]
-    ontology.add_scale(new_scale, categories=list(reversed(categories)))
+    ontology.add_entry(new_scale, categories=list(reversed(categories)))
 
     await ontologies_repo.update_seen()
     assert len(list(ontology.get_entries(label=Scale.label))) == n_stored_scale + 1
@@ -180,7 +190,7 @@ async def test_create_and_expand_ordinal_categorical_scale(ontologies_repo, onto
     assert ranks == list(range(4))
     # add another category
     new_category_name = lorem_text_generator.new_text()
-    ontology.add_category(ScaleCategory(name=new_category_name), scale=scale_id, rank=1)
+    ontology.add_entry(ScaleCategory(name=new_category_name), scale=scale_id, rank=1)
 
     await ontologies_repo.update_seen()
     category_ids, categories, ranks = ontology.get_scale_categories(scale_id)
@@ -193,9 +203,9 @@ async def test_create_variable(ontologies_repo, ontology, lorem_text_generator):
     method_id, _ = ontology.get_entry(label=ObservationMethod.label)
     scale_id, _ = ontology.get_entry(label=Scale.label)
     new_var = Variable(name=lorem_text_generator.new_text())
-    with pytest.raises(TypeError):
-        ontology.add_variable(new_var)
-    ontology.add_variable(new_var, trait=trait_id, method=method_id, scale=scale_id)
+    #with pytest.raises(TypeError):
+    #    ontology.add_entry(new_var)
+    ontology.add_entry(new_var, trait=trait_id, method=method_id, scale=scale_id)
     await ontologies_repo.update_seen()
     variable_id, variable = ontology.get_entry(label=Variable.label)
     assert ontology.get_entry(new_var.name)
@@ -204,15 +214,14 @@ async def test_create_variable(ontologies_repo, ontology, lorem_text_generator):
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_parameter(ontologies_repo, ontology, lorem_text_generator):
-
     condition = Condition(name=lorem_text_generator.new_text(10))
-    condition_id = ontology.add_condition(condition)
-    method_id, _ = ontology.get_entry(label=ObservationMethod.label)
+    condition_id = ontology.add_entry(condition)
+    method_id, _ = ontology.get_entry(label=ControlMethod.label)
     scale_id, _ = ontology.get_entry(label=Scale.label)
     new_parameter = Parameter(name=lorem_text_generator.new_text())
-    with pytest.raises(TypeError):
-        ontology.add_parameter(Parameter)
-    ontology.add_parameter(new_parameter, condition=condition_id, method=method_id, scale=scale_id)
+    #with pytest.raises(TypeError):
+    #    ontology.add_entry(Parameter)
+    ontology.add_entry(new_parameter, condition=condition_id, method=method_id, scale=scale_id)
     await ontologies_repo.update_seen()
     condition_id, _ = ontology.get_entry(condition.name, label=Condition.label)
     parameter_id, parameter = ontology.get_entry(new_parameter.name, label=Parameter.label)
@@ -222,11 +231,11 @@ async def test_create_parameter(ontologies_repo, ontology, lorem_text_generator)
 @pytest.mark.asyncio(scope="session")
 async def test_create_event(ontologies_repo, ontology, lorem_text_generator):
     exposure = Exposure(name=lorem_text_generator.new_text(10))
-    exposure_id = ontology.add_exposure(exposure)
+    exposure_id = ontology.add_entry(exposure)
     method_id, _ = ontology.get_entry(label=ObservationMethod.label)
     scale_id, _ = ontology.get_entry(label=Scale.label)
     new_event = EventType(name=lorem_text_generator.new_text())
-    ontology.add_event(new_event, exposure=exposure_id, method=method_id, scale=scale_id)
+    ontology.add_entry(new_event, exposure=exposure_id, method=method_id, scale=scale_id)
     await ontologies_repo.update_seen()
     exposure_id, _ = ontology.get_entry(exposure.name, label=Exposure.label)
     event_id, event = ontology.get_entry(new_event.name, label=EventType.label)

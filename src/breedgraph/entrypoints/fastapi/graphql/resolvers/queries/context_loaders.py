@@ -1,8 +1,5 @@
 from src.breedgraph import views
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-
-
 async def inject_teams_map(context):
     if 'teams_map' in context:
         return
@@ -26,9 +23,6 @@ async def inject_users_map(context):
 
     user_id = context.get('user_id')
 
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     users_map = dict()
     async for user in views.accounts.users(context['bus'].uow, user=user_id):
         users_map[user.id] = user
@@ -36,5 +30,13 @@ async def inject_users_map(context):
     # insert the accounts map into the context for building responses in the resolver
     context['users_map'] = users_map
 
+async def inject_ontology(context):
+    if 'ontology' in context:
+        return
+
+    bus = context.get('bus')
+    async with bus.uow.get_repositories() as uow:
+        ontology = await uow.ontologies.get()
+        context['ontology'] = ontology
 
 

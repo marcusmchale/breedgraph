@@ -137,11 +137,11 @@ async def test_add_trait_requires_subject(first_ontology, lorem_text_generator):
     subject_id = first_ontology.add_subject(subject)
     trait = Trait(name=lorem_text_generator.new_text(10), synonyms=[lorem_text_generator.new_text(5)])
     trait_id = first_ontology.add_trait(trait, [subject_id])
-    subject_indices, subjects = first_ontology.get_trait_subjects(trait_id)
+    subject_indices, subjects = first_ontology.get_subjects(trait_id)
     assert len(subjects) == 1
     assert subject_id in subject_indices
     assert subject in subjects
-    trait_indices, traits = first_ontology.get_subject_traits(subject_id)
+    trait_indices, traits = first_ontology.get_traits(subject_id)
     assert len(trait_indices) == 1
     assert trait_id in trait_indices
     assert trait in traits

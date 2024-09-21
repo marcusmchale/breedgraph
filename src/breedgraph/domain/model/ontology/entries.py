@@ -1,4 +1,3 @@
-from pydantic import Field
 from typing import List, ClassVar
 from abc import ABC
 from enum import Enum
@@ -6,33 +5,46 @@ from src.breedgraph.domain.model.base import StoredModel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
+
+Nodes can be added and removed
+Relationships once added cannot be removed, a whole new node must be created.
+
 """
-#class Language(BaseModel):
-#    name: str
-#    code: str
-#    # e.g. https://datahub.io/core/language-codes#language-codes
-#    # ISO Language Codes (639-1 and 693-2) and IETF Language Types
+
+class ObservationMethodType(str, Enum):
+    MEASUREMENT = "MEASUREMENT"
+    COUNTING = "COUNTING"
+    ESTIMATION = "ESTIMATION"
+    COMPUTATION = "COMPUTATION"
+    PREDICTION = "PREDICTION"
+    DESCRIPTION = "DESCRIPTION"
+    CLASSIFICATION = "CLASSIFICATION"
+
+class ScaleType(str, Enum):
+    DATE = "DATE"
+    DURATION = "DURATION"
+    NUMERICAL = "NUMERICAL"
+    NOMINAL = "NOMINAL"  # should have categories
+    ORDINAL = "ORDINAL"  # should have categories
+    TEXT = "TEXT"
+    CODE = "CODE"
 
 class OntologyRelationshipLabel(str, Enum):
     RELATES_TO = 'RELATES_TO' # a generic directed relationship between entries
     # To define scale categories
     HAS_CATEGORY = 'HAS_CATEGORY' # Scale -> Category
-
     # To define unit subjects (see block outside ontology)
     OF_SUBJECT = 'OF_SUBJECT' # Unit -> Subject
-
     # To define subject traits/conditions/exposures
     #  - we prefer outgoing edges from subject in the ontology as subject has a lot of income edges from units
     HAS_TRAIT = 'HAS_TRAIT'  # Subject -> Trait
     HAS_CONDITION = 'HAS_CONDITION'  # Subject -> Condition
     HAS_EXPOSURE = 'HAS_EXPOSURE'  # Subject -> Exposure
-
     # Similarly, Variable/Prameter and EventType have a lot of incoming edges from StudyTerms
     # so prefer outgoing edges from these
     DESCRIBES_TRAIT = 'DESCRIBES_TRAIT' # Variable -> Trait
     DESCRIBES_CONDITION = 'DESCRIBES_CONDITION'  # Parameter -> Condition
     DESCRIBES_EXPOSURE = 'DESCRIBES_EXPOSURE' # EventType -> Exposure
-
     USES_METHOD = 'USES_METHOD' # Variable/Parameter/EventEntry -> Method
     USES_SCALE = 'USES_SCALE' # Variable/Parameter/EventEntry -> Scale
 
@@ -57,6 +69,30 @@ class OntologyEntry(StoredModel, ABC):
         names = [self.name.casefold()] + [i.casefold() for i in self.synonyms]
         names = names + [self.abbreviation.casefold()] if self.abbreviation else names
         return names
+
+class OntologyOutput(OntologyEntry):
+    label: str
+    parents: list[int] = list()
+    children: list[int] = list()
+    """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
+    type: ObservationMethodType|ScaleType|None
+    """Subjects for trait"""
+    subjects: List[int] = list()
+    """Categories for scale"""
+    categories: List[int] = list()
+    """Trait for variable"""
+    trait: int|None = None
+    """Condition for parameter"""
+    condition: int|None = None
+    """Exposure for event"""
+    exposure: int|None = None
+    """ControlMethod or ObservationMethod for variable/parameter/event"""
+    method: int|None = None
+    """Scale for variable/parameter/event"""
+    scale: int|None = None
+    """Rank for ordinal scale categories"""
+    rank: int|None = None
+
 
 class Term(OntologyEntry):  # generic ontology entry, used to relate terms to each other and traits/methods/scales
     label: ClassVar[str] = 'Term'

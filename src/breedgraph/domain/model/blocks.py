@@ -13,12 +13,8 @@ As we sometimes move whole plants in controlled experiments
  Instead, we can record e.g. "harvest into liquid N2" as an event for a sample, which is itself a unit like any other.
  In that way the UnitTree aggregates all related units, e.g. the source plant, field etc.
 
- We can then ensure consistency of information across members,
-  e.g. genotype may be specified on some units and inferred to others.
-
 Subject is required for all Units, as we need to know at what the unit represents for any analysis.
 With pooling, e.g. the unit represents a pool of leaves, the subject would still be "leaf".
-
 
 """
 from pydantic import BaseModel, field_validator, ValidationInfo
@@ -49,15 +45,6 @@ class Unit(LabeledModel):
     synonyms: List[str] = list()
     description: str|None = None
 
-    germplasm: int | None = None  # ref to GermplasmEntryStored
-    #  should be constant for units within a tree,
-    #  although a Block may include multiple germplasms, each unit should still be singular.
-    # Note:
-    #   We could handle changing germplasm with temporal references,
-    #   This would be used e.g. studying a field that gets planted with different varieties each year,
-    #   though such studies seem unlikely so to avoid unnecessary complexity
-    #   we currently only support fixed germplasm references.
-
     positions: List[Position] = list()
 
     @property
@@ -76,7 +63,6 @@ class UnitStored(Unit, ControlledModel):
             'name': self.redacted_str if self.name is not None else None,
             'synonyms': [self.redacted_str] if self.synonyms else list(),
             'description': self.redacted_str if self.description is not None else None,
-            'germplasm': None,
             'positions': list()
         })
 

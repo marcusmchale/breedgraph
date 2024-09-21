@@ -18,13 +18,6 @@ CALL {
   CREATE (unit)-[:OF_SUBJECT]->(subject)
   RETURN collect(subject.id)[0] AS subject
 }
-// Link to germplasm
-CALL {
-  WITH unit
-  MATCH (germplasm:Germplasm {id: $germplasm})
-  CREATE (unit)-[:OF_GERMPLASM]->(germplasm)
-  RETURN collect(germplasm.id)[0] AS germplasm
-}
 // Link to positions
 CALL {
   WITH unit
@@ -49,6 +42,5 @@ RETURN
   unit {
     .*,
     subject: subject,
-    germplasm: germplasm,
     positions: positions
   }

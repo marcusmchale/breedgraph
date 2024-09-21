@@ -31,7 +31,7 @@ class RedisLoader:
                 await uow.ontologies.create()
                 ontology = await uow.ontologies.get()
             if next(ontology.get_entries(entry='Country', label='LocationType'), None) is None:
-                ontology.add_location(
+                ontology.add_entry(
                     LocationType(
                         name='Country',
                         description='Country and three digit code according to ISO 3166-1 alpha-3'

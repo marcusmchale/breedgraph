@@ -16,35 +16,18 @@ Note: The "Variable Status" concept from Crop Ontology is to be handled by ontol
 
 """
 from enum import Enum
-from src.breedgraph.domain.model.ontology.entries import OntologyEntry
+from src.breedgraph.domain.model.ontology.entries import OntologyEntry, ObservationMethodType, ScaleType
 from typing import ClassVar
 
 class Trait(OntologyEntry):
     label: ClassVar[str] = 'Trait'
     plural: ClassVar[str] = 'Traits'
 
-class ObservationMethodType(str, Enum):
-    MEASUREMENT = "MEASUREMENT"
-    COUNTING = "COUNTING"
-    ESTIMATION = "ESTIMATION"
-    COMPUTATION = "COMPUTATION"
-    PREDICTION = "PREDICTION"
-    DESCRIPTION = "DESCRIPTION"
-    CLASSIFICATION = "CLASSIFICATION"
 
 class ObservationMethod(OntologyEntry):
     label: ClassVar[str] = 'ObservationMethod'
     plural: ClassVar[str] = 'ObservationMethods'
     type: ObservationMethodType
-
-class ScaleType(str, Enum):
-    DATE = "DATE"
-    DURATION = "DURATION"
-    NUMERICAL = "NUMERICAL"
-    NOMINAL = "NOMINAL"  # should have categories
-    ORDINAL = "ORDINAL"  # should have categories
-    TEXT = "TEXT"
-    CODE = "CODE"
 
 class ScaleCategory(OntologyEntry):
     label: ClassVar[str] = 'ScaleCategory'
@@ -53,7 +36,6 @@ class ScaleCategory(OntologyEntry):
 class Scale(OntologyEntry):
     label: ClassVar[str] = 'Scale'
     plural: ClassVar[str] = 'Scales'
-
     type: ScaleType
 
 class Variable(OntologyEntry):  # quantities/qualities that vary and may be observed

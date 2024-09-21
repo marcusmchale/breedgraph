@@ -5,6 +5,148 @@ type Version {
     comment: String!
 }
 
+"""
+Ontology entries form a directed acyclic graph with source and sink
+relationships described for each node as arents and children.
+Each entry has an OntologyLabel to distinguish various classes of entry.
+Contributions for some entry classes requires additional parameters (detailed below).
+"""
+enum OntologyLabel {
+    """
+    Term entries may be used to relate other key terms in the ontology.
+    Example: "Metabolism" may be a term.
+    """
+    Term
+    """
+    Subject entries describe Units (see Blocks) being observed in a study.
+    These are linked to Unit and Trait.
+    Examples: "Leaf", "Tree", "Field", "Rhizosphere"
+    """
+    Subject
+    """
+    Scale entries describe units or classes used for values in a Dataset.
+    These are linked to Variable, Parameter or Event.
+    Scale entries require a ScaleType.
+    For Nominal and Ordinal types, additional Category references may be provided.
+    Examples:
+    "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
+    "Plant Genetic Material" is ScaleType nominal, and categories should include references to GermplasmEntries.
+    """
+    Scale
+    """
+    Category entries describe classes for Scale entries with type Nominal or Ordinal.
+    These are linked to Scale entries.
+    Ordinal scales require a "rank" parameter for each category.
+    Examples: "High", "Medium", "Low" with ranks 2, 1 and 0, respectively.
+    """
+    Category
+    """
+    Observation method entries describe the way a value is determined.
+    These are linked to Variable or Event.
+    Observation method entries require an ObservationMethodType.
+    Examples: "Distance measurement with calibrated reference", "Short-read sequencing", "Rain Gauge".
+    """
+    ObservationMethod
+    """
+    Trait entries describe observed properties of a subject (phenotype for a plant subject)
+    These are linked to Variable and Subject.
+    Examples:
+    "Height", "Gene expression" linked to a tree subject.
+    """
+    Trait
+    """
+    Variable entries link a Trait, ObservationMethod and Scale
+    to form a single reference term for a Dataset (see Datasets).
+    Examples:
+    "Tree height" where:
+        Trait = "Height",
+        Method = "Distance measurement with calibrated reference",
+        Scale = "Centimeters".
+    "Normalised Expression" where:
+        Trait = "Gene expression",
+        Method = "Short read sequencing",
+        Scale = "Counts per million"
+    """
+    Variable
+    """
+    Control method entries describe the way a value is maintained for an experiment.
+    These are linked to Parameter or Event.
+    Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
+    """
+    ControlMethod
+    """
+    Condition entries describe the quantities/qualities that are fixed/controlled throughout an experiment.
+    These are linked to Parameter or Event entries.
+    Examples: "Light level", "Controlled Grafting", "Water availability"
+    """
+    Condition
+    """
+    Parameter entries link a Condition, ControlMethod and Scale
+    to form a single entry for a Dataset (see Datasets).
+    Examples:
+    "Controlled lighting" where:
+        Condition = "Light level", ControlMethod = "Fluorescent lighting", Scale = "Micro Einsteins"
+    OR
+    "Controlled water availability" where:
+        Condition = "Water availability", ControlMethod = "Controlled water application", Scale = "L/m2/day"
+    OR
+    "Grafted Material" where:
+        Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
+    """
+    Parameter
+    """
+    Exposure entries describe temporary occurrences within an experimental setting.
+    These are linked to Event entries.
+    Examples:
+    "Fertilizer application", "Rainfall"
+    """
+    Exposure
+    """
+    Event entries link an Exposure, ObservationMethod and Scale
+    to form a single entry for a Dataset (see Datasets).
+    Examples:
+    "Pellet Fertilizer Application" where:
+        Exposure = "Fertilizer application", Method = "Pellet Dispersion", Scale = "kg/ha"
+    """
+    Event
+    """
+    Germplasm method entries describe maintenance or sourcing of germplasm.
+    These are linked to GermplasmEntry (see Germplasms).
+    Examples: "Controlled cross", "Mutagenesis", "Ecological survey"
+    """
+    GermplasmMethod
+    """
+    Location entries describe types of locations.
+    These are linked to Location (see Regions).
+    Examples: "Country", "State", "Field"
+    """
+    Location
+    """
+    Layout entries describe types of arrangements.
+    These are linked to Layout (see Arrangements).
+    Examples: "Grid", "Rows"
+    """
+    Layout
+    """
+    Design entries describe statistical designs for a study.
+    These are linked to Study (see Programs).
+    Examples: "Split-plot", "Randomized block"
+    """
+    Design
+    """
+    Role entries describe roles for people.
+    These are linked to Person (see People).
+    Examples: "Post-doctoral researcher", "Principal Investigator"
+    """
+    Role
+    """
+    Title entries describe titles for people.
+    These are linked to Person (see People).
+    Examples: "Professor", "Doctor"
+    """
+    Title
+}
+
 enum ObservationMethodType{
     MEASUREMENT,
     COUNTING,
@@ -25,30 +167,35 @@ enum ScaleType {
 }
 
 type OntologyEntry {
+    label: OntologyLabel!
+    id: Int!
     name: String!
+
     description: String
     abbreviation: String
     synonyms: [String]
     authors: [Int]
     references: [Int]
-    parents: [Int]
-    children: [Int]
+
+    parents: [OntologyEntry]
+    children: [OntologyEntry]
+
     """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
     type: String
     """Subjects for trait"""
-    subjects: [Int]
+    subjects: [OntologyEntry]
     """Categories for scale"""
-    categories: [Int]
+    categories: [OntologyEntry]
     """Trait for variable"""
-    trait: Int
+    trait: OntologyEntry
     """Condition for parameter"""
-    condition: Int
+    condition: OntologyEntry
     """Exposure for event"""
-    exposure: Int
-    """Method for variable/parameter/event"""
-    method: Int
+    exposure: OntologyEntry
+    """Either ControlMethod or ObservationMethod for variable/parameter/event"""
+    method: OntologyEntry
     """Scale for variable/parameter/event"""
-    scale: Int
+    scale: OntologyEntry
     """Rank for ordinal scale categories"""
     rank: Int
 }

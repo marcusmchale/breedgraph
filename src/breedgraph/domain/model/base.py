@@ -118,12 +118,11 @@ class DiGraphAggregate(Aggregate):
             raise IllegalOperationError(f"Self-loop references are not supported")
         if sink_id in self.get_ancestors(source_id):
             raise IllegalOperationError(f"This edge would create a cycle which are not supported")
-
         self.graph.add_edge(source_id, sink_id, **kwargs)
+
 
     def _add_edges(self, edges: List[Tuple[int, int, dict]]):
         for edge in edges:
-
             self._add_edge(edge[0], edge[1], **edge[2] if edge[2] else {})
 
     def _remove_nodes(self, node_ids: List[int] | int):

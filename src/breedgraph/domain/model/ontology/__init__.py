@@ -9,7 +9,7 @@ from .variables import (
     Scale,
     Variable
 )
-from .parameters import Condition, Parameter
+from .parameters import Condition, Parameter, ControlMethod
 from .event_type import Exposure, EventType
 
 from .location_type import LocationType

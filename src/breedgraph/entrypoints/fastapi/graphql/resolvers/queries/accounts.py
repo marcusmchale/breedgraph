@@ -2,20 +2,16 @@ from ariadne import ObjectType
 
 from typing import List
 from src.breedgraph.domain.model.accounts import (
-    AccountStored, AccountOutput,
+    AccountOutput,
     UserOutput
 )
-#from src.breedgraph.domain.model.organisations import Access, Authorisation
-
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
-    inject_users_map,
-#    inject_teams_map
+    inject_users_map
 )
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
-
 
 import logging
 logger = logging.getLogger(__name__)

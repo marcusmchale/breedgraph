@@ -18,8 +18,9 @@ type Query {
     """Get a list of countries for use in top level region creation"""
     countries: CountriesPayload!
     """Get the latest ontology version"""
-    ontology_version: VersionPayload!
+    ontology_version (entry_id: Int, entry_name: String): VersionPayload!
+    """Get an ontology entry"""
     ontology_entry (entry_id: Int!): OntologyEntryPayload
-
-
+    """Get a list of ontology entries"""
+    ontology_entries (name: String, label: OntologyLabel): OntologyEntriesPayload
 }

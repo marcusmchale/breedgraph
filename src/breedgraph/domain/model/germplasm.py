@@ -10,15 +10,10 @@ class GermplasmSourceType(str, Enum):
     # This is to broadly classify relationships, further details may be described in the method,
     # and specific details in the germplasm sourcing description
     UNKNOWN = 'UNKNOWN'  # Germplasm is derived from source, though details of the relationship are not known.
-
     SEED = 'SEED'  # Germplasm is derived from seed obtained from source.
+    TISSUE = 'TISSUE'  # Germplasm is derived from vegetative tissue from source.
     MATERNAL = 'MATERNAL'  # Germplasm is derived from seed obtained from source in a controlled cross.
     PATERNAL = 'PATERNAL'  # Germplasm is derived from pollen obtained from source in a controlled cross.
-
-    TISSUE = 'TISSUE'  # Germplasm is derived from tissue from source.
-    SCION = 'SCION'  # Germplasm apical tissues are derived from source.
-    ROOTSTOCK = 'ROOTSTOCK' # Germplasm root tissues are derived from source.
-    INTERGRAFT = 'INTERGRAFT' # Germplasm stem tissues (between apical and root) are derived from source.
 
 class Reproduction(str, Enum):
     """
@@ -44,7 +39,6 @@ class GermplasmEntry(LabeledModel):
         hybrids, e.g. Centramericano (H1)
         etc.
         
-   
     Origin should be a reference to a Location in Regions
         where this Germplasm was sourced or created.
         
@@ -56,8 +50,7 @@ class GermplasmEntry(LabeledModel):
       - controlled self-fertilisation
       - uncontrolled pollination
       
-    References is for other miscellaneous internal references.
-    
+    References is for other miscellaneous references.
     """
     name: str
     synonyms: List[str] = list()
@@ -110,7 +103,6 @@ class Germplasm(ControlledRootedAggregate):
       - is an Accession where location and time are provided.
       - is a hybrid where maternal and paternal are known and distinct.
       - is a controlled self-fertilisation where maternal and paternal are known and the same
-      - is a graft where scion/intergraft or rootstock are known
       - is clonal tissue where source is singular Tissue relationship.
     """
     def add_entry(self, entry: GermplasmEntry, sources: Dict[int, dict|None] = None) -> int:

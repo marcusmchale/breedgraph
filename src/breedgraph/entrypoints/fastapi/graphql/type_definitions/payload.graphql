@@ -62,3 +62,9 @@ type OntologyEntryPayload {
     result: OntologyEntry
     errors: [Error]
 }
+
+type OntologyEntriesPayload {
+    status: QueryStatus!
+    result: [OntologyEntry]
+    errors: [Error]
+}

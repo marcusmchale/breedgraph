@@ -10,3 +10,5 @@ account = queries.accounts.account
 
 affiliations = queries.organisations.affiliations
 affiliation = queries.organisations.affiliation
+
+ontology_entry = queries.ontologies.ontology_entry

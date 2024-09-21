@@ -12,6 +12,10 @@ from src.breedgraph.domain.model.ontology.entries import OntologyEntry
 
 from typing import ClassVar
 
+class ControlMethod(OntologyEntry):
+    label: ClassVar[str] = 'ControlMethod'
+    plural: ClassVar[str] = 'ControlMethods'
+
 class Condition(OntologyEntry):  # akin to a Trait, but is controlled/fixed for a prescribed duration
     label: ClassVar[str] = 'Condition'
     plural: ClassVar[str] = 'Conditions'

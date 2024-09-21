@@ -20,7 +20,7 @@ class EventType(OntologyEntry):
     plural: ClassVar[str] = 'EventTypes'
     """
     treatments/exposures that are applied or experienced by subjects of an experiment at a particular time
-    for examples:
+    for example:
      exposure = Nitrogen
      method = N:P:K 20:10:5 (chemical)
      scale = kg/ha

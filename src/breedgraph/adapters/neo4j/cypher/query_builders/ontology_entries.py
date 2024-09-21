@@ -1,4 +1,4 @@
-from src.breedgraph.domain.model.ontology import OntologyEntry
+from src.breedgraph.domain.model.ontology import OntologyEntry, OntologyRelationshipLabel
 
 def create_ontology_entry(label):
 
@@ -40,7 +40,6 @@ def create_ontology_entry(label):
   """
   return query
 
-
 def update_ontology_entry(label):
   if not label in [e.label for e in OntologyEntry.__subclasses__()]:
     raise ValueError("Only ontology entry labels can be used")
@@ -78,5 +77,25 @@ def update_ontology_entry(label):
       ON CREATE SET ref_for.time = datetime.transaction()      
     }}   
     RETURN NULL 
+  """
+  return query
+
+def create_ontology_edge(label):
+  if not label in OntologyRelationshipLabel:
+    raise ValueError("Only ontology relationship labels can be used")
+
+  query = f"""
+    MATCH (source: OntologyEntry {{id:$source_id}})
+    MATCH (sink: OntologyEntry {{id:$sink_id}})
+    CREATE (source)-[:{label.name} {{rank: $rank}}]->(sink)
+  """
+  return query
+
+def delete_ontology_edge(label):
+  if not label in OntologyRelationshipLabel:
+    raise ValueError("Only ontology relationship labels can be used")
+  query = f"""
+    MATCH (source: OntologyEntry {{id:$source_id}})-[relationship :{label.name}]->(sink: OntologyEntry {{id:$sink_id}})
+    DELETE relationship
   """
   return query

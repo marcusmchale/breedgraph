@@ -17,7 +17,7 @@ from typing import Set, AsyncGenerator, Protocol
 
 from src.breedgraph.domain.model.ontology import (
     Version, VersionStored, VersionChange,
-    Ontology, OntologyEntry,
+    Ontology, OntologyEntry, OntologyRelationshipLabel,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,9 +33,7 @@ class Neo4jOntologyRepository(BaseRepository):
     # entry attributes that require forking to a new entry when changed
     material_changes: Set[str] = {
         'name',
-        'type',
-        'categories'
-        'trait', 'condition', 'exposure','method','scale'
+        'type'
     }
     def __init__(self, tx: AsyncTransaction):
         super().__init__()
@@ -170,6 +168,22 @@ class Neo4jOntologyRepository(BaseRepository):
     async def _remove_entry(self, entry: OntologyEntry, version_id: int) -> None:
         await self.tx.run(queries['ontologies']['remove_entry'], entry=entry.id, version=version_id)
 
+    async def _create_edge(self, source_id: int, sink_id: int, label: OntologyRelationshipLabel, rank: int = None):
+        query = ontology_entries.create_ontology_edge(label=label)
+        await self.tx.run(
+            query=query,
+            source_id=source_id,
+            sink_id=sink_id,
+            rank=rank
+        )
+    async def _update_category_rank(self, source_id: int, sink_id: int, rank: int = None):
+        await self.tx.run(
+            query=queries['ontologies']['update_category_rank'],
+            source_id=source_id,
+            sink_id=sink_id,
+            rank=rank
+        )
+
     @staticmethod
     def record_to_entry(record: Record) -> OntologyEntry:
         label = [l for l in record['labels'] if l != "OntologyEntry"][0]
@@ -188,6 +202,7 @@ class Neo4jOntologyRepository(BaseRepository):
     async def _update(self, ontology: TrackedOntology|Ontology):
         if not ontology.changed:
             return
+
         if any([
             ontology.graph.added_nodes,
             ontology.graph.removed_nodes,
@@ -217,9 +232,21 @@ class Neo4jOntologyRepository(BaseRepository):
             else:
                 await self._update_entry(entry)
 
-
         for entry_id, entry in ontology.graph.removed_nodes:
             if entry_id >= 0:
                 await self._remove_entry(entry, ontology.version.id)
 
-
+        for edge in ontology.graph.added_edges:
+            edge_data = ontology.graph.edges[edge]
+            edge_label = edge_data.get('label')
+            edge_rank = edge_data.get('label')
+            await self._create_edge(source_id=edge[0], sink_id=edge[1], label=edge_label, rank=edge_rank)
+        # note do not remove edges or versioning would break.
+        # we only allow changing of rank for categories,
+        # currently relying on this to be performed sensibly, i.e. to include new categories.
+        # todo enforce all of this behaviour in the model
+        # todo add tracking of changed_edges to support this update
+        #for edge in ontology.graph.changed_edges:
+        #    edge_data = ontology.graph.edges[edge]
+        #    edge_rank = edge_data.get('label')
+        #    await self._update_category_rank(source_id=edge[0], sink_id=edge[1], rank=edge_rank)

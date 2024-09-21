@@ -1,9 +1,10 @@
 from src.breedgraph.config import GQL_API_PATH
 from typing import List
 
-async def post_to_add_term(
+async def post_to_add_entry(
         client,
         token: str,
+        label: str,
         name: str,
         description: str|None = None,
         abbreviation: str|None = None,
@@ -15,7 +16,7 @@ async def post_to_add_term(
     json={
         "query": (
             " mutation ( $entry: OntologyEntryInput ) { "
-            "  add_term( "
+            "  ontology_add_entry( "
             "   entry: $entry  "
             "  ) { "
             "    status, "
@@ -26,6 +27,7 @@ async def post_to_add_term(
         ),
         "variables": {
             "entry" : {
+                "label": label,
                 "name": name,
                 "description": description,
                 "abbreviation": abbreviation,
@@ -38,52 +40,47 @@ async def post_to_add_term(
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-
-#async def post_to_add_term(
-#        client,
-#        token: str,
-#        name: str,
-#        description: str|None = None,
-#        abbreviation: str|None = None,
-#        synonyms: List[str]|None = None,
-#        authors: List[int]|None = None,
-#        references: List[int]|None = None,
-#        parents: List[int]|None = None
-#):
-#    json={
-#        "query": (
-#            " mutation ( "
-#            "  $name: String!"
-#            "  $description: String,"
-#            "  $abbreviation: String "
-#            "  $synonyms: [String],"
-#            "  $authors: [Int],"
-#            "  $references: [Int],"
-#            "  $parents: [Int]"
-#            " ) { "
-#            "  add_term( "
-#            "    name: $name "
-#            "    description: $description, "
-#            "    abbreviation: $abbreviation "
-#            "    synonyms: $synonyms, "
-#            "    authors: $authors, "
-#            "    references: $references "
-#            "    parents: $parents "
-#            "  ) { "
-#            "    status, "
-#            "    result, "
-#            "    errors { name, message } "
-#            "  } "
-#            " } "
-#        ),
-#        "variables": {
-#            "name": name,
-#            "description": description,
-#            "abbreviation": abbreviation,
-#            "synonyms": synonyms,
-#            "authors": authors,
-#            "references": references,
-#            "parents": parents
-#        }
-#    }
-#    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+async def post_to_get_entries(
+        client,
+        token: str,
+        name: str|None = None,
+        label: str|None = None,
+):
+    json={
+        "query": (
+            " query ( "
+            "  $name: String"
+            "  $label: OntologyLabel"
+            " ) { "
+            "  ontology_entries( "
+            "    name: $name "
+            "    label: $label "
+            "  ) { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name,"
+            "       label, "
+            "       parents { id, name }, "
+            "       children { id, name } "
+            "       type "
+            "       subjects { id, name } "
+            "       categories { id, name } "
+            "       trait { id, name } "
+            "       condition { id, name } "
+            "       exposure { id, name } "
+            "       method { id, name, label } "
+            "       scale { id, name, type } "
+            "       rank "
+            "       "
+            "   }, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "name": name,
+            "label": label
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

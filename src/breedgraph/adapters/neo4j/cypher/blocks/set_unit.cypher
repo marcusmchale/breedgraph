@@ -18,19 +18,6 @@ CALL {
   MERGE (unit)-[of_subject:OF_SUBJECT]->(subject)
   ON CREATE SET of_subject.time = datetime.transaction()
 }
-// update germplasm
-CALL {
-  WITH unit
-  MATCH (unit)-[of_germplasm:OF_GERMPLASM]->(germplasm:Germplasm)
-    WHERE NOT germplasm.id = $germplasm
-  DELETE of_germplasm
-}
-CALL {
-  WITH unit
-  MATCH (germplasm: Germplasm {id: $germplasm})
-  MERGE (unit)-[of_germplasm:OF_GERMPLASM]->(germplasm)
-  ON CREATE SET of_germplasm.time = datetime.transaction()
-}
 // Update positions
 CALL {
   WITH unit

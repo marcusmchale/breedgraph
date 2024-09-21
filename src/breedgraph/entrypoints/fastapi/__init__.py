@@ -17,7 +17,8 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers import (
     affiliations,
     affiliation,
     user,
-    account
+    account,
+    ontology_entry
 )
 
 from src.breedgraph import bootstrap
@@ -97,6 +98,7 @@ async def lifespan(fast_api_app: FastAPI):
         affiliation,
         user,
         account,
+        ontology_entry,
         snake_case_fallback_resolvers
         # access_level
     )

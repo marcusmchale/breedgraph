@@ -18,5 +18,5 @@ COMMAND_HANDLERS = {
     commands.organisations.RemoveTeam: organisations.remove_team,
     commands.organisations.UpdateTeam: organisations.edit_team,
     commands.regions.AddLocation: regions.add_location,
-    commands.ontologies.AddTerm: ontologies.add_term
+    commands.ontologies.AddOntologyEntry: ontologies.add_ontology_entry
 }  # type: Dict[Type[commands.base.Command], Callable]
