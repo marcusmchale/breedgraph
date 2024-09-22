@@ -3,6 +3,7 @@ from enum import Enum
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate
+from src.breedgraph.domain.model.ontology.entries import OntologyBase
 
 from typing import List, Dict, ClassVar, Type
 
@@ -24,7 +25,10 @@ class Reproduction(str, Enum):
     SEXUAL = 'SEXUAL'  # e.g. self-pollination
     APOMIXIS = 'APOMIXIS' # e.g. clonal seed production
 
-class GermplasmEntry(LabeledModel):
+class GermplasmEntry(OntologyBase):
+    # For germplasm entries we subclass ontology base
+    # so we can return them as categories for a scale.
+
     label: ClassVar[str] = 'Germplasm'
     plural: ClassVar[str] = 'Germplasms'
 
@@ -49,23 +53,11 @@ class GermplasmEntry(LabeledModel):
       - clonal propagation via tissue culture
       - controlled self-fertilisation
       - uncontrolled pollination
-      
-    References is for other miscellaneous references.
     """
-    name: str
-    synonyms: List[str] = list()
-    description: str | None = None
-    reproduction: Reproduction | None = None
-
     origin: int | None = None
     time: PyDT64 | None = None
-
+    reproduction: Reproduction | None = None
     methods: List[int] = list()
-    references: List[int] = list() # references by ID
-
-    @property
-    def names(self):
-        return [self.name] + self.synonyms
 
     def __hash__(self):
         return hash(self.name)

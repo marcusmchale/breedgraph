@@ -28,8 +28,7 @@ async def test_add_term(ontologies_repo, ontology, lorem_text_generator):
     await ontologies_repo.update_seen()
     # ensure the version has forked
     assert ontology.version > version_copy
-
-    assert ontologies_repo.get(version_id=version_copy.id)
+    assert await ontologies_repo.get(version_id=version_copy.id)
     assert ontology.get_entry(entry=new_term.name, label=Term.label)
     entry_id, entry = ontology.get_entry(new_term.name)
     # ensure the entry has a stored ID

@@ -18,11 +18,9 @@ ontology_entry = ObjectType("OntologyEntry")
 @graphql_payload
 async def get_ontology_entries(_, info, name: str = None, label: str = None) -> [OntologyOutput]:
     await inject_ontology(info.context)
-
     ontology = info.context.get('ontology')
     entry_ids = [e[0] for e in ontology.get_entries(name, label)]
     return [ontology.to_output(e) for e in entry_ids]
-
 
 #@ontology_entry.field("authors")
 #def resolve_authors(obj, info):
@@ -32,6 +30,8 @@ async def get_ontology_entries(_, info, name: str = None, label: str = None) -> 
 #def resolve_references(obj, info):
 #    raise NotImplementedError
 
+# todo handle parent/children of Germplasm entries.
+    #  Need to implement GQL for Germplasm first.
 
 @ontology_entry.field("parents")
 def resolve_parents(obj, info):

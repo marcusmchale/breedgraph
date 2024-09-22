@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 
-
 setup(
     name='breedgraph',
     version='0.1',

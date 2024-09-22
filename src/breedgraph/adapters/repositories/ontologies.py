@@ -109,7 +109,6 @@ class Neo4jOntologyRepository(BaseRepository):
 
         result = await self.tx.run(queries['ontologies']['get_ontology'], version_id=version_id)
         record = await result.single()
-
         if record:
             return Ontology(
                 version=VersionStored(**record['version']),
@@ -168,14 +167,26 @@ class Neo4jOntologyRepository(BaseRepository):
     async def _remove_entry(self, entry: OntologyEntry, version_id: int) -> None:
         await self.tx.run(queries['ontologies']['remove_entry'], entry=entry.id, version=version_id)
 
-    async def _create_edge(self, source_id: int, sink_id: int, label: OntologyRelationshipLabel, rank: int = None):
+    async def _create_edge(self, version: int, source_id: int, sink_id: int, label: OntologyRelationshipLabel, rank: int = None):
         query = ontology_entries.create_ontology_edge(label=label)
         await self.tx.run(
             query=query,
+            version=version,
             source_id=source_id,
             sink_id=sink_id,
             rank=rank
         )
+
+    async def _remove_edge(self, version: int, source_id: int, sink_id: int, label: OntologyRelationshipLabel, rank: int = None):
+        query = ontology_entries.remove_ontology_edge(label=label)
+        await self.tx.run(
+            query=query,
+            version=version,
+            source_id=source_id,
+            sink_id=sink_id,
+            rank=rank
+        )
+
     async def _update_category_rank(self, source_id: int, sink_id: int, rank: int = None):
         await self.tx.run(
             query=queries['ontologies']['update_category_rank'],
@@ -221,12 +232,14 @@ class Neo4jOntologyRepository(BaseRepository):
                 stored_entry = await self._create_entry(entry, ontology.version.id)
                 ontology.graph.replace_with_stored(entry_id, stored_entry)
             else:
-                # todo this will be needed to support copying an entry from an earlier version of the ontology
+                # todo this will be needed to support restoring an entry from an earlier version of the ontology
                 raise NotImplementedError
+
         for entry_id in ontology.graph.changed_nodes:
             _, entry = next(ontology.get_entries(entry_id))
 
             if entry.changed.intersection(self.material_changes):
+                await self._remove_entry(entry, ontology.version.id)
                 stored_entry = await self._create_entry(entry, ontology.version.id)
                 ontology.graph.replace_with_stored(entry_id, stored_entry)
             else:
@@ -239,13 +252,15 @@ class Neo4jOntologyRepository(BaseRepository):
         for edge in ontology.graph.added_edges:
             edge_data = ontology.graph.edges[edge]
             edge_label = edge_data.get('label')
-            edge_rank = edge_data.get('label')
-            await self._create_edge(source_id=edge[0], sink_id=edge[1], label=edge_label, rank=edge_rank)
-        # note do not remove edges or versioning would break.
-        # we only allow changing of rank for categories,
-        # currently relying on this to be performed sensibly, i.e. to include new categories.
-        # todo enforce all of this behaviour in the model
-        # todo add tracking of changed_edges to support this update
+            edge_rank = edge_data.get('rank')
+            await self._create_edge(version=ontology.version.id, source_id=edge[0], sink_id=edge[1], label=edge_label, rank=edge_rank)
+
+        for edge in ontology.graph.removed_edges:
+            edge_data = ontology.graph.edges[edge]
+            edge_label = edge_data.get('label')
+            await self._remove_edge(version=ontology.version.id, source_id=edge[0], sink_id=edge[1], label=edge_label)
+
+        # todo add tracking of changed_edges to support update rank
         #for edge in ontology.graph.changed_edges:
         #    edge_data = ontology.graph.edges[edge]
         #    edge_rank = edge_data.get('label')

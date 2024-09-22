@@ -11,7 +11,8 @@ async def post_to_add_entry(
         synonyms: List[str]|None = None,
         authors: List[int]|None = None,
         references: List[int]|None = None,
-        parents: List[int]|None = None
+        parents: List[int]|None = None,
+        subjects: List[int]|None = None
 ):
     json={
         "query": (
@@ -34,7 +35,8 @@ async def post_to_add_entry(
                 "synonyms": synonyms,
                 "authors": authors,
                 "references": references,
-                "parents": parents
+                "parents": parents,
+                "subjects": subjects
             }
         }
     }

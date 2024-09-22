@@ -80,22 +80,27 @@ def update_ontology_entry(label):
   """
   return query
 
-def create_ontology_edge(label):
-  if not label in OntologyRelationshipLabel:
+def create_ontology_edge(label: OntologyRelationshipLabel):
+  try:
+    label = OntologyRelationshipLabel[label]
+  except KeyError:
     raise ValueError("Only ontology relationship labels can be used")
 
   query = f"""
     MATCH (source: OntologyEntry {{id:$source_id}})
     MATCH (sink: OntologyEntry {{id:$sink_id}})
-    CREATE (source)-[:{label.name} {{rank: $rank}}]->(sink)
+    CREATE (source)-[:{label.name} {{created: $version, rank: $rank}}]->(sink)
   """
   return query
 
-def delete_ontology_edge(label):
-  if not label in OntologyRelationshipLabel:
+def remove_ontology_edge(label: OntologyRelationshipLabel):
+  try:
+    label = OntologyRelationshipLabel[label]
+  except KeyError:
     raise ValueError("Only ontology relationship labels can be used")
+
   query = f"""
     MATCH (source: OntologyEntry {{id:$source_id}})-[relationship :{label.name}]->(sink: OntologyEntry {{id:$sink_id}})
-    DELETE relationship
+    SET relationship.removed = $version
   """
   return query

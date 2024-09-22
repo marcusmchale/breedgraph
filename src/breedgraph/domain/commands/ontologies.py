@@ -15,10 +15,10 @@ class AddOntologyEntry(Command):
     children: List[int]|None = None
 
     type: str|None = None
-    categories: List[int] = list()
+    categories: List[int]|None = list()
     scale: int|None = None
     rank: int|None = None
-    subjects: List[int] = list()
+    subjects: List[int]|None = list()
     trait: int|None = None
     method: int|None = None
     condition: int|None = None

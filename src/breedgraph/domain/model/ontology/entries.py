@@ -1,7 +1,7 @@
 from typing import List, ClassVar
 from abc import ABC
 from enum import Enum
-from src.breedgraph.domain.model.base import StoredModel
+from src.breedgraph.domain.model.base import StoredModel, LabeledModel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
@@ -27,7 +27,8 @@ class ScaleType(str, Enum):
     NOMINAL = "NOMINAL"  # should have categories
     ORDINAL = "ORDINAL"  # should have categories
     TEXT = "TEXT"
-    CODE = "CODE"
+    GERMPLASM = "GERMPLASM"
+    #CODE = "CODE"
 
 class OntologyRelationshipLabel(str, Enum):
     RELATES_TO = 'RELATES_TO' # a generic directed relationship between entries
@@ -48,27 +49,27 @@ class OntologyRelationshipLabel(str, Enum):
     USES_METHOD = 'USES_METHOD' # Variable/Parameter/EventEntry -> Method
     USES_SCALE = 'USES_SCALE' # Variable/Parameter/EventEntry -> Scale
 
-class OntologyEntry(StoredModel, ABC):
+class OntologyBase(LabeledModel):
     label: ClassVar[str] = 'OntologyEntry'
     plural: ClassVar[str] = 'OntologyEntries'
 
-    # Has a positive ID if stored, not using input/output/stored model classes for ontology entries
-    id: int|None = None
-
     name: str
-    abbreviation: str|None = None
-    synonyms: List[str]|None = list()
-
+    abbreviation: str | None = None
+    synonyms: List[str] | None = list()
     description: str | None = None
 
-    authors: List[int]|None = list()  # internal person ID
-    references: List[int]|None = list()  # internal reference ID
+    authors: List[int] | None = list()  # internal person ID
+    references: List[int] | None = list()  # internal reference ID
 
     @property
-    def names_lower(self):
-        names = [self.name.casefold()] + [i.casefold() for i in self.synonyms]
-        names = names + [self.abbreviation.casefold()] if self.abbreviation else names
+    def names(self):
+        names = [self.name] + self.synonyms
+        names = names + [self.abbreviation] if self.abbreviation else names
         return names
+
+class OntologyEntry(OntologyBase, StoredModel, ABC):
+    # Has a positive ID if stored, not using input/output/stored model classes for ontology entries
+    id: int|None = None
 
 class OntologyOutput(OntologyEntry):
     label: str

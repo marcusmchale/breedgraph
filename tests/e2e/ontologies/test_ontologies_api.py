@@ -40,13 +40,33 @@ async def test_add_subject(client, second_user_login_token, lorem_text_generator
     assert subject_payload.get('result')[0].get('id')
     assert term_id in [i.get('id') for i in subject_payload.get('result')[0].get('parents')]
 
-#@pytest.mark.usefixtures("session_database")
-#@pytest.mark.asyncio(scope="session")
-#async def test_add_trait(client, second_user_login_token, lorem_text_generator):
-#    response = await post_to_get_entries(
-#        client,
-#        token=second_user_login_token,
-#        label="Subject"
-#    )
-#    import pdb; pdb.set_trace()
-#    assert_payload_success(get_verified_payload(response, "ontology_entries"))
+@pytest.mark.usefixtures("session_database")
+@pytest.mark.asyncio(scope="session")
+async def test_add_trait(client, second_user_login_token, lorem_text_generator):
+    response = await post_to_get_entries(
+        client,
+        token=second_user_login_token,
+        label="Subject"
+    )
+    subject_payload = get_verified_payload(response, "ontology_entries")
+    subject_id = subject_payload.get('result')[0].get('id')
+    response = await post_to_add_entry(
+        client,
+        token=second_user_login_token,
+        label="Trait",
+        name=lorem_text_generator.new_text(10),
+        description=lorem_text_generator.new_text(20),
+        abbreviation=lorem_text_generator.new_text(5),
+        synonyms=[lorem_text_generator.new_text(10), lorem_text_generator.new_text(5)],
+        subjects=[subject_id],
+    )
+    assert_payload_success(get_verified_payload(response, "ontology_add_entry"))
+    response = await post_to_get_entries(
+        client,
+        token=second_user_login_token,
+        label="Trait"
+    )
+    trait_payload = get_verified_payload(response, "ontology_entries")
+    assert trait_payload.get('result')[0].get('id')
+    assert subject_id in [i.get('id') for i in trait_payload.get('result')[0].get('subjects')]
+

@@ -95,7 +95,7 @@ class Ontology(DiGraphAggregate):
             for i, d in self.graph.nodes(data=True):
                 if all([
                     label is None or d['label'] == label,
-                    entry is None or entry.casefold() in d['model'].names_lower
+                    entry is None or entry.casefold() in [n.casefold() for n in d['model'].names]
                 ]):
                     yield i, d['model']
 
@@ -162,21 +162,34 @@ class Ontology(DiGraphAggregate):
             **kwargs
     ):
         temp_id = self._add_entry(entry, parents, children)
-
         if isinstance(entry, ScaleCategory):
             if 'scale' in kwargs:
-                self.link_category(temp_id, **kwargs)
+                self.link_category(temp_id, scale=kwargs.get('scale'), rank=kwargs.get('rank'))
         elif isinstance(entry, Scale) and 'categories' in kwargs:
-            self.link_scale(temp_id, **kwargs)
+            self.link_scale(temp_id, categories=kwargs.get('categories'))
         elif isinstance(entry, Trait):
-            self.link_trait(temp_id, **kwargs)
+            self.link_trait(temp_id, subjects=kwargs.get('subjects'))
         elif isinstance(entry, Variable):
-            self.link_variable(temp_id, **kwargs)
+            self.link_variable(
+                temp_id,
+                trait=kwargs.get('trait'),
+                method=kwargs.get('method'),
+                scale=kwargs.get('scale')
+            )
         elif isinstance(entry, Parameter):
-            self.link_parameter(temp_id, **kwargs)
+            self.link_parameter(
+                temp_id,
+                condition=kwargs.get('condition'),
+                method=kwargs.get('method'),
+                scale=kwargs.get('scale')
+            )
         elif isinstance(entry, EventType):
-            self.link_event(temp_id, **kwargs)
-
+            self.link_event(
+                temp_id,
+                exposure=kwargs.get('exposure'),
+                method=kwargs.get('method'),
+                scale=kwargs.get('scale')
+            )
         return temp_id
 
     def increment_edge_rank(self, source_id, sink_id):
@@ -483,7 +496,6 @@ class Ontology(DiGraphAggregate):
     def to_output(self, node_id) -> OntologyOutput:
         model = self.get_entry_model(node_id)
         model_dict = model.model_dump()
-
         return OntologyOutput(
             **model_dict,
             label=model.label,
