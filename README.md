@@ -1,8 +1,71 @@
 # BreedGraph API
+A package to manage data in breeding projects by aggregation into a knowledge graph.
 
-A package to manage data aggregation in breeding projects.
-  - Sampling strategies
-    - Field, Block, Tree, Sample in a useful pseudo-hierarchy 
+## Background and design
+BreedGraph was developed with the experience of developing and using the [breedcafs database tools](https://github.com/marcusmchale/breedcafs).
+The largely monolithic design of this tool made it difficult to adapt to new situations. 
+So, in BreedGraph we have sought to separate concerns, in particular by applying domain driven design
+to better isolate domain logic from other concerns.
+
+Established API specifications (e.g. BrAPI), ontologies (e.g. Planteome, CropOntology) and standards (e.g. MIAPPE)
+all informed domain modeling. Although BreedGraph extends and adapts these plant-centric models
+with more flexible definition of the "subject" of the study.
+These changes were required to more appropriately model microbial data for the BOLERO project.
+Further detail on domain models is outlined below.
+
+BreedGraph currently relies on the Neo4j graph database management system (DBMS) for persistence, 
+with transactions and the unit-of-work pattern ensuring ACID compliance
+(Atomicity, Consistency, Isolation, and Durability).
+However, all interactions with this DBMS are contained within a repository layer,
+providing the opportunity to adapt to alternative database technologies in the future.
+Repositories retrieve and compose domain model objects with change tracking using object proxy wrappers.
+This isolates the domain from persistence concerns, allows repositories to operate efficiently 
+and preserves records for audit purposes. 
+
+Surrounding the inner persistence layer, in an outer-repository layer, 
+is a combined group- and role-based access control. 
+Groups are flexibly defined as hierarchical organisations, with optional inheritance of roles (read/write/admin/curate).
+Domain aggregates composed of controlled domain models
+are redacted prior to presentation to the service layer.
+
+This service layer employs a messaging bus with commands to trigger changes and events
+to asynchronously issue other responses such as emails.
+Command and query responsibility segregation (CQRS) is further implemented
+with read-only views and an in memory cache (Redis) improving the efficiency of simple queries. 
+
+A graphql entry-point is provided (Ariadne) to access views and issue service commands.
+The GraphQL standard is well suited to querying the knowledge graph, 
+allowing efficient navigation and complex nested queries that return only the required information.
+This can be accessed through in-browser applications like GraphQL playground, 
+where documentation is presented to assist in schema interpretation.
+This interface will guide front-end development for customised tools in data entry and analysis.   
+
+Refs.  [Architecture patterns with Python](https://www.cosmicpython.com/book/preface.html). 
+
+## Domain
+
+### Ontology
+A central feature of BreedGraph is the adaptive ontology.
+
+All 
+ 
+This ontology is represented by a graph, with nodes corresponding to:
+
+
+The ontology graph has nodes representing traits, conditions, exposures etc.
+
+Ontologies are version controlled.
+
+Access control, users, organisations...
+
+== Programs ==
+A common entry into this knowledge graph is via the Program interface.
+A program is astudy
+
+
+
+
+    - 
   - Experimental data
     - Molecular/Qualitative/Phenotypic
     - Microbiome
@@ -18,17 +81,6 @@ Handles GraphQL requests and commits to a Neo4j database.
 Maintains a read model in Redis for fast queries in basic navigation.
 
 Accessible through a separate VueJS web-interface (breedview).
-
-Built on the experience of developing and using the [breedcafs database tools](https://github.com/marcusmchale/breedcafs)
-
-Applying the principles of domain driven design and event-driven architecture
-e.g.  [Architecture patterns with Python](https://www.cosmicpython.com/book/preface.html)
-
-Development notes:
-# for testing on community we can only have one active db
-# change the /etc/neo4j/neo4j.conf line to specify which to run, e.g.
-initial.dbms.default_database=test
-
 
 
 - Async
@@ -100,4 +152,10 @@ restart to load config
 
     sudo systemctl restart redis.service
 
+
+
+Development notes:
+  - for testing on community we can only have one active db
+  - change the /etc/neo4j/neo4j.conf line to specify which to run, e.g.
+    - initial.dbms.default_database=test
 
