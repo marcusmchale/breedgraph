@@ -163,9 +163,8 @@ enum ScaleType {
     NOMINAL,
     ORDINAL,
     TEXT,
-    CODE
+    germplasm
 }
-
 type OntologyEntry {
     label: OntologyLabel!
     id: Int!

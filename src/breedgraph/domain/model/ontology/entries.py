@@ -6,9 +6,6 @@ from src.breedgraph.domain.model.base import StoredModel, LabeledModel
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
 
-Nodes can be added and removed
-Relationships once added cannot be removed, a whole new node must be created.
-
 """
 
 class ObservationMethodType(str, Enum):
@@ -28,7 +25,6 @@ class ScaleType(str, Enum):
     ORDINAL = "ORDINAL"  # should have categories
     TEXT = "TEXT"
     GERMPLASM = "GERMPLASM"
-    #CODE = "CODE"
 
 class OntologyRelationshipLabel(str, Enum):
     RELATES_TO = 'RELATES_TO' # a generic directed relationship between entries

@@ -1,7 +1,6 @@
 from src.breedgraph.domain.model.ontology import OntologyEntry, OntologyRelationshipLabel
 
 def create_ontology_entry(label):
-
   if not label in [e.label for e in OntologyEntry.__subclasses__()]:
     raise ValueError("Only ontology entry labels can be used")
 

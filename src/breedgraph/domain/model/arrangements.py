@@ -16,7 +16,7 @@ class LayoutBase(LabeledModel):
     type: int  # ref to LayoutTypeStored
     location: int # ref to LocationStored
 
-    axes: list[str|int] = Field(frozen=True, default=['default'])
+    axes: list[str] = Field(frozen=True, default=['default'])
     # order of these elements correspond to position coordinate values
     # can not change after creation or units could not be reliably constructed
     name: str | None = None

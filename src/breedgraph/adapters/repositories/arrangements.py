@@ -2,7 +2,7 @@ import logging
 
 from neo4j import AsyncResult, Record
 
-from src.breedgraph.domain.model.layouts import (
+from src.breedgraph.domain.model.arrangements import (
     LayoutInput, LayoutStored, Arrangement
 )
 from src.breedgraph.adapters.neo4j.cypher import queries

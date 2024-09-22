@@ -30,8 +30,7 @@ class StudyBase(LabeledModel):
     end: PyDT64 | None = None
 
     # MIAPPE DM60: exposure or condition that is being tested.
-    factors: List[int] = list()
-    # list of DataSet IDs, these would typically be linked to Parameter or Event in the ontology
+    factors: List[int] = list() # list of DataSet IDs, these would typically be linked to Parameter or Event in the ontology
     observations: List[int] = list()  # list of DataSet IDs. These would typically be linked to a Variable in the ontology
 
     # Germplasm, Location are defined for units, to retrieve from there for read operations

@@ -19,7 +19,7 @@ from src.breedgraph.domain.model.germplasm import (
     GermplasmSourceType,
     Reproduction
 )
-from src.breedgraph.domain.model.layouts import Arrangement, LayoutInput
+from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput
 from src.breedgraph.domain.model.organisations import TeamInput, Organisation
 from src.breedgraph.domain.model.blocks import UnitInput, UnitStored, Block, Position
 

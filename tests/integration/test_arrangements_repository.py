@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
 
-from src.breedgraph.domain.model.layouts import Arrangement, LayoutInput, LayoutStored
+from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput, LayoutStored
 
 from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsRepository
 

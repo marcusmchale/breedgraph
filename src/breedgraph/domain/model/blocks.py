@@ -31,7 +31,6 @@ class Position(BaseModel):
     start: PyDT64
     end: PyDT64|None = None
 
-
 class Unit(LabeledModel):
     """
     Instances of subjects from the ontology
