@@ -39,8 +39,12 @@ class Neo4jOntologyRepository(BaseRepository):
         super().__init__()
         self.tx = tx
 
-    async def get_latest_version(self) -> VersionStored | None:
-        result = await self.tx.run(queries['ontologies']['get_latest_version'])
+    async def get_latest_version(self, entry_id: int = None) -> VersionStored | None:
+        if entry_id is None:
+            result = await self.tx.run(queries['ontologies']['get_latest_version'])
+        else:
+            result = await self.tx.run(queries['ontologies']['get_latest_version_by_entry'], entry_id=entry_id)
+
         record = await result.single()
         if record is not None:
             return VersionStored(**record['version'])
@@ -99,12 +103,11 @@ class Neo4jOntologyRepository(BaseRepository):
         record = await result.single()
         ontology.version.id = record.get('version').get('id')
 
-    async def _get(self, version_id: int = None) -> Ontology|None:
+    async def _get(self, version_id: int = None, entry_id: int = None) -> Ontology|None:
         if version_id is None:
-            version = await self.get_latest_version()
+            version = await self.get_latest_version(entry_id=entry_id)
             if version is None:
                 return await self._create()
-
             version_id = version.id
 
         result = await self.tx.run(queries['ontologies']['get_ontology'], version_id=version_id)

@@ -1,4 +1,5 @@
 from src.breedgraph.config import GQL_API_PATH
+from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType
 from typing import List
 
 async def post_to_add_entry(
@@ -12,7 +13,13 @@ async def post_to_add_entry(
         authors: List[int]|None = None,
         references: List[int]|None = None,
         parents: List[int]|None = None,
-        subjects: List[int]|None = None
+        subjects: List[int]|None = None,
+        observation_type: ObservationMethodType|None = None,
+        scale_type: ScaleType|None = None,
+        trait: int|None=None,
+        method: int|None=None,
+        scale: int|None=None,
+        axes: int|None=None
 ):
     json={
         "query": (
@@ -36,7 +43,13 @@ async def post_to_add_entry(
                 "authors": authors,
                 "references": references,
                 "parents": parents,
-                "subjects": subjects
+                "subjects": subjects,
+                "observation_type": observation_type,
+                "scale_type": scale_type,
+                "trait": trait,
+                "method": method,
+                "scale": scale,
+                "axes": axes
             }
         }
     }
@@ -65,15 +78,17 @@ async def post_to_get_entries(
             "       label, "
             "       parents { id, name }, "
             "       children { id, name } "
-            "       type "
+            "       scale_type "
+            "       observation_type "
             "       subjects { id, name } "
             "       categories { id, name } "
             "       trait { id, name } "
             "       condition { id, name } "
             "       exposure { id, name } "
             "       method { id, name, label } "
-            "       scale { id, name, type } "
+            "       scale { id, name, scale_type } "
             "       rank "
+            "       axes "
             "       "
             "   }, "
             "    errors { name, message } "

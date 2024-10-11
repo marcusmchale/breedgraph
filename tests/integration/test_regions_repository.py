@@ -4,7 +4,7 @@ from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.adapters.repositories.regions import Neo4jRegionsRepository
 from src.breedgraph.domain.model.regions import LocationInput
 
-
+#@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_extend_region(
         ontology, state_type,

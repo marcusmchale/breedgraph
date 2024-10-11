@@ -9,7 +9,8 @@ from src.breedgraph.domain.model.ontology import (
     ScaleType, ScaleCategory, Scale,
     Variable,
     Condition, Parameter,
-    Exposure, EventType
+    Exposure, EventType,
+    LayoutType
 )
 
 
@@ -102,15 +103,15 @@ async def test_create_trait(ontologies_repo, ontology, lorem_text_generator):
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_observation_method(ontologies_repo, ontology, lorem_text_generator):
-    method_type = ObservationMethodType.MEASUREMENT
-    new_method = ObservationMethod(name=lorem_text_generator.new_text(), type=method_type)
+    observation_type = ObservationMethodType.MEASUREMENT
+    new_method = ObservationMethod(name=lorem_text_generator.new_text(), observation_type=observation_type)
     ontology.add_entry(new_method)
     await ontologies_repo.update_seen()
     method_id, method = ontology.get_entry(entry=new_method.name, label=ObservationMethod.label)
     assert next(ontology.get_entries(new_method.name))
     assert method_id > 0
     assert method.name == new_method.name
-    assert method.type == method_type
+    assert method.observation_type == observation_type
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_control_method(ontologies_repo, ontology, lorem_text_generator):
@@ -125,14 +126,14 @@ async def test_create_control_method(ontologies_repo, ontology, lorem_text_gener
 @pytest.mark.asyncio(scope="session")
 async def test_create_scale(ontologies_repo, ontology, lorem_text_generator):
     scale_type = ScaleType.NUMERICAL
-    new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
+    new_scale = Scale(name=lorem_text_generator.new_text(), scale_type=scale_type)
     ontology.add_entry(new_scale)
     await ontologies_repo.update_seen()
     scale_id, scale = ontology.get_entry(entry=new_scale.name, label=Scale.label)
     assert next(ontology.get_entries(new_scale.name))
     assert scale_id > 0
     assert scale.name == new_scale.name
-    assert scale.type == scale_type
+    assert scale.scale_type == scale_type
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_nominal_categorical_scale(ontologies_repo, ontology, lorem_text_generator):
@@ -145,7 +146,7 @@ async def test_create_nominal_categorical_scale(ontologies_repo, ontology, lorem
     category_ids = [c[0] for c in category_tuples]
     categories = [c[1] for c in category_tuples]
     assert len(category_ids) == 3
-    new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
+    new_scale = Scale(name=lorem_text_generator.new_text(), scale_type=scale_type)
     ontology.add_entry(new_scale, categories=category_ids)
 
     await ontologies_repo.update_seen()
@@ -175,7 +176,7 @@ async def test_create_and_expand_ordinal_categorical_scale(ontologies_repo, onto
     await ontologies_repo.update_seen()
     category_tuples = [ontology.get_entry(c.name, label=ScaleCategory.label) for c in categories]
     category_ids = [c[0] for c in category_tuples]
-    new_scale = Scale(name=lorem_text_generator.new_text(), type=scale_type)
+    new_scale = Scale(name=lorem_text_generator.new_text(), scale_type=scale_type)
     extra_category = ScaleCategory(name=lorem_text_generator.new_text())
     categories = category_ids + [extra_category]
     ontology.add_entry(new_scale, categories=list(reversed(categories)))
@@ -240,3 +241,12 @@ async def test_create_event(ontologies_repo, ontology, lorem_text_generator):
     event_id, event = ontology.get_entry(new_event.name, label=EventType.label)
     assert event_id > 0
     assert {exposure_id, method_id, scale_id} == ontology.get_descendants(event_id)
+
+@pytest.mark.asyncio(scope="session")
+async def test_create_layout_type(ontologies_repo, ontology, lorem_text_generator):
+    num_axes = 2
+    new_layout_type = LayoutType(name=lorem_text_generator.new_text(), axes=num_axes)
+    ontology.add_entry(new_layout_type)
+    await ontologies_repo.update_seen()
+    layout_id, layout = ontology.get_entry(new_layout_type.name, label=LayoutType.label)
+    assert layout.axes == num_axes

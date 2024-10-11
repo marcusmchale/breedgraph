@@ -16,7 +16,6 @@ def get_unit_input(lorem_text_generator):
         name=lorem_text_generator.new_text(5),
         synonyms=[lorem_text_generator.new_text(5)],
         description=lorem_text_generator.new_text(10),
-        germplasm=1,
         positions=[Position(location=1, start='2001', end='2004'), Position(location=1, layout=2, coordinates=[1,1], start='2001', end='2004')]
     )
 
@@ -46,7 +45,7 @@ def test_add_unit(lorem_text_generator, unit_stored):
     ug = Block(nodes=[unit_stored])
     existing_root_name = ug.root.name
     new_input = get_unit_input(lorem_text_generator)
-    ug.add_unit(new_input, ug.root.id)
+    ug.add_unit(new_input, [ug.root.id])
     assert existing_root_name == ug.root.name
     new_child_id = list(ug.get_sinks(ug.root.id).keys())[0]
     assert ug.get_entry(new_child_id).name == new_input.name
@@ -56,5 +55,5 @@ def test_merge_blocks(lorem_text_generator, unit_stored):
     ug = Block(nodes=[unit_stored])
     new_input = get_unit_input(lorem_text_generator)
     new_unit_graph = Block(nodes=[new_input])
-    ug.merge_block(new_unit_graph, ug.get_root_id())
+    ug.merge_block(new_unit_graph, [ug.get_root_id()])
     assert ug.get_sinks(ug.get_root_id())

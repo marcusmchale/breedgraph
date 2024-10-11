@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease
 
 from typing import List, ClassVar
 
@@ -24,7 +24,7 @@ class LocationBase(LabeledModel):
     code: str|None = None  # can be country code, zip code, code for a field etc.
     address: str|None = None
 
-    coordinates: list[GeoCoordinate] = list() # if more than one then interpreted as a polygon specifying boundaries
+    coordinates: list[GeoCoordinate]|None = list() # if more than one then interpreted as a polygon specifying boundaries
 
     @property
     def names(self):
@@ -49,6 +49,11 @@ class LocationStored(LocationBase, ControlledModel):
             'coordinates': list()
         })
 
+class LocationOutput(LocationStored):
+    parent: int | None
+    children: list[int]
+    release: ReadRelease
+
 class Region(ControlledTreeAggregate):
 
     def add_location(self, location: LocationInput, parent_id: int|None):
@@ -61,3 +66,16 @@ class Region(ControlledTreeAggregate):
 
     def get_location(self, location: str|int):
         return super().get_entry(location)
+
+    def to_output_map(self) -> dict[int, LocationOutput]:
+        return {node: LocationOutput(
+            **self.get_location(node).model_dump(),
+            parent=self.get_parent_id(node),
+            children=self.get_children_ids(node),
+            release=self.get_location(node).controller.release
+        ) for node in self.graph}
+
+    def yield_locations_by_type(self, type_id: int):
+        for e in self.entries.values():
+            if e.type == type_id:
+                yield e

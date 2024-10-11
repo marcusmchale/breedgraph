@@ -1,5 +1,5 @@
 MATCH (program:Program {id:$program_id})
-MERGE (counter: count {name: 'trial'})
+MERGE (counter: Counter {name: 'trial'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 CREATE (program)-[:HAS_TRIAL]->(trial: Trial {

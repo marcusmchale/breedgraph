@@ -1,7 +1,10 @@
 from .base import Command
 
+from src.breedgraph.domain.model.controls import ReadRelease
+
 from typing import List
 from typing_extensions import TypedDict
+
 
 class GeoCoordinate(TypedDict):  #ISO 6709
     latitude: float
@@ -12,15 +15,15 @@ class GeoCoordinate(TypedDict):  #ISO 6709
 
 class AddLocation(Command):
     user: int
+    release: str = ReadRelease.REGISTERED.name
 
     name: str
     type: int
-
     fullname: str = None
     description: str = None
     code: str = None
     address: str = None
-    coordinates: List[GeoCoordinate]
+    coordinates: List[GeoCoordinate] = None
 
     parent: int|None = None
 
@@ -35,10 +38,11 @@ class UpdateLocation(Command):
     name: str
     type: int
 
-    fullname: str = None
-    description: str = None
-    code: str = None
-    address: str = None
+    fullname: str
+    description: str
+    code: str
+    address: str
     coordinates: List[GeoCoordinate]
 
-    parent: int | None = None
+    parent: int | None
+    release: str

@@ -6,6 +6,7 @@ import logging
 import networkx as nx
 
 from functools import wraps
+from collections import defaultdict
 
 from pydantic import BaseModel, TypeAdapter, GetCoreSchemaHandler, model_serializer
 from pydantic_core import core_schema, SchemaSerializer
@@ -428,7 +429,6 @@ class TrackedSet(ObjectProxy, MutableSet):
             value._self_on_changed.append(on_changed)
             return value
 
-
         if isinstance(value, BaseModel):
             value = Tracked(value, on_changed=lambda: self.on_changed_item(hash(value)))
         elif isinstance(value, list):
@@ -482,14 +482,29 @@ class TrackedSet(ObjectProxy, MutableSet):
         return cls(value)
 
 
+class TrackableDefaultDict(defaultdict):
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        self[key] = self.default_factory(key)
+        return self[key]
+
+
 class TrackedDict(ObjectProxy, MutableMapping):
     """
     Tracks add, remove and changes to values in a dictionary
     Including dictionaries of tracked items, tracked lists or nested tracked dicts
     """
-    def __init__(self, d: dict = None, on_changed: Callable = lambda: None):
+    def __init__(self, d: dict|defaultdict = None, on_changed: Callable = lambda: None):
         if d is None:
             d = dict()
+
+        if isinstance(d, defaultdict):
+            df = d.default_factory
+            def tracked_factory(k):
+                return self._get_tracked(k, df())
+            d = TrackableDefaultDict(tracked_factory, d)
+
         super().__init__(d)
 
         self._self_changed: Set[Hashable] = set()  # record the key of any changed value

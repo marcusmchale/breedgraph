@@ -9,9 +9,10 @@ from tests.e2e.organisations.post_methods import (
 from tests.e2e.payload_helpers import get_verified_payload
 
 
+@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
-async def test_second_user_renames_team(client, user_input_generator, second_user_login_token):
-    organisations_request_response = await post_to_organisations(client, second_user_login_token)
+async def test_rename_team(client, user_input_generator, first_user_login_token, stored_organisation):
+    organisations_request_response = await post_to_organisations(client, first_user_login_token)
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
     organisation_root_names = [i.get('name') for i in organisations_payload.get('result')]
@@ -21,7 +22,7 @@ async def test_second_user_renames_team(client, user_input_generator, second_use
     new_input = user_input_generator.new_user_input()
     teams_edit_response = await post_to_edit_team(
         client,
-        second_user_login_token,
+        first_user_login_token,
         team=team_id,
         name=new_input['team_name'],
         fullname=new_input['team_name']
@@ -31,7 +32,7 @@ async def test_second_user_renames_team(client, user_input_generator, second_use
 
     team_request_response = await post_to_team(
         client,
-        second_user_login_token,
+        first_user_login_token,
         team_id=team_id
     )
     team_payload = get_verified_payload(team_request_response, "team")

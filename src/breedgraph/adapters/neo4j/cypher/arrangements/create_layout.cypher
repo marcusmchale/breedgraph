@@ -1,4 +1,4 @@
-MERGE (counter: count {name: 'layout'})
+MERGE (counter: Counter {name: 'layout'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 

@@ -8,7 +8,8 @@ async def post_to_countries(client, token:str):
             "    status, "
             "    result { "
             "       name, "
-            "       code "  
+            "       code, "  
+            "       type { id, name }"
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -17,16 +18,18 @@ async def post_to_countries(client, token:str):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_add_location(client, token:str, name: str, code: str):
+async def post_to_add_location(
+    client,
+    token:str,
+    location: dict
+):
     json = {
         "query": (
             " mutation ( "
-            "  $name: String!,"
-            "  $code: String"
+            "  $location: LocationInput!"
             " ) { "
             "  add_location( "
-            "    name: $name, "
-            "    code: $code"
+            "    location: $location, "
             "  ) { "
             "    status, "
             "    result, "
@@ -35,8 +38,66 @@ async def post_to_add_location(client, token:str, name: str, code: str):
             " } "
         ),
         "variables": {
-            "name": name,
-            "code": code
+            "location": location
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+
+async def post_to_regions(client, token:str):
+    json = {
+        "query": (
+            " query { "
+            "  regions { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name } "
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "       release "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        )
+    }
+    if token:
+        headers={"token":token}
+    else:
+        headers=None
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers=headers)
+
+async def post_to_location(client, location_id: int, token:str = None):
+    json = {
+        "query": (
+            " query ("
+            "   $location_id : Int!"
+            " ) { "
+            "  location ( "
+            "  location_id: $location_id,"
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name }"
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "       release "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "location_id": location_id,
+        }
+    }
+    if token:
+        headers={"token":token}
+    else:
+        headers=None
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers=headers)

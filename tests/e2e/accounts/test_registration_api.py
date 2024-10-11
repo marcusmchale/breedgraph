@@ -1,20 +1,15 @@
 import pytest
-import pytest_asyncio
 
 from src.breedgraph.config import SITE_NAME
 
-from tests.e2e.payload_helpers import get_verified_payload
+from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
 from tests.e2e.accounts.post_methods import (
     post_to_add_account,
     post_to_verify_email,
     post_to_login,
     post_to_add_email,
-    post_to_users,
-    post_to_edit_user,
-    post_to_account,
     post_to_request_affiliation,
-    post_to_approve_affiliation,
-    post_to_remove_affiliation
+    post_to_approve_affiliation
 )
 
 from tests.e2e.organisations.post_methods import (
@@ -28,14 +23,7 @@ from tests.e2e.organisations.post_methods import (
 from tests.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
 from src.breedgraph.domain.model.controls import Access
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
-from src.breedgraph.custom_exceptions import TooManyRetries, NoResultFoundError
-
-def assert_payload_success(payload):
-    assert payload['status'] == GQLStatus.SUCCESS.name
-    assert payload['errors'] is None
-    assert payload['result']
-
+from src.breedgraph.custom_exceptions import NoResultFoundError
 
 async def check_verify_email(client, mailto: str, name: str):
     #json_content = await get_json_from_gmail(mailto=mailto, subject=f"{SITE_NAME} account email verification for {name}")
@@ -176,7 +164,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
         raise NoResultFoundError
 
 @pytest.mark.asyncio(scope="session")
-async def test_first_user_requests_affiliation(client, user_input_generator, first_user_login_token, ):
+async def test_first_user_requests_read_affiliation(client, user_input_generator, first_user_login_token, ):
     organisations_request_response = await post_to_organisations(client, first_user_login_token)
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
@@ -203,7 +191,7 @@ async def test_first_user_requests_affiliation(client, user_input_generator, fir
     )
 
 @pytest.mark.asyncio(scope="session")
-async def test_second_user_approves_affiliation_to_child_team(
+async def test_second_user_approves_read_affiliation_to_child_team(
         client,
         user_input_generator,
         second_user_login_token
@@ -235,6 +223,7 @@ async def test_second_user_approves_affiliation_to_child_team(
         f'{SITE_NAME} read access approved',
         string_in_body=f"Your account was approved for {Access.READ.name.casefold()} access to {child_team_name}."
     )
+
 
 #@pytest.mark.asyncio(scope="session")
 #async def test_second_user_revokes_approved_read(client, user_input_generator, first_user_login_token, second_user_login_token):

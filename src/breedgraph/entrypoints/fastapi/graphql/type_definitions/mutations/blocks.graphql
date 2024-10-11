@@ -1,0 +1,40 @@
+input PositionInput {
+    """
+    ID of Location in a Region
+    """
+    location: Int!
+    """
+    ID of Layout in and Arrangement
+    """
+    layout: Int
+    """
+    Coordinates should be a list of values corresponding to the stored layout axes.
+    """
+    coordinates: [CoordinateValueInput]
+    start: DateTime
+    end: DateTime
+}
+
+input UnitInput {
+    """
+    ID of Subject in the ontology
+    """
+    subject: Int!
+    name: String
+    synonyms: [String]
+    description: String
+    """
+    IDs of parent Units, of which this unit forms a component
+    """
+    parents: [Int]
+    """
+    IDs of child Units, which represent a component of this unit.
+    """
+    children: [Int]
+    release: Release
+}
+
+extend type Mutation {
+    blocks_add_unit(unit: UnitInput!): BooleanPayload!
+    blocks_add_position(unit_id: Int!, position: PositionInput): BooleanPayload!
+}

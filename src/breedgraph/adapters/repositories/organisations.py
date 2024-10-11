@@ -107,6 +107,10 @@ class Neo4jOrganisationsRepository(BaseRepository):
             nodes.append(team)
             for edge in record.get('includes', []):
                 edges.append(edge)
+
+        if not nodes:
+            return None
+
         org = Organisation(nodes=nodes, edges=edges)
         if self.redacted:
             return org.redacted(self.user_id)

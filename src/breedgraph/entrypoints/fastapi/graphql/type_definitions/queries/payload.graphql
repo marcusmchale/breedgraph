@@ -45,12 +45,6 @@ type UsersPayload {
     errors: [Error]
 }
 
-type CountriesPayload {
-    status: QueryStatus!
-    result: [Country]
-    errors: [Error]
-}
-
 type VersionPayload {
     status: QueryStatus!
     result: Version
@@ -66,5 +60,47 @@ type OntologyEntryPayload {
 type OntologyEntriesPayload {
     status: QueryStatus!
     result: [OntologyEntry]
+    errors: [Error]
+}
+
+type LocationsPayload {
+    status: QueryStatus!
+    result: [Location]
+    errors: [Error]
+}
+
+type LocationPayload {
+    status: QueryStatus!
+    result: Location
+    errors: [Error]
+}
+
+type LayoutsPayload {
+    status: QueryStatus!
+    result: [Layout]
+    errors: [Error]
+}
+
+type LayoutPayload {
+    status: QueryStatus!
+    result: Layout
+    errors: [Error]
+}
+
+type UnitsPayload {
+    status: QueryStatus!
+    result: [Unit]
+    errors: [Error]
+}
+
+type UnitPayload {
+    status: QueryStatus!
+    result: Unit
+    errors: [Error]
+}
+
+type DatasetsPayload {
+    status: QueryStatus!
+    result: [DataSet]
     errors: [Error]
 }

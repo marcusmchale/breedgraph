@@ -1,4 +1,4 @@
-MERGE (counter: count {name: 'dataset'})
+MERGE (counter: Counter {name: 'dataset'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 CREATE (dataset: DataSet {id: counter.count})
@@ -31,7 +31,7 @@ CALL{
 // Create records
 CALL {
   WITH dataset
-  MERGE (record_counter: count {name: 'record'})
+  MERGE (record_counter: Counter {name: 'record'})
   ON CREATE SET record_counter.count = 0
   WITH dataset, record_counter
   UNWIND $unit_records AS unit_record

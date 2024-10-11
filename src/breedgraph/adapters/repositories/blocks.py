@@ -14,7 +14,6 @@ from typing import Set, AsyncGenerator, Tuple, List
 
 logger = logging.getLogger(__name__)
 
-
 class Neo4jBlocksRepository(Neo4jControlledRepository):
 
     async def _create_controlled(self, unit: UnitInput) -> Block:
@@ -68,8 +67,14 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[Block, None]:
-        result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
+    async def _get_all_controlled(self, location_id: int|None = None) -> AsyncGenerator[Block, None]:
+        if location_id is None:
+            result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
+        else:
+            import pdb; pdb.set_trace()
+            # todo filter by location in query (current position only)
+            result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks_by_location'])
+
         async for record in result:
             units = [self.record_to_unit(l) for l in record['block']]
             edges = [(unit.get('parent_id'), unit.get('id'), None) for unit in record.get('block') if unit.get('parent_id') is not None]

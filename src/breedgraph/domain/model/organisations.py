@@ -75,14 +75,6 @@ class Organisation(TreeAggregate):
                 if t.name.casefold() == team.casefold():
                     return t
 
-    def get_parent_id(self, team: int) -> int:
-        in_edges = list(self.graph.in_edges(team))
-        if in_edges:
-            return in_edges[0][1]
-
-    def get_children_ids(self, team: int) -> List[int]:
-        return [edge[1] for edge in self.graph.out_edges(team)]
-
     def add_team(self, team: TeamInput, parent_id: int|None=None):
         if parent_id is not None and not parent_id in self.graph.nodes:
             raise ValueError("Parent not found")

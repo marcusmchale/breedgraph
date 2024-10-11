@@ -1,13 +1,12 @@
 from ariadne import ObjectType
 
-from src.breedgraph.domain.model.ontology.entries import OntologyOutput
+from src.breedgraph.domain.model.ontology import OntologyOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     inject_ontology
 )
-
 
 import logging
 logger = logging.getLogger(__name__)
@@ -16,8 +15,8 @@ ontology_entry = ObjectType("OntologyEntry")
 
 @graphql_query.field("ontology_entries")
 @graphql_payload
-async def get_ontology_entries(_, info, name: str = None, label: str = None) -> [OntologyOutput]:
-    await inject_ontology(info.context)
+async def get_ontology_entries(_, info, name: str = None, label: str = None, version_id: int = None) -> [OntologyOutput]:
+    await inject_ontology(info.context, version_id)
     ontology = info.context.get('ontology')
     entry_ids = [e[0] for e in ontology.get_entries(name, label)]
     return [ontology.to_output(e) for e in entry_ids]
@@ -73,14 +72,12 @@ def resolve_exposure(obj, info):
 
 @ontology_entry.field("method")
 def resolve_method(obj, info):
-    if obj.condition:
+    if obj.method:
         ontology = info.context.get('ontology')
         return ontology.to_output(obj.method)
 
 @ontology_entry.field("scale")
-def resolve_condition(obj, info):
+def resolve_scale(obj, info):
     if obj.scale:
         ontology = info.context.get('ontology')
         return ontology.to_output(obj.scale)
-
-

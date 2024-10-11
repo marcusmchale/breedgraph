@@ -1,8 +1,33 @@
+input GeoCoordinateInput {
+    """Latitude in degrees according to ISO 6709"""
+    latitude: Float!
+    """Longitude in degrees according to ISO 6709"""
+    longitude: Float!
+    """Meters above WGS84 reference ellipsoid"""
+    altitude: Float
+    """Uncertainty in meters associated with these coordinates"""
+    uncertainty: Float
+    """Additional coordinate description"""
+    description: String
+}
+
+input LocationInput {
+    name: String!
+    synonyms: [String]
+    """ Optional code for location, e.g. zip-code """
+    code: String
+    description: String
+    address: String
+    coordinates: [GeoCoordinateInput]
+    """ Ontology LocationType identifier """
+    type: Int!
+    """ A parent location, required unless a country (see countries) """
+    parent: Int
+    release: Release
+}
+
 extend type Mutation {
     add_location(
-        name: String!
-        code: String!
-        type: Int!
-        parent: Int!
+        location: LocationInput!
     ): BooleanPayload!
 }

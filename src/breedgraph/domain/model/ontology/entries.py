@@ -5,7 +5,6 @@ from src.breedgraph.domain.model.base import StoredModel, LabeledModel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
-
 """
 
 class ObservationMethodType(str, Enum):
@@ -51,11 +50,11 @@ class OntologyBase(LabeledModel):
 
     name: str
     abbreviation: str | None = None
-    synonyms: List[str] | None = list()
     description: str | None = None
+    synonyms: List[str] = list()
 
-    authors: List[int] | None = list()  # internal person ID
-    references: List[int] | None = list()  # internal reference ID
+    authors: List[int] = list()  # internal person ID
+    references: List[int] = list()  # internal reference ID
 
     @property
     def names(self):
@@ -66,29 +65,6 @@ class OntologyBase(LabeledModel):
 class OntologyEntry(OntologyBase, StoredModel, ABC):
     # Has a positive ID if stored, not using input/output/stored model classes for ontology entries
     id: int|None = None
-
-class OntologyOutput(OntologyEntry):
-    label: str
-    parents: list[int] = list()
-    children: list[int] = list()
-    """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
-    type: ObservationMethodType|ScaleType|None
-    """Subjects for trait"""
-    subjects: List[int] = list()
-    """Categories for scale"""
-    categories: List[int] = list()
-    """Trait for variable"""
-    trait: int|None = None
-    """Condition for parameter"""
-    condition: int|None = None
-    """Exposure for event"""
-    exposure: int|None = None
-    """ControlMethod or ObservationMethod for variable/parameter/event"""
-    method: int|None = None
-    """Scale for variable/parameter/event"""
-    scale: int|None = None
-    """Rank for ordinal scale categories"""
-    rank: int|None = None
 
 
 class Term(OntologyEntry):  # generic ontology entry, used to relate terms to each other and traits/methods/scales

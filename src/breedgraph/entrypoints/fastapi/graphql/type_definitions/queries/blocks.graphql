@@ -1,0 +1,36 @@
+type CoordinateValue {
+    integer: Int
+    float: Float
+    string: String
+}
+
+type Position {
+    """
+    ID of Location in a Region
+    """
+    location: Int!
+    """
+    ID of Layout in and Arrangement
+    """
+    layout: Int
+    """
+    Coordinates should be a list of values corresponding to the stored layout axes.
+    """
+    coordinates: [CoordinateValue]
+    start: DateTime
+    end: DateTime
+}
+
+type Unit {
+    id: Int!
+    subject: OntologyEntry
+    name: String
+    synonyms: [String]
+    description: String
+    positions: [Position]
+
+    parents: [Unit]
+    children: [Unit]
+
+    release: Release
+}

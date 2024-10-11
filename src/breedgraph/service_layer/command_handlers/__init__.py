@@ -1,7 +1,7 @@
 from typing import Dict, Type, Callable
 from src.breedgraph.domain import commands
 
-from . import regions, organisations, accounts, setup, ontologies
+from . import regions, organisations, accounts, setup, ontologies, blocks, datasets, arrangements
 
 COMMAND_HANDLERS = {
     commands.setup.LoadReadModel: setup.load_read_model,
@@ -18,5 +18,10 @@ COMMAND_HANDLERS = {
     commands.organisations.RemoveTeam: organisations.remove_team,
     commands.organisations.UpdateTeam: organisations.edit_team,
     commands.regions.AddLocation: regions.add_location,
-    commands.ontologies.AddOntologyEntry: ontologies.add_ontology_entry
+    commands.ontologies.AddOntologyEntry: ontologies.add_ontology_entry,
+    commands.blocks.AddUnit: blocks.add_unit,
+    commands.blocks.AddPosition: blocks.add_position,
+    commands.datasets.AddDataSet: datasets.add_dataset,
+    commands.datasets.AddRecord: datasets.add_record,
+    commands.arrangements.AddLayout: arrangements.add_layout
 }  # type: Dict[Type[commands.base.Command], Callable]

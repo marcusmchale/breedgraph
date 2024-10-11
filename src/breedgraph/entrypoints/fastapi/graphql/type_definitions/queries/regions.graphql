@@ -1,0 +1,32 @@
+enum Release {PRIVATE, REGISTERED, PUBLIC}
+
+type GeoCoordinate {
+    """Latitude in degrees according to ISO 6709"""
+    latitude: Float!
+    """Longitude in degrees according to ISO 6709"""
+    longitude: Float!
+    """Meters above WGS84 reference ellipsoid"""
+    altitude: Float
+    """Uncertainty in meters associated with these coordinates"""
+    uncertainty: Float
+    """Additional coordinate description"""
+    description: String
+}
+
+type Location {
+    """
+    ID is not always required for location
+    We return Country LocationInputs that are not yet stored using this type
+    """
+    id: Int
+    name: String!
+    type: OntologyEntry!
+    code: String
+    synonyms: [String]
+    description: String
+    address: String
+    coordinates: [GeoCoordinate]
+    parent: Location
+    children: [Location]
+    release: Release
+}

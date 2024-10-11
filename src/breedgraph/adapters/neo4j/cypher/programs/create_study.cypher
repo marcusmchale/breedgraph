@@ -1,5 +1,5 @@
 MATCH (trial: Trial {id: $trial_id})
-MERGE (counter: count {name: 'study'})
+MERGE (counter: Counter {name: 'study'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 CREATE (trial)-[:HAS_STUDY]->(study: Study {

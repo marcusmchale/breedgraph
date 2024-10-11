@@ -26,6 +26,7 @@ from src.breedgraph.adapters.repositories.people import Neo4jPeopleRepository
 from src.breedgraph.adapters.repositories.programs import Neo4jProgramsRepository
 from src.breedgraph.adapters.repositories.references import Neo4jReferencesRepository
 from src.breedgraph.adapters.repositories.regions import Neo4jRegionsRepository
+from src.breedgraph.adapters.repositories.blocks import Neo4jBlocksRepository
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class AbstractRepoHolder(ABC):
     programs: ControlledRepository
     references: ControlledRepository
     regions: ControlledRepository
+    blocks: ControlledRepository
 
     @abstractmethod
     async def commit(self):
@@ -67,8 +69,8 @@ class AbstractUnitOfWork(ABC):
     events: List[Event] = list()
 
     @asynccontextmanager
-    async def get_repositories(self, user_id: int = None, redacted: bool = True):
-        async with self._get_repositories(user_id, redacted) as repo_holder:
+    async def get_repositories(self, user_id: int = None, redacted: bool = True, release: ReadRelease = ReadRelease.PRIVATE):
+        async with self._get_repositories(user_id=user_id, redacted=redacted, release=release) as repo_holder:
             try:
                 yield repo_holder
             finally:
@@ -119,6 +121,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         self.programs = Neo4jProgramsRepository(**repo_params)
         self.references = Neo4jReferencesRepository(**repo_params)
         self.regions = Neo4jRegionsRepository(**repo_params)
+        self.blocks = Neo4jBlocksRepository(**repo_params)
 
     async def commit(self):
         logger.debug("Update seen by all repositories")
@@ -132,6 +135,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         await self.programs.update_seen()
         await self.references.update_seen()
         await self.regions.update_seen()
+        await self.blocks.update_seen()
         logger.debug("Transaction commit")
         await self.tx.commit()
 
@@ -154,7 +158,12 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         )
 
     @asynccontextmanager
-    async def _get_repositories(self, user_id: int = None, redacted: bool = True):
+    async def _get_repositories(
+            self,
+            user_id: int = None,
+            redacted: bool = True,
+            release: ReadRelease = ReadRelease.PRIVATE
+    ):
         logger.debug("Start neo4j session")
         session: AsyncSession = self.driver.session()
         logger.debug("Begin neo4j transaction")
@@ -165,7 +174,7 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         else:
             access_teams = {'read_teams': [], 'write_teams': [], 'curate_teams': [], 'admin_teams': []}
 
-        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, redacted= redacted, **access_teams)
+        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, redacted=redacted, release=release, **access_teams)
         try:
             yield repo_holder
         finally:

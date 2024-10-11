@@ -9,5 +9,5 @@ RETURN location {
   .*,
   type: [(location)-[:OF_LOCATION_TYPE]->(type:LocationType) | type.id][0],
   coordinates: [(location)<-[:COORDINATE_OF]-(coordinate:Coordinate) | coordinate {.*}],
-  parent_id: [(parent:Layout)-[:INCLUDES_LAYOUT]->(layout) | parent.id][0]
+  parent_id: [(parent:Location)-[:INCLUDES_LOCATION]->(location) | parent.id][0]
 }

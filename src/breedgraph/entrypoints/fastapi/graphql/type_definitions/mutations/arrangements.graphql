@@ -1,0 +1,32 @@
+"""
+Coordinate values may be int, float or string
+One ONLY should be provided.
+"""
+input CoordinateValueInput {
+    integer: Int
+    float: Float
+    string: String
+}
+
+input LayoutInput {
+    """ Location ID from Region """
+    location: Int!
+    """ Ontology LayoutType identifier """
+    type: Int!
+    """ Axis labels """
+    axes: [String!]
+    """ Optional name for the layout """
+    name: String
+    """ Optional parent layout to construct multiplexed layout arrangements"""
+    parent: Int
+    """ When parent is supplied, position according to parent layout axes must be provided."""
+    position: [CoordinateValueInput]
+    """ Read access to this layout """
+    release: Release
+}
+
+extend type Mutation {
+    add_layout(
+        layout: LayoutInput!
+    ): BooleanPayload!
+}

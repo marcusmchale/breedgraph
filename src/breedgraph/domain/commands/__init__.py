@@ -1,2 +1,2 @@
 from .base import Command
-from . import accounts, regions, organisations, setup, ontologies, people
+from . import accounts, regions, arrangements, organisations, setup, ontologies, people, blocks, datasets

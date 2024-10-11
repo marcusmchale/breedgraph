@@ -5,8 +5,9 @@ from pydantic import BaseModel, computed_field
 from src.breedgraph.domain.model.base import StoredModel, DiGraphAggregate
 
 from .subjects import Subject
-from .entries import OntologyEntry, OntologyRelationshipLabel, OntologyOutput
-from .variables import Scale, ScaleType, ScaleCategory, ObservationMethod, Trait, Variable
+from .entries import OntologyEntry, OntologyRelationshipLabel
+from .variables import Scale, ScaleType, ScaleCategory, ObservationMethod, Trait, Variable, ObservationMethodType
+from .layout_type import LayoutType
 
 from .parameters import Condition, Parameter, ControlMethod
 from .event_type import Exposure, EventType
@@ -61,6 +62,37 @@ class VersionStored(Version, StoredModel):
         When a new term is added, this means a new version, but may be a minor/patch version
         Major version changes should reflect a curated commit.
     """
+
+class OntologyOutput(OntologyEntry):
+    version: VersionStored
+
+    label: str  # https://github.com/pydantic/pydantic/issues/7009
+    # waiting for the above issue to be resolved, currently raises UserWarning
+    parents: list[int] = list()
+    children: list[int] = list()
+    """ObservationMethodType for ObservationMethod"""
+    observation_type: ObservationMethodType|None = None
+    """ScaleType for Scale"""
+    scale_type: ScaleType|None = None
+    """Subjects for trait"""
+    subjects: List[int] = list()
+    """Categories for scale"""
+    categories: List[int] = list()
+    """Trait for variable"""
+    trait: int|None = None
+    """Condition for parameter"""
+    condition: int|None = None
+    """Exposure for event"""
+    exposure: int|None = None
+    """ControlMethod or ObservationMethod for variable/parameter/event"""
+    method: int|None = None
+    """Scale for variable/parameter/event"""
+    scale: int|None = None
+    """Rank for ordinal scale categories"""
+    rank: int|None = None
+    """Axes for LayoutType entries"""
+    axes: int | None = None
+
 
 class Ontology(DiGraphAggregate):
     version: Version|VersionStored
@@ -168,8 +200,12 @@ class Ontology(DiGraphAggregate):
         elif isinstance(entry, Scale) and 'categories' in kwargs:
             self.link_scale(temp_id, categories=kwargs.get('categories'))
         elif isinstance(entry, Trait):
+            if not 'subjects' in kwargs:
+                raise ValueError("Trait entries require subjects")
             self.link_trait(temp_id, subjects=kwargs.get('subjects'))
         elif isinstance(entry, Variable):
+            if not all([s in kwargs for s in ['trait','method','scale']]):
+                raise ValueError("Variable entries require trait, method and scale")
             self.link_variable(
                 temp_id,
                 trait=kwargs.get('trait'),
@@ -177,6 +213,8 @@ class Ontology(DiGraphAggregate):
                 scale=kwargs.get('scale')
             )
         elif isinstance(entry, Parameter):
+            if not all([s in kwargs for s in ['condition','method','scale']]):
+                raise ValueError("Parameter entries require condition, method and scale")
             self.link_parameter(
                 temp_id,
                 condition=kwargs.get('condition'),
@@ -184,6 +222,8 @@ class Ontology(DiGraphAggregate):
                 scale=kwargs.get('scale')
             )
         elif isinstance(entry, EventType):
+            if not all([s in kwargs for s in ['exposure','method','scale']]):
+                raise ValueError("EventType entries require exposure, method and scale")
             self.link_event(
                 temp_id,
                 exposure=kwargs.get('exposure'),
@@ -211,13 +251,13 @@ class Ontology(DiGraphAggregate):
             if not isinstance(scale_model, Scale):
                 raise TypeError("Scale ID must be an instance of Scale")
 
-            if scale_model.type == ScaleType.NOMINAL:
+            if scale_model.scale_type == ScaleType.NOMINAL:
                 self.add_relationship(
                     source_id=scale,
                     sink_id=category_id,
                     label=OntologyRelationshipLabel.HAS_CATEGORY
                 )
-            elif scale_model.type == ScaleType.ORDINAL:
+            elif scale_model.scale_type == ScaleType.ORDINAL:
                 indices, existing_categories, ranks = self.get_scale_categories(scale)
                 if rank is None:
                     if ranks:
@@ -285,7 +325,7 @@ class Ontology(DiGraphAggregate):
         if not isinstance(scale, Scale):
             raise ValueError("The provided entry id does not correspond to a scale")
 
-        if scale.type == ScaleType.NOMINAL:
+        if scale.scale_type == ScaleType.NOMINAL:
             category_indices = []
             for u, v, d in self.graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
@@ -294,7 +334,7 @@ class Ontology(DiGraphAggregate):
             indices: List[int] = [i[0] for i in entry_tuples]
             categories: List[ScaleCategory] = [i[1] for i in entry_tuples]
             return indices, categories, None
-        elif scale.type == ScaleType.ORDINAL:
+        elif scale.scale_type == ScaleType.ORDINAL:
             category_index_rank = []
             for u, v, d in self.graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
@@ -450,14 +490,14 @@ class Ontology(DiGraphAggregate):
         if not isinstance(scale, Scale):
             return []
 
-        if scale.type == ScaleType.NOMINAL:
+        if scale.scale_type == ScaleType.NOMINAL:
             category_indices = []
             for u, v, d in self.graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
                     category_indices.append(v)
             return category_indices
 
-        elif scale.type == ScaleType.ORDINAL:
+        elif scale.scale_type == ScaleType.ORDINAL:
             index_rank = []
             for u, v, d in self.graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
@@ -498,10 +538,10 @@ class Ontology(DiGraphAggregate):
         model_dict = model.model_dump()
         return OntologyOutput(
             **model_dict,
+            version=self.version,
             label=model.label,
             parents=self.get_parent_ids(node_id),
             children=self.get_children_ids(node_id),
-            type=model_dict.get('type', None),
             subjects=self.get_subject_ids(node_id),
             categories=self.get_category_ids(node_id),
             trait=self.get_trait_id(node_id),
@@ -509,7 +549,7 @@ class Ontology(DiGraphAggregate):
             exposure=self.get_exposure_id(node_id),
             method=self.get_method_id(node_id),
             scale=self.get_scale_id(node_id),
-            rank=self.get_rank(node_id)
+            rank=self.get_rank(node_id),
         )
 
     def to_output_map(self) -> dict[int, OntologyOutput]:

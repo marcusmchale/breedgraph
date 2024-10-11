@@ -252,6 +252,12 @@ class RootedAggregate(DiGraphAggregate):
     def get_sink_edges(self, entry_id: int) -> Dict[int, dict]:
         return {e[0]: e[2] for e in self.graph.out_edges(entry_id, data=True)}
 
+    def get_parent_ids(self, node_id: int) -> List[int]:
+        return [edge[0] for edge in self.graph.in_edges(node_id)]
+
+    def get_children_ids(self, node_id: int) -> List[int]:
+        return [edge[1] for edge in self.graph.out_edges(node_id)]
+
 class TreeAggregate(RootedAggregate):
     """An aggregate where nodes in the graph each have a single source"""
 
@@ -265,4 +271,9 @@ class TreeAggregate(RootedAggregate):
 
     def change_source(self, node_id: int, parent_id: int):
         self._change_sources(node_id, {parent_id})
+
+    def get_parent_id(self, node_id: int) -> int:
+        in_edges = list(self.graph.in_edges(node_id))
+        if in_edges:
+            return in_edges[0][0]
 

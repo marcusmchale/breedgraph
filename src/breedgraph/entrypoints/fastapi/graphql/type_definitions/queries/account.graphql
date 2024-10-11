@@ -1,0 +1,13 @@
+type User {
+    id: Int!
+    name: String!,
+    fullname: String!
+    email: String!
+}
+
+type Account {
+    user: User!
+    allowed_emails: [String]
+    allowed_users: [User]
+}
+

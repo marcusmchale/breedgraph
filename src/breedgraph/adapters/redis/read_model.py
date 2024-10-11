@@ -35,6 +35,9 @@ class ReadModel:
     #    logger.info(f"Removing country: {country.json()}")
     #    await self.connection.srem("country", country.json())
 
+    async def get_country(self, code: str) -> LocationInput|LocationStored|None:
+        return self.connection.hget('country', code)
+
     async def get_countries(self) -> AsyncGenerator[LocationInput|LocationStored, None]:
         logger.info(f"Getting countries")
         countries_bytes = await self.connection.hgetall("country")

@@ -6,8 +6,7 @@ class LayoutType(OntologyEntry):
     plural: ClassVar[str] = 'LayoutTypes'
     """
     e.g. rows, grid, measured distance
-    Must define interpretation for x, y, and z parameters
-
+    May have a prescribed value for the number of axes in the layout e.g. for a 2D array, axes=2.
     Layouts may be applied to unit positions within a location
     """
-    pass
+    axes: int|None = None

@@ -59,8 +59,12 @@ class Neo4jArrangementsRepository(Neo4jControlledRepository):
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[Arrangement, None]:
-        result: AsyncResult = await self.tx.run(queries['arrangements']['read_arrangements'])
+    async def _get_all_controlled(self, location_id: int|None = None) -> AsyncGenerator[Arrangement, None]:
+        if location_id is None:
+            result: AsyncResult = await self.tx.run(queries['arrangements']['read_arrangements'])
+        else:
+            result: AsyncResult = await self.tx.run(queries['arrangements']['read_arrangements_by_location'], location_id=location_id)
+
         async for record in result:
             layouts = [LayoutStored(**l) for l in record['arrangement']]
             edges = [(layout.get('parent_position')[0], layout.get('id'), {'position':layout.get('parent_position')[1]}) for layout in record.get('arrangement') if layout.get('parent_position') is not None]

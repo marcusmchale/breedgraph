@@ -14,7 +14,8 @@ class AddOntologyEntry(Command):
     parents: List[int]|None = None
     children: List[int]|None = None
 
-    type: str|None = None
+    scale_type: str|None = None
+    observation_type: str|None = None
     categories: List[int]|None = list()
     scale: int|None = None
     rank: int|None = None
@@ -23,3 +24,4 @@ class AddOntologyEntry(Command):
     method: int|None = None
     condition: int|None = None
     exposure: int|None = None
+    axes: int|None = None

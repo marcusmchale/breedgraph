@@ -1,3 +1,7 @@
+# waiting on @oneof directive for ariadne to solve this more elegantly
+# see https://github.com/graphql/graphql-wg/pull/1105
+# and https://github.com/mirumee/ariadne/issues/1194
+
 input OntologyEntryInput {
     label: OntologyLabel!
     name: String!
@@ -14,11 +18,13 @@ input OntologyEntryInput {
     """
     parents: [Int]
     children: [Int]
+
     """
     Scale and ObservationMethod entries require an additional type parameter,
     ScaleType or ObservationMethodType respectively.
     """
-    type: String
+    scale_type: ScaleType
+    observation_type: ObservationMethodType
     """
     When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
     """
@@ -53,6 +59,10 @@ input OntologyEntryInput {
     When creating an Event, an Exposure identifier is required.
     """
     exposure: Int
+    """
+    When creating a LayoutType, the number of axes is required
+    """
+    axes: Int
 }
 
 extend type Mutation {

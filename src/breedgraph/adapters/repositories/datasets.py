@@ -2,7 +2,6 @@ import logging
 
 from neo4j import AsyncResult, Record
 from numpy import datetime64
-from collections import defaultdict
 
 from src.breedgraph.domain.model.datasets import (
     DataRecordStored, DataSetInput, DataSetStored
@@ -13,6 +12,8 @@ from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, Tra
 from src.breedgraph.adapters.repositories.controlled import Neo4jControlledRepository
 
 from typing import AsyncGenerator, List
+
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository):
     def record_to_dataset(dataset_dict):
         unit_records = defaultdict(list)
         for r in dataset_dict['unit_records']:
+            #if not r[0] in unit_records:
+            #    unit_records[r[0]] = []
             unit_records[r[0]] += r[1]
         dataset_dict['unit_records'] = unit_records
         for unit_id, records in dataset_dict['unit_records'].items():
@@ -51,17 +54,14 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository):
             await self.tx.run(queries['datasets']['set_dataset'], params)
 
         if 'unit_records' in dataset.changed:
-            to_create = defaultdict(list)  # unit_records structure, but just for new inputs
+            to_create = defaultdict(list) # unit_records structure, but just for new inputs
             to_remove = list()  # list of record IDs to delete
-
             # todo, could allow for adding contributors or references without removal,
             #  but this is more than we need to handle right now
-
             for unit_id in dataset.unit_records.removed:
                 to_remove += [r.id for r in dataset.unit_records[unit_id]]
             if to_remove:
                 await self.tx.run(queries['datasets']['delete_records'], record_ids=to_remove)
-
             # changes are removed and will be created again, any changes make a new record.
             for unit_id in dataset.unit_records.changed:
                 records = dataset.unit_records[unit_id]
@@ -106,7 +106,6 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository):
                 return await anext(self._get_all_controlled())
             except StopAsyncIteration:
                 return None
-
         record = await result.single()
         return self.record_to_dataset(record.get('dataset'))
 

@@ -62,15 +62,18 @@ async def bus(neo4j_uow, email_notifications) -> MessageBus:
 @pytest_asyncio.fixture(scope="session")
 async def read_model(bus) -> ReadModel:
     yield bus.read_model
+    # flush read-model when done
+    await bus.read_model.connection.flushdb()
     await bus.read_model.connection.aclose()
 
 @pytest_asyncio.fixture(scope="session")
-async def session_database() -> None:
+async def session_database(read_model) -> None:
+    yield
+    # flush db when done
     uow = unit_of_work.Neo4jUnitOfWork()
     async with uow.get_repositories() as uow:
         await uow.tx.run("MATCH (n) DETACH DELETE n")
         await uow.commit()
-    yield
 
 @pytest_asyncio.fixture(scope="session")
 async def user_input_generator() -> UserInputGenerator:
@@ -80,4 +83,3 @@ async def user_input_generator() -> UserInputGenerator:
 @pytest_asyncio.fixture(scope="session")
 async def lorem_text_generator() -> LoremTextGenerator:
     yield LoremTextGenerator()
-

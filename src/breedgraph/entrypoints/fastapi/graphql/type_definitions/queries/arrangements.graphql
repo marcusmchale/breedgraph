@@ -1,0 +1,9 @@
+type Layout {
+    id: Int!
+    name: String!
+    type: OntologyEntry!
+    axes: [String]
+    parent: Layout
+    children: [Layout]
+    release: Release
+}

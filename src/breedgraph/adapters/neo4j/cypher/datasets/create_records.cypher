@@ -1,5 +1,5 @@
 MATCH (dataset: DataSet {id: $dataset_id})
-MERGE (record_counter: count {name: 'record'})
+MERGE (record_counter: Counter {name: 'record'})
 ON CREATE SET record_counter.count = 0
 WITH dataset, record_counter
 UNWIND $unit_records AS unit_record

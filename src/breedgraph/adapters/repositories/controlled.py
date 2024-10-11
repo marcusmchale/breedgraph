@@ -146,7 +146,7 @@ class ControlledRepository(BaseRepository):
         raise NotImplementedError
 
     async def _get_all(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
-        async for aggregate in self._get_all_controlled():
+        async for aggregate in self._get_all_controlled(**kwargs):
             await self._insert_controllers(aggregate)
             if self.redacted:
                 redacted = aggregate.redacted(user_id=self.user_id, read_teams=self.read_teams)
@@ -156,7 +156,7 @@ class ControlledRepository(BaseRepository):
                 yield aggregate
 
     @abstractmethod
-    def _get_all_controlled(self) -> AsyncGenerator[ControlledAggregate, None]:
+    def _get_all_controlled(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
         raise NotImplementedError
 
     async def _remove(self, aggregate: ControlledAggregate):
@@ -225,10 +225,13 @@ class ControlledRepository(BaseRepository):
 
         for model in aggregate.added_models:
             if not isinstance(model, ControlledModel):
-                raise ValueError(f"Something went wrong, {type(model)} has been added to a controlled aggregate")
-            await self._create_controller(model)
-            model_class = self.get_model_class(model)
-            await self._record_write(entity_class=model_class, entity_id=model.id, user_id=self.user_id)
+                model_class = self.get_model_class(aggregate.root)
+                await self._record_write(entity_class=model_class, entity_id=aggregate.root.id, user_id=self.user_id)
+
+            else:
+                await self._create_controller(model)
+                model_class = self.get_model_class(model)
+                await self._record_write(entity_class=model_class, entity_id=model.id, user_id=self.user_id)
 
         for model in aggregate.changed_models:
             if 'controller' in model.changed and not model in aggregate.added_models:
@@ -346,7 +349,7 @@ class Neo4jControlledRepository(ControlledRepository):
         raise NotImplementedError
 
     @abstractmethod
-    def _get_all_controlled(self) -> AsyncGenerator[ControlledAggregate, None]:
+    def _get_all_controlled(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
         raise NotImplementedError
 
     @abstractmethod

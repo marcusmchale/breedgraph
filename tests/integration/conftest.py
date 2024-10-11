@@ -11,6 +11,7 @@ from src.breedgraph.adapters.repositories.references import Neo4jReferencesRepos
 from src.breedgraph.adapters.repositories.ontologies import Neo4jOntologyRepository
 from src.breedgraph.adapters.repositories.datasets import Neo4jDatasetsRepository
 
+from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.germplasm import (
     Germplasm,
@@ -218,7 +219,10 @@ async def regions_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jRe
         neo4j_tx,
         user_id=stored_account.user.id,
         read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        write_teams=[stored_organisation.root.id],
+        admin_teams=[stored_organisation.root.id],
+        curate_teams=[stored_organisation.root.id],
+        release=ReadRelease.PUBLIC
     )
 
 @pytest_asyncio.fixture(scope='session')
@@ -229,7 +233,6 @@ async def example_region(regions_repo, read_model, country_type) -> Region:
             break
     else:
         raise ValueError('No input LocationInputs found in read model countries')
-
     stored: Region = await regions_repo.create(country_input)
     yield stored
 
@@ -363,12 +366,35 @@ async def tree_block(
         name="First Tree",
         synonyms=['1st tree'],
         description="The first tree planted",
-        germplasm=example_variety.id,
         positions=[
             Position(
                 location=field_location.id,
                 layout=example_arrangement.root.id,
                 coordinates=[1,1],
+                start="2010"
+            )
+        ]
+    )
+    yield await blocks_repo.create(new_unit)
+
+@pytest_asyncio.fixture(scope="session")
+async def second_tree_block(
+        blocks_repo,
+        example_variety,
+        tree_subject,
+        field_location,
+        example_arrangement
+):
+    new_unit = UnitInput(
+        subject=tree_subject.id,
+        name="Second Tree",
+        synonyms=['2nd tree'],
+        description="The second tree planted",
+        positions=[
+            Position(
+                location=field_location.id,
+                layout=example_arrangement.root.id,
+                coordinates=[1,2],
                 start="2010"
             )
         ]

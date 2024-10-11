@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request   # todo consider dropping fastapi for starlette
+from fastapi import FastAPI, Request   # todo drop fastapi and replace with starlette
 #from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +18,11 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers import (
     affiliation,
     user,
     account,
-    ontology_entry
+    ontology_entry,
+    location,
+    layout,
+    unit,
+    datetime_scalar
 )
 
 from src.breedgraph import bootstrap
@@ -99,6 +103,10 @@ async def lifespan(fast_api_app: FastAPI):
         user,
         account,
         ontology_entry,
+        location,
+        layout,
+        unit,
+        datetime_scalar,
         snake_case_fallback_resolvers
         # access_level
     )

@@ -4,7 +4,7 @@ import redis
 from pathlib import Path
 
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.regions import LocationInput, LocationStored, Region
+from src.breedgraph.domain.model.regions import LocationInput, LocationOutput, Region
 from src.breedgraph.domain.model.ontology.location_type import LocationType
 
 # typing only
@@ -43,17 +43,16 @@ class RedisLoader:
             country_type_id, country_type_entry = ontology.get_entry(entry='Country', label='LocationType')
             result: AsyncResult = await uow.tx.run(queries['regions']['get_locations_by_type'], type=country_type_id)
             async for record in result:
-                location_stored = LocationStored(**record['location'])
+                location_output = LocationOutput(**record['location'])
                 await self.connection.hset(
                     name="country",
-                    key=location_stored.code,
-                    value=location_stored.model_dump_json()
+                    key=location_output.code,
+                    value=location_output.model_dump_json()
                 )
             await uow.commit()
 
         # e.g. https://unstats.un.org/unsd/methodology/m49/overview/
         country_codes_path = Path('src/data/country_codes.csv')
-
         if country_codes_path.is_file():
             with open(country_codes_path) as country_codes_csv:
                 for row in csv.DictReader(country_codes_csv, delimiter=";"):
@@ -62,7 +61,7 @@ class RedisLoader:
                         code=row['ISO-alpha3 Code'],
                         type=country_type_id
                     )
-                    stored = await self.connection.hsetnx(
+                    await self.connection.hsetnx(
                         "country",
                         key=location_input.code,
                         value=location_input.model_dump_json()

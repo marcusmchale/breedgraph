@@ -1,4 +1,5 @@
 type Version {
+    id: Int!
     major: Int!
     minor: Int!
     patch: Int!
@@ -116,17 +117,17 @@ enum OntologyLabel {
     """
     GermplasmMethod
     """
-    Location entries describe types of locations.
+    LocationType entries describe types of locations.
     These are linked to Location (see Regions).
     Examples: "Country", "State", "Field"
     """
-    Location
+    LocationType
     """
-    Layout entries describe types of arrangements.
+    LayoutType entries describe types of arrangements.
     These are linked to Layout (see Arrangements).
     Examples: "Grid", "Rows"
     """
-    Layout
+    LayoutType
     """
     Design entries describe statistical designs for a study.
     These are linked to Study (see Programs).
@@ -165,7 +166,14 @@ enum ScaleType {
     TEXT,
     germplasm
 }
+
 type OntologyEntry {
+    """
+    Ontology Version that the entry was retrieved from.
+    For current terms this will be the latest ontology version.
+    For retired terms it will be the last ontology version they were seen in.
+    """
+    version: Version!
     label: OntologyLabel!
     id: Int!
     name: String!
@@ -180,7 +188,8 @@ type OntologyEntry {
     children: [OntologyEntry]
 
     """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
-    type: String
+    scale_type: ScaleType
+    observation_type: ObservationMethodType
     """Subjects for trait"""
     subjects: [OntologyEntry]
     """Categories for scale"""
@@ -197,4 +206,6 @@ type OntologyEntry {
     scale: OntologyEntry
     """Rank for ordinal scale categories"""
     rank: Int
+    """Axes for layout type"""
+    axes: Int
 }

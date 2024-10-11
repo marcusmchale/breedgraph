@@ -20,14 +20,14 @@ With pooling, e.g. the unit represents a pool of leaves, the subject would still
 from pydantic import BaseModel, field_validator, ValidationInfo
 
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 from typing import List, ClassVar
 
 class Position(BaseModel):
     location: int
     layout: int | None = None # ref to LayoutStored
-    coordinates: list | None = None  # list of axis values should correspond to layout,
+    coordinates: List[int|str|float] | None = None  # list of axis values should correspond to layout,
     start: PyDT64
     end: PyDT64|None = None
 
@@ -41,7 +41,7 @@ class Unit(LabeledModel):
     subject: int  # ref to SubjectTypeStored
 
     name: str|None = None
-    synonyms: List[str] = list()
+    synonyms: List[str]|None = list()
     description: str|None = None
 
     positions: List[Position] = list()
@@ -65,14 +65,19 @@ class UnitStored(Unit, ControlledModel):
             'positions': list()
         })
 
+class UnitOutput(UnitStored):
+    parents: list[int]
+    children: list[int]
+    release: ReadRelease
+
 class Block(ControlledRootedAggregate):
     """
         Aggregate for correlated units.
         A single "root" unit is required.
     """
-    def add_unit(self, unit: UnitInput, parent_id: int | None = None):
-        if parent_id is not None:
-            sources = {parent_id: None}
+    def add_unit(self, unit: UnitInput, parents: List[int]|None = None) -> int:
+        if parents is not None:
+            sources = {parent: None for parent in parents}
         else:
             sources = None
 
@@ -81,15 +86,27 @@ class Block(ControlledRootedAggregate):
     def get_unit(self, unit_id: int):
         return self.graph.nodes[unit_id].get('model')
 
-    def merge_block(self, observation_group: 'Block', parent_id: int):
+    def set_child(self, source_id: int, sink_id: int):
+        self._add_edge(source_id, sink_id)
+
+    def merge_block(self, block: 'Block', parents: List[int]):
         """
         A merger requires:
            - a single "Parent" UnitGraph and a selected unit within this.
            - a child UnitGraph to be added as a child to the selected unit in the "Parent" UnitGraph
-        :param observation_group: The child graph to merge
-        :param parent_id: The node in the current graph to set as the parent.
+        :param block: The child graph to merge
+        :param parents: The nodes in the current graph to set as the parents for the incoming block.
         """
-        if not parent_id in self.graph.nodes:
-            raise ValueError("parent_id must correspond to a node in this graph")
-        self.graph.update(nodes=observation_group.graph.nodes, edges=observation_group.graph.edges)
-        self._add_edge(parent_id, observation_group.get_root_id())
+        for parent_id in parents:
+            if not parent_id in self.graph.nodes:
+                raise ValueError("parent_id must correspond to a node in this graph")
+            self.graph.update(nodes=block.graph.nodes(data=True), edges=block.graph.edges)
+            self._add_edge(parent_id, block.get_root_id())
+
+    def to_output_map(self) -> dict[int, UnitOutput]:
+        return {node: UnitOutput(
+            **self.get_unit(node).model_dump(),
+            parents=self.get_parent_ids(node),
+            children=self.get_children_ids(node),
+            release=self.get_unit(node).controller.release
+        ) for node in self.graph}

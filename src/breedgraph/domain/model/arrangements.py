@@ -4,8 +4,9 @@ import networkx as nx
 import copy
 
 from pydantic import field_validator, Field, field_serializer
+
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease
 from typing import List, ClassVar, Set
 
 
@@ -41,6 +42,11 @@ class LayoutStored(LayoutBase, ControlledModel):
         })
     pass
 
+class LayoutOutput(LayoutStored):
+    parent: int | None
+    children: list[int]
+    release: ReadRelease
+
 class Arrangement(ControlledTreeAggregate):
 
     @property
@@ -56,13 +62,10 @@ class Arrangement(ControlledTreeAggregate):
             if not parent_layout.location == layout.location:
                 raise ValueError("All layouts in an arrangement should have the same location")
 
-            if any([
-                isinstance(position, (tuple, list)) and not len(position) == len(parent_layout.axes),
-                len(parent_layout.axes) != 1
-            ]):
+            if isinstance(position, (tuple, list)) and not len(position) == len(parent_layout.axes):
                 raise ValueError("Position should have same length as the parent layout axes")
-            sources = {parent_id: {'position': position}}
 
+            sources = {parent_id: {'position': position}}
         else:
             sources = None
 
@@ -70,3 +73,11 @@ class Arrangement(ControlledTreeAggregate):
 
     def get_layout(self, layout: int):
         return super().get_entry(layout)
+
+    def to_output_map(self) -> dict[int, LayoutOutput]:
+        return {node: LayoutOutput(
+            **self.get_layout(node).model_dump(),
+            parent=self.get_parent_id(node),
+            children=self.get_children_ids(node),
+            release=self.get_layout(node).controller.release
+        ) for node in self.graph}
