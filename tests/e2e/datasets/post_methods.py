@@ -21,14 +21,15 @@ async def post_to_add_dataset(client, token:str, term: int):
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
 
-async def post_to_get_datasets(client, token:str, term: int|None = None):
+
+async def post_to_add_record(client, token:str, record: dict):
     json={
         "query": (
-            " query ( "
-            "  $term: Int!"
+            " mutation ( "
+            "  $record: RecordInput!"
             " ) { "
-            "  data_get_datasets( "
-            "    term: $term "
+            "  data_add_record( "
+            "    record: $record "
             "  ) { "
             "    status, "
             "    result, "
@@ -37,7 +38,36 @@ async def post_to_get_datasets(client, token:str, term: int|None = None):
             " } "
         ),
         "variables": {
-            "term": term
+            "record": record
+        }
+    }
+    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+
+async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, term_id: int|None = None):
+    json={
+        "query": (
+            " query ( "
+            "  $dataset_id: Int"
+            "  $term_id: Int"
+            " ) { "
+            "  datasets( "
+            "    dataset_id: $dataset_id "
+            "    term_id: $term_id "
+            "  ) { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       term {id},"
+            "       records { unit {id} } "
+            "   } "
+            "   errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "dataset_id": dataset_id,
+            "term_id": term_id
+
         }
     }
     return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})

@@ -14,6 +14,9 @@ async def access_teams(uow: unit_of_work.Neo4jUnitOfWork, user: int) -> dict[Acc
     session: AsyncSession = uow.driver.session()
     result: AsyncResult = await session.run(queries['views']['get_access_teams'], user=user)
     record = await result.single()
+    if record is None:
+        raise ValueError("User not found")
+
     return record.get('access_teams')
 
 async def users(

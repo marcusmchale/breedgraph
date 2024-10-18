@@ -1,11 +1,14 @@
+import re
 from enum import Enum
+
+from pydantic import model_validator
 
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate
 from src.breedgraph.domain.model.ontology.entries import OntologyBase
 
-from typing import List, Dict, ClassVar, Type
+from typing import List, Dict, ClassVar, Type, Self, Generator
 
 class GermplasmSourceType(str, Enum):
     # This is to broadly classify relationships, further details may be described in the method,
@@ -28,10 +31,9 @@ class Reproduction(str, Enum):
 class GermplasmEntry(OntologyBase):
     # For germplasm entries we subclass ontology base
     # so we can return them as categories for a scale.
-
     label: ClassVar[str] = 'Germplasm'
     plural: ClassVar[str] = 'Germplasms'
-
+    protected_characters: ClassVar[List[str]] = ['/', '*', ';']
     """
     Germplasm entries may include:
         crop, e.g. Coffee, Cocoa
@@ -53,14 +55,39 @@ class GermplasmEntry(OntologyBase):
       - clonal propagation via tissue culture
       - controlled self-fertilisation
       - uncontrolled pollination
+      
+    When used as categories in a scale, special characters may be used for values:
+      - '/' describes a graft, starting from the scion tissue down to rootstock material, i.e. scion/intergraft/rootstock
+      - '*' describes F1 material from a cross between the described germplasms.
+        - Multiple F1 materials described in this way are assumed to be from independent events.
+        - To describe repeated use of a single hybridization event, e.g. clonal F1 material, an entry should be created.
+      - ';' is used to separate a list of germplasm entries, i.e. when multiple germplasm values are being reported as the value.
+    
+    As names are only guaranteed unique within a given "germplasm", 
+    we translate inputs for these to germplasm ID for records.   
+    The "protected" characters may not be used in names. 
+    Similarly, a name may not be a simple integer alone. 
+    This is to avoid confounding entries when describing such.
+
     """
     origin: int | None = None
     time: PyDT64 | None = None
     reproduction: Reproduction | None = None
     methods: List[int] = list()
 
-    def __hash__(self):
-        return hash(self.name)
+    @model_validator(mode='after')
+    def validate_names(self) -> Self:
+        for name in self.names:
+            if re.search('|'.join(re.escape(x) for x in self.protected_characters), name):
+                raise ValueError(f"Name {name} contains a protected character {self.protected_characters}")
+            try:
+                int(name)
+            except ValueError:
+                pass
+            else:
+                raise ValueError("Names for germplasm entries cannot be integers")
+
+        return self
 
 class GermplasmEntryInput(GermplasmEntry):
     pass
@@ -97,6 +124,19 @@ class Germplasm(ControlledRootedAggregate):
       - is a controlled self-fertilisation where maternal and paternal are known and the same
       - is clonal tissue where source is singular Tissue relationship.
     """
+    def yield_entry_id_by_name(self, name: str) -> Generator[int, None, None]:
+        for entry_id, entry in self.entries.items():
+            if name.casefold() in [n.casefold() for n in entry.names]:
+                yield entry_id
+
+    def assure_name_is_unique(self, name):
+        try:
+            next(self.yield_entry_id_by_name(name))
+        except StopIteration:
+            pass
+        else:
+            raise ValueError(f"Name is already in use for this germplasm: {name}")
+
     def add_entry(self, entry: GermplasmEntry, sources: Dict[int, dict|None] = None) -> int:
         if sources is not None:
             for key in sources:
@@ -105,13 +145,18 @@ class Germplasm(ControlledRootedAggregate):
                 if not 'type' in sources[key]:
                     sources[key]['type'] = self.default_edge_label
 
+        for name in entry.names:
+            self.assure_name_is_unique(name)
+
         return super().add_entry(entry, sources if sources is not None else None)
 
-
-    def insert_root(self, entry: LabeledModel, details: dict = None) -> int:
+    def insert_root(self, entry: GermplasmEntry, details: dict = None) -> int:
         if details is None:
             details = {}
         if 'type' not in details or details['type'] is None:
             details = {'type': self.default_edge_label}
-        return super().insert_root(entry, details)
 
+        for name in entry.names:
+            self.assure_name_is_unique(name)
+
+        return super().insert_root(entry, details)

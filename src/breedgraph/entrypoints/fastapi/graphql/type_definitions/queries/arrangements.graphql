@@ -4,6 +4,8 @@ type Layout {
     type: OntologyEntry!
     axes: [String]
     parent: Layout
+    """Position within parent layout"""
+    position: [String]
     children: [Layout]
     release: Release
 }

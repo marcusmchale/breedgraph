@@ -1,9 +1,3 @@
-type CoordinateValue {
-    integer: Int
-    float: Float
-    string: String
-}
-
 type Position {
     """
     ID of Location in a Region
@@ -16,7 +10,7 @@ type Position {
     """
     Coordinates should be a list of values corresponding to the stored layout axes.
     """
-    coordinates: [CoordinateValue]
+    coordinates: [String]
     start: DateTime
     end: DateTime
 }

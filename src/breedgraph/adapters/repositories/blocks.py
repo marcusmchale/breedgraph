@@ -1,7 +1,6 @@
 import logging
 
 from neo4j import AsyncResult, Record
-from numpy import datetime64
 
 from src.breedgraph.domain.model.blocks import (
     UnitInput, UnitStored, Block
@@ -29,10 +28,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
     @staticmethod
     def record_to_unit(record):
         for position in record.get('positions', []):
-            if 'start' in position:
-                position['start'] = datetime64(position['start'], (position['start_unit'], position['start_step']))
-            if 'end' in position:
-                position['end'] = datetime64(position['end'], (position['end_unit'], position['end_step']))
+            Neo4jControlledRepository.times_to_dt64(position)
         return UnitStored(**record)
 
     async def _update_unit(self, unit: UnitStored):

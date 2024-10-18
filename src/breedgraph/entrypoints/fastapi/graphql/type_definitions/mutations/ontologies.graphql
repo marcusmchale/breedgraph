@@ -60,9 +60,9 @@ input OntologyEntryInput {
     """
     exposure: Int
     """
-    When creating a LayoutType, the number of axes is required
+    When creating a LayoutType, each axis type for position descriptions is required
     """
-    axes: Int
+    axes: [AxisType]
 }
 
 extend type Mutation {

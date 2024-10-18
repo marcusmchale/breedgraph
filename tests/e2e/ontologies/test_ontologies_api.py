@@ -1,8 +1,9 @@
 import pytest
 
-from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType
+from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType, AxisType
 from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
 from tests.e2e.ontologies.post_methods import post_to_add_entry, post_to_get_entries
+
 
 
 @pytest.mark.usefixtures("session_database")
@@ -162,9 +163,9 @@ async def test_add_variable(client, first_user_login_token, lorem_text_generator
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_add_layout(client, first_user_login_token, lorem_text_generator):
+async def test_add_layout_type(client, first_user_login_token, lorem_text_generator):
     layout_name = lorem_text_generator.new_text()
-    num_axes = 2
+    cartesian_axes = [AxisType.CARTESIAN, AxisType.CARTESIAN]
     response = await post_to_add_entry(
         client,
         token=first_user_login_token,
@@ -173,10 +174,10 @@ async def test_add_layout(client, first_user_login_token, lorem_text_generator):
         description=lorem_text_generator.new_text(20),
         abbreviation=lorem_text_generator.new_text(5),
         synonyms=[lorem_text_generator.new_text(10),lorem_text_generator.new_text(5)],
-        axes=num_axes
+        axes=cartesian_axes
     )
     assert_payload_success(get_verified_payload(response, "ontology_add_entry"))
     response = await post_to_get_entries(client, token=first_user_login_token, label="LayoutType", name=layout_name)
     layout_payload = get_verified_payload(response, "ontology_entries")
     assert layout_payload.get('result')[0].get('id')
-    assert layout_payload.get('result')[0].get('axes') == num_axes
+    assert layout_payload.get('result')[0].get('axes') == cartesian_axes

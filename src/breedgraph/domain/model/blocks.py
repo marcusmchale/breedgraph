@@ -22,7 +22,7 @@ from pydantic import BaseModel, field_validator, ValidationInfo
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease
 from src.breedgraph.domain.model.time_descriptors import PyDT64
-from typing import List, ClassVar
+from typing import List, ClassVar, Generator
 
 class Position(BaseModel):
     location: int
@@ -110,3 +110,8 @@ class Block(ControlledRootedAggregate):
             children=self.get_children_ids(node),
             release=self.get_unit(node).controller.release
         ) for node in self.graph}
+
+    def yield_unit_ids_by_subject(self, subject_id: int) -> Generator[int, None, None]:
+        for unit_id, unit in self.entries.items():
+            if unit.subject == subject_id:
+                yield unit_id

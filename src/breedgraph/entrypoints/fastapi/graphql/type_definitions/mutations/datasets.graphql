@@ -1,13 +1,7 @@
-input RecordValue {
-    int: Int
-    string: String
-    float: Float
-}
-
 input RecordInput {
     dataset: Int!
     unit: Int!
-    value: RecordValue
+    value: String
     start: DateTime
     end: DateTime
     references: [Int]

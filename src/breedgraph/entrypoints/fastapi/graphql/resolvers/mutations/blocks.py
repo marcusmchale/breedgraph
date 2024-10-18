@@ -39,13 +39,6 @@ async def add_position(
     if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    if position.get('coordinates') is not None:
-        for i, value in enumerate(position.get('coordinates')):
-            values = list(value.values())
-            if len(values) != 1:
-                raise ValueError("A single value should be provided per CoordinateValue")
-            position.get('coordinates')[i] = values[0]
-
     logger.debug(f"User {user_id} adds position: {unit_id}: {position}")
     cmd = AddPosition(user=user_id, unit=unit_id, **position)
     await info.context['bus'].handle(cmd)

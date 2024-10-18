@@ -15,6 +15,8 @@ ontology_entry = queries.ontologies.ontology_entry
 location = queries.regions.location
 layout = queries.arrangements.layout
 unit = queries.blocks.unit
+dataset = queries.datasets.dataset
+record = queries.datasets.record
 
 datetime_scalar = ScalarType("DateTime")
 

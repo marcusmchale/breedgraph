@@ -1,7 +1,6 @@
 import pytest
 from src.breedgraph.domain.model.datasets import DataSetStored, DataRecordInput
 
-
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
 @pytest.mark.asyncio(scope="session")
@@ -45,12 +44,12 @@ async def test_add_record_to_existing_unit(
         stored_person,
         tree_block
 ):
-    records = stored_dataset.unit_records[tree_block.root.id]
-    new_record = DataRecordInput(value=50)
-    records.append(new_record)
+    new_record = DataRecordInput(unit=tree_block.get_root_id(), value='50')
+    stored_dataset.records.append(new_record)
     await datasets_repo.update_seen()
     retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
-    assert len(retrieved.unit_records[tree_block.root.id]) == len(records)
+
+    assert len(retrieved.records) == len(stored_dataset.records)
 
 @pytest.mark.asyncio(scope="session")
 async def test_add_new_unit_record(
@@ -59,9 +58,8 @@ async def test_add_new_unit_record(
         stored_person,
         second_tree_block
 ):
-    records = stored_dataset.unit_records[second_tree_block.root.id]
-    new_record = DataRecordInput(value=50)
-    records.append(new_record)
+    new_record = DataRecordInput(unit=second_tree_block.root.id, value='50')
+    stored_dataset.records.append(new_record)
     await datasets_repo.update_seen()
     retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
-    assert len(retrieved.unit_records[second_tree_block.root.id]) == len(records)
+    assert len(retrieved.records) == len(stored_dataset.records)

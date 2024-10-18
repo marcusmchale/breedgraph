@@ -148,6 +148,35 @@ enum OntologyLabel {
     Title
 }
 
+enum AxisType {
+    """
+    String values with no implied directional relationship
+    e.g. Growth Facility
+    """
+    NOMINAL
+    """
+    String values values that convey a sequence.
+    e.g. Row number
+    """
+    ORDINAL
+    """
+    Numeric values that convey position within Euclidean space.
+    This may be a curvilinear/affine space with unknown transformations.
+    e.g. Distance from start of row when rows follow the surface topology.
+    """
+    COORDINATE
+    """
+    Cartesian coordinates are a subset of the AxisType.COORDINATE that additionally allow distance calculations.
+    AxisType.CARTESIAN should be preferred when the coordinate space is approximately Cartesian,
+    i.e. all axes noted as AxisType.CARTESIAN for a given layout must:
+     - be pair-wise perpendicular,
+     - have a common origin,
+     - and common unit of length.
+    e.g. Distance from start of row when rows lines are straight and perpendicular to the row axis.
+    """
+    CARTESIAN
+}
+
 enum ObservationMethodType{
     MEASUREMENT,
     COUNTING,
@@ -207,5 +236,5 @@ type OntologyEntry {
     """Rank for ordinal scale categories"""
     rank: Int
     """Axes for layout type"""
-    axes: Int
+    axes: [AxisType]
 }

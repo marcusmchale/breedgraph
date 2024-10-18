@@ -26,7 +26,7 @@ def ontology(
     version = Version(major=0, minor=0, patch=0, comment="Test")
     version_stored = VersionStored(**dict(version), id=1)
     ontology = Ontology(version=version_stored)
-    ontology.add_germplasm_method(germplasm_method)
+    ontology.add_entry(germplasm_method)
     return ontology
 
 @pytest_asyncio.fixture

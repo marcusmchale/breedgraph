@@ -10,7 +10,7 @@ from src.breedgraph.domain.model.ontology import (
     Variable,
     Condition, Parameter,
     Exposure, EventType,
-    LayoutType
+    LayoutType, AxisType
 )
 
 
@@ -152,19 +152,17 @@ async def test_create_nominal_categorical_scale(ontologies_repo, ontology, lorem
     await ontologies_repo.update_seen()
     assert len(list(ontology.get_entries(label=Scale.label))) == n_stored_scale + 1
     scale_id, stored_scale = next(ontology.get_entries(new_scale.name))
-    category_ids_retrieved, categories_retrieved, ranks = ontology.get_scale_categories(stored_scale.id)
-    assert category_ids == category_ids_retrieved
-    assert categories == categories_retrieved
-    assert ranks is None
+    assert category_ids == ontology.get_category_ids(stored_scale.id)
+
     # add another category
     new_category_name = lorem_text_generator.new_text()
-    ontology.add_entry(ScaleCategory(name=new_category_name), scale=scale_id)
+    new_id = ontology.add_entry(ScaleCategory(name=new_category_name), scale=scale_id)
+    assert category_ids + [new_id] == ontology.get_category_ids(scale_id)
     await ontologies_repo.update_seen()
-    category_ids, categories, ranks = ontology.get_scale_categories(scale_id)
     new_category_id, new_category = ontology.get_entry(new_category_name)
-    assert len(categories) == 4
-    assert [c for c in categories if c.name == new_category_name]
-    assert new_category in categories
+    assert len(ontology.get_category_ids(scale_id)) == 4
+    assert ontology.get_category_ids(scale_id)[3] == new_category_id
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_and_expand_ordinal_categorical_scale(ontologies_repo, ontology, lorem_text_generator):
@@ -177,25 +175,11 @@ async def test_create_and_expand_ordinal_categorical_scale(ontologies_repo, onto
     category_tuples = [ontology.get_entry(c.name, label=ScaleCategory.label) for c in categories]
     category_ids = [c[0] for c in category_tuples]
     new_scale = Scale(name=lorem_text_generator.new_text(), scale_type=scale_type)
+    new_scale_id = ontology.add_entry(new_scale, categories = category_ids)
     extra_category = ScaleCategory(name=lorem_text_generator.new_text())
-    categories = category_ids + [extra_category]
-    ontology.add_entry(new_scale, categories=list(reversed(categories)))
-
-    await ontologies_repo.update_seen()
-    assert len(list(ontology.get_entries(label=Scale.label))) == n_stored_scale + 1
-    scale_id, stored_scale = next(ontology.get_entries(new_scale.name))
-    category_ids_retrieved, categories_retrieved, ranks = ontology.get_scale_categories(stored_scale.id)
-    assert category_ids_retrieved[1:] == list(reversed(category_ids))
-    assert categories_retrieved[0].name == extra_category.name
-    assert ranks == list(range(4))
-    # add another category
-    new_category_name = lorem_text_generator.new_text()
-    ontology.add_entry(ScaleCategory(name=new_category_name), scale=scale_id, rank=1)
-
-    await ontologies_repo.update_seen()
-    category_ids, categories, ranks = ontology.get_scale_categories(scale_id)
-    assert ontology.get_entry(new_category_name)
-    assert categories[1].name == new_category_name
+    rank = 1
+    extra_category_id = ontology.add_entry(extra_category, scale=new_scale_id, rank=rank)
+    assert ontology.get_category_ids(new_scale_id)[rank] == extra_category_id
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_variable(ontologies_repo, ontology, lorem_text_generator):
@@ -244,9 +228,16 @@ async def test_create_event(ontologies_repo, ontology, lorem_text_generator):
 
 @pytest.mark.asyncio(scope="session")
 async def test_create_layout_type(ontologies_repo, ontology, lorem_text_generator):
-    num_axes = 2
-    new_layout_type = LayoutType(name=lorem_text_generator.new_text(), axes=num_axes)
-    ontology.add_entry(new_layout_type)
+    labeled_axes = [AxisType.NOMINAL, AxisType.ORDINAL]
+    labeled_layout_type = LayoutType(name=lorem_text_generator.new_text(), axes=labeled_axes)
+    ontology.add_entry(labeled_layout_type)
     await ontologies_repo.update_seen()
-    layout_id, layout = ontology.get_entry(new_layout_type.name, label=LayoutType.label)
-    assert layout.axes == num_axes
+    layout_id, layout = ontology.get_entry(labeled_layout_type.name, label=LayoutType.label)
+    assert layout.axes == labeled_axes
+
+    coordinate_axes = [AxisType.CARTESIAN, AxisType.CARTESIAN]
+    coordinate_layout_type = LayoutType(name=lorem_text_generator.new_text(), axes=coordinate_axes)
+    ontology.add_entry(coordinate_layout_type)
+    await ontologies_repo.update_seen()
+    layout_id, layout = ontology.get_entry(coordinate_layout_type.name, label=LayoutType.label)
+    assert layout.axes == coordinate_axes

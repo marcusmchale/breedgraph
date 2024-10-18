@@ -52,13 +52,8 @@ async def test_extend_row_with_grid(
     grid_layout_input_1 = LayoutInput(type=grid_layout_type.id, location=field_location.id)
     grid_layout_input_2 = LayoutInput(type=grid_layout_type.id, location=field_location.id)
 
-    arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position=1)
-    arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=2)
+    arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position=["1"])
+    arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=["2"])
     await repo.update_seen()
     arrangement = await repo.get()
     assert len(arrangement.get_sinks(arrangement.root.id)) == 2
-
-#@pytest.mark.asyncio(scope="session")
-#async def test_extend_grid_with_units():
-# TODO create units repository
-#

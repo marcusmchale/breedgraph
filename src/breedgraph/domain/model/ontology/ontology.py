@@ -1,27 +1,19 @@
-import bisect
 import networkx as nx
 
 from pydantic import BaseModel, computed_field
 from src.breedgraph.domain.model.base import StoredModel, DiGraphAggregate
 
 from .subjects import Subject
-from .entries import OntologyEntry, OntologyRelationshipLabel
-from .variables import Scale, ScaleType, ScaleCategory, ObservationMethod, Trait, Variable, ObservationMethodType
-from .layout_type import LayoutType
+from .entries import OntologyEntry
+from .variables import Scale, ScaleCategory, ObservationMethod, Trait, Variable
+from .enums import ObservationMethodType, ScaleType, OntologyRelationshipLabel, VersionChange, AxisType
 
 from .parameters import Condition, Parameter, ControlMethod
 from .event_type import Exposure, EventType
 
-
 from functools import total_ordering
 from typing import List, Tuple, ClassVar, Generator
 
-from enum import IntEnum
-
-class VersionChange(IntEnum):
-    MAJOR = 0
-    MINOR = 1
-    PATCH = 2
 
 @total_ordering
 class Version(BaseModel):
@@ -43,7 +35,7 @@ class Version(BaseModel):
     def __eq__(self, other):
         return self.as_tuple() == other.as_tuple()
 
-    def increment(self, version_change:VersionChange = VersionChange.PATCH):
+    def increment(self, version_change: VersionChange = VersionChange.PATCH):
         if version_change is VersionChange.PATCH:
             self.patch += 1
         elif version_change is VersionChange.MINOR:
@@ -91,8 +83,7 @@ class OntologyOutput(OntologyEntry):
     """Rank for ordinal scale categories"""
     rank: int|None = None
     """Axes for LayoutType entries"""
-    axes: int | None = None
-
+    axes: List[AxisType] = list()
 
 class Ontology(DiGraphAggregate):
     version: Version|VersionStored
@@ -149,7 +140,11 @@ class Ontology(DiGraphAggregate):
         :return: Returns the matching entry or None
         """
         try:
-            return next(self.get_entries(entry=entry, label=label))[1]
+            entry_model = next(self.get_entries(entry=entry, label=label))
+            if entry_model is None:
+                return None
+            else:
+                return entry_model[1]
         except StopIteration:
             return None
 
@@ -159,14 +154,15 @@ class Ontology(DiGraphAggregate):
             parents: List[int] = None,
             children: List[int] = None
     ) -> int:
-        # ensure same class doesn't exist with the given name/synonym
-        if self.get_entry(entry.name, label=entry.label):
-            raise ValueError("This name already used for this class")
-        if entry.abbreviation is not None and self.get_entry(entry.abbreviation, label=entry.label):
-            raise ValueError("This abbreviation already used for this class")
-        for s in entry.synonyms:
-            if self.get_entry(s, label=entry.label):
-                raise ValueError("A synonym for this entry is already described for this class")
+        # ensure same class doesn't exist with the given name/synonym, unless it is a category
+        if isinstance(entry, ScaleCategory):
+            # allow duplicate names for categories,
+            # just prevent name collisions when linking to scale
+            pass
+        else:
+            for n in entry.names:
+                if match := self.get_entry_model(n, label=entry.label):
+                    raise ValueError(f"Name {n} is already used in this ontology for {entry.label}: {match.names}")
 
         temp_id = self._add_node(entry)
         parents = [(p, temp_id, {'label': OntologyRelationshipLabel.RELATES_TO}) for p in parents] if parents else None
@@ -244,109 +240,49 @@ class Ontology(DiGraphAggregate):
         if self.get_entry(category_id, label=ScaleCategory.label) is None:
             raise ValueError("Category does not exist")
 
-        if rank is not None and scale is None:
-            raise ValueError("Rank is set in relation to a given scale, expect a scale ID")
-        if scale is not None:
-            _, scale_model = self.get_entry(scale)
-            if not isinstance(scale_model, Scale):
-                raise TypeError("Scale ID must be an instance of Scale")
+        scale_model = self.get_entry_model(scale)
+        if not isinstance(scale_model, Scale):
+            raise TypeError("Scale ID must be an instance of Scale")
+        elif not scale_model.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
+            raise TypeError("Only Nominal and Ordinal Scales may have ontology ScaleCategories linked")
 
-            if scale_model.scale_type == ScaleType.NOMINAL:
-                self.add_relationship(
-                    source_id=scale,
-                    sink_id=category_id,
-                    label=OntologyRelationshipLabel.HAS_CATEGORY
-                )
-            elif scale_model.scale_type == ScaleType.ORDINAL:
-                indices, existing_categories, ranks = self.get_scale_categories(scale)
-                if rank is None:
-                    if ranks:
-                        # just adding one to the highest current rank (sorted already)
-                        rank = ranks[-1] + 1
-                    else:
-                        rank = 0
-                else:
-                    if rank <= ranks[-1]:
-                        insertion_point = bisect.bisect_left(ranks, rank)
-                        for category_index in indices[insertion_point:]:
-                            self.increment_edge_rank(scale, category_index)
-                self.add_relationship(
-                    source_id=scale,
-                    sink_id=category_id,
-                    label=OntologyRelationshipLabel.HAS_CATEGORY,
-                    rank=rank
-                )
-            else:
-                raise ValueError("Only ordinal and nominal scale types can have categories")
+        new_category = self.get_entry_model(category_id)
+        existing_category_ids = self.get_category_ids(scale)
+        for e in existing_category_ids:
+            existing_category = self.get_entry_model(e)
+            if match := set(new_category.names).intersection(existing_category.names):
+                raise ValueError(f"Existing category {e} for this scale uses a common name: {match}")
+
+            if rank is not None:
+                existing_category_rank = self.get_rank(e)
+                if rank <= existing_category_rank:
+                    self.increment_edge_rank(scale, e)
+
+        self.add_relationship(
+            source_id=scale,
+            sink_id=category_id,
+            label=OntologyRelationshipLabel.HAS_CATEGORY,
+            rank=len(existing_category_ids) if rank is None else rank
+        )
 
     def link_scale(
             self,
             scale_id: int,
-            categories: List[ScaleCategory|int] = None
+            categories: List[int] = None
     ):
-        _, scale = self.get_entry(scale_id)
-        if not isinstance(scale, Scale):
+        scale_model = self.get_entry_model(scale_id)
+        if not isinstance(scale_model, Scale):
             raise TypeError("Scale ID is not a Scale")
+
         if categories is not None:
-            for rank, category in enumerate(categories):
-                if isinstance(category, int):
-                    category_id = category
-                elif isinstance(category, ScaleCategory):
-                    if category.id is not None:
-                        category_id = category.id
-                    else:
-                        category_id = self.add_entry(category)
-                        self.link_category(category_id, scale=scale_id)
-                else:
-                    raise ValueError(
-                        'Expected a list of ScaleCategories'
-                        ' or integer reference to one in the graph'
-                        ' for argument categories'
+            if scale_model.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
+                for rank, category in enumerate(categories):
+                    self._add_edge(
+                        source_id=scale_id,
+                        sink_id=category,
+                        label=OntologyRelationshipLabel.HAS_CATEGORY,
+                        rank=rank
                     )
-                self._add_edge(
-                    source_id=scale_id,
-                    sink_id=category_id,
-                    label=OntologyRelationshipLabel.HAS_CATEGORY,
-                    rank=rank
-                )
-
-    def get_scale_categories(self, scale_id: int) -> Tuple[List[int], List[ScaleCategory], List[int]|None]:
-        """
-        :param scale_id: Integer reference for Scale entry
-        :return: Returns a tuple,
-            first element is the list of category indices in the graph
-            second element is a list of ScaleCategory instances,
-            If the scale type is Nominal the third element is None
-            If the scale type is Ordinal the third element is a list of ranks stored for these elements
-                # todo this may be unnecessary but would be needed to support incomplete or possibly weighted? ranking systems
-                #   todo: consider if this type be float in that case.
-        """
-        _, scale = self.get_entry(scale_id)
-        if not isinstance(scale, Scale):
-            raise ValueError("The provided entry id does not correspond to a scale")
-
-        if scale.scale_type == ScaleType.NOMINAL:
-            category_indices = []
-            for u, v, d in self.graph.out_edges(scale_id, data=True):
-                if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
-                    category_indices.append(v)
-            entry_tuples = [self.get_entry(c) for c in category_indices]
-            indices: List[int] = [i[0] for i in entry_tuples]
-            categories: List[ScaleCategory] = [i[1] for i in entry_tuples]
-            return indices, categories, None
-        elif scale.scale_type == ScaleType.ORDINAL:
-            category_index_rank = []
-            for u, v, d in self.graph.out_edges(scale_id, data=True):
-                if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
-                    category_index_rank.append((v, d['rank']))
-            category_index_rank.sort(key=lambda x: x[1])
-            ranks: List[int] = [c[1] for c in category_index_rank]
-            entry_tuples = [self.get_entry(c[0]) for c in category_index_rank]
-            indices: List[int] = [i[0] for i in entry_tuples]
-            categories: List[ScaleCategory] = [i[1] for i in entry_tuples]
-            return indices, categories, ranks
-        else:
-            raise ValueError("The provided scale reference is not ordinal or nominal and so does not have categories")
 
     def link_trait(
             self,

@@ -1,8 +1,5 @@
 import logging
 
-from numpy import datetime_data, datetime64
-
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
 from src.breedgraph.adapters.neo4j.cypher import queries
 
@@ -11,12 +8,10 @@ from src.breedgraph.adapters.repositories.controlled import Neo4jControlledRepos
 
 from typing import AsyncGenerator, Set, Tuple, List
 
-from src.breedgraph.domain.model.controls import Access, WriteStamp
 from src.breedgraph.domain.model.germplasm import (
     GermplasmEntryInput, GermplasmEntryStored, Germplasm,
     GermplasmSourceType
 )
-from src.breedgraph.domain.model.time_descriptors import PyDT64
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +25,7 @@ class Neo4jGermplasmRepository(Neo4jControlledRepository):
     @staticmethod
     def record_to_entry(record):
         if 'time' in record:
-            record['time'] = datetime64(record['time'], (record['time_unit'], record['time_step']))
+            Neo4jControlledRepository.times_to_dt64(record)
         return GermplasmEntryStored(**record)
 
     async def _create_entry(self, entry: GermplasmEntryInput) -> GermplasmEntryStored:
@@ -72,12 +67,16 @@ class Neo4jGermplasmRepository(Neo4jControlledRepository):
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[Germplasm, None]:
-        result = await self.tx.run(queries['germplasm']['read_germplasms'])
+    async def _get_all_controlled(self, name: str = None) -> AsyncGenerator[Germplasm, None]:
+        if name is None:
+            result = await self.tx.run(queries['germplasm']['read_germplasms'])
+        else:
+            result = await self.tx.run(queries['germplasm']['read_germplasms_by_name'], name_lower=name.casefold())
         async for record in result:
             entries = [self.record_to_entry(entry) for entry in record['germplasm']]
             edges = [edge for entry in record['germplasm'] for edge in entry.get('sources', [])]
             yield Germplasm(nodes=entries, edges=edges)
+
 
     async def _remove_controlled(self, germplasm: Germplasm):
         await self._delete_entries([germplasm.root.id])

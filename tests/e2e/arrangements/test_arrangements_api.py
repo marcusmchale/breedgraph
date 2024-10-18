@@ -93,7 +93,7 @@ async def test_extended_layout(
 
     adjacency_3d_type_id, adjacency_3d_type = basic_ontology.get_entry(entry="3D Adjacency", label="LayoutType")
     chamber_layout_name = "Chamber 1"
-    growth_chamber_position = 1
+    facility_position = "1"
     chamber_layout = {
         'release': "PRIVATE",
         'name': chamber_layout_name,
@@ -101,7 +101,7 @@ async def test_extended_layout(
         'type': adjacency_3d_type_id,
         'axes': ["Depth","Vertical", "Horizontal"],
         'parent': facility_layout_id,
-        'position': [{'integer':growth_chamber_position}]
+        'position': [facility_position]
     }
     add_chamber_response = await post_to_add_layout(
         client,
@@ -127,7 +127,7 @@ async def test_extended_layout(
         'type': grid_type_id,
         'axes': ["column","row"],
         'parent': chamber_layout_id,
-        'position': [{'string': 'rear'}, {'string': 'top'}, {'string': 'right'}]
+        'position': ['rear', 'top', 'right']
     }
     add_shelf_response = await post_to_add_layout(
         client,

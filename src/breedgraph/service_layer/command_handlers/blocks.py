@@ -1,6 +1,7 @@
 from src.breedgraph.service_layer import unit_of_work
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.blocks import UnitInput, Position
+from src.breedgraph.domain.model.ontology import AxisType
 from src.breedgraph.domain.model.controls import ReadRelease
 import logging
 
@@ -31,7 +32,6 @@ async def add_unit(
 
         await uow.commit()
 
-
 async def add_position(
         cmd: commands.blocks.AddPosition,
         uow: unit_of_work.AbstractUnitOfWork
@@ -42,14 +42,24 @@ async def add_position(
         block = await uow.blocks.get(unit_id=unit_id)
 
         if cmd.layout:
+            if not cmd.coordinates:
+                raise ValueError("Coordinates required if a layout is specified")
+
             arrangement = await uow.arrangements.get(layout_id=cmd.layout)
             layout = arrangement.get_layout(cmd.layout)
+            if not len(cmd.coordinates) == len(layout.axes):
+                raise ValueError(f"Coordinates must match the length of specified layout axes")
             if not layout.location == cmd.location:
-                raise ValueError("Layout must be for the given location")
-            if not cmd.coordinates:
-                raise ValueError("Coordinates required for layout")
-            elif not len(cmd.coordinates) == len(layout.axes):
-                raise ValueError(f"This layout requires {layout.axes} coordinate values")
+                raise ValueError("Layout location does not match the provided location")
+
+            ontology = await uow.ontologies.get(entry_id=layout.type)
+            layout_type_id, layout_type = ontology.get_entry(layout.type)
+            for i, p in enumerate(cmd.coordinates):
+                if layout_type.axes[i] in [AxisType.COORDINATE, AxisType.CARTESIAN]:
+                    try:
+                        float(p)
+                    except ValueError:
+                        raise ValueError("Coordinate and Cartesian positions require numeric values")
 
         unit = block.get_unit(unit_id)
         unit.positions.append(Position(**kwargs))

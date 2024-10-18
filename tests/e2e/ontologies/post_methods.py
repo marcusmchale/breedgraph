@@ -19,7 +19,7 @@ async def post_to_add_entry(
         trait: int|None=None,
         method: int|None=None,
         scale: int|None=None,
-        axes: int|None=None
+        axes: List[str]|None=None
 ):
     json={
         "query": (

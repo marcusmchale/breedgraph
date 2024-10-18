@@ -100,13 +100,9 @@ async def test_add_unit_position(
     position = {
         'location': field.id,
         'layout': field_arrangement.root.id,
-        'coordinates': [{'integer':1},{'string':"First"}],
+        'coordinates': ["1", "A"],
         'start': '2023'
     }
-    # todo handle coordinates with values of different types, can't store mixed arrays in neo4j.
-    # consider layout specifying an array of types rather than just n axes, then we can validate on input
-    # and can then also serialize to string and resolve back to types for return values
-
     add_position_response = await post_to_add_position(client, first_user_login_token, unit_id=tree_unit_id, position=position)
     add_position_payload = get_verified_payload(add_position_response, "blocks_add_position")
     assert_payload_success(add_position_payload)

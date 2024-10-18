@@ -19,13 +19,6 @@ async def add_layout(
 
     logger.debug(f"User {user_id} adding layout: {layout}")
 
-    if layout.get('position') is not None:
-        for i, value in enumerate(layout.get('position')):
-            values = list(value.values())
-            if len(values) != 1:
-                raise ValueError("A single value should be provided per CoordinateValue")
-            layout.get('position')[i] = values[0]
-
     cmd = AddLayout(user=user_id, **layout)
     await info.context['bus'].handle(cmd)
     return True

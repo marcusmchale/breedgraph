@@ -1,13 +1,3 @@
-"""
-Coordinate values may be int, float or string
-One ONLY should be provided.
-"""
-input CoordinateValueInput {
-    integer: Int
-    float: Float
-    string: String
-}
-
 input LayoutInput {
     """ Location ID from Region """
     location: Int!
@@ -20,7 +10,7 @@ input LayoutInput {
     """ Optional parent layout to construct multiplexed layout arrangements"""
     parent: Int
     """ When parent is supplied, position according to parent layout axes must be provided."""
-    position: [CoordinateValueInput]
+    position: [String]
     """ Read access to this layout """
     release: Release
 }

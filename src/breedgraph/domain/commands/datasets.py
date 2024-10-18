@@ -1,7 +1,6 @@
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 
 from .base import Command
-from typing import List, Any
 
 class AddDataSet(Command):
     user: int

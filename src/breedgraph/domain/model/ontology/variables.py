@@ -15,13 +15,13 @@ When entering Traits, references to the Plant Trait Ontology should be encourage
 Note: The "Variable Status" concept from Crop Ontology is to be handled by ontology versioning in BreedGraph.
 
 """
-from src.breedgraph.domain.model.ontology.entries import OntologyEntry, ObservationMethodType, ScaleType
+from src.breedgraph.domain.model.ontology.entries import OntologyEntry
+from src.breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType
 from typing import ClassVar
 
 class Trait(OntologyEntry):
     label: ClassVar[str] = 'Trait'
     plural: ClassVar[str] = 'Traits'
-
 
 class ObservationMethod(OntologyEntry):
     label: ClassVar[str] = 'ObservationMethod'

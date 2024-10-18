@@ -10,7 +10,7 @@ input PositionInput {
     """
     Coordinates should be a list of values corresponding to the stored layout axes.
     """
-    coordinates: [CoordinateValueInput]
+    coordinates: [String]
     start: DateTime
     end: DateTime
 }

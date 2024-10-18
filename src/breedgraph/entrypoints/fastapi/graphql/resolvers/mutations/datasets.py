@@ -38,12 +38,7 @@ async def add_record(
     if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
 
-    logger.debug(f"User {user_id} adds dataset: {record}")
-
-    record_values = list(record.get('value').values())
-    if len(record_values) != 1:
-        raise ValueError("A single value should be provided per record")
-    record['value'] = record_values[0]
+    logger.debug(f"User {user_id} adds record: {record}")
 
     cmd = AddRecord(user=user_id, **record)
     await info.context['bus'].handle(cmd)

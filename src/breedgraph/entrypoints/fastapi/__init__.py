@@ -22,6 +22,8 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers import (
     location,
     layout,
     unit,
+    dataset,
+    record,
     datetime_scalar
 )
 
@@ -106,6 +108,8 @@ async def lifespan(fast_api_app: FastAPI):
         location,
         layout,
         unit,
+        dataset,
+        record,
         datetime_scalar,
         snake_case_fallback_resolvers
         # access_level

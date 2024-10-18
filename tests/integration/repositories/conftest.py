@@ -30,7 +30,7 @@ from src.breedgraph.domain.model.ontology import (
     GermplasmMethod,
     LocationType,
     LayoutType,
-    Variable, Trait, Scale, ScaleType, ObservationMethod, ObservationMethodType
+    Variable, Trait, Scale, ScaleType, ObservationMethod, ObservationMethodType, AxisType
 )
 from src.breedgraph.domain.model.people import PersonInput
 from src.breedgraph.domain.model.references import ExternalReferenceInput, ExternalReferenceStored
@@ -41,7 +41,7 @@ from src.breedgraph.domain.model.regions import LocationInput, LocationStored, R
 
 from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, DataRecordInput
 
-from tests.integration.test_accounts_repository import create_account_input
+from tests.integration.repositories.test_accounts_repository import create_account_input
 
 @pytest_asyncio.fixture(scope="session")
 async def accounts_repo(neo4j_tx):
@@ -146,7 +146,8 @@ async def row_layout_type(ontology, ontologies_repo) -> LayoutType:
         row_layout_type = LayoutType(
             name="Rows",
             synonyms=['Drills'],
-            description="Rows position described by a row index then an index from start of row"
+            description="Position described by a row number then a count from start of row",
+            axes=[AxisType.ORDINAL, AxisType.ORDINAL]
         )
         ontology.add_entry(row_layout_type)
         await ontologies_repo.update_seen()
@@ -158,9 +159,10 @@ async def row_layout_type(ontology, ontologies_repo) -> LayoutType:
 async def grid_layout_type(ontology, ontologies_repo) -> LayoutType:
     if ontology.get_entry(entry="grid", label="LayoutType") is None:
         grid_type = LayoutType(
-             name='Grid',
-             synonyms=['matrix'],
-             description='A matrix arrangement of n-dimensions'
+            name='Grid',
+            synonyms=['2D matrix'],
+            description='A matrix arrangement of 2-dimensions',
+            axes=[AxisType.CARTESIAN, AxisType.CARTESIAN]
          )
         ontology.add_entry(grid_type)
         await ontologies_repo.update_seen()
@@ -181,7 +183,7 @@ async def height_trait(ontology, ontologies_repo, tree_subject) -> Trait:
 @pytest_asyncio.fixture(scope='session')
 async def cm_scale(ontology, ontologies_repo) -> Scale:
     if ontology.get_entry(entry="cm", label="Scale") is None:
-        scale = Scale(name="cm", synonyms=["centimeters"], description="centimetres scale", type=ScaleType.NUMERICAL)
+        scale = Scale(name="cm", synonyms=["centimeters"], description="centimetres scale", scale_type=ScaleType.NUMERICAL)
         ontology.add_entry(scale)
         await ontologies_repo.update_seen()
 
@@ -195,7 +197,7 @@ async def tape_method(ontology, ontologies_repo) -> ObservationMethod:
             name="tape",
             synonyms=["tape-measure, ruler"],
             description="measurement against a known length reference",
-            type=ObservationMethodType.MEASUREMENT
+            observation_type=ObservationMethodType.MEASUREMENT
         )
         ontology.add_entry(method)
         await ontologies_repo.update_seen()
@@ -370,7 +372,7 @@ async def tree_block(
             Position(
                 location=field_location.id,
                 layout=example_arrangement.root.id,
-                coordinates=[1,1],
+                coordinates=["1","1"],
                 start="2010"
             )
         ]
@@ -394,7 +396,7 @@ async def second_tree_block(
             Position(
                 location=field_location.id,
                 layout=example_arrangement.root.id,
-                coordinates=[1,2],
+                coordinates=["1","2"],
                 start="2010"
             )
         ]
@@ -446,8 +448,7 @@ async def stored_dataset(datasets_repo, tree_block, height_variable, stored_pers
         term=height_variable.id,
         contributors=[stored_person.id],
         references=[example_external_reference.id],
-        unit_records={tree_block.root.id: [
-            DataRecordInput(value=100, start='2010')
-        ]}
+        records=[DataRecordInput(unit= tree_block.root.id, value="100", start='2010')]
     )
-    yield await datasets_repo.create(dataset_input)
+    stored_dataset = await datasets_repo.create(dataset_input)
+    yield stored_dataset

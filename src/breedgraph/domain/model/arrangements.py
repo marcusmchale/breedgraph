@@ -1,13 +1,8 @@
-from dataclasses import field
-
-import networkx as nx
-import copy
-
-from pydantic import field_validator, Field, field_serializer
+from pydantic import Field
 
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease
-from typing import List, ClassVar, Set
+from typing import List, ClassVar
 
 
 class LayoutBase(LabeledModel):
@@ -19,7 +14,8 @@ class LayoutBase(LabeledModel):
 
     axes: list[str] = Field(frozen=True, default=['default'])
     # order of these elements correspond to position coordinate values
-    # can not change after creation or units could not be reliably constructed
+    # should not change after creation or units positions could not be reliably constructed
+    # just delete and create a new one.
     name: str | None = None
 
     @property
@@ -29,6 +25,7 @@ class LayoutBase(LabeledModel):
     def __hash__(self):
         return hash(self.name)
 
+
 class LayoutInput(LayoutBase):
     pass
 
@@ -36,9 +33,8 @@ class LayoutStored(LayoutBase, ControlledModel):
 
     def redacted(self):
         return self.model_copy(deep=True, update={
-            # type and location id are visible
-            'name': self.redacted_str if self.name is not None else self.name,
-            'axes': [self.redacted_str for s in self.axes]
+            # type, location id and axes are visible
+            'name': self.redacted_str if self.name is not None else self.name
         })
     pass
 
@@ -56,18 +52,19 @@ class Arrangement(ControlledTreeAggregate):
                 return "This arrangement is used to define existing units and so cannot be removed"
         return False
 
-    def add_layout(self, layout: LayoutInput, parent_id: int|None, position: tuple|list):
-        if parent_id is not None:
+    def add_layout(self, layout: LayoutInput, parent_id: int|None, position: List[str]|None):
+        if parent_id is None:
+            # this inserts layout as new root for the arrangement
+            sources = None
+        else:
             parent_layout = self.get_layout(parent_id)
             if not parent_layout.location == layout.location:
                 raise ValueError("All layouts in an arrangement should have the same location")
 
-            if isinstance(position, (tuple, list)) and not len(position) == len(parent_layout.axes):
+            if not len(position) == len(parent_layout.axes):
                 raise ValueError("Position should have same length as the parent layout axes")
 
             sources = {parent_id: {'position': position}}
-        else:
-            sources = None
 
         return super().add_entry(layout, sources)
 

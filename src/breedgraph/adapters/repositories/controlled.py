@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 from neo4j import AsyncTransaction
+from numpy import datetime64
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
@@ -292,6 +293,15 @@ class Neo4jControlledRepository(ControlledRepository):
     def __init__(self, tx: AsyncTransaction, **kwargs):
         super().__init__(**kwargs)
         self.tx = tx
+
+    @staticmethod
+    def times_to_dt64(record):
+        if 'start' in record:
+            record['start'] = datetime64(record['start'], (record['start_unit'], record['start_step']))
+        if 'end' in record:
+            record['end'] = datetime64(record['end'], (record['end_unit'], record['end_step']))
+        if 'time' in record:
+            record['time'] = datetime64(record['time'], (record['time_unit'], record['time_step']))
 
     async def _record_write(self, entity_class: type[LabeledModel], entity_id: int, user_id: int):
         result = await self.tx.run(

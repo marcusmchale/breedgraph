@@ -1,49 +1,17 @@
-interface RecordInterface{
+type Record {
     id: Int!
+    unit: Unit
+    value: String
     start: DateTime
     end: DateTime
     references: [Int]
     submitted: DateTime
-}
-
-type IntRecord implements RecordInterface {
-    value: Int
-    id: Int!
-    start: DateTime
-    end: DateTime
-    references: [Int]
-    submitted: DateTime
-}
-
-type StrRecord {
-    value: Int
-    id: Int!
-    start: DateTime
-    end: DateTime
-    references: [Int]
-    submitted: DateTime
-}
-
-type FloatRecord {
-    value: Float
-    id: Int!
-    start: DateTime
-    end: DateTime
-    references: [Int]
-    submitted: DateTime
-}
-
-union Record = IntRecord | StrRecord | FloatRecord
-
-
-type UnitRecords {
-    #unit: Unit # TODO Need to implement blocks first.
-    records: [Record]
 }
 
 type DataSet {
+    id: Int!
     term: OntologyEntry
-    unit_records: [UnitRecords]
+    records: [Record]
     contributors: [Int]
     references: [Int]
 }

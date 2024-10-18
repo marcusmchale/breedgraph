@@ -36,6 +36,7 @@ async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
 async def resolve_subject(obj, info):
     await inject_ontology(info.context, entry_id=obj.subject)
     ontology = info.context.get('ontology')
+    import pdb; pdb.set_trace()
     return ontology.to_output(obj.subject)
 
 @unit.field("release")
