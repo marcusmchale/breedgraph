@@ -28,6 +28,9 @@ from src.breedgraph.adapters.repositories.references import Neo4jReferencesRepos
 from src.breedgraph.adapters.repositories.regions import Neo4jRegionsRepository
 from src.breedgraph.adapters.repositories.blocks import Neo4jBlocksRepository
 
+from src.breedgraph.adapters.views.base import AbstractViewsHolder
+from src.breedgraph.adapters.views.neo4j_views import Neo4jViewsHolder
+
 logger = logging.getLogger(__name__)
 
 from contextlib import asynccontextmanager
@@ -80,6 +83,11 @@ class AbstractUnitOfWork(ABC):
     @abstractmethod
     @asynccontextmanager
     async def _get_repositories(self, user_id: int = None, redacted: bool = True) -> AbstractRepoHolder:
+        raise NotImplementedError
+
+    @abstractmethod
+    @asynccontextmanager
+    async def get_views(self):
         raise NotImplementedError
 
     def collect_events(self):
@@ -156,6 +164,17 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             connection_acquisition_timeout=5,
             max_transaction_retry_time=5
         )
+
+    @asynccontextmanager
+    async def get_views(self):
+        logger.debug("Start neo4j session for views")
+        session: AsyncSession = self.driver.session()
+        try:
+            views_holder = Neo4jViewsHolder(session)
+            yield views_holder
+        finally:
+            logger.debug("Close views session")
+            await session.close()
 
     @asynccontextmanager
     async def _get_repositories(

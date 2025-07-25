@@ -1,4 +1,5 @@
 from src.breedgraph.config import GQL_API_PATH
+from tests.e2e.utils import with_auth
 
 async def post_to_add_unit(client, token:str, unit: dict):
     json={
@@ -19,7 +20,12 @@ async def post_to_add_unit(client, token:str, unit: dict):
             "unit": unit
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_add_position(client, token:str, unit_id: int, position: dict):
     json={
@@ -43,7 +49,12 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
             "position": position
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_blocks(client, token:str, location_id: int = None):
@@ -70,7 +81,12 @@ async def post_to_blocks(client, token:str, location_id: int = None):
             "location_id": location_id
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_unit(client, unit_id: int, token:str = None):
     json = {
@@ -98,10 +114,10 @@ async def post_to_unit(client, unit_id: int, token:str = None):
             "unit_id": unit_id,
         }
     }
-    if token:
-        headers={"token":token}
-    else:
-        headers=None
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers=headers)
-
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 

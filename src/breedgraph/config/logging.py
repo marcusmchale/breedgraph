@@ -1,4 +1,11 @@
 import os
+from enum import Enum
+
+class Environment(Enum):
+    PRODUCTION = "production"
+    DEVELOPMENT = "development"
+
+ENVIRONMENT = Environment(os.environ.get('ENVIRONMENT', "production"))  # or "development
 
 ARIADNE_LOG = os.environ.get('ARIADNE_LOG')
 NEO4J_LOG = os.environ.get('NEO4J_LOG')

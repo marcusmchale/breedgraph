@@ -9,7 +9,6 @@ async def bootstrap(
 ) -> messagebus.MessageBus:
     # todo mock read model and pass into bootstrap for testing as for uow and notifications
     read_model = await ReadModel.create()
-
     dependencies = {
         'uow': uow,
         'notifications': notifications,
@@ -26,14 +25,12 @@ async def bootstrap(
         command_type: inject_dependencies(handler, dependencies)
         for command_type, handler in command_handlers.COMMAND_HANDLERS.items()
     }
-
     return messagebus.MessageBus(
         uow=uow,
         read_model=read_model,
         event_handlers=injected_event_handlers,
         command_handlers=injected_command_handlers
     )
-
 
 def inject_dependencies(handler, dependencies):
     params = inspect.signature(handler).parameters

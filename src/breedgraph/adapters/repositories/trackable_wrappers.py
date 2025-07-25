@@ -35,6 +35,7 @@ class Tracked(ObjectProxy):
         if validate_assignment:
             wrapped.model_config['validate_assignment'] = False
 
+        # Process model fields
         for attr, field in wrapped.model_fields.items():
             if field.frozen:
                 continue  # no tracking changes to frozen fields,
@@ -42,6 +43,12 @@ class Tracked(ObjectProxy):
             elif attr == 'events':
                 continue  # also don't want to track collected events, they are just to be consumed
             self.__wrapped__.__setattr__(attr, self._get_tracked(attr))
+
+        # Process private attributes as well, e.g. _graph
+        if hasattr(wrapped,'__pydantic_private__'):
+            if wrapped.__pydantic_private__ is not None:
+                for attr_name in wrapped.__pydantic_private__:
+                    self.__wrapped__.__setattr__(attr_name, self._get_tracked(attr_name))
 
         #set it back to the stored value
         if validate_assignment is False:
@@ -145,10 +152,20 @@ class Tracked(ObjectProxy):
 
     def reset_tracking(self):
         self.changed.clear()
+
+        # Reset tracking for regular model fields
         for attr in self.__wrapped__.model_fields.keys():
             value = getattr(self.__wrapped__, attr)
             if isinstance(value, (Tracked, TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
                 value.reset_tracking()
+
+        # reset tracking on private attributes as well, e.g. _graph
+        if hasattr(self.__wrapped__,'__pydantic_private__'):
+            if self.__wrapped__.__pydantic_private__ is not None:
+                for attr_name in self.__wrapped__.__pydantic_private__:
+                    value = getattr(self.__wrapped__, attr_name)
+                    if isinstance(value, (Tracked, TrackedList, TrackedSet, TrackedDict, TrackedGraph)):
+                        value.reset_tracking()
 
     def model_dump(self):
         return self.__wrapped__.model_dump()

@@ -129,13 +129,13 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
-        return list(nx.get_node_attributes(self.graph, "model").values())
+        return list(nx.get_node_attributes(self._graph, "model").values())
 
     def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ControlledRootedAggregate|None':
         if read_teams is None:
             read_teams = set()
 
-        g = copy.deepcopy(self.graph)
+        g = copy.deepcopy(self._graph)
 
         root_id = self.get_root_id()
         for node_id in list(g.nodes):
@@ -148,7 +148,7 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
                     self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
 
         aggregate = self.__class__()
-        aggregate.graph = g
+        aggregate._graph = g
         return aggregate
 
 class ControlledTreeAggregate(ControlledRootedAggregate, TreeAggregate):

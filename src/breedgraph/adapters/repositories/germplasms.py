@@ -85,17 +85,17 @@ class Neo4jGermplasmRepository(Neo4jControlledRepository):
         if not germplasm.changed:
             return
 
-        for node_id in germplasm.graph.added_nodes:
+        for node_id in germplasm._graph.added_nodes:
             entry = germplasm.get_entry(node_id)
 
             if isinstance(entry, GermplasmEntryInput):
                 stored_entry = await self._create_entry(entry)
-                germplasm.graph.replace_with_stored(node_id, stored_entry)
+                germplasm._graph.replace_with_stored(node_id, stored_entry)
 
-        if germplasm.graph.removed_nodes:
-            await self._delete_entries(list(germplasm.graph.removed_nodes))
+        if germplasm._graph.removed_nodes:
+            await self._delete_entries(list(germplasm._graph.removed_nodes))
 
-        for node_id in germplasm.graph.changed_nodes:
+        for node_id in germplasm._graph.changed_nodes:
 
             entry = germplasm.get_entry(node_id)
             if not isinstance(entry, GermplasmEntryStored):
@@ -103,8 +103,8 @@ class Neo4jGermplasmRepository(Neo4jControlledRepository):
 
             await self._update_entry(entry)
 
-        await self._create_edges([(*edge, germplasm.graph.edges[edge]) for edge in germplasm.graph.added_edges])
-        await self._delete_edges(germplasm.graph.removed_edges)
+        await self._create_edges([(*edge, germplasm._graph.edges[edge]) for edge in germplasm._graph.added_edges])
+        await self._delete_edges(germplasm._graph.removed_edges)
 
 
     async def _create_edges(self, edges: Set[Tuple[int, int, dict]]):

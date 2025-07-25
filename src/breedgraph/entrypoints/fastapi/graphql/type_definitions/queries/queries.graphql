@@ -15,6 +15,12 @@ type Query {
     As with organisations, the organisation can be explored from this node.
     """
     team (team_id: Int!): TeamPayload! # see team
+    """
+    Get a multiple team details
+    """
+    teams(team_ids: [Int!]): TeamsPayload! # see team
+    """Get affiliations that result from heritable affiliations to parent teams"""
+    inherited_affiliations(team_id: Int!): AffiliationsPayload!
     """Get the latest ontology version"""
     ontology_version (entry_id: Int, entry_name: String): VersionPayload!
     """Get an ontology entry"""

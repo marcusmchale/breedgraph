@@ -1,6 +1,6 @@
 from src.breedgraph.config import GQL_API_PATH
-
 from src.breedgraph.domain.model.controls import Access
+from tests.e2e.utils import with_auth
 
 async def post_to_add_account(client, name: str, email: str, password: str):
     json={
@@ -30,7 +30,7 @@ async def post_to_add_account(client, name: str, email: str, password: str):
             "password": password
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json)
+    return await client.post(GQL_API_PATH, json=json)
 
 async def post_to_login(client, username: str, password: str):
     json={
@@ -44,7 +44,7 @@ async def post_to_login(client, username: str, password: str):
             "    password: $password"
             "  ) { "
             "    status, "
-            "    result {token_type, access_token}, "
+            "    result, "
             "    errors { name, message } "
             "  } "
             " } "
@@ -54,7 +54,7 @@ async def post_to_login(client, username: str, password: str):
             "password": password
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json)
+    return await client.post(GQL_API_PATH, json=json)
 
 
 async def post_to_verify_email(client, token: str):
@@ -76,7 +76,7 @@ async def post_to_verify_email(client, token: str):
             "token": token
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json)
+    return await client.post(GQL_API_PATH, json=json)
 
 async def post_to_add_email(client, token: str, email: str):
     json={
@@ -97,7 +97,12 @@ async def post_to_add_email(client, token: str, email: str):
             "email": email,
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_remove_email(client, token: str, email: str):
     json={
@@ -118,7 +123,12 @@ async def post_to_remove_email(client, token: str, email: str):
             "email": email,
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers= {"token": token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_account(client, token:str):
@@ -135,7 +145,12 @@ async def post_to_account(client, token:str):
             " } "
         )
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_users(client, token:str, user_id: None|int = None):
@@ -159,7 +174,12 @@ async def post_to_users(client, token:str, user_id: None|int = None):
             "user_id": user_id,
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_request_affiliation(client, token:str, team: int, access: Access):
@@ -184,7 +204,12 @@ async def post_to_request_affiliation(client, token:str, team: int, access: Acce
             "access": access
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_approve_affiliation(client, token:str, user:int, team: int, access: Access):
     json = {
@@ -211,7 +236,12 @@ async def post_to_approve_affiliation(client, token:str, user:int, team: int, ac
             "access": access
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_remove_affiliation(client, token:str, user:int, team: int, access: Access):
     json = {
@@ -238,7 +268,12 @@ async def post_to_remove_affiliation(client, token:str, user:int, team: int, acc
             "access": access
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_edit_user(
@@ -276,4 +311,9 @@ async def post_to_edit_user(
             "password": password
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

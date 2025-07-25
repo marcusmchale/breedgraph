@@ -60,5 +60,18 @@ class AccountStored(AccountBase, Aggregate):
         self.user.email_verified = True
         self.events.append(EmailVerified(user=self.user.id))
 
+    def remove_email(self, email: str):
+        email_to_remove = None # need case insensitive remove
+        for allowed_email in self.allowed_emails:
+            if allowed_email.casefold() == email.casefold():
+                email_to_remove = allowed_email
+                break
+
+        if email_to_remove:
+            self.allowed_emails.remove(email)
+        else:
+            raise ValueError(f"Email {email} not found in allowed emails")
+
 class  AccountOutput(AccountBase):
     user: UserOutput
+    allowed_emails: List[str] = list()

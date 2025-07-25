@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, computed_field, field_validator, model_validator
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, ClassVar, Any, Set, Tuple, TypedDict
@@ -55,10 +55,12 @@ class Aggregate(ABC, BaseModel):
         return hash(self.root.id)
 
 
+
+
 class DiGraphAggregate(Aggregate):
     default_edge_label: ClassVar[str] = None
     default_model_class: ClassVar[Type[StoredModel]]
-    graph: PyDiGraph = Field(default_factory=lambda: nx.DiGraph())
+    _graph: PyDiGraph = PrivateAttr(default_factory=lambda: nx.DiGraph())
 
     _temp_id: int = 0  # each instance starts with temp_id 0, these decrement with each access request
     # when committed by repository, temporary IDs should all be replaced and this value reset to 0
@@ -81,11 +83,11 @@ class DiGraphAggregate(Aggregate):
 
     @property
     def size(self):
-        return self.graph.number_of_nodes()
+        return self._graph.number_of_nodes()
 
     @property
     def protected(self) -> str|None:
-        if self.graph.number_of_nodes() > 1:
+        if self._graph.number_of_nodes() > 1:
             return "Cannot delete DiGraph with more than one node"
 
     def _add_node(self, model: LabeledModel) -> int:
@@ -99,10 +101,10 @@ class DiGraphAggregate(Aggregate):
         else:
             node_id = self.temp_id
 
-        if node_id in self.graph.nodes:
+        if node_id in self._graph.nodes:
             raise ValueError("Duplicate node")
 
-        self.graph.add_node(node_id, model=model, label=model.label)
+        self._graph.add_node(node_id, model=model, label=model.label)
         return node_id
 
     def _add_nodes(self, nodes: List[LabeledModel]) -> List[int]:
@@ -110,15 +112,15 @@ class DiGraphAggregate(Aggregate):
 
     def _add_edge(self, source_id: int, sink_id: int, **kwargs):
         # may use kwargs to store additional properties on an edge
-        if not source_id in self.graph:
+        if not source_id in self._graph:
             raise ValueError(f"Source node not found: {source_id}")
-        if not sink_id in self.graph:
+        if not sink_id in self._graph:
             raise ValueError(f"Sink node not found: {sink_id}")
         if sink_id == source_id:
             raise IllegalOperationError(f"Self-loop references are not supported")
         if sink_id in self.get_ancestors(source_id):
             raise IllegalOperationError(f"This edge would create a cycle which are not supported")
-        self.graph.add_edge(source_id, sink_id, **kwargs)
+        self._graph.add_edge(source_id, sink_id, **kwargs)
 
 
     def _add_edges(self, edges: List[Tuple[int, int, dict]]):
@@ -128,23 +130,23 @@ class DiGraphAggregate(Aggregate):
     def _remove_nodes(self, node_ids: List[int] | int):
         if isinstance(node_ids, int):
             node_ids = [node_ids]
-        for node, degree in self.graph.out_degree(node_ids):
+        for node, degree in self._graph.out_degree(node_ids):
             if degree > 0:
                 raise IllegalOperationError(f"Cannot remove a node with children: {node}")
 
-        self.graph.remove_nodes_from(node_ids)
+        self._graph.remove_nodes_from(node_ids)
 
     def get_nodes(self, node_ids=None, ):
         if node_ids is None:
-            return self.graph.nodes
+            return self._graph.nodes
 
-        return self.graph.nodes[node_ids]
+        return self._graph.nodes[node_ids]
 
     def get_descendants(self, node_id):
-        return nx.descendants(self.graph, node_id)
+        return nx.descendants(self._graph, node_id)
 
     def get_ancestors(self, node_id):
-        return nx.ancestors(self.graph, node_id)
+        return nx.ancestors(self._graph, node_id)
 
     def _change_sources(self, node_id: int, sources: Set[int]):
         if node_id in sources:
@@ -152,8 +154,8 @@ class DiGraphAggregate(Aggregate):
         if set(sources).intersection(self.get_descendants(node_id)):
             raise IllegalOperationError("A supplied source is a child, cycles are not supported")
 
-        self.graph.remove_edges_from(list(self.graph.in_edges(node_id)))
-        self.graph.add_edges_from([(source_id, node_id) for source_id in sources])
+        self._graph.remove_edges_from(list(self._graph.in_edges(node_id)))
+        self._graph.add_edges_from([(source_id, node_id) for source_id in sources])
 
     @staticmethod
     def remove_node_and_reconnect(graph: nx.DiGraph, node_id: int, label: str=None):
@@ -169,19 +171,19 @@ class RootedAggregate(DiGraphAggregate):
     def __init__(self, nodes=None, edges=None, **kwargs):
         super().__init__(nodes, edges, **kwargs)
 
-        if len(self.graph) > 0:
-            if not nx.is_weakly_connected(self.graph):
+        if len(self._graph) > 0:
+            if not nx.is_weakly_connected(self._graph):
                 raise ValueError("DiGraph is not weakly connected")
 
             root_count = 0
-            for node, degree in self.graph.in_degree():
+            for node, degree in self._graph.in_degree():
                 if degree == 0:
                     root_count += 1
             if root_count != 1:
                 raise ValueError("RootedAggregate must have a singular root")
 
     def get_root_id(self) -> int:
-        return next(nx.topological_sort(self.graph))
+        return next(nx.topological_sort(self._graph))
 
     @computed_field
     def root(self) -> LabeledModel | None:
@@ -189,8 +191,7 @@ class RootedAggregate(DiGraphAggregate):
             root_id = self.get_root_id()
         except StopIteration:
             return None
-
-        return self.graph.nodes[root_id].get('model')
+        return self._graph.nodes[root_id].get('model')
 
     @property
     def protected(self) -> str | None:
@@ -199,7 +200,7 @@ class RootedAggregate(DiGraphAggregate):
 
     @computed_field
     def entries(self) -> List[BaseModel]:
-        return nx.get_node_attributes(self.graph, 'model')
+        return nx.get_node_attributes(self._graph, 'model')
 
     def insert_root(self, entry: LabeledModel, details: dict = None) -> int:
         """
@@ -213,7 +214,7 @@ class RootedAggregate(DiGraphAggregate):
 
     def add_entry(self, entry: LabeledModel, sources: Dict[int, dict] = None) -> int:
         """Returns the temporary ID for the entry in the graph"""
-        if self.graph and not sources:
+        if self._graph and not sources:
             logger.debug("Replacing the root node")
             return self.insert_root(entry)
 
@@ -229,34 +230,34 @@ class RootedAggregate(DiGraphAggregate):
         if self.get_sinks(entry_id):
             raise IllegalOperationError("Cannot remove a node with sinks")
 
-        self.graph.remove_node(entry_id)
+        self._graph.remove_node(entry_id)
 
     def get_entry(self, entry: int | str) -> BaseModel:
         """ Search by integer ID or by name """
         if isinstance(entry, int):
-            return self.graph.nodes[entry].get('model')
+            return self._graph.nodes[entry].get('model')
         elif isinstance(entry, str):
             for e in self.entries.values():
                 if entry.casefold() in [n.casefold() for n in e.names]:
                     return e
 
     def get_sources(self, entry_id: int) -> Dict[int, BaseModel]:
-        return {e[0] : self.get_entry(e[1])  for e in self.graph.in_edges(entry_id)}
+        return {e[0] : self.get_entry(e[1]) for e in self._graph.in_edges(entry_id)}
 
     def get_sinks(self, entry_id: int) -> Dict[int, BaseModel]:
-        return {e[1] : self.get_entry(e[1])  for e in self.graph.out_edges(entry_id)}
+        return {e[1] : self.get_entry(e[1]) for e in self._graph.out_edges(entry_id)}
 
     def get_source_edges(self, entry_id: int) -> Dict[int, dict]:
-        return {e[0]: e[2] for e in self.graph.in_edges(entry_id, data=True)}
+        return {e[0]: e[2] for e in self._graph.in_edges(entry_id, data=True)}
 
     def get_sink_edges(self, entry_id: int) -> Dict[int, dict]:
-        return {e[0]: e[2] for e in self.graph.out_edges(entry_id, data=True)}
+        return {e[0]: e[2] for e in self._graph.out_edges(entry_id, data=True)}
 
     def get_parent_ids(self, node_id: int) -> List[int]:
-        return [edge[0] for edge in self.graph.in_edges(node_id)]
+        return [edge[0] for edge in self._graph.in_edges(node_id)]
 
     def get_children_ids(self, node_id: int) -> List[int]:
-        return [edge[1] for edge in self.graph.out_edges(node_id)]
+        return [edge[1] for edge in self._graph.out_edges(node_id)]
 
 class TreeAggregate(RootedAggregate):
     """An aggregate where nodes in the graph each have a single source"""
@@ -264,8 +265,8 @@ class TreeAggregate(RootedAggregate):
     def __init__(self, nodes=None, edges=None, **kwargs):
         super().__init__(nodes, edges, **kwargs)
 
-        if len(self.graph) > 0:
-            for node, degree in self.graph.in_degree():
+        if len(self._graph) > 0:
+            for node, degree in self._graph.in_degree():
                 if degree > 1:
                     raise ValueError("TreeAggregate nodes must have a single source")
 
@@ -273,7 +274,7 @@ class TreeAggregate(RootedAggregate):
         self._change_sources(node_id, {parent_id})
 
     def get_parent_id(self, node_id: int) -> int:
-        in_edges = list(self.graph.in_edges(node_id))
+        in_edges = list(self._graph.in_edges(node_id))
         if in_edges:
             return in_edges[0][0]
 

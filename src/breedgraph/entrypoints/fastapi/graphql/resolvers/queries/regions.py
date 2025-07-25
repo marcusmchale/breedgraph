@@ -2,7 +2,7 @@ from ariadne import ObjectType
 from src.breedgraph.views.regions import countries
 
 from src.breedgraph.domain.model.regions import LocationInput, LocationOutput
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
@@ -20,12 +20,14 @@ location = ObjectType("Location")
 
 @graphql_query.field("countries")
 @graphql_payload
+@require_authentication
 async def get_countries(_, info) -> List[LocationInput|LocationOutput]:
     bus = info.context.get('bus')
     return [c async for c in countries(bus.read_model)]
 
 @graphql_query.field("regions")
 @graphql_payload
+@require_authentication
 async def get_regions(_, info) -> List[LocationOutput]:
     await update_locations_map(info.context)
     locations_map = info.context.get('locations_map')
@@ -34,6 +36,7 @@ async def get_regions(_, info) -> List[LocationOutput]:
 
 @graphql_query.field("location")
 @graphql_payload
+@require_authentication
 async def get_location(_, info, location_id: int) -> LocationOutput:
     await update_locations_map(info.context, location_id=location_id)
     locations_map = info.context.get('locations_map')

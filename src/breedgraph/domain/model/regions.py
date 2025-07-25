@@ -73,7 +73,7 @@ class Region(ControlledTreeAggregate):
             parent=self.get_parent_id(node),
             children=self.get_children_ids(node),
             release=self.get_location(node).controller.release
-        ) for node in self.graph}
+        ) for node in self._graph}
 
     def yield_locations_by_type(self, type_id: int):
         for e in self.entries.values():

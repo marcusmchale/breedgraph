@@ -1,4 +1,5 @@
 from src.breedgraph.config import GQL_API_PATH
+from tests.e2e.utils import with_auth
 
 async def post_to_add_team(client, token:str, name: str, parent: int|None = None):
     if parent:
@@ -48,7 +49,12 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
                 "fullname": name
             }
         }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_organisations(client, token:str):
     json = {
@@ -91,7 +97,12 @@ async def post_to_organisations(client, token:str):
             " } "
         )
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_team(client, token:str, team_id: int):
@@ -135,7 +146,12 @@ async def post_to_team(client, token:str, team_id: int):
             "team_id": team_id,
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_remove_team(client, token:str, team: int):
@@ -157,7 +173,12 @@ async def post_to_remove_team(client, token:str, team: int):
             "team": team
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_edit_team(client, token:str, team: int, name: str, fullname: str):
     json = {
@@ -185,4 +206,9 @@ async def post_to_edit_team(client, token:str, team: int, name: str, fullname: s
             "fullname": fullname
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

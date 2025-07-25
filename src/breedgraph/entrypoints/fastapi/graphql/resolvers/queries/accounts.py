@@ -7,7 +7,7 @@ from src.breedgraph.domain.model.accounts import (
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     inject_users_map
 )
@@ -20,6 +20,7 @@ account = ObjectType("Account")
 
 @graphql_query.field("users")
 @graphql_payload
+@require_authentication
 async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
     await inject_users_map(info.context)
     users_map = info.context.get('users_map')
@@ -31,14 +32,12 @@ async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
 
 @graphql_query.field("account")
 @graphql_payload
+@require_authentication
 async def get_account(_, info) -> AccountOutput:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     bus = info.context.get('bus')
     async with bus.uow.get_repositories() as uow:
-        account_ = uow.accounts.get(user_id=user_id)
+        account_ = await uow.accounts.get(user_id=user_id)
         if account_ is None:
             raise NoResultFoundError
         else:

@@ -6,7 +6,7 @@ from tests.e2e.organisations.post_methods import (
     post_to_team
 )
 
-from tests.e2e.payload_helpers import get_verified_payload
+from tests.e2e.utils import get_verified_payload
 
 
 @pytest.mark.usefixtures("session_database")

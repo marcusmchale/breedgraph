@@ -1,7 +1,7 @@
 from ariadne import ObjectType
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from src.breedgraph.domain.model.datasets import DataSetStored, DataSetOutput, DataRecordStored
 
@@ -21,6 +21,7 @@ record = ObjectType("Record")
 
 @graphql_query.field("datasets")
 @graphql_payload
+@require_authentication
 async def get_datasets(_, info, dataset_id: int = None, term_id: int = None) -> List[DataSetOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
@@ -44,7 +45,6 @@ async def resolve_term(obj, info):
 
 @record.field('unit')
 async def resolve_unit(obj, info):
-    import pdb; pdb.set_trace()
     await update_units_map(info.context, unit_id=obj.unit)
     units_map = info.context.get('units_map')
     return units_map.get(obj.unit)

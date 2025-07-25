@@ -23,6 +23,11 @@ def get_base_url():
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
+def get_vue_url():
+    if VUE_PORT != 80:
+        return f'{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}/'
+    else:
+        return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 DATABASE_NAME = os.environ.get("DATABASE_NAME")  # currently only a single database available
 def get_bolt_url():
@@ -38,10 +43,3 @@ def get_redis_host_and_port():
 def get_gql_url():
     base_url = get_base_url()
     return f'{base_url}/{GQL_API_PATH}/'
-
-# def get_email_host_and_port():
-#	host = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-#	port = 465
-#	http_port = 18025 if host == 'localhost' else 8025
-#	return dict(host=host, port=port, http_port=http_port)
-#

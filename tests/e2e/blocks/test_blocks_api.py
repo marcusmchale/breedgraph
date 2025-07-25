@@ -2,7 +2,7 @@ import pytest
 
 from tests.e2e.blocks.post_methods import post_to_add_unit, post_to_blocks, post_to_unit, post_to_add_position
 from tests.e2e.ontologies.post_methods import post_to_get_entries
-from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
+from tests.e2e.utils import get_verified_payload, assert_payload_success
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")

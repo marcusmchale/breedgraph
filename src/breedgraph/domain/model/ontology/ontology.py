@@ -109,13 +109,13 @@ class Ontology(DiGraphAggregate):
             label: str | None= None
     ) -> Generator[Tuple[int,OntologyEntry], None, None]:
         if isinstance(entry, int):
-            if entry in self.graph:
-                model = self.graph.nodes[entry].get('model')
+            if entry in self._graph:
+                model = self._graph.nodes[entry].get('model')
                 if label is None or model.label == label:
                     yield entry, model
             yield None
         else:
-            for i, d in self.graph.nodes(data=True):
+            for i, d in self._graph.nodes(data=True):
                 if all([
                     label is None or d['label'] == label,
                     entry is None or entry.casefold() in [n.casefold() for n in d['model'].names]
@@ -229,7 +229,7 @@ class Ontology(DiGraphAggregate):
         return temp_id
 
     def increment_edge_rank(self, source_id, sink_id):
-        self.graph.edges[source_id, sink_id]['rank'] += 1
+        self._graph.edges[source_id, sink_id]['rank'] += 1
 
     def link_category(
             self,
@@ -385,37 +385,37 @@ class Ontology(DiGraphAggregate):
 
     @computed_field
     def entries(self) -> List[OntologyEntry]:
-        return nx.get_node_attributes(self.graph, 'model')
+        return nx.get_node_attributes(self._graph, 'model')
 
     def get_parent_ids(self, node_id) -> List[int]:
         parent_ids = []
-        for u, v, d in self.graph.in_edges(node_id, data=True):
+        for u, v, d in self._graph.in_edges(node_id, data=True):
             if d['label'] == OntologyRelationshipLabel.RELATES_TO:
                 parent_ids.append(u)
         return parent_ids
 
     def get_children_ids(self, node_id) -> List[int]:
         children_ids = []
-        for u, v, d in self.graph.out_edges(node_id, data=True):
+        for u, v, d in self._graph.out_edges(node_id, data=True):
             if d['label'] == OntologyRelationshipLabel.RELATES_TO:
                 children_ids.append(u)
         return children_ids
 
     def get_trait_id(self, variable_id) -> int:
-        for u, v, d in self.graph.out_edges(variable_id, data=True):
+        for u, v, d in self._graph.out_edges(variable_id, data=True):
             if d['label'] == OntologyRelationshipLabel.DESCRIBES_TRAIT:
                 return v
 
     def get_subject_ids(self, trait_id: int) -> List[int]:
         subject_ids = []
-        for u, v, d in self.graph.in_edges(trait_id, data=True):
+        for u, v, d in self._graph.in_edges(trait_id, data=True):
             if d['label'] == OntologyRelationshipLabel.HAS_TRAIT:
                 subject_ids.append(u)
         return subject_ids
 
     def get_trait_ids(self, subject_id) -> List[int]:
         trait_ids = []
-        for u, v, d in self.graph.out_edges(subject_id, data=True):
+        for u, v, d in self._graph.out_edges(subject_id, data=True):
             if d['label'] == OntologyRelationshipLabel.HAS_TRAIT:
                 trait_ids.append(v)
         return trait_ids
@@ -428,14 +428,14 @@ class Ontology(DiGraphAggregate):
 
         if scale.scale_type == ScaleType.NOMINAL:
             category_indices = []
-            for u, v, d in self.graph.out_edges(scale_id, data=True):
+            for u, v, d in self._graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
                     category_indices.append(v)
             return category_indices
 
         elif scale.scale_type == ScaleType.ORDINAL:
             index_rank = []
-            for u, v, d in self.graph.out_edges(scale_id, data=True):
+            for u, v, d in self._graph.out_edges(scale_id, data=True):
                 if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
                     index_rank.append((v, d['rank']))
             index_rank.sort(key=lambda x: x[1])
@@ -445,27 +445,27 @@ class Ontology(DiGraphAggregate):
             return []
 
     def get_condition_id(self, parameter_id) -> int:
-        for u, v, d in self.graph.out_edges(parameter_id, data=True):
+        for u, v, d in self._graph.out_edges(parameter_id, data=True):
             if d['label'] == OntologyRelationshipLabel.DESCRIBES_CONDITION:
                 return v
 
     def get_exposure_id(self, event_id) -> int:
-        for u, v, d in self.graph.out_edges(event_id, data=True):
+        for u, v, d in self._graph.out_edges(event_id, data=True):
             if d['label'] == OntologyRelationshipLabel.DESCRIBES_EXPOSURE:
                 return v
 
     def get_method_id(self, entry_id) -> int:
-        for u, v, d in self.graph.out_edges(entry_id, data=True):
+        for u, v, d in self._graph.out_edges(entry_id, data=True):
             if d['label'] == OntologyRelationshipLabel.USES_METHOD:
                 return v
 
     def get_scale_id(self, entry_id) -> int:
-        for u, v, d in self.graph.out_edges(entry_id, data=True):
+        for u, v, d in self._graph.out_edges(entry_id, data=True):
             if d['label'] == OntologyRelationshipLabel.USES_SCALE:
                 return v
 
     def get_rank(self, category_id) -> int:
-        for u, v, d in self.graph.in_edges(category_id, data=True):
+        for u, v, d in self._graph.in_edges(category_id, data=True):
             if d['label'] == OntologyRelationshipLabel.HAS_CATEGORY:
                 return d.get('rank')
 
@@ -489,4 +489,4 @@ class Ontology(DiGraphAggregate):
         )
 
     def to_output_map(self) -> dict[int, OntologyOutput]:
-        return {node: self.to_output(node) for node in self.graph}
+        return {node: self.to_output(node) for node in self._graph}

@@ -9,5 +9,7 @@ EVENT_HANDLERS = {
     events.accounts.AccountAdded: [accounts.send_user_verify_url],
     events.accounts.EmailVerified: [accounts.email_verified],
     events.accounts.AffiliationRequested: [accounts.process_affiliation_request],
-    events.accounts.AffiliationApproved: [accounts.notify_user_approved]
+    events.accounts.AffiliationApproved: [accounts.notify_user_approved],
+    events.accounts.PasswordChangeRequested: [accounts.password_change_requested],
+    events.accounts.EmailChangeRequested: [accounts.email_change_requested]
 }  # type: Dict[Type[events.base.Event], List[Callable]]

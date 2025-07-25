@@ -1,7 +1,7 @@
 from ariadne import ObjectType
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_units_map,
@@ -19,6 +19,7 @@ unit = ObjectType("Unit")
 
 @graphql_query.field("blocks")
 @graphql_payload
+@require_authentication
 async def get_blocks(_, info, location_id: int = None) -> List[UnitOutput]:
     await update_units_map(info.context, location_id)
     units_map = info.context.get('units_map')
@@ -27,6 +28,7 @@ async def get_blocks(_, info, location_id: int = None) -> List[UnitOutput]:
 
 @graphql_query.field("unit")
 @graphql_payload
+@require_authentication
 async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
     await update_units_map(info.context, unit_id=unit_id)
     units_map = info.context.get('units_map')
@@ -36,7 +38,6 @@ async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
 async def resolve_subject(obj, info):
     await inject_ontology(info.context, entry_id=obj.subject)
     ontology = info.context.get('ontology')
-    import pdb; pdb.set_trace()
     return ontology.to_output(obj.subject)
 
 @unit.field("release")

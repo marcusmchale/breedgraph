@@ -71,23 +71,23 @@ class Neo4jArrangementsRepository(Neo4jControlledRepository):
             yield Arrangement(nodes=layouts, edges=edges)
 
     async def _remove_controlled(self, arrangement: Arrangement) -> None:
-        await self._delete_layouts(list(arrangement.graph.nodes.keys()))
+        await self._delete_layouts(list(arrangement._graph.nodes.keys()))
 
     async def _update_controlled(self, arrangement: Tracked | Arrangement):
         if not arrangement.changed:
             return
 
-        for layout_id in arrangement.graph.added_nodes:
+        for layout_id in arrangement._graph.added_nodes:
             layout = arrangement.get_entry(layout_id)
 
             if isinstance(layout, LayoutInput):
                 stored_layout = await self._create_layout(layout)
-                arrangement.graph.replace_with_stored(layout_id, stored_layout)
+                arrangement._graph.replace_with_stored(layout_id, stored_layout)
 
-        if arrangement.graph.removed_nodes:
-            await self._delete_layouts(list(arrangement.graph.removed_nodes))
+        if arrangement._graph.removed_nodes:
+            await self._delete_layouts(list(arrangement._graph.removed_nodes))
 
-        for node_id in arrangement.graph.changed_nodes:
+        for node_id in arrangement._graph.changed_nodes:
 
             layout = arrangement.get_layout(node_id)
             if not isinstance(layout, LayoutStored):
@@ -95,8 +95,8 @@ class Neo4jArrangementsRepository(Neo4jControlledRepository):
 
             await self._update_layout(layout)
 
-        await self._create_edges([(*e, arrangement.graph.edges[e]['position']) for e in arrangement.graph.added_edges])
-        await self._delete_edges(arrangement.graph.removed_edges)
+        await self._create_edges([(*e, arrangement._graph.edges[e]['position']) for e in arrangement._graph.added_edges])
+        await self._delete_edges(arrangement._graph.removed_edges)
 
     async def _create_edges(self, edges: Set[Tuple[int, int, int|str|tuple]]):
         if edges:

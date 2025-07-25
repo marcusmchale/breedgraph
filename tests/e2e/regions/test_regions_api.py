@@ -2,7 +2,7 @@ import pytest
 
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
-from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
+from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.regions.post_methods import post_to_countries, post_to_add_location, post_to_regions, post_to_location
 
 @pytest.mark.usefixtures("session_database")
@@ -51,19 +51,25 @@ async def test_extend_region(client, first_user_login_token, basic_ontology):
     else:
         raise NoResultFoundError("Couldn't find the location in children")
 
+
     location_request_response = await post_to_location(client, location_id=child_id, token=first_user_login_token)
     location_payload = get_verified_payload(location_request_response, "location")
     assert location_payload.get('result').get('parent').get('id') == region_root_id
 
-    # assure is not visible to unregistered when query region
-    unregistered_region_request_response = await post_to_location(client, location_id=region_root_id)
-    unregistered_region_payload = get_verified_payload(unregistered_region_request_response, "location")
-    assert not new_name in [i.get('name') for i in unregistered_region_payload.get('result').get('children')]
+    # todo, reconsider access for non registered users, currently requiring authentication on most gql endpoints
+    # we could modify this to
+    ## assure is not visible to unregistered when query region
+    #unregistered_region_request_response = await post_to_location(client, location_id=region_root_id)
+    #import pdb;
+    #pdb.set_trace()
+    #unregistered_region_payload = get_verified_payload(unregistered_region_request_response, "location")
+    #assert not new_name in [i.get('name') for i in unregistered_region_payload.get('result').get('children')]
 
-    # assure is not visible to unregistered when query location
-    unregistered_location_request_response = await post_to_location(client, location_id=child_id)
-    unregistered_location_payload = get_verified_payload(unregistered_location_request_response, "location")
-    assert unregistered_location_payload.get('result') is None
+
+    ## assure is not visible to unregistered when query location
+    #unregistered_location_request_response = await post_to_location(client, location_id=child_id)
+    #unregistered_location_payload = get_verified_payload(unregistered_location_request_response, "location")
+    #assert unregistered_location_payload.get('result') is None
 
 @pytest.mark.asyncio(scope="session")
 async def test_extend_with_private_field(client, first_user_login_token, second_user_login_token, basic_ontology):

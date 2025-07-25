@@ -10,8 +10,8 @@ from src.breedgraph.domain.model.organisations import (
     TeamStored,
     Organisation,
     Access,
-    Authorisation,
-    Affiliation
+    Affiliation,
+    Affiliations
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict, TrackedGraph
@@ -30,14 +30,14 @@ class Neo4jOrganisationsRepository(BaseRepository):
         self.redacted = redacted
 
     async def _create(self, team: TeamInput, *args) -> Organisation:
-        team = await self._create_team(team)
+        team = await self._create_team(team, admin_heritable = True)
         org = Organisation(nodes=[team])
         if self.redacted:
             return org.redacted(self.user_id)
         else:
             return org
 
-    async def _create_team(self, team: TeamInput) -> TeamStored:
+    async def _create_team(self, team: TeamInput, admin_heritable: bool = False) -> TeamStored:
         if self.user_id is None:
             raise UnauthorisedOperationError("User ID required to create a team")
 
@@ -47,7 +47,8 @@ class Neo4jOrganisationsRepository(BaseRepository):
             name=team.name,
             name_lower=team.name.casefold(),
             fullname=team.fullname,
-            admin=self.user_id
+            admin=self.user_id,
+            heritable=admin_heritable
         )
         record: Record = await result.single()
         return self.team_record_to_team(record['team'])
@@ -64,9 +65,10 @@ class Neo4jOrganisationsRepository(BaseRepository):
         await self._set_team_access(team)
 
     async def _set_team_access(self, team: TeamStored|Tracked):
-        for access in team.affiliations.changed.union(team.affiliations.added):
-            for user_id in team.affiliations[access].added.union(team.affiliations[access].changed):
-                affiliation = team.affiliations[access][user_id]
+        for access in team.affiliations.changed:
+            access = Access(access.upper())
+            for user_id in team.affiliations.get_by_access(access).added.union(team.affiliations.get_by_access(access).changed):
+                affiliation = team.affiliations.get_by_access(access)[user_id]
                 await self.tx.run(
                     queries['affiliations'][f'set_{access.casefold()}'],
                     user=user_id,
@@ -74,7 +76,7 @@ class Neo4jOrganisationsRepository(BaseRepository):
                     authorisation=affiliation.authorisation,
                     heritable=affiliation.heritable
                 )
-            for user_id in team.affiliations[access].removed:
+            for user_id in team.affiliations.get_by_access(access).removed:
                 await self.tx.run(
                     queries['affiliations'][f'remove_{access.casefold()}'],
                     user=user_id,
@@ -126,6 +128,7 @@ class Neo4jOrganisationsRepository(BaseRepository):
             teams = [self.team_record_to_team(team) for team in record['organisation']]
             edges = [edge for team in record['organisation'] for edge in team.get('includes', [])]
             org = Organisation(nodes=teams, edges=edges)
+
             if self.redacted:
                 yield org.redacted(self.user_id)
             else:
@@ -139,28 +142,28 @@ class Neo4jOrganisationsRepository(BaseRepository):
         if not organisation.changed:
             return
 
-        for node_id in organisation.graph.added_nodes:
+        for node_id in organisation._graph.added_nodes:
             team = organisation.get_team(node_id)
             if isinstance(team, TeamInput):
                 stored_team = await self._create_team(team)
-                organisation.graph.replace_with_stored(node_id, stored_team)
+                organisation._graph.replace_with_stored(node_id, stored_team)
 
             elif isinstance(team, TeamStored):
                 pass
             else:
                 raise ValueError("Only TeamInput and TeamStored may be added to organisation")
 
-        for node_id in organisation.graph.removed_nodes:
+        for node_id in organisation._graph.removed_nodes:
             await self._delete_team(node_id)
 
-        for node_id in organisation.graph.changed_nodes:
+        for node_id in organisation._graph.changed_nodes:
             team = organisation.get_team(node_id)
             if not isinstance(team, TeamStored):
                 raise ValueError("Can only commit changes to stored teams")
             await self._set_team(team)
 
-        await self._create_edges(organisation.graph.added_edges)
-        await self._delete_edges(organisation.graph.removed_edges)
+        await self._create_edges(organisation._graph.added_edges)
+        await self._delete_edges(organisation._graph.removed_edges)
 
     async def _create_edges(self, edges: Set[tuple[int, int]]):
         if edges:
@@ -172,8 +175,13 @@ class Neo4jOrganisationsRepository(BaseRepository):
 
     @staticmethod
     def team_record_to_team(record) -> TeamStored:
+        affiliations = Affiliations()
         for key, value in record['affiliations'].items():
             record['affiliations'][Access[key]] = {v['id']: Affiliation(authorisation = v['authorisation'], heritable = v['heritable']) for v in value}
+        for access in record['affiliations'].keys():
+            for user_id in record['affiliations'][access]:
+                affiliations.set_by_access(Access(access), user_id, record['affiliations'][access][user_id])
+        record['affiliations'] = affiliations
         return TeamStored(**record)
 
 

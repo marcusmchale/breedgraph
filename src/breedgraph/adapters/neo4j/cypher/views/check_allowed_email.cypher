@@ -1,0 +1,1 @@
+return EXISTS { MATCH (e:Email {address_lower: $email_lower}) }

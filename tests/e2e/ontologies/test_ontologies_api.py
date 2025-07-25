@@ -1,7 +1,7 @@
 import pytest
 
 from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType, AxisType
-from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
+from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.ontologies.post_methods import post_to_add_entry, post_to_get_entries
 
 

@@ -1,7 +1,7 @@
 from ariadne import ObjectType
 
 from src.breedgraph.domain.model.ontology import OntologyOutput
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -15,6 +15,7 @@ ontology_entry = ObjectType("OntologyEntry")
 
 @graphql_query.field("ontology_entries")
 @graphql_payload
+@require_authentication
 async def get_ontology_entries(_, info, name: str = None, label: str = None, version_id: int = None) -> [OntologyOutput]:
     await inject_ontology(info.context, version_id)
     ontology = info.context.get('ontology')

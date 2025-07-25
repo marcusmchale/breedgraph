@@ -1,4 +1,4 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.datasets import (
     AddDataSet,
     AddRecord
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 @graphql_mutation.field("data_add_dataset")
 @graphql_payload
+@require_authentication
 async def add_dataset(
         _,
         info,
@@ -29,6 +30,7 @@ async def add_dataset(
 
 @graphql_mutation.field("data_add_record")
 @graphql_payload
+@require_authentication
 async def add_record(
         _,
         info,

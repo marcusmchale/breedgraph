@@ -1,6 +1,6 @@
 __pycache__
 .pytest_cache
-/instance/
+/instance/envars.sh
 /src/data/
 /venv
 /.idea

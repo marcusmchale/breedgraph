@@ -27,6 +27,12 @@ type TeamsPayload {
     errors: [Error]
 }
 
+type AffiliationsPayload {
+    status: QueryStatus!
+    result: Affiliations
+    errors: [Error]
+}
+
 type TeamPayload {
     status: QueryStatus!
     result: Team

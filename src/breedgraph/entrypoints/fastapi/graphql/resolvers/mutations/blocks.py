@@ -1,4 +1,4 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.blocks import (
     AddUnit,
     AddPosition
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 @graphql_mutation.field("blocks_add_unit")
 @graphql_payload
+@require_authentication
 async def add_unit(
         _,
         info,
@@ -29,6 +30,7 @@ async def add_unit(
 
 @graphql_mutation.field("blocks_add_position")
 @graphql_payload
+@require_authentication
 async def add_position(
         _,
         info,

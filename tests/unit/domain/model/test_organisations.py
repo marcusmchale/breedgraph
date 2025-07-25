@@ -3,7 +3,7 @@ import pytest_asyncio
 
 from src.breedgraph.domain.model.organisations import (
     TeamInput, TeamStored, Organisation,
-    Access, Affiliation, Authorisation
+    Access, Affiliation, Affiliations, Authorisation
 )
 from src.breedgraph.custom_exceptions import IllegalOperationError
 
@@ -13,9 +13,11 @@ def get_team_input(lorem_text_generator) -> TeamInput:
 @pytest_asyncio.fixture
 def root_team(lorem_text_generator) -> TeamStored:
     root_team = get_team_input(lorem_text_generator)
+    affiliations = Affiliations()
+    affiliations.set_by_access(Access.ADMIN, 1, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True))
     return TeamStored(
         id=1,
-        affiliations={Access.ADMIN:{1:Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)}},
+        affiliations=affiliations,
         **dict(root_team)
     )
 
@@ -39,7 +41,7 @@ async def test_get_organisation_root(first_organisation, root_team, first_child_
 
 @pytest.mark.asyncio
 async def test_organisation_root_must_have_heritable_admin(first_organisation, root_team):
-    del root_team.affiliations[Access.ADMIN]
+    root_team.affiliations.admin = dict()
     with pytest.raises(ValueError):
         Organisation(nodes=[root_team])
 

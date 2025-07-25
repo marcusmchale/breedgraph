@@ -18,3 +18,10 @@ class AffiliationApproved(Event):
     user: int
     team: int
     access: str
+
+class PasswordChangeRequested(Event):
+    email: str
+
+class EmailChangeRequested(Event):
+    user: int
+    email: str

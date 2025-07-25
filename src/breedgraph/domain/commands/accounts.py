@@ -1,5 +1,4 @@
 from .base import Command
-from typing import Optional
 
 class AddAccount(Command):
     name: str
@@ -32,6 +31,7 @@ class RequestAffiliation(Command):
     user: int
     team: int
     access: str
+    heritable: bool
 
 class ApproveAffiliation(Command):
     agent: int

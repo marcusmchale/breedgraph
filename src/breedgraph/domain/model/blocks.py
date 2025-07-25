@@ -84,7 +84,7 @@ class Block(ControlledRootedAggregate):
         return super().add_entry(unit, sources)
 
     def get_unit(self, unit_id: int):
-        return self.graph.nodes[unit_id].get('model')
+        return self._graph.nodes[unit_id].get('model')
 
     def set_child(self, source_id: int, sink_id: int):
         self._add_edge(source_id, sink_id)
@@ -98,9 +98,9 @@ class Block(ControlledRootedAggregate):
         :param parents: The nodes in the current graph to set as the parents for the incoming block.
         """
         for parent_id in parents:
-            if not parent_id in self.graph.nodes:
+            if not parent_id in self._graph.nodes:
                 raise ValueError("parent_id must correspond to a node in this graph")
-            self.graph.update(nodes=block.graph.nodes(data=True), edges=block.graph.edges)
+            self._graph.update(nodes=block._graph.nodes(data=True), edges=block._graph.edges)
             self._add_edge(parent_id, block.get_root_id())
 
     def to_output_map(self) -> dict[int, UnitOutput]:
@@ -109,7 +109,7 @@ class Block(ControlledRootedAggregate):
             parents=self.get_parent_ids(node),
             children=self.get_children_ids(node),
             release=self.get_unit(node).controller.release
-        ) for node in self.graph}
+        ) for node in self._graph}
 
     def yield_unit_ids_by_subject(self, subject_id: int) -> Generator[int, None, None]:
         for unit_id, unit in self.entries.items():

@@ -73,23 +73,23 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
             yield Region(nodes=locations, edges=edges)
 
     async def _remove_controlled(self, region: Region) -> None:
-        await self._delete_locations(list(region.graph.nodes.keys()))
+        await self._delete_locations(list(region._graph.nodes.keys()))
 
     async def _update_controlled(self, region: Tracked | Region):
         if not region.changed:
             return
 
-        for location_id in region.graph.added_nodes:
+        for location_id in region._graph.added_nodes:
             location = region.get_entry(location_id)
 
             if isinstance(location, LocationInput):
                 stored_location = await self._create_location(location)
-                region.graph.replace_with_stored(location_id, stored_location)
+                region._graph.replace_with_stored(location_id, stored_location)
 
-        if region.graph.removed_nodes:
-            await self._delete_locations(list(region.graph.removed_nodes))
+        if region._graph.removed_nodes:
+            await self._delete_locations(list(region._graph.removed_nodes))
 
-        for node_id in region.graph.changed_nodes:
+        for node_id in region._graph.changed_nodes:
 
             location = region.get_location(node_id)
             if not isinstance(location, LocationStored):
@@ -97,8 +97,8 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
 
             await self._update_location(location)
 
-        await self._create_edges(region.graph.added_edges)
-        await self._delete_edges(region.graph.removed_edges)
+        await self._create_edges(region._graph.added_edges)
+        await self._delete_edges(region._graph.removed_edges)
 
     async def _create_edges(self, edges: Set[Tuple[int, int]]):
         if edges:

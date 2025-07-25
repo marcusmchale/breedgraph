@@ -77,4 +77,4 @@ class Arrangement(ControlledTreeAggregate):
             parent=self.get_parent_id(node),
             children=self.get_children_ids(node),
             release=self.get_layout(node).controller.release
-        ) for node in self.graph}
+        ) for node in self._graph}

@@ -1,6 +1,7 @@
 from src.breedgraph.config import GQL_API_PATH
 from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType
 from typing import List
+from tests.e2e.utils import with_auth
 
 async def post_to_add_entry(
         client,
@@ -53,7 +54,12 @@ async def post_to_add_entry(
             }
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_get_entries(
         client,
@@ -100,4 +106,9 @@ async def post_to_get_entries(
             "label": label
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

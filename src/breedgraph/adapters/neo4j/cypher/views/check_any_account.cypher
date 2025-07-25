@@ -1,0 +1,1 @@
+return EXISTS { MATCH (u:User) }

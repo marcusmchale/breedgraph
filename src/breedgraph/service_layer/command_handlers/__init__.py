@@ -14,6 +14,7 @@ COMMAND_HANDLERS = {
     commands.accounts.RequestAffiliation: accounts.request_affiliation,
     commands.accounts.ApproveAffiliation: accounts.approve_affiliation,
     commands.accounts.RemoveAffiliation: accounts.remove_affiliation,
+    commands.accounts.RevokeAffiliation: accounts.revoke_affiliation,
     commands.organisations.AddTeam: organisations.add_team,
     commands.organisations.RemoveTeam: organisations.remove_team,
     commands.organisations.UpdateTeam: organisations.edit_team,

@@ -24,8 +24,9 @@ class EmailAddedMessage(Email):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} registration now available'
         self.message.set_content(
-            f'Welcome to {SITE_NAME}. \n'
+            f'Welcome to {SITE_NAME}\n'
             f'You are now able to register with this email address.'
+            f'Visit the following address to get started: {get_base_url()}'
         )
 
 class VerifyEmailMessage(Email):
@@ -33,7 +34,7 @@ class VerifyEmailMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['SUBJECT'] = f'{SITE_NAME} account email verification'
-        verify_url = f'{get_base_url()}/verify'
+        verify_url = f'{get_base_url()}verify'
         body = (
             f'Hi {user.fullname}, \n'
             f'Please visit the following link to verify your email address: \n'
@@ -47,6 +48,24 @@ class VerifyEmailMessage(Email):
             filename='verify_email_token.json'
         )
 
+class ResetPasswordMessage(Email):
+
+    def __init__(self, user: UserBase, token: str):
+        super().__init__()
+        self.message['SUBJECT'] = f'{SITE_NAME} account reset password'
+        reset_url = f'{get_base_url()}reset'
+        body = (
+            f'Hi {user.fullname}, \n'
+            f'Please visit the following link to reset your password address: \n'
+            f'{reset_url + "?token=" + token}'
+        )
+        self.message.set_content(body)
+        self.message.add_attachment(
+            json.dumps({"token": token}).encode('utf-8'),
+            maintype='application',
+            subtype='json',
+            filename='reset_password_token.json'
+        )
 
 class AffiliationRequestedMessage(Email):
 

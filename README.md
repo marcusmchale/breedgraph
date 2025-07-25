@@ -402,6 +402,15 @@ restart to load config
 
     sudo systemctl restart redis.service
 
+### Run with uvicorn
+To test with the uvicorn server, go to the root of the project, import the envars from instance directory and run, e.g.
+  
+    . ./instace/envars.sh
+    uvicorn src.breedgraph.main:app --log-level debug
+
+If you are cloning this project you won't have all the envars provided
+and will need to modify the ./instance/envars_public.sh file 
+to include the required values for neo4j connection, mail hosting and log file creation
 
 ### Notes for developers
   - for testing on community we can only have one active db

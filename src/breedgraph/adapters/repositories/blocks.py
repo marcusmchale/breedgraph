@@ -77,23 +77,23 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
             yield Block(nodes=units, edges=edges)
 
     async def _remove_controlled(self, block: Block) -> None:
-        await self._delete_units(list(block.graph.nodes.keys()))
+        await self._delete_units(list(block._graph.nodes.keys()))
 
     async def _update_controlled(self, block: Tracked | Block):
         if not block.changed:
             return
 
-        for unit_id in block.graph.added_nodes:
+        for unit_id in block._graph.added_nodes:
             unit = block.get_entry(unit_id)
 
             if isinstance(unit, UnitInput):
                 stored_unit = await self._create_unit(unit)
-                block.graph.replace_with_stored(unit_id, stored_unit)
+                block._graph.replace_with_stored(unit_id, stored_unit)
 
-        if block.graph.removed_nodes:
-            await self._delete_units(list(block.graph.removed_nodes))
+        if block._graph.removed_nodes:
+            await self._delete_units(list(block._graph.removed_nodes))
 
-        for node_id in block.graph.changed_nodes:
+        for node_id in block._graph.changed_nodes:
 
             unit = block.get_unit(node_id)
             if not isinstance(unit, UnitStored):
@@ -101,8 +101,8 @@ class Neo4jBlocksRepository(Neo4jControlledRepository):
 
             await self._update_unit(unit)
 
-        await self._create_edges(block.graph.added_edges)
-        await self._delete_edges(block.graph.removed_edges)
+        await self._create_edges(block._graph.added_edges)
+        await self._delete_edges(block._graph.removed_edges)
 
     async def _create_edges(self, edges: Set[Tuple[int, int]]):
         if edges:

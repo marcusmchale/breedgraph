@@ -4,6 +4,7 @@ import bcrypt
 from asgi_lifespan import LifespanManager
 from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
+from itsdangerous import URLSafeTimedSerializer
 from typing import AsyncIterator
 
 from tests.inputs import UserInputGenerator, LoremTextGenerator
@@ -16,6 +17,8 @@ from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.messagebus import MessageBus
 from src.breedgraph.adapters.redis.read_model import ReadModel
 from src.breedgraph.custom_exceptions import IdentityExistsError
+
+from src.breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES
 
 from src.breedgraph.domain.commands.accounts import AddAccount, AddEmail
 from src.breedgraph.domain.commands.organisations import AddTeam
@@ -41,14 +44,36 @@ from src.breedgraph.domain.model.blocks import Block, UnitInput, Position
 
 
 @pytest_asyncio.fixture(scope="session")
+async def csrf_token() -> str:
+    ts = URLSafeTimedSerializer(SECRET_KEY)
+    return ts.dumps(
+        "test_csrf_token",
+        salt=CSRF_SALT
+    )
+
+@pytest_asyncio.fixture(scope="session")
+def csrf_headers(csrf_token) -> dict:
+    return {
+        "X-CSRF-Token": csrf_token,
+        "Cookie": f"csrf_token={csrf_token}"
+    }
+
+
+@pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
     async with LifespanManager(app) as manager:
         yield manager.app
 
+
 @pytest_asyncio.fixture(scope="session")
-async def client(test_app: FastAPI) -> AsyncIterator[AsyncClient]:
+async def client(test_app: FastAPI, csrf_headers: dict) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url=get_base_url()) as client:
+    async with AsyncClient(
+        transport=transport,
+        base_url=get_base_url(),
+        headers=csrf_headers,
+        cookies={}
+    ) as client:
         yield client
 
 @pytest_asyncio.fixture(scope="session")
@@ -92,6 +117,7 @@ async def read_model(bus) -> ReadModel:
 async def session_database(read_model) -> None:
     yield
     # flush db when done
+    #import pdb; pdb.set_trace()
     uow = unit_of_work.Neo4jUnitOfWork()
     async with uow.get_repositories() as uow:
         await uow.tx.run("MATCH (n) DETACH DELETE n")
@@ -171,9 +197,13 @@ async def first_account_with_all_affiliations(bus, first_account, stored_organis
         organisation = await uow.organisations.get(team_id=stored_organisation.get_root_id())
         team = organisation.get_team(stored_organisation.get_root_id())
         for a in Access:
-            team.affiliations[Access[a]][first_account.user.id] = Affiliation(
-                authorisation=Authorisation.AUTHORISED,
-                heritable=False if a == Access.WRITE else True
+            team.affiliations.set_by_access(
+                a,
+                first_account.user.id,
+                Affiliation(
+                    authorisation=Authorisation.AUTHORISED,
+                    heritable=False if a == Access.WRITE else True
+                )
             )
         await uow.commit()
     return first_account

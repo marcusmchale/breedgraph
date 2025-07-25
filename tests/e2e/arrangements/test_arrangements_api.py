@@ -6,7 +6,7 @@ from tests.conftest import lorem_text_generator
 from tests.e2e.arrangements.post_methods import post_to_add_layout, post_to_arrangements, post_to_layout
 
 from tests.e2e.ontologies.post_methods import post_to_add_entry, post_to_get_entries
-from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
+from tests.e2e.utils import get_verified_payload, assert_payload_success
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
@@ -39,6 +39,7 @@ async def test_create_layout(
     assert_payload_success(add_payload)
 
     arrangements_request_response = await post_to_arrangements(client, token=first_user_login_token)
+
     arrangements_payload = get_verified_payload(arrangements_request_response, "arrangements")
     assert arrangements_payload.get('result')[0].get('name') == layout_name
 

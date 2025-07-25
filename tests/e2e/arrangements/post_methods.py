@@ -1,4 +1,5 @@
 from src.breedgraph.config import GQL_API_PATH
+from tests.e2e.utils import with_auth
 
 async def post_to_add_layout(
     client,
@@ -23,7 +24,12 @@ async def post_to_add_layout(
             "layout": layout
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_arrangements(client, location_id: int=None, token:str = None):
     json = {
@@ -53,11 +59,12 @@ async def post_to_arrangements(client, location_id: int=None, token:str = None):
             "location_id": location_id
         }
     }
-    if token:
-        headers={"token":token}
-    else:
-        headers=None
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers=headers)
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_layout(client, layout_id: int, token:str = None):
@@ -88,8 +95,9 @@ async def post_to_layout(client, layout_id: int, token:str = None):
             "layout_id": layout_id,
         }
     }
-    if token:
-        headers={"token":token}
-    else:
-        headers=None
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers=headers)
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

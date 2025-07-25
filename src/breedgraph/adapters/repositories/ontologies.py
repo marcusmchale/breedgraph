@@ -218,48 +218,48 @@ class Neo4jOntologyRepository(BaseRepository):
             return
 
         if any([
-            ontology.graph.added_nodes,
-            ontology.graph.removed_nodes,
-            ontology.graph.changed_nodes and any([
+            ontology._graph.added_nodes,
+            ontology._graph.removed_nodes,
+            ontology._graph.changed_nodes and any([
                 entry['model'].changed.intersection(self.material_changes) for entry in
-                [ontology.graph.nodes[i] for i in ontology.graph.changed_nodes]
+                [ontology._graph.nodes[i] for i in ontology._graph.changed_nodes]
             ])
         ]):
             await self._fork_version(ontology, version_change=VersionChange.MINOR)
         else:
             await self._fork_version(ontology, version_change=VersionChange.PATCH)
 
-        for entry_id in ontology.graph.added_nodes:
+        for entry_id in ontology._graph.added_nodes:
             _, entry = ontology.get_entry(entry_id)
             if entry_id < 0:
                 stored_entry = await self._create_entry(entry, ontology.version.id)
-                ontology.graph.replace_with_stored(entry_id, stored_entry)
+                ontology._graph.replace_with_stored(entry_id, stored_entry)
             else:
                 # todo this will be needed to support restoring an entry from an earlier version of the ontology
                 raise NotImplementedError
 
-        for entry_id in ontology.graph.changed_nodes:
+        for entry_id in ontology._graph.changed_nodes:
             _, entry = next(ontology.get_entries(entry_id))
 
             if entry.changed.intersection(self.material_changes):
                 await self._remove_entry(entry, ontology.version.id)
                 stored_entry = await self._create_entry(entry, ontology.version.id)
-                ontology.graph.replace_with_stored(entry_id, stored_entry)
+                ontology._graph.replace_with_stored(entry_id, stored_entry)
             else:
                 await self._update_entry(entry)
 
-        for entry_id, entry in ontology.graph.removed_nodes:
+        for entry_id, entry in ontology._graph.removed_nodes:
             if entry_id >= 0:
                 await self._remove_entry(entry, ontology.version.id)
 
-        for edge in ontology.graph.added_edges:
-            edge_data = ontology.graph.edges[edge]
+        for edge in ontology._graph.added_edges:
+            edge_data = ontology._graph.edges[edge]
             edge_label = edge_data.get('label')
             edge_rank = edge_data.get('rank')
             await self._create_edge(version=ontology.version.id, source_id=edge[0], sink_id=edge[1], label=edge_label, rank=edge_rank)
 
-        for edge in ontology.graph.removed_edges:
-            edge_data = ontology.graph.edges[edge]
+        for edge in ontology._graph.removed_edges:
+            edge_data = ontology._graph.edges[edge]
             edge_label = edge_data.get('label')
             await self._remove_edge(version=ontology.version.id, source_id=edge[0], sink_id=edge[1], label=edge_label)
 

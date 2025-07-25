@@ -1,15 +1,13 @@
 from ariadne import ObjectType
 
-from src.breedgraph.domain.model.arrangements import LayoutOutput
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
-
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
     inject_ontology
 )
-
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
+from src.breedgraph.domain.model.arrangements import LayoutOutput
 from typing import List
 
 import logging
@@ -19,6 +17,7 @@ layout = ObjectType("Layout")
 
 @graphql_query.field("arrangements")
 @graphql_payload
+@require_authentication
 async def get_arrangements(_, info, location_id: int|None = None) -> List[LayoutOutput]:
     await update_layouts_map(info.context, location_id)
     layouts_map = info.context.get('layouts_map')
@@ -27,6 +26,7 @@ async def get_arrangements(_, info, location_id: int|None = None) -> List[Layout
 
 @graphql_query.field("layout")
 @graphql_payload
+@require_authentication
 async def get_layout(_, info, layout_id: int) -> LayoutOutput:
     await update_layouts_map(info.context, layout_id=layout_id)
     layouts_map = info.context.get('layouts_map')

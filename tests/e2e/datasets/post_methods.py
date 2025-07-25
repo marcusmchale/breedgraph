@@ -1,4 +1,5 @@
 from src.breedgraph.config import GQL_API_PATH
+from tests.e2e.utils import with_auth
 
 async def post_to_add_dataset(client, token:str, term: int):
     json={
@@ -19,7 +20,12 @@ async def post_to_add_dataset(client, token:str, term: int):
             "term": term
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 
 async def post_to_add_record(client, token:str, record: dict):
@@ -41,7 +47,12 @@ async def post_to_add_record(client, token:str, record: dict):
             "record": record
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
 
 async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, term_id: int|None = None):
     json={
@@ -70,4 +81,9 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, t
 
         }
     }
-    return await client.post(f"{GQL_API_PATH}/", json=json, headers={"token":token})
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

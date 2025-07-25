@@ -78,7 +78,6 @@ class Neo4jAccountRepository(BaseRepository):
         team_ids = kwargs.get('team_ids')
         access_types = kwargs.get('access_types')
         authorisations = kwargs.get('authorisations')
-
         if not any([team_ids, access_types, authorisations]):
             if user_ids:
                 result = await self.tx.run(queries['accounts']['get_accounts'], user_ids = user_ids)
@@ -106,6 +105,14 @@ class Neo4jAccountRepository(BaseRepository):
                     access_types=[a for a in access_types],
                     authorisations=[a for a in authorisations]
                 )
+        async for record in result:
+            yield self.record_to_account(record)
+
+    async def get_all_by_allowed_email(self, email: str) -> AsyncGenerator[AccountStored,None]:
+        result: AsyncResult = await self.tx.run(
+            queries['accounts']['get_accounts_by_allowed_email'],
+            email_lower=email.casefold()
+        )
         async for record in result:
             yield self.record_to_account(record)
 

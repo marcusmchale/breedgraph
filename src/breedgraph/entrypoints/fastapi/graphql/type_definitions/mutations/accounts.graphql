@@ -12,10 +12,13 @@ extend type Mutation {
         password: String
     ): BooleanPayload!,
     verify_email(token: String!): BooleanPayload!
+    request_password_reset(email:String!): BooleanPayload
+    reset_password(token: String!, password: String!): BooleanPayload!
     login(
         username: String!
         password: String!
-    ): LoginPayload!
+    ): BooleanPayload!
+    logout: BooleanPayload!,
     add_email(
         email: String!
     ): BooleanPayload!
@@ -25,6 +28,7 @@ extend type Mutation {
     request_affiliation(
         team: Int!
         access: Access!
+        heritable: Boolean
     ): BooleanPayload!
     approve_affiliation(
         user: Int!

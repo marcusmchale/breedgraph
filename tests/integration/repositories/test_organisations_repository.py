@@ -37,7 +37,7 @@ async def test_create_extend_and_get_organisation(neo4j_tx, user_input_generator
     await organisations_repo.update_seen()
 
     # get child id
-    child_id = list(organisation.graph.successors(organisation.root.id))[0]
+    child_id = list(organisation._graph.successors(organisation.root.id))[0]
     # retrieve from db to ensure new team is now stored as child with ID
     retrieved_from_child_id = await organisations_repo.get(team_id=child_id)
     assert retrieved_from_child_id.root.id == organisation.root.id
@@ -124,10 +124,11 @@ async def test_remove_team(neo4j_tx, user_input_generator, stored_account):
     new_team_input = await create_team_input(user_input_generator)
     organisation.add_team(new_team_input, parent_id=organisation.root.id)
     await organisations_repo.update_seen()
+
     with pytest.raises(IllegalOperationError):
-        organisation._remove_nodes([organisation.root.id])
-    child_id = list(organisation.graph.successors(organisation.root.id))[0]
-    organisation._remove_nodes(child_id)
+        organisation.remove_team(organisation.root.id)
+    child_id = list(organisation._graph.successors(organisation.root.id))[0]
+    organisation.remove_team(child_id)
     assert organisation.size == 1
     await organisations_repo.update_seen()
     retrieved = await organisations_repo.get(team_id=organisation.root.id)
@@ -166,8 +167,8 @@ async def test_move_team_without_cycles(neo4j_tx, user_input_generator, stored_a
     await organisations_repo.update_seen()
 
     retrieved_from_root_id = await organisations_repo.get(team_id=organisation.root.id)
-    assert second_team.id in retrieved_from_root_id.graph.successors(organisation.root.id)
-    assert third_team.id in retrieved_from_root_id.graph.successors(second_team.id)
+    assert second_team.id in retrieved_from_root_id._graph.successors(organisation.root.id)
+    assert third_team.id in retrieved_from_root_id._graph.successors(second_team.id)
 
 @pytest.mark.asyncio(scope="session")
 async def test_split_and_merge_organisation(neo4j_tx, user_input_generator, stored_account):
@@ -181,7 +182,7 @@ async def test_split_and_merge_organisation(neo4j_tx, user_input_generator, stor
     await organisations_repo.update_seen()
 
     third_team = organisation.get_team(third_team_input.name)
-    organisation.graph.remove_edge(organisation.root.id, third_team.id)
+    organisation.split(third_team.id)
     await organisations_repo.update_seen()
 
     old_org = await organisations_repo.get(team_id=organisation.root.id)

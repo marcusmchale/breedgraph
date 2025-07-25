@@ -2,7 +2,9 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from src.breedgraph import config
 from src.breedgraph.service_layer import unit_of_work
-from src.breedgraph.domain import commands
+from src.breedgraph.domain import commands, events
+from src.breedgraph import views
+
 from src.breedgraph.domain.model.accounts import (
     UserInput, UserStored,
     AccountInput, AccountStored
@@ -27,37 +29,26 @@ async def add_account(
         cmd: commands.accounts.AddAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
+    # First use views to quickly check if any accounts exist
+    if await views.accounts.check_any_account(uow):
+        # And if the email is included in the allowed emails of some other account
+        if not await views.accounts.check_allowed_email(uow, cmd.email):
+            raise UnauthorisedOperationError("Please contact an existing user to be invited")
+
     async with uow.get_repositories() as uow:
-        # Registration email must be included in the allowed emails of some other account
-        # unless no accounts exist yet
-        first_account = True
-        if await uow.accounts.get():
-            first_account = False
-
-        # todo create a view for allowed emails
-        async for account in uow.accounts.get_all(
-                # todo, consider restricting invites to admins
-                # though this would requires a team affiliation so breaks the early registration workflow
-                #access_types=[Access.ADMIN],
-                #authorisations=[Authorisation.AUTHORISED]
-        ):
-            account: AccountStored
-            if cmd.email.casefold() in [i.casefold() for i in account.allowed_emails]:
-                break
-        else:
-            if not first_account:
-                raise UnauthorisedOperationError("Email is not allowed")
-
         # Check for accounts with same email but not verified
         existing_email: AccountStored = await uow.accounts.get(email=cmd.email)
-
         if existing_email is not None:
+            # and if it exists but isn't verified
             if not existing_email.user.email_verified:
+                # then allow removing the old one to replace it with the current registration attempt
+                logger.debug("Removing an unverified account to replace it with a new one")
                 await uow.accounts.remove(existing_email)
             else:
+                # but if it is verified then raise an error
                 raise UnauthorisedOperationError("This email address is already registered and verified")
 
-        # Check for accounts And whether the name is already taken
+        # Check for accounts with the same username. These should be unique
         existing_name: AccountStored = await uow.accounts.get(name=cmd.name)
         if existing_name is not None:
             raise IdentityExistsError(f"Username already taken")
@@ -83,8 +74,9 @@ async def edit_user(
             account.user.name = cmd.name
         if cmd.fullname is not None:
             account.user.fullname = cmd.fullname
-        if cmd.email is not None:
-            account.user.email = cmd.email
+        if cmd.email is not None and cmd.email != account.user.email:
+            # Don't change the email, but initiate the request event
+            account.events.append(events.accounts.EmailChangeRequested(user=account.user.id, email=cmd.email))
         if cmd.password_hash is not None:
             account.user.password_hash = cmd.password_hash
         await uow.commit()
@@ -98,7 +90,10 @@ async def verify_email(
         ts = URLSafeTimedSerializer(config.SECRET_KEY)
 
         try:
-            user_id = ts.loads(cmd.token, salt=config.VERIFY_TOKEN_SALT, max_age=config.TOKEN_EXPIRES_MINUTES * 60)
+            data = ts.loads(cmd.token, salt=config.VERIFY_TOKEN_SALT, max_age=config.VERIFY_EXPIRES * 60)
+            user_id = data['user_id']
+            email = data['email']
+
         except SignatureExpired as e:
             logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
             raise UnauthorisedOperationError("This token has expired")
@@ -107,6 +102,11 @@ async def verify_email(
         if account is None:
             raise NoResultFoundError
 
+        existing_email: AccountStored = await uow.accounts.get(email=email)
+        if existing_email is not None and existing_email.user.email_verified:
+            raise IdentityExistsError("This email address is already verified on another account")
+
+        account.user.email = email
         account.verify_email()
 
         # now remove allowed emails and establish the ALLOWED_REGISTRATION relationship
@@ -156,7 +156,13 @@ async def request_affiliation(
 ):
     async with uow.get_repositories(user_id=cmd.user) as uow:
         organisation = await uow.organisations.get(team_id=cmd.team)
-        organisation.request_affiliation(agent_id=cmd.user, user_id=cmd.user, team_id=cmd.team, access=cmd.access)
+        organisation.request_affiliation(
+            agent_id=cmd.user,
+            user_id=cmd.user,
+            team_id=cmd.team,
+            access=Access(cmd.access),
+            heritable=cmd.heritable
+        )
         await uow.commit()
 
 async def approve_affiliation(
@@ -169,7 +175,7 @@ async def approve_affiliation(
             agent_id = cmd.agent,
             team_id = cmd.team,
             user_id = cmd.user,
-            access=cmd.access,
+            access=Access(cmd.access),
             heritable=cmd.heritable
         )
         await uow.commit()
@@ -184,7 +190,7 @@ async def remove_affiliation(
             agent_id = cmd.agent,
             team_id = cmd.team,
             user_id = cmd.user,
-            access=cmd.access
+            access=Access(cmd.access)
         )
         await uow.commit()
 
@@ -198,6 +204,6 @@ async def revoke_affiliation(
             agent_id = cmd.agent,
             team_id = cmd.team,
             user_id = cmd.user,
-            access=cmd.access
+            access=Access(cmd.access)
         )
         await uow.commit()

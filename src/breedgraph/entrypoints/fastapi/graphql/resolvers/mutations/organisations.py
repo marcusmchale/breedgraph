@@ -1,8 +1,7 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.organisations import (
     AddTeam, RemoveTeam, UpdateTeam
 )
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
 from typing import Optional
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 @graphql_mutation.field("add_team")
 @graphql_payload
+@require_authentication
 async def add_team(
         _,
         info,
@@ -20,9 +20,6 @@ async def add_team(
         parent: Optional[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     logger.debug(f"User {user_id} adds team: {name}")
     cmd = AddTeam(
         user=user_id,
@@ -35,15 +32,13 @@ async def add_team(
 
 @graphql_mutation.field("remove_team")
 @graphql_payload
+@require_authentication
 async def remove_team(
         _,
         info,
         team: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     logger.debug(f"User {user_id} removes team: {team}")
     cmd = RemoveTeam(
         user=user_id,
@@ -54,6 +49,7 @@ async def remove_team(
 
 @graphql_mutation.field("edit_team")
 @graphql_payload
+@require_authentication
 async def edit_team(
         _,
         info,
@@ -62,8 +58,6 @@ async def edit_team(
         fullname: str|None = None
 ) -> bool:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {user_id} edits team: {team}")
     cmd = UpdateTeam(

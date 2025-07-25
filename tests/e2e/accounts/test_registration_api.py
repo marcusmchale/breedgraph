@@ -2,7 +2,7 @@ import pytest
 
 from src.breedgraph.config import SITE_NAME
 
-from tests.e2e.payload_helpers import get_verified_payload, assert_payload_success
+from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.accounts.post_methods import (
     post_to_add_account,
     post_to_verify_email,
@@ -18,7 +18,7 @@ from tests.e2e.organisations.post_methods import (
     post_to_team,
     post_to_organisations
 )
-
+import logging
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
 from tests.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
@@ -44,7 +44,6 @@ async def test_first_user_register_verify_login(client, user_input_generator):
     )
     assert_payload_success(get_verified_payload(response, "add_account"))
     await check_verify_email(client, first_user_input['email'], first_user_input['name'])
-
     login_response = await post_to_login(
         client,
         first_user_input["name"],
@@ -62,6 +61,7 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
         first_user_login_token,
         second_user_input["email"]
     )
+    logging.debug(f"Using login token {first_user_login_token} to invite {second_user_input['email']}")
     invite_payload = get_verified_payload(invite_response, "add_email")
     assert_payload_success(invite_payload)
     assert await confirm_email_delivered(
@@ -77,7 +77,6 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
     )
     register_payload = get_verified_payload(register_response, "add_account")
     assert_payload_success(register_payload)
-
     await check_verify_email(client, second_user_input['email'], second_user_input['name'])
 
 @pytest.mark.asyncio(scope="session")
