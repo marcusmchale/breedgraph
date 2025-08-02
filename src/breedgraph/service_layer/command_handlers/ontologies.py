@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def add_ontology_entry(
-        cmd: commands.ontologies.AddOntologyEntry,
+        cmd: commands.ontologies.CreateOntologyEntry,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     kwargs = cmd.model_dump()

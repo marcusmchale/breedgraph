@@ -1,11 +1,11 @@
 extend type Mutation {
-    add_account(
+    create_account(
         name: String!
         fullname: String
         email: String!
         password: String!
     ): BooleanPayload!
-    edit_user(
+    update_user(
         name: String,
         fullname: String,
         email: String,

@@ -4,6 +4,8 @@ from ariadne import (
     load_schema_from_path,
     snake_case_fallback_resolvers
 )
+
+from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers import (
     graphql_query,
     graphql_mutation,
@@ -18,7 +20,9 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers import (
     unit,
     dataset,
     record,
-    datetime_scalar
+    datetime_scalar,
+    program, trial, study,
+    controller, control, write_stamp
 )
 
 # logging
@@ -47,6 +51,9 @@ def create_graphql_schema():
         unit,
         dataset,
         record,
+        program, trial, study,
+        controller, control, write_stamp,
+        EnumType("ReadRelease", ReadRelease),
         datetime_scalar,
         snake_case_fallback_resolvers
         # access_level

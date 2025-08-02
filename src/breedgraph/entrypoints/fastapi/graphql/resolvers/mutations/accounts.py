@@ -3,7 +3,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from src.breedgraph import config
 from src.breedgraph.domain.commands.accounts import (
-    AddAccount,
+    CreateAccount,
     UpdateUser,
     Login,
     VerifyEmail,
@@ -24,9 +24,9 @@ from src.breedgraph.config import LOGIN_EXPIRES
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("add_account")
+@graphql_mutation.field("create_account")
 @graphql_payload
-async def add_account(
+async def create_account(
         _,
         info,
         name: str,
@@ -39,7 +39,7 @@ async def add_account(
     # it is concatenated into the hash then encoded in a modified base64
     # so we can just store the hash in db
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    cmd = AddAccount(
+    cmd = CreateAccount(
         name=name,
         fullname=fullname,
         password_hash=password_hash,
@@ -148,10 +148,10 @@ async def logout(_, info) -> bool:
     return True
 
 
-@graphql_mutation.field("edit_user")
+@graphql_mutation.field("update_user")
 @graphql_payload
 @require_authentication
-async def edit_user(
+async def update_user(
         _,
         info,
         name: str|None = None,

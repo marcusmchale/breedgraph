@@ -1,6 +1,6 @@
 from .base import Command
 
-class AddAccount(Command):
+class CreateAccount(Command):
     name: str
     fullname: str|None = None
     email: str

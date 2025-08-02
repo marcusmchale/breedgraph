@@ -2,7 +2,7 @@ from .base import Command
 
 from typing import List
 
-class AddOntologyEntry(Command):
+class CreateOntologyEntry(Command):
     user: int
     label: str
     name: str

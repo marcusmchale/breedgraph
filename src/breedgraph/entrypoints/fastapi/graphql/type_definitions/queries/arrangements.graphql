@@ -7,5 +7,5 @@ type Layout {
     """Position within parent layout"""
     position: [String]
     children: [Layout]
-    release: Release
+    release: ReadRelease
 }

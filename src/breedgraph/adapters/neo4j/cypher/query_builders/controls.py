@@ -1,60 +1,78 @@
 from src.breedgraph.domain.model.controls import ControlledModel
+from typing import Dict
 
-def record_write(label:str, plural:str, ):
+_plurals_cache: Dict[str, str] = {}
+
+def get_plurals() -> Dict[str, str]:
+    """Get plurals dictionary, ensuring all ControlledModel subclasses are loaded"""
+    global _plurals_cache
+
+    if not _plurals_cache:
+        # Import all model modules to ensure subclasses are loaded
+        try:
+            from src.breedgraph.domain.model import (
+                programs, arrangements, germplasm, people,
+                references, regions, blocks, datasets
+            )
+        except ImportError:
+            pass  # Some modules might not exist or have import issues
+
+        # Now get all subclasses
+        def get_all_subclasses(cls):
+            all_subclasses = set()
+            for subclass in cls.__subclasses__():
+                all_subclasses.add(subclass)
+                all_subclasses.update(get_all_subclasses(subclass))
+            return all_subclasses
+
+        all_controlled_models = get_all_subclasses(ControlledModel)
+        _plurals_cache = {
+            m.label: m.plural for m in all_controlled_models
+            if hasattr(m, 'label') and hasattr(m, 'plural')
+        }
+
+    return _plurals_cache
+
+def set_controls(label:str):
+    plurals = get_plurals()
     return f"""
-        MATCH (entity: {label} {{id: $entity_id}})
-        MATCH (user:User {{id: $user_id}})
-        MERGE (user)-[:CONTRIBUTED]->(uc:User{plural})
-        MERGE (uc)-[contributed:CONTRIBUTED {{time: datetime.transaction()}}]->(entity)
-        return user.id as user, contributed.time as time
-    """
-
-def create_control(label:str, plural:str):
-    return f"""
-        MATCH (entity: {label} {{id: $entity_id}})
-        MATCH (control_team:Team {{id: $team_id}})
-        MERGE (control_team)-[:CONTROLS]->(tp:Team{plural})
-        MERGE (tp)-[control:CONTROLS]->(entity)
-        ON CREATE SET control.release = $release, control.time = datetime.transaction()
-        RETURN control
-    """
-
-def get_controller(label:str, plural:str):
-    return f"""
-        MATCH (entity: {label} {{id: $entity_id}})
-        RETURN
-            [(entity)<-[controls:CONTROLS]-(:Team{plural})<-[:CONTROLS]-(team:Team) |
-            {{team: team.id, release: controls.release, time: controls.time}}] as controls,
-            [(entry)<-[write:CONTRIBUTED]-(:User{plural})<-[:CONTRIBUTED]-(user:User) |
-            {{user:user.id, time: write.time}}] as writes
-   """
-
-
-
-
-def set_control(label:str, plural:str):
-    if not (label, plural) in  [(i.label, i.plural) for i in ControlledModel.__subclasses__()]:
-        raise ValueError("Only controlled entity labels can be used")
-
-    query = f"""
-        MATCH (entity: {label} {{id: $entity_id}})
-        MATCH (team:Team {{id:$team_id}})
-        MERGE (team)-[:CONTROLS]->(tp:Team{plural})
+        MATCH (control_team:Team) WHERE control_team.id in $team_ids
+        MERGE (control_team)-[:CONTROLS]->(tp:Team{plurals[label]})
+        WITH tp
+        MATCH (entity: {label}) WHERE entity.id in $entity_ids
         MERGE (tp)-[controls:CONTROLS]->(entity)
-        ON CREATE SET controls.time = datetime.transaction()
         SET controls.release = $release
+        SET controls.time = datetime.transaction()
     """
-    return query
 
-
-def remove_control(label:str, plural:str):
-    if not (label, plural) in  [(i.label, i.plural) for i in ControlledModel.__subclasses__()]:
-        raise ValueError("Only controlled entity labels can be used")
-
-    query = f"""
-        MATCH (: {label} {{id: $entity_id}})
-        <-[controls:CONTROLS]-(:Team{plural})
-        <-[:CONTROLS]-(:Team {{id:$team_id}})
+def remove_controls(label:str):
+    plurals = get_plurals()
+    return f"""
+        MATCH (: {label})
+        <-[controls:CONTROLS]-(:Team{plurals[label]})
+        <-[:CONTROLS]-(control_team:Team)
+        WHERE control_team.id in $team_ids AND entity.id in $entity_ids
         DELETE controls
     """
-    return query
+
+def record_writes(label:str):
+    plurals = get_plurals()
+    return f"""
+        MATCH (user:User {{id: $user_id}})
+        MERGE (user)-[:CONTRIBUTED]->(uc:User{plurals[label]})
+        WITH user, uc
+        MATCH (entity: {label}) WHERE entity.id in $entity_ids
+        MERGE (uc)-[contributed:CONTRIBUTED {{time: datetime.transaction()}}]->(entity)
+    """
+
+def get_controllers(label:str):
+    plurals = get_plurals()
+    return f"""
+        MATCH (entity: {label} ) WHERE entity.id in $entity_ids
+        RETURN
+            entity.id as entity_id,
+            [(entity)<-[controls:CONTROLS]-(:Team{plurals[label]})<-[:CONTROLS]-(team:Team) |
+            {{team: team.id, release: controls.release, time: controls.time}}] as controls,
+            [(entry)<-[write:CONTRIBUTED]-(:User{plurals[label]})<-[:CONTRIBUTED]-(user:User) |
+            {{user:user.id, time: write.time}}] as writes
+   """

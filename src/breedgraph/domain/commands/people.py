@@ -2,8 +2,7 @@ from .base import Command
 
 from typing import List
 
-class AddPerson(Command):
-
+class CreatePerson(Command):
     submitting_user: int
 
     name: str
@@ -23,10 +22,6 @@ class AddPerson(Command):
     roles: List[int]|None = None
     titles: List[int]|None = None
 
-class RemovePerson(Command):
-
-    submitting_user: int
-    person_id: int
 
 class UpdatePerson(Command):
     submitting_user: int
@@ -47,3 +42,8 @@ class UpdatePerson(Command):
     locations: List[int]|None = None
     roles: List[int]|None = None
     titles: List[int]|None = None
+
+
+class DeletePerson(Command):
+    submitting_user: int
+    person_id: int

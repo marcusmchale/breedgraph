@@ -46,6 +46,7 @@ class ReadModel:
             if country_json.get('id'):
                 yield LocationStored(**country_json)
             else:
+
                 yield LocationInput.model_validate_json(country.decode("utf-8"))
 
     #async def add_email(self, email: str):

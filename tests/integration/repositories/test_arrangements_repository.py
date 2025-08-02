@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 
 from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput, LayoutStored
+from src.breedgraph.domain.model.controls import Access
 
 from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsRepository
 
@@ -9,6 +10,7 @@ from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsR
 @pytest.mark.asyncio(scope="session")
 async def test_create_row_arrangement(
         neo4j_tx,
+        test_controllers_service,
         stored_account,
         stored_organisation,
         read_model,
@@ -17,9 +19,12 @@ async def test_create_row_arrangement(
 ):
     repo = Neo4jArrangementsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: {stored_organisation.root.id},
+            Access.WRITE: {stored_organisation.root.id},
+        }
     )
 
     row_layout_input = LayoutInput(type=row_layout_type.id, location=field_location.id)
@@ -37,6 +42,7 @@ async def test_create_row_arrangement(
 @pytest.mark.asyncio(scope="session")
 async def test_extend_row_with_grid(
         neo4j_tx,
+        test_controllers_service,
         stored_account,
         stored_organisation,
         grid_layout_type,
@@ -44,9 +50,12 @@ async def test_extend_row_with_grid(
 ):
     repo = Neo4jArrangementsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: {stored_organisation.root.id},
+            Access.WRITE: {stored_organisation.root.id},
+        }
     )
     arrangement = await anext(repo.get_all())
     grid_layout_input_1 = LayoutInput(type=grid_layout_type.id, location=field_location.id)

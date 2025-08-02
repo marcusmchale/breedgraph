@@ -8,11 +8,11 @@ from asyncio import CancelledError
 
 from neo4j import AsyncDriver, AsyncTransaction, AsyncSession
 
-from src.breedgraph import views
-
 from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from src.breedgraph.domain.events import Event
 from src.breedgraph.domain.model.controls import ReadRelease, Access
+
+from src.breedgraph.service_layer.controllers_service import Neo4jControllersService
 
 from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsRepository
 from src.breedgraph.adapters.repositories.base import BaseRepository
@@ -100,26 +100,22 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             tx: AsyncTransaction,
             user_id: int = None,
             redacted: bool = True,
-            read_teams: Set[int] = None,
-            write_teams: Set[int] = None,
-            admin_teams: Set[int] = None,
-            curate_teams: Set[int] = None,
+            access_teams: dict[Access: Set[int]] = None,
             release: ReadRelease = ReadRelease.PRIVATE
     ):
         self.tx = tx
-        self.accounts = Neo4jAccountRepository(self.tx)
+        self.accounts = Neo4jAccountRepository(self.tx)  # control account security ad hoc?
         self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=user_id, redacted=redacted)
         self.ontologies = Neo4jOntologyRepository(self.tx)
+
+        self.controllers_service = Neo4jControllersService(self.tx)
         # The below are controlled repositories so require account read/write/curate/admin teams
         # and the default release for new entries
         repo_params = {
+            'controllers_service': self.controllers_service,
             'tx': self.tx,
             'user_id': user_id,
-            'redacted': redacted,
-            'read_teams':read_teams,
-            'write_teams': write_teams,
-            'curate_teams': curate_teams,
-            'admin_teams': admin_teams,
+            'access_teams': access_teams,
             'release': release
         }
         self.arrangements = Neo4jArrangementsRepository(**repo_params)
@@ -188,12 +184,13 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
 
-        if user_id is not None:
-            access_teams = await views.accounts.access_teams(uow=self, user=user_id)
+        if user_id is None:
+            access_teams = {key: [] for key in Access}
         else:
-            access_teams = {'read_teams': [], 'write_teams': [], 'curate_teams': [], 'admin_teams': []}
+            async with self.get_views() as views_holder:
+                access_teams = await views_holder.access_teams(user=user_id)
 
-        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, redacted=redacted, release=release, **access_teams)
+        repo_holder = Neo4jRepoHolder(tx=tx, user_id=user_id, redacted=redacted, release=release, access_teams=access_teams)
         try:
             yield repo_holder
         finally:

@@ -1,9 +1,9 @@
-from typing import List, ClassVar, Set
+from typing import List, ClassVar, Set, Dict
 
 from pydantic import Field
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel
 from src.breedgraph.domain.model.time_descriptors import PyDT64
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, ReadRelease
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, ReadRelease, Controller
 
 
 class DataRecordBase(LabeledModel):
@@ -70,12 +70,17 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         if self.records:
             return "DataSet with records may not be removed"
+        return None
 
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ControlledAggregate|None':
-        if read_teams is None:
-            read_teams = set()
+    def redacted(
+            self,
+            controllers: Dict[str, Dict[int, Controller]],
+            user_id: int = None,
+            read_teams: Set[int] = None
+    ) -> 'ControlledAggregate|None':
 
-        if self.controller.has_access(Access.READ, user_id, read_teams):
+        controller = controllers[self.label][self.id]
+        if controller.has_access(Access.READ, user_id, read_teams):
             return self
 
         else:
@@ -89,8 +94,7 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
                 return redacted
 
     def to_output(self):
-        return DataSetOutput(**self.model_dump(), release=self.controller.release)
+        return DataSetOutput(**self.model_dump())
 
 class DataSetOutput(DataSetBase):
     id: int
-    release: ReadRelease

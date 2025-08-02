@@ -6,6 +6,7 @@ from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.controls import Access
 from .base import AbstractViewsHolder
 
+from typing import Dict, Set
 
 class Neo4jViewsHolder(AbstractViewsHolder):
     def __init__(self, session: AsyncSession):
@@ -24,12 +25,13 @@ class Neo4jViewsHolder(AbstractViewsHolder):
         record = await result.single()
         return record.value()
 
-    async def access_teams(self, user: int) -> dict[Access, list[int]]:
+    async def access_teams(self, user: int) -> Dict[Access, Set[int]]:
         result: AsyncResult = await self.session.run(queries['views']['get_access_teams'], user=user)
         record = await result.single()
         if record is None:
             raise ValueError("User not found")
-        return record.get('access_teams')
+        access_teams = {Access(key): set(value) for key, value in record.get('access_teams').items()}
+        return access_teams
 
     async def users(self, user: int) -> AsyncGenerator[UserOutput, None]:
         result: AsyncResult = await self.session.run(queries['views']['get_users'], user=user)

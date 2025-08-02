@@ -1,27 +1,31 @@
 import networkx as nx
 import copy
 
-from abc import ABC, abstractmethod
-from pydantic import BaseModel, RootModel, Field, ValidationError, ValidationInfo, field_validator, SerializeAsAny
-from enum import IntEnum
+from abc import abstractmethod
+from pydantic import BaseModel, Field, ValidationError, field_validator
+from enum import Enum
 from datetime import datetime
 from neo4j.time import DateTime as Neo4jDateTime
 
-from typing import Dict, List, Callable, Any, ClassVar, Set, Type
-
+from typing import Dict, List, ClassVar, Set, Type
 
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.base import Aggregate, StoredModel, RootedAggregate, TreeAggregate
+from src.breedgraph.custom_exceptions import IllegalOperationError
 
-
-class ReadRelease(IntEnum):
-    PRIVATE = 0  # accessible only to users with an authorised affiliation to the controller
-    REGISTERED = 1 # accessible to any registered user
-    PUBLIC = 2  # accessible to non-registered users # todo
+class ReadRelease(Enum):
+    PRIVATE = 'PRIVATE'  # accessible only to users with an authorised affiliation to the controller
+    REGISTERED = 'REGISTERED' # accessible to any registered user
+    PUBLIC = 'PUBLIC'  # accessible to non-registered users  #  todo, currently this is not fully implemented
 
 class Control(BaseModel):
     release: ReadRelease
-    time: datetime = Field(default=datetime.utcnow())
+    # we are not using the time now, but keep the control object and time in case of future behaviour requirements
+    # For example,
+    # currently the release is just set by the "minimum" current release level,
+    # but we could alternatively set the release behaviour according to the most recent release set
+    #
+    time: datetime = Field(default=datetime.now())
 
     @field_validator('time', mode='before')
     def validate_time(cls, v: datetime | Neo4jDateTime):
@@ -51,14 +55,20 @@ class Controller(BaseModel):
     writes: List[WriteStamp] = list()  # timestamps of writes to DB
 
     @property
-    def controllers(self) -> set[int]:
+    def teams(self) -> set[int]:
         return set(self.controls.keys())
 
     @property
     def release(self) -> ReadRelease:
         if not self.controls:
             return ReadRelease.PUBLIC
-        return min([c.release for c in self.controls.values()])
+        releases = set([c.release for c in self.controls.values()])
+        if ReadRelease.PRIVATE in releases:
+            return ReadRelease.PRIVATE
+        elif ReadRelease.REGISTERED in releases:
+            return ReadRelease.REGISTERED
+        else:
+            return ReadRelease.PUBLIC
 
     @property
     def created(self) -> datetime:
@@ -72,6 +82,9 @@ class Controller(BaseModel):
         self.controls[team_id].release = release
 
     def has_access(self, access: Access, user_id: int = None, access_teams: Set[int] = None) -> bool:
+        if access_teams is None:
+            access_teams = set()
+
         if access is Access.READ:
             if self.release == ReadRelease.PUBLIC:
                 return True
@@ -88,17 +101,14 @@ class Controller(BaseModel):
 
 class ControlledModel(StoredModel):
     redacted_str: ClassVar[str] = 'REDACTED'
-    controller: Controller = Field(None, exclude=True)
-    # todo reconsider better patterns.
-    #  currently allowed to be None during init so controller can be inserted by controller layer in repository
-    # could just wait to init in controller repository layer
-    # but handier to reconstitute from db in nested repo layer responsible for retrieval of the core models
-
-    def set_release(self, team_id: int, release: ReadRelease):
-        self.controller.set_release(team_id, release)
 
     @abstractmethod
-    def redacted(self) -> 'ControlledModel':
+    def redacted(
+            self,
+            controller: Controller,
+            user_id = None,
+            read_teams = None
+    ) -> 'ControlledModel':
         """Do something like this to preserve data privacy when no read access is allowed"""
         return self.model_copy(deep=True, update={'name': self.redacted_str})
 
@@ -112,37 +122,75 @@ class ControlledAggregate(Aggregate):
         """
             Should return a list of ControlledModels stored within the aggregate
             This is used by the controlled repository to create/update/delete controls.
+            Be sure to include any removed models in the report, to support control over removal
         """
         raise NotImplementedError
 
     @abstractmethod
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ControlledAggregate':
+    def redacted(
+            self,
+            controllers: Dict[str, Dict[int, Controller]], # keyed as {label: {model_id : controller}}
+            user_id = None,
+            read_teams = None
+    ) -> 'ControlledAggregate':
         """
-            Provide a list of teams and return a version of the aggregate
-                where data visible only to those with authorised read affiliation to those teams is visible.
+            Return a version of the aggregate where data is redacted and/or filtered
+            to suit registered users (i.e. has user_id)
+            or private access (read teams).
         """
         raise NotImplementedError
 
+    def can_remove(
+            self,
+            controllers: Dict[str, Dict[int, Controller]],
+            user_id = None,
+            curate_teams = None
+    ) -> bool:
+        """
+        Return a boolean indicating whether the aggregate can be removed by the given user and curate teams.
+        """
+        for model in self.controlled_models:
+            controller = controllers[model.label][model.id]
+            if not controller.has_access(Access.CURATE, user_id, curate_teams):
+                return False
+        else:
+            return True
 
 class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
     default_model_class: ClassVar[Type[ControlledModel]]
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
-        return list(nx.get_node_attributes(self._graph, "model").values())
+        return [
+            model for model in nx.get_node_attributes(self._graph, "model").values()
+            if isinstance(model, ControlledModel)
+        ]
 
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ControlledRootedAggregate|None':
+    def redacted(
+            self,
+            controllers: Dict[str, Dict[int, Controller]],
+            user_id = None,
+            read_teams = None
+    ) -> 'ControlledRootedAggregate|None':
+
         if read_teams is None:
             read_teams = set()
 
         g = copy.deepcopy(self._graph)
-
-        root_id = self.get_root_id()
         for node_id in list(g.nodes):
             entry = g.nodes[node_id]['model']
-            if not entry.controller.has_access(Access.READ, user_id, read_teams):
-                if node_id == root_id:
-                    redacted_root = entry.redacted()
+            label = entry.label
+            if not node_id in controllers[label]:
+                # controller not found for this node, may be input
+                raise IllegalOperationError(f"Controller not found for node {node_id}")
+            controller = controllers[label][node_id]
+            if not controller.has_access(Access.READ, user_id, read_teams):
+                if node_id == self.get_root_id():
+                    redacted_root = entry.redacted(
+                        controller = controller,
+                        user_id = user_id,
+                        read_teams = read_teams
+                    )
                     g.nodes[node_id]['model'] = redacted_root
                 else:
                     self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
@@ -150,6 +198,7 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
         aggregate = self.__class__()
         aggregate._graph = g
         return aggregate
+
 
 class ControlledTreeAggregate(ControlledRootedAggregate, TreeAggregate):
     pass

@@ -112,8 +112,10 @@ class TeamOutput(TeamStored):
     children: list[int]
 
 class Organisation(TreeAggregate):
+    redaction_mapping: dict = None
 
     def __init__(self, nodes: List[TeamStored|TeamInput] = None, edges: List[Tuple[int, int, dict]]|None = None):
+
         super().__init__(nodes=nodes, edges=edges)
         if nodes:
             for a in self.root.affiliations.get_by_access(Access.ADMIN).values():
@@ -336,6 +338,9 @@ class Organisation(TreeAggregate):
     def redacted(self, user_id: int = None) -> 'Organisation':
         g = copy.deepcopy(self._graph)
         root_id = self.get_root_id()
+
+        redaction_mapping = dict()
+
         for node_id in list(g.nodes):
             entry: TeamStored = g.nodes[node_id]['model']
             readers = self.get_affiliates(node_id, access=Access.READ)
@@ -349,16 +354,25 @@ class Organisation(TreeAggregate):
                 if node_id == root_id:
                     pass
                 else:
+                    parent_id = self.get_parent_id(node_id)
+                    redaction_mapping[node_id] = parent_id
                     self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
 
-        aggregate = self.__class__()
-        aggregate._graph = g
-        return aggregate
+        org = self.__class__()
+        org._graph = g
+        org.redaction_mapping = redaction_mapping
+        return org
 
     def to_output_map(self) -> dict[int, TeamOutput]:
         # this creates a dictionary where each node maps to list of neighbours
-        return {node: TeamOutput(
+        node_map = {node: TeamOutput(
             **self.get_team(node).model_dump(),
             parent=self.get_parent_id(node),
             children=self.get_children_ids(node)
-        ) for node in self._graph}
+        ) for node in self._graph }
+        if self.redaction_mapping is not None:
+            # we map from removed teams to the visible source node in the redacted map
+            # this way a user can always see the most relevant controlling team information that they have access to.
+            for key, value in self.redaction_mapping.items():
+                node_map[key] = node_map[value]
+        return node_map

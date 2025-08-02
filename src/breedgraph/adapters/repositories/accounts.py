@@ -9,15 +9,12 @@ from src.breedgraph.domain.model.organisations import Affiliation, Access, Autho
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList
 from src.breedgraph.adapters.repositories.base import BaseRepository
-from src.breedgraph.domain.events.accounts import AccountAdded
-
+from src.breedgraph.domain.events.accounts import AccountCreated
 # for typing only
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 from neo4j import Record, AsyncResult, AsyncTransaction
 
-
 import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ class Neo4jAccountRepository(BaseRepository):
     async def _create(self, account: AccountInput) -> AccountStored:
         user = await self._create_user(account.user)
         account = AccountStored(user=user)
-        account.events.append(AccountAdded(user=account.user.id))
+        account.events.append(AccountCreated(user=account.user.id))
         return account
 
     async def _create_user(self, user: UserInput) -> UserStored:
@@ -83,13 +80,6 @@ class Neo4jAccountRepository(BaseRepository):
                 result = await self.tx.run(queries['accounts']['get_accounts'], user_ids = user_ids)
             else:
                 result = await self.tx.run(queries['accounts']['get_all_accounts'])
-        elif team_ids and not any([access_types, authorisations]):
-            result = await self.tx.run(
-                queries['accounts']['get_accounts_by_teams'],
-                team_ids=team_ids,
-                access_types=[a.name for a in access_types],
-                authorisations=[a.name for a in authorisations]
-            )
         else:
             access_types = kwargs.get('access_types', [a for a in Access])
             authorisations = kwargs.get('authorisations', [a for a in Authorisation])
@@ -100,8 +90,11 @@ class Neo4jAccountRepository(BaseRepository):
                     authorisations=[a for a in authorisations]
                 )
             else:
+                if isinstance(team_ids, set):
+                    team_ids = list(team_ids)
                 result = await self.tx.run(
-                    queries['accounts']['get_accounts_by_teams_affiliation'],
+                    queries['accounts']['get_accounts_by_teams_affiliations'],
+                    teams=team_ids,
                     access_types=[a for a in access_types],
                     authorisations=[a for a in authorisations]
                 )

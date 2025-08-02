@@ -60,8 +60,7 @@ def first_team(account):
 def first_entry_stored(lorem_text_generator, first_entry, first_team):
     return GermplasmEntryStored(
         **first_entry.model_dump(),
-        id=1,
-        controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)})
+        id=1
     )
 
 @pytest.mark.asyncio
@@ -79,7 +78,6 @@ def second_entry_stored(lorem_text_generator, first_entry, first_team):
         name=lorem_text_generator.new_text(10),
         synonyms=[lorem_text_generator.new_text(5)],
         id=2,
-        controller=Controller(controls={first_team.id:Control(release=ReadRelease.PRIVATE)}),
         time="2024"
     )
 
@@ -92,28 +90,72 @@ async def test_build_and_read(
         first_entry_stored, second_entry_stored
 ):
     first_entry_id = first_germplasm.add_entry(first_entry_stored)
-
     second_entry_id = first_germplasm.add_entry(
         second_entry_stored,
         sources={first_entry_id: {'type': GermplasmSourceType.SEED}}
     )
-    redacted_for_read_team = first_germplasm.redacted(user_id=account.user.id, read_teams={first_team.id})
+    private_controllers = {
+        'Germplasm': {
+            first_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.PRIVATE)}),
+            second_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.PRIVATE)})
+        }
+    }
+    redacted_for_read_team = first_germplasm.redacted(
+        controllers=private_controllers,
+        user_id=account.user.id,
+        read_teams={first_team.id}
+    )
     assert redacted_for_read_team.size == 2
     assert first_entry_id in redacted_for_read_team.get_sources(second_entry_id)
     assert second_entry_id in redacted_for_read_team.get_sinks(first_entry_id)
 
-    redacted_for_registered = first_germplasm.redacted(user_id=account.user.id)
+    redacted_for_registered = first_germplasm.redacted(
+        controllers=private_controllers,
+        user_id=account.user.id,
+        read_teams=None
+    )
     assert redacted_for_registered.size == 1
     assert redacted_for_registered.root.name == Germplasm._redacted_str
-    redacted_for_public = first_germplasm.redacted()
+
+    redacted_for_public = first_germplasm.redacted(
+        controllers=private_controllers,
+        user_id=None,
+        read_teams=None
+    )
     assert redacted_for_public.size == 1
     assert redacted_for_public.root.name == Germplasm._redacted_str
-    second_entry_stored.set_release(first_team.id, ReadRelease.REGISTERED)
-    redacted_for_registered_after_release_to_registered = first_germplasm.redacted(user_id=account.user.id)
+
+    registered_controllers = {
+        'Germplasm': {
+            first_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.REGISTERED)}),
+            second_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.REGISTERED)}),
+        }
+    }
+    redacted_for_registered_after_release_to_registered = first_germplasm.redacted(
+        controllers=registered_controllers,
+        user_id=account.user.id,
+        read_teams=None
+    )
     assert redacted_for_registered_after_release_to_registered.size == 2
-    redacted_for_public_after_release_to_registered = first_germplasm.redacted()
+
+    redacted_for_public_after_release_to_registered = first_germplasm.redacted(
+        controllers=registered_controllers,
+        user_id=None,
+        read_teams=None
+    )
     assert redacted_for_public_after_release_to_registered.size == 1
-    second_entry_stored.set_release(first_team.id, ReadRelease.PUBLIC)
-    redacted_for_public_after_release_to_public = first_germplasm.redacted()
+
+    public_controllers = {
+        'Germplasm': {
+            first_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.PUBLIC)}),
+            second_entry_id: Controller(controls={first_team.id: Control(release=ReadRelease.PUBLIC)}),
+        }
+    }
+
+    redacted_for_public_after_release_to_public = first_germplasm.redacted(
+        controllers=public_controllers,
+        user_id=None,
+        read_teams=None
+    )
     assert redacted_for_public_after_release_to_public.size == 2
 

@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.blocks import (
-    AddUnit,
+    CreateUnit,
     AddPosition
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
@@ -11,10 +11,10 @@ from typing import List, Any
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("blocks_add_unit")
+@graphql_mutation.field("blocks_create_unit")
 @graphql_payload
 @require_authentication
-async def add_unit(
+async def create_unit(
         _,
         info,
         unit: dict
@@ -24,7 +24,7 @@ async def add_unit(
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {user_id} adds unit: {unit}")
-    cmd = AddUnit(user=user_id, **unit)
+    cmd = CreateUnit(user=user_id, **unit)
     await info.context['bus'].handle(cmd)
     return True
 

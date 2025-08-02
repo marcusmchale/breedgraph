@@ -22,3 +22,10 @@ type Team {
     children: [Team]
     affiliations: Affiliations
 }
+
+type UserAccess {
+  read: [Team]
+  write: [Team]
+  admin: [Team]
+  curate: [Team]
+}

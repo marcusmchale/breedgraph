@@ -1,5 +1,5 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.ontologies import AddOntologyEntry
+from src.breedgraph.domain.commands.ontologies import CreateOntologyEntry
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
@@ -7,10 +7,10 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graph
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("ontology_add_entry")
+@graphql_mutation.field("ontology_create_entry")
 @graphql_payload
 @require_authentication
-async def add_ontology_entry(
+async def create_ontology_entry(
         _,
         info,
         entry: dict
@@ -20,6 +20,6 @@ async def add_ontology_entry(
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {user_id} adds term: {entry}")
-    cmd = AddOntologyEntry(user=user_id, **entry)
+    cmd = CreateOntologyEntry(user=user_id, **entry)
     await info.context['bus'].handle(cmd)
     return True

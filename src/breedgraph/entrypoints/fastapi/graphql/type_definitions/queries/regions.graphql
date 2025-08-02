@@ -1,5 +1,3 @@
-enum Release {PRIVATE, REGISTERED, PUBLIC}
-
 type GeoCoordinate {
     """Latitude in degrees according to ISO 6709"""
     latitude: Float!
@@ -28,5 +26,5 @@ type Location {
     coordinates: [GeoCoordinate]
     parent: Location
     children: [Location]
-    release: Release
+    release: ReadRelease
 }

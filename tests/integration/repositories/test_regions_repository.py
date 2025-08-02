@@ -4,7 +4,6 @@ from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.adapters.repositories.regions import Neo4jRegionsRepository
 from src.breedgraph.domain.model.regions import LocationInput
 
-#@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_extend_region(
         ontology, state_type,
@@ -26,6 +25,7 @@ async def test_extend_region(
 @pytest.mark.asyncio(scope="session")
 async def test_make_sub_region_private(
         neo4j_tx,
+        test_controllers_service,
         stored_account,
         second_account,
         stored_organisation,
@@ -35,13 +35,15 @@ async def test_make_sub_region_private(
     region = await regions_repo.get()
     county_id = list(region.get_sinks(region.root.id).keys())[0]
     county = region.get_location(county_id)
-    county.controller.set_release(release=ReadRelease.PRIVATE, team_id=stored_organisation.root.id)
+    await test_controllers_service.set_controls(
+        county,
+        control_teams={stored_organisation.root.id},
+        release=ReadRelease.PRIVATE
+    )
     await regions_repo.update_seen()
-    region = await regions_repo.get()
-    county = region.get_location(county_id)
-    assert county.controller.release == ReadRelease.PRIVATE
     registered_repo = Neo4jRegionsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id
     )
     region = await registered_repo.get()

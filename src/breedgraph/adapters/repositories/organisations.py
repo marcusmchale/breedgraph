@@ -17,7 +17,7 @@ from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict, TrackedGraph
 from src.breedgraph.adapters.repositories.base import BaseRepository
 
-from typing import AsyncGenerator, Set, Dict
+from typing import AsyncGenerator, Set, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -120,10 +120,18 @@ class Neo4jOrganisationsRepository(BaseRepository):
             return org
 
 
-    async def _get_all(self) -> AsyncGenerator[Organisation, None]:
-        result: AsyncResult = await self.tx.run(
-            queries['organisations']['get_organisations']
-        )
+    async def _get_all(self, team_ids: List[int] | Set[int] | None = None) -> AsyncGenerator[Organisation, None]:
+        if team_ids is None:
+            result: AsyncResult = await self.tx.run(
+                queries['organisations']['get_organisations']
+            )
+        else:
+            if isinstance(team_ids, set):
+                team_ids = list(team_ids)
+            result: AsyncResult = await self.tx.run(
+                queries['organisations']['get_organisations_by_team'],
+                team_ids=team_ids
+            )
         async for record in result:
             teams = [self.team_record_to_team(team) for team in record['organisation']]
             edges = [edge for team in record['organisation'] for edge in team.get('includes', [])]

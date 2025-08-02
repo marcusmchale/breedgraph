@@ -1,0 +1,97 @@
+# Program Mutations
+input CreateProgramInput {
+    name: String!
+    fullname: String
+    description: String
+    contacts: [Int!] = []
+    references: [Int!] = []
+    release: String = "REGISTERED"
+}
+
+input UpdateProgramInput {
+    program: Int!
+    name: String
+    fullname: String
+    description: String
+    contacts: [Int!]
+    references: [Int!]
+    release: String
+}
+
+# Trial Mutations
+input CreateTrialInput {
+    program: Int!
+    name: String!
+    fullname: String
+    description: String
+    start: DateTime
+    end: DateTime
+    contacts: [Int!] = []
+    references: [Int!] = []
+    release: String = "REGISTERED"
+}
+
+input UpdateTrialInput {
+    trial: Int!
+    name: String
+    fullname: String
+    description: String
+    start: DateTime
+    end: DateTime
+    contacts: [Int!]
+    references: [Int!]
+    release: String
+}
+
+# Study Mutations
+input CreateStudyInput {
+    trial: Int!
+    name: String!
+    fullname: String
+    description: String
+    external_id: String
+    practices: String
+    start: DateTime
+    end: DateTime
+    factors: [Int!] = []
+    observations: [Int!] = []
+    design: Int
+    licence: Int
+    references: [Int!] = []
+    release: String = "REGISTERED"
+}
+
+input UpdateStudyInput {
+    study: Int!
+    name: String
+    fullname: String
+    description: String
+    external_id: String
+    practices: String
+    start: DateTime
+    end: DateTime
+    factors: [Int!]
+    observations: [Int!]
+    design: Int
+    licence: Int
+    references: [Int!]
+    release: String
+}
+
+# Mutation type extensions for programs
+extend type Mutation {
+    # Program mutations
+    create_program(program: CreateProgramInput!): BooleanPayload
+    update_program(program: UpdateProgramInput!): BooleanPayload
+    delete_program(program: Int!): BooleanPayload
+
+    # Trial mutations
+    create_trial(trial: CreateTrialInput!): BooleanPayload
+    update_trial(trial: UpdateTrialInput!): BooleanPayload
+    delete_trial(trial: Int!): BooleanPayload
+
+    # Study mutations
+    create_study(study: CreateStudyInput!): BooleanPayload
+    update_study(study: UpdateStudyInput!): BooleanPayload
+    delete_study(study: Int!): BooleanPayload
+}

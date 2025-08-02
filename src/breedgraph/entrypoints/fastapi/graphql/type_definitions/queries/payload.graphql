@@ -9,6 +9,11 @@ type Error {
     message: String!
 }
 
+type StatusPayload {
+    status: QueryStatus
+    errors: [Error]
+}
+
 type BooleanPayload {
     status: QueryStatus!
     result: Boolean
@@ -30,6 +35,12 @@ type TeamsPayload {
 type AffiliationsPayload {
     status: QueryStatus!
     result: Affiliations
+    errors: [Error]
+}
+
+type UserAccessPayload {
+    status: QueryStatus!
+    result: UserAccess
     errors: [Error]
 }
 
@@ -108,5 +119,11 @@ type UnitPayload {
 type DatasetsPayload {
     status: QueryStatus!
     result: [DataSet]
+    errors: [Error]
+}
+
+type ProgramsPayload {
+    status: QueryStatus!
+    result: [Program]
     errors: [Error]
 }

@@ -6,6 +6,7 @@ from src.breedgraph.domain.model.programs import (
 )
 
 from src.breedgraph.adapters.repositories.programs import Neo4jProgramsRepository
+from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
 
 @pytest.mark.asyncio(scope="session")
@@ -15,6 +16,7 @@ async def test_create_and_get(
     program_input = ProgramInput(name='BOLERO')
     stored_program = await programs_repo.create(program_input)
     retrieved_program: ProgramStored = await programs_repo.get(program_id = stored_program.id)
+
     assert stored_program.name == retrieved_program.name
     async for program in programs_repo.get_all():
         if program.name == program_input.name:
@@ -47,6 +49,7 @@ async def test_extend_trial_with_study(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_study(
         programs_repo,
+        test_controllers_service,
         lorem_text_generator,
         neo4j_tx,
         stored_account,
@@ -59,8 +62,9 @@ async def test_edit_study(
 
     new_repo = Neo4jProgramsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id]
+        access_teams={Access.READ: [stored_organisation.root.id]}
     )
     retrieved = await new_repo.get()
     study = retrieved.trials[1].studies[1]
@@ -69,6 +73,7 @@ async def test_edit_study(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_trial(
         programs_repo,
+        test_controllers_service,
         lorem_text_generator,
         neo4j_tx,
         stored_account,
@@ -81,8 +86,9 @@ async def test_edit_trial(
 
     new_repo = Neo4jProgramsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id]
+        access_teams={Access.READ: [stored_organisation.root.id]}
     )
     retrieved = await new_repo.get()
     trial = retrieved.trials[1]
@@ -91,6 +97,7 @@ async def test_edit_trial(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_program(
         programs_repo,
+        test_controllers_service,
         lorem_text_generator,
         neo4j_tx,
         stored_account,
@@ -102,8 +109,9 @@ async def test_edit_program(
 
     new_repo = Neo4jProgramsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id]
+        access_teams={Access.READ: [stored_organisation.root.id]}
     )
     retrieved = await new_repo.get()
     assert retrieved.name == 'New Program Name'

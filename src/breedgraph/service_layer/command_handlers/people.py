@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def add_person(
-        cmd: commands.people.AddPerson,
+        cmd: commands.people.CreatePerson,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow.get_repositories() as uow:

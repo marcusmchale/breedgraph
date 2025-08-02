@@ -12,7 +12,7 @@ from src.breedgraph.service_layer import unit_of_work
 logger = logging.getLogger(__name__)
 
 async def add_location(
-        cmd: commands.regions.AddLocation,
+        cmd: commands.regions.CreateLocation,
         uow: unit_of_work.AbstractUnitOfWork,
         read_model: ReadModel
 ):

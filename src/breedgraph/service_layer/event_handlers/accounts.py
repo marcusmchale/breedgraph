@@ -33,7 +33,7 @@ async def email_user_allowed(
     )
 
 async def send_user_verify_url(
-        event: events.accounts.AccountAdded,
+        event: events.accounts.AccountCreated,
         uow: unit_of_work.AbstractUnitOfWork,
         notifications: "AbstractNotifications"
 ):

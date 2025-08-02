@@ -6,7 +6,7 @@ from . import accounts
 
 EVENT_HANDLERS = {
     events.accounts.EmailAdded: [accounts.email_user_allowed],
-    events.accounts.AccountAdded: [accounts.send_user_verify_url],
+    events.accounts.AccountCreated: [accounts.send_user_verify_url],
     events.accounts.EmailVerified: [accounts.email_verified],
     events.accounts.AffiliationRequested: [accounts.process_affiliation_request],
     events.accounts.AffiliationApproved: [accounts.notify_user_approved],

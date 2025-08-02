@@ -23,11 +23,11 @@ input LocationInput {
     type: Int!
     """ A parent location, required unless a country (see countries) """
     parent: Int
-    release: Release
+    release: ReadRelease
 }
 
 extend type Mutation {
-    add_location(
+    create_location(
         location: LocationInput!
     ): BooleanPayload!
 }

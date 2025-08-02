@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def add_dataset(
-        cmd: commands.datasets.AddDataSet,
+        cmd: commands.datasets.CreateDataSet,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     kwargs = cmd.model_dump()

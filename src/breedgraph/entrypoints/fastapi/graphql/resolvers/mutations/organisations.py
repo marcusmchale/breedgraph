@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.organisations import (
-    AddTeam, RemoveTeam, UpdateTeam
+    CreateTeam, DeleteTeam, UpdateTeam
 )
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
@@ -9,10 +9,10 @@ from typing import Optional
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("add_team")
+@graphql_mutation.field("create_team")
 @graphql_payload
 @require_authentication
-async def add_team(
+async def create_team(
         _,
         info,
         name: str,
@@ -20,8 +20,8 @@ async def add_team(
         parent: Optional[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} adds team: {name}")
-    cmd = AddTeam(
+    logger.debug(f"User {user_id} creates team: {name}")
+    cmd = CreateTeam(
         user=user_id,
         name=name,
         fullname=fullname,
@@ -30,27 +30,27 @@ async def add_team(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("remove_team")
+@graphql_mutation.field("delete_team")
 @graphql_payload
 @require_authentication
-async def remove_team(
+async def delete_team(
         _,
         info,
         team: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} removes team: {team}")
-    cmd = RemoveTeam(
+    logger.debug(f"User {user_id} deletes team: {team}")
+    cmd = DeleteTeam(
         user=user_id,
         team=team
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("edit_team")
+@graphql_mutation.field("update_team")
 @graphql_payload
 @require_authentication
-async def edit_team(
+async def update_team(
         _,
         info,
         team: int,
@@ -59,7 +59,7 @@ async def edit_team(
 ) -> bool:
     user_id = info.context.get('user_id')
 
-    logger.debug(f"User {user_id} edits team: {team}")
+    logger.debug(f"User {user_id} updates team: {team}")
     cmd = UpdateTeam(
         user=user_id,
         team=team,

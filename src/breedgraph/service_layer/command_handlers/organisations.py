@@ -15,8 +15,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def add_team(
-        cmd: commands.organisations.AddTeam,
+async def create_team(
+        cmd: commands.organisations.CreateTeam,
         uow: unit_of_work.Neo4jUnitOfWork
 ):
     async with uow.get_repositories(user_id=cmd.user) as uow:
@@ -36,8 +36,8 @@ async def add_team(
             #await uow.organisations.update_seen()
         await uow.commit()
 
-async def remove_team(
-        cmd: commands.organisations.RemoveTeam,
+async def delete_team(
+        cmd: commands.organisations.DeleteTeam,
         uow: unit_of_work.Neo4jUnitOfWork
 ):
     async with uow.get_repositories(user_id=cmd.user) as uow:
@@ -53,7 +53,7 @@ async def remove_team(
 
         await uow.commit()
 
-async def edit_team(
+async def update_team(
         cmd: commands.organisations.UpdateTeam,
         uow: unit_of_work.Neo4jUnitOfWork
 ):
@@ -61,7 +61,7 @@ async def edit_team(
         organisation: Organisation = await uow.organisations.get(team_id=cmd.team)
         team = organisation.get_team(cmd.team)
         if not cmd.user in organisation.get_affiliates(cmd.team, Access.ADMIN):
-            raise UnauthorisedOperationError("Only admins for the given team can edit team details")
+            raise UnauthorisedOperationError("Only admins for the given team can update team details")
 
         if cmd.name is not None:
             team.name = cmd.name

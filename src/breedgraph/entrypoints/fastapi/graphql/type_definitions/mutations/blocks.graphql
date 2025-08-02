@@ -31,10 +31,10 @@ input UnitInput {
     IDs of child Units, which represent a component of this unit.
     """
     children: [Int]
-    release: Release
+    release: ReadRelease
 }
 
 extend type Mutation {
-    blocks_add_unit(unit: UnitInput!): BooleanPayload!
+    blocks_create_unit(unit: UnitInput!): BooleanPayload!
     blocks_add_position(unit_id: Int!, position: PositionInput): BooleanPayload!
 }

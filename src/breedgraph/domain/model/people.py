@@ -1,9 +1,9 @@
 import logging
 
 from .base import LabeledModel
-from .controls import ControlledModel, ControlledAggregate, Access
+from .controls import ControlledModel, ControlledAggregate, Access, Controller
 
-from typing import List, Set, ClassVar
+from typing import List, Set, ClassVar, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
-        return []
+        return [self]
 
     @property
     def root(self) -> ControlledModel:
@@ -46,12 +46,18 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         return None
 
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'PersonStored|None':
+    def redacted(
+            self,
+            controllers: Dict[str, Dict[int, Controller]],
+            user_id=None,
+            read_teams=None
+    ) -> 'PersonStored|None':
+        controller = controllers['Person'][self.id]
 
         if read_teams is None:
             read_teams = set()
 
-        if self.controller.has_access(Access.READ, user_id, read_teams):
+        if controller.has_access(Access.READ, user_id, read_teams):
             return self
         else:
             if user_id is None:

@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.datasets import (
-    AddDataSet,
+    CreateDataSet,
     AddRecord
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
@@ -11,10 +11,10 @@ from typing import List, Any
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("data_add_dataset")
+@graphql_mutation.field("data_create_dataset")
 @graphql_payload
 @require_authentication
-async def add_dataset(
+async def create_dataset(
         _,
         info,
         term: int
@@ -24,7 +24,7 @@ async def add_dataset(
         raise UnauthorisedOperationError("Please provide a valid token")
 
     logger.debug(f"User {user_id} adds dataset for term: {term}")
-    cmd = AddDataSet(user=user_id, term=term)
+    cmd = CreateDataSet(user=user_id, term=term)
     await info.context['bus'].handle(cmd)
     return True
 

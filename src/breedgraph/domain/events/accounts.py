@@ -1,6 +1,6 @@
 from .base import Event
 
-class AccountAdded(Event):
+class AccountCreated(Event):
     user: int
 
 class EmailAdded(Event):

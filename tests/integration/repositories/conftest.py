@@ -1,4 +1,7 @@
+from typing import AsyncGenerator
 import pytest_asyncio
+
+from src.breedgraph.service_layer.controllers_service import TestControllersService
 
 from src.breedgraph.adapters.repositories.accounts import Neo4jAccountRepository
 from src.breedgraph.adapters.repositories.arrangements import Neo4jArrangementsRepository
@@ -21,7 +24,7 @@ from src.breedgraph.domain.model.germplasm import (
     Reproduction
 )
 from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput
-from src.breedgraph.domain.model.organisations import TeamInput, Organisation
+from src.breedgraph.domain.model.organisations import TeamInput, Organisation, Access
 from src.breedgraph.domain.model.blocks import UnitInput, UnitStored, Block, Position
 
 from src.breedgraph.domain.model.ontology import (
@@ -44,29 +47,34 @@ from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, Da
 from tests.integration.repositories.test_accounts_repository import create_account_input
 
 @pytest_asyncio.fixture(scope="session")
-async def accounts_repo(neo4j_tx):
+async def test_controllers_service(stored_account, stored_organisation) -> AsyncGenerator[TestControllersService, None]:
+    """Test controllers service fixture for integration tests"""
+    yield TestControllersService()
+
+@pytest_asyncio.fixture(scope="session")
+async def accounts_repo(neo4j_tx) -> AsyncGenerator[Neo4jAccountRepository, None]:
     yield Neo4jAccountRepository(neo4j_tx)
 
 @pytest_asyncio.fixture(scope="session")
-async def stored_account(accounts_repo, user_input_generator) -> AccountStored:
+async def stored_account(accounts_repo, user_input_generator) -> AsyncGenerator[AccountStored, None]:
     account_input = await create_account_input(user_input_generator)
     stored_account: AccountStored = await accounts_repo.create(account_input)
     await accounts_repo.update_seen()
     yield stored_account
 
 @pytest_asyncio.fixture(scope="session")
-async def second_account(accounts_repo, user_input_generator) -> AccountStored:
+async def second_account(accounts_repo, user_input_generator) -> AsyncGenerator[AccountStored, None]:
     account_input = await create_account_input(user_input_generator)
     second_account: AccountStored = await accounts_repo.create(account_input)
     await accounts_repo.update_seen()
     yield second_account
 
 @pytest_asyncio.fixture(scope='session')
-async def organisations_repo(neo4j_tx, stored_account) -> Neo4jOrganisationsRepository:
+async def organisations_repo(neo4j_tx, stored_account) -> AsyncGenerator[Neo4jOrganisationsRepository, None]:
     yield Neo4jOrganisationsRepository(neo4j_tx, user_id=stored_account.user.id)
 
 @pytest_asyncio.fixture(scope="session")
-async def stored_organisation(user_input_generator, organisations_repo) -> Organisation:
+async def stored_organisation(user_input_generator, organisations_repo) -> AsyncGenerator[Organisation, None]:
     if await organisations_repo.get() is None:
         user_input = user_input_generator.new_user_input()
         team_input = TeamInput(name=user_input['team_name'], fullname=user_input['team_name'])
@@ -77,18 +85,18 @@ async def stored_organisation(user_input_generator, organisations_repo) -> Organ
     yield organisation
 
 @pytest_asyncio.fixture(scope='session')
-async def ontologies_repo(neo4j_tx) -> Neo4jOntologyRepository:
+async def ontologies_repo(neo4j_tx) -> AsyncGenerator[Neo4jOntologyRepository, None]:
     yield Neo4jOntologyRepository(neo4j_tx)
 
 @pytest_asyncio.fixture(scope='session')
-async def ontology(ontologies_repo) -> Ontology:
+async def ontology(ontologies_repo) -> AsyncGenerator[Ontology, None]:
     ontology = await ontologies_repo.get()
     if not ontology:
         ontology = await ontologies_repo.create()
-    return ontology
+    yield ontology
 
 @pytest_asyncio.fixture(scope='session')
-async def tree_subject(ontology, ontologies_repo) -> Subject:
+async def tree_subject(ontology, ontologies_repo) -> AsyncGenerator[Subject, None]:
     if ontology.get_entry(entry="Tree", label="Subject") is None:
         subject = Subject(
              name='Tree',
@@ -101,7 +109,7 @@ async def tree_subject(ontology, ontologies_repo) -> Subject:
     yield subject
 
 @pytest_asyncio.fixture(scope='session')
-async def country_type(ontology, ontologies_repo) -> LocationType:
+async def country_type(ontology, ontologies_repo) -> AsyncGenerator[LocationType, None]:
     if ontology.get_entry(entry="Country", label="LocationType") is None:
         country_type = LocationType(
              name='Country',
@@ -114,7 +122,7 @@ async def country_type(ontology, ontologies_repo) -> LocationType:
     yield country_type
 
 @pytest_asyncio.fixture(scope='session')
-async def state_type(ontology, ontologies_repo) -> LocationType:
+async def state_type(ontology, ontologies_repo) -> AsyncGenerator[LocationType, None]:
     if ontology.get_entry(entry="State", label="LocationType") is None:
         state_type = LocationType(
              name='State',
@@ -127,7 +135,7 @@ async def state_type(ontology, ontologies_repo) -> LocationType:
     yield state_type
 
 @pytest_asyncio.fixture(scope='session')
-async def field_type(ontology, ontologies_repo) -> LocationType:
+async def field_type(ontology, ontologies_repo) -> AsyncGenerator[LocationType, None]:
     if ontology.get_entry(entry="Field", label="LocationType") is None:
         field_type = LocationType(
              name='Field',
@@ -141,7 +149,7 @@ async def field_type(ontology, ontologies_repo) -> LocationType:
     yield field_type
 
 @pytest_asyncio.fixture(scope='session')
-async def row_layout_type(ontology, ontologies_repo) -> LayoutType:
+async def row_layout_type(ontology, ontologies_repo) -> AsyncGenerator[LayoutType, None]:
     if ontology.get_entry(entry="Rows", label="LayoutType") is None:
         row_layout_type = LayoutType(
             name="Rows",
@@ -156,7 +164,7 @@ async def row_layout_type(ontology, ontologies_repo) -> LayoutType:
     yield row_layout_type
 
 @pytest_asyncio.fixture(scope='session')
-async def grid_layout_type(ontology, ontologies_repo) -> LayoutType:
+async def grid_layout_type(ontology, ontologies_repo) -> AsyncGenerator[LayoutType, None]:
     if ontology.get_entry(entry="grid", label="LayoutType") is None:
         grid_type = LayoutType(
             name='Grid',
@@ -171,7 +179,7 @@ async def grid_layout_type(ontology, ontologies_repo) -> LayoutType:
     yield grid_layout_type
 
 @pytest_asyncio.fixture(scope='session')
-async def height_trait(ontology, ontologies_repo, tree_subject) -> Trait:
+async def height_trait(ontology, ontologies_repo, tree_subject) -> AsyncGenerator[Trait, None]:
     if ontology.get_entry(entry="Height", label="Trait") is None:
         trait = Trait(name="Height", synonyms=["hauteur"], description="Distance from the ground level to the top")
         ontology.add_entry(trait, subjects=[tree_subject.id])
@@ -181,7 +189,7 @@ async def height_trait(ontology, ontologies_repo, tree_subject) -> Trait:
     yield height_trait
 
 @pytest_asyncio.fixture(scope='session')
-async def cm_scale(ontology, ontologies_repo) -> Scale:
+async def cm_scale(ontology, ontologies_repo) -> AsyncGenerator[Scale, None]:
     if ontology.get_entry(entry="cm", label="Scale") is None:
         scale = Scale(name="cm", synonyms=["centimeters"], description="centimetres scale", scale_type=ScaleType.NUMERICAL)
         ontology.add_entry(scale)
@@ -191,7 +199,7 @@ async def cm_scale(ontology, ontologies_repo) -> Scale:
     yield scale
 
 @pytest_asyncio.fixture(scope='session')
-async def tape_method(ontology, ontologies_repo) -> ObservationMethod:
+async def tape_method(ontology, ontologies_repo) -> AsyncGenerator[ObservationMethod, None]:
     if ontology.get_entry(entry="tape", label="ObservationMethod") is None:
         method = ObservationMethod(
             name="tape",
@@ -206,7 +214,7 @@ async def tape_method(ontology, ontologies_repo) -> ObservationMethod:
     yield method
 
 @pytest_asyncio.fixture(scope='session')
-async def height_variable(ontology, ontologies_repo, height_trait, cm_scale, tape_method) -> Variable:
+async def height_variable(ontology, ontologies_repo, height_trait, cm_scale, tape_method) -> AsyncGenerator[Variable, None]:
     if ontology.get_entry(entry="Height", label="Variable") is None:
         variable = Variable(name="Height", synonyms=["hauteur"], description="Height from the ground")
         ontology.add_entry(variable, trait=height_trait.id, scale=cm_scale.id, method=tape_method.id)
@@ -216,19 +224,21 @@ async def height_variable(ontology, ontologies_repo, height_trait, cm_scale, tap
     yield variable
 
 @pytest_asyncio.fixture(scope='session')
-async def regions_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jRegionsRepository:
+async def regions_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jRegionsRepository, None]:
     yield Neo4jRegionsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id],
-        admin_teams=[stored_organisation.root.id],
-        curate_teams=[stored_organisation.root.id],
-        release=ReadRelease.PUBLIC
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def example_region(regions_repo, read_model, country_type) -> Region:
+async def example_region(regions_repo, read_model, country_type) -> AsyncGenerator[Region, None]:
     async for c in countries(read_model):
         if isinstance(c, LocationInput):
             country_input = c
@@ -239,30 +249,35 @@ async def example_region(regions_repo, read_model, country_type) -> Region:
     yield stored
 
 @pytest_asyncio.fixture(scope='session')
-async def state_location(regions_repo, example_region, state_type) -> LocationStored:
+async def state_location(regions_repo, example_region, state_type) -> AsyncGenerator[LocationStored, None]:
     state_input = LocationInput(name="Sunshine State", type=state_type.id)
     example_region.add_location(state_input, parent_id = example_region.root.id)
     await regions_repo.update_seen()
     yield example_region.get_location("Sunshine State")
 
 @pytest_asyncio.fixture(scope='session')
-async def field_location(regions_repo, example_region, state_location, field_type) -> LocationStored:
+async def field_location(regions_repo, example_region, state_location, field_type) -> AsyncGenerator[LocationStored, None]:
     field_input = LocationInput(name="Big Field", type=field_type.id)
     example_region.add_location(field_input, parent_id = state_location.id)
     await regions_repo.update_seen()
     yield example_region.get_location("Big Field")
 
 @pytest_asyncio.fixture(scope='session')
-async def arrangements_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jArrangementsRepository:
+async def arrangements_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jArrangementsRepository, None]:
     yield Neo4jArrangementsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def example_arrangement(arrangements_repo, row_layout_type, field_location) -> Arrangement:
+async def example_arrangement(arrangements_repo, row_layout_type, field_location) -> AsyncGenerator[Arrangement, None]:
     new_layout = LayoutInput(
         name="Big field layout 2010",
         type=row_layout_type.id, axes=["row", "number"],
@@ -271,16 +286,21 @@ async def example_arrangement(arrangements_repo, row_layout_type, field_location
     yield await arrangements_repo.create(new_layout)
 
 @pytest_asyncio.fixture(scope='session')
-async def germplasm_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jGermplasmRepository:
+async def germplasm_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service,) -> AsyncGenerator[Neo4jGermplasmRepository, None]:
     yield Neo4jGermplasmRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def crossing_method(ontology, ontologies_repo) -> GermplasmMethod:
+async def crossing_method(ontology, ontologies_repo) -> AsyncGenerator[GermplasmMethod, None]:
     if ontology.get_entry(entry="Crossing", label="GermplasmMethod") is None:
         crossing_method = GermplasmMethod(
              name='Crossing',
@@ -294,16 +314,21 @@ async def crossing_method(ontology, ontologies_repo) -> GermplasmMethod:
     yield crossing_method
 
 @pytest_asyncio.fixture(scope='session')
-async def references_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jReferencesRepository:
+async def references_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jReferencesRepository, None]:
     yield Neo4jReferencesRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def example_external_reference(references_repo) -> ExternalReferenceStored:
+async def example_external_reference(references_repo) -> AsyncGenerator[ExternalReferenceStored, None]:
     external_reference = ExternalReferenceInput(
         description="Example external reference",
         url="www.example.com",
@@ -312,7 +337,7 @@ async def example_external_reference(references_repo) -> ExternalReferenceStored
     yield await references_repo.create(external_reference)
 
 @pytest_asyncio.fixture(scope='session')
-async def example_germplasm(germplasm_repo, example_external_reference) -> Germplasm:
+async def example_germplasm(germplasm_repo, example_external_reference) -> AsyncGenerator[Germplasm, None]:
     new_entry = GermplasmEntryInput(
         name="Coffee",
         synonyms=["Coffea spp."],
@@ -329,7 +354,7 @@ async def example_variety(
         example_external_reference,
         crossing_method,
         example_region
-) -> GermplasmEntryStored:
+) -> AsyncGenerator[GermplasmEntryStored, None]:
     new_entry = GermplasmEntryInput(
         name="New variety",
         synonyms=["New hybrid"],
@@ -345,14 +370,17 @@ async def example_variety(
     yield example_germplasm.get_entry(entry="New variety")
 
 @pytest_asyncio.fixture(scope='session')
-async def blocks_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jBlocksRepository:
+async def blocks_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jBlocksRepository, None]:
     yield Neo4jBlocksRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id],
-        curate_teams=[stored_organisation.root.id],
-        admin_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope="session")
@@ -404,25 +432,31 @@ async def second_tree_block(
     yield await blocks_repo.create(new_unit)
 
 @pytest_asyncio.fixture(scope='session')
-async def programs_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jProgramsRepository:
+async def programs_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jProgramsRepository, None]:
     yield Neo4jProgramsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id],
-        curate_teams=[stored_organisation.root.id],
-        admin_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def people_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jPeopleRepository:
+async def people_repo(neo4j_tx, stored_account, stored_organisation, test_controllers_service) -> AsyncGenerator[Neo4jPeopleRepository, None]:
     yield Neo4jPeopleRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id],
-        curate_teams=[stored_organisation.root.id],
-        admin_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
@@ -432,18 +466,21 @@ async def stored_person(people_repo, user_input_generator):
     yield await people_repo.create(person_input)
 
 @pytest_asyncio.fixture(scope='session')
-async def datasets_repo(neo4j_tx, stored_account, stored_organisation) -> Neo4jPeopleRepository:
+async def datasets_repo(neo4j_tx, test_controllers_service, stored_account, stored_organisation) -> AsyncGenerator[Neo4jDatasetsRepository, None]:
     yield Neo4jDatasetsRepository(
         neo4j_tx,
+        controllers_service=test_controllers_service,
         user_id=stored_account.user.id,
-        read_teams=[stored_organisation.root.id],
-        write_teams=[stored_organisation.root.id],
-        curate_teams=[stored_organisation.root.id],
-        admin_teams=[stored_organisation.root.id]
+        access_teams={
+            Access.READ: [stored_organisation.root.id],
+            Access.WRITE: [stored_organisation.root.id],
+            Access.CURATE: [stored_organisation.root.id],
+            Access.ADMIN: [stored_organisation.root.id]
+        }
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def stored_dataset(datasets_repo, tree_block, height_variable, stored_person, example_external_reference) -> DataSetStored:
+async def stored_dataset(datasets_repo, tree_block, height_variable, stored_person, example_external_reference) -> AsyncGenerator[DataSetStored, None]:
     dataset_input = DataSetInput(
         term=height_variable.id,
         contributors=[stored_person.id],

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease, Controller
 
 from typing import List, ClassVar
 
@@ -38,7 +38,12 @@ class LocationInput(LocationBase):
 
 class LocationStored(LocationBase, ControlledModel):
 
-    def redacted(self):
+    def redacted(
+            self,
+            controller: Controller,
+            user_id = None,
+            read_teams = None
+    ):
         return self.model_copy(deep=True, update={
             'name': self.redacted_str,
             'synonyms': [self.redacted_str for _ in self.synonyms],

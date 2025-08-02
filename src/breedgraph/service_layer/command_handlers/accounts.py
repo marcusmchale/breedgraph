@@ -26,7 +26,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def add_account(
-        cmd: commands.accounts.AddAccount,
+        cmd: commands.accounts.CreateAccount,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     # First use views to quickly check if any accounts exist

@@ -4,8 +4,9 @@ from enum import Enum
 from pydantic import model_validator
 
 from src.breedgraph.domain.model.base import LabeledModel
+from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.time_descriptors import PyDT64
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, Controller
 from src.breedgraph.domain.model.ontology.entries import OntologyBase
 
 from typing import List, Dict, ClassVar, Type, Self, Generator
@@ -94,17 +95,25 @@ class GermplasmEntryInput(GermplasmEntry):
 
 class GermplasmEntryStored(GermplasmEntry, ControlledModel):
 
-    def redacted(self):
-        return self.model_copy(deep=True, update={
-            'name': self.redacted_str,
-            'synonyms': [self.redacted_str for _ in self.synonyms],
-            'description': self.redacted_str if self.description is not None else self.description,
-            'reproduction': None,
-            'origin': None,
-            'time': None,
-            'methods': list(),
-            'references': list()
-        })
+    def redacted(
+            self,
+            controller: Controller,
+            user_id=None,
+            read_teams=None
+    ):
+        if controller.has_access(Access.READ, user_id, read_teams):
+            return self
+        else:
+            return self.model_copy(deep=True, update={
+                'name': self.redacted_str,
+                'synonyms': [self.redacted_str for _ in self.synonyms],
+                'description': self.redacted_str if self.description is not None else self.description,
+                'reproduction': None,
+                'origin': None,
+                'time': None,
+                'methods': list(),
+                'references': list()
+            })
 
 class Germplasm(ControlledRootedAggregate):
     default_edge_label: ClassVar[str] = GermplasmSourceType.UNKNOWN

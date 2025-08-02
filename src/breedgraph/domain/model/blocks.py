@@ -20,7 +20,8 @@ With pooling, e.g. the unit represents a pool of leaves, the subject would still
 from pydantic import BaseModel, field_validator, ValidationInfo
 
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller
+from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 from typing import List, ClassVar, Generator
 
@@ -56,14 +57,22 @@ class UnitInput(Unit):
 
 class UnitStored(Unit, ControlledModel):
 
-    def redacted(self):
-        return self.model_copy(deep=True, update={
-            # subject is still visible
-            'name': self.redacted_str if self.name is not None else None,
-            'synonyms': [self.redacted_str] if self.synonyms else list(),
-            'description': self.redacted_str if self.description is not None else None,
-            'positions': list()
-        })
+    def redacted(
+            self,
+            controller: Controller,
+            user_id=None,
+            read_teams=None
+    ):
+        if controller.has_access(Access.READ, user_id, read_teams):
+            return self
+        else:
+            return self.model_copy(deep=True, update={
+                # subject is still visible
+                'name': self.redacted_str if self.name is not None else None,
+                'synonyms': [self.redacted_str] if self.synonyms else list(),
+                'description': self.redacted_str if self.description is not None else None,
+                'positions': list()
+            })
 
 class UnitOutput(UnitStored):
     parents: list[int]
@@ -82,6 +91,12 @@ class Block(ControlledRootedAggregate):
             sources = None
 
         return super().add_entry(unit, sources)
+
+    def remove_unit(self, unit_id: int):
+        raise NotImplementedError
+
+    def update_unit(self, unit_id: int, unit: UnitStored):
+        raise NotImplementedError
 
     def get_unit(self, unit_id: int):
         return self._graph.nodes[unit_id].get('model')

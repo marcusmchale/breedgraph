@@ -9,7 +9,7 @@ from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
-    inject_users_map,
+    update_users_map,
     update_teams_map
 )
 
@@ -20,6 +20,7 @@ team = ObjectType("Team")
 affiliations = ObjectType("Affiliations")
 affiliation = ObjectType("Affiliation")
 user = ObjectType("User")
+user_access = ObjectType("UserAccess")
 
 @graphql_query.field("organisations")
 @graphql_payload
@@ -34,7 +35,7 @@ async def get_organisations(_, info) -> List[TeamOutput]:
 @graphql_payload
 @require_authentication
 async def get_team(_, info, team_id: int) -> TeamOutput:
-    await update_teams_map(info.context, team_id=team_id)
+    await update_teams_map(info.context, team_ids=[team_id])
     teams_map = info.context.get('teams_map')
     return teams_map.get(team_id, None)
 
@@ -42,8 +43,7 @@ async def get_team(_, info, team_id: int) -> TeamOutput:
 @graphql_payload
 @require_authentication
 async def get_teams(_, info, team_ids: List[int]) -> List[TeamOutput]:
-    for team_id in team_ids:
-        await update_teams_map(info.context, team_id=team_id)
+    await update_teams_map(info.context, team_ids=team_ids)
     teams_map = info.context.get('teams_map')
     return [teams_map.get(team_id) for team_id in team_ids if team_id in teams_map]
 
@@ -97,5 +97,50 @@ def resolve_admin(obj, info):
 
 @affiliation.field("user")
 async def resolve_user(obj, info):
-    await inject_users_map(info.context)
+    await update_users_map(info.context, user_ids=[obj.get('user')])
     return info.context.get('users_map', {}).get(obj.get('user'))
+
+
+@graphql_query.field("user_access")
+@graphql_payload
+@require_authentication
+async def get_user_access(_, info) -> dict:
+    """Get streamlined access teams for a user"""
+    # Use current user if no user_id provided
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    access_teams = await bus.uow.views.access_teams(user_id)
+    # Convert Access enum keys to strings and sets to lists for GraphQL
+    return {
+        access.value.casefold(): list(team_ids)
+        for access, team_ids in access_teams.items()
+    }
+
+# Field resolvers for UserAccess type
+@user_access.field("read")
+async def resolve_read_teams(obj: dict, info):
+    team_ids = obj.get('read', [])
+    await update_teams_map(info.context, team_ids)
+    teams_map = info.context.get('teams_map', {})
+    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
+
+@user_access.field("write")
+async def resolve_write_teams(obj: dict, info):
+    team_ids = obj.get('write', [])
+    await update_teams_map(info.context, team_ids)
+    teams_map = info.context.get('teams_map', {})
+    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
+
+@user_access.field("admin")
+async def resolve_admin_teams(obj: dict, info):
+    team_ids = obj.get('admin', [])
+    await update_teams_map(info.context, team_ids)
+    teams_map = info.context.get('teams_map', {})
+    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
+
+@user_access.field("curate")
+async def resolve_curate_teams(obj: dict, info):
+    team_ids = obj.get('curate', [])
+    await update_teams_map(info.context, team_ids)
+    teams_map = info.context.get('teams_map', {})
+    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]

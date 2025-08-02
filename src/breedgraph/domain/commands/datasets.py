@@ -2,7 +2,7 @@ from src.breedgraph.domain.model.time_descriptors import PyDT64
 
 from .base import Command
 
-class AddDataSet(Command):
+class CreateDataSet(Command):
     user: int
     term: int
 

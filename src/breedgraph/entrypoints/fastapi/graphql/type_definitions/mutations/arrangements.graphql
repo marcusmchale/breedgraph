@@ -12,11 +12,11 @@ input LayoutInput {
     """ When parent is supplied, position according to parent layout axes must be provided."""
     position: [String]
     """ Read access to this layout """
-    release: Release
+    release: ReadRelease
 }
 
 extend type Mutation {
-    add_layout(
+    create_layout(
         layout: LayoutInput!
     ): BooleanPayload!
 }

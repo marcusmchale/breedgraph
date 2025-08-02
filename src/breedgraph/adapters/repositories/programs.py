@@ -85,7 +85,9 @@ class Neo4jProgramsRepository(Neo4jControlledRepository):
         return ProgramStored(**program)
 
     async def _get_controlled(
-            self, program_id: int = None,
+            self,
+            name: str = None,
+            program_id: int = None,
             trial_id: int=None,
             study_id:int=None
     ) -> ProgramStored | None:
@@ -95,6 +97,8 @@ class Neo4jProgramsRepository(Neo4jControlledRepository):
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_trial'], trial_id=trial_id)
         elif study_id is not None:
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_study'], study_id=study_id)
+        elif name is not None:
+            result: AsyncResult = await self.tx.run(queries['programs']['read_program_by_name'], name_lower=name.casefold())
         else:
             try:
                 return await anext(self._get_all_controlled())
@@ -102,7 +106,10 @@ class Neo4jProgramsRepository(Neo4jControlledRepository):
                 return None
 
         record = await result.single()
-        return self.record_to_program(record.get('program'))
+
+        if record:
+            return self.record_to_program(record.get('program'))
+        return None
 
     async def _get_all_controlled(self) -> AsyncGenerator[ProgramStored, None]:
         result: AsyncResult = await self.tx.run(queries['programs']['read_programs'])

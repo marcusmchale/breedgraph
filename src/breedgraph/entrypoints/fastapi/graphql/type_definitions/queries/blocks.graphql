@@ -26,5 +26,5 @@ type Unit {
     parents: [Unit]
     children: [Unit]
 
-    release: Release
+    release: ReadRelease
 }

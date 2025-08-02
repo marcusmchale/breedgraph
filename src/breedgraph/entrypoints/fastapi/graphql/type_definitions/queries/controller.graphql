@@ -1,0 +1,21 @@
+enum ReadRelease {PRIVATE, REGISTERED, PUBLIC}
+
+type Control {
+    team: Team!
+    release: ReadRelease!
+    time: DateTime!
+}
+
+type WriteStamp {
+    user: User!
+    time: DateTime!
+}
+
+type Controller {
+    controls: [Control!]!
+    writes: [WriteStamp!]!
+    teams: [Team!]!
+    release: ReadRelease!
+    created: DateTime!
+    updated: DateTime!
+}

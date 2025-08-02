@@ -1,16 +1,6 @@
-from src.breedgraph import views
+from src.breedgraph.domain.model.controls import Access
 
-async def inject_users_map(context):
-    if 'users_map' in context:
-        return
-
-    user_id = context.get('user_id')
-
-    users_map = dict()
-    async for user in views.accounts.users(context['bus'].uow, user=user_id):
-        users_map[user.id] = user
-
-    context['users_map'] = users_map
+from typing import List, Set
 
 async def inject_ontology(context, version_id: int = None, entry_id: int = None):
     if 'ontology' in context:
@@ -26,31 +16,51 @@ async def inject_ontology(context, version_id: int = None, entry_id: int = None)
         ontology = await uow.ontologies.get(version_id=version_id, entry_id=entry_id)
         context['ontology'] = ontology
 
-async def update_teams_map(context, team_id: int|None = None):
+async def update_teams_map(context, team_ids: List[int]|Set[int]|None = None):
     user_id = context.get('user_id')
     bus = context.get('bus')
 
     teams_map = context.get('teams_map', dict())
     organisation_roots = context.get('organisation_roots', list())
 
-    if team_id is None and not teams_map:
+    # if called with team_ids = None, retrieve all organisations
+    if team_ids is None:
         async with bus.uow.get_repositories(user_id=user_id) as uow:
             async for org in uow.organisations.get_all():
                 teams_map.update(org.to_output_map())
                 organisation_roots.append(org.root.id)
 
-    if team_id is not None and not team_id in teams_map:
-        async with bus.uow.get_repositories(user_id=user_id) as uow:
-            organisation = await uow.organisations.get(team_id=team_id)
-            if organisation is not None:
-                teams_map.update(organisation.to_output_map())
-                organisation_root_id = organisation.get_root_id()
-                if not organisation_root_id in organisation_roots:
-                    organisation_roots.append(organisation_root_id)
+    else:
+        if isinstance(team_ids, list):
+            team_ids = set(team_ids)
+        unmapped = team_ids - set(teams_map.keys())
+        if unmapped:
+            async with bus.uow.get_repositories(user_id=user_id) as uow:
+                async for org in uow.organisations.get_all(team_ids=team_ids):
+                    if org is not None:
+                        teams_map.update(org.to_output_map())
+                        org_root_id = org.get_root_id()
+                        if not org_root_id in organisation_roots:
+                            organisation_roots.append(org_root_id)
 
     context['teams_map'] = teams_map
     context['organisation_roots'] = organisation_roots
 
+async def update_users_map(context, user_ids: List[int]|None = None):
+    agent_id = context.get('user_id')
+    bus = context.get('bus')
+
+    users_map = context.get('users_map', dict())
+    user_ids = set(user_ids) if user_ids is not None else set()
+    unmapped = user_ids - set(users_map.keys())
+    if unmapped:
+        async with bus.uow.get_views() as views_holder:
+            agent_access_teams = await views_holder.access_teams(user=agent_id)
+            agent_admin_teams = agent_access_teams[Access.ADMIN]
+        async with bus.uow.get_repositories(user_id=agent_id) as uow:
+            async for account in uow.accounts.get_all(user_ids = list(user_ids), team_ids=agent_admin_teams):
+                users_map[account.user.id] = account.user
+    context['users_map'] = users_map
 
 async def update_locations_map(context, location_id: int|None = None):
     user_id = context.get('user_id')
@@ -126,3 +136,43 @@ async def update_units_map(context, location_id: int | None = None, unit_id: int
 
     context['units_map'] = units_map
     context['block_roots'] = block_roots
+
+async def update_programs_map(
+        context,
+        program_id: int | None = None,
+        trial_id: int | None = None,
+        study_id: int | None = None
+):
+    user_id = context.get('user_id')
+    bus = context.get('bus')
+
+    programs_map = context.get('programs_map', dict())
+
+    if program_id is None and not programs_map:
+        async with bus.uow.get_repositories(user_id=user_id) as uow:
+            async for program in uow.programs.get_all():
+                programs_map.update(program.to_output_map())
+    elif program_id is not None and not program_id in programs_map:
+        async with bus.uow.get_repositories(user_id=user_id) as uow:
+            program = await uow.programs.get(program_id=program_id)
+            programs_map.update(program.to_output_map())
+    if trial_id is not None:
+        for program_id, program in programs_map.values():
+            if trial_id in program.trials:
+                break
+        else:
+            async with bus.uow.get_repositories(user_id=user_id) as uow:
+                program = await uow.programs.get(trial_id=trial_id)
+                programs_map.update(program.to_output_map())
+    if study_id is not None:
+        for program_id, program in programs_map.values():
+            for trial_id, trial in program.trials.items():
+                if study_id in trial.studies:
+                    break
+            else:
+                async with bus.uow.get_repositories(user_id=user_id) as uow:
+                    program = await uow.programs.get(study_id=study_id)
+                    programs_map.update(program.to_output_map())
+                break
+
+    context['programs_map'] = programs_map

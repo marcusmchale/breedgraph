@@ -23,15 +23,20 @@ def get_unit_input(lorem_text_generator):
 def unit_stored(lorem_text_generator) -> UnitStored:
     return UnitStored(
         **get_unit_input(lorem_text_generator).model_dump(),
-        id=1,
-        controller=Controller(controls={1:Control(release=ReadRelease.PRIVATE)})
+        id=1
     )
 
 def test_graph_redaction(unit_stored):
     ug = Block(nodes=[unit_stored])
     assert ug.root.id == unit_stored.id
     assert ug.root.name == unit_stored.name
-    ug_red = ug.redacted()
+
+    private_controllers = {
+        'Unit': {
+            ug.root.id: Controller(controls={1:Control(release=ReadRelease.PRIVATE)}),
+        }
+    }
+    ug_red = ug.redacted(controllers=private_controllers, user_id=1, read_teams=None)
     assert ug_red.root.name == unit_stored.redacted_str
 
 def test_insert_root(lorem_text_generator, unit_stored):

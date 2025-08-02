@@ -66,5 +66,5 @@ input OntologyEntryInput {
 }
 
 extend type Mutation {
-    ontology_add_entry(entry: OntologyEntryInput): BooleanPayload!
+    ontology_create_entry(entry: OntologyEntryInput): BooleanPayload!
 }

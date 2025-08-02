@@ -1,15 +1,15 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.regions import AddLocation
+from src.breedgraph.domain.commands.regions import CreateLocation
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("add_location")
+@graphql_mutation.field("create_location")
 @graphql_payload
 @require_authentication
-async def add_location(
+async def create_location(
         _,
         info,
         location: dict
@@ -18,6 +18,6 @@ async def add_location(
     if user_id is None:
         raise UnauthorisedOperationError("Please provide a valid token")
     logger.debug(f"User {user_id} adding location: {location}")
-    cmd = AddLocation(user=user_id, **location)
+    cmd = CreateLocation(user=user_id, **location)
     await info.context['bus'].handle(cmd)
     return True

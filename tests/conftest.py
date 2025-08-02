@@ -20,8 +20,8 @@ from src.breedgraph.custom_exceptions import IdentityExistsError
 
 from src.breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES
 
-from src.breedgraph.domain.commands.accounts import AddAccount, AddEmail
-from src.breedgraph.domain.commands.organisations import AddTeam
+from src.breedgraph.domain.commands.accounts import CreateAccount, AddEmail
+from src.breedgraph.domain.commands.organisations import CreateTeam
 from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.organisations import Organisation, Affiliation, Authorisation, Access
 from src.breedgraph.domain.model.ontology import (
@@ -140,7 +140,7 @@ async def create_account(bus, user_input_generator, inviting_user=None):
         await bus.handle(add_email)
 
     password_hash = bcrypt.hashpw(user_input.get('password').encode(), bcrypt.gensalt()).decode()
-    cmd = AddAccount(
+    cmd = CreateAccount(
         name=user_input.get('name'),
         fullname=user_input.get('fullname'),
         password_hash=password_hash,
@@ -176,7 +176,7 @@ async def second_account(bus, user_input_generator, first_account) -> AccountSto
 
 async def create_organisation(bus, user_input_generator, user_id: int):
     team_name = user_input_generator.new_user_input().get('team_name')
-    cmd = AddTeam(name=team_name, user=user_id, parent=None)
+    cmd = CreateTeam(name=team_name, user=user_id, parent=None)
     await bus.handle(cmd)
 
 async def get_organisation(bus, user_input_generator, user_id: int):
@@ -397,7 +397,10 @@ async def basic_region(
         basic_ontology,
         lorem_text_generator
 ) -> Region:
-    async with bus.uow.get_repositories(user_id=first_account_with_all_affiliations.user.id, release=ReadRelease.PUBLIC) as uow:
+    async with bus.uow.get_repositories(
+            user_id=first_account_with_all_affiliations.user.id,
+            release=ReadRelease.PUBLIC
+    ) as uow:
         # create a new region, from the available countries, it may exist in which case skip to the next
         async for country in bus.read_model.get_countries():
             try:

@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.domain.commands.arrangements import AddLayout
+from src.breedgraph.domain.commands.arrangements import CreateLayout
 from src.breedgraph.domain.model.controls import ReadRelease
 
 @pytest.mark.usefixtures("session_database")
@@ -15,8 +15,8 @@ async def test_add_layout_command_simple(
     named_layout_type = basic_ontology.get_entry_model("Named", label="LayoutType")
     location_type = basic_ontology.get_entry_model("Field", label="LocationType")
     location = next(basic_region.yield_locations_by_type(location_type.id))
-    first_layout_command = AddLayout(
-        user= first_account_with_all_affiliations.user.id,
+    first_layout_command = CreateLayout(
+        user = first_account_with_all_affiliations.user.id,
         release = ReadRelease.REGISTERED.name,
         name = lorem_text_generator.new_text(),
         type = named_layout_type.id,
@@ -50,7 +50,7 @@ async def test_add_layout_command_nested(
             raise ValueError("Arrangement not found")
 
     grid_layout_type = basic_ontology.get_entry_model("Grid", label="LayoutType")
-    second_layout_command = AddLayout(
+    second_layout_command = CreateLayout(
         user= first_account_with_all_affiliations.user.id,
         release = ReadRelease.REGISTERED.name,
         name = lorem_text_generator.new_text(),

@@ -1,21 +1,30 @@
+from abc import abstractmethod
 from pydantic import UUID4, field_serializer
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
 
-from typing import ClassVar, Set, List
-
+from typing import ClassVar, Set, List, Dict
 
 class ReferenceBase(LabeledModel):
     label: ClassVar[str] = 'Reference'
     plural: ClassVar[str] = 'References'
-
     description: None|str = None
 
 class ReferenceStoredBase(ControlledModel, ControlledAggregate):
 
     @property
+    @abstractmethod
+    def label(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def plural(self) -> str:
+        raise NotImplementedError
+
+    @property
     def controlled_models(self) -> List[ControlledModel]:
-        return []
+        return [self]
 
     @property
     def root(self) -> StoredModel:
@@ -25,12 +34,11 @@ class ReferenceStoredBase(ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         return None
 
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> ControlledModel|None:
-
+    def redacted(self, controllers: Dict[str, Dict[int, Controller]], user_id = None, read_teams = None):
         if read_teams is None:
             read_teams = set()
 
-        if self.controller.has_access(Access.READ, user_id, read_teams):
+        if controllers[self.label][self.id].has_access(Access.READ, user_id, read_teams):
             return self
         else:
             if user_id is None:

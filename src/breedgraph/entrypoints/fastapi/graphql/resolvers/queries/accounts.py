@@ -9,7 +9,7 @@ from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResul
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
-    inject_users_map
+    update_users_map
 )
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
@@ -22,7 +22,7 @@ account = ObjectType("Account")
 @graphql_payload
 @require_authentication
 async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
-    await inject_users_map(info.context)
+    await update_users_map(info.context)
     users_map = info.context.get('users_map')
     # then return the list of values
     if user_id:

@@ -10,7 +10,7 @@ from src.breedgraph.service_layer import unit_of_work
 logger = logging.getLogger(__name__)
 
 async def add_layout(
-        cmd: commands.arrangements.AddLayout,
+        cmd: commands.arrangements.CreateLayout,
         uow: unit_of_work.AbstractUnitOfWork
 ):
     async with uow.get_repositories(user_id=cmd.user, release=ReadRelease[cmd.release]) as uow:

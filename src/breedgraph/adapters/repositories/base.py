@@ -30,16 +30,17 @@ class BaseRepository(ABC):
     async def _create(self, aggregate_input: BaseModel|None) -> Aggregate:
         raise NotImplementedError
 
-    async def get(self, **kwargs) -> Tracked|Aggregate:
+    async def get(self, **kwargs) -> Tracked|Aggregate|None:
         aggregate = await self._get(**kwargs)
         if aggregate is not None:
             return self._track(aggregate)
+        return None
 
     @abstractmethod
-    async def _get(self, **kwargs) -> Aggregate:  # get may be from root id or ID of list_attribute elements
+    async def _get(self, **kwargs) -> Aggregate | None:  # get may be from root id or ID of list_attribute elements
         raise NotImplementedError
 
-    async def get_all(self, **kwargs) -> AsyncGenerator[Tracked|Aggregate, None]:
+    async def get_all(self, **kwargs) -> AsyncGenerator[Tracked | Aggregate, None]:
         async for aggregate in self._get_all(**kwargs):
             yield self._track(aggregate)
 

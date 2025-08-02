@@ -3,7 +3,7 @@ from src.breedgraph.domain.model.controls import ReadRelease
 
 from typing import List
 
-class AddLayout(Command):
+class CreateLayout(Command):
     user: int
     release: str = ReadRelease.REGISTERED.name
 
@@ -14,10 +14,6 @@ class AddLayout(Command):
 
     parent: int|None = None
     position: List[int|float|str]|None = None
-
-class RemoveLayout(Command):
-    user: int
-    layout: int
 
 class UpdateLayout(Command):
     user: int
@@ -31,3 +27,7 @@ class UpdateLayout(Command):
 
     parent: int | None
     position: List[int|float|str]|None = None
+
+class DeleteLayout(Command):
+    user: int
+    layout: int

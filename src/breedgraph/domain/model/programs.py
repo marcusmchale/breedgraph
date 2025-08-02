@@ -3,10 +3,10 @@ import logging
 from pydantic import BaseModel
 
 from src.breedgraph.domain.model.base import StoredModel, LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 
-from typing import List, Set, ClassVar
+from typing import List, Set, ClassVar, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,15 @@ class StudyInput(StudyBase):
 
 class StudyStored(StudyBase, ControlledModel):
 
-    def redacted(self) -> 'ControlledModel':
+    def redacted(
+            self,
+            controller: Controller,
+            user_id = None,
+            read_teams = None
+    ) -> 'ControlledModel':
+        if controller.has_access(Access.READ, user_id, read_teams):
+            return self
+
         return self.model_copy(deep=True, update={
             'name': self.redacted_str,
             'fullname': self.redacted_str if self.fullname is not None else None,
@@ -88,9 +96,17 @@ class TrialInput(TrialBase):
 
 class TrialStored(TrialBase, ControlledModel):
 
-    studies: dict[int, StudyStored|StudyInput] = dict() # keyed by ID or assigned a temporary ID for inputs
+    studies: Dict[int, StudyStored|StudyInput] = dict() # keyed by ID or assigned a temporary ID for inputs
 
-    def redacted(self) -> 'TrialStored':
+    def redacted(
+            self,
+            controller: Controller,
+            user_id=None,
+            read_teams=None
+    ) -> 'TrialStored':
+
+        if controller.has_access(Access.READ, user_id, read_teams):
+            return self
 
         return self.model_copy(deep=True, update={
             'name': self.redacted_str,
@@ -124,15 +140,20 @@ class ProgramInput(ProgramBase):
 
 class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
 
-    trials: dict[int, TrialStored|TrialInput] = dict()  # keyed by ID or assigned a temporary ID for inputs
+    trials: Dict[int, TrialStored|TrialInput] = dict()  # keyed by ID or assigned a temporary ID for inputs
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
         # We have distinct controls on trials and nested studies.
         # Trials may then be shared without sharing associated studies
-        trials = list(self.trials.values())
-        studies = [study for trial in trials if hasattr(trial, 'studies') for study in trial.studies.values()]
-        return trials + studies
+        trials = [i for i in self.trials.values() if isinstance(i, ControlledModel)]
+        studies = [
+            study for trial in trials
+            if hasattr(trial, 'studies')
+            for study in trial.studies.values()
+            if isinstance(study, ControlledModel)
+        ]
+        return [self] + trials + studies
 
     @property
     def root(self) -> StoredModel:
@@ -142,41 +163,66 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         if self.trials:
             return "Programs with established trials may not be removed"
+        return None
 
-    def redacted(self, user_id: int = None, read_teams: Set[int] = None) -> 'ProgramStored':
-        if read_teams is None:
-            read_teams = set()
+    def redacted(
+            self,
+            controllers: Dict[str, Dict[int, Controller]],
+            user_id=None,
+            read_teams=None
+    ) -> 'ProgramStored':
 
-        if self.controller.has_access(Access.READ, user_id, read_teams):
+        program_controller = controllers['Program'][self.id]
+        if program_controller.has_access(Access.READ, user_id, read_teams):
             aggregate = self
+
         else:
-            aggregate = self.model_copy(deep=True)
+            aggregate = self.model_copy(
+                deep=True,
+                update={
+                    'name': self.redacted_str,
+                    'fullname': None,
+                    'description': None,
+                    'contacts': list(),
+                    'references': list()
+                }
+            )
 
         for trial_key, trial in self.trials.items():
-            if not trial.controller.has_access(Access.READ, user_id, read_teams):
+            if not controllers['Trial'][trial_key].has_access(Access.READ, user_id, read_teams):
                 if user_id is None:
                     aggregate.trials.pop(trial_key)
                 else:
-                    aggregate.trials[trial_key] = trial.redacted()
-            else:
-                for study_key, study in trial.studies.items():
-                    if not study.controller.has_access(Access.READ, user_id, read_teams):
-                        if user_id is None:
-                            aggregate.trials[trial_key].pop(study_key)
-                        else:
-                            aggregate.trials[trial_key][study_key] = study.redacted()
+                    aggregate.trials[trial_key] = trial.redacted(
+                        controller=controllers['Trial'][trial_key],
+                        user_id=user_id,
+                        read_teams=read_teams
+                    )
 
-        if user_id is None:
-            aggregate.references[:] = [
-                r for r in aggregate.references if r.controller.has_access(Access.READ, user_id, read_teams)
-            ]
-        else:
-            aggregate.references[:] = [
-                r if r.controller.has_access(Access.READ, user_id, read_teams) else r.redacted() for r in aggregate.references
-            ]
+            for study_key, study in trial.studies.items():
+                if not controllers['Study'][study_key].has_access(Access.READ, user_id, read_teams):
+                    if user_id is None:
+                        aggregate.trials[trial_key].pop(study_key)
+                    else:
+                        aggregate.trials[trial_key][study_key] = study.redacted(
+                            controller=controllers['Study'][study_key],
+                            user_id=user_id,
+                            read_teams=read_teams
+                        )
 
         return aggregate
 
     def add_trial(self, trial: TrialInput):
         temp_key = -len(self.trials) - 1
         self.trials[temp_key] = trial
+
+    def to_output_map(self):
+        return {
+            self.id: ProgramOutput(**self.model_dump())
+        }
+
+class ProgramOutput(ProgramStored):
+    # returning the ProgramStored, just giving new type in case of future requirements
+    pass
+
+

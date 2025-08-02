@@ -8,6 +8,7 @@ from src.breedgraph.domain.model.regions import (
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.repositories.trackable_wrappers import Tracked, TrackedList, TrackedDict
 from src.breedgraph.adapters.repositories.controlled import Neo4jControlledRepository
+from src.breedgraph.custom_exceptions import IllegalOperationError
 
 from typing import Set, AsyncGenerator, Tuple, List
 
@@ -15,13 +16,11 @@ logger = logging.getLogger(__name__)
 
 class Neo4jRegionsRepository(Neo4jControlledRepository):
 
+
+
     async def _create_controlled(self, location: LocationInput) -> Region:
-        async for region in self._get_all_controlled():
-            if location.name.casefold() in [name.casefold for name in region.root.names]:
-                raise ValueError("This name is in use for the root on an existing region")
-            if region.root.code is not None:
-                if region.root.code.casefold() == location.code.casefold():
-                    raise ValueError("This code is in use for the root on an existing region")
+        async for _ in self._get_all_controlled(location.name, location.code):
+            raise IllegalOperationError("This region name or code is already in use")
 
         stored_location = await self._create_location(location)
         return Region(nodes=[stored_location])
@@ -63,14 +62,27 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[Region, None]:
-        result: AsyncResult = await self.tx.run(queries['regions']['read_regions'])
+    @staticmethod
+    def record_to_region(record) -> Region:
+        locations = [LocationStored(**l) for l in record['region']]
+        edges = [
+            (entry.get('parent_id'), entry.get('id'), None) for entry in record['region'] if
+            entry.get('parent_id') is not None
+        ]
+        return Region(nodes=locations, edges=edges)
+
+    async def _get_all_controlled(self, name=None, code=None) -> AsyncGenerator[Region, None]:
+        if not name or code:
+            result: AsyncResult = await self.tx.run(queries['regions']['read_regions'])
+        else:
+            result = await self.tx.run(
+                queries['regions']['get_regions_by_root_name_or_code'],
+                name_regex=f"(?i){name}",
+                # the {?i} is for case insensitive matching, this won't use indices but shouldn't be a frequent call
+                code_regex=f"(?i){code}"
+            )
         async for record in result:
-            locations = [LocationStored(**l) for l in record['region']]
-            edges = [
-                (entry.get('parent_id'), entry.get('id'), None) for entry in record['region'] if entry.get('parent_id') is not None
-            ]
-            yield Region(nodes=locations, edges=edges)
+            yield self.record_to_region(record)
 
     async def _remove_controlled(self, region: Region) -> None:
         await self._delete_locations(list(region._graph.nodes.keys()))
@@ -94,6 +106,12 @@ class Neo4jRegionsRepository(Neo4jControlledRepository):
             location = region.get_location(node_id)
             if not isinstance(location, LocationStored):
                 raise ValueError("Can only commit changes to stored locations")
+
+            if node_id == region.root.id:
+                if 'name' in location.changed or 'code' in location.changed:
+                    async for _ in self._get_all_controlled(location.name, location.code):
+                        if not region.root.id == node_id:
+                            raise IllegalOperationError("This region name or code is already in use")
 
             await self._update_location(location)
 
