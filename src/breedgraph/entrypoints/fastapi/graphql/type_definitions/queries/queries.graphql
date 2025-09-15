@@ -26,11 +26,11 @@ type Query {
     """
     user_access: UserAccessPayload!
     """Get the latest ontology version"""
-    ontology_version (entry_id: Int, entry_name: String): VersionPayload!
+    ontology_version: VersionPayload!
     """Get an ontology entry"""
     ontology_entry (entry_id: Int!): OntologyEntryPayload
     """Get a list of ontology entries"""
-    ontology_entries (name: String, label: OntologyLabel): OntologyEntriesPayload
+    ontology_entries (entry_ids: [Int], names: [String], labels: [OntologyLabel]): OntologyEntriesPayload
     """Get a list of countries for use in top level region creation"""
     countries: LocationsPayload!
     """Get a list of region "root" locations.
@@ -41,6 +41,11 @@ type Query {
     Get a single location details
     """
     location (location_id: Int!): LocationPayload! # see team
+    """
+    Search for locations by ontology type
+    """
+    locations (location_type: Int!): LocationsPayload!
+    # todo implement the resolver for this query
     """Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying location_id.

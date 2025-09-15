@@ -1,5 +1,6 @@
 import pytest
 
+@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_update(
         blocks_repo,
@@ -10,7 +11,6 @@ async def test_update(
         example_arrangement
 ):
     tree_block.root.name = "New name"
-
     stored_block = await blocks_repo.get()
     stored_block.root.name = "New name this time"
     await blocks_repo.update_seen()

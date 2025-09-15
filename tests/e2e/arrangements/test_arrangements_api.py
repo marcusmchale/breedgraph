@@ -4,7 +4,7 @@ from src.breedgraph.custom_exceptions import NoResultFoundError
 from tests.conftest import lorem_text_generator
 
 from tests.e2e.arrangements.post_methods import post_to_add_layout, post_to_arrangements, post_to_layout
-
+from tests.e2e.regions.post_methods import post_to_regions
 from tests.e2e.ontologies.post_methods import post_to_add_entry, post_to_get_entries
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 
@@ -18,10 +18,15 @@ async def test_create_layout(
         basic_region,
         lorem_text_generator
 ):
-    field_type_id, field_type = basic_ontology.get_entry(entry="Field", label="LocationType")
+    ontology_response = await post_to_get_entries(client=client, token=first_user_login_token, names=["Field"], labels=["LocationType"])
+    ontology_payload = get_verified_payload(ontology_response, "ontology_entries")
+    field_type_id = ontology_payload.get('result')[0].get('id')
+
+    region_response = await post_to_regions(client=client, token=first_user_login_token, names=["Field"], labels=["Region"])
+
     field = next(basic_region.yield_locations_by_type(field_type_id))
 
-    indexed_rows_type_id, indexed_rows_type = basic_ontology.get_entry(entry="Indexed Rows", label="LayoutType")
+    indexed_rows_type_id, indexed_rows_type = basic_ontology_service.get_entry(entry="Indexed Rows", label="LayoutType")
     layout_name = lorem_text_generator.new_text(10)
     layout = {
         'release': "REGISTERED",
@@ -60,15 +65,15 @@ async def test_extended_layout(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology,
+        basic_ontology_service,
         basic_region,
         lorem_text_generator
 ):
 
-    lab_type_id, lab_type = basic_ontology.get_entry(entry="Lab", label="LocationType")
+    lab_type_id, lab_type = basic_ontology_service.get_entry(entry="Lab", label="LocationType")
     lab = next(basic_region.yield_locations_by_type(lab_type_id))
 
-    numbered_type_id, numbered_type = basic_ontology.get_entry(entry="Numbered", label="LayoutType")
+    numbered_type_id, numbered_type = basic_ontology_service.get_entry(entry="Numbered", label="LayoutType")
     facility_layout_name = "Growth Facility"
     facility_layout = {
         'release': "REGISTERED",
@@ -92,7 +97,7 @@ async def test_extended_layout(
     facility_layout = arrangements[0]
     facility_layout_id = facility_layout.get('id')
 
-    adjacency_3d_type_id, adjacency_3d_type = basic_ontology.get_entry(entry="3D Adjacency", label="LayoutType")
+    adjacency_3d_type_id, adjacency_3d_type = basic_ontology_service.get_entry(entry="3D Adjacency", label="LayoutType")
     chamber_layout_name = "Chamber 1"
     facility_position = "1"
     chamber_layout = {
@@ -119,7 +124,7 @@ async def test_extended_layout(
     chamber_layout = facility_layout.get('children')[0]
     chamber_layout_id = chamber_layout.get('id')
 
-    grid_type_id, grid_type = basic_ontology.get_entry(entry="Grid", label="LayoutType")
+    grid_type_id, grid_type = basic_ontology_service.get_entry(entry="Grid", label="LayoutType")
     shelf_layout_name = "Rear-Top-Right Shelf"
     shelf_layout = {
         'release': "PRIVATE",

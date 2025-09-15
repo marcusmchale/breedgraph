@@ -1,12 +1,5 @@
-MATCH (entry: Germplasm {id: $id})
-SET
-  entry.name = $name,
-  entry.synonyms = $synonyms,
-  entry.description =  $description,
-  entry.reproduction = $reproduction,
-  entry.time = datetime($time['str']),
-  entry.time_unit = $time['unit'],
-  entry.time_step = $time['step']
+MATCH (entry: Germplasm {id: $entry_id})
+SET entry += $props
 WITH entry
 // Link methods
 CALL {

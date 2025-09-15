@@ -1,14 +1,14 @@
 input RecordInput {
-    dataset: Int!
-    unit: Int!
+    dataset_id: Int!
+    unit_id: Int!
     value: String
     start: DateTime
     end: DateTime
-    references: [Int]
+    reference_ids: [Int]
 }
 
 extend type Mutation {
     """For each dataset the term is the Variable/Condition or Event from the Ontology to which this data corresponds"""
-    data_create_dataset(term: Int!): BooleanPayload!
+    data_create_dataset(term_id: Int!): BooleanPayload!
     data_add_record(record: RecordInput): BooleanPayload!
 }

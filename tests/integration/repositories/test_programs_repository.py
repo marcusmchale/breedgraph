@@ -5,10 +5,11 @@ from src.breedgraph.domain.model.programs import (
     StudyInput, StudyStored
 )
 
-from src.breedgraph.adapters.repositories.programs import Neo4jProgramsRepository
+from src.breedgraph.adapters.neo4j.repositories import Neo4jProgramsRepository
 from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
 
+@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_create_and_get(
         programs_repo
@@ -16,7 +17,6 @@ async def test_create_and_get(
     program_input = ProgramInput(name='BOLERO')
     stored_program = await programs_repo.create(program_input)
     retrieved_program: ProgramStored = await programs_repo.get(program_id = stored_program.id)
-
     assert stored_program.name == retrieved_program.name
     async for program in programs_repo.get_all():
         if program.name == program_input.name:
@@ -30,6 +30,7 @@ async def test_extend_program_with_trial(
         lorem_text_generator
 ):
     program = await programs_repo.get()
+
     new_trial = TrialInput(name='New Trial')
     program.add_trial(new_trial)
     await programs_repo.update_seen()
@@ -49,9 +50,9 @@ async def test_extend_trial_with_study(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_study(
         programs_repo,
-        test_controllers_service,
+        neo4j_access_control_service,
         lorem_text_generator,
-        neo4j_tx,
+        uncommitted_neo4j_tx,
         stored_account,
         stored_organisation
 ):
@@ -61,8 +62,8 @@ async def test_edit_study(
     await programs_repo.update_seen()
 
     new_repo = Neo4jProgramsRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams={Access.READ: [stored_organisation.root.id]}
     )
@@ -73,9 +74,9 @@ async def test_edit_study(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_trial(
         programs_repo,
-        test_controllers_service,
+        neo4j_access_control_service,
         lorem_text_generator,
-        neo4j_tx,
+        uncommitted_neo4j_tx,
         stored_account,
         stored_organisation
 ):
@@ -85,8 +86,8 @@ async def test_edit_trial(
     await programs_repo.update_seen()
 
     new_repo = Neo4jProgramsRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams={Access.READ: [stored_organisation.root.id]}
     )
@@ -97,9 +98,9 @@ async def test_edit_trial(
 @pytest.mark.asyncio(scope="session")
 async def test_edit_program(
         programs_repo,
-        test_controllers_service,
+        neo4j_access_control_service,
         lorem_text_generator,
-        neo4j_tx,
+        uncommitted_neo4j_tx,
         stored_account,
         stored_organisation
 ):
@@ -108,8 +109,8 @@ async def test_edit_program(
     await programs_repo.update_seen()
 
     new_repo = Neo4jProgramsRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams={Access.READ: [stored_organisation.root.id]}
     )

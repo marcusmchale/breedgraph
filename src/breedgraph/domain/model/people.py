@@ -1,17 +1,22 @@
-import logging
+from dataclasses import dataclass, field, replace
+from abc import ABC
+
+from src.breedgraph.service_layer.tracking.wrappers import asdict
 
 from .base import LabeledModel
 from .controls import ControlledModel, ControlledAggregate, Access, Controller
 
-from typing import List, Set, ClassVar, Dict
+from typing import List, Set, ClassVar, Dict, Any
 
+import logging
 logger = logging.getLogger(__name__)
 
-class PersonBase(LabeledModel):
+@dataclass(eq=False)
+class PersonBase(ABC):
     label: ClassVar[str] = 'Person'
     plural: ClassVar[str] = 'People'
 
-    name: str
+    name: str = None
     fullname: None|str = None
 
     # contact details
@@ -22,16 +27,18 @@ class PersonBase(LabeledModel):
 
     description: None | str = None  # e.g. Titles etc. if not captured by Role
 
-    user: int | None = None  # Optional ID for the corresponding user
     teams: List[int] | None = None  # references to stored Team ID
     locations: List[int] | None = None  # references to stored Location
 
     roles: List[int]|None = None  # references to PersonRole in ontology
     titles: List[int]|None = None  # references to PersonTitle in ontology
 
-class PersonInput(PersonBase):
+
+@dataclass(eq=False)
+class PersonInput(PersonBase, LabeledModel):
     pass
 
+@dataclass(eq=False)
 class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
 
     @property
@@ -63,20 +70,16 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             if user_id is None:
                 return None
 
-            redacted: PersonStored = self.model_copy(
-                deep=True,
-                update = {
-                    'name' : self._redacted_str,
-                    'fullname' : self._redacted_str if self.fullname is not None else None,
-                    'email' : self._redacted_str if self.email is not None else None,
-                    'phone' : self._redacted_str if self.phone is not None else None,
-                    'orcid' : self._redacted_str if self.orcid is not None else None,
-                    'description' : self._redacted_str if self.description is not None else None,
-                    'user' : None,
-                    'teams' : list(),
-                    'locations' : list(),
-                    'roles' : list(),
-                    'titles' : list()
-                }
+            return replace(
+                self,
+                name = self._redacted_str,
+                fullname = self._redacted_str if self.fullname is not None else None,
+                email = self._redacted_str if self.email is not None else None,
+                phone = self._redacted_str if self.phone is not None else None,
+                orcid = self._redacted_str if self.orcid is not None else None,
+                description = self._redacted_str if self.description is not None else None,
+                teams = list(),
+                locations = list(),
+                roles = list(),
+                titles = list()
             )
-            return redacted

@@ -5,10 +5,10 @@ extend type Mutation {
         parent: Int
     ): BooleanPayload!
     delete_team(
-        team: Int!
+        team_id: Int!
     ): BooleanPayload!
     update_team(
-        team: Int!
+        team_id: Int!
         name: String
         fullname: String
     ): BooleanPayload!

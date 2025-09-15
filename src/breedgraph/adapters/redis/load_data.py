@@ -1,15 +1,18 @@
 import csv
+from itertools import count
+
 import redis
+import json
 
 from pathlib import Path
 
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.regions import LocationInput, LocationOutput, Region
-from src.breedgraph.domain.model.ontology.location_type import LocationType
+from src.breedgraph.domain.model.regions import LocationInput, LocationStored
+from src.breedgraph.domain.model.ontology.location_type import LocationTypeInput, LocationTypeStored, LocationTypeOutput
 
 # typing only
 from neo4j import AsyncResult
-from src.breedgraph.service_layer.unit_of_work import Neo4jUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, AbstractUnitHolder
 
 # logging
 import logging
@@ -17,54 +20,53 @@ logger = logging.getLogger(__name__)
 
 class RedisLoader:
 
-    def __init__(self, connection: redis.Redis):
+    def __init__(self, connection: redis.Redis, uow: AbstractUnitOfWork):
         self.connection = connection
-        self.uow = Neo4jUnitOfWork()
+        self.uow: AbstractUnitOfWork = uow
 
-    async def load_read_model(self) -> None:
-        await self.load_countries()
+    async def load_read_model(self, user_id:int = None) -> None:
+        async with self.uow.get_uow(user_id = user_id) as uow:
+            await self.load_ontology(uow)
+            await self.load_countries(uow)
 
-    async def load_countries(self, ):
-        async with self.uow.get_repositories() as uow:
-            ontology = await uow.ontologies.get()
-            if ontology is None:
-                await uow.ontologies.create()
-                ontology = await uow.ontologies.get()
-            if next(ontology.get_entries(entry='Country', label='LocationType'), None) is None:
-                ontology.add_entry(
-                    LocationType(
-                        name='Country',
-                        description='Country and three digit code according to ISO 3166-1 alpha-3'
-                    )
-                )
-                await uow.ontologies.update_seen()
-                ontology = await uow.ontologies.get()
+    async def load_ontology(self, uow: AbstractUnitHolder):
+        async for entry in uow.ontology.get_entries(as_output=True):
+            await self.connection.hset(
+                name=entry.label,
+                key=entry.name,
+                value=json.dumps(entry.model_dump())
+            )
+        # create index on the name attribute for each entry.label
 
-            country_type_id, country_type_entry = ontology.get_entry(entry='Country', label='LocationType')
-            result: AsyncResult = await uow.tx.run(queries['regions']['get_locations_by_type'], type=country_type_id)
-            async for record in result:
-                location_output = LocationOutput(**record['location'])
-                await self.connection.hset(
-                    name="country",
-                    key=location_output.code,
-                    value=location_output.model_dump_json()
-                )
-            await uow.commit()
-
+    async def load_countries(self, uow: AbstractUnitHolder):
+        # get the country type
+        country_type_id = None
+        entries_json = await self.connection.hgetall("LocationType")
+        for entry_json in entries_json.values():
+            entry_data = json.loads(entry_json)
+            if entry_data.get('name') == "Country":
+                country_type_id = entry_data.get('id')
+                break
+        async for country in uow.views.get_countries():
+            await self.connection.hset(
+                name="country",
+                key=country.code,
+                value=json.dumps(country.model_dump())
+            )
         # e.g. https://unstats.un.org/unsd/methodology/m49/overview/
         country_codes_path = Path('src/data/country_codes.csv')
         if country_codes_path.is_file():
             with open(country_codes_path) as country_codes_csv:
                 for row in csv.DictReader(country_codes_csv, delimiter=";"):
-                    location_input = LocationInput(
+                    country_input = LocationInput(
                         name=row['Country or Area'],
                         code=row['ISO-alpha3 Code'],
                         type=country_type_id
                     )
                     await self.connection.hsetnx(
                         "country",
-                        key=location_input.code,
-                        value=location_input.model_dump_json()
+                        key=country_input.code,
+                        value=json.dumps(country_input.model_dump())
                     )
         else:
             logger.warning("Couldn't find country codes to preload read model")

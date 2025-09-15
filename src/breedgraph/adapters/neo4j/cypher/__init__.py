@@ -7,7 +7,7 @@ for folder in pathlib.Path('src/breedgraph/adapters/neo4j/cypher').iterdir():
         for cypher_path in folder.glob('*.cypher'):
             queries[folder.name][cypher_path.stem] = pathlib.Path( cypher_path).resolve().read_text()
 
-from src.breedgraph.adapters.neo4j.cypher.query_builders import ontology_entries, controls
+from src.breedgraph.adapters.neo4j.cypher.query_builders import ontology, controls
 
-__all__ = ['queries', 'ontology_entries', 'controls']
+__all__ = ['queries', 'ontology', 'controls']
 

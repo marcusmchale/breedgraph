@@ -1,7 +1,7 @@
 type Layout {
     id: Int!
     name: String!
-    type: OntologyEntry!
+    type: OntologyEntryInterface!
     axes: [String]
     parent: Layout
     """Position within parent layout"""

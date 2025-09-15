@@ -1,61 +1,84 @@
-from typing import List, ClassVar, Set, Dict
+from dataclasses import dataclass, field, replace
+from abc import ABC
+from typing import List, ClassVar, Set, Dict, Self
+from numpy import datetime64
 
-from pydantic import Field
+from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.time_descriptors import PyDT64
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, ReadRelease, Controller
 
-
-class DataRecordBase(LabeledModel):
+@dataclass
+class DataRecordBase(ABC):
     label: ClassVar[str] = 'Record'
     plural: ClassVar[str] = 'Records'
 
-    unit: int
-    value: str | None
+    unit: int|None = None
+    value: str|None = None
 
-    # Start and/or end time to describe period of relevance for the record.
-    start: PyDT64 | None = None
-    end: PyDT64 | None = None
+    # time and/or start and/or end time to describe period of relevance for the record.
+    time: datetime64|None = None
+    start: datetime64|None = None
+    end: datetime64|None = None
 
-    references: List[int]|None = list()
+    references: List[int]|None = field(default_factory=list)
     # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
-
-class DataRecordInput(DataRecordBase):
+@dataclass
+class DataRecordInput(DataRecordBase, LabeledModel):
     pass
 
-class DataRecordStored(DataRecordBase, StoredModel):
-    submitted: PyDT64 = Field(frozen=True)
+@dataclass
+class DataRecordStored(DataRecordBase, ControlledModel):
+    submitted: datetime64|None = None
 
-class DataRecordOutput(DataRecordBase):
-    submitted: PyDT64
+    def redacted(self, controller: Controller, user_id=None, read_teams=None) -> Self:
+        if controller.has_access(Access.READ, user_id, read_teams):
+            return self
+        else:
+            return replace(
+                self,
+                value = self.value and self.redacted_str,
+            )
 
-class DataSetBase(LabeledModel):
+@dataclass
+class DataRecordOutput(DataRecordBase, LabeledModel):
+    submitted: datetime64|None = None
+
+
+@dataclass(eq=False)
+class DataSetBase(ABC):
     """
-        DataRecords are aggregated per term into a DataSet.
+        DataRecords are aggregated per ontology_id into a DataSet.
         Typically, a dataset will be referenced by a single study,
         though multiple studies may reference a common dataset.
 
-        "Term" is a reference to Variable, EventType or Parameter in the ontology.
+        "ontology_id" should reference to Variable, EventType or Parameter in the ontology.
         "Records" is a list of DataRecord
         """
     label: ClassVar[str] = 'DataSet'
     plural: ClassVar[str] = 'DataSets'
 
-    term: int
-    records: List[DataRecordStored|DataRecordInput] = list()
+    ontology_id: int = None
+    records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
 
-    contributors: List[int] = list() # PersonStored that contributed to this dataset by ID
-    references: List[int] = list() # to link supporting data in references repository
+    contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
+    references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
     def add_record(self, record: DataRecordInput):
         self.records.append(record)
 
-class DataSetInput(DataSetBase):
+    def model_dump(self):
+        dump = asdict(self)
+        dump['records'] = [record.model_dump() for record in self.records]
+        return dump
+
+@dataclass
+class DataSetInput(DataSetBase, LabeledModel):
     pass
 
+@dataclass(eq=False)
 class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
 
     @property
@@ -65,6 +88,15 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
     @property
     def root(self) -> StoredModel:
         return self
+
+    def model_dump(self):
+        return {
+            'id': self.id,
+            'ontology_id': self.ontology_id,
+            'records': [record.model_dump() for record in self.records],
+            'contributors': self.contributors,
+            'references': self.references
+        }
 
     @property
     def protected(self) -> str | None:
@@ -87,14 +119,20 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
             if user_id is None:
                 return None
             else:
-                redacted = self.model_copy(
-                    deep=True,
-                    update={'records': list(), 'contributors': list(), 'references': list()}
+                return replace(
+                    self,
+                    records = [
+                        record.redacted(controllers[record.label][record.id], user_id, read_teams)
+                        if isinstance(record, DataRecordStored) else record
+                        for record in self.records
+                    ],
+                    contributors = list(),
+                    references = list()
                 )
-                return redacted
 
     def to_output(self):
         return DataSetOutput(**self.model_dump())
 
+@dataclass(eq=False)
 class DataSetOutput(DataSetBase):
-    id: int
+    id: int | None = None

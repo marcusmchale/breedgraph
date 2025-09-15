@@ -8,7 +8,8 @@ from src.breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphq
 from src.breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
 
 from src.breedgraph import bootstrap
-from src.breedgraph.service_layer import AuthService
+from src.breedgraph.service_layer.infrastructure.authentication import AbstractAuthService, ItsDangerousAuthService
+
 from src.breedgraph.service_layer.messagebus import MessageBus
 
 import logging
@@ -19,21 +20,18 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):
     logger.debug("Application startup")
-    logger.debug("Build the messaging bus")
 
-    bus: MessageBus = await bootstrap.bootstrap()
-    auth_service = AuthService()
-
-    fast_api_app.bus = bus
+    logger.debug("Load auth service")
+    auth_service: AbstractAuthService = ItsDangerousAuthService()
     fast_api_app.auth_service = auth_service
 
-    # Create the GraphQL schema
-    logger.debug("Creating GraphQL schema")
-    graphql_schema = create_graphql_schema()
+    logger.debug("Load messaging bus")
+    bus: MessageBus = await bootstrap.bootstrap(auth_service=auth_service)
+    fast_api_app.bus = bus
 
-    # Store the schema in the app for use in the GraphQL endpoint
+    logger.debug("Load graphql schema")
+    graphql_schema = create_graphql_schema()
     fast_api_app.graphql_schema = graphql_schema
-    logger.debug("GraphQL schema prepared and stored in app")
 
     yield
 

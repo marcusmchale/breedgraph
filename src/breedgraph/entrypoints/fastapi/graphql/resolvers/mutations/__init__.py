@@ -1,5 +1,22 @@
-from ariadne import MutationType
+from ariadne import ObjectType
+from ..registry import graphql_resolvers
 
-graphql_mutation = MutationType()
+# Create and register the main mutation object
+graphql_mutation = ObjectType("Mutation")
+graphql_resolvers.register_mutation_resolvers(graphql_mutation)
 
-from . import accounts, regions, arrangements, ontologies, organisations, blocks, datasets, programs
+# Import ALL mutation modules to register their field resolvers
+# These imports need to happen AFTER graphql_mutation is created
+from . import ontologies
+from . import organisations
+from . import regions
+from . import arrangements
+from . import blocks
+from . import datasets
+from . import programs
+#from . import controls
+from . import accounts
+#from . import germplasms
+
+# Export only the main mutation object
+__all__ = ['graphql_mutation']

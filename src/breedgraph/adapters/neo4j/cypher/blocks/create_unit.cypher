@@ -12,26 +12,24 @@ CREATE (unit: Unit {
 WITH
   unit
 // Link to subject (required for all units)
-CALL {
-  WITH unit
+CALL (unit) {
   MATCH (subject:Subject {id: $subject})
   CREATE (unit)-[:OF_SUBJECT]->(subject)
   RETURN collect(subject.id)[0] AS subject
 }
 // Link to positions
-CALL {
-  WITH unit
+CALL (unit) {
   UNWIND $positions as position_map
   MATCH (location:Location {id: position_map['location']})
   OPTIONAL MATCH (layout: Layout {id: position_map['layout']})
   CREATE (unit)-[:IN_POSITION]->(position:Position {
     coordinates: position_map['coordinates'],
-    start: datetime(position_map['start']['str']),
-    start_unit: position_map['start']['unit'],
-    start_step: position_map['start']['step'],
-    end:   datetime(position_map['end']['str']),
-    end_unit:   position_map['end']['unit'],
-    end_step:   position_map['end']['step']
+    start: datetime(position_map['start']),
+    start_unit: position_map['start_unit'],
+    start_step: position_map['start_step'],
+    end:   datetime(position_map['end']),
+    end_unit:   position_map['end_unit'],
+    end_step:   position_map['end_step']
   })-[:AT_LOCATION]->(location)
   FOREACH(i in CASE WHEN layout IS NOT NULL THEN [1] ELSE [] END |
     MERGE (position)-[:IN_LAYOUT]->(layout)

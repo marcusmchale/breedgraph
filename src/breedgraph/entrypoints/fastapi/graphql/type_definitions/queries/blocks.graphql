@@ -17,7 +17,7 @@ type Position {
 
 type Unit {
     id: Int!
-    subject: OntologyEntry
+    subject: OntologyEntryInterface
     name: String
     synonyms: [String]
     description: String

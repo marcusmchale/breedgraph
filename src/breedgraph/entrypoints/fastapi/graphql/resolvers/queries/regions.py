@@ -1,29 +1,30 @@
 from ariadne import ObjectType
-from src.breedgraph.views.regions import countries
+from src.breedgraph.service_layer.queries.read_models import regions
 
 from src.breedgraph.domain.model.regions import LocationInput, LocationOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
-    inject_ontology
+    update_ontology_map
 )
-
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
 from typing import List
 
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
 location = ObjectType("Location")
+graphql_resolvers.register_type_resolvers(location)
 
 @graphql_query.field("countries")
 @graphql_payload
 @require_authentication
 async def get_countries(_, info) -> List[LocationInput|LocationOutput]:
     bus = info.context.get('bus')
-    return [c async for c in countries(bus.read_model)]
+    return [c async for c in regions.countries(bus.read_model)]
 
 @graphql_query.field("regions")
 @graphql_payload
@@ -37,10 +38,10 @@ async def get_regions(_, info) -> List[LocationOutput]:
 @graphql_query.field("location")
 @graphql_payload
 @require_authentication
-async def get_location(_, info, location_id: int) -> LocationOutput:
-    await update_locations_map(info.context, location_id=location_id)
+async def get_location(_, info, location: int) -> LocationOutput:
+    await update_locations_map(info.context, location_id=location)
     locations_map = info.context.get('locations_map')
-    return locations_map.get(location_id, None)
+    return locations_map.get(location, None)
 
 @location.field("parent")
 def resolve_parent(obj, info):
@@ -56,6 +57,6 @@ def resolve_release(obj, info):
 
 @location.field("type")
 async def resolve_type(obj, info):
-    await inject_ontology(info.context, entry_id=obj.type)
+    await update_ontology_map(info.context, entry=obj.type)
     ontology = info.context.get('ontology')
     return ontology.to_output(obj.type)

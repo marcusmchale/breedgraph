@@ -26,23 +26,23 @@ extend type Mutation {
         email: String!
     ): BooleanPayload!
     request_affiliation(
-        team: Int!
+        team_id: Int!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
     approve_affiliation(
-        user: Int!
-        team: Int!
+        user_id: Int!
+        team_id: Int!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
     remove_affiliation(
-        team: Int!
+        team_id: Int!
         access: Access!
     ): BooleanPayload!
     revoke_affiliation(
-        user: Int!
-        team: Int!
+        user_id: Int!
+        team_id: Int!
         access: Access!
     ): BooleanPayload!
 }

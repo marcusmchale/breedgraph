@@ -25,7 +25,7 @@ async def get_user_id(request: Request) -> Optional[AccountStored]:
     if token is not None:
         try:
             auth_service = request.app.auth_service
-            return auth_service.validate_token(token)
+            return auth_service.validate_login_token(token)
         except UnauthorisedOperationError as e:
             logger.debug(f"Token validation failed: {str(e)}")
             raise

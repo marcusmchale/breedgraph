@@ -2,21 +2,15 @@ MERGE (counter: Counter {name: 'germplasm'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 CREATE (entry: Germplasm {
-  id: counter.count,
-  name: $name,
-  synonyms: $synonyms,
-  description:  $description,
-  reproduction: $reproduction,
-  time: datetime($time['str']),
-  time_unit: $time['unit'],
-  time_step: $time['step']
+  id:counter.count
 })
+SET entry += $params
 
 WITH entry
 // Link methods
 CALL {
   WITH entry
-  UNWIND $methods as method_id
+  UNWIND $methods AS method_id
   MATCH (method: GermplasmMethod {id: method_id})
   CREATE (entry)-[uses_method:USES_METHOD {time:datetime.transaction()}]->(method)
   RETURN

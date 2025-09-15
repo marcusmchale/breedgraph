@@ -1,15 +1,15 @@
 import re
 from enum import Enum
+from abc import ABC
+from dataclasses import dataclass, field, replace
+from numpy import datetime64
 
-from pydantic import model_validator
-
+from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel
 from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.time_descriptors import PyDT64
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, Controller
-from src.breedgraph.domain.model.ontology.entries import OntologyBase
+from src.breedgraph.domain.model.controls import ControlledModel, Controller
 
-from typing import List, Dict, ClassVar, Type, Self, Generator
+from typing import List, ClassVar, Self, Dict, Any
 
 class GermplasmSourceType(str, Enum):
     # This is to broadly classify relationships, further details may be described in the method,
@@ -29,12 +29,41 @@ class Reproduction(str, Enum):
     SEXUAL = 'SEXUAL'  # e.g. self-pollination
     APOMIXIS = 'APOMIXIS' # e.g. clonal seed production
 
-class GermplasmEntry(OntologyBase):
+@dataclass
+class GermplasmRelationship:
+    source_id: int
+    target_id: int
+    source_type: GermplasmSourceType = GermplasmSourceType.UNKNOWN
+    description: str | None = None
+
+    def model_dump(self) -> Dict[str, Any]:
+        dump = asdict(self)
+        dump['source_type'] = dump['source_type'].value
+        return dump
+
+    def __post_init__(self):
+        self.source_type = GermplasmSourceType(self.source_type)
+
+@dataclass
+class GermplasmBase(ABC):
     # For germplasm entries we subclass ontology base
     # so we can return them as categories for a scale.
     label: ClassVar[str] = 'Germplasm'
     plural: ClassVar[str] = 'Germplasms'
     protected_characters: ClassVar[List[str]] = ['/', '*', ';']
+
+    name: str = ''
+    description: str | None = None
+    synonyms: List[str] = field(default_factory=list)
+
+    authors: List[int] = field(default_factory=list)  # internal person ID
+    references: List[int] = field(default_factory=list)  # internal reference ID
+
+    origin: int | None = None
+    time: datetime64 | None = None
+
+    reproduction: Reproduction | None = None
+    methods: List[int] = field(default_factory=list)
     """
     Germplasm entries may include:
         crop, e.g. Coffee, Cocoa
@@ -63,109 +92,61 @@ class GermplasmEntry(OntologyBase):
         - Multiple F1 materials described in this way are assumed to be from independent events.
         - To describe repeated use of a single hybridization event, e.g. clonal F1 material, an entry should be created.
       - ';' is used to separate a list of germplasm entries, i.e. when multiple germplasm values are being reported as the value.
-    
-    As names are only guaranteed unique within a given "germplasm", 
-    we translate inputs for these to germplasm ID for records.   
+
     The "protected" characters may not be used in names. 
     Similarly, a name may not be a simple integer alone. 
     This is to avoid confounding entries when describing such.
-
     """
-    origin: int | None = None
-    time: PyDT64 | None = None
-    reproduction: Reproduction | None = None
-    methods: List[int] = list()
+    @property
+    def names(self):
+        names = [self.name] + self.synonyms
+        return names
 
-    @model_validator(mode='after')
-    def validate_names(self) -> Self:
-        for name in self.names:
-            if re.search('|'.join(re.escape(x) for x in self.protected_characters), name):
-                raise ValueError(f"Name {name} contains a protected character {self.protected_characters}")
-            try:
-                int(name)
-            except ValueError:
-                pass
-            else:
-                raise ValueError("Names for germplasm entries cannot be integers")
+    def __post_init__(self):
+        """Validate that name doesn't contain protected characters or is numeric"""
+        if re.search('|'.join(re.escape(x) for x in self.protected_characters), self.name):
+            raise ValueError(f"Name {self.name} contains a protected character {self.protected_characters}")
 
-        return self
+        try:
+            float(self.name)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("Names for germplasm entries cannot be purely numeric")
 
-class GermplasmEntryInput(GermplasmEntry):
+    def model_dump(self) -> Dict[str, Any]:
+        dump = asdict(self)
+        return dump
+
+@dataclass
+class GermplasmInput(GermplasmBase, LabeledModel):
     pass
 
-class GermplasmEntryStored(GermplasmEntry, ControlledModel):
+@dataclass
+class GermplasmStored(GermplasmBase, ControlledModel):
 
     def redacted(
             self,
             controller: Controller,
             user_id=None,
             read_teams=None
-    ):
+    ) -> Self:
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
         else:
-            return self.model_copy(deep=True, update={
-                'name': self.redacted_str,
-                'synonyms': [self.redacted_str for _ in self.synonyms],
-                'description': self.redacted_str if self.description is not None else self.description,
-                'reproduction': None,
-                'origin': None,
-                'time': None,
-                'methods': list(),
-                'references': list()
-            })
+            return replace(
+                self,
+                name = self.redacted_str,
+                synonyms = [self.redacted_str for _ in self.synonyms],
+                description = self.description and self.redacted_str,
+                reproduction = None,
+                origin = None,
+                time = None,
+                methods = list(),
+                references = list()
+            )
 
-class Germplasm(ControlledRootedAggregate):
-    default_edge_label: ClassVar[str] = GermplasmSourceType.UNKNOWN
-    default_model_class: ClassVar[Type[ControlledModel]] = GermplasmEntryStored
-    """
-    A Germplasm aggregate is a collection of related germplasm entries,
-    typically rooted at a single Crop reference, e.g. coffee or cocoa.
-    The Germplasm aggregate manages Sourcing and Maintenance details for the entries within it.
-    These details contain references to Ontology entries for Methods, and Region entries for Locations.
+@dataclass
+class GermplasmOutput(GermplasmBase, LabeledModel):
+    pass
 
-    e.g. Coffee <- Coffea arabica <- Marsellesa <- Centroamericano -> MSH12 ...
-
-    From the relationships we can infer some key labels,
-    e.g.
-      - is an Accession where location and time are provided.
-      - is a hybrid where maternal and paternal are known and distinct.
-      - is a controlled self-fertilisation where maternal and paternal are known and the same
-      - is clonal tissue where source is singular Tissue relationship.
-    """
-    def yield_entry_id_by_name(self, name: str) -> Generator[int, None, None]:
-        for entry_id, entry in self.entries.items():
-            if name.casefold() in [n.casefold() for n in entry.names]:
-                yield entry_id
-
-    def assure_name_is_unique(self, name):
-        try:
-            next(self.yield_entry_id_by_name(name))
-        except StopIteration:
-            pass
-        else:
-            raise ValueError(f"Name is already in use for this germplasm: {name}")
-
-    def add_entry(self, entry: GermplasmEntry, sources: Dict[int, dict|None] = None) -> int:
-        if sources is not None:
-            for key in sources:
-                if sources[key] is None:
-                    sources[key] = {'type': self.default_edge_label}
-                if not 'type' in sources[key]:
-                    sources[key]['type'] = self.default_edge_label
-
-        for name in entry.names:
-            self.assure_name_is_unique(name)
-
-        return super().add_entry(entry, sources if sources is not None else None)
-
-    def insert_root(self, entry: GermplasmEntry, details: dict = None) -> int:
-        if details is None:
-            details = {}
-        if 'type' not in details or details['type'] is None:
-            details = {'type': self.default_edge_label}
-
-        for name in entry.names:
-            self.assure_name_is_unique(name)
-
-        return super().insert_root(entry, details)

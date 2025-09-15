@@ -20,9 +20,9 @@ input LocationInput {
     address: String
     coordinates: [GeoCoordinateInput]
     """ Ontology LocationType identifier """
-    type: Int!
+    type_id: Int!
     """ A parent location, required unless a country (see countries) """
-    parent: Int
+    parent_id: Int
     release: ReadRelease
 }
 

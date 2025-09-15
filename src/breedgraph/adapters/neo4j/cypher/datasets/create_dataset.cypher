@@ -4,33 +4,30 @@ SET counter.count = counter.count + 1
 CREATE (dataset: DataSet {id: counter.count})
 WITH
   dataset
-//Link Term
-CALL{
-  WITH dataset
-  MATCH (term: Variable|EventType|Parameter {id: $term})
-  CREATE (dataset)-[for_term:FOR_TERM]->(term)
+//Link Ontology Entry
+CALL (dataset) {
+
+  MATCH (entry: Variable|EventType|Parameter {id: $ontology_id})
+  CREATE (dataset)-[for_term:FOR_ONTOLOGY_ENTRY]->(entry)
   RETURN
-    collect(term.id)[0] AS term
+    collect(entry.id)[0] AS ontology_id
 }
 //Link contributors
-CALL{
-  WITH dataset
+CALL (dataset) {
   MATCH (contributor: Person) WHERE contributor.id IN $contributors
   CREATE (contributor)-[contributed:CONTRIBUTED_TO]->(dataset)
   RETURN
     collect(contributor.id) AS contributors
 }
 //Link references
-CALL{
-  WITH dataset
+CALL (dataset){
   MATCH (reference: Reference) WHERE reference.id IN $references
   CREATE (reference)-[reference_for: REFERENCE_FOR]->(dataset)
   RETURN
     collect(reference.id) AS references
 }
 // Create records
-CALL {
-  WITH dataset
+CALL (dataset) {
   MERGE (record_counter: Counter {name: 'record'})
   ON CREATE SET record_counter.count = 0
   WITH dataset, record_counter
@@ -41,15 +38,9 @@ CALL {
     SET record_counter.count = record_counter.count + 1
     CREATE (dataset)-[:INCLUDES_RECORD]->(record:Record {
       id: record_counter.count,
-      submitted: datetime.transaction(),
-      value:record_data['value'],
-      start:datetime(record_data['start']['str']),
-      start_unit:record_data['start']['unit'],
-      start_step:record_data['start']['step'],
-      end:datetime(record_data['end']['str']),
-      end_unit:record_data['end']['unit'],
-      end_step:record_data['end']['step']
+      submitted: datetime.transaction()
     })-[:FOR_UNIT]->(unit)
+    SET record += record_data
     WITH unit, record, record_data
     OPTIONAL MATCH (reference:Reference) WHERE reference.id IN record_data['references']
     FOREACH( i IN CASE WHEN reference IS NOT NULL THEN [1] ELSE [] END |
@@ -61,7 +52,7 @@ CALL {
 RETURN
   dataset {
     .*,
-    term: term,
+    ontology_id: ontology_id,
     records: records,
     contributors: contributors,
     references: references

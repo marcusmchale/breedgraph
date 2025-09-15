@@ -8,20 +8,7 @@ SET
   person.phone = $phone,
   person.orcid = $orcid,
   person.description = $description
-// Update user
 WITH person
-CALL {
-  WITH person
-  MATCH (person)-[is_user:IS_USER]->(user:User)
-    WHERE NOT user.id = $user
-  DELETE is_user
-}
-CALL {
-  WITH person
-  MATCH (user: User {id: $user})
-  MERGE (person)-[is_user:IS_USER]->(user)
-  ON CREATE SET is_user.time = datetime.transaction()
-}
 //Update teams
 CALL {
   WITH person

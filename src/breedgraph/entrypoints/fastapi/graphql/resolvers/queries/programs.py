@@ -3,9 +3,9 @@ from ariadne import ObjectType
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_programs_map,
-    inject_ontology
+    update_ontology_map
 )
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
+
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.controls import resolve_controller
 
 from src.breedgraph.domain.model.programs import ProgramOutput, TrialStored, StudyStored # todo consider changing to output
@@ -16,9 +16,12 @@ from typing import List
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
 program = ObjectType("Program")
 trial = ObjectType("Trial")
 study = ObjectType("Study")
+graphql_resolvers.register_type_resolvers(program, trial, study)
 
 @graphql_query.field("programs")
 @graphql_payload
@@ -26,11 +29,11 @@ study = ObjectType("Study")
 async def get_programs(
         _,
         info,
-        program_id: int | None = None,
-        trial_id: int | None = None,
-        study_id: int | None = None
+        program: int | None = None,
+        trial: int | None = None,
+        study: int | None = None
 ) -> List[ProgramOutput]:
-    await update_programs_map(info.context, program_id=program_id, trial_id=trial_id, study_id=study_id)
+    await update_programs_map(info.context, program_id=program, trial_id=trial, study_id=study)
     programs_map = info.context.get('programs_map')
     return programs_map.values()
 

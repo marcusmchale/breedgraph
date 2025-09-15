@@ -21,6 +21,8 @@ type Team {
     parent: Team
     children: [Team]
     affiliations: Affiliations
+    directAffiliations: Affiliations
+    inheritedAffiliations: Affiliations
 }
 
 type UserAccess {

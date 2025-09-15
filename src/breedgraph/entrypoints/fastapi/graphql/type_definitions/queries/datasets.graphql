@@ -10,7 +10,7 @@ type Record {
 
 type DataSet {
     id: Int!
-    term: OntologyEntry
+    term: OntologyEntryInterface
     records: [Record]
     contributors: [Int]
     references: [Int]

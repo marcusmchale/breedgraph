@@ -2,7 +2,7 @@ MATCH (dataset: DataSet {id: $dataset_id})
 RETURN
   dataset {
     .*,
-    term: [(dataset)-[:FOR_TERM]-(term: Variable|EventType|Parameter)|term.id][0],
+    ontology_id: [(dataset)-[:FOR_ONTOLOGY_ENTRY]-(entry: Variable|EventType|Parameter)|entry.id][0],
     contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person)|contributor.id],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],
     records: apoc.coll.sortMaps([

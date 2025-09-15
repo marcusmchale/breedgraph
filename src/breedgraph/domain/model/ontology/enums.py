@@ -1,4 +1,11 @@
-from enum import Enum, IntEnum
+from enum import Enum
+
+class LifecyclePhase(Enum):
+    """Enumeration of lifecycle phases for ontology entries and relationships."""
+    DRAFT = "draft"
+    ACTIVE = "active"
+    DEPRECATED = "deprecated"
+    REMOVED = "removed"
 
 class AxisType(str, Enum):
     """
@@ -37,6 +44,14 @@ class ObservationMethodType(str, Enum):
     DESCRIPTION = "DESCRIPTION"
     CLASSIFICATION = "CLASSIFICATION"
 
+class ControlMethodType(str, Enum):
+    ENVIRONMENTAL = "ENVIRONMENTAL"  # light,  temperature, humididty etc.
+    NUTRITIONAL = "NUTRITIONAL"  # fertilizer etc
+    CHEMICAL = "CHEMICAL" # herbicides, hormones etc.
+    BIOLOGICAL = "BIOLOGICAL" # microbial treatments etc.
+    GENETIC = "GENETIC" # germplasm etc
+    MANAGEMENT = "MANAGEMENT" # management of planting, pruning etc
+
 class ScaleType(str, Enum):
     DATETIME = "DATE"
     DURATION = "DURATION"
@@ -47,26 +62,19 @@ class ScaleType(str, Enum):
     GERMPLASM = "GERMPLASM" # Categories are from Germplasm
 
 class OntologyRelationshipLabel(str, Enum):
-    RELATES_TO = 'RELATES_TO' # a generic directed relationship between entries
-    # To define scale categories
-    HAS_CATEGORY = 'HAS_CATEGORY' # Scale -> Category
-    # To define unit subjects (see block outside ontology)
-    OF_SUBJECT = 'OF_SUBJECT' # Unit -> Subject
-    # To define subject traits/conditions/exposures
-    #  - we prefer outgoing edges from subject in the ontology as subject has a lot of income edges from units
-    HAS_TRAIT = 'HAS_TRAIT'  # Subject -> Trait
-    HAS_CONDITION = 'HAS_CONDITION'  # Subject -> Condition
-    HAS_EXPOSURE = 'HAS_EXPOSURE'  # Subject -> Exposure
-    # Similarly, Variable/Prameter and EventType have a lot of incoming edges from StudyTerms
-    # so prefer outgoing edges from these
-    DESCRIBES_TRAIT = 'DESCRIBES_TRAIT' # Variable -> Trait
-    DESCRIBES_CONDITION = 'DESCRIBES_CONDITION'  # Parameter -> Condition
-    DESCRIBES_EXPOSURE = 'DESCRIBES_EXPOSURE' # EventType -> Exposure
-    USES_METHOD = 'USES_METHOD' # Variable/Parameter/EventEntry -> Method
-    USES_SCALE = 'USES_SCALE' # Variable/Parameter/EventEntry -> Scale
+    PARENT_OF = 'ParentOf' # Any => SAME_TYPE
+    HAS_TERM = 'HasTerm' # Any => Term
+    HAS_CATEGORY = 'HasCategory' # Scale -> Category
+    DESCRIBES_SUBJECT = 'DescribesSubject' # Trait/Condition -> Subject
+    DESCRIBES_TRAIT = 'DescribesTrait' # Variable -> Trait
+    DESCRIBES_CONDITION = 'DescribesCondition'  # Factor -> Condition
+    USES_OBSERVATION_METHOD = 'UsesObservationMethod'  # Variable -> ObservationMethod
+    USES_CONTROL_METHOD = 'UsesControlMethod' # Factor -> ControlMethod
+    USES_SCALE = 'UsesScale' # Variable/Factor -> Scale
+    DESCRIBES_FACTOR = 'DescribesFactor' # EventType -> Factor
+    DESCRIBES_VARIABLE = 'DescribesVariable' # EventType -> Variable
 
-
-class VersionChange(IntEnum):
-    MAJOR = 0
-    MINOR = 1
-    PATCH = 2
+class VersionChange(str, Enum):
+    MAJOR = 'MAJOR'
+    MINOR = 'MINOR'
+    PATCH = 'PATCH'

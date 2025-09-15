@@ -4,12 +4,13 @@ from src.breedgraph.domain.commands.blocks import (
     AddPosition
 )
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
 from typing import List, Any
 
 import logging
 logger = logging.getLogger(__name__)
+
+from . import graphql_mutation
 
 @graphql_mutation.field("blocks_create_unit")
 @graphql_payload
@@ -20,9 +21,6 @@ async def create_unit(
         unit: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     logger.debug(f"User {user_id} adds unit: {unit}")
     cmd = CreateUnit(user=user_id, **unit)
     await info.context['bus'].handle(cmd)
@@ -38,9 +36,6 @@ async def add_position(
         position: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    if user_id is None:
-        raise UnauthorisedOperationError("Please provide a valid token")
-
     logger.debug(f"User {user_id} adds position: {unit_id}: {position}")
     cmd = AddPosition(user=user_id, unit=unit_id, **position)
     await info.context['bus'].handle(cmd)

@@ -23,11 +23,11 @@ async def test_create_location(client, first_user_login_token, first_account_wit
     assert country.get('code') in [l.get('code') for l in regions_payload.get('result')]
 
 @pytest.mark.asyncio(scope="session")
-async def test_extend_region(client, first_user_login_token, basic_ontology):
+async def test_extend_region(client, first_user_login_token, basic_ontology_service):
     regions_request_response = await post_to_regions(client, first_user_login_token)
     regions_payload = get_verified_payload(regions_request_response, "regions")
     region_root_id = [l.get('id') for l in regions_payload.get('result')][0]
-    state_type_id, state_type = basic_ontology.get_entry("State", label="LocationType")
+    state_type_id, state_type = basic_ontology_service.get_entry("State", label="LocationType")
 
     new_name = 'New Territory'
     location = {
@@ -72,12 +72,13 @@ async def test_extend_region(client, first_user_login_token, basic_ontology):
     #assert unregistered_location_payload.get('result') is None
 
 @pytest.mark.asyncio(scope="session")
-async def test_extend_with_private_field(client, first_user_login_token, second_user_login_token, basic_ontology):
+async def test_extend_with_private_field(client, first_user_login_token, second_user_login_token,
+                                         basic_ontology_service):
     regions_request_response = await post_to_regions(client, first_user_login_token)
     regions_payload = get_verified_payload(regions_request_response, "regions")
     region_root_id = [l.get('id') for l in regions_payload.get('result')][0]
     state_id = [l.get('children')[0].get('id') for l in regions_payload.get('result') if l.get('children')][0]
-    field_type_id, field_type = basic_ontology.get_entry("Field", label="LocationType")
+    field_type_id, field_type = basic_ontology_service.get_entry("Field", label="LocationType")
     new_name = 'Private Field'
     location = {
         'name': new_name,

@@ -6,12 +6,12 @@ from src.breedgraph.domain.commands.programs import (
 )
 from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 from typing import List
 
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_mutation
 
 # Program mutations
 @graphql_mutation.field("create_program")
@@ -52,14 +52,14 @@ async def update_program(
 async def delete_program(
         _,
         info,
-        program: int
+        program_id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete program: {program} by user {user_id}")
+    logger.debug(f"Delete program: {program_id} by user {user_id}")
 
     cmd = DeleteProgram(
         user=user_id,
-        program=program
+        program=program_id
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -72,29 +72,29 @@ async def delete_program(
 async def create_trial(
         _,
         info,
-        program: int,
+        program_id: int,
         name: str,
         fullname: str = None,
         description: str = None,
         start: str = None,  # Will be converted to PyDT64
         end: str = None,  # Will be converted to PyDT64
-        contacts: List[int] = None,
-        references: List[int] = None,
+        contact_ids: List[int] = None,
+        reference_ids: List[int] = None,
         release: str = ReadRelease.REGISTERED.name
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Create trial: {name} in program {program} by user {user_id}")
+    logger.debug(f"Create trial: {name} in program {program_id} by user {user_id}")
 
     cmd = CreateTrial(
         user=user_id,
-        program=program,
+        program=program_id,
         name=name,
         fullname=fullname,
         description=description,
         start=start,
         end=end,
-        contacts=contacts or [],
-        references=references or [],
+        contacts=contact_ids,
+        references=reference_ids,
         release=release
     )
     await info.context['bus'].handle(cmd)
@@ -107,29 +107,29 @@ async def create_trial(
 async def update_trial(
         _,
         info,
-        trial: int,
+        trial_id: int,
         name: str = None,
         fullname: str = None,
         description: str = None,
         start: str = None,
         end: str = None,
-        contacts: List[int] = None,
-        references: List[int] = None,
+        contact_ids: List[int] = None,
+        reference_ids: List[int] = None,
         release: str = None
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Update trial: {trial} by user {user_id}")
+    logger.debug(f"Update trial: {trial_id} by user {user_id}")
 
     cmd = UpdateTrial(
         user=user_id,
-        trial=trial,
+        trial=trial_id,
         name=name,
         fullname=fullname,
         description=description,
         start=start,
         end=end,
-        contacts=contacts,
-        references=references,
+        contacts=contact_ids,
+        references=reference_ids,
         release=release
     )
     await info.context['bus'].handle(cmd)
@@ -142,14 +142,14 @@ async def update_trial(
 async def delete_trial(
         _,
         info,
-        trial: int
+        trial_id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete trial: {trial} by user {user_id}")
+    logger.debug(f"Delete trial: {trial_id} by user {user_id}")
 
     cmd = DeleteTrial(
         user=user_id,
-        trial=trial
+        trial=trial_id
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -162,39 +162,37 @@ async def delete_trial(
 async def create_study(
         _,
         info,
-        trial: int,
+        trial_id: int,
         name: str,
         fullname: str = None,
         description: str = None,
-        external_id: str = None,
         practices: str = None,
         start: str = None,
         end: str = None,
-        factors: List[int] = None,
-        observations: List[int] = None,
-        design: int = None,
-        licence: int = None,
-        references: List[int] = None,
+        factor_ids: List[int] = None,
+        observation_ids: List[int] = None,
+        design_id: int = None,
+        licence_id: int = None,
+        reference_ids: List[int] = None,
         release: str = ReadRelease.REGISTERED.name
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Create study: {name} in trial {trial} by user {user_id}")
+    logger.debug(f"Create study: {name} in trial {trial_id} by user {user_id}")
 
     cmd = CreateStudy(
         user=user_id,
-        trial=trial,
+        trial=trial_id,
         name=name,
         fullname=fullname,
         description=description,
-        external_id=external_id,
         practices=practices,
         start=start,
         end=end,
-        factors=factors or [],
-        observations=observations or [],
-        design=design,
-        licence=licence,
-        references=references or [],
+        factors=factor_ids,
+        observations=observation_ids,
+        design=design_id,
+        licence=licence_id,
+        references=reference_ids,
         release=release
     )
     await info.context['bus'].handle(cmd)
@@ -207,39 +205,37 @@ async def create_study(
 async def update_study(
         _,
         info,
-        study: int,
+        study_id: int,
         name: str = None,
         fullname: str = None,
         description: str = None,
-        external_id: str = None,
         practices: str = None,
         start: str = None,
         end: str = None,
-        factors: List[int] = None,
-        observations: List[int] = None,
-        design: int = None,
-        licence: int = None,
-        references: List[int] = None,
+        factor_ids: List[int] = None,
+        observation_ids: List[int] = None,
+        design_id: int = None,
+        licence_id: int = None,
+        reference_ids: List[int] = None,
         release: str = None
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Update study: {study} by user {user_id}")
+    logger.debug(f"Update study: {study_id} by user {user_id}")
 
     cmd = UpdateStudy(
         user=user_id,
-        study=study,
+        study=study_id,
         name=name,
         fullname=fullname,
         description=description,
-        external_id=external_id,
         practices=practices,
         start=start,
         end=end,
-        factors=factors,
-        observations=observations,
-        design=design,
-        licence=licence,
-        references=references,
+        factors=factor_ids,
+        observations=observation_ids,
+        design=design_id,
+        licence=licence_id,
+        references=reference_ids,
         release=release
     )
     await info.context['bus'].handle(cmd)
@@ -252,14 +248,14 @@ async def update_study(
 async def delete_study(
         _,
         info,
-        study: int
+        study_id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete study: {study} by user {user_id}")
+    logger.debug(f"Delete study: {study_id} by user {user_id}")
 
     cmd = DeleteStudy(
         user=user_id,
-        study=study
+        study=study_id
     )
     await info.context['bus'].handle(cmd)
     return True

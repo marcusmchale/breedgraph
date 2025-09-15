@@ -4,8 +4,9 @@ import redis.asyncio as redis
 
 from src.breedgraph.config import get_redis_host_and_port
 from src.breedgraph.domain.model.regions import LocationInput, LocationStored
-from src.breedgraph.service_layer.unit_of_work import Neo4jUnitOfWork
 from src.breedgraph.adapters.redis.load_data import RedisLoader
+
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,13 +18,13 @@ class ReadModel:
         self.connection = connection
 
     @classmethod
-    async def create(cls) -> 'ReadModel':
+    async def create(cls, uow: AbstractUnitOfWork) -> 'ReadModel':
         logger.debug("Get redis connection")
         host, port = get_redis_host_and_port()
         connection = await redis.Redis(host=host, port=port)
         logger.debug(f"Ping redis successful: {await connection.ping()}")
         if not await connection.exists("country"):
-            loader = RedisLoader(connection)
+            loader = RedisLoader(connection, uow)
             await loader.load_read_model()
         return cls(connection)
 
@@ -46,8 +47,8 @@ class ReadModel:
             if country_json.get('id'):
                 yield LocationStored(**country_json)
             else:
+                yield LocationInput(**country_json)
 
-                yield LocationInput.model_validate_json(country.decode("utf-8"))
 
     #async def add_email(self, email: str):
     #    logger.info(f"Adding allowed email: {email}")

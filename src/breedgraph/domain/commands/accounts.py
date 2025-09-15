@@ -27,6 +27,11 @@ class RemoveEmail(Command):
     user: int
     email: str
 
+class SetOntologyRole(Command):
+    agent: int
+    user: int
+    role: str
+
 class RequestAffiliation(Command):
     user: int
     team: int

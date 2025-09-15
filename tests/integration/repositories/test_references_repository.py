@@ -17,7 +17,7 @@ from src.breedgraph.domain.model.references import (
     LegalReferenceStored
 )
 
-from src.breedgraph.adapters.repositories.references import Neo4jReferencesRepository
+from src.breedgraph.adapters.neo4j.repositories import Neo4jReferencesRepository
 
 from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
 
@@ -35,17 +35,18 @@ def get_file_reference_input(lorem_text_generator):
         uuid=uuid.uuid4()
     )
 
+@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_create_and_get(
-        neo4j_tx,
-        test_controllers_service,
+        uncommitted_neo4j_tx,
+        neo4j_access_control_service,
         stored_account,
         stored_organisation,
         lorem_text_generator
 ):
     repo = Neo4jReferencesRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams={
             Access.READ: {stored_organisation.root.id},
@@ -64,10 +65,10 @@ async def test_create_and_get(
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_edit_reference(neo4j_tx, test_controllers_service, stored_account, stored_organisation, lorem_text_generator):
+async def test_edit_reference(uncommitted_neo4j_tx, neo4j_access_control_service, stored_account, stored_organisation, lorem_text_generator):
     repo = Neo4jReferencesRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams={
             Access.READ: {stored_organisation.root.id},
@@ -82,10 +83,10 @@ async def test_edit_reference(neo4j_tx, test_controllers_service, stored_account
     assert changed_reference.description == reference.description
 
 @pytest.mark.asyncio(scope="session")
-async def test_file_reference(neo4j_tx, test_controllers_service, stored_account, stored_organisation, lorem_text_generator):
+async def test_file_reference(uncommitted_neo4j_tx, neo4j_access_control_service, stored_account, stored_organisation, lorem_text_generator):
     repo = Neo4jReferencesRepository(
-        neo4j_tx,
-        controllers_service=test_controllers_service,
+        uncommitted_neo4j_tx,
+        access_control_service=neo4j_access_control_service,
         user_id=stored_account.user.id,
         access_teams= {
             Access.READ: {stored_organisation.root.id},

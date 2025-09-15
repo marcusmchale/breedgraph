@@ -2,6 +2,7 @@ from functools import wraps
 from enum import Enum
 from pydantic import BaseModel
 from neo4j.exceptions import ServiceUnavailable
+
 from src.breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, UnauthorisedOperationError
 
 import logging
@@ -32,6 +33,7 @@ def graphql_payload(func):
                 "result": result
             }
         #except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
+        # todo handle exceptions more gracefully, we don't want to expose internal exceptions to the user
         except Exception as e:
             logging.exception(e)
             errors.append(GQLError(
@@ -61,7 +63,7 @@ def require_authentication(func):
         token = info.context["request"].cookies.get("auth_token")
 
         # Validate token
-        user_id = info.context["auth_service"].validate_token(token)
+        user_id = info.context["auth_service"].validate_login_token(token)
         if user_id is None:
             raise UnauthorisedOperationError("Please provide a valid token")
 

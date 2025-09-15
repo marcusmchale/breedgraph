@@ -67,7 +67,6 @@ class CreateStudy(Command):
     name: str
     fullname: str | None = None
     description: str | None = None
-    external_id: str | None = None
     practices: str | None = None
     start: PyDT64 | None = None
     end: PyDT64 | None = None
@@ -85,7 +84,6 @@ class UpdateStudy(Command):
     name: str | None = None
     fullname: str | None = None
     description: str | None = None
-    external_id: str | None = None
     practices: str | None = None
     start: PyDT64 | None = None
     end: PyDT64 | None = None

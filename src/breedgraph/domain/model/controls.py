@@ -1,58 +1,45 @@
 import networkx as nx
 import copy
 
-from abc import abstractmethod
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from abc import abstractmethod, ABC
+from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime
-from neo4j.time import DateTime as Neo4jDateTime
+from numpy import datetime64
 
 from typing import Dict, List, ClassVar, Set, Type
 
 from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.base import Aggregate, StoredModel, RootedAggregate, TreeAggregate
+from src.breedgraph.domain.model.base import Aggregate, StoredModel
+from src.breedgraph.domain.model.graph import RootedAggregate, TreeAggregate
 from src.breedgraph.custom_exceptions import IllegalOperationError
+from src.breedgraph.domain.model.time_descriptors import WriteStamp
 
 class ReadRelease(Enum):
     PRIVATE = 'PRIVATE'  # accessible only to users with an authorised affiliation to the controller
     REGISTERED = 'REGISTERED' # accessible to any registered user
     PUBLIC = 'PUBLIC'  # accessible to non-registered users  #  todo, currently this is not fully implemented
 
-class Control(BaseModel):
+@dataclass
+class ControlAuditEntry:
+    user_id: int
+    release: ReadRelease
+    time: datetime64
+
+@dataclass
+class Control:
     release: ReadRelease
     # we are not using the time now, but keep the control object and time in case of future behaviour requirements
     # For example,
     # currently the release is just set by the "minimum" current release level,
     # but we could alternatively set the release behaviour according to the most recent release set
     #
-    time: datetime = Field(default=datetime.now())
+    time: datetime64 = datetime64('now')
+    audit: List[ControlAuditEntry] = field(default_factory=list)
 
-    @field_validator('time', mode='before')
-    def validate_time(cls, v: datetime | Neo4jDateTime):
-        if isinstance(v, Neo4jDateTime):
-            return v.to_native()
-        elif isinstance(v, datetime):
-            return v
-        else:
-            raise ValidationError("time must be datetime.datetime or neo4j.time.DateTime")
-
-
-class WriteStamp(BaseModel):
-    user: int  # user id
-    time: datetime
-
-    @field_validator('time', mode='before')
-    def validate_time(cls, v: datetime | Neo4jDateTime):
-        if isinstance(v, Neo4jDateTime):
-            return v.to_native()
-        elif isinstance(v, datetime):
-            return v
-        else:
-            raise ValidationError("time must be datetime.datetime or neo4j.time.DateTime")
-
-class Controller(BaseModel):
-    controls: Dict[int, Control] = dict() # key should be team_id
-    writes: List[WriteStamp] = list()  # timestamps of writes to DB
+@dataclass
+class Controller:
+    controls: Dict[int, Control] = field(default_factory=dict) # key should be team_id
+    writes: List[WriteStamp] = field(default_factory=list)  # timestamps of writes to DB
 
     @property
     def teams(self) -> set[int]:
@@ -71,11 +58,11 @@ class Controller(BaseModel):
             return ReadRelease.PUBLIC
 
     @property
-    def created(self) -> datetime:
+    def created(self) -> datetime64:
         return min([w.time for w in self.writes])
 
     @property
-    def updated(self) -> datetime:
+    def updated(self) -> datetime64:
         return max([w.time for w in self.writes])
 
     def set_release(self, team_id: int, release: ReadRelease):
@@ -84,7 +71,6 @@ class Controller(BaseModel):
     def has_access(self, access: Access, user_id: int = None, access_teams: Set[int] = None) -> bool:
         if access_teams is None:
             access_teams = set()
-
         if access is Access.READ:
             if self.release == ReadRelease.PUBLIC:
                 return True
@@ -99,7 +85,8 @@ class Controller(BaseModel):
         return False
 
 
-class ControlledModel(StoredModel):
+@dataclass(eq=False)
+class ControlledModel(StoredModel, ABC):
     redacted_str: ClassVar[str] = 'REDACTED'
 
     @abstractmethod
@@ -110,10 +97,11 @@ class ControlledModel(StoredModel):
             read_teams = None
     ) -> 'ControlledModel':
         """Do something like this to preserve data privacy when no read access is allowed"""
-        return self.model_copy(deep=True, update={'name': self.redacted_str})
+        # return self.model_copy(deep=True, update={'name': self.redacted_str})
+        raise NotImplementedError
 
-
-class ControlledAggregate(Aggregate):
+@dataclass(eq=False)
+class ControlledAggregate(Aggregate, ABC):
     _redacted_str: ClassVar = 'REDACTED'
 
     @property
@@ -150,13 +138,14 @@ class ControlledAggregate(Aggregate):
         Return a boolean indicating whether the aggregate can be removed by the given user and curate teams.
         """
         for model in self.controlled_models:
+
             controller = controllers[model.label][model.id]
             if not controller.has_access(Access.CURATE, user_id, curate_teams):
                 return False
         else:
             return True
 
-class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
+class ControlledRootedAggregate(RootedAggregate, ControlledAggregate, ABC):
     default_model_class: ClassVar[Type[ControlledModel]]
 
     @property
@@ -199,6 +188,5 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate):
         aggregate._graph = g
         return aggregate
 
-
-class ControlledTreeAggregate(ControlledRootedAggregate, TreeAggregate):
+class ControlledTreeAggregate(ControlledRootedAggregate, TreeAggregate, ABC):
     pass

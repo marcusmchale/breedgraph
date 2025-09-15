@@ -64,46 +64,45 @@ async def post_to_add_entry(
 async def post_to_get_entries(
         client,
         token: str,
-        name: str|None = None,
-        label: str|None = None,
+        names: List[str] | None = None,
+        labels: List[str] |None = None,
 ):
     json={
         "query": (
             " query ( "
-            "  $name: String"
-            "  $label: OntologyLabel"
+            "  $names: [String]"
+            "  $labels: [OntologyLabel]"
             " ) { "
             "  ontology_entries( "
-            "    name: $name "
-            "    label: $label "
+            "    names: $names "
+            "    labels: $labels "
             "  ) { "
             "    status, "
             "    result { "
             "       id, "
             "       name,"
-            "       label, "
             "       parents { id, name }, "
             "       children { id, name } "
-            "       scale_type "
-            "       observation_type "
-            "       subjects { id, name } "
-            "       categories { id, name } "
-            "       trait { id, name } "
-            "       condition { id, name } "
-            "       exposure { id, name } "
-            "       method { id, name, label } "
-            "       scale { id, name, scale_type } "
-            "       rank "
-            "       axes "
-            "       "
+            "       ... on RelatedToTerms { terms { id, name } }"
+            "       ... on Subject { traits { id, name } , conditions { id, name } } "
+            "       ... on Trait { subjects { id, name }, variables { id, name } } "
+            "       ... on Condition { subjects { id, name } , parameters { id, name } } "
+            "       ... on Scale { scaleType, categories  { id, name } , variables { id, name } , parameters { id, name } }"
+            "       ... on Category { scales  { id, name } }"
+            "       ... on ObservationMethod { observationMethodType, variables  { id, name } } " 
+            "       ... on Variable { trait { id, name } , observationMethod { id, name }, scale  { id, name } } "
+            "       ... on ControlMethod { controlMethodType, parameters { id, name } } "
+            "       ... on Parameter { condition { id, name }, controlMethod { id, name }, scale { id, name } } "
+            "       ... on Event { variables { id, name }, parameters { id, name } } "
+            "       ... on LayoutType { axes } "
             "   }, "
             "    errors { name, message } "
             "  } "
             " } "
         ),
         "variables": {
-            "name": name,
-            "label": label
+            "names": names,
+            "labels": labels
         }
     }
     headers = with_auth(

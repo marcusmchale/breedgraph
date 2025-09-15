@@ -31,12 +31,12 @@ CALL {
   OPTIONAL MATCH (layout: Layout {id: position_map['layout']})
   CREATE (unit)-[:IN_POSITION]->(position:Position {
     coordinates: position_map['coordinates'],
-    start: datetime(position_map['start']['str']),
-    start_unit: position_map['start']['unit'],
-    start_step: position_map['start']['step'],
-    end:   datetime(position_map['end']['str']),
-    end_unit:   position_map['end']['unit'],
-    end_step:   position_map['end']['step']
+    start: datetime(position_map['start']),
+    start_unit: position_map['start_unit'],
+    start_step: position_map['start_step'],
+    end:   datetime(position_map['end']),
+    end_unit:   position_map['end_unit'],
+    end_step:   position_map['end_step']
   })-[:AT_LOCATION]->(location)
   FOREACH(i IN CASE WHEN layout IS NOT NULL THEN [1] ELSE [] END |
     MERGE (position)-[:IN_LAYOUT]->(layout)

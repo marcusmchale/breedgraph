@@ -1,26 +1,24 @@
-from abc import abstractmethod
-from pydantic import UUID4, field_serializer
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, replace
+from uuid import UUID, uuid4
+
+from src.breedgraph.service_layer.tracking.wrappers import asdict
+from src.breedgraph.domain.model.base import StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
 
-from typing import ClassVar, Set, List, Dict
+from typing import ClassVar, Set, List, Dict, Any
 
-class ReferenceBase(LabeledModel):
+@dataclass(eq=False)
+class ReferenceBase(ABC):
     label: ClassVar[str] = 'Reference'
     plural: ClassVar[str] = 'References'
     description: None|str = None
 
-class ReferenceStoredBase(ControlledModel, ControlledAggregate):
+    def model_dump(self) -> Dict[str, Any]:
+        return asdict(self)
 
-    @property
-    @abstractmethod
-    def label(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def plural(self) -> str:
-        raise NotImplementedError
+@dataclass(eq=False)
+class ReferenceStoredBase(ControlledModel, ControlledAggregate, ABC):
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
@@ -34,6 +32,10 @@ class ReferenceStoredBase(ControlledModel, ControlledAggregate):
     def protected(self) -> str | None:
         return None
 
+    @abstractmethod
+    def _redacted(self):
+        raise NotImplementedError
+
     def redacted(self, controllers: Dict[str, Dict[int, Controller]], user_id = None, read_teams = None):
         if read_teams is None:
             read_teams = set()
@@ -43,96 +45,109 @@ class ReferenceStoredBase(ControlledModel, ControlledAggregate):
         else:
             if user_id is None:
                 return None
-
-            redacted: ControlledModel = self.model_copy(
-                deep=True,
-                update = {
-                    'description': self.redacted_str,
-                    'data_format': self.redacted_str,
-                    'file_format': self.redacted_str,
-                    'filename': self.redacted_str,
-                    'url': self.redacted_str,
-                    'external_id': self.redacted_str,
-                    'text': self.redacted_str
-
-                }
-            )
-            # freeze so it is obvious that changes won't be propagated to a redacted form of the model
-            redacted.model_config['frozen'] = True
-            return redacted
+            return self._redacted()
 
 """
 External reference
 """
+@dataclass(eq=False)
 class ExternalReferenceBase(ReferenceBase):
-    url: str
+    url: str = None
     external_id: str | None = None
 
-
+@dataclass
 class ExternalReferenceInput(ExternalReferenceBase):
     pass
 
-
+@dataclass(eq=False)
 class ExternalReferenceStored(ExternalReferenceBase, ReferenceStoredBase):
-    pass
+
+    def _redacted(self):
+        return replace(
+            self,
+            url = self.redacted_str,
+            external_id = self.redacted_str
+        )
 
 """
 File reference
 """
+@dataclass(eq=False)
 class FileReferenceBase(ReferenceBase):
-    filename: str  # filename
-    uuid: UUID4  # for file datastore.
+    filename: str = None  # filename
+    uuid: UUID | None = uuid4()  # for file datastore. # normally required, but allow none for redacted return
 
-    # UUID is generated when file is uploaded.
-    # Currently just storing files in a directory with this UUID as the name
-    @field_serializer('uuid')
-    def serialize_uuid(self, uuid):
-        return str(uuid)
+    def model_dump(self) -> Dict[str, Any]:
+        dump = asdict(self)
+        dump.update(uuid = str(self.uuid))
+        return dump
 
-
+@dataclass
 class FileReferenceInput(FileReferenceBase):
     pass
 
+@dataclass(eq=False)
 class FileReferenceStored(FileReferenceBase, ReferenceStoredBase):
-    pass
 
+    def _redacted(self):
+        return replace(
+                self,
+                description = self.redacted_str,
+                filename = self.redacted_str,
+                uuid = None
+            )
 
 """
 Data references (external references and local files)
 
 Note: should consider describing data format and file format in Ontology.
 """
+@dataclass(eq=False)
 class DataReferenceBase(ReferenceBase):
-    data_format: str
-    file_format: str
+    data_format: str = None
+    file_format: str = None
 
+@dataclass(eq=False)
 class DataExternalBase(DataReferenceBase, ExternalReferenceBase):
     pass
 
+@dataclass
 class DataExternalInput(DataExternalBase):
     pass
 
+@dataclass(eq=False)
 class DataExternalStored(DataExternalBase, ExternalReferenceStored):
     pass
 
-
+@dataclass(eq=False)
 class DataFileBase(DataReferenceBase, FileReferenceBase):
     pass
 
+@dataclass
 class DataFileInput(DataFileBase):
     pass
 
+@dataclass(eq=False)
 class DataFileStored(DataFileBase, ExternalReferenceStored):
     pass
 
 """
 Legal reference
 """
+@dataclass(eq=False)
 class LegalReference(ReferenceBase):
-    text: str
+    text: str = None
 
+@dataclass
 class LegalReferenceInput(LegalReference):
     pass
 
+@dataclass(eq=False)
 class LegalReferenceStored(LegalReference, ReferenceStoredBase):
-    pass
+
+    def _redacted(self):
+        return replace(
+            self,
+            description=self.redacted_str,
+            text=self.redacted_str
+        )

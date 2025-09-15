@@ -1,3 +1,10 @@
+"""
+Ontology entries with a given label should form directed acyclic graphs with source and sink
+relationships described for each label type as parents and children.
+Relationships across labels may be formed through the term type,
+or through type specific links for other types,
+such as the subject type which is associated with traits and conditions.
+"""
 type Version {
     id: Int!
     major: Int!
@@ -7,10 +14,10 @@ type Version {
 }
 
 """
-Ontology entries form a directed acyclic graph with source and sink
-relationships described for each node as arents and children.
+Ontology entries form a graph
+Each label is represented by directed acyclic graphs with source and sink
+relationships described for each node as parents and children.
 Each entry has an OntologyLabel to distinguish various classes of entry.
-Contributions for some entry classes requires additional parameters (detailed below).
 """
 enum OntologyLabel {
     """
@@ -96,18 +103,9 @@ enum OntologyLabel {
     """
     Parameter
     """
-    Exposure entries describe temporary occurrences within an experimental setting.
-    These are linked to Event entries.
+    Event entries link multiple Variables and Parameters
     Examples:
-    "Fertilizer application", "Rainfall"
-    """
-    Exposure
-    """
-    Event entries link an Exposure, ObservationMethod and Scale
-    to form a single entry for a Dataset (see Datasets).
-    Examples:
-    "Pellet Fertilizer Application" where:
-        Exposure = "Fertilizer application", Method = "Pellet Dispersion", Scale = "kg/ha"
+    "Harvest" where: "Harvest method" may be a parameter, and "Yield" may be a variable.
     """
     Event
     """
@@ -148,6 +146,7 @@ enum OntologyLabel {
     Title
 }
 
+
 enum AxisType {
     """
     String values with no implied directional relationship
@@ -178,14 +177,30 @@ enum AxisType {
 }
 
 enum ObservationMethodType{
-    MEASUREMENT,
-    COUNTING,
-    ESTIMATION,
-    COMPUTATION,
-    PREDICTION,
-    DESCRIPTION,
+    MEASUREMENT
+    COUNTING
+    ESTIMATION
+    COMPUTATION
+    PREDICTION
+    DESCRIPTION
     CLASSIFICATION
 }
+
+enum ControlMethodType{
+    """ Environmental controls, e.g. light, temperature, humidity. """
+    ENVIRONMENTAL
+    """ Nutritional controls, e.g. fertilizer application. """
+    NUTRITIONAL
+    """ Chemical controls (non-nutritive) .e.g. herbicides, hormones etc. """
+    CHEMICAL
+    """ Biological controls, e.g. microbial treatment, insect release, fungal inoculation """
+    BIOLOGICAL
+    """ Genetic controls, e.g. germplasm selection """
+    GENETIC
+    """ Management controls, e.g. cropping density, pruning """
+    MANAGEMENT
+}
+
 enum ScaleType {
     DATE,
     DURATION,
@@ -196,14 +211,7 @@ enum ScaleType {
     germplasm
 }
 
-type OntologyEntry {
-    """
-    Ontology Version that the entry was retrieved from.
-    For current terms this will be the latest ontology version.
-    For retired terms it will be the last ontology version they were seen in.
-    """
-    version: Version!
-    label: OntologyLabel!
+interface OntologyEntryInterface {
     id: Int!
     name: String!
 
@@ -213,28 +221,427 @@ type OntologyEntry {
     authors: [Int]
     references: [Int]
 
-    parents: [OntologyEntry]
-    children: [OntologyEntry]
-
-    """Either ObservationMethodType for ObservationMethod, or ScaleType for Scale"""
-    scale_type: ScaleType
-    observation_type: ObservationMethodType
-    """Subjects for trait"""
-    subjects: [OntologyEntry]
-    """Categories for scale"""
-    categories: [OntologyEntry]
-    """Trait for variable"""
-    trait: OntologyEntry
-    """Condition for parameter"""
-    condition: OntologyEntry
-    """Exposure for event"""
-    exposure: OntologyEntry
-    """Either ControlMethod or ObservationMethod for variable/parameter/event"""
-    method: OntologyEntry
-    """Scale for variable/parameter/event"""
-    scale: OntologyEntry
-    """Rank for ordinal scale categories"""
-    rank: Int
-    """Axes for layout type"""
-    axes: [AxisType]
+    parents: [OntologyEntryInterface]
+    children: [OntologyEntryInterface]
 }
+
+
+interface RelatedToTerms {
+    terms: [Term]
+}
+
+
+"""
+Term entries may be used to relate other key terms in the ontology.
+Example: "Metabolism" may be a term.
+"""
+type Term implements OntologyEntryInterface {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Term]
+    children: [Term]
+}
+
+"""
+Subject entries describe Units (see Blocks) being observed in a study.
+These are linked to Unit and Trait.
+Examples: "Leaf", "Tree", "Field", "Rhizosphere"
+"""
+type Subject implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Subject]
+    children: [Subject]
+
+    terms: [Term]
+
+    traits: [Trait]
+    conditions: [Condition]
+}
+
+"""
+Trait entries describe observed properties of a subject (phenotype for a plant subject)
+These are linked to Variable and Subject.
+Examples:
+"Height", "Gene expression" linked to a tree subject.
+"""
+type Trait implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Trait]
+    children: [Trait]
+
+    terms: [Term]
+
+    subjects: [Subject]
+    variables: [Variable]
+}
+
+"""
+Condition entries describe the quantities/qualities that are fixed/controlled throughout an experiment.
+These are linked to Parameter or Event entries.
+Examples: "Light level", "Controlled Grafting", "Water availability"
+"""
+type Condition implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Condition]
+    children: [Condition]
+
+    terms: [Term]
+
+    subjects: [Subject]
+    parameters: [Parameter]
+}
+
+"""
+Scale entries describe units or classes used for values in a Dataset.
+These are linked to Variable, Parameter.
+Scale entries require a ScaleType.
+For Nominal and Ordinal types, additional Category references may be provided.
+Ordinal scales represent the rank of categories by their presentation order.
+Examples:
+"Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
+"Plant Genetic Material" is ScaleType nominal, and categories should include references to GermplasmEntries.
+
+"""
+type Scale implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Scale]
+    children: [Scale]
+
+    terms: [Term]
+
+    scaleType: ScaleType!
+    categories: [Category]
+
+    variables: [Variable]
+    parameters: [Parameter]
+}
+
+"""
+Category entries describe classes for Scale entries with type Nominal or Ordinal.
+These are linked to Scale entries.
+"""
+type Category implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Category]
+    children: [Category]
+
+    terms: [Term]
+
+    scales: [Scale]
+}
+
+"""
+Observation method entries describe the way a value is determined.
+These are linked to Variable.
+Observation method entries require an ObservationMethodType.
+Examples: "Distance measurement with calibrated reference", "Short-read sequencing", "Rain Gauge".
+"""
+type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [ObservationMethod]
+    children: [ObservationMethod]
+
+    terms: [Term]
+
+    observationMethodType: ObservationMethodType!
+    variables: [Variable]
+}
+
+"""
+Variable entries link a Trait, ObservationMethod and Scale
+to form a single reference term for a Dataset (see Datasets).
+Examples:
+"Tree height" where:
+    Trait = "Height",
+    Method = "Distance measurement with calibrated reference",
+    Scale = "Centimeters".
+"Normalised Expression" where:
+    Trait = "Gene expression",
+    Method = "Short read sequencing",
+    Scale = "Counts per million"
+"""
+type Variable implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Variable]
+    children: [Variable]
+
+    terms: [Term]
+
+    trait: Trait!
+    observationMethod: ObservationMethod!
+    scale: Scale!
+}
+
+"""
+Control method entries describe the way a value is maintained for an experiment.
+These are linked to Parameter.
+Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
+"""
+type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [ControlMethod]
+    children: [ControlMethod]
+
+    terms: [Term]
+
+    controlMethodType: ControlMethodType!
+    parameters: [Parameter]
+}
+
+"""
+Parameter entries link a Condition, ControlMethod and Scale
+to form a single entry for a Dataset (see Datasets).
+Examples:
+"Controlled lighting" where:
+    Condition = "Light level", ControlMethod = "Fluorescent lighting", Scale = "Micro Einsteins"
+OR
+"Controlled water availability" where:
+    Condition = "Water availability", ControlMethod = "Controlled water application", Scale = "L/m2/day"
+OR
+"Grafted Material" where:
+    Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
+"""
+type Parameter implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Parameter]
+    children: [Parameter]
+
+    terms: [Term]
+
+    condition: Condition!
+    controlMethod: ControlMethod!
+    scale: Scale!
+}
+
+"""
+Event entries link multiple Variables and Parameters
+Examples:
+"Harvest" where "harvest method" may be a parameter and "yield" may be a variable.
+"""
+type Event implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Event]
+    children: [Event]
+
+    terms: [Term]
+
+    variables: [Variable]
+    parameters: [Parameter]
+}
+
+"""
+Germplasm method entries describe maintenance or sourcing of germplasm.
+These are linked to GermplasmEntry (see Germplasms).
+Examples: "Controlled cross", "Mutagenesis", "Ecological survey"
+"""
+type GermplasmMethod implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [GermplasmMethod]
+    children: [GermplasmMethod]
+
+    terms: [Term]
+}
+
+"""
+LocationType entries describe types of locations.
+These are linked to Location (see Regions).
+Examples: "Country", "State", "Field"
+"""
+type LocationType implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [LocationType]
+    children: [LocationType]
+
+    terms: [Term]
+}
+
+"""
+LayoutType entries describe types of arrangements.
+These are linked to Layout (see Arrangements).
+Examples: "Grid", "Rows"
+"""
+type LayoutType implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [LayoutType]
+    children: [LayoutType]
+
+    terms: [Term]
+
+    axes: [String]
+}
+
+"""
+Design entries describe statistical designs for a study.
+These are linked to Study (see Programs).
+Examples: "Split-plot", "Randomized block"
+"""
+type Design implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Design]
+    children: [Design]
+
+    terms: [Term]
+}
+
+"""
+Role entries describe roles for people.
+These are linked to Person (see People).
+Examples: "Post-doctoral researcher", "Principal Investigator"
+"""
+type Role implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Role]
+    children: [Role]
+
+    terms: [Term]
+}
+
+"""
+Title entries describe titles for people.
+These are linked to Person (see People).
+Examples: "Professor", "Doctor"
+"""
+type Title implements OntologyEntryInterface & RelatedToTerms {
+    id: Int!
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authors: [Int]
+    references: [Int]
+
+    parents: [Title]
+    children: [Title]
+
+    terms: [Term]
+}
+
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Parameter | Event | GermplasmMethod | LocationType | LayoutType | Design | Role | Title

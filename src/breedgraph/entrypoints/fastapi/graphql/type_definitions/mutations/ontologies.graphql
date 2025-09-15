@@ -2,69 +2,250 @@
 # see https://github.com/graphql/graphql-wg/pull/1105
 # and https://github.com/mirumee/ariadne/issues/1194
 
-input OntologyEntryInput {
-    label: OntologyLabel!
+enum VersionChange {MAJOR, MINOR, PATCH}
+
+input TermInput {
     name: String!
     description: String
     abbreviation: String
     synonyms: [String]
     """People stored in the database that established this entry"""
-    authors: [Int]
+    author_ids: [Int]
     """References stored in the database for additional details, e.g. a link to another ontology."""
-    references: [Int]
+    reference_ids: [Int]
     """
     To establish a hierarchy and relationships among terms.
     Parents or children may be defined for any entry.
     """
-    parents: [Int]
-    children: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
 
-    """
-    Scale and ObservationMethod entries require an additional type parameter,
-    ScaleType or ObservationMethodType respectively.
-    """
-    scale_type: ScaleType
-    observation_type: ObservationMethodType
-    """
-    When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
-    """
-    categories: [Int]
-    """
-    When defining a Variable, Parameter or Event, a Scale identifier is required.
-    """
-    scale: Int
-    """
-    When creating a category for an ordinal scale, a rank must be provided.
-    """
-    rank: Int
+input SubjectInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input TraitInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
     """
     When creating a trait, subjects must be specified by ID
     """
-    subjects: [Int]
+    subject_ids: [Int]
+}
+
+input ConditionInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input ScaleInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+    """
+    Scale entries require an additional type parameter.
+    """
+    scale_type: ScaleType!
+    """
+    When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
+    """
+    category_ids: [Int]
+}
+
+input ScaleCategoryInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+    """
+    When creating a category for an ordinal scale, a rank must be provided.
+    """
+    rank_id: Int
+}
+
+input ObservationMethodInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+    """
+    ObservationMethod entries require an additional type parameter.
+    """
+    observation_type: ObservationMethodType!
+}
+
+input VariableInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+    """
+    When defining a Variable, a Scale identifier is required.
+    """
+    scale_id: Int!
     """
     When creating a variable, a Trait identifier is required.
     """
-    trait: Int
+    trait_id: Int!
     """
     When defining a Variable an ObservationMethod is required.
-    When defining a Parameter a ControlMethod identifier is required.
-    When defining an Event, either ObservationMethod or ControlMethod is required.
     """
-    method: Int
+    method_id: Int!
+}
+
+input ControlMethodInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input ParameterInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
     """
     When creating a parameter, a Condition identifier is required.
     """
-    condition: Int
+    condition_id: Int!
     """
-    When creating an Event, an Exposure identifier is required.
+    When defining a Parameter a ControlMethod identifier is required.
     """
-    exposure: Int
+    method_id: Int!
+    """
+    When defining a Parameter, a Scale identifier is required.
+    """
+    scale_id: Int!
+}
+
+input EventInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+
+    variables: [Int]
+    parameters: [Int]
+}
+
+input GermplasmMethodInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input LocationTypeInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input DesignInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
+}
+
+input LayoutTypeInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    author_ids: [Int]
+    reference_ids: [Int]
+    parent_ids: [Int]
+    children_ids: [Int]
     """
     When creating a LayoutType, each axis type for position descriptions is required
     """
-    axes: [AxisType]
+    axes: [AxisType]!
 }
 
 extend type Mutation {
-    ontology_create_entry(entry: OntologyEntryInput): BooleanPayload!
+    ontology_create_term(entry: TermInput!): BooleanPayload!
+    ontology_create_subject(entry: SubjectInput!): BooleanPayload!
+    ontology_create_trait(entry: TraitInput!): BooleanPayload!
+    ontology_create_condition(entry: ConditionInput!): BooleanPayload!
+    ontology_create_scale(entry: ScaleInput!): BooleanPayload!
+    ontology_create_scale_category(entry: ScaleCategoryInput!): BooleanPayload!
+    ontology_create_observation_method(entry: ObservationMethodInput!): BooleanPayload!
+    ontology_create_variable(entry: VariableInput!): BooleanPayload!
+    ontology_create_control_method(entry: ControlMethodInput!): BooleanPayload!
+    ontology_create_parameter(entry: ParameterInput!): BooleanPayload!
+    ontology_create_event(entry: EventInput!): BooleanPayload!
+    ontology_create_germplasm_method(entry: GermplasmMethodInput!): BooleanPayload!
+    ontology_create_location_type(entry: LocationTypeInput!): BooleanPayload!
+    ontology_create_design(entry: DesignInput!): BooleanPayload!
+    ontology_create_layout_type(entry: LayoutTypeInput!): BooleanPayload!
+    ontology_commit_version(
+        version_change: VersionChange!,
+        comment: String,
+        licence_reference: Int,
+        copyright_reference: Int
+    ): BooleanPayload!
 }

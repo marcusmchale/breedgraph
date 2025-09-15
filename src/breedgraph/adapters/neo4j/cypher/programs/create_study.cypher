@@ -7,7 +7,6 @@ CREATE (trial)-[:HAS_STUDY]->(study: Study {
   name:        $name,
   fullname:    $fullname,
   description: $description,
-  external_id: $external_id,
   practices:   $practices,
   start: datetime($start['str']),
   start_unit: datetime($start['unit']),
@@ -27,21 +26,13 @@ CALL {
   RETURN
     collect(reference.id) AS references
 }
-//Link factors (DataSet)
+//Link datasets
 CALL {
   WITH study
-  MATCH (factor: DataSet) WHERE factor.id in $factors
-  CREATE (study)-[has_factor:HAS_FACTOR]->(factor)
+  MATCH (dataset: DataSet) WHERE dataset.id in $datasets
+  CREATE (study)-[has_dataset:HAS_DATASET]->(dataset)
   RETURN
-    collect(factor.id) AS factors
-}
-//Link observations (DataSet)
-CALL {
-  WITH study
-  MATCH (observation: DataSet) WHERE observation.id in $observations
-  CREATE (study)-[has_observation:HAS_OBSERVATION]->(observation)
-  RETURN
-    collect(observation.id) AS observations
+    collect(dataset.id) AS datasets
 }
 //Link design (in ontology)
 CALL {
@@ -63,8 +54,7 @@ RETURN
   study {
     .*,
     references: references,
-    factors: factors,
-    observations: observations,
+    datasets: datasets,
     design: design,
     licence: licence
   }

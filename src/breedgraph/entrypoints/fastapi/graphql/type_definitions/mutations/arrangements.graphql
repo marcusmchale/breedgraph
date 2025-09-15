@@ -1,14 +1,14 @@
 input LayoutInput {
     """ Location ID from Region """
-    location: Int!
+    location_id: Int!
     """ Ontology LayoutType identifier """
-    type: Int!
+    type_id: Int!
     """ Axis labels """
     axes: [String!]
     """ Optional name for the layout """
     name: String
     """ Optional parent layout to construct multiplexed layout arrangements"""
-    parent: Int
+    parent_id: Int
     """ When parent is supplied, position according to parent layout axes must be provided."""
     position: [String]
     """ Read access to this layout """

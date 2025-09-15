@@ -3,9 +3,9 @@ from ariadne import ObjectType
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
-    inject_ontology
+    update_ontology_map
 )
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
+
 
 from src.breedgraph.domain.model.arrangements import LayoutOutput
 from typing import List
@@ -13,13 +13,16 @@ from typing import List
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
 layout = ObjectType("Layout")
+graphql_resolvers.register_type_resolvers(layout)
 
 @graphql_query.field("arrangements")
 @graphql_payload
 @require_authentication
-async def get_arrangements(_, info, location_id: int|None = None) -> List[LayoutOutput]:
-    await update_layouts_map(info.context, location_id)
+async def get_arrangements(_, info, location: int|None = None) -> List[LayoutOutput]:
+    await update_layouts_map(info.context, location)
     layouts_map = info.context.get('layouts_map')
     arrangement_roots = info.context.get('arrangement_roots')
     return [layouts_map.get(i) for i in arrangement_roots]
@@ -27,10 +30,10 @@ async def get_arrangements(_, info, location_id: int|None = None) -> List[Layout
 @graphql_query.field("layout")
 @graphql_payload
 @require_authentication
-async def get_layout(_, info, layout_id: int) -> LayoutOutput:
-    await update_layouts_map(info.context, layout_id=layout_id)
+async def get_layout(_, info, layout: int) -> LayoutOutput:
+    await update_layouts_map(info.context, layout_id=layout)
     layouts_map = info.context.get('layouts_map')
-    return layouts_map.get(layout_id, None)
+    return layouts_map.get(layout, None)
 
 @layout.field("parent")
 def resolve_parent(obj, info):
@@ -46,6 +49,6 @@ def resolve_release(obj, info):
 
 @layout.field("type")
 async def resolve_type(obj, info):
-    await inject_ontology(info.context, entry_id=obj.type)
+    await update_ontology_map(info.context, entry=obj.type)
     ontology = info.context.get('ontology')
     return ontology.to_output(obj.type)

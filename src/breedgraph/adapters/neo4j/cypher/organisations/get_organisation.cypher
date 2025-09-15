@@ -1,6 +1,6 @@
 MATCH
   (captured: Team {id: $team})
-OPTIONAL MATCH (captured)-[includes:INCLUDES*]-(org:Team)
+OPTIONAL MATCH (captured)-[includes:INCLUDES_TEAM*]-(org:Team)
 WITH captured, coalesce(collect(org), []) AS teams
 WITH captured + teams AS teams
 UNWIND teams AS team
@@ -12,4 +12,4 @@ RETURN team {
      WRITE : [(team)<-[affiliation:WRITE]-(user:User) | affiliation {.*, id: user.id}],
      CURATE : [(team)<-[affiliation:CURATE]-(user:User) | affiliation {.*, id: user.id}]
   }
-}, [(team)-[include:INCLUDES]->(member:Team) | [team.id, member.id, {label:type(include)}]] as includes
+}, [(team)-[include:INCLUDES_TEAM]->(member:Team) | [team.id, member.id, {label:type(include)}]] as includes

@@ -1,0 +1,1 @@
+RETURN NOT exists { MATCH (n) } AS empty

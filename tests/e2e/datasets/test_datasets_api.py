@@ -10,7 +10,7 @@ async def test_create_dataset(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology
+        basic_ontology_service
 ):
     variable_response = await post_to_get_entries(
         client,
@@ -28,7 +28,7 @@ async def test_extend_dataset(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology,
+        basic_ontology_service,
         basic_block
 ):
 
@@ -58,7 +58,7 @@ async def test_germplasm_dataset(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology,
+        basic_ontology_service,
         basic_block,
         basic_germplasm
 ):
@@ -66,7 +66,7 @@ async def test_germplasm_dataset(
     # todo here create dataset then extend with value
     # test with special characters and both names and IDs
 
-    tree_subject = basic_ontology.get_entry_model("Tree", label="Subject")
+    tree_subject = basic_ontology_service.get_entry_model("Tree", label="Subject")
     tree_unit_id = [i for i in basic_block.yield_unit_ids_by_subject(tree_subject.id)][0]
     add_record_response = await post_to_add_record(
         client,
@@ -78,6 +78,6 @@ async def test_germplasm_dataset(
             'start': "2023-10-10"
         }
     )
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     # todo create basic germplasm
     add_record_payload = get_verified_payload(add_record_response, "data_add_record")

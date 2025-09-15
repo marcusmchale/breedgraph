@@ -17,45 +17,54 @@ Subject is required for all Units, as we need to know at what the unit represent
 With pooling, e.g. the unit represents a pool of leaves, the subject would still be "leaf".
 
 """
-from pydantic import BaseModel, field_validator, ValidationInfo
+from abc import ABC
+from dataclasses import dataclass, field, replace
+from numpy import datetime64
 
-from src.breedgraph.domain.model.base import LabeledModel
+from src.breedgraph.service_layer.tracking.wrappers import asdict
+from src.breedgraph.domain.model.base import LabeledModel, StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller
 from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.time_descriptors import PyDT64
 from typing import List, ClassVar, Generator
 
-class Position(BaseModel):
-    location: int
+@dataclass
+class Position:
+    location: int | None = None # ref to LocationStored
     layout: int | None = None # ref to LayoutStored
     coordinates: List[int|str|float] | None = None  # list of axis values should correspond to layout,
-    start: PyDT64
-    end: PyDT64|None = None
+    start: datetime64|None = None
+    end: datetime64|None = None
 
-class Unit(LabeledModel):
+@dataclass(eq=False)
+class UnitBase(ABC):
     """
     Instances of subjects from the ontology
     """
     label: ClassVar[str] = 'Unit'
     plural: ClassVar[str] = 'Units'
 
-    subject: int  # ref to SubjectTypeStored
+    subject: int = None  # ref to SubjectTypeStored
 
     name: str|None = None
-    synonyms: List[str]|None = list()
+    synonyms: List[str]|None = field(default_factory = list)
     description: str|None = None
 
-    positions: List[Position] = list()
+    positions: List[Position] = field(default_factory = list)
 
     @property
     def names(self):
         names = [self.name] + self.synonyms
         return [n for n in names if n is not None]
 
-class UnitInput(Unit):
+    def model_dump(self):
+        return asdict(self)
+
+@dataclass
+class UnitInput(UnitBase, LabeledModel):
     pass
 
-class UnitStored(Unit, ControlledModel):
+@dataclass(eq=False)
+class UnitStored(UnitBase, ControlledModel):
 
     def redacted(
             self,
@@ -66,24 +75,29 @@ class UnitStored(Unit, ControlledModel):
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
         else:
-            return self.model_copy(deep=True, update={
-                # subject is still visible
-                'name': self.redacted_str if self.name is not None else None,
-                'synonyms': [self.redacted_str] if self.synonyms else list(),
-                'description': self.redacted_str if self.description is not None else None,
-                'positions': list()
-            })
+            return replace(
+                self,
+                name=self.name and self.redacted_str,
+                synonyms=self.synonyms and [self.redacted_str for _ in self.synonyms],
+                description=self.description and self.redacted_str,
+                positions=list()
+            )
 
+@dataclass(eq=False)
 class UnitOutput(UnitStored):
-    parents: list[int]
-    children: list[int]
-    release: ReadRelease
+    parents: list[int] = field(default_factory=list)
+    children: list[int] = field(default_factory=list)
 
+
+TInput = UnitInput
+TStored = UnitStored
 class Block(ControlledRootedAggregate):
     """
         Aggregate for correlated units.
         A single "root" unit is required.
     """
+    default_edge_label: ClassVar['str'] = "INCLUDES_UNIT"
+
     def add_unit(self, unit: UnitInput, parents: List[int]|None = None) -> int:
         if parents is not None:
             sources = {parent: None for parent in parents}
@@ -123,7 +137,6 @@ class Block(ControlledRootedAggregate):
             **self.get_unit(node).model_dump(),
             parents=self.get_parent_ids(node),
             children=self.get_children_ids(node),
-            release=self.get_unit(node).controller.release
         ) for node in self._graph}
 
     def yield_unit_ids_by_subject(self, subject_id: int) -> Generator[int, None, None]:

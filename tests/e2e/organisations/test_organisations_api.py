@@ -2,7 +2,7 @@ import pytest
 
 from tests.e2e.organisations.post_methods import (
     post_to_organisations,
-    post_to_edit_team,
+    post_to_update_team,
     post_to_team
 )
 
@@ -20,10 +20,10 @@ async def test_rename_team(client, user_input_generator, first_user_login_token,
     team_name = organisation_root_names[0]
 
     new_input = user_input_generator.new_user_input()
-    teams_edit_response = await post_to_edit_team(
+    teams_edit_response = await post_to_update_team(
         client,
         first_user_login_token,
-        team=team_id,
+        team_id=team_id,
         name=new_input['team_name'],
         fullname=new_input['team_name']
     )

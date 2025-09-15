@@ -40,9 +40,15 @@ def set_controls(label:str):
         MERGE (control_team)-[:CONTROLS]->(tp:Team{plurals[label]})
         WITH tp
         MATCH (entity: {label}) WHERE entity.id in $entity_ids
-        MERGE (tp)-[controls:CONTROLS]->(entity)
-        SET controls.release = $release
-        SET controls.time = datetime.transaction()
+        MERGE (tp)-[controls: CONTROLS]->(entity)
+        ON CREATE SET 
+            controls.users = [$user_id], 
+            controls.releases = [$release], 
+            controls.times = [datetime.transaction()]
+        ON MATCH SET
+            controls.users = controls.users + $user_id,
+            controls.releases = controls.releases + $release,
+            controls.times = controls.times + datetime.transaction() 
     """
 
 def remove_controls(label:str):
@@ -72,7 +78,7 @@ def get_controllers(label:str):
         RETURN
             entity.id as entity_id,
             [(entity)<-[controls:CONTROLS]-(:Team{plurals[label]})<-[:CONTROLS]-(team:Team) |
-            {{team: team.id, release: controls.release, time: controls.time}}] as controls,
+            {{team: team.id, releases: controls.releases, times: controls.times, users: controls.users}}] as controls,
             [(entry)<-[write:CONTRIBUTED]-(:User{plurals[label]})<-[:CONTRIBUTED]-(user:User) |
             {{user:user.id, time: write.time}}] as writes
    """

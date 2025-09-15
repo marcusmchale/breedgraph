@@ -4,7 +4,7 @@ from src.breedgraph.config import SITE_NAME
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.accounts.post_methods import (
-    post_to_add_account,
+    post_to_create_account,
     post_to_verify_email,
     post_to_login,
     post_to_add_email,
@@ -13,14 +13,14 @@ from tests.e2e.accounts.post_methods import (
 )
 
 from tests.e2e.organisations.post_methods import (
-    post_to_add_team,
-    post_to_remove_team,
+    post_to_create_team,
+    post_to_delete_team,
     post_to_team,
     post_to_organisations
 )
 import logging
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
-from tests.mailhog_fetching import confirm_email_delivered, get_json_from_email
+from tests.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
 from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.custom_exceptions import NoResultFoundError
@@ -36,13 +36,13 @@ async def check_verify_email(client, mailto: str, name: str):
 @pytest.mark.asyncio(scope="session")
 async def test_first_user_register_verify_login(client, user_input_generator):
     first_user_input = user_input_generator.new_user_input()
-    response = await post_to_add_account(
+    response = await post_to_create_account(
         client,
         first_user_input["name"],
         first_user_input["email"],
         first_user_input["password"]
     )
-    assert_payload_success(get_verified_payload(response, "add_account"))
+    assert_payload_success(get_verified_payload(response, "create_account"))
     await check_verify_email(client, first_user_input['email'], first_user_input['name'])
     login_response = await post_to_login(
         client,
@@ -69,26 +69,26 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
         subject=f"{SITE_NAME} registration now available"
     )
     # second user can then register
-    register_response = await post_to_add_account(
+    register_response = await post_to_create_account(
         client,
         second_user_input["name"],
         second_user_input["email"],
         second_user_input["password"]
     )
-    register_payload = get_verified_payload(register_response, "add_account")
+    register_payload = get_verified_payload(register_response, "create_account")
     assert_payload_success(register_payload)
     await check_verify_email(client, second_user_input['email'], second_user_input['name'])
 
 @pytest.mark.asyncio(scope="session")
-async def test_first_user_adds_removes_team(client, user_input_generator, first_user_login_token):
+async def test_first_user_creates_deletes_team(client, user_input_generator, first_user_login_token):
     new_team_name = user_input_generator.user_inputs[1]['team_name']
-    add_team_response = await post_to_add_team(
+    create_team_response = await post_to_create_team(
         client,
         first_user_login_token,
         new_team_name
     )
-    add_team_payload = get_verified_payload(add_team_response, "add_team")
-    assert_payload_success(add_team_payload)
+    create_team_payload = get_verified_payload(create_team_response, "create_team")
+    assert_payload_success(create_team_payload)
     organisations_request_response = await post_to_organisations(
         client,
         first_user_login_token
@@ -96,27 +96,19 @@ async def test_first_user_adds_removes_team(client, user_input_generator, first_
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
 
-    team_request_response = await post_to_team(
+    delete_team_response = await post_to_delete_team(
         client,
         first_user_login_token,
-        team_id = organisation_root_ids[0]
+        team_id= organisation_root_ids[0]
     )
-    team_payload = get_verified_payload(team_request_response, "team")
-    assert team_payload.get('result').get('id')
-
-    remove_team_response = await post_to_remove_team(
-        client,
-        first_user_login_token,
-        organisation_root_ids[0]
-    )
-    remove_team_payload = get_verified_payload(remove_team_response, "remove_team")
-    assert_payload_success(remove_team_payload)
+    delete_team_payload = get_verified_payload(delete_team_response, "delete_team")
+    assert_payload_success(delete_team_payload)
 
     # confirm we can't see the team anymore
     team_request_response = await post_to_team(
         client,
         first_user_login_token,
-        team_id = organisation_root_ids[0]
+        team_id= organisation_root_ids[0]
     )
     team_payload = get_verified_payload(team_request_response, "team")
     assert team_payload.get('status') == 'NOT_FOUND'
@@ -133,7 +125,7 @@ async def test_first_user_adds_removes_team(client, user_input_generator, first_
 @pytest.mark.asyncio(scope="session")
 async def test_second_user_builds_organisation(client, user_input_generator, second_user_login_token):
     first_team_name = user_input_generator.new_user_input()['team_name']
-    await post_to_add_team(client, second_user_login_token, first_team_name)
+    await post_to_create_team(client, second_user_login_token, first_team_name)
 
     organisations_request_response = await post_to_organisations(client,second_user_login_token)
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
@@ -141,14 +133,14 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
 
     parent_team_id = organisation_root_ids[0]
     second_team_name = user_input_generator.new_user_input()['team_name']
-    add_child_team_response = await post_to_add_team(
+    add_child_team_response = await post_to_create_team(
         client,
         second_user_login_token,
         second_team_name,
         parent_team_id
     )
-    add_child_team_payload = get_verified_payload(add_child_team_response, "add_team")
-    assert_payload_success(add_child_team_payload)
+    create_child_team_payload = get_verified_payload(add_child_team_response, "create_team")
+    assert_payload_success(create_child_team_payload)
     # make sure this team is now part of the organisation
     team_request_response = await post_to_team(
         client,
@@ -210,8 +202,8 @@ async def test_second_user_approves_read_affiliation_to_child_team(
     approve_read_response = await post_to_approve_affiliation(
         client,
         second_user_login_token,
-        user=request_user_id,
-        team=child_team_id,
+        user_id=request_user_id,
+        team_id=child_team_id,
         access=request_type
     )
     approve_read_payload = get_verified_payload(approve_read_response, "approve_affiliation")

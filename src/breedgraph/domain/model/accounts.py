@@ -1,56 +1,106 @@
 import logging
 
+from abc import ABC
+from dataclasses import dataclass, field
 from enum import Enum
-from pydantic import BaseModel, Field
 
-from .base import StoredModel, Aggregate
-
+from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.events.accounts import EmailAdded, EmailVerified
 
-from typing import List, Dict, Generator, ClassVar
+from .base import LabeledModel, StoredModel, Aggregate, SerializableMixin
+
+from typing import List, ClassVar, Dict, Any, Self
 
 logger = logging.getLogger(__name__)
 
-class UserBase(BaseModel):
+class OntologyRole(Enum):
+    CONTRIBUTOR = "contributor"  # Can propose changes
+    EDITOR = "editor"           # Can commit versions
+    ADMIN = "admin"             # Can manage roles
+
+@dataclass
+class UserBase(ABC):
     label: ClassVar[str] = 'User'
     plural: ClassVar[str] = 'Users'
 
-    name: str
-    fullname: str
-    email: str
+    name: str = ''
+    fullname: str = ''
+    email: str = ''
+    ontology_role: OntologyRole = OntologyRole.CONTRIBUTOR
 
-class UserInput(UserBase):
-    password_hash: str
+    def model_dump(self):
+        dump = asdict(self)
+        dump['ontology_role'] = dump['ontology_role'].value
+        return dump
+
+    def __post_init__(self):
+        if isinstance(self.ontology_role, str):
+            self.ontology_role = OntologyRole(self.ontology_role)
+
+@dataclass
+class UserInput(UserBase, LabeledModel):
+    password_hash: str = ''
     email_verified: bool = False
 
+@dataclass(unsafe_hash=True)
 class UserStored(UserBase, StoredModel):
-    password_hash: str
+    password_hash: str = ''
     email_verified: bool = False
     person: None|int = None  #ID for the corresponding Person
 
-class UserOutput(UserBase, StoredModel):
-    pass
+@dataclass
+class UserOutput(UserBase, LabeledModel):
+    id : int|None = None
+    email_verified: bool = False
 
-class AccountBase(BaseModel):
+    @classmethod
+    def from_stored(cls, stored: UserStored) -> Self:
+        return cls(
+            id = stored.id,
+            name = stored.name,
+            fullname = stored.fullname,
+            email = stored.email,
+            ontology_role = stored.ontology_role,
+            email_verified = stored.email_verified
+        )
+
+@dataclass
+class AccountBase(SerializableMixin, ABC):
     user: UserBase
 
+@dataclass
 class AccountInput(AccountBase):
     user: UserInput
 
-class AccountStored(AccountBase, Aggregate):
+    def model_dump(self):
+        return {
+            'user': self.user.model_dump()
+        }
+
+@dataclass(eq=False)
+class AccountStored(Aggregate, AccountBase):
     user: UserStored
-    allowed_emails: List[str] = list() # tracked sets are not suited to strings due to collisions of hashes used to record changed elements
-    allowed_users: List[int] = Field(frozen=True, default=list())
+    allowed_emails: List[str] = field(default_factory=list)
+    # tracked sets are not suited to strings due to collisions of hashes used to record changed elements
+    allowed_users: List[int] = field(default_factory=list)
 
     @property
     def root(self):
         return self.user
+
     @property
     def protected(self):
         if self.user.email_verified:
             return "Accounts with a verified email cannot be removed"
         else:
             return False
+
+    def model_dump(self):
+        return {
+            'user': self.user.model_dump(),
+            'allowed_emails': self.allowed_emails,
+            'allowed_users': self.allowed_users,
+        }
 
     def allow_email(self, email: str):
         self.allowed_emails.append(email)
@@ -72,6 +122,27 @@ class AccountStored(AccountBase, Aggregate):
         else:
             raise ValueError(f"Email {email} not found in allowed emails")
 
+    def can_contribute_ontology(self) -> bool:
+        """All users can contribute to ontology"""
+        return self.user.ontology_role in [OntologyRole.CONTRIBUTOR, OntologyRole.EDITOR, OntologyRole.ADMIN]
+
+    def can_commit_ontology_version(self) -> bool:
+        """Only editors and admins can commit new versions"""
+        return self.user.ontology_role in [OntologyRole.EDITOR, OntologyRole.ADMIN]
+
+    def can_manage_ontology_roles(self) -> bool:
+        """Only admins can manage ontology roles"""
+        return self.user.ontology_role == OntologyRole.ADMIN
+
+@dataclass
 class  AccountOutput(AccountBase):
     user: UserOutput
-    allowed_emails: List[str] = list()
+    ontology_role: OntologyRole
+    allowed_emails: List[str] = field(default_factory=list)
+
+    def model_dump(self):
+        return {
+            'user': self.user.model_dump(),
+            'ontology_role': self.ontology_role,
+            'allowed_emails': self.allowed_emails
+        }

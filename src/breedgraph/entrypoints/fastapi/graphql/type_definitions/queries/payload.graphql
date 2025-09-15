@@ -70,13 +70,13 @@ type VersionPayload {
 
 type OntologyEntryPayload {
     status: QueryStatus!
-    result: OntologyEntry
+    result: OntologyEntryInterface
     errors: [Error]
 }
 
 type OntologyEntriesPayload {
     status: QueryStatus!
-    result: [OntologyEntry]
+    result: [OntologyEntryInterface]
     errors: [Error]
 }
 

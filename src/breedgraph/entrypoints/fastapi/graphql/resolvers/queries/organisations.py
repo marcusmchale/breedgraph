@@ -7,7 +7,7 @@ from src.breedgraph.domain.model.controls import Access
 
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
+
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map,
     update_teams_map
@@ -16,11 +16,15 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loader
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
+
 team = ObjectType("Team")
 affiliations = ObjectType("Affiliations")
 affiliation = ObjectType("Affiliation")
 user = ObjectType("User")
 user_access = ObjectType("UserAccess")
+graphql_resolvers.register_type_resolvers(team, affiliations, affiliation, user, user_access)
 
 @graphql_query.field("organisations")
 @graphql_payload
@@ -47,18 +51,18 @@ async def get_teams(_, info, team_ids: List[int]) -> List[TeamOutput]:
     teams_map = info.context.get('teams_map')
     return [teams_map.get(team_id) for team_id in team_ids if team_id in teams_map]
 
-@graphql_query.field("inherited_affiliations")
-@graphql_payload
-@require_authentication
-async def get_inherited_affiliations(_, info, team_id) -> Affiliations:
-    user_id = info.context.get('user_id')
-    bus = info.context.get('bus')
-    async with bus.uow.get_repositories(user_id=user_id) as uow:
-        organisation = await uow.organisations.get(team_id=team_id)
-        if organisation is not None:
-            return organisation.get_inherited_affiliations(team_id)
-        else:
-            return Affiliations()
+#@graphql_query.field("inherited_affiliations")
+#@graphql_payload
+#@require_authentication
+#async def get_inherited_affiliations(_, info, team_id) -> Affiliations:
+#    user_id = info.context.get('user_id')
+#    bus = info.context.get('bus')
+#    async with bus.uow.get_uow(user_id=user_id) as uow:
+#        organisation = await uow.repositories.organisations.get(team_id=team_id)
+#        if organisation is not None:
+#            return organisation.get_inherited_affiliations(team_id)
+#        else:
+#            return Affiliations()
 
 @team.field("parent")
 def resolve_parent(obj, info):
@@ -67,6 +71,20 @@ def resolve_parent(obj, info):
 @team.field("children")
 def resolve_children(obj, info):
     return [info.context.get('teams_map').get(child) for child in obj.children]
+
+#@team.field("affiliations")
+#async def resolve_affiliations(obj, info):
+#    import pdb; pdb.set_trace()
+#    """Resolve affiliations for a team"""
+#    #user_id = info.context.get('user_id')
+#    #bus = info.context.get('bus')
+#    #async with bus.uow.get_uow(user_id=user_id) as uow:
+#    #    organisation = await uow.repositories.organisations.get(team_id=obj.id)
+#    #    if organisation is not None:
+#    #        team_stored = organisation.get_team(obj.id)
+#    #        if team_stored:
+#    #            return team_stored.affiliations
+#    #    return Affiliations()
 
 @affiliations.field("read")
 def resolve_read(obj, info):
@@ -106,14 +124,14 @@ async def resolve_user(obj, info):
 @require_authentication
 async def get_user_access(_, info) -> dict:
     """Get streamlined access teams for a user"""
-    # Use current user if no user_id provided
-    user_id = info.context.get('user_id')
+    # Use current user if no user provided
+    user = info.context.get('user_id')
     bus = info.context.get('bus')
-    access_teams = await bus.uow.views.access_teams(user_id)
+    access_teams = await bus.uow.views.access_teams(user)
     # Convert Access enum keys to strings and sets to lists for GraphQL
     return {
-        access.value.casefold(): list(team_ids)
-        for access, team_ids in access_teams.items()
+        access.value.casefold(): list(teams)
+        for access, teams in access_teams.items()
     }
 
 # Field resolvers for UserAccess type

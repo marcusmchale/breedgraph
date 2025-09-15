@@ -1,4 +1,7 @@
 """
+Variable ontology entries for measurement and trait variables.
+Defines types of variables that can be measured in breeding experiments.
+
 I considered the following reference in designing this model:
 
     Pietragalla, J.; Valette, L.; Shrestha, R.; Laporte, M.-A.; Hazekamp, T.; Arnaud, E. (2022)
@@ -12,34 +15,123 @@ T/M/S and Variable have more restricted relationships.
 
 When entering Traits, references to the Plant Trait Ontology should be encouraged.
 
-Note: The "Variable Status" concept from Crop Ontology is to be handled by ontology versioning in BreedGraph.
+Note: The "Variable Status" concept from Crop Ontology is to be handled by ontology lifecycle in BreedGraph.
 
 """
-from src.breedgraph.domain.model.ontology.entries import OntologyEntry
+from dataclasses import dataclass, field
+from src.breedgraph.domain.model.ontology.entries import (
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+)
 from src.breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType
-from typing import ClassVar
+from typing import ClassVar, List
 
-class Trait(OntologyEntry):
+@dataclass
+class TraitBase(OntologyEntryBase):
     label: ClassVar[str] = 'Trait'
     plural: ClassVar[str] = 'Traits'
 
-class ObservationMethod(OntologyEntry):
+    subjects: List[int] = field(default_factory=list)
+
+@dataclass
+class TraitInput(TraitBase, OntologyEntryInput):
+    pass
+
+@dataclass
+class TraitStored(TraitBase, OntologyEntryStored):
+    pass
+
+@dataclass
+class TraitOutput(TraitBase, OntologyEntryOutput):
+    terms: List[int] = field(default_factory=list)
+
+    variables: List[int] = field(default_factory=list)
+
+@dataclass
+class ObservationMethodBase(OntologyEntryBase):
     label: ClassVar[str] = 'ObservationMethod'
     plural: ClassVar[str] = 'ObservationMethods'
-    observation_type: ObservationMethodType
 
-class ScaleCategory(OntologyEntry):
-    label: ClassVar[str] = 'ScaleCategory'
-    plural: ClassVar[str] = 'ScaleCategories'
+    observation_type: ObservationMethodType = ObservationMethodType.MEASUREMENT
 
-class Scale(OntologyEntry):
+@dataclass
+class ObservationMethodInput(ObservationMethodBase, OntologyEntryInput):
+    pass
+
+@dataclass
+class ObservationMethodStored(ObservationMethodBase, OntologyEntryStored):
+    pass
+
+@dataclass
+class ObservationMethodOutput(ObservationMethodBase, OntologyEntryOutput):
+    terms: list[int] = field(default_factory=list)
+
+    variables: list[int] = field(default_factory=list)
+
+@dataclass
+class ScaleCategoryBase(OntologyEntryBase):
+    label: ClassVar[str] = 'Category'
+    plural: ClassVar[str] = 'Categories'
+
+@dataclass
+class ScaleCategoryInput(ScaleCategoryBase, OntologyEntryInput):
+    pass
+
+@dataclass
+class ScaleCategoryStored(ScaleCategoryBase, OntologyEntryStored):
+    pass
+
+@dataclass
+class ScaleCategoryOutput(ScaleCategoryBase, OntologyEntryOutput):
+    terms: list[int] = field(default_factory=list)
+
+    scales: list[int] = field(default_factory=list)
+
+@dataclass
+class ScaleBase(OntologyEntryBase):
     label: ClassVar[str] = 'Scale'
     plural: ClassVar[str] = 'Scales'
-    scale_type: ScaleType
 
-class Variable(OntologyEntry):  # quantities/qualities that vary and may be observed
+    scale_type: ScaleType = ScaleType.TEXT
+
+@dataclass
+class ScaleInput(ScaleBase, OntologyEntryInput):
+    pass
+
+@dataclass
+class ScaleStored(ScaleBase, OntologyEntryStored):
+
+    def __post_init__(self):
+        self.scale_type = ScaleType(self.scale_type)
+
+@dataclass
+class ScaleOutput(ScaleBase, OntologyEntryOutput):
+    terms: list[int] = field(default_factory=list)
+
+    categories: list[int]|None = None
+
+    variables: list[int] = field(default_factory=list)
+    factors: list[int] = field(default_factory=list)
+
+@dataclass
+class VariableBase(OntologyEntryBase):  # quantities/qualities that vary and may be observed
     label: ClassVar[str] = 'Variable'
     plural: ClassVar[str] = 'Variables'
     # name: # CropOntology requires name to be <TraitAbbreviation>_<MethodAbbreviation >_< ScaleAbbreviation >
     # makes more sense for this format to be the abbreviation value of the OntologyEntry class
     # CropOntology variable properties has a separate label attribute to store the name
+
+@dataclass
+class VariableInput(VariableBase, OntologyEntryInput):
+    pass
+
+@dataclass
+class VariableStored(VariableBase, OntologyEntryStored):
+    pass
+
+@dataclass
+class VariableOutput(VariableBase, OntologyEntryOutput):
+    terms: list[int] = field(default_factory=list)
+
+    trait: int = None
+    observation_method: int = None
+    scale: int = None

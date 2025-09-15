@@ -15,13 +15,6 @@ WITH
   person
 CALL {
   WITH person
-  MATCH (user: User {id: $user})
-  CREATE (person)-[is_user:IS_USER {time:datetime.transaction()}]->(user)
-  RETURN
-    collect(user.id)[0] AS user
-}
-CALL {
-  WITH person
   MATCH (team: Team) WHERE team.id IN $teams
   CREATE (person)-[in_team:IN_TEAM {time:datetime.transaction()}]->(team)
   RETURN
@@ -51,7 +44,6 @@ CALL {
 RETURN
   person {
     .*,
-    user: user,
     teams: teams,
     locations: locations,
     roles: roles,

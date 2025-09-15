@@ -3,6 +3,8 @@ from src.breedgraph.domain.model.datasets import DataSetStored, DataRecordInput
 
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
+
+@pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
 async def test_get(
         datasets_repo,
@@ -16,11 +18,11 @@ async def test_get(
             break
     else:
         raise NoResultFoundError("Couldn't find created dataset by get all")
-    async for d in datasets_repo.get_all(term_id=height_variable.id):
+    async for d in datasets_repo.get_all(ontology_id=height_variable.id):
         if d == stored_dataset:
             break
     else:
-        raise NoResultFoundError("Couldn't find created dataset by get all with term id")
+        raise NoResultFoundError("Couldn't find created dataset by get all with ontology id")
 
 @pytest.mark.asyncio(scope="session")
 async def test_update_contributors(

@@ -1,5 +1,5 @@
-MATCH (root: Team) WHERE NOT (root)<-[:INCLUDES]-(:Team)
-OPTIONAL MATCH (root)-[:INCLUDES*]->(child:Team)
+MATCH (root: Team) WHERE NOT (root)<-[:INCLUDES_TEAM]-(:Team)
+OPTIONAL MATCH (root)-[:INCLUDES_TEAM*]->(child:Team)
 WITH root, coalesce(collect(child), []) AS children
 WITH root + children AS organisation
 RETURN [ team IN organisation |
@@ -11,6 +11,6 @@ RETURN [ team IN organisation |
     WRITE:[(team)< - [affiliation:WRITE] -(user:User) | affiliation {. *, id:user.id}],
     CURATE:[(team)< - [affiliation:CURATE] -(user:User) | affiliation {. *, id:user.id}]
     },
-    includes: [(team)- [includes:INCLUDES] - >(member:Team) | [team.id, member.id, {label:type(includes)}]]
+    includes: [(team)- [includes:INCLUDES_TEAM] - >(member:Team) | [team.id, member.id, {label:type(includes)}]]
   }
 ] AS organisation

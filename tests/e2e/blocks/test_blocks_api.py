@@ -10,7 +10,7 @@ async def test_create_unit(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology
+        basic_ontology_service
 ):
     tree_subject_response = await post_to_get_entries(client, token=first_user_login_token, name= "tree", label="Subject")
     subject_payload = get_verified_payload(tree_subject_response, "ontology_entries")
@@ -31,7 +31,7 @@ async def test_extend_block(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology
+        basic_ontology_service
 ):
     blocks_response = await post_to_blocks(client, first_user_login_token)
     blocks_payload = get_verified_payload(blocks_response, "blocks")
@@ -85,7 +85,7 @@ async def test_add_unit_position(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology,
+        basic_ontology_service,
         basic_region,
         field_arrangement
 ):
@@ -94,7 +94,7 @@ async def test_add_unit_position(
     assert blocks_payload.get('result')
     tree_unit_id = blocks_payload.get('result')[0].get('id')
 
-    location_type_id, location_type = basic_ontology.get_entry("Field", "LocationType")
+    location_type_id, location_type = basic_ontology_service.get_entry("Field", "LocationType")
     field = next(basic_region.yield_locations_by_type(location_type_id))
 
     position = {

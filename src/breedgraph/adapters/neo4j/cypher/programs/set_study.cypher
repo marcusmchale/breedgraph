@@ -4,7 +4,6 @@ SET
   study.name = $name,
   study.fullname = $fullname,
   study.description = $description,
-  study.external_id = $external_id,
   study.practices = $practices,
   study.start = datetime($start['str']),
   study.start_unit = datetime($start['unit']),
@@ -25,27 +24,16 @@ CALL {
   MATCH (reference: Reference) WHERE reference.id IN $references
   MERGE (reference)-[reference_for:REFERENCE_FOR]->(study)
 }
-// Update factors (DataSet)
+// Update DataSets
 CALL {
   WITH study
-  MATCH (study)-[has_factor:HAS_FACTOR]->(factor: DataSet) WHERE NOT factor.id IN $factors
-  DELETE has_factor
+  MATCH (study)-[has_dataset:HAS_DATASET]->(dataset: DataSet) WHERE NOT dataset.id IN $datasets
+  DELETE has_dataset
 }
 CALL {
   WITH study
-  MATCH (factor: DataSet) WHERE factor.id IN $factors
-  MERGE (study)-[:HAS_FACTOR]->(factor)
-}
-// Update observations (DataSet)
-CALL {
-  WITH study
-  MATCH (study)-[has_observation:HAS_OBSERVATION]->(observation: DataSet) WHERE NOT observation.id IN $observations
-  DELETE has_observation
-}
-CALL {
-  WITH study
-  MATCH (observation: DataSet) WHERE observation.id IN $observations
-  MERGE (study)-[:HAS_OBSERVATION]->(observation)
+  MATCH (dataset: DataSet) WHERE dataset.id IN $datasets
+  MERGE (study)-[:HAS_DATASET]->(dataset)
 }
 //Update design (in ontology)
 CALL {

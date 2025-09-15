@@ -10,9 +10,12 @@ from src.breedgraph.domain.model.controls import ControlledModel, Controller
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
 controller = ObjectType("Controller")
 control = ObjectType("Control")
 write_stamp = ObjectType("WriteStamp")
+graphql_resolvers.register_type_resolvers(controller, control, write_stamp)
 
 async def resolve_controller(obj: ControlledModel, info) -> Controller:
     await update_teams_map(info.context, obj.controller.teams)
@@ -41,7 +44,7 @@ def resolve_writes(obj, info):
 def resolve_teams(obj: Controller, info):
     """Resolve teams field on Controller"""
     teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team_id) for team_id in obj.teams if teams_map.get(team_id)]
+    return [teams_map.get(team) for team in obj.teams if teams_map.get(team)]
 
 @controller.field("release")
 def resolve_release(obj: Controller, info):

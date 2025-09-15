@@ -25,5 +25,7 @@ class UnauthorisedOperationError(IllegalOperationError):
 class ExistingUniqueRelationship(IllegalOperationError):
     pass
 
-class TooManyRetries(Exception):
+class InconsistentStateError(IllegalOperationError):
+    """Raised when the system detects an inconsistent state that prevents safe operation completion."""
     pass
+

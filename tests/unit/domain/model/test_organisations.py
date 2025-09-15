@@ -18,7 +18,7 @@ def root_team(lorem_text_generator) -> TeamStored:
     return TeamStored(
         id=1,
         affiliations=affiliations,
-        **dict(root_team)
+        **root_team.model_dump()
     )
 
 @pytest_asyncio.fixture

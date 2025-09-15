@@ -1,18 +1,17 @@
-import networkx as nx
-import copy
-
-from pydantic import BaseModel, computed_field
+from abc import ABC
+from dataclasses import dataclass, field, replace
+from copy import deepcopy
 from enum import Enum
+import networkx as nx
 
-from src.breedgraph.domain.model.base import TreeAggregate, StoredModel, LabeledModel
+from src.breedgraph.domain.model.base import StoredModel, LabeledModel
+from src.breedgraph.domain.model.graph import TreeAggregate
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
-
 from src.breedgraph.domain.events.accounts import AffiliationRequested, AffiliationApproved
 
-from typing import List, ClassVar, Tuple
+from typing import List, ClassVar, Tuple, Dict, Any, Self
 
 import logging
-
 logger = logging.getLogger(__name__)
 
 class Access(str, Enum):
@@ -28,19 +27,21 @@ class Authorisation(str, Enum):
     # revoke is to allow an admin to disable access but re-authorise without a repeated request from the user.
     REVOKED = 'REVOKED'  # admin may authorise, user may request
 
-class Affiliation(BaseModel):
+@dataclass
+class Affiliation:
     authorisation: Authorisation
     heritable: bool  # if heritable equivalent access is provided to all children, recursively
 
-class Affiliations(BaseModel):
+@dataclass
+class Affiliations:
     """
     A Pydantic model to represent team affiliations organized by access level.
     Each dict is keyed by user ID and contains an Affiliation object.
     """
-    read: dict[int, Affiliation] = {}
-    write: dict[int, Affiliation] = {}
-    admin: dict[int, Affiliation] = {}
-    curate: dict[int, Affiliation] = {}
+    read: dict[int, Affiliation] = field(default_factory = dict)
+    write: dict[int, Affiliation] = field(default_factory = dict)
+    admin: dict[int, Affiliation] = field(default_factory = dict)
+    curate: dict[int, Affiliation] = field(default_factory = dict)
 
     def get_by_access(self, access: Access) -> dict[int, Affiliation]:
         """Get affiliations for a specific access level."""
@@ -82,40 +83,87 @@ class Affiliations(BaseModel):
                 affiliations.set_by_access(access, user_id, access_affiliations[user_id])
         return affiliations
 
-class TeamBase(LabeledModel):
+@dataclass
+class TeamBase(ABC):
     label: ClassVar[str] = 'Team'
     plural: ClassVar[str] = 'Teams'
 
-    name: str
+    name: str = ''
     fullname: str = None
 
-class TeamInput(TeamBase):
+@dataclass
+class TeamInput(TeamBase, LabeledModel):
     pass
 
+@dataclass
 class TeamStored(TeamBase, StoredModel):
     """
     Affiliations is a representation of team affiliations organized by access level.
     Each access level contains a mapping of user IDs to their affiliation details.
     """
-    affiliations: Affiliations = Affiliations()
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    affiliations: Affiliations = field(default_factory = Affiliations)
 
     def redacted(self, user_id: int = None) -> 'TeamStored':
-        model_copy = self.model_copy(deep=True)
-        model_copy.affiliations = model_copy.affiliations.get_redacted_copy(user_id = user_id)
-        return model_copy
+        return replace(self, affiliations=self.affiliations.get_redacted_copy(user_id))
 
-class TeamOutput(TeamStored):
-    parent: int|None
-    children: list[int]
+@dataclass
+class TeamOutput(TeamBase, StoredModel):
+    parent: int|None = None
+    children: list[int] = field(default_factory=list)
+
+    direct_affiliations: Affiliations = field(default_factory=Affiliations)
+    inherited_affiliations: Affiliations = field(default_factory=Affiliations)
+
+    @property
+    def affiliations(self) -> Affiliations:
+        """
+        Merge direct and inherited affiliations into a single Affiliations object.
+        Since inherited affiliations exclude users with direct affiliations,
+        we can simply combine both without conflicts.
+        """
+        merged_affiliations = Affiliations()
+
+        # Add both direct and inherited affiliations for each access level
+        for access in Access:
+            # Add direct affiliations
+            direct_for_access = self.direct_affiliations.get_by_access(access)
+            for user_id, affiliation in direct_for_access.items():
+                merged_affiliations.set_by_access(access, user_id, affiliation)
+
+            # Add inherited affiliations (no conflicts since they exclude direct users)
+            inherited_for_access = self.inherited_affiliations.get_by_access(access)
+            for user_id, affiliation in inherited_for_access.items():
+                merged_affiliations.set_by_access(access, user_id, affiliation)
+
+        return merged_affiliations
+
+    @classmethod
+    def from_stored(
+            cls,
+            stored: TeamStored,
+            parent: int|None = None,
+            children: List[int] = None,
+            inherited_affiliations: Affiliations = None
+    ) -> Self:
+        return cls(
+            id=stored.id,
+            name=stored.name,
+            fullname=stored.fullname,
+            direct_affiliations=stored.affiliations,
+            parent=parent,
+            children=children or [],
+            inherited_affiliations=inherited_affiliations or Affiliations()
+        )
+
+TInput = TeamInput
+TOutput = TeamOutput
+TStored = TeamStored
 
 class Organisation(TreeAggregate):
-    redaction_mapping: dict = None
+    default_edge_label: ClassVar['str'] = "INCLUDES_TEAM"
 
     def __init__(self, nodes: List[TeamStored|TeamInput] = None, edges: List[Tuple[int, int, dict]]|None = None):
-
+        self.redaction_mapping = None
         super().__init__(nodes=nodes, edges=edges)
         if nodes:
             for a in self.root.affiliations.get_by_access(Access.ADMIN).values():
@@ -124,13 +172,20 @@ class Organisation(TreeAggregate):
             else:
                 raise ValueError('Root must have at least one heritable authorised Admin affiliation')
 
-    def get_team(self, team: int|str) -> TeamStored|TeamInput:
+    def get_team(self, team: int|str) -> TeamStored|TeamInput|None:
         if isinstance(team, int):
             return self._graph.nodes[team].get('model')
         elif isinstance(team, str):
-            for t in self.teams.values():
+            for t in self.teams:
                 if t.name.casefold() == team.casefold():
                     return t
+        return None
+
+    def get_children(self, team_id: int) -> List[int]:
+        return list(self._graph.successors(team_id))
+
+    def get_parent_id(self, team_id: int) -> int|None:
+        return next(self._graph.predecessors(team_id), None)
 
     def add_team(self, team: TeamInput, parent_id: int|None=None):
         if parent_id is not None and not parent_id in self._graph.nodes:
@@ -151,24 +206,9 @@ class Organisation(TreeAggregate):
             raise IllegalOperationError("Cannot remove a team with children")
         self._graph.remove_node(team_id)
 
-    def split(self, team_id):
-        # Split an organisation by removing an edge
-        team = self.get_team(team_id)
-        # The current admins become the new root admins, i.e. all are given heritable admin access
-        for user_id in self.get_affiliates(team_id, access=Access.ADMIN):
-            team.affiliations.set_by_access(
-                Access.ADMIN,
-                user_id,
-                Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)
-            )
-        # But this should break other inherited access
-        parent_id = self.get_parent_id(team_id)
-        # finally break the graph.
-        self._graph.remove_edge(parent_id, team_id)
-
-    @computed_field
+    @property
     def teams(self) -> List[TeamStored|TeamInput]:
-        return nx.get_node_attributes(self._graph, 'model')
+        return list(self.entries.values())
 
     @staticmethod
     def get_access_levels(access: Access|List[Access] = None):
@@ -205,13 +245,24 @@ class Organisation(TreeAggregate):
         team = self.get_team(team_id)
         affiliates = set()
         authorisation_levels = self.get_auth_levels(authorisation)
+
         for access_level in self.get_access_levels(access):
-            affiliates = affiliates.union(set([u for u,a in team.affiliations.get_by_access(access_level).items() if a.authorisation in authorisation_levels]))
-            # collect heritable affiliations from ancestors
+            # Get direct affiliations from the team
+            direct_affiliations = team.affiliations.get_by_access(access_level)
+            affiliates.update(
+                user_id for user_id, affiliation in direct_affiliations.items()
+                if affiliation.authorisation in authorisation_levels
+            )
+
+            # Get inherited affiliations if requested
             if inheritance:
-                for p in nx.ancestors(self._graph, team_id):
-                    ancestor = self.get_team(p)
-                    affiliates = affiliates.union(set([u for u,a in ancestor.affiliations.get_by_access(access_level).items() if a.authorisation in authorisation_levels and a.heritable]))
+                inherited_affiliations = self.get_inherited_affiliations(team_id)
+                inherited_for_access = inherited_affiliations.get_by_access(access_level)
+                affiliates.update(
+                    user_id for user_id, affiliation in inherited_for_access.items()
+                    if affiliation.authorisation in authorisation_levels
+                )
+
         return affiliates
 
     def get_inherited_affiliations(
@@ -219,29 +270,33 @@ class Organisation(TreeAggregate):
             team_id: int
     ) -> Affiliations:
         """
-        Returns affiliations for a given team including inherited affiliations.
+        Returns inherited affiliations for a given team, excluding any access levels
+        where the user has direct affiliations (closest wins principle).
 
         :param team_id:
-        :return Affiliations: An Affiliations object detailing inherited affiliations.
+        :return Affiliations: An Affiliations object with only truly inherited affiliations.
         """
+        team = self.get_team(team_id)
         affiliations = Affiliations()
-        for p in nx.ancestors(self._graph, team_id):
-            ancestor = self.get_team(p)
+
+        # Process ancestors from closest to furthest
+        for ancestor_id in self.get_ancestors(team_id):
+            ancestor = self.get_team(ancestor_id)
             heritable_affiliations = ancestor.affiliations.get_heritable_copy()
+
             for access in Access:
                 for user_id in heritable_affiliations.get_by_access(access):
+                    # Skip if user has direct affiliation for this access level (closest wins)
+                    if user_id in team.affiliations.get_by_access(access):
+                        continue
+
+                    # Skip if we've already set an inherited affiliation for this user/access
+                    if user_id in affiliations.get_by_access(access):
+                        continue
+
                     incoming_affiliation = heritable_affiliations.get_by_access(access)[user_id]
-                    if user_id not in affiliations.get_by_access(access):
-                        affiliations.set_by_access(access, user_id, incoming_affiliation)
-                    else:
-                        stored_affiliation = affiliations.get_by_access(access)[user_id]
-                        if stored_affiliation.authorisation is Authorisation.REVOKED:
-                            affiliations.set_by_access(access, user_id, incoming_affiliation)
-                        elif stored_affiliation.authorisation is Authorisation.REQUESTED and not incoming_affiliation.authorisation is Authorisation.REVOKED:
-                            affiliations.set_by_access(access, user_id, incoming_affiliation)
-                        else:
-                            # stored_affiliation.authorisation must be approved, so don't replace it
-                            continue
+                    affiliations.set_by_access(access, user_id, incoming_affiliation)
+
         return affiliations
 
     def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = True) -> None:
@@ -336,7 +391,7 @@ class Organisation(TreeAggregate):
         affiliation.authorisation = Authorisation.REVOKED
 
     def redacted(self, user_id: int = None) -> 'Organisation':
-        g = copy.deepcopy(self._graph)
+        g = deepcopy(self._graph)
         root_id = self.get_root_id()
 
         redaction_mapping = dict()
@@ -364,15 +419,17 @@ class Organisation(TreeAggregate):
         return org
 
     def to_output_map(self) -> dict[int, TeamOutput]:
-        # this creates a dictionary where each node maps to list of neighbours
-        node_map = {node: TeamOutput(
-            **self.get_team(node).model_dump(),
-            parent=self.get_parent_id(node),
-            children=self.get_children_ids(node)
-        ) for node in self._graph }
+        team_map = {
+            team.id: TeamOutput.from_stored(
+                team,
+                parent=self.get_parent_id(team.id),
+                children=self.get_children_ids(team.id),
+                inherited_affiliations=self.get_inherited_affiliations(team.id)
+            ) for team in self.teams
+        }
         if self.redaction_mapping is not None:
             # we map from removed teams to the visible source node in the redacted map
-            # this way a user can always see the most relevant controlling team information that they have access to.
+            # this way a user only sees the most relevant controlling team information that they have access to.
             for key, value in self.redaction_mapping.items():
-                node_map[key] = node_map[value]
-        return node_map
+                team_map[key] = team_map[value]
+        return team_map

@@ -1,7 +1,7 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_add_team(client, token:str, name: str, parent: int|None = None):
+async def post_to_create_team(client, token:str, name: str, parent: int | None = None):
     if parent:
         json={
             "query": (
@@ -10,7 +10,7 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
                 "  $fullname: String,"
                 "  $parent: Int,"
                 " ) { "
-                "  add_team( "
+                "  create_team( "
                 "    name: $name, "
                 "    fullname: $fullname, "
                 "    parent: $parent "
@@ -34,7 +34,7 @@ async def post_to_add_team(client, token:str, name: str, parent: int|None = None
                 "  $name: String!,"
                 "  $fullname: String"
                 " ) { "
-                "  add_team( "
+                "  create_team( "
                 "    name: $name, "
                 "    fullname: $fullname"
                 "  ) { "
@@ -84,8 +84,32 @@ async def post_to_organisations(client, token:str):
             "               admin { user { id, name, fullname, email }, heritable, authorisation } "
             "               curate { user { id, name, fullname, email }, heritable, authorisation } "
             "           }, "
+            "           directAffiliations { "
+            "               read { user { id, name, fullname, email }, heritable, authorisation } "
+            "               write { user { id, name, fullname, email }, heritable, authorisation } "
+            "               admin { user { id, name, fullname, email }, heritable, authorisation } "
+            "               curate { user { id, name, fullname, email }, heritable, authorisation } "
+            "           }, "
+            "           inheritedAffiliations { "
+            "               read { user { id, name, fullname, email }, heritable, authorisation } "
+            "               write { user { id, name, fullname, email }, heritable, authorisation } "
+            "               admin { user { id, name, fullname, email }, heritable, authorisation } "
+            "               curate { user { id, name, fullname, email }, heritable, authorisation } "
+            "           }, "
             "       }, "
             "       affiliations { "
+            "           read { user { id, name, fullname, email }, heritable, authorisation } "
+            "           write { user { id, name, fullname, email }, heritable, authorisation } "
+            "           admin { user { id, name, fullname, email }, heritable, authorisation } "
+            "           curate { user { id, name, fullname, email }, heritable, authorisation } "
+            "       }, "
+            "       directAffiliations { "
+            "           read { user { id, name, fullname, email }, heritable, authorisation } "
+            "           write { user { id, name, fullname, email }, heritable, authorisation } "
+            "           admin { user { id, name, fullname, email }, heritable, authorisation } "
+            "           curate { user { id, name, fullname, email }, heritable, authorisation } "
+            "       }, "
+            "       inheritedAffiliations { "
             "           read { user { id, name, fullname, email }, heritable, authorisation } "
             "           write { user { id, name, fullname, email }, heritable, authorisation } "
             "           admin { user { id, name, fullname, email }, heritable, authorisation } "
@@ -137,6 +161,18 @@ async def post_to_team(client, token:str, team_id: int):
             "           admin { user { id, name, fullname, email }} "
             "           curate { user { id, name, fullname, email }} "
             "       }, "
+            "       directAffiliations { "
+            "           read { user { id, name, fullname, email }} "
+            "           write { user { id, name, fullname, email }} "
+            "           admin { user { id, name, fullname, email }} "
+            "           curate { user { id, name, fullname, email }} "
+            "       }, "
+            "       inheritedAffiliations { "
+            "           read { user { id, name, fullname, email }} "
+            "           write { user { id, name, fullname, email }} "
+            "           admin { user { id, name, fullname, email }} "
+            "           curate { user { id, name, fullname, email }} "
+            "       }, "
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -154,14 +190,14 @@ async def post_to_team(client, token:str, team_id: int):
     return response
 
 
-async def post_to_remove_team(client, token:str, team: int):
+async def post_to_delete_team(client, token:str, team_id: int):
     json = {
         "query": (
             " mutation ( "
-            "  $team: Int!"
+            "  $team_id: Int!"
             " ) { "
-            "  remove_team( "
-            "    team: $team "
+            "  delete_team( "
+            "    team_id: $team_id "
             "  ) { "
             "    status, "
             "    result, "
@@ -170,7 +206,7 @@ async def post_to_remove_team(client, token:str, team: int):
             " } "
         ),
         "variables": {
-            "team": team
+            "team_id": team_id
         }
     }
     headers = with_auth(
@@ -180,17 +216,17 @@ async def post_to_remove_team(client, token:str, team: int):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_edit_team(client, token:str, team: int, name: str, fullname: str):
+async def post_to_update_team(client, token:str, team_id: int, name: str, fullname: str):
     json = {
         "query": (
             " mutation ( "
-            "  $team: Int!,"
+            "  $team_id: Int!,"
             "  $name: String, "
             "  $fullname: String "
             "   "
             " ) { "
-            "  edit_team( "
-            "    team: $team, "
+            "  update_team( "
+            "    team_id: $team_id, "
             "    name: $name, "
             "    fullname: $fullname, "
             "  ) { "
@@ -201,7 +237,7 @@ async def post_to_edit_team(client, token:str, team: int, name: str, fullname: s
             " } "
         ),
         "variables": {
-            "team": team,
+            "team_id": team_id,
             "name": name,
             "fullname": fullname
         }

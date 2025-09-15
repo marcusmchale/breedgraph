@@ -11,22 +11,25 @@ from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payloa
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map
 )
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries import graphql_query
 
 import logging
 logger = logging.getLogger(__name__)
 
+from . import graphql_query
+from ..registry import graphql_resolvers
 account = ObjectType("Account")
+graphql_resolvers.register_type_resolvers(account)
+
 
 @graphql_query.field("users")
 @graphql_payload
 @require_authentication
-async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
-    await update_users_map(info.context)
+async def get_users(_, info, user: None|int = None) -> List[UserOutput]:
+    await update_users_map(info.context, user_ids=[user] if user else None)
     users_map = info.context.get('users_map')
     # then return the list of values
-    if user_id:
-        return [users_map[user_id]]
+    if user:
+        return [users_map[user]]
     else:
         return list(users_map.values())
 
@@ -34,10 +37,10 @@ async def get_users(_, info, user_id: None|int = None) -> List[UserOutput]:
 @graphql_payload
 @require_authentication
 async def get_account(_, info) -> AccountOutput:
-    user_id = info.context.get('user_id')
+    user = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_repositories() as uow:
-        account_ = await uow.accounts.get(user_id=user_id)
+    async with bus.uow.get_uow() as uow:
+        account_ = await uow.repositories.accounts.get(user=user)
         if account_ is None:
             raise NoResultFoundError
         else:

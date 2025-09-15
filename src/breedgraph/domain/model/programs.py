@@ -1,17 +1,19 @@
-import logging
-
-from pydantic import BaseModel
+from abc import ABC
+from dataclasses import dataclass, field, replace
+from src.breedgraph.service_layer.tracking.wrappers import asdict
+from numpy import datetime64
 
 from src.breedgraph.domain.model.base import StoredModel, LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
-from src.breedgraph.domain.model.time_descriptors import PyDT64
 
-from typing import List, Set, ClassVar, Dict
 
+from typing import List, Set, ClassVar, Dict, Any, Self
+
+import logging
 logger = logging.getLogger(__name__)
 
-
-class StudyBase(LabeledModel):
+@dataclass
+class StudyBase(ABC):
     label: ClassVar[str] = 'Study'
     plural: ClassVar[str] = 'Studies'
 
@@ -19,19 +21,17 @@ class StudyBase(LabeledModel):
     This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
-    name: str
+    name: str = None
     fullname: str|None = None
     description: str|None = None
-    external_id: str|None = None  # a permanent external identifier, should we make this UUID?
+
     # MIAPPE V1.1 (DM-28) General description of the cultural practices associated with the study.
     practices: str|None = None
 
-    start: PyDT64 | None = None
-    end: PyDT64 | None = None
+    start: datetime64|None = None
+    end: datetime64|None = None
 
-    # MIAPPE DM60: exposure or condition that is being tested.
-    factors: List[int] = list() # list of DataSet IDs, these would typically be linked to Parameter or Event in the ontology
-    observations: List[int] = list()  # list of DataSet IDs. These would typically be linked to a Variable in the ontology
+    datasets: List[int] = field(default_factory=list)  # list of DataSet IDs.
 
     # Germplasm, Location are defined for units, to retrieve from there for read operations
     # Units in turn are accessed through factors/observations
@@ -39,12 +39,13 @@ class StudyBase(LabeledModel):
 
     licence: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
-    references: List[int] = list() # list of other references by IDs
+    references: List[int] = field(default_factory=list) # list of other references by IDs
 
-
-class StudyInput(StudyBase):
+@dataclass
+class StudyInput(StudyBase, LabeledModel):
     pass
 
+@dataclass
 class StudyStored(StudyBase, ControlledModel):
 
     def redacted(
@@ -52,27 +53,32 @@ class StudyStored(StudyBase, ControlledModel):
             controller: Controller,
             user_id = None,
             read_teams = None
-    ) -> 'ControlledModel':
+    ) -> Self:
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
 
-        return self.model_copy(deep=True, update={
-            'name': self.redacted_str,
-            'fullname': self.redacted_str if self.fullname is not None else None,
-            'description': self.redacted_str if self.description is not None else None,
-            'external_id': self.redacted_str if self.external_id is not None else None,
-            'practices': self.redacted_str if self.practices is not None else None,
-            'start': None,
-            'end': None,
-            'factors': list(),
-            'observations': list(),
-            'design': None,
-            'licence': None,
-            'references': list()
-        })
+        return replace(
+            self,
+            name = self.redacted_str,
+            fullname = self.fullname and self.redacted_str,
+            description = self.description and self.redacted_str,
+            practices = self.practices and self.redacted_str,
+            start = None,
+            end = None,
+            datasets = list(),
+            design = None,
+            licence = None,
+            references = list()
+        )
 
+@dataclass
+class StudyOutput(StudyBase):
+    # MIAPPE DM60: exposure or condition that is being tested.
+    factors: List[int] = field(default_factory=list)  # Factors in the ontology with datasets that vary across subjects within the study
+    variables: List[int] = field(default_factory=list)  # Variables in the ontology with datasets that vary across subjects within the study
 
-class TrialBase(LabeledModel):
+@dataclass
+class TrialBase(ABC):
     """
     This is like the Trial concept in BrAPI,
     But using the more widespread terminology from ISA
@@ -81,66 +87,71 @@ class TrialBase(LabeledModel):
     label: ClassVar[str] = 'Trial'
     plural: ClassVar[str] = 'Trials'
 
-    name: str
+    name: str = None
     fullname: str|None = None
     description: str|None = None
 
-    start: PyDT64|None = None
-    end: PyDT64|None = None
+    start: datetime64|None = None
+    end: datetime64|None = None
 
-    contacts: List[int] = list() # list of Person by ID suitable to contact for queries about this study.
-    references: List[int] = list()  # list of reference by ID
+    contacts: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this study.
+    references: List[int] = field(default_factory=list)  # list of reference by ID
 
-class TrialInput(TrialBase):
+@dataclass
+class TrialInput(TrialBase, LabeledModel):
     pass
 
+@dataclass
 class TrialStored(TrialBase, ControlledModel):
-
-    studies: Dict[int, StudyStored|StudyInput] = dict() # keyed by ID or assigned a temporary ID for inputs
+    studies: Dict[int, StudyStored|StudyInput] = field(default_factory=dict) # keyed by ID or assigned a temporary ID for inputs
 
     def redacted(
             self,
             controller: Controller,
             user_id=None,
             read_teams=None
-    ) -> 'TrialStored':
+    ) -> Self:
 
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
 
-        return self.model_copy(deep=True, update={
-            'name': self.redacted_str,
-            'fullname': self.redacted_str if self.fullname is not None else None,
-            'description': self.redacted_str if self.description is not None else None,
-            'start': None,
-            'end': None,
-            'factors': list(),
-            'observations': list(),
-            'design': None,
-            'licence': None,
-            'references': list()
-        })
+        return replace(
+            self,
+            name = self.redacted_str,
+            fullname = self.fullname and self.redacted_str,
+            description = self.description and self.redacted_str,
+            start = None,
+            end = None,
+            references = list()
+        )
 
     def add_study(self, study: StudyInput):
         temp_key = -len(self.studies) - 1
         self.studies[temp_key] = study
 
-class ProgramBase(LabeledModel):
+
+@dataclass(eq=False)
+class ProgramBase(ABC):
     label: ClassVar[str] = 'Program'
     plural: ClassVar[str] = 'Programs'
 
-    name: str
+    name: str = None
     fullname: str|None = None
     description: str|None = None
-    contacts: List[int] = list() # list of Person by ID suitable to contact for queries about this program.
-    references: List[int] = list()  # list of reference IDs
+    contacts: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this program.
+    references: List[int] = field(default_factory=list)  # list of reference IDs
 
+    def model_dump(self):
+        return asdict(self)
+
+@dataclass
 class ProgramInput(ProgramBase):
     pass
 
+@dataclass(eq=False)
 class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
-
-    trials: Dict[int, TrialStored|TrialInput] = dict()  # keyed by ID or assigned a temporary ID for inputs
+    # keyed by ID or assigned a temporary ID for inputs
+    trials: Dict[int, TrialStored | TrialInput] = field(default_factory=dict)
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
@@ -170,22 +181,20 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
             controllers: Dict[str, Dict[int, Controller]],
             user_id=None,
             read_teams=None
-    ) -> 'ProgramStored':
+    ) -> Self:
 
         program_controller = controllers['Program'][self.id]
         if program_controller.has_access(Access.READ, user_id, read_teams):
             aggregate = self
 
         else:
-            aggregate = self.model_copy(
-                deep=True,
-                update={
-                    'name': self.redacted_str,
-                    'fullname': None,
-                    'description': None,
-                    'contacts': list(),
-                    'references': list()
-                }
+            aggregate = replace(
+                self,
+                name = self.name and self.redacted_str,
+                fullname = None,
+                description = None,
+                contacts = list(),
+                references = list()
             )
 
         for trial_key, trial in self.trials.items():
@@ -202,9 +211,9 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
             for study_key, study in trial.studies.items():
                 if not controllers['Study'][study_key].has_access(Access.READ, user_id, read_teams):
                     if user_id is None:
-                        aggregate.trials[trial_key].pop(study_key)
+                        aggregate.trials[trial_key].studies.pop(study_key)
                     else:
-                        aggregate.trials[trial_key][study_key] = study.redacted(
+                        aggregate.trials[trial_key].studies[study_key] = study.redacted(
                             controller=controllers['Study'][study_key],
                             user_id=user_id,
                             read_teams=read_teams
@@ -221,8 +230,9 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
             self.id: ProgramOutput(**self.model_dump())
         }
 
-class ProgramOutput(ProgramStored):
-    # returning the ProgramStored, just giving new type in case of future requirements
-    pass
+@dataclass(eq=False)
+class ProgramOutput(ProgramBase):
+
+    trials: Dict[int, TrialStored | TrialInput] = field(default_factory=dict)
 
 

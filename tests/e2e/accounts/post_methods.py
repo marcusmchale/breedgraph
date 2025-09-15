@@ -2,7 +2,7 @@ from src.breedgraph.config import GQL_API_PATH
 from src.breedgraph.domain.model.controls import Access
 from tests.e2e.utils import with_auth
 
-async def post_to_add_account(client, name: str, email: str, password: str):
+async def post_to_create_account(client, name: str, email: str, password: str):
     json={
         "query": (
             " mutation ( "
@@ -11,7 +11,7 @@ async def post_to_add_account(client, name: str, email: str, password: str):
             "  $email: String!,"
             "  $password: String!"
             " ) { "
-            "  add_account( "
+            "  create_account( "
             "    name: $name, "
             "    fullname: $fullname, "
             "    email: $email, "
@@ -182,15 +182,15 @@ async def post_to_users(client, token:str, user_id: None|int = None):
     return response
 
 
-async def post_to_request_affiliation(client, token:str, team: int, access: Access):
+async def post_to_request_affiliation(client, token:str, team_id: int, access: Access):
     json = {
         "query": (
             " mutation ( "
-            "  $team: Int!"
+            "  $team_id: Int!"
             "  $access: Access!"
             " ) { "
             "  request_affiliation( "
-            "    team: $team,"
+            "    team_id: $team_id,"
             "    access: $access "
             "  ) { "
             "    status, "
@@ -200,7 +200,7 @@ async def post_to_request_affiliation(client, token:str, team: int, access: Acce
             " } "
         ),
         "variables": {
-            "team": team,
+            "team_id": team_id,
             "access": access
         }
     }
@@ -211,17 +211,17 @@ async def post_to_request_affiliation(client, token:str, team: int, access: Acce
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_approve_affiliation(client, token:str, user:int, team: int, access: Access):
+async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: int, access: Access):
     json = {
         "query": (
             " mutation ( "
-            "  $user: Int!, "
-            "  $team: Int!"
+            "  $user_id: Int!, "
+            "  $team_id: Int!"
             "  $access: Access!"
             " ) { "
             "  approve_affiliation( "
-            "    user: $user, "
-            "    team: $team, "
+            "    user_id: $user_id, "
+            "    team_id: $team_id, "
             "    access: $access"
             "  ) { "
             "    status, "
@@ -231,8 +231,8 @@ async def post_to_approve_affiliation(client, token:str, user:int, team: int, ac
             " } "
         ),
         "variables": {
-            "user": user,
-            "team": team,
+            "user_id": user_id,
+            "team_id": team_id,
             "access": access
         }
     }
@@ -243,17 +243,17 @@ async def post_to_approve_affiliation(client, token:str, user:int, team: int, ac
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_remove_affiliation(client, token:str, user:int, team: int, access: Access):
+async def post_to_remove_affiliation(client, token:str, user_id:int, team_id: int, access: Access):
     json = {
         "query": (
             " mutation ( "
-            "  $user: Int!, "
-            "  $team: Int!, "
+            "  $user_id: Int!, "
+            "  $team_id: Int!, "
             "  $access: Access!"
             " ) { "
             "  remove_affiliation( "
-            "    user: $user, "
-            "    team: $team,"
+            "    user_id: $user_id, "
+            "    team_id: $team_id,"
             "    access: $access"
             "  ) { "
             "    status, "
@@ -263,8 +263,8 @@ async def post_to_remove_affiliation(client, token:str, user:int, team: int, acc
             " } "
         ),
         "variables": {
-            "user": user,
-            "team": team,
+            "user_id": user_id,
+            "team_id": team_id,
             "access": access
         }
     }

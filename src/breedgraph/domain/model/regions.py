@@ -1,30 +1,36 @@
-from pydantic import BaseModel
+from abc import ABC
+from dataclasses import dataclass, field, replace
 
+from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, ReadRelease, Controller
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller
 
-from typing import List, ClassVar
+from typing import List, ClassVar, Dict, Any
 
-class GeoCoordinate(BaseModel):  # ISO 6709
+@dataclass
+class GeoCoordinate:  # ISO 6709
     latitude: float
     longitude: float
     altitude: float = None
     uncertainty: float = None
     description: str = None
 
-class LocationBase(LabeledModel):
+@dataclass
+class LocationBase(ABC):
     label: ClassVar[str] = 'Location'
     plural: ClassVar[str] = 'Locations'
 
-    name: str
-    synonyms: List[str] = list()
-    type: int  # reference to location type in ontology
+    name: str = None
+    synonyms: List[str] = field(default_factory=list)
+    type: int|None = None  # reference to location type in ontology
 
     description: str|None = None
     code: str|None = None  # can be country code, zip code, code for a field etc.
     address: str|None = None
 
-    coordinates: list[GeoCoordinate]|None = list() # if more than one then interpreted as a polygon specifying boundaries
+    coordinates: list[GeoCoordinate]|None = field(default_factory=list)
+    # if more than one coordinate then interpret as a polygon specifying boundaries
+    # todo consider: what about lines, e.g. two then a line, but other lines? needed? not for location
 
     @property
     def names(self):
@@ -33,9 +39,12 @@ class LocationBase(LabeledModel):
     def __hash__(self):
         return hash(self.name)
 
-class LocationInput(LocationBase):
+
+@dataclass
+class LocationInput(LocationBase, LabeledModel):
     pass
 
+@dataclass
 class LocationStored(LocationBase, ControlledModel):
 
     def redacted(
@@ -44,22 +53,28 @@ class LocationStored(LocationBase, ControlledModel):
             user_id = None,
             read_teams = None
     ):
-        return self.model_copy(deep=True, update={
-            'name': self.redacted_str,
-            'synonyms': [self.redacted_str for _ in self.synonyms],
-            # type is still visible, this node is only seen when root of aggregate.
-            'description': self.redacted_str if self.description is not None else self.description,
-            'code': self.redacted_str if self.code is not None else self.code,
-            'address': self.redacted_str if self.address is None else self.address,
-            'coordinates': list()
-        })
+        return replace(
+            self,
+            type = None,
+            name = self.redacted_str,
+            synonyms = [self.redacted_str for _ in self.synonyms],
+            description = self.description and self.redacted_str,
+            code = self.code and self.redacted_str,
+            address = self.address and self.redacted_str,
+            coordinates = list()
+        )
 
-class LocationOutput(LocationStored):
-    parent: int | None
-    children: list[int]
-    release: ReadRelease
+@dataclass
+class LocationOutput(LocationBase, LabeledModel):
+    id: int | None = None
+    parent: int | None = None
+    children: list[int] = field(default_factory=list)
 
+
+TInput=LocationInput
+TStored=LocationStored
 class Region(ControlledTreeAggregate):
+    default_edge_label: ClassVar['str'] = "INCLUDES_LOCATION"
 
     def add_location(self, location: LocationInput, parent_id: int|None):
         if parent_id is not None:
@@ -69,15 +84,14 @@ class Region(ControlledTreeAggregate):
 
         return super().add_entry(location, sources)
 
-    def get_location(self, location: str|int):
+    def get_location(self, location: str|int) -> LocationInput|LocationStored:
         return super().get_entry(location)
 
     def to_output_map(self) -> dict[int, LocationOutput]:
         return {node: LocationOutput(
             **self.get_location(node).model_dump(),
             parent=self.get_parent_id(node),
-            children=self.get_children_ids(node),
-            release=self.get_location(node).controller.release
+            children=self.get_children_ids(node)
         ) for node in self._graph}
 
     def yield_locations_by_type(self, type_id: int):
