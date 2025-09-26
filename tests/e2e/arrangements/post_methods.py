@@ -1,7 +1,7 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_add_layout(
+async def post_to_create_layout(
     client,
     token:str,
     layout: dict
@@ -11,7 +11,7 @@ async def post_to_add_layout(
             " mutation ( "
             "  $layout: LayoutInput!"
             " ) { "
-            "  add_layout( "
+            "  arrangementsCreateLayout( "
             "    layout: $layout, "
             "  ) { "
             "    status, "
@@ -35,10 +35,10 @@ async def post_to_arrangements(client, location_id: int=None, token:str = None):
     json = {
         "query": (
             " query ( "
-            "   $location_id: Int "
+            "   $locationId: Int "
             " ) { "
             "  arrangements ( "
-            "   location_id: $location_id "
+            "   locationId: $locationId "
             " ) { "
             "    status, "
             "    result { "
@@ -49,14 +49,13 @@ async def post_to_arrangements(client, location_id: int=None, token:str = None):
             "       parent {id, name, axes, type {id, name} } "
             "       position, "
             "       children {id, name, axes, type {id, name} } "
-            "       release "
             "    }, "
             "    errors { name, message } "
             "   } "
             " } "
         ),
         "variables": {
-            "location_id": location_id
+            "locationId": location_id
         }
     }
     headers = with_auth(
@@ -71,10 +70,10 @@ async def post_to_layout(client, layout_id: int, token:str = None):
     json = {
         "query": (
             " query ("
-            "   $layout_id : Int!"
+            "   $layoutId : Int!"
             " ) { "
-            "  layout ( "
-            "  layout_id: $layout_id,"
+            "  arrangementsLayout ( "
+            "  layoutId: $layoutId,"
             "  ) {"
             "    status, "
             "    result { "
@@ -85,14 +84,13 @@ async def post_to_layout(client, layout_id: int, token:str = None):
             "       parent {id, name, axes, type {id, name} } "
             "       position, "
             "       children {id, name, axes, type {id, name} } "
-            "       release "
             "    }, "
             "    errors { name, message } "
             "   } "
             " } "
         ),
         "variables": {
-            "layout_id": layout_id,
+            "layoutId": layout_id,
         }
     }
     headers = with_auth(

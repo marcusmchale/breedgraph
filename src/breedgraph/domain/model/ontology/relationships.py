@@ -2,7 +2,7 @@ from dataclasses import dataclass, asdict
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, Tuple, TypeVar, Type, Self
 
-from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel
+from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
 
 @dataclass
 class OntologyRelationshipBase(ABC):
@@ -134,7 +134,7 @@ class OntologyRelationshipBase(ABC):
         elif label == OntologyRelationshipLabel.USES_SCALE:
             if relationship_id is None:
                 return ScaleRelationship.build(
-                    variable_id=source_id,
+                    source_id=source_id,
                     scale_id=target_id,
                     **kwargs
                 )

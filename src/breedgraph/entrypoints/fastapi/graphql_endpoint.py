@@ -3,7 +3,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from ariadne import graphql
 
-from pathlib import Path
 from typing import Optional, Dict, Any
 
 from src.breedgraph.domain.model.accounts import AccountStored
@@ -27,21 +26,19 @@ async def get_user_id(request: Request) -> Optional[AccountStored]:
             auth_service = request.app.auth_service
             return auth_service.validate_login_token(token)
         except UnauthorisedOperationError as e:
-            logger.debug(f"Token validation failed: {str(e)}")
-            raise
+            pass
+
     return None
 
 
 async def get_context_value(request: Request):
     """Build GraphQL context with request, bus, auth service, and cookies to set"""
-    token = request.cookies.get('auth_token')
-    logger.debug(f"GraphQL context builder - auth_token cookie: {token}")
-    user_id = await get_user_id(request)
-    logger.debug(f"GraphQL context builder - user_id: {user_id}")
     context = {
         "request": request,
         "bus": request.app.bus,
         "auth_service": request.app.auth_service,
+        "user_id": await get_user_id(request),
+        "cached_uow": None,
         "cookies_to_set": []  # List to store cookies that should be set
     }
     logger.debug(f"GraphQL context builder - final context: {context}")
@@ -78,6 +75,7 @@ async def extract_graphql_data(request: Request) -> Dict[str, Any]:
 @router.post(f"/{GQL_API_PATH}")
 async def graphql_server(request: Request):
     """Handle GraphQL POST requests"""
+    logger.debug("GraphQL endpoint started")
     try:
         data = await extract_graphql_data(request)
         context = await get_context_value(request)
@@ -110,3 +108,6 @@ async def graphql_server(request: Request):
             content={"errors": [{"message": "Internal server error"}]},
             status_code=500
         )
+
+    finally:
+        logger.debug("GraphQL endpoint complete")

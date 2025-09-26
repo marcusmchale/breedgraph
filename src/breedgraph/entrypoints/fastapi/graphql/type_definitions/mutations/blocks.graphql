@@ -2,11 +2,11 @@ input PositionInput {
     """
     ID of Location in a Region
     """
-    location_id: Int!
+    locationId: Int!
     """
     ID of Layout in and Arrangement
     """
-    layout_id: Int
+    layoutId: Int
     """
     Coordinates should be a list of values corresponding to the stored layout axes.
     """
@@ -19,22 +19,21 @@ input UnitInput {
     """
     ID of Subject in the ontology
     """
-    subject_id: Int!
+    subjectId: Int!
     name: String
     synonyms: [String]
     description: String
     """
     IDs of parent Units, of which this unit forms a component
     """
-    parent_ids: [Int]
+    parentIds: [Int]
     """
     IDs of child Units, which represent a component of this unit.
     """
-    children_ids: [Int]
-    release: ReadRelease
+    childrenIds: [Int]
 }
 
 extend type Mutation {
-    blocks_create_unit(unit: UnitInput!): BooleanPayload!
-    blocks_add_position(unit_id: Int!, position: PositionInput): BooleanPayload!
+    blocksCreateUnit(unit: UnitInput!): BooleanPayload!
+    blocksAddPosition(unitId: Int!, position: PositionInput): BooleanPayload!
 }

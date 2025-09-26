@@ -26,5 +26,4 @@ type Location {
     coordinates: [GeoCoordinate]
     parent: Location
     children: [Location]
-    release: ReadRelease
 }

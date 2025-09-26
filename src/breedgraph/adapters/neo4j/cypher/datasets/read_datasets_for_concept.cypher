@@ -1,8 +1,8 @@
-MATCH (dataset: DataSet)-[:FOR_ONTOLOGY_ENTRY]->(entry: Variable|EventType|Parameter {id: $ontology_id})
+MATCH (dataset: DataSet)-[:FOR_CONCEPT]->(entry: Variable|Factor {id: $concept_id})
 RETURN
   dataset {
     .*,
-    ontology_id: [(dataset)-[:FOR_ONTOLOGY_ENTRY]->(entry: Variable|EventType|Parameter)|entry.id][0],
+    concept: [(dataset)-[:FOR_CONCEPT]->(entry: Variable:Factor)|entry.id][0],
     contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person)|contributor.id],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],
     records: apoc.coll.sortMaps([

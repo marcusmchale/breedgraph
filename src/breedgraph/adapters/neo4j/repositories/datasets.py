@@ -14,10 +14,7 @@ from typing import AsyncGenerator, List
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = DataSetInput
-TAggregate = DataSetStored
-
-class Neo4jDatasetsRepository(Neo4jControlledRepository):
+class Neo4jDatasetsRepository(Neo4jControlledRepository[DataSetInput, DataSetStored]):
 
     async def _create_controlled(self, dataset: DataSetInput) -> DataSetStored:
         return await self._create_dataset(dataset)
@@ -95,9 +92,9 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository):
         record = await result.single()
         return self.record_to_dataset(record.get('dataset'))
 
-    async def _get_all_controlled(self, ontology_id: int = None) -> AsyncGenerator[DataSetStored, None]:
-        if ontology_id is not None:
-            result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets_for_ontology_entry'], ontology_id=ontology_id)
+    async def _get_all_controlled(self, concept_id: int = None) -> AsyncGenerator[DataSetStored, None]:
+        if concept_id is not None:
+            result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets_for_concept'], concept_id=concept_id)
         else:
             result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets'])
 

@@ -18,7 +18,7 @@ async def test_get(
             break
     else:
         raise NoResultFoundError("Couldn't find created dataset by get all")
-    async for d in datasets_repo.get_all(ontology_id=height_variable.id):
+    async for d in datasets_repo.get_all(concept_id=height_variable.id):
         if d == stored_dataset:
             break
     else:
@@ -28,13 +28,13 @@ async def test_get(
 async def test_update_contributors(
         datasets_repo,
         stored_dataset,
-        stored_person
+        unstored_person
 ):
-    stored_dataset.contributors.remove(stored_person.id)
+    stored_dataset.contributors.remove(unstored_person.id)
     await datasets_repo.update_seen()
     retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
     assert stored_dataset == retrieved
-    stored_dataset.contributors.append(stored_person.id)
+    stored_dataset.contributors.append(unstored_person.id)
     await datasets_repo.update_seen()
     retrieved = await datasets_repo.get(dataset_id=stored_dataset.id)
     assert stored_dataset == retrieved
@@ -43,7 +43,7 @@ async def test_update_contributors(
 async def test_add_record_to_existing_unit(
         datasets_repo,
         stored_dataset,
-        stored_person,
+        unstored_person,
         tree_block
 ):
     new_record = DataRecordInput(unit=tree_block.get_root_id(), value='50')
@@ -57,7 +57,7 @@ async def test_add_record_to_existing_unit(
 async def test_add_new_unit_record(
         datasets_repo,
         stored_dataset,
-        stored_person,
+        unstored_person,
         second_tree_block
 ):
     new_record = DataRecordInput(unit=second_tree_block.root.id, value='50')

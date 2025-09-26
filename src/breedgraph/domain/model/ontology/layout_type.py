@@ -2,14 +2,13 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
-from src.breedgraph.domain.model.ontology.enums import AxisType
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel, AxisType
 
 from typing import ClassVar, List
 
 @dataclass
 class LayoutTypeBase(OntologyEntryBase):
-    label: ClassVar[str] = 'LayoutType'
-    plural: ClassVar[str] = 'LayoutTypes'
+    label: ClassVar[str] = OntologyEntryLabel.LAYOUT_TYPE
     """
     e.g. rows, grid, measured distance
     Each axis type should be defined here and match all instances of this Layout,

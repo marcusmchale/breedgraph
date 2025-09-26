@@ -14,6 +14,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+#todo control method should be enforced as subtype of a germplasm management method type in the ontology
+
 class GermplasmApplicationService:
     """
     Application service for all germplasm operations.
@@ -48,21 +50,20 @@ class GermplasmApplicationService:
             self,
             persistence_service: GermplasmPersistenceService,
             access_control_service: AbstractAccessControlService,
-            user_id: int = None,
-            access_teams: Dict[Access, Set[int]] = None,
             release: ReadRelease = ReadRelease.PRIVATE
     ):
         self.persistence = persistence_service
         self.access_control = access_control_service
-        self.user_id = user_id
-
-        # Initialize access teams with empty sets if not provided
-        if access_teams is None:
-            access_teams = {}
-        self.access_teams = {access: access_teams.get(access, set()) for access in Access}
-
         self.release = release
         self.events: List[Event] = []
+
+    @property
+    def user_id(self):
+        return self.access_control.user_id
+
+    @property
+    def access_teams(self):
+        return self.access_control.access_teams
 
     def validate_write_permission(self):
         if not self.user_id:

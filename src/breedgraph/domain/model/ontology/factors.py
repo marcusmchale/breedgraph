@@ -16,15 +16,14 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
-from src.breedgraph.domain.model.ontology.enums import ControlMethodType
+from src.breedgraph.domain.model.ontology.enums import ControlMethodType, OntologyEntryLabel
 
 from typing import ClassVar
 
 @dataclass
 class ControlMethodBase(OntologyEntryBase):
     # Unlike observation methods, control methods do not have a method_type
-    label: ClassVar[str] = 'ControlMethod'
-    plural: ClassVar[str] = 'ControlMethods'
+    label: ClassVar[str] = OntologyEntryLabel.CONTROL_METHOD
 
     control_type: ControlMethodType = ControlMethodType.ENVIRONMENTAL
 
@@ -39,13 +38,11 @@ class ControlMethodStored(ControlMethodBase, OntologyEntryStored):
 @dataclass
 class ControlMethodOutput(ControlMethodBase, OntologyEntryOutput):
     terms: list[int] = field(default_factory=list)
-
     factors: list[int] = field(default_factory=list)
 
 @dataclass
 class ConditionBase(OntologyEntryBase):  # akin to a Trait, but is controlled/fixed for a prescribed duration
-    label: ClassVar[str] = 'Condition'
-    plural: ClassVar[str] = 'Conditions'
+    label: ClassVar[str] = OntologyEntryLabel.CONDITION
 
     subjects: list[int] = field(default_factory=list)
 
@@ -65,8 +62,7 @@ class ConditionOutput(ConditionBase, OntologyEntryOutput):
 
 @dataclass
 class FactorBase(OntologyEntryBase):
-    label: ClassVar[str] = 'Factor'
-    plural: ClassVar[str] = 'Factors'
+    label: ClassVar[str] = OntologyEntryLabel.FACTOR
     """
     quantities/qualities that are fixed or constrained for a period of time or throughout in an experiment.
     for example:

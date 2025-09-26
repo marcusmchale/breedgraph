@@ -21,10 +21,8 @@ from src.breedgraph.domain.model.references import (
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = ReferenceBase
-TAggregate = ReferenceStoredBase
 
-class Neo4jReferencesRepository(Neo4jControlledRepository):
+class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, ReferenceStoredBase]):
 
     async def _create_controlled(
             self,

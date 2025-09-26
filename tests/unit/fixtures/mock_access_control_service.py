@@ -4,6 +4,7 @@ from typing import Dict, List, Set
 
 
 from src.breedgraph.domain.model.controls import Control, ReadRelease, Controller
+from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.time_descriptors import WriteStamp
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
@@ -23,6 +24,9 @@ class MockAccessControlService(AbstractAccessControlService):
             lambda: defaultdict(dict))  # label -> model_id -> team_id -> Control
         self._writes: Dict[str, Dict[int, List[WriteStamp]]] = defaultdict(
             lambda: defaultdict(list))  # label -> model_id -> [WriteStamp]
+        self._access_teams: Dict[int, Dict[Access, Set[int]]] = {}
+        self.user_id: int|None = None
+        self.access_teams: Dict[Access, Set[int]] = {}
 
     async def _set_controls(
             self,
@@ -92,7 +96,25 @@ class MockAccessControlService(AbstractAccessControlService):
                 for team_id in team_ids_list:
                     self._controls[label][model_id].pop(team_id, None)
 
+    def get_access_teams(self, user_id: int = None) -> Dict[Access, Set[int]]:
+        """Get access teams for a user"""
+        if user_id is None:
+            return {a: set() for a in Access}
+
+        return self._access_teams.get(user_id, {a: set() for a in Access})
+
+    def set_test_access_teams(self, user_id: int|None, access_teams: Dict[Access, Set[int]]):
+        """Test helper to set access teams"""
+        self._access_teams[user_id] = access_teams
+
     def clear_test_data(self):
         """Clear all test data - useful for test cleanup"""
         self._controls.clear()
         self._writes.clear()
+        self._access_teams.clear()
+
+    async def initialize_user_context(self, user_id: int|None) -> None:
+        self.user_id = user_id
+        self.access_teams = {a: set() for a in Access}
+        if user_id is not None:
+            self.access_teams.update(self.get_access_teams(user_id))

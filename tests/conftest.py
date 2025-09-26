@@ -149,7 +149,7 @@ async def create_account(bus, user_input_generator, inviting_user=None):
     user_input = user_input_generator.new_user_input()
 
     if inviting_user:
-        add_email = AddEmail(user=inviting_user, email=user_input.get('email'))
+        add_email = AddEmail(user_id=inviting_user, email=user_input.get('email'))
         await bus.handle(add_email)
 
     password_hash = bcrypt.hashpw(user_input.get('password').encode(), bcrypt.gensalt()).decode()
@@ -181,15 +181,15 @@ async def get_account(bus, user_input_generator, user_id: int) -> AccountStored:
 
 @pytest_asyncio.fixture(scope="session")
 async def first_account(bus, user_input_generator) -> AsyncGenerator[AccountStored, None]:
-    yield await get_account(bus, user_input_generator, user_id=1)
+    yield await get_account(bus, user_input_generator, user_id=2)
 
 @pytest_asyncio.fixture(scope="session")
 async def second_account(bus, user_input_generator, first_account) -> AsyncGenerator[AccountStored, None]:
-    yield await get_account(bus, user_input_generator, user_id=2)
+    yield await get_account(bus, user_input_generator, user_id=3)
 
 async def create_organisation(bus, user_input_generator, user_id: int):
     team_name = user_input_generator.new_user_input().get('team_name')
-    cmd = CreateTeam(name=team_name, user=user_id, parent=None)
+    cmd = CreateTeam(name=team_name, agent_id=user_id, parent=None)
     await bus.handle(cmd)
 
 async def get_organisation(bus, user_input_generator, user_id: int) -> Organisation:
@@ -226,7 +226,7 @@ async def basic_ontology(bus, first_account_with_all_affiliations, lorem_text_ge
     async with bus.uow.get_uow(user_id = first_account_with_all_affiliations.user.id) as uow:
         ontology_service = uow.ontology
         field_subject = (
-                await ontology_service.get_entry(name='Field', label='Subject') or
+                await ontology_service.get_entry(name='Field', label=OntologyEntryLabel.SUBJECT) or
                 await ontology_service.create_entry(SubjectInput(name="Field"))
         )
         tree_subject = await ontology_service.create_entry(SubjectInput(name="Tree"), parents=[field_subject.id])
@@ -301,7 +301,7 @@ async def basic_ontology(bus, first_account_with_all_affiliations, lorem_text_ge
             scale_id=genotype_scale.id
         )
         # In case country type is already found:
-        country_type = await ontology_service.get_entry(name="Country", label="LocationType")
+        country_type = await ontology_service.get_entry(name="Country", label=OntologyEntryLabel.LOCATION_TYPE)
         if country_type is None:
             country_type = await ontology_service.create_entry(LocationTypeInput(name="Country", description="Country with ISO-3166 country code"))
 
@@ -422,17 +422,17 @@ async def basic_region(
 
             except IdentityExistsError:
                 pass
-        state_type = await uow.ontology.get_entry(name="State", label="LocationType")
+        state_type = await uow.ontology.get_entry(name="State", label=OntologyEntryLabel.LOCATION_TYPE)
         state_id = region.add_location(
             LocationInput(name=lorem_text_generator.new_text(10), type=state_type.id),
             parent_id=region.get_root_id()
         )
-        field_type = await uow.ontology.get_entry(name="Field", label="LocationType")
+        field_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         region.add_location(
             LocationInput(name=lorem_text_generator.new_text(10), type=field_type.id),
             parent_id=state_id
         )
-        lab_type = await uow.ontology.get_entry(name="Laboratory", label="LocationType")
+        lab_type = await uow.ontology.get_entry(name="Laboratory", label=OntologyEntryLabel.LOCATION_TYPE)
         region.add_location(
             LocationInput(name=lorem_text_generator.new_text(), type=lab_type.id),
             parent_id=state_id
@@ -452,10 +452,10 @@ async def field_arrangement(
             user_id=first_account_with_all_affiliations.user.id,
             release=ReadRelease.PUBLIC
     ) as uow:
-        field_type = await uow.ontology.get_entry(name="Field", label="LocationType")
+        field_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         field = next(basic_region.yield_locations_by_type(field_type.id))
 
-        row_type = await uow.ontology.get_entry(name="Indexed Rows", label="LayoutType")
+        row_type = await uow.ontology.get_entry(name="Indexed Rows", label=OntologyEntryLabel.LAYOUT_TYPE)
         layout = LayoutInput(
             location=field.id,
             type=row_type.id,
@@ -476,16 +476,15 @@ async def basic_block(
         lorem_text_generator
 ) -> AsyncGenerator[Block, None]:
     async with bus.uow.get_uow(first_account_with_all_affiliations.user.id) as uow:
-        field_location_type = await uow.ontology.get_entry(name="Field", label="LocationType")
+        field_location_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         field_location = next(basic_region.yield_locations_by_type(field_location_type.id))
 
-        field_subject = await uow.ontology.get_entry(name="Field", label="Subject")
-        tree_subject = await uow.ontology.get_entry(name="Tree", label="Subject")
+        field_subject = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
+        tree_subject = await uow.ontology.get_entry(name="Tree", label=OntologyEntryLabel.SUBJECT)
 
         field_unit = UnitInput(
             subject=field_subject.id,
             name="First Field",
-            synonyms=['Field 1'],
             description="The big field at the end of the road",
             positions=[
                 Position(
@@ -497,7 +496,6 @@ async def basic_block(
         tree_unit = UnitInput(
             subject=tree_subject.id,
             name="First Tree",
-            synonyms=['Tree 1'],
             positions=[
                 Position(
                     location=field_location.id,

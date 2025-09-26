@@ -18,10 +18,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = AccountInput
-TAggregate = AccountStored
 
-class Neo4jAccountRepository(BaseRepository):
+class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
 
     def __init__(self, tx: AsyncTransaction):
         super().__init__()

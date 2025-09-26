@@ -49,7 +49,7 @@ def retry(attempts):
 
 
 @retry(10)
-async def get_email(mailto: str, subject: str, string_in_body: [None|str] = None):
+async def get_email(mailto: str, subject: str, string_in_body: None|str = None):
     all_emails = requests.get(f'http://{MAIL_HOST}:{MAILHOG_HTTP_PORT}/api/v2/messages').json()
     for e in all_emails['items']:
         if all([
@@ -67,14 +67,18 @@ async def get_email(mailto: str, subject: str, string_in_body: [None|str] = None
                         continue
 
             return e
+    return None
 
-async def confirm_email_delivered(mailto: str, subject: str, string_in_body: [None|str] = None):
+async def confirm_email_delivered(mailto: str, subject: str, string_in_body: None|str = None):
     if await get_email(mailto, subject, string_in_body):
         return True
+    else:
+        return False
 
-async def get_json_from_email(mailto: str, subject: str, string_in_body: [None|str] = None):
+async def get_json_from_email(mailto: str, subject: str, string_in_body: None|str = None):
     e = await get_email(mailto, subject, string_in_body)
     if e:
         for part in e['MIME']['Parts']:
             if 'application/json' in part['Headers']['Content-Type']:
                 return json.loads(base64.b64decode(part['Body']))
+    return None

@@ -59,7 +59,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         await self.tx.rollback()
 
     async def db_is_empty(self) -> bool:
-        result = await self.tx.run(queries['views']['is_empty'])
+        result = await self.tx.run(queries['infrastructure']['is_empty'])
         return (await result.single())["empty"]
 
 
@@ -88,39 +88,38 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
         session: AsyncSession = self.driver.session()
         logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
-
-        views_holder = Neo4jViewsHolder(tx)
-        access_teams = await views_holder.access_teams(user=user_id)
+        logger.debug("Initialize user context and access control")
         access_control_service = Neo4jAccessControlService(tx)
+        await access_control_service.initialize_user_context(user_id=user_id)
+        logger.debug("Initialize views holder")
+        views_holder = Neo4jViewsHolder(tx, access_control_service)
+        logger.debug("Initialize repositories holder")
         repo_holder = Neo4jRepoHolder(
             tx=tx,
             access_control_service=access_control_service,
-            user_id=user_id,
             redacted=redacted,
-            release=release,
-            access_teams=access_teams
+            release=release
         )
-
+        logger.debug("Get user from accounts view")
         if user_id is not None:
-            user = await views_holder.get_user(user=user_id)
+            user = await views_holder.accounts.get_user(user_id=user_id)
         else:
             user = None
-
+        logger.debug("Initialize ontology service")
         ontology_persistence_service: OntologyPersistenceService = Neo4jOntologyPersistenceService(tx)
         ontology_service = OntologyApplicationService(
             persistence_service=ontology_persistence_service,
             user_id=user_id,
             role=user.ontology_role if user else None
         )
+        logger.debug("Initialize germplasm service")
         germplasm_persistence_service: GermplasmPersistenceService = Neo4jGermplasmPersistenceService(tx)
         germplasm_service = GermplasmApplicationService(
             persistence_service=germplasm_persistence_service,
             access_control_service=access_control_service,
-            user_id=user_id,
-            access_teams=access_teams,
             release=release
         )
-
+        logger.debug("Build unit of work holder")
         unit_holder = Neo4jUnitHolder(
             tx=tx,
             views=views_holder,
@@ -129,7 +128,6 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             ontology=ontology_service,
             germplasm=germplasm_service
         )
-
         try:
             yield unit_holder
 

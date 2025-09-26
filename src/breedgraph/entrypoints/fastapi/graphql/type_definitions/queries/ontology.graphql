@@ -17,51 +17,51 @@ type Version {
 Ontology entries form a graph
 Each label is represented by directed acyclic graphs with source and sink
 relationships described for each node as parents and children.
-Each entry has an OntologyLabel to distinguish various classes of entry.
+Each entry has an OntologyEntryLabel to distinguish various classes of entry.
 """
-enum OntologyLabel {
+enum OntologyEntryLabel {
     """
     Term entries may be used to relate other key terms in the ontology.
     Example: "Metabolism" may be a term.
     """
-    Term
+    TERM
     """
     Subject entries describe Units (see Blocks) being observed in a study.
     These are linked to Unit and Trait.
     Examples: "Leaf", "Tree", "Field", "Rhizosphere"
     """
-    Subject
+    SUBJECT
     """
     Scale entries describe units or classes used for values in a Dataset.
-    These are linked to Variable, Parameter or Event.
+    These are linked to Variable or Factor .
     Scale entries require a ScaleType.
     For Nominal and Ordinal types, additional Category references may be provided.
     Examples:
     "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
     "Plant Genetic Material" is ScaleType nominal, and categories should include references to GermplasmEntries.
     """
-    Scale
+    SCALE
     """
     Category entries describe classes for Scale entries with type Nominal or Ordinal.
     These are linked to Scale entries.
     Ordinal scales require a "rank" parameter for each category.
     Examples: "High", "Medium", "Low" with ranks 2, 1 and 0, respectively.
     """
-    Category
+    CATEGORY
     """
     Observation method entries describe the way a value is determined.
-    These are linked to Variable or Event.
+    These are linked to Variable.
     Observation method entries require an ObservationMethodType.
     Examples: "Distance measurement with calibrated reference", "Short-read sequencing", "Rain Gauge".
     """
-    ObservationMethod
+    OBSERVATION_METHOD
     """
     Trait entries describe observed properties of a subject (phenotype for a plant subject)
     These are linked to Variable and Subject.
     Examples:
     "Height", "Gene expression" linked to a tree subject.
     """
-    Trait
+    TRAIT
     """
     Variable entries link a Trait, ObservationMethod and Scale
     to form a single reference term for a Dataset (see Datasets).
@@ -75,21 +75,21 @@ enum OntologyLabel {
         Method = "Short read sequencing",
         Scale = "Counts per million"
     """
-    Variable
+    VARIABLE
     """
     Control method entries describe the way a value is maintained for an experiment.
-    These are linked to Parameter or Event.
+    These are linked to Factor.
     Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
     """
-    ControlMethod
+    CONTROL_METHOD
     """
     Condition entries describe the quantities/qualities that are fixed/controlled throughout an experiment.
-    These are linked to Parameter or Event entries.
+    These are linked to Factor entries.
     Examples: "Light level", "Controlled Grafting", "Water availability"
     """
-    Condition
+    CONDITION
     """
-    Parameter entries link a Condition, ControlMethod and Scale
+    Factor entries link a Condition, ControlMethod and Scale
     to form a single entry for a Dataset (see Datasets).
     Examples:
     "Controlled lighting" where:
@@ -101,49 +101,43 @@ enum OntologyLabel {
     "Grafted Material" where:
         Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
     """
-    Parameter
+    FACTOR
     """
-    Event entries link multiple Variables and Parameters
+    Event entries link multiple Variables and Factors
     Examples:
-    "Harvest" where: "Harvest method" may be a parameter, and "Yield" may be a variable.
+    "Harvest" event with "Harvest method" factor, and "Yield" variable.
     """
-    Event
-    """
-    Germplasm method entries describe maintenance or sourcing of germplasm.
-    These are linked to GermplasmEntry (see Germplasms).
-    Examples: "Controlled cross", "Mutagenesis", "Ecological survey"
-    """
-    GermplasmMethod
+    EVENT
     """
     LocationType entries describe types of locations.
     These are linked to Location (see Regions).
     Examples: "Country", "State", "Field"
     """
-    LocationType
+    LOCATION_TYPE
     """
     LayoutType entries describe types of arrangements.
     These are linked to Layout (see Arrangements).
     Examples: "Grid", "Rows"
     """
-    LayoutType
+    LAYOUT_TYPE
     """
     Design entries describe statistical designs for a study.
     These are linked to Study (see Programs).
     Examples: "Split-plot", "Randomized block"
     """
-    Design
+    DESIGN
     """
     Role entries describe roles for people.
     These are linked to Person (see People).
     Examples: "Post-doctoral researcher", "Principal Investigator"
     """
-    Role
+    ROLE
     """
     Title entries describe titles for people.
     These are linked to Person (see People).
     Examples: "Professor", "Doctor"
     """
-    Title
+    TITLE
 }
 
 
@@ -193,7 +187,7 @@ enum ControlMethodType{
     NUTRITIONAL
     """ Chemical controls (non-nutritive) .e.g. herbicides, hormones etc. """
     CHEMICAL
-    """ Biological controls, e.g. microbial treatment, insect release, fungal inoculation """
+    """ Biological controls, e.g. microbial treatment, fungal inoculation, insect colonization"""
     BIOLOGICAL
     """ Genetic controls, e.g. germplasm selection """
     GENETIC
@@ -208,7 +202,7 @@ enum ScaleType {
     NOMINAL,
     ORDINAL,
     TEXT,
-    germplasm
+    GERMPLASM
 }
 
 interface OntologyEntryInterface {
@@ -247,6 +241,22 @@ type Term implements OntologyEntryInterface {
 
     parents: [Term]
     children: [Term]
+
+    subjects: [Subject]
+    scales: [Scale]
+    categories: [Category]
+    observationMethods: [ObservationMethod]
+    traits: [Trait]
+    variables: [Variable]
+    controlMethods: [ControlMethod]
+    conditions: [Condition]
+    factors: [Factor]
+    events: [Event]
+    locationTypes: [LocationType]
+    layoutTypes: [LayoutType]
+    designs: [Design]
+    roles: [Role]
+    titles: [Title]
 }
 
 """
@@ -300,7 +310,7 @@ type Trait implements OntologyEntryInterface & RelatedToTerms {
 
 """
 Condition entries describe the quantities/qualities that are fixed/controlled throughout an experiment.
-These are linked to Parameter or Event entries.
+These are linked to Factor entries.
 Examples: "Light level", "Controlled Grafting", "Water availability"
 """
 type Condition implements OntologyEntryInterface & RelatedToTerms {
@@ -319,12 +329,12 @@ type Condition implements OntologyEntryInterface & RelatedToTerms {
     terms: [Term]
 
     subjects: [Subject]
-    parameters: [Parameter]
+    factors: [Factor]
 }
 
 """
 Scale entries describe units or classes used for values in a Dataset.
-These are linked to Variable, Parameter.
+These are linked to Variable or Factor.
 Scale entries require a ScaleType.
 For Nominal and Ordinal types, additional Category references may be provided.
 Ordinal scales represent the rank of categories by their presentation order.
@@ -352,7 +362,7 @@ type Scale implements OntologyEntryInterface & RelatedToTerms {
     categories: [Category]
 
     variables: [Variable]
-    parameters: [Parameter]
+    factors: [Factor]
 }
 
 """
@@ -398,7 +408,7 @@ type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
 
     terms: [Term]
 
-    observationMethodType: ObservationMethodType!
+    observationType: ObservationMethodType!
     variables: [Variable]
 }
 
@@ -437,7 +447,7 @@ type Variable implements OntologyEntryInterface & RelatedToTerms {
 
 """
 Control method entries describe the way a value is maintained for an experiment.
-These are linked to Parameter.
+These are linked to Factor.
 Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
 """
 type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
@@ -455,12 +465,12 @@ type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
 
     terms: [Term]
 
-    controlMethodType: ControlMethodType!
-    parameters: [Parameter]
+    controlType: ControlMethodType!
+    factors: [Factor]
 }
 
 """
-Parameter entries link a Condition, ControlMethod and Scale
+Factor entries link a Condition, ControlMethod and Scale
 to form a single entry for a Dataset (see Datasets).
 Examples:
 "Controlled lighting" where:
@@ -472,7 +482,7 @@ OR
 "Grafted Material" where:
     Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
 """
-type Parameter implements OntologyEntryInterface & RelatedToTerms {
+type Factor implements OntologyEntryInterface & RelatedToTerms {
     id: Int!
     name: String!
 
@@ -482,8 +492,8 @@ type Parameter implements OntologyEntryInterface & RelatedToTerms {
     authors: [Int]
     references: [Int]
 
-    parents: [Parameter]
-    children: [Parameter]
+    parents: [Factor]
+    children: [Factor]
 
     terms: [Term]
 
@@ -493,9 +503,9 @@ type Parameter implements OntologyEntryInterface & RelatedToTerms {
 }
 
 """
-Event entries link multiple Variables and Parameters
+Event entries link multiple Variables and Factors
 Examples:
-"Harvest" where "harvest method" may be a parameter and "yield" may be a variable.
+"Harvest" where "harvest method" may be a factor and "yield" may be a variable.
 """
 type Event implements OntologyEntryInterface & RelatedToTerms {
     id: Int!
@@ -513,7 +523,7 @@ type Event implements OntologyEntryInterface & RelatedToTerms {
     terms: [Term]
 
     variables: [Variable]
-    parameters: [Parameter]
+    factors: [Factor]
 }
 
 """
@@ -644,4 +654,4 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
     terms: [Term]
 }
 
-union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Parameter | Event | GermplasmMethod | LocationType | LayoutType | Design | Role | Title
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | GermplasmMethod | LocationType | LayoutType | Design | Role | Title

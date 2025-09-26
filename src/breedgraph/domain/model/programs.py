@@ -97,6 +97,25 @@ class TrialBase(ABC):
     contacts: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this study.
     references: List[int] = field(default_factory=list)  # list of reference by ID
 
+    def get_study(self, study_id: int) -> StudyStored | StudyInput | None:
+        if isinstance(self, TrialStored):
+            return self.studies.get(study_id)
+        else:
+            raise ValueError("Studies can only be retrieved from stored trials")
+
+    def add_study(self, study: StudyInput):
+        if isinstance(self, TrialStored):
+            temp_key = -len(self.studies) - 1
+            self.studies[temp_key] = study
+        else:
+            raise ValueError("Studies can only be added to stored trials")
+
+    def remove_study(self, study: StudyStored):
+        if isinstance(self, TrialStored):
+            self.studies.pop(study.id)
+        else:
+            raise ValueError("Studies can only be removed from stored trials")
+
 @dataclass
 class TrialInput(TrialBase, LabeledModel):
     pass
@@ -125,11 +144,6 @@ class TrialStored(TrialBase, ControlledModel):
             references = list()
         )
 
-    def add_study(self, study: StudyInput):
-        temp_key = -len(self.studies) - 1
-        self.studies[temp_key] = study
-
-
 @dataclass(eq=False)
 class ProgramBase(ABC):
     label: ClassVar[str] = 'Program'
@@ -143,6 +157,57 @@ class ProgramBase(ABC):
 
     def model_dump(self):
         return asdict(self)
+
+    def add_trial(self, trial: TrialInput):
+        if isinstance(self, ProgramStored):
+            temp_key = -len(self.trials) - 1
+            self.trials[temp_key] = trial
+        else:
+            raise ValueError("Trials can only be added to stored programs")
+
+    def remove_trial(self, trial: TrialStored):
+        if isinstance(self, ProgramStored):
+            self.trials.pop(trial.id)
+        else:
+            raise ValueError("Trials can only be removed from stored programs")
+
+    def get_trial(self, trial_id: int):
+        if isinstance(self, ProgramStored):
+            return self.trials.get(trial_id)
+        else:
+            raise ValueError("Trials can only be retrieved from stored programs")
+
+    def get_study(self, study_id: int):
+        if isinstance(self, ProgramStored):
+            for trial in self.trials:
+                try:
+                    return trial.get_study(study_id)
+                except ValueError:
+                    pass
+            return None
+        else:
+            raise ValueError("Studies can only be retrieved from stored programs")
+
+    def add_study(self, trial_id: int, study: StudyInput):
+        if isinstance(self, ProgramStored):
+            trial = self.get_trial(trial_id)
+            if trial is not None:
+                trial.add_study(study)
+            else:
+                raise ValueError("Trial not found")
+        else:
+            raise ValueError("Studies can only be added to stored programs")
+
+    def remove_study(self, study: StudyStored):
+        if isinstance(self, ProgramStored):
+            for trial in self.trials.values():
+                if study.id in trial.studies:
+                    trial.remove_study(study)
+                    return
+            else:
+                raise ValueError(f"Study with ID {study.id} not found in any trial for this program")
+        else:
+            raise ValueError("Studies can only be removed from stored programs")
 
 @dataclass
 class ProgramInput(ProgramBase):
@@ -221,14 +286,11 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
 
         return aggregate
 
-    def add_trial(self, trial: TrialInput):
-        temp_key = -len(self.trials) - 1
-        self.trials[temp_key] = trial
-
     def to_output_map(self):
         return {
             self.id: ProgramOutput(**self.model_dump())
         }
+
 
 @dataclass(eq=False)
 class ProgramOutput(ProgramBase):

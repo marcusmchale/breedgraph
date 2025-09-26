@@ -76,16 +76,19 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 return 'children', list
             else:
                 return 'parents', list
-        elif relationship_label is OntologyRelationshipLabel.HAS_TERM:
-            if is_source:
-                return 'terms', list
-            else:
-                return 'related_to', list
+        #elif relationship_label is OntologyRelationshipLabel.HAS_TERM:
+        #    import pdb; pdb.set_trace()
+        #    if is_source:
+        #        return 'terms', list
+        #    else:
+        #        other_entity_cls = self._output_class_mapping[other_entity_label]
+        #        return
+        #        return 'related_to', list
         else:
             entity_cls = self._output_class_mapping[entity_label]
             other_entity_cls = self._output_class_mapping[other_entity_label]
-            attr_other_label = self.snake_case_pattern.sub('_', str(other_entity_cls.label)).casefold()
-            attr_other_plural = self.snake_case_pattern.sub('_', str(other_entity_cls.plural)).casefold()
+            attr_other_label = self.snake_case_pattern.sub('_', str(other_entity_cls.label.value)).casefold()
+            attr_other_plural = self.snake_case_pattern.sub('_', str(other_entity_cls.label.plural)).casefold()
             if hasattr(entity_cls, attr_other_label):
                 return attr_other_label, int
             elif hasattr(entity_cls, attr_other_plural):
@@ -97,7 +100,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 elif attr_other_plural in dataclass_fields:
                     return attr_other_plural, list
                 else:
-                    import pdb; pdb.set_trace()
+
                     raise ValueError(f"No field found for {entity_label} -> {other_entity_label}")
             else:
                 raise ValueError(f"No attribute found for {entity_label} -> {other_entity_label}")
@@ -152,7 +155,10 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                         record_dict[attr] = [relationship['target_id' if is_source else 'source_id']]
                     else:
                         record_dict[attr] = relationship['target_id' if is_source else 'source_id']
-        return entry_class(**record_dict)
+        try:
+            return entry_class(**record_dict)
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
@@ -164,7 +170,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         result = await self.tx.run(query, entry_ids=entry_ids)
         return {record.get('id'): record.get('exists') async for record in result}
 
-    async def entries_exist_for_label(self, entry_ids: List[int], label: str) -> Dict[int, bool]:
+    async def entries_exist_for_label(self, entry_ids: List[int], label: OntologyEntryLabel) -> Dict[int, bool]:
         query = ontology.entries_exist_by_label(labels=[label])
         result = await self.tx.run(query, entry_ids=entry_ids)
         return {record.get('id'): record.get('exists') async for record in result}
@@ -235,7 +241,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] = None,
-            labels: List[str]|None = None,
+            labels: List[OntologyEntryLabel]|None = None,
             names: List[str]|None = None,
             as_output: bool = False,
     ) -> AsyncGenerator[OntologyEntryStored|OntologyEntryOutput, None]:
@@ -265,7 +271,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             self,
             entry_id: int = None,
             name: str = None,
-            label: str = None,
+            label: OntologyEntryLabel = None,
             version: Version | None = None,
             phases: List[LifecyclePhase] = None,
             as_output: bool = False
@@ -496,7 +502,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         result = await self.tx.run(query)
         try:
             record = await result.single(strict=True)
-            return Version(**record["version"])
+            return Version.from_packed(record["commit.version"])
         except ResultNotSingleError:
             logger.debug("No version found, returning initial version")
 

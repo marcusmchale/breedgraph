@@ -4,13 +4,12 @@ SET counter.count = counter.count + 1
 CREATE (dataset: DataSet {id: counter.count})
 WITH
   dataset
-//Link Ontology Entry
+//Link concept
 CALL (dataset) {
-
-  MATCH (entry: Variable|EventType|Parameter {id: $ontology_id})
-  CREATE (dataset)-[for_term:FOR_ONTOLOGY_ENTRY]->(entry)
+  MATCH (concept: Variable|Factor {id: $concept})
+  CREATE (dataset)-[for_concept:FOR_CONCEPT]->(concept)
   RETURN
-    collect(entry.id)[0] AS ontology_id
+    collect(concept.id)[0] AS concept
 }
 //Link contributors
 CALL (dataset) {
@@ -52,7 +51,7 @@ CALL (dataset) {
 RETURN
   dataset {
     .*,
-    ontology_id: ontology_id,
+    concept: concept,
     records: records,
     contributors: contributors,
     references: references

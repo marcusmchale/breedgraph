@@ -1,7 +1,8 @@
 from ariadne import (
     make_executable_schema,
-    load_schema_from_path,
-    snake_case_fallback_resolvers
+    load_schema_from_path
+    #snake_case_fallback_resolvers,
+    #convert_kwargs_to_snake_case
 )
 
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_resolvers
@@ -19,12 +20,16 @@ def create_graphql_schema():
     all_resolvers = graphql_resolvers.get_all()
 
     # Add fallback resolvers
-    all_resolvers.append(snake_case_fallback_resolvers)
+    #all_resolvers.append(snake_case_fallback_resolvers)
+
+    # Convert kwargs to snake case so can use python naming convention in python and pascalCase in GraphQL
 
     schema = make_executable_schema(
         load_schema_from_path("src/breedgraph/entrypoints/fastapi/graphql"),
-        *all_resolvers
+        *all_resolvers,
+        convert_names_case=True
     )
+
 
     logger.debug(f"GraphQL schema created with {len(all_resolvers)} resolvers:")
     logger.debug(f"  - {len(graphql_resolvers.get_queries())} query resolvers")

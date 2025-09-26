@@ -5,7 +5,6 @@ SET counter.count = counter.count + 1
 CREATE (unit: Unit {
   id: counter.count,
   name: $name,
-  synonyms: $synonyms,
   description: $description
 })
 

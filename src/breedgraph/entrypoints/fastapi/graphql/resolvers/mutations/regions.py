@@ -6,7 +6,7 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graph
 import logging
 logger = logging.getLogger(__name__)
 
-@graphql_mutation.field("create_location")
+@graphql_mutation.field("regionsCreateLocation")
 @graphql_payload
 @require_authentication
 async def create_location(
@@ -16,6 +16,8 @@ async def create_location(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adding location: {location}")
-    cmd = CreateLocation(user=user_id, **location)
+    cmd = CreateLocation(
+        agent_id=user_id, **location
+    )
     await info.context['bus'].handle(cmd)
     return True

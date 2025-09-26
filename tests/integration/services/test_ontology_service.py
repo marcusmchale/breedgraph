@@ -6,7 +6,7 @@ from src.breedgraph.service_layer.application.ontology_service import OntologyAp
 
 from src.breedgraph.domain.model.ontology import (
     SubjectInput, TraitInput, ScaleInput, VariableInput,
-    VariableComponentRelationship, Version, VersionChange, ObservationMethodInput
+    VariableComponentRelationship, Version, VersionChange, ObservationMethodInput, OntologyEntryLabel
 )
 from src.breedgraph.domain.model.accounts import OntologyRole
 from src.breedgraph.custom_exceptions import IllegalOperationError
@@ -99,7 +99,7 @@ class TestOntologyServiceIntegration:
             scale_id = basic_entries["scale"].id,
         )
         # Assert - Check relationships exist through output format
-        variable = await ontology_service.get_entry(entry_id=variable.id, as_output=True, label="Variable")
+        variable = await ontology_service.get_entry(entry_id=variable.id, as_output=True, label=OntologyEntryLabel.VARIABLE)
         assert variable.trait == basic_entries["trait"].id
         assert variable.scale == basic_entries["scale"].id
 

@@ -1,6 +1,6 @@
 from ariadne import ObjectType, UnionType, InterfaceType
 
-from src.breedgraph.domain.model.ontology import OntologyEntryStored
+from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyEntryLabel
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map
 
@@ -22,7 +22,7 @@ category = ObjectType("Category")
 observation_method = ObjectType("ObservationMethod")
 variable = ObjectType("Variable")
 control_method = ObjectType("ControlMethod")
-parameter = ObjectType("Parameter")
+factor = ObjectType("Factor")
 event = ObjectType("Event")
 
 # Union and interface types
@@ -33,8 +33,10 @@ related_to_terms = InterfaceType("RelatedToTerms")
 graphql_resolvers.register_type_resolvers(
     ontology_entry_union, ontology_entry_interface, related_to_terms,
     subject, trait, condition,
-    scale, category, observation_method, variable,
-    control_method, parameter, event
+    scale, category,
+    observation_method, variable,
+    control_method, factor,
+    event
 )
 
 # Type resolver for union
@@ -56,7 +58,7 @@ def resolve_ontology_entry_interface_type(obj, *_):
         raise ValueError(f"Could not determine type for object: {obj}")
 
 
-@graphql_query.field("ontology_entries")
+@graphql_query.field("ontologyEntries")
 @graphql_payload
 @require_authentication
 async def get_ontology_entries(
@@ -64,25 +66,25 @@ async def get_ontology_entries(
         info,
         entry_ids: List[int] = None,
         names: List[str] = None,
-        labels: List[str] = None,
+        labels: List[OntologyEntryLabel] = None,
         version: int = None  # if not provided, then current
 ) -> List[OntologyEntryStored]:
     await update_ontology_map(info.context, entry_ids=entry_ids, version=version)
-    entries_map = info.context.get('ontology_entries')
+    ontology_map = info.context.get('ontology_map')
+    entry_ids = entry_ids or []
     if names or labels:
         user_id = info.context.get('user_id')
         bus = info.context.get('bus')
-        entry_ids = entry_ids or []
         async with bus.uow.get_uow(user_id=user_id) as uow:
             async for entry in uow.ontology.get_entries(names=names, labels=labels, version=version, as_output=True):
                 entry_ids.append(entry.id)
-                entries_map[entry.id] = entry
-    return [entries_map[entry_id] for entry_id in entry_ids]
+                ontology_map[entry.id] = entry
+    return [ontology_map[entry_id] for entry_id in entry_ids]
 
 async def resolve_ontology_entries(context, entry_ids):
     await update_ontology_map(context, entry_ids=entry_ids)
-    entries_map = context.get('ontology_entries')
-    return [entries_map[entry_id] for entry_id in entry_ids]
+    ontology_map = context.get('ontology_map')
+    return [ontology_map[entry_id] for entry_id in entry_ids]
 
 # Interface resolvers - common to all ontology entries
 @ontology_entry_interface.field("parents")
@@ -130,9 +132,9 @@ async def resolve_trait_variables(obj, info):
 async def resolve_condition_subjects(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.subjects)
 
-@condition.field("parameters")
-async def resolve_condition_parameters(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.parameters)
+@condition.field("factors")
+async def resolve_condition_factors(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
 
 # Scale-specific resolvers
 @scale.field("categories")
@@ -143,9 +145,9 @@ async def resolve_scale_categories(obj, info):
 async def resolve_scale_variables(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.variables)
 
-@scale.field("parameters")
-async def resolve_scale_parameters(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.parameters)
+@scale.field("factors")
+async def resolve_scale_factors(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
 
 # Category-specific resolvers
 @category.field("scales")
@@ -174,31 +176,31 @@ async def resolve_variable_scale(obj, info):
     return entries[0]
 
 # ControlMethod-specific resolvers
-@control_method.field("parameters")
-async def resolve_control_method_parameters(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=[obj.parameters])
+@control_method.field("factors")
+async def resolve_control_method_factors(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
 
-# Parameter-specific resolvers
-@parameter.field("condition")
-async def resolve_parameter_condition(obj, info):
+# Factor-specific resolvers
+@factor.field("condition")
+async def resolve_factor_condition(obj, info):
     entries = await resolve_ontology_entries(info.context, entry_ids=[obj.condition])
     return entries[0]
 
-@parameter.field("controlMethod")
-async def resolve_parameter_control_method(obj, info):
+@factor.field("controlMethod")
+async def resolve_factor_control_method(obj, info):
     entries = await resolve_ontology_entries(info.context, entry_ids=[obj.control_method])
     return entries[0]
 
-@parameter.field("scale")
-async def resolve_parameter_scale(obj, info):
+@factor.field("scale")
+async def resolve_factor_scale(obj, info):
     entries = await resolve_ontology_entries(info.context, entry_ids=[obj.scale])
     return entries[0]
 
 # Event-specific resolvers
 @event.field("variables")
 async def resolve_event_variables(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=[obj.variables])
+    return await resolve_ontology_entries(info.context, entry_ids=obj.variables)
 
-@event.field("parameters")
-async def resolve_event_parameters(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=[obj.parameters])
+@event.field("factors")
+async def resolve_event_factors(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.factors)

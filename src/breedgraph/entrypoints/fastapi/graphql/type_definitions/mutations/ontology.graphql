@@ -1,0 +1,270 @@
+# waiting on @oneof directive for ariadne to solve this more elegantly
+# see https://github.com/graphql/graphql-wg/pull/1105
+# and https://github.com/mirumee/ariadne/issues/1194
+
+enum VersionChange {MAJOR, MINOR, PATCH}
+
+input TermInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    """People stored in the database that established this entry"""
+    authorIds: [Int]
+    """References stored in the database for additional details, e.g. a link to another ontology."""
+    referenceIds: [Int]
+    """
+    To establish a hierarchy and relationships among terms.
+    Parents or children may be defined for any entry.
+    """
+    parentIds: [Int]
+    childIds: [Int]
+    subjectIds: [Int]
+    scaleIds: [Int]
+    categoryIds: [Int]
+    observationMethodIds: [Int]
+    traitIds: [Int]
+    variableIds: [Int]
+    controlMethodIds: [Int]
+    conditionIds: [Int]
+    factorIds: [Int]
+    eventIds: [Int]
+    locationTypeIds: [Int]
+    layoutTypeIDs: [Int]
+    designIds: [Int]
+    roleIds: [Int]
+    titleIds: [Int]
+}
+
+input SubjectInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input TraitInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    When creating a trait, subjects must be specified by ID
+    """
+    subjectIds: [Int]
+}
+
+input ConditionInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input ScaleInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    Scale entries require an additional type parameter.
+    """
+    scaleType: ScaleType!
+    """
+    When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
+    """
+    categoryIds: [Int]
+}
+
+input ScaleCategoryInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    When creating a category for an ordinal scale, a rank should be provided.
+    """
+    rankId: Int
+}
+
+input ObservationMethodInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    ObservationMethod entries require an additional type parameter.
+    """
+    observationType: ObservationMethodType!
+}
+
+input VariableInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    When creating a variable, a Trait identifier is required.
+    """
+    traitId: Int!
+    """
+    When defining a Variable an ObservationMethod is required.
+    """
+    observationMethodId: Int!
+    """
+    When defining a Variable, a Scale identifier is required.
+    """
+    scaleId: Int!
+}
+
+input ControlMethodInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+        """
+    ControlMethod entries require an additional type parameter.
+    """
+    controlType: ControlMethodType!
+}
+
+input FactorInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    When creating a factor, a Condition identifier is required.
+    """
+    conditionId: Int!
+    """
+    When defining a factor a ControlMethod identifier is required.
+    """
+    controlMethodId: Int!
+    """
+    When defining a factor, a Scale identifier is required.
+    """
+    scaleId: Int!
+}
+
+input EventInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    variableIds: [Int]
+    factorIds: [Int]
+    termIds: [Int]
+}
+
+input LocationTypeInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input DesignInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input LayoutTypeInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    """
+    When creating a LayoutType, each axis type for position descriptions is required
+    """
+    axes: [AxisType]!
+}
+
+extend type Mutation {
+    ontologyCreateTerm(termInput: TermInput!): BooleanPayload!
+    ontologyCreateSubject(subjectInput: SubjectInput!): BooleanPayload!
+    ontologyCreateTrait(traitInput: TraitInput!): BooleanPayload!
+    ontologyCreateCondition(conditionInput: ConditionInput!): BooleanPayload!
+    ontologyCreateScale(scaleInput: ScaleInput!): BooleanPayload!
+    ontologyCreateScaleCategory(scaleCategoryInput: ScaleCategoryInput!): BooleanPayload!
+    ontologyCreateObservationMethod(observationMethodInput: ObservationMethodInput!): BooleanPayload!
+    ontologyCreateVariable(variableInput: VariableInput!): BooleanPayload!
+    ontologyCreateControlMethod(controlMethodInput: ControlMethodInput!): BooleanPayload!
+    ontologyCreateFactor(factorInput: FactorInput!): BooleanPayload!
+    ontologyCreateEvent(eventInput: EventInput!): BooleanPayload!
+    ontologyCreateLocationType(locationTypeInput: LocationTypeInput!): BooleanPayload!
+    ontologyCreateDesign(designInput: DesignInput!): BooleanPayload!
+    ontologyCreateLayoutType(layoutTypeInput: LayoutTypeInput!): BooleanPayload!
+    ontologyCommitVersion(
+        version_change: VersionChange!,
+        comment: String,
+        licence_reference: Int,
+        copyright_reference: Int
+    ): BooleanPayload!
+}

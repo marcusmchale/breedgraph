@@ -9,7 +9,7 @@ from src.breedgraph.domain.model.base import Aggregate
 TAggregateInput = TypeVar("TAggregateInput")
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
-class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
+class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
 
     def __init__(self):
         self.seen: Dict[TrackedObject|TAggregate,TrackedObject|TAggregate] = dict()
@@ -68,7 +68,7 @@ class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
 
     @abstractmethod
     async def _create(self, aggregate_input: TAggregateInput|None) -> TAggregate:
-        raise NotImplementedError
+        ...
 
     async def get(self, **kwargs) -> Union[TrackedObject, TAggregate, None]:
         aggregate = await self._get(**kwargs)
@@ -78,7 +78,7 @@ class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
 
     @abstractmethod
     async def _get(self, **kwargs) -> Aggregate | None:  # get may be from root id or ID of list_attribute elements
-        raise NotImplementedError
+        ...
 
     async def get_all(self, **kwargs) -> AsyncGenerator[Union[TrackedObject, TAggregate], None]:
         async for aggregate in self._get_all(**kwargs):
@@ -87,7 +87,7 @@ class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
     @abstractmethod
     def _get_all(self, **kwargs) -> AsyncGenerator[TAggregate, None]:
         # each attr is stored with a list of values to filter by
-        raise NotImplementedError
+        ...
 
     async def remove(self, aggregate: Union[TrackedObject, TAggregate]) -> None:
         if aggregate.protected:
@@ -98,7 +98,7 @@ class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
 
     @abstractmethod
     async def _remove(self, aggregate: Union[TrackedObject, TAggregate]) -> None:
-        raise NotImplementedError
+        ...
 
     async def update_seen(self):
         for aggregate, tracked_aggregate in self.seen.items():
@@ -107,4 +107,4 @@ class BaseRepository(ABC, Generic[TAggregate, TAggregateInput]):
 
     @abstractmethod
     async def _update(self, aggregate: Union[TrackedObject, TAggregate]):
-        raise NotImplementedError
+        ...

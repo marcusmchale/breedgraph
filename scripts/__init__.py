@@ -1,0 +1,1 @@
+from setup_initial_data import main

@@ -10,10 +10,7 @@ from src.breedgraph.domain.model.people import PersonInput, PersonStored
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = PersonInput
-TAggregate = PersonStored
-
-class Neo4jPeopleRepository(Neo4jControlledRepository):
+class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]):
 
     async def _create_controlled(self, person: PersonInput) -> PersonStored:
         params = person.model_dump()

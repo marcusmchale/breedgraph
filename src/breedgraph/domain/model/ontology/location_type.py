@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
 from typing import ClassVar
 
 @dataclass
 class LocationTypeBase(OntologyEntryBase):
-    label: ClassVar[str] = 'LocationType'
-    plural: ClassVar[str] = 'LocationTypes'
+    label: ClassVar[str] = OntologyEntryLabel.LOCATION_TYPE
     """
     e.g. country, region, state, city, etc.
     """

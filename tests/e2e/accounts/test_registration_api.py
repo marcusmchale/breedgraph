@@ -30,7 +30,7 @@ async def check_verify_email(client, mailto: str, name: str):
     json_content = await get_json_from_email(mailto=mailto, subject=f"{SITE_NAME} account email verification")
     token = json_content['token']
     response = await post_to_verify_email(client, token)
-    assert_payload_success(get_verified_payload(response, "verify_email"))
+    assert_payload_success(get_verified_payload(response, "accountsVerifyEmail"))
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
@@ -42,14 +42,14 @@ async def test_first_user_register_verify_login(client, user_input_generator):
         first_user_input["email"],
         first_user_input["password"]
     )
-    assert_payload_success(get_verified_payload(response, "create_account"))
+    assert_payload_success(get_verified_payload(response, "accountsCreateAccount"))
     await check_verify_email(client, first_user_input['email'], first_user_input['name'])
     login_response = await post_to_login(
         client,
         first_user_input["name"],
         first_user_input["password"],
     )
-    login_payload = get_verified_payload(login_response, "login")
+    login_payload = get_verified_payload(login_response, "accountsLogin")
     assert_payload_success(login_payload)
 
 @pytest.mark.asyncio(scope="session")
@@ -62,7 +62,7 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
         second_user_input["email"]
     )
     logging.debug(f"Using login token {first_user_login_token} to invite {second_user_input['email']}")
-    invite_payload = get_verified_payload(invite_response, "add_email")
+    invite_payload = get_verified_payload(invite_response, "accountsAddEmail")
     assert_payload_success(invite_payload)
     assert await confirm_email_delivered(
         mailto=second_user_input["email"],
@@ -75,7 +75,7 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
         second_user_input["email"],
         second_user_input["password"]
     )
-    register_payload = get_verified_payload(register_response, "create_account")
+    register_payload = get_verified_payload(register_response, "accountsCreateAccount")
     assert_payload_success(register_payload)
     await check_verify_email(client, second_user_input['email'], second_user_input['name'])
 
@@ -87,7 +87,7 @@ async def test_first_user_creates_deletes_team(client, user_input_generator, fir
         first_user_login_token,
         new_team_name
     )
-    create_team_payload = get_verified_payload(create_team_response, "create_team")
+    create_team_payload = get_verified_payload(create_team_response, "organisationsCreateTeam")
     assert_payload_success(create_team_payload)
     organisations_request_response = await post_to_organisations(
         client,
@@ -101,7 +101,7 @@ async def test_first_user_creates_deletes_team(client, user_input_generator, fir
         first_user_login_token,
         team_id= organisation_root_ids[0]
     )
-    delete_team_payload = get_verified_payload(delete_team_response, "delete_team")
+    delete_team_payload = get_verified_payload(delete_team_response, "organisationsDeleteTeam")
     assert_payload_success(delete_team_payload)
 
     # confirm we can't see the team anymore
@@ -110,7 +110,7 @@ async def test_first_user_creates_deletes_team(client, user_input_generator, fir
         first_user_login_token,
         team_id= organisation_root_ids[0]
     )
-    team_payload = get_verified_payload(team_request_response, "team")
+    team_payload = get_verified_payload(team_request_response, "organisationsTeam")
     assert team_payload.get('status') == 'NOT_FOUND'
 
     organisations_request_response = await post_to_organisations(
@@ -139,7 +139,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
         second_team_name,
         parent_team_id
     )
-    create_child_team_payload = get_verified_payload(add_child_team_response, "create_team")
+    create_child_team_payload = get_verified_payload(add_child_team_response, "organisationsCreateTeam")
     assert_payload_success(create_child_team_payload)
     # make sure this team is now part of the organisation
     team_request_response = await post_to_team(
@@ -147,7 +147,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
         second_user_login_token,
         team_id=parent_team_id
     )
-    team_payload = get_verified_payload(team_request_response, "team")
+    team_payload = get_verified_payload(team_request_response, "organisationsTeam")
     for c in team_payload.get('result').get('children'):
         if c.get('name')== second_team_name:
             break
@@ -155,7 +155,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
         raise NoResultFoundError
 
 @pytest.mark.asyncio(scope="session")
-async def test_first_user_requests_read_affiliation(client, user_input_generator, first_user_login_token, ):
+async def test_first_user_requests_read_affiliation(client, user_input_generator, first_user_login_token):
     organisations_request_response = await post_to_organisations(client, first_user_login_token)
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
@@ -169,7 +169,7 @@ async def test_first_user_requests_read_affiliation(client, user_input_generator
         team_id,
         Access.READ
     )
-    affiliation_request_payload = get_verified_payload(affiliation_request_response, "request_affiliation")
+    affiliation_request_payload = get_verified_payload(affiliation_request_response, "accountsRequestAffiliation")
     assert_payload_success(affiliation_request_payload)
 
     first_user_input = user_input_generator.user_inputs[0]
@@ -206,7 +206,7 @@ async def test_second_user_approves_read_affiliation_to_child_team(
         team_id=child_team_id,
         access=request_type
     )
-    approve_read_payload = get_verified_payload(approve_read_response, "approve_affiliation")
+    approve_read_payload = get_verified_payload(approve_read_response, "accountsApproveAffiliation")
     assert_payload_success(approve_read_payload)
     first_user_input = user_input_generator.user_inputs[0]
     assert await confirm_email_delivered(

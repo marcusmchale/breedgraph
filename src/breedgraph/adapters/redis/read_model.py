@@ -49,7 +49,6 @@ class ReadModel:
             else:
                 yield LocationInput(**country_json)
 
-
     #async def add_email(self, email: str):
     #    logger.info(f"Adding allowed email: {email}")
     #    await self.connection.lpush("allowed_emails_list", email)

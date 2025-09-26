@@ -5,7 +5,7 @@ async def post_to_countries(client, token:str):
     json = {
         "query": (
             " query { "
-            "  countries { "
+            "  regionsCountries { "
             "    status, "
             "    result { "
             "       name, "
@@ -24,7 +24,7 @@ async def post_to_countries(client, token:str):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_add_location(
+async def post_to_create_location(
     client,
     token:str,
     location: dict
@@ -34,7 +34,7 @@ async def post_to_add_location(
             " mutation ( "
             "  $location: LocationInput!"
             " ) { "
-            "  add_location( "
+            "  regionsCreateLocation( "
             "    location: $location, "
             "  ) { "
             "    status, "
@@ -67,7 +67,6 @@ async def post_to_regions(client, token:str):
             "       type { id, name } "
             "       parent {id, name, code, type {id, name} } "
             "       children {id, name, code, type {id, name} } "
-            "       release "
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -85,10 +84,10 @@ async def post_to_location(client, location_id: int, token:str = None):
     json = {
         "query": (
             " query ("
-            "   $location_id : Int!"
+            "   $locationId : Int!"
             " ) { "
-            "  location ( "
-            "  location_id: $location_id,"
+            "  regionsLocation ( "
+            "  locationId: $locationId,"
             "  ) {"
             "    status, "
             "    result { "
@@ -98,14 +97,47 @@ async def post_to_location(client, location_id: int, token:str = None):
             "       type { id, name }"
             "       parent {id, name, code, type {id, name} } "
             "       children {id, name, code, type {id, name} } "
-            "       release "
             "    }, "
             "    errors { name, message } "
             "   } "
             " } "
         ),
         "variables": {
-            "location_id": location_id,
+            "locationId": location_id,
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
+async def post_to_locations(client, location_type_id: int, token:str = None):
+    json = {
+        "query": (
+            " query ("
+            "   $locationTypeId : Int!"
+            " ) { "
+            "  regionsLocations ( "
+            "  locationTypeId: $locationTypeId,"
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name }"
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "locationTypeId": location_type_id,
         }
     }
     headers = with_auth(

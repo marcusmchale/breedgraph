@@ -6,17 +6,16 @@ from src.breedgraph.domain.model.arrangements import (
     LayoutInput, LayoutStored, Arrangement
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
-from typing import Set, AsyncGenerator, Tuple, List, Dict, Any
+from typing import Set, AsyncGenerator, Tuple, List, Dict, Any, Union, overload
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = LayoutInput
-TAggregate = Arrangement
-
-class Neo4jArrangementsRepository(Neo4jControlledRepository):
+class Neo4jArrangementsRepository(
+    Neo4jControlledRepository[LayoutInput, Arrangement]
+):
 
     @staticmethod
     def record_to_layout(record: Record|Dict[str, Any]) -> LayoutStored:
@@ -121,4 +120,3 @@ class Neo4jArrangementsRepository(Neo4jControlledRepository):
     async def _delete_edges(self, edges: Set[tuple[int, int]]):
         if edges:
             await self.tx.run(queries['arrangements']['delete_edges'], edges=list(edges))
-

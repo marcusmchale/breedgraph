@@ -29,16 +29,18 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             self,
             tx: AsyncTransaction,
             access_control_service: AbstractAccessControlService,
-            user_id: int = None,
             redacted: bool = True,
-            access_teams: Dict[Access, Set[int]] = None,
             release: ReadRelease = ReadRelease.PRIVATE
     ):
         self.tx = tx
+        self.user_id = access_control_service.user_id
+        self.access_teams = access_control_service.access_teams
+
         # Access control for account security
         self.accounts = Neo4jAccountRepository(self.tx)
         # Similarly, the access control for organisations is via internally described affiliations
-        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=user_id, redacted=redacted)
+
+        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=self.user_id, redacted=redacted)
         """
         The below repositories are controlled in a common pattern that determine access
          to the values of models within an aggregate
@@ -55,8 +57,6 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         repo_params = {
             'tx': self.tx,
             'access_control_service': access_control_service,
-            'user_id': user_id,
-            'access_teams': access_teams,
             'release': release
         }
         self.arrangements = Neo4jArrangementsRepository(**repo_params)

@@ -4,16 +4,19 @@ from pydantic import BaseModel
 from neo4j import AsyncTransaction
 
 from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.service_layer.repositories.controlled import ControlledRepository
+from src.breedgraph.service_layer.repositories.controlled import ControlledRepository, TControlledAggregate, TAggregateInput
 from src.breedgraph.domain.model.controls import ControlledAggregate
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generic
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-class Neo4jControlledRepository(ControlledRepository):
+class Neo4jControlledRepository(
+    ControlledRepository[TAggregateInput, TControlledAggregate],
+    Generic[TAggregateInput, TControlledAggregate]
+):
 
     def __init__(self, tx: AsyncTransaction, **kwargs):
         super().__init__(**kwargs)

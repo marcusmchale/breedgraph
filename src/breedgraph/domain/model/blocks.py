@@ -46,15 +46,9 @@ class UnitBase(ABC):
     subject: int = None  # ref to SubjectTypeStored
 
     name: str|None = None
-    synonyms: List[str]|None = field(default_factory = list)
     description: str|None = None
 
     positions: List[Position] = field(default_factory = list)
-
-    @property
-    def names(self):
-        names = [self.name] + self.synonyms
-        return [n for n in names if n is not None]
 
     def model_dump(self):
         return asdict(self)
@@ -78,7 +72,6 @@ class UnitStored(UnitBase, ControlledModel):
             return replace(
                 self,
                 name=self.name and self.redacted_str,
-                synonyms=self.synonyms and [self.redacted_str for _ in self.synonyms],
                 description=self.description and self.redacted_str,
                 positions=list()
             )
@@ -87,7 +80,6 @@ class UnitStored(UnitBase, ControlledModel):
 class UnitOutput(UnitStored):
     parents: list[int] = field(default_factory=list)
     children: list[int] = field(default_factory=list)
-
 
 TInput = UnitInput
 TStored = UnitStored
@@ -141,5 +133,5 @@ class Block(ControlledRootedAggregate):
 
     def yield_unit_ids_by_subject(self, subject_id: int) -> Generator[int, None, None]:
         for unit_id, unit in self.entries.items():
-            if unit.subject == subject_id:
+            if unit.subject_id == subject_id:
                 yield unit_id

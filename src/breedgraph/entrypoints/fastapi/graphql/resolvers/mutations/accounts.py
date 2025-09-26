@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 from . import graphql_mutation
 
-@graphql_mutation.field("create_account")
+@graphql_mutation.field("accountsCreateAccount")
 @graphql_payload
 async def create_account(
         _,
@@ -50,7 +50,7 @@ async def create_account(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("request_password_reset")
+@graphql_mutation.field("accountsRequestPasswordReset")
 @graphql_payload
 async def request_change_password(
         _,
@@ -61,7 +61,7 @@ async def request_change_password(
     await info.context['bus'].handle(PasswordChangeRequested(email=email))
     return True
 
-@graphql_mutation.field("reset_password")
+@graphql_mutation.field("accountsResetPassword")
 @graphql_payload
 async def reset_password(
         _,
@@ -83,11 +83,11 @@ async def reset_password(
         logger.debug(f"Change password for user: {account.user.id}")
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    cmd = UpdateUser(user=user, password_hash=password_hash)
+    cmd = UpdateUser(user_id=user, password_hash=password_hash)
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("login")
+@graphql_mutation.field("accountsLogin")
 @graphql_payload
 async def login(
         _,
@@ -110,7 +110,7 @@ async def login(
             if not account.user.email_verified:
                 raise UnauthorisedOperationError("Please confirm email before logging in")
 
-            await info.context['bus'].handle(Login(user=account.user.id))
+            await info.context['bus'].handle(Login(user_id=account.user.id))
             token = info.context['auth_service'].create_login_token(account.user.id)
 
             # Queue the cookie to be set on the response
@@ -131,12 +131,12 @@ async def login(
             raise UnauthorisedOperationError(fail_message)
 
 
-@graphql_mutation.field("logout")
+@graphql_mutation.field("accountsLogout")
 @graphql_payload
 @require_authentication
 async def logout(_, info) -> bool:
-    user = info.context.get('user_id')
-    logger.debug(f"Logout user: {user}")
+    user_id = info.context.get('user_id')
+    logger.debug(f"Logout user: {user_id}")
 
     # Queue the cookie to be removed on the response
     cookie_data = {
@@ -150,11 +150,11 @@ async def logout(_, info) -> bool:
     }
     info.context["cookies_to_set"].append(cookie_data)
 
-    logger.debug(f"Auth token cookie queued for removal for user {user}")
+    logger.debug(f"Auth token cookie queued for removal for user {user_id}")
     return True
 
 
-@graphql_mutation.field("update_user")
+@graphql_mutation.field("accountsUpdateUser")
 @graphql_payload
 @require_authentication
 async def update_user(
@@ -165,14 +165,14 @@ async def update_user(
         email: str|None = None,
         password: str|None = None
 ) -> bool:
-    user = info.context.get("user")
-    logger.debug(f"Edit user: {user}")
+    user_id = info.context.get("user_id")
+    logger.debug(f"Edit user: {user_id}")
     if password is not None:
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     else:
         password_hash = password
     cmd = UpdateUser(
-        user=user,
+        user_id=user_id,
         name=name,
         fullname=fullname,
         password_hash=password_hash,
@@ -182,7 +182,7 @@ async def update_user(
     return True
 
 # the below also has a dedicated endpoint for REST so can follow a simple link
-@graphql_mutation.field("verify_email")
+@graphql_mutation.field("accountsVerifyEmail")
 @graphql_payload
 async def verify_email(
         _,
@@ -193,26 +193,25 @@ async def verify_email(
     await info.context['bus'].handle(VerifyEmail(token=token))
     return True
 
-@graphql_mutation.field("add_email")
+@graphql_mutation.field("accountsAddEmail")
 @graphql_payload
 @require_authentication
 async def add_email(_, info, email: str) -> bool:
-    user = info.context.get('user_id')
-    logger.debug(f"Add email ({email}) to allowed emails for user {user}")
-    await info.context['bus'].handle(AddEmail(user=user, email=email))
+    user_id = info.context.get('user_id')
+    logger.debug(f"Add email ({email}) to allowed emails for user {user_id}")
+    await info.context['bus'].handle(AddEmail(user_id=user_id, email=email))
     return True
 
-@graphql_mutation.field("remove_email")
+@graphql_mutation.field("accountsRemoveEmail")
 @graphql_payload
 @require_authentication
 async def remove_email(_, info, email: str) -> bool:
-    user = info.context.get('user_id')
-
-    logger.debug(f"Remove email ({email}) from allowed emails for user {user}")
-    await info.context['bus'].handle(RemoveEmail(user=user, email=email))
+    user_id = info.context.get('user_id')
+    logger.debug(f"Remove email ({email}) from allowed emails for user {user_id}")
+    await info.context['bus'].handle(RemoveEmail(user_id=user_id, email=email))
     return True
 
-@graphql_mutation.field("request_affiliation")
+@graphql_mutation.field("accountsRequestAffiliation")
 @graphql_payload
 @require_authentication
 async def request_affiliation(
@@ -226,17 +225,17 @@ async def request_affiliation(
         # the admin may wish to specify a non heritable affiliation
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} requests {access} for team: {team_id}")
+    logger.debug(f"User {user_id} requests {access.value} for team: {team_id}")
     cmd = RequestAffiliation(
-        user=user_id,
-        team=team_id,
+        user_id=user_id,
+        team_id=team_id,
         access=access,
         heritable=heritable
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("approve_affiliation")
+@graphql_mutation.field("accountsApproveAffiliation")
 @graphql_payload
 @require_authentication
 async def approve_affiliation(
@@ -248,18 +247,18 @@ async def approve_affiliation(
         heritable: bool = False
 ) -> bool:
     agent_id = info.context.get('user_id')
-    logger.debug(f"Agent {agent_id} approving {access} to team {team_id} for user {user_id}")
+    logger.debug(f"Agent {agent_id} approving {access.value} to team {team_id} for user {user_id}")
     cmd = ApproveAffiliation(
-        agent=agent_id,
-        user=user_id,
-        team=team_id,
+        agent_id=agent_id,
+        user_id=user_id,
+        team_id=team_id,
         access=access,
         heritable=heritable
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("remove_affiliation")
+@graphql_mutation.field("accountsRemoveAffiliation")
 @graphql_payload
 @require_authentication
 async def remove_affiliation(
@@ -269,18 +268,18 @@ async def remove_affiliation(
         access: Access
 ) -> bool:
     agent_id = info.context.get('user_id')
-    logger.debug(f"Agent {agent_id} removing {access} for team: {team_id}")
+    logger.debug(f"Agent {agent_id} removing {access.value} for team: {team_id}")
     cmd = RemoveAffiliation(
-        agent=agent_id,
-        user=agent_id,
-        team=team_id,
+        agent_id=agent_id,
+        user_id=agent_id,
+        team_id=team_id,
         access=access
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("revoke_affiliation")
+@graphql_mutation.field("accountsRevokeAffiliation")
 @graphql_payload
 @require_authentication
 async def revoke_affiliation(
@@ -291,11 +290,11 @@ async def revoke_affiliation(
         access: Access
 ) -> bool:
     agent_id = info.context.get('user_id')
-    logger.debug(f"Agent {agent_id} removing {access} for team: {team_id} for user {user_id}")
+    logger.debug(f"Agent {agent_id} removing {access.value} for team: {team_id} for user {user_id}")
     cmd = RevokeAffiliation(
-        agent=agent_id,
-        user=user_id,
-        team=team_id,
+        agent_id=agent_id,
+        user_id=user_id,
+        team_id=team_id,
         access=access
     )
     await info.context['bus'].handle(cmd)

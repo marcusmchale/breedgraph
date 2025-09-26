@@ -1,11 +1,10 @@
 import pytest
 
 from src.breedgraph.domain.model.germplasm import (
-    GermplasmInput, GermplasmSourceType, GermplasmRelationship
+    GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 )
 
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from tests.integration.services.conftest import unregistered_germplasm_service
 
 
 @pytest.mark.usefixtures("session_database")
@@ -16,6 +15,8 @@ class TestGermplasmServiceIntegration:
     async def test_create_and_retrieve_germplasm_entry(
             self,
             germplasm_service,
+            neo4j_access_control_service,
+            first_unstored_account,
             lorem_text_generator
     ):
         """Test creating and retrieving a germplasm entry through the service."""
@@ -25,7 +26,7 @@ class TestGermplasmServiceIntegration:
             description="Integration test variety",
             synonyms=[lorem_text_generator.new_text(5)]
         )
-
+        await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
         # Act - Create entry
         created_entry = await germplasm_service.create_entry(germplasm_input)
 
@@ -89,7 +90,8 @@ class TestGermplasmServiceIntegration:
     async def test_access_control_integration(
             self,
             germplasm_service,
-            no_read_germplasm_service,
+            neo4j_access_control_service,
+            second_unstored_account,
             lorem_text_generator
     ):
         """Test that access control works with real persistence layer."""
@@ -107,30 +109,30 @@ class TestGermplasmServiceIntegration:
         assert retrieved_by_admin is not None
         assert retrieved_by_admin.name == private_entry_input.name
 
-        # Assert - Read-only service gets redacted or no access
-        retrieved_by_no_read = await no_read_germplasm_service.get_entry(private_entry.id)
-        # Depending on access control implementation, might be None or redacted
-        if retrieved_by_no_read is not None:
-            # If redacted, name should be "REDACTED"
-            assert retrieved_by_no_read.name == "REDACTED"
+        # Assert - service for registered user without read access to that entry gets a redacted form
+        await neo4j_access_control_service.initialize_user_context(user_id = second_unstored_account.user.id)
+        retrieved_by_no_read = await germplasm_service.get_entry(private_entry.id)
+        assert retrieved_by_no_read.name == GermplasmStored.redacted_str
 
     async def test_update_entry_with_access_control(
             self,
             germplasm_service,
-            read_only_germplasm_service,
+            neo4j_access_control_service,
+            first_unstored_account,
+            second_unstored_account,
             lorem_text_generator
     ):
         """Test updating entries respects access control."""
         # Arrange - Create entry with admin service
+
         entry_input = GermplasmInput(
             name=lorem_text_generator.new_text(10),
             description="Original description"
         )
+        await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
         created_entry = await germplasm_service.create_entry(entry_input)
-
         # Modify the entry
         created_entry.description = "Updated by admin"
-
         # Act & Assert - Admin service can update
         await germplasm_service.update_entry(created_entry)
 
@@ -138,18 +140,22 @@ class TestGermplasmServiceIntegration:
         updated_entry = await germplasm_service.get_entry(created_entry.id)
         assert updated_entry.description == "Updated by admin"
 
-        # Act & Assert - Read-only service cannot update
+        # Act & Assert - User with read only access cannot update
         created_entry.description = "Updated by readonly"
+        await neo4j_access_control_service.initialize_user_context(user_id = second_unstored_account.user.id)
         with pytest.raises(UnauthorisedOperationError, match="does not have permission to update germplasm entry"):
-            await read_only_germplasm_service.update_entry(created_entry)
+            await germplasm_service.update_entry(created_entry)
 
     async def test_add_source_relationship_with_validation(
             self,
             germplasm_service,
+            neo4j_access_control_service,
+            first_unstored_account,
             example_crop,
             lorem_text_generator
     ):
         """Test adding source relationships with validation through service."""
+        await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
         # Arrange - Create two entries
         parent_input = GermplasmInput(name=lorem_text_generator.new_text(8))
         child_input = GermplasmInput(name=lorem_text_generator.new_text(8))
@@ -175,12 +181,14 @@ class TestGermplasmServiceIntegration:
     async def test_get_all_entries_with_filtering_and_access_control(
             self,
             germplasm_service,
-            no_read_germplasm_service,
-            unregistered_germplasm_service,
+            neo4j_access_control_service,
+            first_unstored_account,
+            second_unstored_account,
             lorem_text_generator
     ):
         """Test getting all entries with filtering and access control."""
         # Arrange - Create entries with specific names
+        await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
         test_name_base = lorem_text_generator.new_text(6)
         entry1_input = GermplasmInput(name=f"{test_name_base}_1")
         entry2_input = GermplasmInput(name=f"{test_name_base}_2")
@@ -202,8 +210,9 @@ class TestGermplasmServiceIntegration:
         assert entry2.name in entry_names
 
         # Get entries with read-only service
+        await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
         no_read_results = []
-        async for entry in no_read_germplasm_service.get_all_entries(
+        async for entry in germplasm_service.get_all_entries(
                 names=[entry1.name, entry2.name]
         ):
             no_read_results.append(entry)
@@ -214,8 +223,9 @@ class TestGermplasmServiceIntegration:
             assert entry.name == "REDACTED"
 
         # Get entries with unregistered service
+        await neo4j_access_control_service.initialize_user_context(user_id=None)
         unregistered_results = []
-        async for entry in unregistered_germplasm_service.get_all_entries(
+        async for entry in germplasm_service.get_all_entries(
                 names=[entry1.name, entry2.name]
         ):
             unregistered_results.append(entry)
@@ -226,9 +236,12 @@ class TestGermplasmServiceIntegration:
     async def test_circular_dependency_prevention(
             self,
             germplasm_service,
+            neo4j_access_control_service,
+            first_unstored_account,
             lorem_text_generator
     ):
         """Test that circular dependencies are prevented in source relationships."""
+        await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
         # Arrange - Create a chain of entries: A -> B -> C
         entry_a_input = GermplasmInput(name=f"{lorem_text_generator.new_text(5)}_A")
         entry_b_input = GermplasmInput(name=f"{lorem_text_generator.new_text(5)}_B")

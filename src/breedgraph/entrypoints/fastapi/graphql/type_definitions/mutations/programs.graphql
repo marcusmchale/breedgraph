@@ -3,9 +3,8 @@ input CreateProgramInput {
     name: String!
     fullname: String
     description: String
-    contact_ids: [Int!] = []
-    reference_ids: [Int!] = []
-    release: String = "REGISTERED"
+    contactIds: [Int!] = []
+    referenceIds: [Int!] = []
 }
 
 input UpdateProgramInput {
@@ -13,9 +12,8 @@ input UpdateProgramInput {
     name: String
     fullname: String
     description: String
-    contact_ids: [Int!]
-    reference_ids: [Int!]
-    release: String
+    contactIds: [Int!]
+    referenceIds: [Int!]
 }
 
 # Trial Mutations
@@ -26,21 +24,19 @@ input CreateTrialInput {
     description: String
     start: DateTime
     end: DateTime
-    contact_ids: [Int!] = []
-    reference_ids: [Int!] = []
-    release: String = "REGISTERED"
+    contactIds: [Int!] = []
+    referenceIds: [Int!] = []
 }
 
 input UpdateTrialInput {
-    trial_id: Int!
+    trialId: Int!
     name: String
     fullname: String
     description: String
     start: DateTime
     end: DateTime
-    contact_ids: [Int!]
-    reference_ids: [Int!]
-    release: String
+    contactIds: [Int!]
+    referenceIds: [Int!]
 }
 
 # Study Mutations
@@ -52,12 +48,11 @@ input CreateStudyInput {
     practices: String
     start: DateTime
     end: DateTime
-    factor_ids: [Int!] = []
-    observation_ids: [Int!] = []
-    design_id: Int
-    licence_id: Int
-    reference_ids: [Int!] = []
-    release: String = "REGISTERED"
+    factorIds: [Int!] = []
+    observationIds: [Int!] = []
+    designId: Int
+    licenceId: Int
+    referenceIds: [Int!] = []
 }
 
 input UpdateStudyInput {
@@ -68,28 +63,27 @@ input UpdateStudyInput {
     practices: String
     start: DateTime
     end: DateTime
-    factor_ids: [Int!]
-    observation_ids: [Int!]
-    design_id: Int
-    licence_id: Int
-    reference_ids: [Int!]
-    release: String
+    factorIds: [Int!]
+    observationIds: [Int!]
+    designId: Int
+    licenceId: Int
+    referenceIds: [Int!]
 }
 
 # Mutation type extensions for programs
 extend type Mutation {
     # Program mutations
-    create_program(program: CreateProgramInput!): BooleanPayload
-    update_program(program: UpdateProgramInput!): BooleanPayload
-    delete_program(program_id: Int!): BooleanPayload
+    programsCreateProgram(program: CreateProgramInput!): BooleanPayload
+    programsUpdateProgram(program: UpdateProgramInput!): BooleanPayload
+    programsDeleteProgram(programId: Int!): BooleanPayload
 
     # Trial mutations
-    create_trial(trial: CreateTrialInput!): BooleanPayload
-    update_trial(trial: UpdateTrialInput!): BooleanPayload
-    delete_trial(trial_id: Int!): BooleanPayload
+    programsCreateTrial(trial: CreateTrialInput!): BooleanPayload
+    programsUpdateTrial(trial: UpdateTrialInput!): BooleanPayload
+    programsDeleteTrial(trialId: Int!): BooleanPayload
 
     # Study mutations
-    create_study(study: CreateStudyInput!): BooleanPayload
-    update_study(study: UpdateStudyInput!): BooleanPayload
-    delete_study(study_id: Int!): BooleanPayload
+    programsCreateStudy(study: CreateStudyInput!): BooleanPayload
+    programsUpdateStudy(study: UpdateStudyInput!): BooleanPayload
+    programsDeleteStudy(studyId: Int!): BooleanPayload
 }

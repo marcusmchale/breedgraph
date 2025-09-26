@@ -1,8 +1,12 @@
 type Query {
     """Get own account details for administrative tasks"""
-    account: AccountPayload!
+    accountsAccount: AccountPayload!
     """Get user details for administrative tasks"""
-    users (user_id: Int): UsersPayload! # see users for admin
+    accountsUsers (userId: Int): UsersPayload! # see users for admin
+    """
+    Get the user access map of access type to team
+    """
+    accountsUserAccess: UserAccessPayload!
     """
     Get a list of organisation "root" teams.
     These are top-level team in the organisation hierarchy.
@@ -14,25 +18,19 @@ type Query {
     Get a single team details
     As with organisations, the organisation can be explored from this node.
     """
-    team (team_id: Int!): TeamPayload! # see team
+    organisationsTeam (teamId: Int!): TeamPayload! # see team
     """
     Get a multiple team details
     """
-    teams(team_ids: [Int!]): TeamsPayload! # see team
-    """Get affiliations that result from heritable affiliations to parent teams"""
-    inherited_affiliations(team_id: Int!): AffiliationsPayload!
-    """
-    Get the user_access map of access type to team
-    """
-    user_access: UserAccessPayload!
+    organisationsTeams(teamIds: [Int!]): TeamsPayload! # see team
     """Get the latest ontology version"""
-    ontology_version: VersionPayload!
+    ontologyVersion: VersionPayload!
     """Get an ontology entry"""
-    ontology_entry (entry_id: Int!): OntologyEntryPayload
+    ontologyEntry (entryId: Int!): OntologyEntryPayload
     """Get a list of ontology entries"""
-    ontology_entries (entry_ids: [Int], names: [String], labels: [OntologyLabel]): OntologyEntriesPayload
+    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel]): OntologyEntriesPayload
     """Get a list of countries for use in top level region creation"""
-    countries: LocationsPayload!
+    regionsCountries: LocationsPayload!
     """Get a list of region "root" locations.
     These are all countries that form the top-level location in the region.
     """
@@ -40,33 +38,32 @@ type Query {
     """
     Get a single location details
     """
-    location (location_id: Int!): LocationPayload! # see team
+    regionsLocation (locationId: Int!): LocationPayload! # see team
     """
-    Search for locations by ontology type
+    Search for locations by ontology Location type
     """
-    locations (location_type: Int!): LocationsPayload!
-    # todo implement the resolver for this query
+    regionsLocations (locationTypeId: Int!): LocationsPayload!
     """Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
-    Optionally retrieve only those at a given location by supplying location_id.
+    Optionally retrieve only those at a given location by supplying locationId.
     """
-    arrangements (location_id: Int): LayoutsPayload!
+    arrangements (locationId: Int): LayoutsPayload!
     """
     Get a single layout details
     """
-    layout (layout_id: Int!): LayoutPayload! # see team
+    arrangementsLayout (layoutId: Int!): LayoutPayload! # see team
     """
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
-    blocks (location_id: Int): UnitsPayload
+    blocks (locationId: Int): UnitsPayload
     """
     Get a single unit.
     """
-    unit (unit_id: Int!): UnitPayload
+    blocksUnit (unitId: Int!): UnitPayload
     """
     Get a list of programs
     """
-    programs (program_id: Int, trial_id: Int, study_id: Int) : ProgramsPayload
-    datasets (dataset_id: Int, term_id: Int): DatasetsPayload
+    programs (programId: Int, trialId: Int, studyId: Int) : ProgramsPayload
+    datasets (datasetId: Int, conceptId: Int): DatasetsPayload
 }

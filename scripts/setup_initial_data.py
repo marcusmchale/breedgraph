@@ -19,7 +19,7 @@ from src.breedgraph.domain.model.ontology.version import Version
 from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWork
 from src.breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWork
 
-from src.breedgraph.domain.model.accounts import AccountInput, UserInput
+from src.breedgraph.domain.model.accounts import AccountInput, UserInput, AccountStored
 
 from src.breedgraph.config import MAIL_USERNAME, MAIL_HOST
 
@@ -27,22 +27,20 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def create_initial_ontology_entries(uow: AbstractUnitOfWork = Neo4jUnitOfWork()):
-    """Create essential ontology entries needed for the application."""
-    # first create system account
-    system_account_id = None
+async def ensure_not_empty(uow: AbstractUnitOfWork = Neo4jUnitOfWork()) -> None:
     async with uow.get_uow() as uow_holder:
         # Check if any records exist in the db, if so then stop now
         # This is a safeguard against running this script unintentionally
         logger.info("Checking if database is empty...")
         if not await uow_holder.db_is_empty():
-            raise Exception("Database is not empty, aborting initial data setup...")
+            raise Exception("Database is not empty, aborting setup...")
 
-        # create system user
+async def create_system_account(uow: AbstractUnitOfWork = Neo4jUnitOfWork()) -> AccountStored:
+    async with uow.get_uow() as uow_holder:
         logger.info("Creating system account...")
         system_account = await uow_holder.repositories.accounts.create(
             AccountInput(
-                user = UserInput(
+                user=UserInput(
                     name='system',
                     fullname='system user',
                     email=f'{MAIL_USERNAME}@{MAIL_HOST}',
@@ -51,10 +49,16 @@ async def create_initial_ontology_entries(uow: AbstractUnitOfWork = Neo4jUnitOfW
                 )
             )
         )
-        # so we can keep this in the same transaction, update the ontology role and user id manually
-        # rather than starting a new uow
-        uow_holder.ontology.role = system_account.user.ontology_role
-        uow_holder.ontology.user_id = system_account.user.id
+        await uow_holder.commit()
+        return system_account
+
+
+async def create_initial_ontology_entries(
+    system_account: AccountStored,
+    uow: AbstractUnitOfWork = Neo4jUnitOfWork()
+):
+    """Create essential ontology entries needed for the application."""
+    async with uow.get_uow(user_id=system_account.user.id) as uow_holder:
         # Create initial Ontology version
         await uow_holder.ontology.commit_version(
             version_change=None,
@@ -77,7 +81,9 @@ async def main():
     logger.info("Starting initial data setup...")
 
     try:
-        await create_initial_ontology_entries()
+        await ensure_not_empty()
+        system_account = await create_system_account()
+        await create_initial_ontology_entries(system_account)
         logger.info("Initial data setup completed successfully!")
 
     except Exception as e:

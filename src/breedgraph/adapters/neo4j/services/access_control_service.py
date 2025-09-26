@@ -1,9 +1,11 @@
 from typing import Dict, Set, List
 
-from neo4j import AsyncTransaction
+from neo4j import AsyncTransaction, AsyncResult
 
+from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.neo4j.cypher.query_builders import controls
 from src.breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry
+from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
@@ -93,3 +95,16 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             entity_ids=model_ids,
             team_ids=team_ids
         )
+
+    async def get_access_teams(self, user_id: int = None) -> Dict[Access, Set[int]]:
+        """Get access teams for a user"""
+        if user_id is None:
+            return {a: set() for a in Access}
+
+        result: AsyncResult = await self.tx.run(queries['controls']['get_access_teams'], user_id=user_id)
+        record = await result.single()
+        if record is None:
+            raise ValueError("User not found")
+
+        access_teams = {Access(key): set(value) for key, value in record.get('access_teams').items()}
+        return access_teams

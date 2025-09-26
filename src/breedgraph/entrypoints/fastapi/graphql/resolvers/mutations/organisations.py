@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 from . import graphql_mutation
 
-@graphql_mutation.field("create_team")
+@graphql_mutation.field("organisationsCreateTeam")
 @graphql_payload
 @require_authentication
 async def create_team(
@@ -23,7 +23,7 @@ async def create_team(
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} creates team: {name}")
     cmd = CreateTeam(
-        user=user_id,
+        agent_id=user_id,
         name=name,
         fullname=fullname,
         parent=parent
@@ -31,7 +31,7 @@ async def create_team(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("delete_team")
+@graphql_mutation.field("organisationsDeleteTeam")
 @graphql_payload
 @require_authentication
 async def delete_team(
@@ -42,13 +42,13 @@ async def delete_team(
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} deletes team: {team_id}")
     cmd = DeleteTeam(
-        user=user_id,
-        team=team_id
+        agent_id=user_id,
+        team_id=team_id
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("update_team")
+@graphql_mutation.field("organisationsUpdateTeam")
 @graphql_payload
 @require_authentication
 async def update_team(
@@ -62,8 +62,8 @@ async def update_team(
 
     logger.debug(f"User {user_id} updates team: {team_id}")
     cmd = UpdateTeam(
-        user=user_id,
-        team=team_id,
+        agent_id=user_id,
+        team_id=team_id,
         name=name,
         fullname=fullname
     )

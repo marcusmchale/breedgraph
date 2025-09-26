@@ -22,9 +22,9 @@ async def create_account(
 ):
     async with uow.get_uow() as uow:
         # First check if any accounts exist
-        if await uow.views.check_any_account():
+        if await uow.views.accounts.check_any_account():
             # And if so, the email must be included in the allowed emails of some other account
-            if not await uow.views.check_allowed_email(cmd.email):
+            if not await uow.views.accounts.check_allowed_email(cmd.email):
                 raise UnauthorisedOperationError("Please contact an existing user to be invited")
             ontology_role = OntologyRole.CONTRIBUTOR
         else:
@@ -67,7 +67,7 @@ async def edit_user(
         uow: AbstractUnitOfWork
 ):
     async with uow.get_uow() as uow:
-        account = await uow.repositories.accounts.get(user_id=cmd.user)
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
         if cmd.name is not None:
             account.user.name = cmd.name
         if cmd.fullname is not None:
@@ -123,11 +123,11 @@ async def add_email(
         cmd: commands.accounts.AddEmail,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow() as uow:
+    async with uow.get_uow(user_id=cmd.user_id) as uow:
         if await uow.repositories.accounts.get(email=cmd.email):
             raise IdentityExistsError("This email is already registered to an account")
 
-        account:AccountStored = await uow.repositories.accounts.get(user_id=cmd.user)
+        account:AccountStored = await uow.repositories.accounts.get(user_id=cmd.user_id)
         account.allow_email(cmd.email)
         await uow.commit()
 
@@ -136,8 +136,8 @@ async def remove_email(
         cmd: commands.accounts.RemoveEmail,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow() as uow:
-        account = await uow.repositories.accounts.get(user_id=cmd.user)
+    async with uow.get_uow(user_id=cmd.user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
         try:
             account.remove_email(cmd.email)
         except ValueError:
@@ -149,12 +149,12 @@ async def set_ontology_role(
         cmd: commands.accounts.SetOntologyRole,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow() as uow:
+    async with uow.get_uow(user_id=cmd.user_id) as uow:
         agent = await uow.repositories.accounts.get(user_id=cmd.agent)
         if not agent.user.ontology_role == OntologyRole.ADMIN:
             raise IllegalOperationError("Only OntologyRole.ADMIN can change user ontology role")
 
-        account = await uow.repositories.accounts.get(user_id=cmd.user)
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
         account.user.ontology_role = OntologyRole[cmd.role]
         await uow.commit()
 
@@ -163,13 +163,13 @@ async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team)
+    async with uow.get_uow(user_id=cmd.user_id) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         organisation.request_affiliation(
-            agent_id=cmd.user,
-            user_id=cmd.user,
-            team_id=cmd.team,
-            access=Access(cmd.access),
+            agent_id=cmd.user_id,
+            user_id=cmd.user_id,
+            team_id=cmd.team_id,
+            access=cmd.access,
             heritable=cmd.heritable
         )
         await uow.commit()
@@ -179,13 +179,13 @@ async def approve_affiliation(
         cmd: commands.accounts.ApproveAffiliation,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.agent) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         organisation.authorise_affiliation(
-            agent_id = cmd.agent,
-            team_id = cmd.team,
-            user_id = cmd.user,
-            access=Access(cmd.access),
+            agent_id = cmd.agent_id,
+            team_id = cmd.team_id,
+            user_id = cmd.user_id,
+            access=cmd.access,
             heritable=cmd.heritable
         )
         await uow.commit()
@@ -195,13 +195,13 @@ async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.agent) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         organisation.remove_affiliation(
-            agent_id = cmd.agent,
-            team_id = cmd.team,
-            user_id = cmd.user,
-            access=Access(cmd.access)
+            agent_id = cmd.agent_id,
+            team_id = cmd.team_id,
+            user_id = cmd.user_id,
+            access=cmd.access
         )
         await uow.commit()
 
@@ -216,6 +216,6 @@ async def revoke_affiliation(
             agent_id = cmd.agent,
             team_id = cmd.team,
             user_id = cmd.user,
-            access=Access(cmd.access)
+            access=cmd.access
         )
         await uow.commit()

@@ -10,7 +10,7 @@ async def post_to_create_team(client, token:str, name: str, parent: int | None =
                 "  $fullname: String,"
                 "  $parent: Int,"
                 " ) { "
-                "  create_team( "
+                "  organisationsCreateTeam( "
                 "    name: $name, "
                 "    fullname: $fullname, "
                 "    parent: $parent "
@@ -34,7 +34,7 @@ async def post_to_create_team(client, token:str, name: str, parent: int | None =
                 "  $name: String!,"
                 "  $fullname: String"
                 " ) { "
-                "  create_team( "
+                "  organisationsCreateTeam( "
                 "    name: $name, "
                 "    fullname: $fullname"
                 "  ) { "
@@ -133,10 +133,10 @@ async def post_to_team(client, token:str, team_id: int):
     json = {
         "query": (
             " query ("
-            "   $team_id : Int!"
+            "   $teamId : Int!"
             " ) { "
-            "  team ( "
-            "  team_id: $team_id,"
+            "  organisationsTeam ( "
+            "  teamId: $teamId,"
             "  ) {"
             "    status, "
             "    result { "
@@ -179,7 +179,7 @@ async def post_to_team(client, token:str, team_id: int):
             " } "
         ),
         "variables": {
-            "team_id": team_id,
+            "teamId": team_id,
         }
     }
     headers = with_auth(
@@ -194,10 +194,10 @@ async def post_to_delete_team(client, token:str, team_id: int):
     json = {
         "query": (
             " mutation ( "
-            "  $team_id: Int!"
+            "  $teamId: Int!"
             " ) { "
-            "  delete_team( "
-            "    team_id: $team_id "
+            "  organisationsDeleteTeam( "
+            "    teamId: $teamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -206,7 +206,7 @@ async def post_to_delete_team(client, token:str, team_id: int):
             " } "
         ),
         "variables": {
-            "team_id": team_id
+            "teamId": team_id
         }
     }
     headers = with_auth(
@@ -220,13 +220,13 @@ async def post_to_update_team(client, token:str, team_id: int, name: str, fullna
     json = {
         "query": (
             " mutation ( "
-            "  $team_id: Int!,"
+            "  $teamId: Int!,"
             "  $name: String, "
             "  $fullname: String "
             "   "
             " ) { "
-            "  update_team( "
-            "    team_id: $team_id, "
+            "  organisationsUpdateTeam( "
+            "    teamId: $teamId, "
             "    name: $name, "
             "    fullname: $fullname, "
             "  ) { "
@@ -237,7 +237,7 @@ async def post_to_update_team(client, token:str, team_id: int, name: str, fullna
             " } "
         ),
         "variables": {
-            "team_id": team_id,
+            "teamId": team_id,
             "name": name,
             "fullname": fullname
         }

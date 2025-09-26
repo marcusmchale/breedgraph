@@ -1,33 +1,32 @@
 from .base import Command
-from src.breedgraph.domain.model.controls import ReadRelease
 
 from typing import List
 
 class CreateLayout(Command):
-    user: int
-    release: str = ReadRelease.REGISTERED.name
+    agent_id: int
+
+    location_id: int
+    type_id: int
 
     name: str
-    type: int
-    location: int
     axes: List[str]
 
     parent: int|None = None
     position: List[int|float|str]|None = None
 
 class UpdateLayout(Command):
-    user: int
-    layout: int
-    release: str
+    agent_id: int
+    layout_id: int
+
+    location_id: int
+    type_id: int
 
     name: str
-    type: int
-    location: int
     axes: List[str]
 
     parent: int | None
     position: List[int|float|str]|None = None
 
 class DeleteLayout(Command):
-    user: int
-    layout: int
+    agent_id: int
+    layout_id: int

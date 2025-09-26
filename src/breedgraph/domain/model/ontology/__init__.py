@@ -1,4 +1,4 @@
-from .enums import ObservationMethodType, ScaleType, OntologyRelationshipLabel, AxisType, VersionChange
+from .enums import ObservationMethodType, ScaleType, OntologyRelationshipLabel, AxisType, VersionChange, OntologyEntryLabel
 from .version import Version, OntologyCommit
 from .lifecycle import LifecyclePhase, LifecycleAuditEntry, EntryLifecycle, RelationshipLifecycle
 from .entries import (
@@ -37,11 +37,9 @@ from .people import (
     RoleBase, RoleInput, RoleStored, RoleOutput,
     TitleBase, TitleInput, TitleStored, TitleOutput
 )
-from .germplasm import GermplasmMethodBase, GermplasmMethodInput, GermplasmMethodStored, GermplasmMethodOutput
-
 __all__ = [
     # Enums
-    'ObservationMethodType', 'ScaleType', 'OntologyRelationshipLabel', 'AxisType', 'VersionChange',
+    'ObservationMethodType', 'ScaleType', 'OntologyRelationshipLabel', 'AxisType', 'VersionChange', 'OntologyEntryLabel',
 
     # Version and commit types
     'Version', 'OntologyCommit',
@@ -89,7 +87,4 @@ __all__ = [
     # People-related entries
     'RoleBase', 'RoleInput', 'RoleStored', 'RoleOutput',
     'TitleBase', 'TitleInput', 'TitleStored', 'TitleOutput',
-
-    # Germplasm entries
-    'GermplasmMethodBase', 'GermplasmMethodInput', 'GermplasmMethodStored', 'GermplasmMethodOutput',
 ]

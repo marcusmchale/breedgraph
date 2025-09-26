@@ -1,4 +1,5 @@
 from .base import Command
+from src.breedgraph.domain.model.controls import Access
 
 class CreateAccount(Command):
     name: str
@@ -7,7 +8,7 @@ class CreateAccount(Command):
     password_hash: str
 
 class UpdateUser(Command):
-    user: int
+    user_id: int
     name: str|None = None
     fullname: str|None = None
     email: str|None = None
@@ -17,42 +18,46 @@ class VerifyEmail(Command):
     token: str
 
 class Login(Command):
-    user: int
+    user_id: int
 
 class AddEmail(Command):
-    user: int
+    user_id: int
     email: str
 
 class RemoveEmail(Command):
-    user: int
+    user_id: int
     email: str
 
 class SetOntologyRole(Command):
-    agent: int
-    user: int
+    agent_id: int
+
+    user_id: int
     role: str
 
 class RequestAffiliation(Command):
-    user: int
-    team: int
-    access: str
+    user_id: int
+    team_id: int
+    access: Access
     heritable: bool
 
 class ApproveAffiliation(Command):
-    agent: int
-    user: int
-    team: int
-    access: str
+    agent_id: int
+
+    user_id: int
+    team_id: int
+    access: Access
     heritable: bool
 
 class RemoveAffiliation(Command):
-    agent: int
-    user: int
-    team: int
-    access: str
+    agent_id: int
+
+    user_id: int
+    team_id: int
+    access: Access
 
 class RevokeAffiliation(Command):
-    agent: int
-    user: int
-    team: int
-    access: str
+    agent_id: int
+
+    user_id: int
+    team_id: int
+    access: Access

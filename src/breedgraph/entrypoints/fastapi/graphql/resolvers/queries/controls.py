@@ -12,10 +12,12 @@ logger = logging.getLogger(__name__)
 
 from . import graphql_query
 from ..registry import graphql_resolvers
+
 controller = ObjectType("Controller")
 control = ObjectType("Control")
 write_stamp = ObjectType("WriteStamp")
 graphql_resolvers.register_type_resolvers(controller, control, write_stamp)
+
 
 async def resolve_controller(obj: ControlledModel, info) -> Controller:
     await update_teams_map(info.context, obj.controller.teams)

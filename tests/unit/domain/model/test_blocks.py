@@ -14,7 +14,6 @@ def get_unit_input(lorem_text_generator):
     return UnitInput(
         subject=1,
         name=lorem_text_generator.new_text(5),
-        synonyms=[lorem_text_generator.new_text(5)],
         description=lorem_text_generator.new_text(10),
         positions=[Position(location=1, start='2001', end='2004'), Position(location=1, layout=2, coordinates=[1,1], start='2001', end='2004')]
     )

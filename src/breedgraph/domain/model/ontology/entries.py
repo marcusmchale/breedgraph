@@ -1,10 +1,10 @@
 from typing import List, ClassVar, Any, Dict
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.ontology.lifecycle import BaseLifecycle
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data
@@ -14,17 +14,23 @@ Ontology entry with ID of 0 should be handled in presentation layer as undefined
 """
 
 @dataclass
-class OntologyEntryBase:
+class OntologyEntryBase(ABC):
     """
     Common domain fields for all ontology entries.
     Concrete entry families (e.g., DesignBase, TraitBase) should inherit this.
     """
+    label: ClassVar[OntologyEntryLabel]
     name: str = ''  # unique lowercase per label
     abbreviation: str | None = None # if provided, must be unique in lowercase (for a given label)
     description: str | None = None
     synonyms: List[str] = field(default_factory=list)  # these don't have to be unique
     authors: List[int] = field(default_factory=list)  # internal person ID
     references: List[int] = field(default_factory=list)  # internal reference ID
+
+    @property
+    def plural(self) -> str:
+        """The plural for this class of model"""
+        return self.label.plural
 
     @property
     def names(self):
@@ -80,8 +86,7 @@ class TermBase(OntologyEntryBase):
     Terms serve as the primary sink for RELATES_TO relationships and can
     relate to other entities or other Terms.
     """
-    label: ClassVar[str] = 'Term'
-    plural: ClassVar[str] = 'Terms'
+    label: ClassVar[str] = OntologyEntryLabel.TERM
 
 @dataclass
 class TermInput(TermBase, OntologyEntryInput):
@@ -93,4 +98,18 @@ class TermStored(TermBase, OntologyEntryStored):
 
 @dataclass
 class TermOutput(TermBase, OntologyEntryOutput):
-    related_to: List[int] = field(default_factory=list)
+    subjects: List[int] = field(default_factory=list)
+    scales: List[int] = field(default_factory=list)
+    categories: List[int] = field(default_factory=list)
+    observation_methods: List[int] = field(default_factory=list)
+    traits: List[int] = field(default_factory=list)
+    variables: List[int] = field(default_factory=list)
+    control_methods: List[int] = field(default_factory=list)
+    conditions: List[int] = field(default_factory=list)
+    factors: List[int] = field(default_factory=list)
+    events: List[int] = field(default_factory=list)
+    location_types: List[int] = field(default_factory=list)
+    layout_types: List[int] = field(default_factory=list)
+    designs: List[int] = field(default_factory=list)
+    roles: List[int] = field(default_factory=list)
+    titles: List[int] = field(default_factory=list)

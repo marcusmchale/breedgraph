@@ -16,9 +16,10 @@ async def create_team_input(user_input_generator) -> TeamInput:
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")
-async def test_create_extend_and_get_organisation(uncommitted_neo4j_tx, user_input_generator, stored_account):
+async def test_create_extend_and_get_organisation(uncommitted_neo4j_tx, first_unstored_account, user_input_generator):
     team_input = await create_team_input(user_input_generator)
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+
+    organisations_repo = Neo4jOrganisationsRepository(tx=uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     organisation = await organisations_repo.create(team_input)
 
     # test that retrieve by id works
@@ -52,73 +53,73 @@ async def test_create_extend_and_get_organisation(uncommitted_neo4j_tx, user_inp
         raise NoResultFoundError
 
 @pytest.mark.asyncio(scope='session')
-async def test_request_remove_affiliation(uncommitted_neo4j_tx, user_input_generator, stored_account, second_account):
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+async def test_request_remove_affiliation(uncommitted_neo4j_tx, user_input_generator, first_unstored_account, second_unstored_account):
+    organisations_repo = Neo4jOrganisationsRepository(tx=uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
-    assert stored_account.user.id in organisation.get_affiliates(organisation.root.id)
+    assert first_unstored_account.user.id in organisation.get_affiliates(organisation.root.id)
     organisation.request_affiliation(
-        agent_id=second_account.root.id,
+        agent_id=second_unstored_account.root.id,
         team_id=organisation.root.id,
         access=Access.READ,
-        user_id=second_account.root.id,
+        user_id=second_unstored_account.root.id,
         heritable=True
     )
     await organisations_repo.update_seen()
     retrieved = await organisations_repo.get(team_id=organisation.root.id)
-    assert second_account.user.id in retrieved.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.REQUESTED)
+    assert second_unstored_account.user.id in retrieved.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.REQUESTED)
 
     # now remove it (as it is just requested should be completely gone
     retrieved.remove_affiliation(
-        agent_id=second_account.root.id,
+        agent_id=second_unstored_account.root.id,
         team_id=organisation.root.id,
         access=Access.READ,
-        user_id=second_account.root.id
+        user_id=second_unstored_account.root.id
     )
     await organisations_repo.update_seen()
 
     retrieved_again = await organisations_repo.get(team_id=organisation.root.id)
-    assert second_account.user.id not in retrieved_again.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.REQUESTED)
+    assert second_unstored_account.user.id not in retrieved_again.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.REQUESTED)
 
 @pytest.mark.asyncio(scope='session')
-async def test_request_authorise_revoke_affiliation(uncommitted_neo4j_tx, user_input_generator, stored_account, second_account):
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+async def test_request_authorise_revoke_affiliation(uncommitted_neo4j_tx, user_input_generator, first_unstored_account, second_unstored_account):
+    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
-    assert stored_account.user.id in organisation.get_affiliates(organisation.root.id)
+    assert first_unstored_account.user.id in organisation.get_affiliates(organisation.root.id)
     organisation.request_affiliation(
-        agent_id=second_account.root.id,
+        agent_id=second_unstored_account.root.id,
         team_id=organisation.root.id,
         access=Access.READ,
-        user_id=second_account.root.id,
+        user_id=second_unstored_account.root.id,
         heritable=True
     )
     organisation.authorise_affiliation(
-        agent_id=stored_account.root.id,
+        agent_id=first_unstored_account.root.id,
         team_id=organisation.root.id,
         access=Access.READ,
-        user_id=second_account.root.id,
+        user_id=second_unstored_account.root.id,
         heritable=True
     )
 
     await organisations_repo.update_seen()
     retrieved = await organisations_repo.get(team_id=organisation.root.id)
-    assert second_account.user.id in retrieved.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.AUTHORISED)
+    assert second_unstored_account.user.id in retrieved.get_affiliates(organisation.root.id, access=Access.READ, authorisation=Authorisation.AUTHORISED)
 
     retrieved.revoke_affiliation(
-        agent_id=stored_account.root.id,
+        agent_id=first_unstored_account.root.id,
         team_id=organisation.root.id,
         access=Access.READ,
-        user_id=second_account.root.id
+        user_id=second_unstored_account.root.id
     )
     await organisations_repo.update_seen()
     retrieved_again = await organisations_repo.get(team_id=organisation.root.id)
-    assert second_account.user.id not in retrieved_again.get_affiliates(organisation.root.id, access=Access.READ)
+    assert second_unstored_account.user.id not in retrieved_again.get_affiliates(organisation.root.id, access=Access.READ)
 
 @pytest.mark.asyncio(scope="session")
-async def test_remove_team(uncommitted_neo4j_tx, user_input_generator, stored_account):
+async def test_remove_team(uncommitted_neo4j_tx, user_input_generator, first_unstored_account):
     team_input = await create_team_input(user_input_generator)
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     organisation = await organisations_repo.create(team_input)
     new_team_input = await create_team_input(user_input_generator)
     organisation.add_team(new_team_input, parent_id=organisation.root.id)
@@ -134,8 +135,8 @@ async def test_remove_team(uncommitted_neo4j_tx, user_input_generator, stored_ac
     assert retrieved.size == 1
 
 @pytest.mark.asyncio(scope="session")
-async def test_edit_team_name(uncommitted_neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+async def test_edit_team_name(uncommitted_neo4j_tx, user_input_generator, first_unstored_account):
+    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
 
@@ -150,8 +151,8 @@ async def test_edit_team_name(uncommitted_neo4j_tx, user_input_generator, stored
     assert retrieved_from_root_id.root.fullname == changed_team_input.fullname
 
 @pytest.mark.asyncio(scope="session")
-async def test_move_team_without_cycles(uncommitted_neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=stored_account.user.id)
+async def test_move_team_without_cycles(uncommitted_neo4j_tx, user_input_generator, first_unstored_account):
+    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, user_id=first_unstored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
     second_team_input = await create_team_input(user_input_generator)
@@ -170,8 +171,8 @@ async def test_move_team_without_cycles(uncommitted_neo4j_tx, user_input_generat
     assert third_team.id in retrieved_from_root_id._graph.successors(second_team.id)
 
 @pytest.mark.asyncio(scope="session")
-async def test_split_and_merge_organisation(uncommitted_neo4j_tx, user_input_generator, stored_account):
-    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, stored_account.user.id)
+async def test_split_and_merge_organisation(uncommitted_neo4j_tx, user_input_generator, first_unstored_account):
+    organisations_repo = Neo4jOrganisationsRepository(uncommitted_neo4j_tx, first_unstored_account.user.id)
     team_input = await create_team_input(user_input_generator)
     organisation = await organisations_repo.create(team_input)
     second_team_input = await create_team_input(user_input_generator)

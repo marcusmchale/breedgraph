@@ -40,18 +40,11 @@ def get_file_reference_input(lorem_text_generator):
 async def test_create_and_get(
         uncommitted_neo4j_tx,
         neo4j_access_control_service,
-        stored_account,
-        stored_organisation,
         lorem_text_generator
 ):
     repo = Neo4jReferencesRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id}
-        }
+        access_control_service=neo4j_access_control_service
     )
     ref_input = get_external_reference_input(lorem_text_generator)
     stored_ref: ExternalReferenceStored = await repo.create(ref_input)
@@ -65,16 +58,10 @@ async def test_create_and_get(
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_edit_reference(uncommitted_neo4j_tx, neo4j_access_control_service, stored_account, stored_organisation, lorem_text_generator):
+async def test_edit_reference(uncommitted_neo4j_tx, neo4j_access_control_service, lorem_text_generator):
     repo = Neo4jReferencesRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-            Access.CURATE: {stored_organisation.root.id}
-        }
+        access_control_service=neo4j_access_control_service
     )
     reference = await repo.get(reference_id=1)
     reference.description = lorem_text_generator.new_text(5)
@@ -83,16 +70,10 @@ async def test_edit_reference(uncommitted_neo4j_tx, neo4j_access_control_service
     assert changed_reference.description == reference.description
 
 @pytest.mark.asyncio(scope="session")
-async def test_file_reference(uncommitted_neo4j_tx, neo4j_access_control_service, stored_account, stored_organisation, lorem_text_generator):
+async def test_file_reference(uncommitted_neo4j_tx, neo4j_access_control_service, lorem_text_generator):
     repo = Neo4jReferencesRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams= {
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-            Access.CURATE: {stored_organisation.root.id}
-        }
+        access_control_service=neo4j_access_control_service
     )
     reference_input = get_file_reference_input(lorem_text_generator)
     stored_ref: FileReferenceStored = await repo.create(reference_input)

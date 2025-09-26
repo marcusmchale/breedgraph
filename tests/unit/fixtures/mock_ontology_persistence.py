@@ -58,28 +58,26 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
     def _create_stored_entry(self, entry_data: dict, label: str) -> OntologyEntryStored:
         """Create appropriate stored entry subclass based on label."""
-
         # Map labels to classes
         label_to_class = {
-            "Subject": SubjectStored,
-            "Trait": TraitStored,
-            "Variable": VariableStored,
-            "Scale": ScaleStored,
-            "Term": TermStored,
-            "ObservationMethod": ObservationMethodStored,
-            "Condition": ConditionStored,
-            "Factor": FactorStored,
-            "EventType": EventTypeStored,
-            "Category": ScaleCategoryStored,
-            "ControlMethod": ControlMethodStored,
-            "GermplasmMethod": GermplasmMethodStored,
-            "LocationType": LocationTypeStored,
-            "LayoutType": LayoutTypeStored,
-            "Design": DesignStored,
-            "Role": RoleStored,
-            "Title": TitleStored,
+            OntologyEntryLabel.SUBJECT: SubjectStored,
+            OntologyEntryLabel.TRAIT: TraitStored,
+            OntologyEntryLabel.VARIABLE: VariableStored,
+            OntologyEntryLabel.SCALE: ScaleStored,
+            OntologyEntryLabel.TERM: TermStored,
+            OntologyEntryLabel.OBSERVATION_METHOD: ObservationMethodStored,
+            OntologyEntryLabel.CONDITION: ConditionStored,
+            OntologyEntryLabel.FACTOR: FactorStored,
+            OntologyEntryLabel.EVENT: EventTypeStored,
+            OntologyEntryLabel.CATEGORY: ScaleCategoryStored,
+            OntologyEntryLabel.CONTROL_METHOD: ControlMethodStored,
+            OntologyEntryLabel.LOCATION_TYPE: LocationTypeStored,
+            OntologyEntryLabel.LAYOUT_TYPE: LayoutTypeStored,
+            OntologyEntryLabel.DESIGN: DesignStored,
+            OntologyEntryLabel.ROLE: RoleStored,
+            OntologyEntryLabel.TITLE: TitleStored,
         }
-        entry_class = label_to_class.get(label, OntologyEntryStored)
+        entry_class = label_to_class.get(OntologyEntryLabel(label), OntologyEntryStored)
         return entry_class(**entry_data)
 
     async def get_entry(

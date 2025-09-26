@@ -6,7 +6,7 @@ from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
 from src.breedgraph.domain.model.ontology.relationships import OntologyRelationshipBase
-from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel
+from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
 from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
 from src.breedgraph.domain.model.ontology.version import Version, OntologyCommit
 
@@ -39,7 +39,7 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def entries_exist_for_label(self, entry_ids: List[int], label:str) -> Dict[int, bool]:
+    async def entries_exist_for_label(self, entry_ids: List[int], label: OntologyEntryLabel) -> Dict[int, bool]:
         ...
 
     @abstractmethod
@@ -55,7 +55,7 @@ class OntologyPersistenceService(ABC):
             self,
             entry_id: int = None,
             name: str = None,
-            label: str = None,
+            label: OntologyEntryLabel = None,
             as_output: bool = False
     )-> OntologyEntryStored|OntologyEntryOutput|None:
         """Retrieve an ontology entry"""
@@ -86,7 +86,7 @@ class OntologyPersistenceService(ABC):
             version: Version|None = None,
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] = None,
-            labels: List[str]|None = None,
+            labels: List[OntologyEntryLabel]|None = None,
             names: List[str]|None = None,
             as_output: bool = False,
     ) -> AsyncGenerator[OntologyEntryStored|OntologyEntryOutput, None]:
@@ -116,7 +116,7 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     async def name_in_use(
         self,
-        label: str,
+        label: OntologyEntryLabel,
         name: str,
         exclude_id: int|None = None
     ) -> bool:
@@ -126,7 +126,7 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     async def abbreviation_in_use(
         self,
-        label: str,
+        label: OntologyEntryLabel,
         abbreviation: str,
         exclude_id: int|None = None
     ) -> bool:

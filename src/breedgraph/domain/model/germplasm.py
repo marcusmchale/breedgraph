@@ -23,7 +23,7 @@ class GermplasmSourceType(str, Enum):
 class Reproduction(str, Enum):
     """
     Class of reproduction used to maintain this germplasm
-    Further details may be described by a GermplasmMethod in the ontology
+    Further details may be described by a ControlMethod in the ontology
     """
     CLONAL = 'CLONAL'  # e.g maintenance in tissue culture
     SEXUAL = 'SEXUAL'  # e.g. self-pollination
@@ -63,7 +63,7 @@ class GermplasmBase(ABC):
     time: datetime64 | None = None
 
     reproduction: Reproduction | None = None
-    methods: List[int] = field(default_factory=list)
+    control_methods: List[int] = field(default_factory=list)
     """
     Germplasm entries may include:
         crop, e.g. Coffee, Cocoa
@@ -80,7 +80,7 @@ class GermplasmBase(ABC):
         
     Time should be the time of sourcing/creation at origin.
 
-    Methods should be references to GermplasmMethods in the Ontology that define protocols, e.g.
+    Methods should be references to ControlMethods in the Ontology that define protocols, e.g.
       - crossing
       - clonal propagation via tissue culture
       - controlled self-fertilisation
@@ -142,7 +142,7 @@ class GermplasmStored(GermplasmBase, ControlledModel):
                 reproduction = None,
                 origin = None,
                 time = None,
-                methods = list(),
+                control_methods = list(),
                 references = list()
             )
 

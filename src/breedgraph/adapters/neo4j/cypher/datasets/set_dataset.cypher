@@ -1,17 +1,17 @@
 MATCH
   (dataset: DataSet {id: $id})
 WITH dataset
-//Update Ontology Entry
+//Update concept
 CALL{
   WITH dataset
-  MATCH (dataset)-[for_entry:FOR_ONTOLOGY_ENTRY]->(entry: Variable|EventType|Parameter)
-  WHERE NOT entry.id = $ontology_id
-  DELETE for_entry
+  MATCH (dataset)-[for_concept:FOR_CONCEPT]->(concept: Variable|Factor)
+  WHERE NOT dataset.id = $concept
+  DELETE for_concept
 }
 CALL{
   WITH dataset
-  MATCH (entry: Variable|EventType|Parameter {id: $ontology_id})
-  MERGE (dataset)-[:FOR_ONTOLOGY_ENTRY]->(entry)
+  MATCH (concept: Variable|Factor {id: $concept})
+  MERGE (dataset)-[:FOR_CONCEPT]->(concept)
 }
 //Update contributors
 CALL{

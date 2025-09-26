@@ -21,10 +21,7 @@ from typing import AsyncGenerator, Set, List
 logger = logging.getLogger(__name__)
 
 
-TAggregateInput = TeamInput
-TAggregate = Organisation
-
-class Neo4jOrganisationsRepository(BaseRepository):
+class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
 
     def __init__(self, tx: AsyncTransaction, user_id: int|None = None, redacted: bool = True):
         super().__init__()

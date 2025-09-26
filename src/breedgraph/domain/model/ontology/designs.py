@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar, List
 
 @dataclass
@@ -7,8 +8,7 @@ class DesignBase(OntologyEntryBase):
     """
     To describe types of experimental design
     """
-    label: ClassVar[str] = 'Design'
-    plural: ClassVar[str] = 'Designs'
+    label: ClassVar[str] = OntologyEntryLabel.DESIGN
 
 @dataclass
 class DesignInput(DesignBase, OntologyEntryInput):

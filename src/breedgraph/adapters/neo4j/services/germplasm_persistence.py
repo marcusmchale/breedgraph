@@ -12,6 +12,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+
 class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
     """
     Neo4j implementation of germplasm persistence service.
@@ -45,10 +47,10 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
             'time_unit': serialized['unit'],
             'time_step': serialized['step']
         })
-        methods = params.pop('methods', [])
+        control_methods = params.pop('control_methods', [])
         references = params.pop('references', [])
         result = await self.tx.run(
-            query, params = params, methods=methods, references=references
+            query, params = params, control_methods=control_methods, references=references
         )
         record = await result.single(strict=True)
         return self.record_to_entry(record)
@@ -83,9 +85,9 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         if params.get('reproduction') is not None:
             params.update({'reproduction': params['reproduction'].name})
         entry_id = params.pop('id')
-        methods = params.pop('methods', [])
+        control_methods = params.pop('control_methods', [])
         references = params.pop('references', [])
-        await self.tx.run(query, props = params, entry_id = entry_id, methods=methods, references=references)
+        await self.tx.run(query, props = params, entry_id = entry_id, control_methods=control_methods, references=references)
 
     async def get_entries(
             self,
@@ -108,7 +110,7 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         async for record in result:
             yield self.record_to_entry(record)
 
-    # Validation query methods
+    # Validation queries
     async def name_in_use(self, name: str, exclude_id: int | None = None) -> bool:
         """Check if a name is already in use."""
         async for entry in self.get_entries(names=[name]):

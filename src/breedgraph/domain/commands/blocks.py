@@ -1,38 +1,42 @@
 from .base import Command
-from typing import List, Any
-from src.breedgraph.domain.model.controls import ReadRelease
+from typing import List
 from src.breedgraph.domain.model.time_descriptors import PyDT64
 
 class CreateUnit(Command):
-    user: int
-    subject: int
-    parents: List[int] | None = None
-    children: List[int] | None = None
+    agent_id: int
+
     name: str | None = None
     synonyms: List[str] | None = None
     description: str | None = None
-    release: str = ReadRelease.REGISTERED.name
+
+    subject_id: int | None = None
+    parents: List[int] | None = None
+    children: List[int] | None = None
 
 class UpdateUnit(Command):
-    user: int
+    agent_id: int
     unit_id: int
-    subject: int | None = None
-    parents: List[int] | None = None
-    children: List[int] | None = None
+
     name: str | None = None
     synonyms: List[str] | None = None
     description: str | None = None
-    release: str | None = None
+
+    subject_id: int | None = None
+    parents: List[int] | None = None
+    children: List[int] | None = None
+
 
 class DeleteUnit(Command):
-    user: int
+    agent_id: int
     unit_id: int
 
 class AddPosition(Command):
-    user: int
-    unit: int
-    location: int
-    layout: int=None
-    coordinates: List[str|int|float]=None
+    agent_id: int
+    unit_id: int
+
+    location_id: int
+    layout_id: int = None
+    coordinates: List[str|int|float] = None
+
     start: PyDT64|None = None
     end: PyDT64|None = None

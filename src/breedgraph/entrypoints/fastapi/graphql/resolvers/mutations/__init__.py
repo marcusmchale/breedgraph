@@ -7,7 +7,7 @@ graphql_resolvers.register_mutation_resolvers(graphql_mutation)
 
 # Import ALL mutation modules to register their field resolvers
 # These imports need to happen AFTER graphql_mutation is created
-from . import ontologies
+from . import ontology
 from . import organisations
 from . import regions
 from . import arrangements

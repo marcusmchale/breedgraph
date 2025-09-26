@@ -1,48 +1,48 @@
 extend type Mutation {
-    create_account(
+    accountsCreateAccount(
         name: String!
         fullname: String
         email: String!
         password: String!
     ): BooleanPayload!
-    update_user(
+    accountsUpdateUser(
         name: String,
         fullname: String,
         email: String,
         password: String
     ): BooleanPayload!,
-    verify_email(token: String!): BooleanPayload!
-    request_password_reset(email:String!): BooleanPayload
-    reset_password(token: String!, password: String!): BooleanPayload!
-    login(
+    accountsVerifyEmail(token: String!): BooleanPayload!
+    accountsRequestPasswordReset(email:String!): BooleanPayload
+    accountsResetPassword(token: String!, password: String!): BooleanPayload!
+    accountsLogin(
         username: String!
         password: String!
     ): BooleanPayload!
-    logout: BooleanPayload!,
-    add_email(
+    accountsLogout: BooleanPayload!,
+    accountsAddEmail(
         email: String!
     ): BooleanPayload!
-    remove_email(
+    accountsRemoveEmail(
         email: String!
     ): BooleanPayload!
-    request_affiliation(
-        team_id: Int!
+    accountsRequestAffiliation(
+        teamId: Int!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
-    approve_affiliation(
-        user_id: Int!
-        team_id: Int!
+    accountsApproveAffiliation(
+        userId: Int!
+        teamId: Int!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
-    remove_affiliation(
-        team_id: Int!
+    accountsRemoveAffiliation(
+        teamId: Int!
         access: Access!
     ): BooleanPayload!
-    revoke_affiliation(
-        user_id: Int!
-        team_id: Int!
+    accountsRevokeAffiliation(
+        userId: Int!
+        teamId: Int!
         access: Access!
     ): BooleanPayload!
 }

@@ -1,33 +1,30 @@
 from typing import List
 
-from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyRelationshipLabel
+from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyRelationshipLabel, OntologyEntryLabel
 from src.breedgraph.domain.model.ontology.enums import LifecyclePhase
 
-def name_in_use(label):
+def name_in_use(label: OntologyEntryLabel):
     return f"""
     RETURN exists {{ 
-        MATCH (entry:{label}:OntologyEntry {{name_lower:$name_lower}})
+        MATCH (entry:{label.value}:OntologyEntry {{name_lower:$name_lower}})
         WHERE $exclude_id IS NULL OR entry.id <> $exclude_id
     }} AS exists
     """
 
-def abbreviation_in_use(label):
+def abbreviation_in_use(label: OntologyEntryLabel):
     return f"""
     RETURN exists {{ 
-        MATCH (entry:{label}:OntologyEntry {{abbreviation_lower:$abbreviation_lower}})
+        MATCH (entry:{label.value}:OntologyEntry {{abbreviation_lower:$abbreviation_lower}})
         WHERE $exclude_id IS NULL OR entry.id <> $exclude_id
     }} AS exists
     """
 
-def create_ontology_entry(label):
-  if not label in [e.label for e in OntologyEntryStored.__subclasses__()]:
-    raise ValueError("Only ontology entry labels can be used")
-
+def create_ontology_entry(label: OntologyEntryLabel):
   query = f"""
     MERGE (c:Counter {{name:'ontology_entry'}})
     ON CREATE SET c.count = 0
     SET c.count = c.count + 1
-    CREATE (entry: {label}: OntologyEntry {{id: c.count}})
+    CREATE (entry: {label.value}: OntologyEntry {{id: c.count}})
     SET entry += $params
     WITH entry
     // Link contributor
@@ -64,53 +61,6 @@ def create_ontology_entry(label):
   """
   return query
 
-def update_ontology_entry(label):
-  if not label in [e.label for e in OntologyEntryStored.__subclasses__()]:
-    raise ValueError("Only ontology entry labels can be used")
-
-  query = f"""
-    MATCH (entry: OntologyEntry {{id: $entry_id}})
-    SET entry += $params
-    WITH entry
-    // Link contributor
-      CALL {{
-      WITH entry
-      MATCH (user: User {{id: $user_id}})
-      MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(entry)
-    }}
-    // Link authors
-    CALL {{
-      WITH entry
-      OPTIONAL MATCH (author: Person)-[authored:AUTHORED]->(entry)
-      WHERE NOT author.id in $authors
-      DELETE authored
-    }}
-    CALL {{ 
-      WITH entry
-      UNWIND $authors as author_id
-      MATCH (author: Person {{id: author_id}})
-      MERGE (author)-[authored:AUTHORED]->(entry)
-      ON CREATE SET authored.time = datetime.transaction()
-    }}
-    // Link References
-    CALL {{
-      WITH entry
-      OPTIONAL MATCH (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
-      WHERE NOT reference.id in $references
-      DELETE ref_for
-    }}
-    CALL {{
-      WITH entry
-      UNWIND $references as ref_id
-      MATCH (reference: Reference {{id: ref_id}})
-      MERGE (reference)-[ref_for:REFERENCE_FOR]->(entry)
-      ON CREATE SET ref_for.time = datetime.transaction()      
-    }}   
-    RETURN NULL 
-  """
-  return query
-
 def create_ontology_relationship(label: OntologyRelationshipLabel):
   try:
     label = OntologyRelationshipLabel(label)
@@ -128,11 +78,6 @@ def create_ontology_relationship(label: OntologyRelationshipLabel):
   return query
 
 def update_ontology_relationship(label: OntologyRelationshipLabel):
-  try:
-    label = OntologyRelationshipLabel(label)
-  except KeyError:
-    raise ValueError("Only ontology relationship labels can be used")
-
   query = f"""
     MATCH (source: OntologyEntry {{id:$source_id}})
         -[:HAS_RELATIONSHIP]->(rel:{label.value}:OntologyRelationship)
@@ -142,11 +87,6 @@ def update_ontology_relationship(label: OntologyRelationshipLabel):
   return query
 
 def get_relationship_by_label(label: OntologyRelationshipLabel):
-    try:
-        label = OntologyRelationshipLabel(label)
-    except KeyError:
-        raise ValueError("Only ontology relationship labels can be used")
-
     query = f"""
         MATCH (entry: OntologyEntry {{id:$entry_id}})
         MATCH (source: OntologyEntry)
@@ -161,10 +101,6 @@ def get_relationship_by_label(label: OntologyRelationshipLabel):
     return query
 
 def has_path_between_entries(label: OntologyRelationshipLabel):
-    try:
-        label = OntologyRelationshipLabel(label)
-    except KeyError:
-        raise ValueError("Only ontology relationship labels can be used")
     query = f"""
         MATCH (source:OntologyEntry {{id:$source_id}})
             (
@@ -179,7 +115,7 @@ def has_path_between_entries(label: OntologyRelationshipLabel):
     return query
 
 
-def entries_exist_by_label(labels: List[str] | None = None) -> str:
+def entries_exist_by_label(labels: List[OntologyEntryLabel] | None = None) -> str:
     """
     Build Cypher query to check if entries exist by ID, optionally filtered by labels.
     Args:
@@ -192,6 +128,8 @@ def entries_exist_by_label(labels: List[str] | None = None) -> str:
     """
     # Build match clause with optional label filtering
     if labels is not None and len(labels) > 0:
+        # get values of label enums as string
+        labels = [label.value for label in labels]
         if len(labels) == 1:
             match_clause = f"OPTIONAL MATCH (entry:OntologyEntry:{labels[0]} {{id: entry_id}})"
         else:
@@ -213,7 +151,7 @@ def entries_exist_by_label(labels: List[str] | None = None) -> str:
 
 def get_all_entries(
         phases: List[LifecyclePhase],
-        labels: List[str] | None = None,
+        labels: List[OntologyEntryLabel] | None = None,
         names: List[str] | None = None,
         entry_ids: List[int] | None = None,
         with_relationships: bool = False
@@ -232,9 +170,10 @@ def get_all_entries(
     Returns:
         Complete Cypher query string
     """
-
     # Build MATCH clause with label filtering
     if labels:
+        # get values of label enums as string
+        labels = [label.value for label in labels]
         match_clause = f"MATCH (entry:OntologyEntry:{labels[0]})-[:HAS_LIFECYCLE]->(entry_lifecycle:OntologyEntryLifecycle)"
     else:
         match_clause = "MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(entry_lifecycle:OntologyEntryLifecycle)"

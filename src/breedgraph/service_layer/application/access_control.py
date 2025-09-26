@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 from src.breedgraph.domain.model.controls import (
-    ControlledModel, ControlledAggregate, Controller, ReadRelease
+    ControlledModel, ControlledAggregate, Controller, ReadRelease, Access
 )
 from src.breedgraph.domain.events import Event
 from src.breedgraph.custom_exceptions import IllegalOperationError
@@ -20,6 +20,8 @@ class AbstractAccessControlService(ABC):
     """
     def __init__(self):
         self.events: List[Event] = []
+        self.user_id: int | None = None
+        self.access_teams: Dict[Access, Set[int]] | None = None
 
     def collect_events(self):
         while self.events:
@@ -165,15 +167,30 @@ class AbstractAccessControlService(ABC):
         }
         return controllers
 
+    async def initialize_user_context(self, user_id: int|None) -> None:
+        self.user_id = user_id
+        self.access_teams = {
+            a: set() for a in Access
+        }
+        if user_id is not None:
+            self.access_teams.update(await self.get_access_teams(user_id))
+
+
     # Abstract methods for concrete implementations
     @abstractmethod
     async def _get_controllers(self, label: str, model_ids: List[int]) -> Dict[int, Controller]:
         """Get controllers for multiple model instances - key batch operation"""
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def remove_controls(self, label: str, model_ids: List[int], team_id: int) -> None:
         """Remove a specific team's control from multiple models - batch operation"""
-        raise NotImplementedError
+        ...
+
+    @abstractmethod
+    async def get_access_teams(self, user_id: int = None) -> Dict[Access, Set[int]]:
+        """Get access teams for a user"""
+        ...
+
 
 

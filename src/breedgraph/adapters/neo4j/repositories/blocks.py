@@ -13,10 +13,7 @@ from typing import Set, AsyncGenerator, Tuple, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = UnitInput
-TAggregate = Block
-
-class Neo4jBlocksRepository(Neo4jControlledRepository):
+class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
 
     async def _create_controlled(self, unit: UnitInput) -> Block:
         stored_unit = await self._create_unit(unit)

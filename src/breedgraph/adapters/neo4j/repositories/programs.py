@@ -13,10 +13,7 @@ from typing import AsyncGenerator, List
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = ProgramInput
-TAggregate = ProgramStored
-
-class Neo4jProgramsRepository(Neo4jControlledRepository):
+class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramStored]):
 
     async def _create_controlled(self, program: ProgramInput) -> ProgramStored:
         async for existing_program in self._get_all_controlled():

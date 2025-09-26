@@ -10,11 +10,11 @@ WITH entry
 // Link methods
 CALL {
   WITH entry
-  UNWIND $methods AS method_id
-  MATCH (method: GermplasmMethod {id: method_id})
-  CREATE (entry)-[uses_method:USES_METHOD {time:datetime.transaction()}]->(method)
+  UNWIND $control_methods AS method_id
+  MATCH (control_method: ControlMethod {id: method_id})
+  CREATE (entry)-[uses_method:USES_CONTROL_METHOD {time:datetime.transaction()}]->(method)
   RETURN
-    collect(method.id) AS methods
+    collect(method.id) AS control_methods
 }
 // Link references
 CALL {
@@ -27,6 +27,6 @@ CALL {
 }
 RETURN entry {
        .*,
-         methods: methods,
+         control_methods: control_methods,
          references:references
      }

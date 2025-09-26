@@ -3,7 +3,7 @@ from .base import Command
 from typing import List
 
 class CreatePerson(Command):
-    submitting_user: int
+    agent_id: int
 
     name: str
     fullname: None|str = None
@@ -12,6 +12,7 @@ class CreatePerson(Command):
     email: None|str = None
     mail: None|str = None
     phone: None|str = None
+    orcid: None|str = None
     orcid: None|str = None
 
     description: None | str = None
@@ -24,7 +25,7 @@ class CreatePerson(Command):
 
 
 class UpdatePerson(Command):
-    submitting_user: int
+    agent_id: int
     person_id: int
 
     name: str|None = None
@@ -45,5 +46,5 @@ class UpdatePerson(Command):
 
 
 class DeletePerson(Command):
-    submitting_user: int
+    agent_id: int
     person_id: int

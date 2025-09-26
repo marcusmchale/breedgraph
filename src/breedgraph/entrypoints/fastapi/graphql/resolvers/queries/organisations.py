@@ -2,9 +2,7 @@ from ariadne import ObjectType
 
 from typing import List
 
-from src.breedgraph.domain.model.organisations import TeamOutput, Affiliation, Affiliations
-from src.breedgraph.domain.model.controls import Access
-
+from src.breedgraph.domain.model.organisations import TeamOutput
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
@@ -23,8 +21,7 @@ team = ObjectType("Team")
 affiliations = ObjectType("Affiliations")
 affiliation = ObjectType("Affiliation")
 user = ObjectType("User")
-user_access = ObjectType("UserAccess")
-graphql_resolvers.register_type_resolvers(team, affiliations, affiliation, user, user_access)
+graphql_resolvers.register_type_resolvers(team, affiliations, affiliation, user)
 
 @graphql_query.field("organisations")
 @graphql_payload
@@ -35,7 +32,7 @@ async def get_organisations(_, info) -> List[TeamOutput]:
     organisation_roots = info.context.get('organisation_roots')
     return [teams_map.get(i) for i in organisation_roots]
 
-@graphql_query.field("team")
+@graphql_query.field("organisationsTeam")
 @graphql_payload
 @require_authentication
 async def get_team(_, info, team_id: int) -> TeamOutput:
@@ -43,26 +40,13 @@ async def get_team(_, info, team_id: int) -> TeamOutput:
     teams_map = info.context.get('teams_map')
     return teams_map.get(team_id, None)
 
-@graphql_query.field("teams")
+@graphql_query.field("organisationsTeams")
 @graphql_payload
 @require_authentication
 async def get_teams(_, info, team_ids: List[int]) -> List[TeamOutput]:
     await update_teams_map(info.context, team_ids=team_ids)
     teams_map = info.context.get('teams_map')
     return [teams_map.get(team_id) for team_id in team_ids if team_id in teams_map]
-
-#@graphql_query.field("inherited_affiliations")
-#@graphql_payload
-#@require_authentication
-#async def get_inherited_affiliations(_, info, team_id) -> Affiliations:
-#    user_id = info.context.get('user_id')
-#    bus = info.context.get('bus')
-#    async with bus.uow.get_uow(user_id=user_id) as uow:
-#        organisation = await uow.repositories.organisations.get(team_id=team_id)
-#        if organisation is not None:
-#            return organisation.get_inherited_affiliations(team_id)
-#        else:
-#            return Affiliations()
 
 @team.field("parent")
 def resolve_parent(obj, info):
@@ -72,19 +56,19 @@ def resolve_parent(obj, info):
 def resolve_children(obj, info):
     return [info.context.get('teams_map').get(child) for child in obj.children]
 
-#@team.field("affiliations")
-#async def resolve_affiliations(obj, info):
-#    import pdb; pdb.set_trace()
+@team.field("affiliations")
+async def resolve_affiliations(obj, info):
+    return obj.affiliations
 #    """Resolve affiliations for a team"""
 #    #user_id = info.context.get('user_id')
-#    #bus = info.context.get('bus')
-#    #async with bus.uow.get_uow(user_id=user_id) as uow:
-#    #    organisation = await uow.repositories.organisations.get(team_id=obj.id)
-#    #    if organisation is not None:
-#    #        team_stored = organisation.get_team(obj.id)
-#    #        if team_stored:
-#    #            return team_stored.affiliations
-#    #    return Affiliations()
+    #bus = info.context.get('bus')
+    #async with bus.uow.get_uow(user_id=user_id) as uow:
+    #    organisation = await uow.repositories.organisations.get(team_id=obj.id)
+    #    if organisation is not None:
+    #        team_stored = organisation.get_team(obj.id)
+    #        if team_stored:
+    #            return team_stored.affiliations
+    #    return Affiliations()
 
 @affiliations.field("read")
 def resolve_read(obj, info):
@@ -116,49 +100,6 @@ def resolve_admin(obj, info):
 @affiliation.field("user")
 async def resolve_user(obj, info):
     await update_users_map(info.context, user_ids=[obj.get('user')])
+    if not obj.get('user') in info.context.get('users_map', {}):
+        import pdb; pdb.set_trace()
     return info.context.get('users_map', {}).get(obj.get('user'))
-
-
-@graphql_query.field("user_access")
-@graphql_payload
-@require_authentication
-async def get_user_access(_, info) -> dict:
-    """Get streamlined access teams for a user"""
-    # Use current user if no user provided
-    user = info.context.get('user_id')
-    bus = info.context.get('bus')
-    access_teams = await bus.uow.views.access_teams(user)
-    # Convert Access enum keys to strings and sets to lists for GraphQL
-    return {
-        access.value.casefold(): list(teams)
-        for access, teams in access_teams.items()
-    }
-
-# Field resolvers for UserAccess type
-@user_access.field("read")
-async def resolve_read_teams(obj: dict, info):
-    team_ids = obj.get('read', [])
-    await update_teams_map(info.context, team_ids)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
-
-@user_access.field("write")
-async def resolve_write_teams(obj: dict, info):
-    team_ids = obj.get('write', [])
-    await update_teams_map(info.context, team_ids)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
-
-@user_access.field("admin")
-async def resolve_admin_teams(obj: dict, info):
-    team_ids = obj.get('admin', [])
-    await update_teams_map(info.context, team_ids)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
-
-@user_access.field("curate")
-async def resolve_curate_teams(obj: dict, info):
-    team_ids = obj.get('curate', [])
-    await update_teams_map(info.context, team_ids)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]

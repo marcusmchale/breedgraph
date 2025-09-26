@@ -13,10 +13,7 @@ from typing import Set, AsyncGenerator, Tuple, List
 
 logger = logging.getLogger(__name__)
 
-TAggregateInput = LocationInput
-TAggregate = Region
-
-class Neo4jRegionsRepository(Neo4jControlledRepository):
+class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
 
     async def _create_controlled(self, location: LocationInput) -> Region:
         stored_location = await self._create_location(location)

@@ -4,14 +4,14 @@ WITH entry
 // Link methods
 CALL {
   WITH entry
-  MATCH (entry)-[uses_method:USES_METHOD ]->(method:GermplasmMethod)
-    WHERE NOT method.id IN $methods
+  MATCH (entry)-[uses_method:USES_CONTROL_METHOD ]->(method:ControlMethod)
+    WHERE NOT method.id IN $control_methods
   DELETE uses_method
 }
 CALL {
   WITH entry
-  MATCH (method:GermplasmMethod) WHERE method.id IN $methods
-  MERGE (entry)-[uses_method:USES_METHOD]->(method)
+  MATCH (method:ControlMethod) WHERE method.id IN $control_methods
+  MERGE (entry)-[uses_method:USES_CONTROL_METHOD]->(method)
   ON CREATE SET uses_method.time = datetime.transaction()
 }
 // Link references

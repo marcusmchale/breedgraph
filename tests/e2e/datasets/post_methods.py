@@ -1,14 +1,14 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_add_dataset(client, token:str, term: int):
+async def post_to_create_dataset(client, token:str, concept_id: int):
     json={
         "query": (
             " mutation ( "
-            "  $term: Int!"
+            "  $conceptId: Int!"
             " ) { "
-            "  data_add_dataset( "
-            "    term: $term "
+            "  datasetsCreateDataset( "
+            "    conceptId: $conceptId "
             "  ) { "
             "    status, "
             "    result, "
@@ -17,7 +17,7 @@ async def post_to_add_dataset(client, token:str, term: int):
             " } "
         ),
         "variables": {
-            "term": term
+            "conceptId": concept_id
         }
     }
     headers = with_auth(
@@ -34,7 +34,7 @@ async def post_to_add_record(client, token:str, record: dict):
             " mutation ( "
             "  $record: RecordInput!"
             " ) { "
-            "  data_add_record( "
+            "  datasetsAddRecord( "
             "    record: $record "
             "  ) { "
             "    status, "
@@ -54,21 +54,21 @@ async def post_to_add_record(client, token:str, record: dict):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, term_id: int|None = None):
+async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, concept_id: int|None = None):
     json={
         "query": (
             " query ( "
-            "  $dataset_id: Int"
-            "  $term_id: Int"
+            "  $datasetId: Int"
+            "  $conceptId: Int"
             " ) { "
             "  datasets( "
-            "    dataset_id: $dataset_id "
-            "    term_id: $term_id "
+            "    datasetId: $datasetId "
+            "    conceptId: $conceptId "
             "  ) { "
             "    status, "
             "    result { "
             "       id, "
-            "       term {id},"
+            "       concept {id, name, description},"
             "       records { unit {id} } "
             "   } "
             "   errors { name, message } "
@@ -76,8 +76,8 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, t
             " } "
         ),
         "variables": {
-            "dataset_id": dataset_id,
-            "term_id": term_id
+            "datasetId": dataset_id,
+            "conceptId": concept_id
 
         }
     }

@@ -22,13 +22,13 @@ graphql_resolvers.register_type_resolvers(unit)
 @graphql_query.field("blocks")
 @graphql_payload
 @require_authentication
-async def get_blocks(_, info, location: int = None) -> List[UnitOutput]:
-    await update_units_map(info.context, location)
+async def get_blocks(_, info, location_id: int = None) -> List[UnitOutput]:
+    await update_units_map(info.context, location_id=location_id)
     units_map = info.context.get('units_map')
     block_roots = info.context.get('block_roots')
     return [units_map.get(i) for i in block_roots]
 
-@graphql_query.field("unit")
+@graphql_query.field("blocksUnit")
 @graphql_payload
 @require_authentication
 async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
@@ -38,10 +38,6 @@ async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
 
 @unit.field("subject")
 async def resolve_subject(obj, info):
-    await update_ontology_map(info.context, entry=obj.subject)
-    ontology = info.context.get('ontology')
-    return ontology.to_output(obj.subject)
-
-@unit.field("release")
-def resolve_release(obj, info):
-    return obj.release.name
+    await update_ontology_map(info.context, entry_ids=[obj.subject_id])
+    ontology_map = info.context.get('ontology_map')
+    return ontology_map.get(obj.subject_id)

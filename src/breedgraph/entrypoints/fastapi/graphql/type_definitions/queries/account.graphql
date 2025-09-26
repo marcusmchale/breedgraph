@@ -7,7 +7,7 @@ type User {
 
 type Account {
     user: User!
-    allowed_emails: [String]
-    allowed_users: [User]
+    allowedEmails: [String]
+    allowedUsers: [User]
 }
 

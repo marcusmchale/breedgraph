@@ -18,18 +18,15 @@ from ..registry import handlers
 import logging
 logger = logging.getLogger(__name__)
 
-
 # Program Handlers
 @handlers.command_handler()
 async def create_program(
         cmd: commands.programs.CreateProgram,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user, release=ReadRelease[cmd.release]) as uow:
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
         # Check if a program with the same name already exists
         existing_program = await uow.repositories.programs.get(name=cmd.name)
-
-
         if existing_program is not None:
             raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
 
@@ -40,7 +37,6 @@ async def create_program(
             contacts=cmd.contacts,
             references=cmd.references
         )
-
         await uow.repositories.programs.create(program)
         await uow.commit()
 
@@ -49,10 +45,10 @@ async def update_program(
         cmd: commands.programs.UpdateProgram,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        program = await uow.repositories.programs.get(id=cmd.program)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(id=cmd.program_id)
         if program is None:
-            raise NoResultFoundError(f"Program with ID {cmd.program} not found")
+            raise NoResultFoundError(f"Program with ID {cmd.program_id} not found")
 
         # Check if updating name would create a conflict
         if cmd.name is not None and cmd.name != program.name:
@@ -71,10 +67,6 @@ async def update_program(
             program.contacts = cmd.contacts
         if cmd.references is not None:
             program.references = cmd.references
-        if cmd.release is not None:
-            # Update the release level for the program
-            # Note: This assumes the program has access control and the user has appropriate permissions
-            program.set_release(team_id=None, release=ReadRelease[cmd.release])
 
         await uow.commit()
 
@@ -83,7 +75,7 @@ async def delete_program(
         cmd: commands.programs.DeleteProgram,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
 
         program = await uow.repositories.programs.get(program_id=cmd.program)
         if program is None:
@@ -99,8 +91,8 @@ async def create_trial(
         cmd: commands.programs.CreateTrial,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user, release=ReadRelease[cmd.release]) as uow:
-        program = await uow.repositories.programs.get(id=cmd.program)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
 
@@ -113,7 +105,6 @@ async def create_trial(
             contacts=cmd.contacts,
             references=cmd.references
         )
-
         program.add_trial(trial)
         await uow.commit()
 
@@ -122,10 +113,14 @@ async def update_trial(
         cmd: commands.programs.UpdateTrial,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        trial = await uow.trials.get(id=cmd.trial)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(id=cmd.program_id)
+        if program is None:
+            raise NoResultFoundError(f"Program with ID {cmd.program} not found")
+
+        trial = program.trials.get(cmd.trial_id)
         if trial is None:
-            raise NoResultFoundError(f"Trial with ID {cmd.trial} not found")
+            raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
 
         # Update fields that are provided
         if cmd.name is not None:
@@ -142,9 +137,6 @@ async def update_trial(
             trial.contacts = cmd.contacts
         if cmd.references is not None:
             trial.references = cmd.references
-        if cmd.release is not None:
-            # Update the release level for the trial
-            trial.set_release(team_id=None, release=ReadRelease[cmd.release])
 
         await uow.commit()
 
@@ -153,16 +145,15 @@ async def delete_trial(
         cmd: commands.programs.DeleteTrial,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        trial = await uow.trials.get(id=cmd.trial)
-        if trial is None:
-            raise NoResultFoundError(f"Trial with ID {cmd.trial} not found")
-
-        # Check if trial has studies that would prevent deletion
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.programs.get(trial_id=cmd.trial_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing trial with ID {cmd.trial_id} not found")
+        trial = program.trials.get(cmd.trial_id)
+        # Check if trial has studies that should prevent deletion
         if hasattr(trial, 'studies') and trial.studies:
             raise UnauthorisedOperationError("Cannot delete trial that contains studies")
-
-        await uow.trials.remove(trial)
+        program.remove_trial(trial)
         await uow.commit()
 
 
@@ -172,11 +163,12 @@ async def create_study(
         cmd: commands.programs.CreateStudy,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user, release=ReadRelease[cmd.release]) as uow:
-        trial = await uow.trials.get(id=cmd.trial)
-        if trial is None:
-            raise NoResultFoundError(f"Trial with ID {cmd.trial} not found")
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.programs.get(trial_id=cmd.trial_id)
+        if program is None:
+            raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")
 
+        trial = program.trials.get(cmd.trial_id)
         study = StudyInput(
             name=cmd.name,
             fullname=cmd.fullname if cmd.fullname else cmd.name,
@@ -184,8 +176,7 @@ async def create_study(
             practices=cmd.practices,
             start=cmd.start,
             end=cmd.end,
-            factors=cmd.factors,
-            observations=cmd.observations,
+            datasets=cmd.datasets,
             design=cmd.design,
             licence=cmd.licence,
             references=cmd.references
@@ -199,10 +190,12 @@ async def update_study(
         cmd: commands.programs.UpdateStudy,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        study = await uow.studies.get(id=cmd.study)
-        if study is None:
-            raise NoResultFoundError(f"Study with ID {cmd.study} not found")
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.programs.get(study_id=cmd.study_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing study with ID {cmd.study} not found")
+
+        study = program.get_study(cmd.study_id)
 
         # Update fields that are provided
         if cmd.name is not None:
@@ -217,20 +210,14 @@ async def update_study(
             study.start = cmd.start
         if cmd.end is not None:
             study.end = cmd.end
-        if cmd.factors is not None:
-            study.factors = cmd.factors
-        if cmd.observations is not None:
-            study.observations = cmd.observations
+        if cmd.datasets is not None:
+            study.datasets = cmd.datasets
         if cmd.design is not None:
             study.design = cmd.design
         if cmd.licence is not None:
             study.licence = cmd.licence
         if cmd.references is not None:
             study.references = cmd.references
-        if cmd.release is not None:
-            # Update the release level for the study
-            study.set_release(team_id=None, release=ReadRelease[cmd.release])
-
         await uow.commit()
 
 @handlers.command_handler()
@@ -238,10 +225,10 @@ async def delete_study(
         cmd: commands.programs.DeleteStudy,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user) as uow:
-        study = await uow.studies.get(id=cmd.study)
-        if study is None:
-            raise NoResultFoundError(f"Study with ID {cmd.study} not found")
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.programs.get(study_id=cmd.study_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
 
-        await uow.studies.remove(study)
+        program.remove_study(cmd.study_id)
         await uow.commit()

@@ -10,7 +10,8 @@ type Record {
 
 type DataSet {
     id: Int!
-    term: OntologyEntryInterface
+    # concept is either a Factor or Variable in the ontology
+    concept: OntologyEntryInterface
     records: [Record]
     contributors: [Int]
     references: [Int]

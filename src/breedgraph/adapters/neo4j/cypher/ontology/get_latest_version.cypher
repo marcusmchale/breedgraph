@@ -1,4 +1,4 @@
-MATCH (version:OntologyCommit)
-RETURN version {.*}
-ORDER BY version.id DESCENDING
+MATCH (commit:OntologyCommit)
+RETURN commit.version
+ORDER BY commit.version DESCENDING
 LIMIT 1

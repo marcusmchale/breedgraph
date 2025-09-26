@@ -2,12 +2,12 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar
 
 @dataclass
 class RoleBase(OntologyEntryBase):
-    label: ClassVar[str] = 'Role'
-    plural: ClassVar[str] = 'Roles'
+    label: ClassVar[str] = OntologyEntryLabel.ROLE
     """
     e.g. Scientist, Admin etc.
     """
@@ -26,8 +26,7 @@ class RoleOutput(RoleBase, OntologyEntryOutput):
 
 @dataclass
 class TitleBase(OntologyEntryBase):
-    label: ClassVar[str] = 'Title'
-    plural: ClassVar[str] = 'Titles'
+    label: ClassVar[str] = OntologyEntryLabel.TITLE
     """
     e.g. Mr, Ms, Dr etc.
     """

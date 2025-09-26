@@ -12,20 +12,12 @@ from src.breedgraph.adapters.neo4j.repositories import Neo4jArrangementsReposito
 async def test_create_row_arrangement(
         uncommitted_neo4j_tx,
         neo4j_access_control_service,
-        stored_account,
-        stored_organisation,
-        read_model,
         row_layout_type,
         field_location
 ):
     repo = Neo4jArrangementsRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-        }
+        access_control_service=neo4j_access_control_service
     )
     row_layout_input = LayoutInput(type=row_layout_type.id, location=field_location.id, axes=[AxisType.ORDINAL])
     stored: Arrangement = await repo.create(row_layout_input)
@@ -42,26 +34,27 @@ async def test_create_row_arrangement(
 async def test_extend_row_with_grid(
         uncommitted_neo4j_tx,
         neo4j_access_control_service,
-        stored_account,
-        stored_organisation,
+        row_layout_type,
+        field_location,
         grid_layout_type
 ):
     repo = Neo4jArrangementsRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-        }
+        access_control_service=neo4j_access_control_service
     )
-    arrangement = await anext(repo.get_all())
+    arrangement = None
+    async for arrangement in repo.get_all(location_id=field_location.id):
+        if arrangement.root.type == row_layout_type.id:
+            break
+
     grid_layout_input_1 = LayoutInput(name = "layout 1", type=grid_layout_type.id, location=arrangement.root.location)
     grid_layout_input_2 = LayoutInput(name = "layout 2", type=grid_layout_type.id)
-    arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position=["1"])
-    arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=["2"])
+    arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position = ["1"])
+    arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position = ["2"])
+    with pytest.raises(ValueError, match="Position should have same length as the parent layout axes"):
+        arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=["3", "4"])
     await repo.update_seen()
-    arrangement = await repo.get()
+    arrangement = await repo.get(layout_id = arrangement.root.id)
     found = 0
     for k, v in arrangement.get_sinks(arrangement.root.id).items():
         if v.name in [grid_layout_input_1.name, grid_layout_input_2.name]:

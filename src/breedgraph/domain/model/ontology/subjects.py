@@ -21,12 +21,12 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar
 
 @dataclass
 class SubjectBase(OntologyEntryBase):
-    label: ClassVar[str] = 'Subject'
-    plural: ClassVar[str] = 'Subjects'
+    label: ClassVar[str] = OntologyEntryLabel.SUBJECT
 
 @dataclass
 class SubjectInput(SubjectBase, OntologyEntryInput):

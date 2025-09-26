@@ -53,13 +53,13 @@ class DataSetBase(ABC):
         Typically, a dataset will be referenced by a single study,
         though multiple studies may reference a common dataset.
 
-        "ontology_id" should reference to Variable, EventType or Parameter in the ontology.
+        "ontology_id" should reference to Variable or Factor in the ontology.
         "Records" is a list of DataRecord
         """
     label: ClassVar[str] = 'DataSet'
     plural: ClassVar[str] = 'DataSets'
 
-    ontology_id: int = None
+    concept: int = None
     records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
 
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
@@ -92,7 +92,7 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
     def model_dump(self):
         return {
             'id': self.id,
-            'ontology_id': self.ontology_id,
+            'concept': self.concept,
             'records': [record.model_dump() for record in self.records],
             'contributors': self.contributors,
             'references': self.references

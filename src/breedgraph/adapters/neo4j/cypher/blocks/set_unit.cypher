@@ -1,7 +1,6 @@
 MATCH (unit: Unit {id:$id})
 SET
   unit.name = $name,
-  unit.synonyms = $synonyms,
   unit.description = $description
 WITH
   unit

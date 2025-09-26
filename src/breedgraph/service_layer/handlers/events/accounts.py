@@ -87,8 +87,8 @@ async def email_verified(
     # now that email is verified we can remove the allowed email to keep things tidy
     async with uow.get_uow() as uow:
         new_account = await uow.repositories.accounts.get(user_id=event.user)
-        async for account in uow.repositories.accounts.get_all(allowed_email=new_account.email):
-            account.allowed_emails.remove(new_account.email)
+        async for account in uow.repositories.accounts.get_all(allowed_email=new_account.user.email):
+            account.allowed_emails.remove(new_account.user.email)
 
 @handlers.event_handler()
 async def password_change_requested(

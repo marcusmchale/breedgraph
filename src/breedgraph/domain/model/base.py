@@ -57,7 +57,7 @@ class Aggregate(ABC):
 
     @property
     @abstractmethod
-    def root(self) -> StoredModel:
+    def root(self):
         raise NotImplementedError
 
     @property

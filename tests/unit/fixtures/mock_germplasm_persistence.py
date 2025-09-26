@@ -28,7 +28,7 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
             origin=entry.origin,
             time=entry.time,
             reproduction=entry.reproduction,
-            methods=entry.methods
+            control_methods=entry.control_methods
         )
 
         self.entries[entry_id] = stored_entry

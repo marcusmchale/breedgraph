@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from src.breedgraph.adapters.neo4j.cypher import queries
+from src.breedgraph.domain.model.ontology import OntologyEntryLabel
 from src.breedgraph.domain.model.regions import LocationInput, LocationStored
 from src.breedgraph.domain.model.ontology.location_type import LocationTypeInput, LocationTypeStored, LocationTypeOutput
 
@@ -24,7 +25,11 @@ class RedisLoader:
         self.connection = connection
         self.uow: AbstractUnitOfWork = uow
 
-    async def load_read_model(self, user_id:int = None) -> None:
+    async def load_read_model(self, ) -> None:
+        # todo rethink this, it it safe to assume the system user is 1?
+        # should be, and if not it is only required to create the initial ontology entries anyway
+        user_id = 1
+
         async with self.uow.get_uow(user_id = user_id) as uow:
             await self.load_ontology(uow)
             await self.load_countries(uow)
@@ -40,14 +45,12 @@ class RedisLoader:
 
     async def load_countries(self, uow: AbstractUnitHolder):
         # get the country type
-        country_type_id = None
-        entries_json = await self.connection.hgetall("LocationType")
-        for entry_json in entries_json.values():
-            entry_data = json.loads(entry_json)
-            if entry_data.get('name') == "Country":
-                country_type_id = entry_data.get('id')
-                break
-        async for country in uow.views.get_countries():
+        country_type = await uow.ontology.get_entry(label=OntologyEntryLabel.LOCATION_TYPE, name="Country")
+        if country_type is None:
+            country_type = await uow.ontology.create_entry(LocationTypeInput(name="Country"))
+        country_type_id = country_type.id
+
+        async for country in uow.views.regions.get_locations_by_type(country_type_id):
             await self.connection.hset(
                 name="country",
                 key=country.code,

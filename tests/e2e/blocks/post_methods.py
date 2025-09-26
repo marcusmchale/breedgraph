@@ -1,13 +1,13 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_add_unit(client, token:str, unit: dict):
+async def post_to_create_unit(client, token:str, unit: dict):
     json={
         "query": (
             " mutation ( "
             "  $unit: UnitInput!"
             " ) { "
-            "  blocks_add_unit( "
+            "  blocksCreateUnit( "
             "    unit: $unit "
             "  ) { "
             "    status, "
@@ -31,11 +31,11 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
     json={
         "query": (
             " mutation ( "
-            "  $unit_id: Int! "
+            "  $unitId: Int! "
             "  $position: PositionInput"
             " ) { "
-            "  blocks_add_position( "
-            "    unit_id: $unit_id "
+            "  blocksAddPosition( "
+            "    unitId: $unitId "
             "    position: $position "
             "  ) { "
             "    status, "
@@ -45,7 +45,7 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
             " } "
         ),
         "variables": {
-            "unit_id": unit_id,
+            "unitId": unit_id,
             "position": position
         }
     }
@@ -61,10 +61,10 @@ async def post_to_blocks(client, token:str, location_id: int = None):
     json={
         "query": (
             " query ( "
-            "  $location_id: Int"
+            "  $locationId: Int"
             " ) { "
             "  blocks( "
-            "    location_id: $location_id "
+            "    locationId: $locationId "
             "  ) { "
             "    status, "
             "    result { "
@@ -78,7 +78,7 @@ async def post_to_blocks(client, token:str, location_id: int = None):
             " } "
         ),
         "variables": {
-            "location_id": location_id
+            "locationId": location_id
         }
     }
     headers = with_auth(
@@ -92,10 +92,10 @@ async def post_to_unit(client, unit_id: int, token:str = None):
     json = {
         "query": (
             " query ("
-            "   $unit_id : Int!"
+            "   $unitId : Int!"
             " ) { "
-            "  unit ( "
-            "  unit_id: $unit_id,"
+            "  blocksUnit ( "
+            "  unitId: $unitId,"
             "  ) {"
             "    status, "
             "    result { "
@@ -104,14 +104,13 @@ async def post_to_unit(client, unit_id: int, token:str = None):
             "       subject { id, name }"
             "       parents {id, name, subject {id, name} } "
             "       children {id, name, subject {id, name} } "
-            "       release "
             "    }, "
             "    errors { name, message } "
             "   } "
             " } "
         ),
         "variables": {
-            "unit_id": unit_id,
+            "unitId": unit_id,
         }
     }
     headers = with_auth(

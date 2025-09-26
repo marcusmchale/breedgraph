@@ -11,7 +11,7 @@ async def post_to_create_account(client, name: str, email: str, password: str):
             "  $email: String!,"
             "  $password: String!"
             " ) { "
-            "  create_account( "
+            "  accountsCreateAccount( "
             "    name: $name, "
             "    fullname: $fullname, "
             "    email: $email, "
@@ -39,7 +39,7 @@ async def post_to_login(client, username: str, password: str):
             "  $username: String!,"
             "  $password: String!,"
             " ) { "
-            "  login( "
+            "  accountsLogin( "
             "    username: $username, "
             "    password: $password"
             "  ) { "
@@ -63,7 +63,7 @@ async def post_to_verify_email(client, token: str):
             " mutation ( "
             "  $token: String!"
             " ) { "
-            "  verify_email( "
+            "  accountsVerifyEmail( "
             "    token: $token "
             "  ) { "
             "    status, "
@@ -84,7 +84,7 @@ async def post_to_add_email(client, token: str, email: str):
             " mutation ( "
             "  $email: String!"
             " ) { "
-            "  add_email( "
+            "  accountsAddEmail( "
             "    email: $email, "
             "  ) { "
             "    status, "
@@ -110,7 +110,7 @@ async def post_to_remove_email(client, token: str, email: str):
             " mutation ( "
             "  $email: String!"
             " ) { "
-            "  remove_email( "
+            "  accountsRemoveEmail( "
             "    email: $email, "
             "  ) { "
             "    status, "
@@ -135,7 +135,7 @@ async def post_to_account(client, token:str):
     json = {
         "query": (
             " query { "
-            "  account { "
+            "  accountsAccount { "
             "    status, "
             "    result {"
             "       user {id, name, fullname, email} "
@@ -157,10 +157,10 @@ async def post_to_users(client, token:str, user_id: None|int = None):
     json = {
         "query": (
             " query ( "
-            "   $user_id : Int "
+            "   $userId : Int "
             " ) { "
-            "  users ( "
-            "  user_id: $user_id"
+            "  accountsUsers ( "
+            "  userId: $userId"
             "  ) { "
             "    status, "
             "    result {"
@@ -171,7 +171,7 @@ async def post_to_users(client, token:str, user_id: None|int = None):
             " } "
         ),
         "variables": {
-            "user_id": user_id,
+            "userId": user_id,
         }
     }
     headers = with_auth(
@@ -186,11 +186,11 @@ async def post_to_request_affiliation(client, token:str, team_id: int, access: A
     json = {
         "query": (
             " mutation ( "
-            "  $team_id: Int!"
+            "  $teamId: Int!"
             "  $access: Access!"
             " ) { "
-            "  request_affiliation( "
-            "    team_id: $team_id,"
+            "  accountsRequestAffiliation( "
+            "    teamId: $teamId,"
             "    access: $access "
             "  ) { "
             "    status, "
@@ -200,7 +200,7 @@ async def post_to_request_affiliation(client, token:str, team_id: int, access: A
             " } "
         ),
         "variables": {
-            "team_id": team_id,
+            "teamId": team_id,
             "access": access
         }
     }
@@ -215,13 +215,13 @@ async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: i
     json = {
         "query": (
             " mutation ( "
-            "  $user_id: Int!, "
-            "  $team_id: Int!"
+            "  $userId: Int!, "
+            "  $teamId: Int!"
             "  $access: Access!"
             " ) { "
-            "  approve_affiliation( "
-            "    user_id: $user_id, "
-            "    team_id: $team_id, "
+            "  accountsApproveAffiliation( "
+            "    userId: $userId, "
+            "    teamId: $teamId, "
             "    access: $access"
             "  ) { "
             "    status, "
@@ -231,8 +231,8 @@ async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: i
             " } "
         ),
         "variables": {
-            "user_id": user_id,
-            "team_id": team_id,
+            "userId": user_id,
+            "teamId": team_id,
             "access": access
         }
     }
@@ -247,13 +247,13 @@ async def post_to_remove_affiliation(client, token:str, user_id:int, team_id: in
     json = {
         "query": (
             " mutation ( "
-            "  $user_id: Int!, "
-            "  $team_id: Int!, "
+            "  $userId: Int!, "
+            "  $teamId: Int!, "
             "  $access: Access!"
             " ) { "
-            "  remove_affiliation( "
-            "    user_id: $user_id, "
-            "    team_id: $team_id,"
+            "  accountsRemoveAffiliation( "
+            "    userId: $userId, "
+            "    teamId: $teamId,"
             "    access: $access"
             "  ) { "
             "    status, "
@@ -263,8 +263,8 @@ async def post_to_remove_affiliation(client, token:str, user_id:int, team_id: in
             " } "
         ),
         "variables": {
-            "user_id": user_id,
-            "team_id": team_id,
+            "userId": user_id,
+            "teamId": team_id,
             "access": access
         }
     }
@@ -292,7 +292,7 @@ async def post_to_edit_user(
             "  $email: String,"
             "  $password: String"
             " ) { "
-            "  edit_user( "
+            "  accountsEditUser( "
             "    name: $name, "
             "    fullname: $fullname, "
             "    email: $email, "

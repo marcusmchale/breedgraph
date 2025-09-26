@@ -15,14 +15,14 @@ from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
+from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
 from typing import List, ClassVar
 
 
 @dataclass
 class EventTypeBase(OntologyEntryBase):
-    label: ClassVar[str] = 'EventType'
-    plural: ClassVar[str] = 'EventTypes'
+    label: ClassVar[str] = OntologyEntryLabel.EVENT
     """
     The EventType may have multiple variables and/or factors associated with it.
     """

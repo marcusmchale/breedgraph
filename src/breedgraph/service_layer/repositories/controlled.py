@@ -1,37 +1,43 @@
 from abc import abstractmethod
-from typing import Dict, Set, AsyncGenerator
+from typing import Dict, Set, AsyncGenerator, TypeVar, Generic
 
 from pydantic import BaseModel
 
 from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
-from src.breedgraph.service_layer.repositories.base import BaseRepository
+from src.breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.domain.model.controls import ReadRelease, ControlledAggregate, ControlledModel
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
+TControlledAggregate = TypeVar("TControlledAggregate", bound=ControlledAggregate)
 
-class ControlledRepository(BaseRepository):
+class ControlledRepository(
+    Generic[TAggregateInput, TControlledAggregate],
+    BaseRepository[TAggregateInput, TControlledAggregate]
+):
 
     def __init__(
             self,
             access_control_service: AbstractAccessControlService,
-            user_id: int = None,
-            access_teams: Dict[Access, Set[int]] = None,
             release: ReadRelease = ReadRelease.PRIVATE,
     ):
         super().__init__()
         self.access_control_service = access_control_service
-        self.user_id = user_id
-        if access_teams is None:
-            access_teams = {}
-        self.access_teams = {access: access_teams.get(access, set()) for access in Access}
         self.release = release
+
+    @property
+    def user_id(self):
+        return self.access_control_service.user_id
+
+    @property
+    def access_teams(self):
+        return self.access_control_service.access_teams
 
     async def _create(
             self,
             aggregate_input: BaseModel
-    ) -> ControlledAggregate:
+    ) -> TControlledAggregate:
         aggregate = await self._create_controlled(aggregate_input)
         await self.access_control_service.set_controls(
             aggregate,
@@ -50,10 +56,10 @@ class ControlledRepository(BaseRepository):
     @abstractmethod
     async def _create_controlled(
             self, aggregate_input: BaseModel
-    ) -> ControlledAggregate:
+    ) -> TControlledAggregate:
         raise NotImplementedError
 
-    async def _get(self, **kwargs) -> ControlledAggregate | None:
+    async def _get(self, **kwargs) -> TControlledAggregate | None:
         aggregate = await self._get_controlled(**kwargs)
         if aggregate is not None:
             controllers = await self.access_control_service.get_controllers_for_aggregate(aggregate)
@@ -65,10 +71,10 @@ class ControlledRepository(BaseRepository):
         return None
 
     @abstractmethod
-    async def _get_controlled(self, **kwargs) -> ControlledAggregate:
+    async def _get_controlled(self, **kwargs) -> TControlledAggregate:
         raise NotImplementedError
 
-    async def _get_all(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
+    async def _get_all(self, **kwargs) -> AsyncGenerator[TControlledAggregate, None]:
         async for aggregate in self._get_all_controlled(**kwargs):
             if aggregate is not None:
                 controllers = await self.access_control_service.get_controllers_for_aggregate(aggregate)
@@ -81,10 +87,10 @@ class ControlledRepository(BaseRepository):
                     yield aggregate
 
     @abstractmethod
-    def _get_all_controlled(self, **kwargs) -> AsyncGenerator[ControlledAggregate, None]:
+    def _get_all_controlled(self, **kwargs) -> AsyncGenerator[TControlledAggregate, None]:
         raise NotImplementedError
 
-    async def _remove(self, aggregate: ControlledAggregate):
+    async def _remove(self, aggregate: TControlledAggregate):
         if aggregate.protected:
             raise UnauthorisedOperationError(aggregate.protected)
         controllers = await self.access_control_service.get_controllers_for_aggregate(aggregate)
@@ -95,10 +101,10 @@ class ControlledRepository(BaseRepository):
         await self._remove_controlled(aggregate)
 
     @abstractmethod
-    async def _remove_controlled(self, aggregate: ControlledAggregate):
+    async def _remove_controlled(self, aggregate: TControlledAggregate):
         raise NotImplementedError
 
-    async def _update(self, aggregate: ControlledAggregate | TrackedObject):
+    async def _update(self, aggregate: TControlledAggregate | TrackedObject):
         if not aggregate.changed:
             return
 
@@ -132,7 +138,7 @@ class ControlledRepository(BaseRepository):
         )
 
     @abstractmethod
-    async def _update_controlled(self, aggregate: ControlledAggregate | TrackedObject):
+    async def _update_controlled(self, aggregate: TControlledAggregate | TrackedObject):
         raise NotImplementedError
 
     async def set_entity_access_controls(

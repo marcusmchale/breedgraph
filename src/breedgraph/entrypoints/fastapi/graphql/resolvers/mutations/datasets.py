@@ -9,21 +9,21 @@ logger = logging.getLogger(__name__)
 
 from . import graphql_mutation
 
-@graphql_mutation.field("data_create_dataset")
+@graphql_mutation.field("datasetsCreateDataset")
 @graphql_payload
 @require_authentication
 async def create_dataset(
         _,
         info,
-        term: int
+        concept_id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} adds dataset for term: {term}")
-    cmd = CreateDataSet(user=user_id, term=term)
+    logger.debug(f"User {user_id} adds dataset for ontology entry: {concept_id}")
+    cmd = CreateDataSet(agent_id=user_id, concept_id=concept_id)
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("data_add_record")
+@graphql_mutation.field("datasetsAddRecord")
 @graphql_payload
 @require_authentication
 async def add_record(
@@ -33,6 +33,6 @@ async def add_record(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds record: {record}")
-    cmd = AddRecord(user=user_id, **record)
+    cmd = AddRecord(agent_id=user_id, **record)
     await info.context['bus'].handle(cmd)
     return True

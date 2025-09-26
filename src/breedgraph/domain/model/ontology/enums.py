@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import lru_cache
 
 class LifecyclePhase(Enum):
     """Enumeration of lifecycle phases for ontology entries and relationships."""
@@ -60,6 +61,54 @@ class ScaleType(str, Enum):
     NOMINAL = "NOMINAL"  # should have categories
     ORDINAL = "ORDINAL"  # should have categories
     GERMPLASM = "GERMPLASM" # Categories are from Germplasm
+
+class OntologyEntryLabel(str, Enum):
+    TERM = "Term"
+    SUBJECT = "Subject"
+    SCALE = "Scale"
+    CATEGORY = "Category"
+    OBSERVATION_METHOD = "ObservationMethod"
+    TRAIT = "Trait"
+    VARIABLE = "Variable"
+    CONTROL_METHOD = "ControlMethod"
+    CONDITION = "Condition"
+    FACTOR = "Factor"
+    EVENT = "EventType"
+    LOCATION_TYPE = "LocationType"
+    LAYOUT_TYPE = "LayoutType"
+    DESIGN = "Design"
+    ROLE = "Role"
+    TITLE = "Title"
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def _enum_to_plural_map(cls):
+        return {
+            cls.TERM: "Terms",
+            cls.SUBJECT: "Subjects",
+            cls.SCALE: "Scales",
+            cls.CATEGORY: "Categories",
+            cls.OBSERVATION_METHOD: "ObservationMethods",
+            cls.TRAIT: "Traits",
+            cls.VARIABLE: "Variables",
+            cls.CONTROL_METHOD: "ControlMethods",
+            cls.CONDITION: "Conditions",
+            cls.FACTOR: "Factors",
+            cls.EVENT: "EventTypes",
+            cls.LOCATION_TYPE: "LocationTypes",
+            cls.LAYOUT_TYPE: "LayoutTypes",
+            cls.DESIGN: "Designs",
+            cls.ROLE: "Roles",
+            cls.TITLE: "Titles"
+        }
+
+    @property
+    def label(self):
+        return self.value
+
+    @property
+    def plural(self):
+        return self._enum_to_plural_map()[self]
 
 class OntologyRelationshipLabel(str, Enum):
     PARENT_OF = 'ParentOf' # Any => SAME_TYPE

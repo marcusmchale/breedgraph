@@ -53,19 +53,18 @@ async def test_edit_study(
         neo4j_access_control_service,
         lorem_text_generator,
         uncommitted_neo4j_tx,
-        stored_account,
-        stored_organisation
+        first_unstored_account,
+        first_unstored_organisation
 ):
     program = await programs_repo.get()
     study = program.trials[1].studies[1]
     study.name = 'New Study Name'
     await programs_repo.update_seen()
 
+    await neo4j_access_control_service.initialize_user_context(user_id = first_unstored_account.user.id)
     new_repo = Neo4jProgramsRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={Access.READ: [stored_organisation.root.id]}
+        access_control_service=neo4j_access_control_service
     )
     retrieved = await new_repo.get()
     study = retrieved.trials[1].studies[1]
@@ -76,9 +75,7 @@ async def test_edit_trial(
         programs_repo,
         neo4j_access_control_service,
         lorem_text_generator,
-        uncommitted_neo4j_tx,
-        stored_account,
-        stored_organisation
+        uncommitted_neo4j_tx
 ):
     program = await programs_repo.get()
     trial = program.trials[1]
@@ -87,9 +84,7 @@ async def test_edit_trial(
 
     new_repo = Neo4jProgramsRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={Access.READ: [stored_organisation.root.id]}
+        access_control_service=neo4j_access_control_service
     )
     retrieved = await new_repo.get()
     trial = retrieved.trials[1]
@@ -100,9 +95,7 @@ async def test_edit_program(
         programs_repo,
         neo4j_access_control_service,
         lorem_text_generator,
-        uncommitted_neo4j_tx,
-        stored_account,
-        stored_organisation
+        uncommitted_neo4j_tx
 ):
     program = await programs_repo.get()
     program.name = 'New Program Name'
@@ -110,9 +103,7 @@ async def test_edit_program(
 
     new_repo = Neo4jProgramsRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={Access.READ: [stored_organisation.root.id]}
+        access_control_service=neo4j_access_control_service
     )
     retrieved = await new_repo.get()
     assert retrieved.name == 'New Program Name'

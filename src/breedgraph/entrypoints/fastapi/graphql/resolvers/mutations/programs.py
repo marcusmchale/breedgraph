@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 from . import graphql_mutation
 
 # Program mutations
-@graphql_mutation.field("create_program")
+@graphql_mutation.field("programsCreateProgram")
 @graphql_payload
 @require_authentication
 async def create_program(
@@ -25,12 +25,12 @@ async def create_program(
     user_id = info.context.get('user_id')
     logger.debug(f"Create program: {program} by user {user_id}")
 
-    cmd = CreateProgram(user=user_id, **program)
+    cmd = CreateProgram(agent_id=user_id, **program)
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("update_program")
+@graphql_mutation.field("programsUpdateProgram")
 @graphql_payload
 @require_authentication
 async def update_program(
@@ -41,12 +41,12 @@ async def update_program(
     user_id = info.context.get('user_id')
     logger.debug(f"Update program: {program} by user {user_id}")
 
-    cmd = UpdateProgram(user=user_id, **program)
+    cmd = UpdateProgram(agent_id=user_id, **program)
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("delete_program")
+@graphql_mutation.field("programsDeleteProgram")
 @graphql_payload
 @require_authentication
 async def delete_program(
@@ -58,15 +58,15 @@ async def delete_program(
     logger.debug(f"Delete program: {program_id} by user {user_id}")
 
     cmd = DeleteProgram(
-        user=user_id,
-        program=program_id
+        agent_id=user_id,
+        program_id=program_id
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
 # Trial mutations
-@graphql_mutation.field("create_trial")
+@graphql_mutation.field("programsCreateTrial")
 @graphql_payload
 @require_authentication
 async def create_trial(
@@ -79,29 +79,27 @@ async def create_trial(
         start: str = None,  # Will be converted to PyDT64
         end: str = None,  # Will be converted to PyDT64
         contact_ids: List[int] = None,
-        reference_ids: List[int] = None,
-        release: str = ReadRelease.REGISTERED.name
+        reference_ids: List[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create trial: {name} in program {program_id} by user {user_id}")
 
     cmd = CreateTrial(
-        user=user_id,
-        program=program_id,
+        agent_id=user_id,
+        program_id=program_id,
         name=name,
         fullname=fullname,
         description=description,
         start=start,
         end=end,
         contacts=contact_ids,
-        references=reference_ids,
-        release=release
+        references=reference_ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("update_trial")
+@graphql_mutation.field("programsUpdateTrial")
 @graphql_payload
 @require_authentication
 async def update_trial(
@@ -114,29 +112,27 @@ async def update_trial(
         start: str = None,
         end: str = None,
         contact_ids: List[int] = None,
-        reference_ids: List[int] = None,
-        release: str = None
+        reference_ids: List[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update trial: {trial_id} by user {user_id}")
 
     cmd = UpdateTrial(
-        user=user_id,
-        trial=trial_id,
+        agent_id=user_id,
+        trial_id=trial_id,
         name=name,
         fullname=fullname,
         description=description,
         start=start,
         end=end,
         contacts=contact_ids,
-        references=reference_ids,
-        release=release
+        references=reference_ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("delete_trial")
+@graphql_mutation.field("programsDeleteTrial")
 @graphql_payload
 @require_authentication
 async def delete_trial(
@@ -148,15 +144,15 @@ async def delete_trial(
     logger.debug(f"Delete trial: {trial_id} by user {user_id}")
 
     cmd = DeleteTrial(
-        user=user_id,
-        trial=trial_id
+        agent_id=user_id,
+        trial_id=trial_id
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
 # Study mutations
-@graphql_mutation.field("create_study")
+@graphql_mutation.field("programsCreateStudy")
 @graphql_payload
 @require_authentication
 async def create_study(
@@ -169,37 +165,33 @@ async def create_study(
         practices: str = None,
         start: str = None,
         end: str = None,
-        factor_ids: List[int] = None,
-        observation_ids: List[int] = None,
+        dataset_ids: List[int] = None,
         design_id: int = None,
         licence_id: int = None,
-        reference_ids: List[int] = None,
-        release: str = ReadRelease.REGISTERED.name
+        reference_ids: List[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create study: {name} in trial {trial_id} by user {user_id}")
 
     cmd = CreateStudy(
-        user=user_id,
-        trial=trial_id,
+        agent_id=user_id,
+        trial_id=trial_id,
         name=name,
         fullname=fullname,
         description=description,
         practices=practices,
         start=start,
         end=end,
-        factors=factor_ids,
-        observations=observation_ids,
+        datasets=dataset_ids,
         design=design_id,
         licence=licence_id,
-        references=reference_ids,
-        release=release
+        references=reference_ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("update_study")
+@graphql_mutation.field("programsUpdateStudy")
 @graphql_payload
 @require_authentication
 async def update_study(
@@ -212,37 +204,33 @@ async def update_study(
         practices: str = None,
         start: str = None,
         end: str = None,
-        factor_ids: List[int] = None,
-        observation_ids: List[int] = None,
+        dataset_ids: List[int] = None,
         design_id: int = None,
         licence_id: int = None,
-        reference_ids: List[int] = None,
-        release: str = None
+        reference_ids: List[int] = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update study: {study_id} by user {user_id}")
 
     cmd = UpdateStudy(
-        user=user_id,
-        study=study_id,
+        agent_id=user_id,
+        study_id=study_id,
         name=name,
         fullname=fullname,
         description=description,
         practices=practices,
         start=start,
         end=end,
-        factors=factor_ids,
-        observations=observation_ids,
+        datasets=dataset_ids,
         design=design_id,
         licence=licence_id,
-        references=reference_ids,
-        release=release
+        references=reference_ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
 
-@graphql_mutation.field("delete_study")
+@graphql_mutation.field("programsDeleteStudy")
 @graphql_payload
 @require_authentication
 async def delete_study(
@@ -254,8 +242,8 @@ async def delete_study(
     logger.debug(f"Delete study: {study_id} by user {user_id}")
 
     cmd = DeleteStudy(
-        user=user_id,
-        study=study_id
+        agent_id=user_id,
+        study_id=study_id
     )
     await info.context['bus'].handle(cmd)
     return True

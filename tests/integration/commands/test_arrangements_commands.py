@@ -1,5 +1,6 @@
 import pytest
 
+from src.breedgraph.domain.model.ontology import OntologyEntryLabel
 from src.breedgraph.domain.commands.arrangements import CreateLayout
 from src.breedgraph.domain.model.controls import ReadRelease
 
@@ -13,15 +14,14 @@ async def test_add_layout_command_simple(
         lorem_text_generator
 ):
     async with bus.uow.get_uow(user_id=first_account_with_all_affiliations.user.id) as uow:
-        named_layout_type = await uow.ontology.get_entry(name="Named", label="LayoutType")
-        location_type = await uow.ontology.get_entry(name="Field", label="LocationType")
+        named_layout_type = await uow.ontology.get_entry(name="Named", label=OntologyEntryLabel.LAYOUT_TYPE)
+        location_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         location = next(basic_region.yield_locations_by_type(location_type.id))
         first_layout_command = CreateLayout(
-            user = first_account_with_all_affiliations.user.id,
-            release = ReadRelease.REGISTERED.name,
+            agent_id = first_account_with_all_affiliations.user.id,
             name = lorem_text_generator.new_text(),
-            type = named_layout_type.id,
-            location = location.id,
+            type_id = named_layout_type.id,
+            location_id= location.id,
             axes = ["Sub-Field Section"],
             parent = None,
             position = None
@@ -44,7 +44,7 @@ async def test_add_layout_command_nested(
         lorem_text_generator
 ):
     async with bus.uow.get_uow(user_id=first_account_with_all_affiliations.user.id) as uow:
-        location_type = await uow.ontology.get_entry(name="Field", label="LocationType")
+        location_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         location = next(basic_region.yield_locations_by_type(location_type.id))
 
         async for arrangement in uow.repositories.arrangements.get_all(location_id=location.id):
@@ -52,13 +52,12 @@ async def test_add_layout_command_nested(
         else:
             raise ValueError("Arrangement not found")
 
-        grid_layout_type = await uow.ontology.get_entry(name="Grid", label="LayoutType")
+        grid_layout_type = await uow.ontology.get_entry(name="Grid", label=OntologyEntryLabel.LAYOUT_TYPE)
         second_layout_command = CreateLayout(
-            user= first_account_with_all_affiliations.user.id,
-            release = ReadRelease.REGISTERED.name,
+            agent_id= first_account_with_all_affiliations.user.id,
             name = lorem_text_generator.new_text(),
-            type = grid_layout_type.id,
-            location = location.id,
+            type_id = grid_layout_type.id,
+            location_id= location.id,
             axes = ["x", "y"],
             parent = arrangement.get_root_id(),
             position = [1]

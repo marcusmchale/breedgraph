@@ -20,15 +20,15 @@ def get_person_input(user_input_generator, user_id, team_id):
 @pytest.mark.asyncio(scope="session")
 async def test_create_and_get(
         people_repo,
-        stored_person,
-        stored_account,
+        unstored_person,
+        first_unstored_account,
         stored_organisation,
         user_input_generator
 ):
-    person_input = get_person_input(user_input_generator, user_id=stored_account.user.id, team_id=stored_organisation.root.id)
-    stored_person: PersonStored = await people_repo.create(person_input)
-    retrieved_person: PersonStored = await people_repo.get(person_id = stored_person.id)
-    assert stored_person.name == retrieved_person.name
+    person_input = get_person_input(user_input_generator, user_id=first_unstored_account.user.id, team_id=stored_organisation.root.id)
+    unstored_person: PersonStored = await people_repo.create(person_input)
+    retrieved_person: PersonStored = await people_repo.get(person_id = unstored_person.id)
+    assert unstored_person.name == retrieved_person.name
     async for person in people_repo.get_all():
         if person.name == person_input.name:
             break
@@ -39,18 +39,20 @@ async def test_create_and_get(
 async def test_get_without_read(
         uncommitted_neo4j_tx,
             neo4j_access_control_service,
-            stored_account,
             stored_organisation,
+            second_unstored_account,
             user_input_generator
     ):
     # Confirm without read we see a redacted version if registered and get None if not
+    await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
     repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id
+        access_control_service=neo4j_access_control_service
     )
     retrieved = await repo.get(person_id=1)
     assert retrieved.name == PersonStored._redacted_str
+
+    await neo4j_access_control_service.initialize_user_context(user_id=None)
     repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
         access_control_service=neo4j_access_control_service
@@ -62,46 +64,47 @@ async def test_get_without_read(
 async def test_release_to_registered(
         uncommitted_neo4j_tx,
         neo4j_access_control_service,
-        stored_account,
-        second_account,
-        stored_person,
+        unstored_person,
         people_repo,
-        stored_organisation,
-        user_input_generator
+        first_unstored_organisation,
+        first_unstored_account,
+        second_unstored_account
 ):
+    await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
     await people_repo.set_entity_access_controls(
-        stored_person,
-        control_teams={stored_organisation.root.id},
+        unstored_person,
+        control_teams={first_unstored_organisation.root.id},
         release=ReadRelease.REGISTERED
     )
     await people_repo.update_seen()
-    retrieved: PersonStored = await people_repo.get(person_id=stored_person.id)
-    assert retrieved.name == stored_person.name
+    retrieved: PersonStored = await people_repo.get(person_id=unstored_person.id)
+    assert retrieved.name == unstored_person.name
     async for p in people_repo.get_all():
-        if p.name == stored_person.name:
+        if p.name == unstored_person.name:
             break
     else:
         raise NoResultFoundError("Private repo couldn't get person by get all")
 
+    await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
     registered_repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=second_account.user.id
+        access_control_service=neo4j_access_control_service
     )
-    retrieved_from_registered = await registered_repo.get(person_id=stored_person.id)
+    retrieved_from_registered = await registered_repo.get(person_id=unstored_person.id)
     assert retrieved_from_registered
     async for p in registered_repo.get_all():
-        if p.name == stored_person.name:
+        if p.name == unstored_person.name:
             break
     else:
         raise NoResultFoundError("Registered repo can't get person by get all")
 
+    await neo4j_access_control_service.initialize_user_context(user_id=None)
     # Confirm the public can't see it yet
     public_repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
         access_control_service = neo4j_access_control_service
     )
-    retrieved_from_unregistered =  await public_repo.get(person_id=stored_person.id)
+    retrieved_from_unregistered =  await public_repo.get(person_id=unstored_person.id)
 
     assert retrieved_from_unregistered is None
     async for _ in public_repo.get_all():
@@ -112,25 +115,19 @@ async def test_release_to_registered(
 async def test_release_to_public(
         uncommitted_neo4j_tx,
         neo4j_access_control_service,
-        stored_account,
-        second_account,
-        stored_organisation,
-        user_input_generator
+        first_unstored_account,
+        second_unstored_account,
+        first_unstored_organisation
 ):
+    await neo4j_access_control_service.initialize_user_context(user_id = first_unstored_account.user.id)
     repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-            Access.ADMIN: {stored_organisation.root.id}
-        }
+        access_control_service=neo4j_access_control_service
     )
     person = await repo.get(person_id=1)
     await repo.set_entity_access_controls(
         person,
-        control_teams={stored_organisation.root.id},
+        control_teams={first_unstored_organisation.root.id},
         release=ReadRelease.PUBLIC
     )
     await repo.update_seen()
@@ -144,10 +141,10 @@ async def test_release_to_public(
         raise NoResultFoundError("Private repo can't get person by get all")
 
     # Confirm other registered users can see the un-redacted version
+    await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
     registered_repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
-        access_control_service = neo4j_access_control_service,
-        user_id = second_account.user.id
+        access_control_service = neo4j_access_control_service
     )
     retrieved_from_registered = await registered_repo.get(person_id=person.id)
     assert retrieved_from_registered.name == person.name
@@ -158,6 +155,7 @@ async def test_release_to_public(
         raise NoResultFoundError("Registered repo can't get person by get all")
 
     # Confirm the public can see it
+    await neo4j_access_control_service.initialize_user_context(user_id=None)
     public_repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
         access_control_service = neo4j_access_control_service
@@ -172,16 +170,17 @@ async def test_release_to_public(
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_edit_person(uncommitted_neo4j_tx, neo4j_access_control_service, stored_account, stored_organisation, user_input_generator):
+async def test_edit_person(
+        uncommitted_neo4j_tx,
+        neo4j_access_control_service,
+        first_unstored_account,
+        first_unstored_organisation,
+        user_input_generator
+):
+    await neo4j_access_control_service.initialize_user_context(user_id=first_unstored_account.user.id)
     repo = Neo4jPeopleRepository(
         uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service,
-        user_id=stored_account.user.id,
-        access_teams={
-            Access.READ: {stored_organisation.root.id},
-            Access.WRITE: {stored_organisation.root.id},
-            Access.CURATE: {stored_organisation.root.id}
-        }
+        access_control_service=neo4j_access_control_service
     )
     person = await repo.get(person_id=1)
     new_input = user_input_generator.new_user_input()

@@ -21,6 +21,7 @@ class LocationBase(ABC):
     plural: ClassVar[str] = 'Locations'
 
     name: str = None
+    fullname: str = None
     synonyms: List[str] = field(default_factory=list)
     type: int|None = None  # reference to location type in ontology
 

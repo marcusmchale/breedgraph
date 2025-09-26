@@ -3,7 +3,7 @@ from dataclasses import dataclass, field, replace
 from typing import List, ClassVar, Self, Dict, Any
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel
+from src.breedgraph.domain.model.base import LabeledModel, StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, Controller, ControlledTreeAggregate, Access
 
 @dataclass
@@ -51,7 +51,8 @@ class LayoutStored(LayoutBase, ControlledModel):
             )
 
 @dataclass
-class LayoutOutput(LayoutBase, LabeledModel):
+class LayoutOutput(LayoutBase, StoredModel):
+
     parent: int | None = None
     children: list[int] = field(default_factory=list)
 
@@ -59,8 +60,13 @@ class LayoutOutput(LayoutBase, LabeledModel):
 # Set the generic typing for return of the base model type stored in the graph.
 TInput = LayoutInput
 TStored = LayoutStored
+
 class Arrangement(ControlledTreeAggregate):
     default_edge_label: ClassVar['str'] = "INCLUDES_LAYOUT"
+
+    @property
+    def layouts(self) -> list[LayoutInput | LayoutStored]:
+        return list(self.entries.values())
 
     def add_layout(self, layout: LayoutInput, parent_id: int|None, position: List[str]|None):
         if parent_id is None:
@@ -91,3 +97,5 @@ class Arrangement(ControlledTreeAggregate):
                 children=self.get_children_ids(node),
             ) for node in self._graph
         }
+
+

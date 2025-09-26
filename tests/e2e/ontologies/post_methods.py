@@ -1,32 +1,19 @@
 from src.breedgraph.config import GQL_API_PATH
-from src.breedgraph.domain.model.ontology import ObservationMethodType, ScaleType
+from src.breedgraph.domain.model.ontology import *
+
 from typing import List
 from tests.e2e.utils import with_auth
 
-async def post_to_add_entry(
+async def post_to_create_term(
         client,
         token: str,
-        label: str,
-        name: str,
-        description: str|None = None,
-        abbreviation: str|None = None,
-        synonyms: List[str]|None = None,
-        authors: List[int]|None = None,
-        references: List[int]|None = None,
-        parents: List[int]|None = None,
-        subjects: List[int]|None = None,
-        observation_type: ObservationMethodType|None = None,
-        scale_type: ScaleType|None = None,
-        trait: int|None=None,
-        method: int|None=None,
-        scale: int|None=None,
-        axes: List[str]|None=None
+        term_input: dict
 ):
     json={
         "query": (
-            " mutation ( $entry: OntologyEntryInput ) { "
-            "  ontology_add_entry( "
-            "   entry: $entry  "
+            " mutation ( $termInput: TermInput! ) { "
+            "  ontologyCreateTerm( "
+            "   termInput: $termInput  "
             "  ) { "
             "    status, "
             "    result, "
@@ -35,23 +22,7 @@ async def post_to_add_entry(
             " } "
         ),
         "variables": {
-            "entry" : {
-                "label": label,
-                "name": name,
-                "description": description,
-                "abbreviation": abbreviation,
-                "synonyms": synonyms,
-                "authors": authors,
-                "references": references,
-                "parents": parents,
-                "subjects": subjects,
-                "observation_type": observation_type,
-                "scale_type": scale_type,
-                "trait": trait,
-                "method": method,
-                "scale": scale,
-                "axes": axes
-            }
+            "termInput" : term_input
         }
     }
     headers = with_auth(
@@ -61,19 +32,188 @@ async def post_to_add_entry(
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
+async def post_to_create_subject(
+        client,
+        token: str,
+        subject_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $subjectInput: SubjectInput! ) { "
+            "  ontologyCreateSubject( "
+            "   subjectInput: $subjectInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "subjectInput" : subject_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_trait(
+        client,
+        token: str,
+        trait_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $traitInput: TraitInput! ) { "
+            "  ontologyCreateTrait( "
+            "   traitInput: $traitInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "traitInput" : trait_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_observation_method(
+        client,
+        token: str,
+        observation_method_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $observationMethodInput: ObservationMethodInput! ) { "
+            "  ontologyCreateObservationMethod( "
+            "   observationMethodInput: $observationMethodInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "observationMethodInput" : observation_method_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_scale(
+        client,
+        token: str,
+        scale_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $scaleInput: ScaleInput! ) { "
+            "  ontologyCreateScale( "
+            "   scaleInput: $scaleInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "scaleInput" : scale_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_variable(
+        client,
+        token: str,
+        variable_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $variableInput: VariableInput! ) { "
+            "  ontologyCreateVariable( "
+            "   variableInput: $variableInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "variableInput" : variable_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_layout_type(
+        client,
+        token: str,
+        layout_type_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $layoutTypeInput: LayoutTypeInput! ) { "
+            "  ontologyCreateLayoutType( "
+            "   layoutTypeInput: $layoutTypeInput  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "layoutTypeInput" : layout_type_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
 async def post_to_get_entries(
         client,
         token: str,
         names: List[str] | None = None,
-        labels: List[str] |None = None,
+        labels: List[OntologyEntryLabel] |None = None,
 ):
     json={
         "query": (
             " query ( "
             "  $names: [String]"
-            "  $labels: [OntologyLabel]"
+            "  $labels: [OntologyEntryLabel]"
             " ) { "
-            "  ontology_entries( "
+            "  ontologyEntries( "
             "    names: $names "
             "    labels: $labels "
             "  ) { "
@@ -86,14 +226,14 @@ async def post_to_get_entries(
             "       ... on RelatedToTerms { terms { id, name } }"
             "       ... on Subject { traits { id, name } , conditions { id, name } } "
             "       ... on Trait { subjects { id, name }, variables { id, name } } "
-            "       ... on Condition { subjects { id, name } , parameters { id, name } } "
-            "       ... on Scale { scaleType, categories  { id, name } , variables { id, name } , parameters { id, name } }"
+            "       ... on Condition { subjects { id, name } , factors { id, name } } "
+            "       ... on Scale { scaleType, categories  { id, name } , variables { id, name } , factors { id, name } }"
             "       ... on Category { scales  { id, name } }"
-            "       ... on ObservationMethod { observationMethodType, variables  { id, name } } " 
+            "       ... on ObservationMethod { observationType, variables  { id, name } } " 
             "       ... on Variable { trait { id, name } , observationMethod { id, name }, scale  { id, name } } "
-            "       ... on ControlMethod { controlMethodType, parameters { id, name } } "
-            "       ... on Parameter { condition { id, name }, controlMethod { id, name }, scale { id, name } } "
-            "       ... on Event { variables { id, name }, parameters { id, name } } "
+            "       ... on ControlMethod { controlType, factors { id, name } } "
+            "       ... on Factor { condition { id, name }, controlMethod { id, name }, scale { id, name } } "
+            "       ... on Event { variables { id, name }, factors { id, name } } "
             "       ... on LayoutType { axes } "
             "   }, "
             "    errors { name, message } "
@@ -102,7 +242,7 @@ async def post_to_get_entries(
         ),
         "variables": {
             "names": names,
-            "labels": labels
+            "labels": [label.name for label in labels]
         }
     }
     headers = with_auth(

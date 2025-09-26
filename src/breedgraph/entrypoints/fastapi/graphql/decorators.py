@@ -59,16 +59,9 @@ def require_authentication(func):
         # Extract info from args (assuming standard GraphQL resolver signature)
         _, info = args[0], args[1]
 
-        # Get token from cookies
-        token = info.context["request"].cookies.get("auth_token")
-
-        # Validate token
-        user_id = info.context["auth_service"].validate_login_token(token)
+        user_id = info.context.get("user_id")
         if user_id is None:
             raise UnauthorisedOperationError("Please provide a valid token")
-
-        # Inject user_id into context for use in the resolver
-        info.context["user_id"] = user_id
 
         # Call the original function
         return await func(*args, **kwargs)

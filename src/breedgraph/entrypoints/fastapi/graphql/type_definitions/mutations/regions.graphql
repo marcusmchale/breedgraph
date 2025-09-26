@@ -13,21 +13,19 @@ input GeoCoordinateInput {
 
 input LocationInput {
     name: String!
-    synonyms: [String]
     """ Optional code for location, e.g. zip-code """
     code: String
     description: String
     address: String
     coordinates: [GeoCoordinateInput]
     """ Ontology LocationType identifier """
-    type_id: Int!
+    typeId: Int!
     """ A parent location, required unless a country (see countries) """
-    parent_id: Int
-    release: ReadRelease
+    parentId: Int
 }
 
 extend type Mutation {
-    create_location(
+    regionsCreateLocation(
         location: LocationInput!
     ): BooleanPayload!
 }
