@@ -10,8 +10,8 @@ class CreateProgram(Command):
     fullname: str | None = None
     description: str | None = None
 
-    contacts: List[int] = None
-    references: List[int] = None
+    contact_ids: List[int] = None
+    reference_ids: List[int] = None
 
 
 class UpdateProgram(Command):
@@ -22,8 +22,8 @@ class UpdateProgram(Command):
     fullname: str | None = None
     description: str | None = None
 
-    contacts: List[int] | None = None
-    references: List[int] | None = None
+    contact_ids: List[int] | None = None
+    reference_ids: List[int] | None = None
 
 class DeleteProgram(Command):
     agent_id: int
@@ -40,8 +40,8 @@ class CreateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contacts: List[int] = None
-    references: List[int] = None
+    contact_ids: List[int] = None
+    reference_ids: List[int] = None
 
 class UpdateTrial(Command):
     agent_id: int
@@ -53,13 +53,12 @@ class UpdateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contacts: List[int] = None
-    references: List[int] = None
+    contact_ids: List[int] = None
+    reference_ids: List[int] = None
 
 class DeleteTrial(Command):
     agent_id: int
     trial_id: int
-
 
 # Study Commands
 class CreateStudy(Command):
@@ -73,10 +72,11 @@ class CreateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    datasets: List[int] = None
-    design: int | None = None
-    licence: int | None = None
-    references: List[int] = None
+    design_id: int | None = None
+    licence_id: int | None = None
+
+    dataset_ids: List[int] = None
+    reference_ids: List[int] = None
 
 
 class UpdateStudy(Command):
@@ -90,11 +90,11 @@ class UpdateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    datasets: List[int] = None
-    design: int | None = None
-    licence: int | None = None
-    references: List[int] = None
+    design_id: int | None = None
+    licence_id: int | None = None
 
+    dataset_ids: List[int] = None
+    reference_ids: List[int] = None
 
 class DeleteStudy(Command):
     agent_id: int

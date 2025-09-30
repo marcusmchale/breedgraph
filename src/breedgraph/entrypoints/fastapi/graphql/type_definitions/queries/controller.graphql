@@ -1,5 +1,19 @@
 enum ReadRelease {PRIVATE, REGISTERED, PUBLIC}
 
+enum ControlledModelLabel{
+    GERMPLASM,
+    UNIT,
+    PERSON,
+    STUDY,
+    TRIAL,
+    PROGRAM,
+    RECORD,
+    DATASET,
+    LAYOUT,
+    LOCATION,
+    REFERENCE
+}
+
 type Control {
     team: Team!
     release: ReadRelease!

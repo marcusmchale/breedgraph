@@ -68,6 +68,12 @@ type VersionPayload {
     errors: [Error]
 }
 
+type OntologyCommitsPayload {
+    status: QueryStatus!
+    result: [OntologyCommit]
+    errors: [Error]
+}
+
 type OntologyEntryPayload {
     status: QueryStatus!
     result: OntologyEntryInterface
@@ -125,5 +131,11 @@ type DatasetsPayload {
 type ProgramsPayload {
     status: QueryStatus!
     result: [Program]
+    errors: [Error]
+}
+
+type ControllersPayload {
+    status: QueryStatus!
+    result: [Controller]
     errors: [Error]
 }

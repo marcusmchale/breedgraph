@@ -18,7 +18,7 @@ async def create_team(
         info,
         name: str,
         fullname: Optional[str] = None,
-        parent: Optional[int] = None
+        parent_id: Optional[int] = None
 ) -> bool:
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} creates team: {name}")
@@ -26,7 +26,7 @@ async def create_team(
         agent_id=user_id,
         name=name,
         fullname=fullname,
-        parent=parent
+        parent=parent_id
     )
     await info.context['bus'].handle(cmd)
     return True

@@ -39,14 +39,14 @@ async def get_users(_, info, user: None|int = None) -> List[UserOutput]:
 @graphql_payload
 @require_authentication
 async def get_account(_, info) -> AccountOutput:
-    user = info.context.get('user_id')
+    user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.uow.get_uow() as uow:
-        account_ = await uow.repositories.accounts.get(user=user)
+        account_ = await uow.repositories.accounts.get(user_id=user_id)
         if account_ is None:
             raise NoResultFoundError
         else:
-            return AccountOutput(**account_.model_dump())
+            return AccountOutput(user=account_.user, allowed_emails=account_.allowed_emails)
 
 
 @graphql_query.field("accountsUserAccess")

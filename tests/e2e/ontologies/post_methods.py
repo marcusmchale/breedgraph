@@ -251,3 +251,67 @@ async def post_to_get_entries(
     )
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
+
+async def post_to_commit_version(
+        client,
+        token: str,
+        version_change: VersionChange,
+        comment: str | None = None
+):
+    json={
+        "query": (
+            " mutation ( "
+            "   $versionChange: VersionChange! "
+            "   $comment: String "
+            " ) { "
+            "  ontologyCommitVersion( "
+            "   versionChange: $versionChange  "
+            "   comment: $comment "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "versionChange" : version_change,
+            "comment": comment
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_commit_history(
+        client,
+        token: str,
+        limit: int
+):
+    json={
+        "query": (
+            " query ( "
+            "   $limit: Int "
+            " ) { "
+            "  ontologyCommitHistory( "
+            "   limit: $limit "
+            "  ) { "
+            "    status, "
+            "    result { version {major, minor, patch} , comment, time, user {id, name } }, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "limit" : limit
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

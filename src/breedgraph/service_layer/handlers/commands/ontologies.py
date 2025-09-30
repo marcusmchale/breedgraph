@@ -1,4 +1,3 @@
-import tests.integration.conftest
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.ontology import *
 
@@ -11,12 +10,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 @handlers.command_handler()
-async def commit_ontology(cmd: commands.ontologies.CommitOntology, uow: AbstractUnitOfWork):
-    async with uow.get_uow() as uow_holder:
+async def commit_ontology(cmd: commands.ontologies.CommitOntologyVersion, uow: AbstractUnitOfWork):
+    async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
-        version_change = VersionChange(cmd.version_change)
-        ontology_service.commit_version(
-            version_change = version_change,
+        await ontology_service.commit_version(
+            version_change = cmd.version_change,
             comment = cmd.comment,
             licence_reference = cmd.licence,
             copyright_reference = cmd.copyright

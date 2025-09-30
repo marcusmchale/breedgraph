@@ -4,7 +4,7 @@ from neo4j import AsyncTransaction, AsyncResult
 
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.adapters.neo4j.cypher.query_builders import controls
-from src.breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry
+from src.breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry, ControlledModelLabel
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
@@ -18,11 +18,10 @@ class Neo4jAccessControlService(AbstractAccessControlService):
     ):
         super().__init__()
         self.tx = tx
-        self.plurals_by_label: Dict[str, str] = {}
 
     async def _set_controls(
             self,
-            label: str,
+            label: ControlledModelLabel,
             model_ids: Set[int]|List[int],
             team_ids: Set[int]|List[int],
             user_id: int,
@@ -41,7 +40,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
 
     async def _record_writes(
             self,
-            label: str,
+            label: ControlledModelLabel,
             model_ids: Set[int]|List[int],
             user_id: int
     ) -> None:
@@ -54,7 +53,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             user_id=user_id,
         )
 
-    async def _get_controllers(self, label: str, model_ids: Set[int]|List[int]) -> Dict[int, Controller]:
+    async def _get_controllers(self, label: ControlledModelLabel, model_ids: Set[int]|List[int]) -> Dict[int, Controller]:
         if not model_ids:
             return {}
 
@@ -67,6 +66,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             entity_id = record['entity_id']
             control_map = {
                 control['team']: Control(
+                    team_id=control['team'],
                     release=ReadRelease(control['releases'][-1]),
                     time=deserialize_time(control['times'][-1]),
                     audit=[
@@ -86,7 +86,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             controllers[entity_id] = Controller(controls=control_map, writes=writes)
         return controllers
 
-    async def remove_controls(self, label: str, model_ids: Set[int]|List[int], team_ids: Set[int]|List[int]) -> None:
+    async def remove_controls(self, label: ControlledModelLabel, model_ids: Set[int]|List[int], team_ids: Set[int]|List[int]) -> None:
         if not model_ids:
             return
 

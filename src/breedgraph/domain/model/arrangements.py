@@ -3,13 +3,14 @@ from dataclasses import dataclass, field, replace
 from typing import List, ClassVar, Self, Dict, Any
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, Controller, ControlledTreeAggregate, Access
+from src.breedgraph.domain.model.base import LabeledModel, StoredModel, EnumLabeledModel
+from src.breedgraph.domain.model.controls import ControlledModel, Controller, ControlledTreeAggregate, Access, \
+    ControlledModelLabel
+
 
 @dataclass
 class LayoutBase(ABC):
-    label: ClassVar[str] = 'Layout'
-    plural: ClassVar[str] = 'Layouts'
+    label: ClassVar[str] = ControlledModelLabel.LAYOUT
 
     name: str | None = None
     type: int|None = None # ref to LayoutTypeStored
@@ -27,7 +28,7 @@ class LayoutBase(ABC):
         return hash(self.name)
 
 @dataclass
-class LayoutInput(LayoutBase, LabeledModel):
+class LayoutInput(LayoutBase, EnumLabeledModel):
     pass
 
 @dataclass
@@ -51,7 +52,7 @@ class LayoutStored(LayoutBase, ControlledModel):
             )
 
 @dataclass
-class LayoutOutput(LayoutBase, StoredModel):
+class LayoutOutput(LayoutBase, StoredModel, EnumLabeledModel):
 
     parent: int | None = None
     children: list[int] = field(default_factory=list)

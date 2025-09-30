@@ -2,8 +2,8 @@ from abc import ABC
 from dataclasses import dataclass, field, replace
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller
+from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller, ControlledModelLabel
 
 from typing import List, ClassVar, Dict, Any
 
@@ -17,8 +17,7 @@ class GeoCoordinate:  # ISO 6709
 
 @dataclass
 class LocationBase(ABC):
-    label: ClassVar[str] = 'Location'
-    plural: ClassVar[str] = 'Locations'
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.LOCATION
 
     name: str = None
     fullname: str = None
@@ -42,7 +41,7 @@ class LocationBase(ABC):
 
 
 @dataclass
-class LocationInput(LocationBase, LabeledModel):
+class LocationInput(LocationBase, EnumLabeledModel):
     pass
 
 @dataclass
@@ -66,8 +65,7 @@ class LocationStored(LocationBase, ControlledModel):
         )
 
 @dataclass
-class LocationOutput(LocationBase, LabeledModel):
-    id: int | None = None
+class LocationOutput(LocationBase, StoredModel, EnumLabeledModel):
     parent: int | None = None
     children: list[int] = field(default_factory=list)
 

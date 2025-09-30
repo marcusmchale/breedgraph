@@ -3,8 +3,8 @@ from abc import ABC
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 
-from .base import LabeledModel
-from .controls import ControlledModel, ControlledAggregate, Access, Controller
+from .base import EnumLabeledModel
+from .controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 from typing import List, Set, ClassVar, Dict, Any
 
@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(eq=False)
 class PersonBase(ABC):
-    label: ClassVar[str] = 'Person'
-    plural: ClassVar[str] = 'People'
+    label: ClassVar[str] = ControlledModelLabel.PERSON
 
     name: str = None
     fullname: None|str = None
@@ -35,7 +34,7 @@ class PersonBase(ABC):
 
 
 @dataclass(eq=False)
-class PersonInput(PersonBase, LabeledModel):
+class PersonInput(PersonBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -83,3 +82,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
                 roles = list(),
                 titles = list()
             )
+
+@dataclass(eq=False)
+class PersonOutput(PersonBase, EnumLabeledModel):
+    pass

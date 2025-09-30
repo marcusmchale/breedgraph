@@ -14,7 +14,7 @@ from . import arrangements
 from . import blocks
 from . import datasets
 from . import programs
-#from . import controls
+from . import controls
 from . import accounts
 #from . import germplasms
 

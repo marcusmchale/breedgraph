@@ -3,15 +3,14 @@ from dataclasses import dataclass, replace
 from uuid import UUID, uuid4
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
+from src.breedgraph.domain.model.base import StoredModel, EnumLabeledModel, LabeledModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 from typing import ClassVar, Set, List, Dict, Any
 
 @dataclass(eq=False)
 class ReferenceBase(ABC):
-    label: ClassVar[str] = 'Reference'
-    plural: ClassVar[str] = 'References'
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.REFERENCE
     description: None|str = None
 
     def model_dump(self) -> Dict[str, Any]:
@@ -56,7 +55,7 @@ class ExternalReferenceBase(ReferenceBase):
     external_id: str | None = None
 
 @dataclass
-class ExternalReferenceInput(ExternalReferenceBase):
+class ExternalReferenceInput(ExternalReferenceBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -83,7 +82,7 @@ class FileReferenceBase(ReferenceBase):
         return dump
 
 @dataclass
-class FileReferenceInput(FileReferenceBase):
+class FileReferenceInput(FileReferenceBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -112,7 +111,7 @@ class DataExternalBase(DataReferenceBase, ExternalReferenceBase):
     pass
 
 @dataclass
-class DataExternalInput(DataExternalBase):
+class DataExternalInput(DataExternalBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -124,7 +123,7 @@ class DataFileBase(DataReferenceBase, FileReferenceBase):
     pass
 
 @dataclass
-class DataFileInput(DataFileBase):
+class DataFileInput(DataFileBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -139,7 +138,7 @@ class LegalReference(ReferenceBase):
     text: str = None
 
 @dataclass
-class LegalReferenceInput(LegalReference):
+class LegalReferenceInput(LegalReference, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)

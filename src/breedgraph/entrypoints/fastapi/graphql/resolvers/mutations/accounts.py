@@ -71,19 +71,19 @@ async def reset_password(
 ) -> bool:
     ts = URLSafeTimedSerializer(config.SECRET_KEY)
     try:
-        user = ts.loads(token, salt=config.PASSWORD_RESET_SALT, max_age=config.PASSWORD_RESET_EXPIRES * 60)
+        user_id = ts.loads(token, salt=config.PASSWORD_RESET_SALT, max_age=config.PASSWORD_RESET_EXPIRES * 60)
     except SignatureExpired as e:
         logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
         raise UnauthorisedOperationError("This token has expired")
 
     async with info.context['bus'].uow.get_uow() as uow:
-        account = await uow.repositories.accounts.get(user=user)
+        account = await uow.repositories.accounts.get(user_id=user_id)
         if not account:
             raise UnauthorisedOperationError("Token not valid because user was not found")
         logger.debug(f"Change password for user: {account.user.id}")
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    cmd = UpdateUser(user_id=user, password_hash=password_hash)
+    cmd = UpdateUser(user_id=user_id, password_hash=password_hash)
     await info.context['bus'].handle(cmd)
     return True
 

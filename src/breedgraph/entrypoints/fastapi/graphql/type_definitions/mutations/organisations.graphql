@@ -2,7 +2,7 @@ extend type Mutation {
     organisationsCreateTeam(
         name: String!
         fullname: String
-        parent: Int
+        parentId: Int
     ): BooleanPayload!
     organisationsDeleteTeam(
         teamId: Int!

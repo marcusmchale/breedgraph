@@ -2,14 +2,15 @@ import networkx as nx
 import copy
 
 from abc import abstractmethod, ABC
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 from numpy import datetime64
+from functools import lru_cache
 
 from typing import Dict, List, ClassVar, Set, Type
 
 from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.base import Aggregate, StoredModel
+from src.breedgraph.domain.model.base import Aggregate, StoredModel, EnumLabeledModel, EnumLabel
 from src.breedgraph.domain.model.graph import RootedAggregate, TreeAggregate
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.time_descriptors import WriteStamp
@@ -19,6 +20,44 @@ class ReadRelease(Enum):
     REGISTERED = 'REGISTERED' # accessible to any registered user
     PUBLIC = 'PUBLIC'  # accessible to non-registered users  #  todo, currently this is not fully implemented
 
+class ControlledModelLabel(EnumLabel):
+    GERMPLASM = "Germplasm"
+    UNIT = "Unit"
+    PERSON = "Person"
+    STUDY = "Study"
+    TRIAL = "Trial"
+    PROGRAM = "Program"
+    RECORD = "Record"
+    DATASET = "DataSet"
+    LAYOUT = "Layout"
+    LOCATION = "Location"
+    REFERENCE = "Reference"
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def _enum_to_plural_map(cls):
+        return {
+            cls.GERMPLASM: "Germplasms",
+            cls.UNIT: "Units",
+            cls.PERSON: "People",
+            cls.STUDY: "Studies",
+            cls.TRIAL: "Trials",
+            cls.PROGRAM: "Programs",
+            cls.DATASET: "DataSets",
+            cls.LAYOUT: "Layouts",
+            cls.LOCATION: "Locations",
+            cls.REFERENCE: "References"
+        }
+
+    @property
+    def label(self):
+        return self.value
+
+    @property
+    def plural(self):
+        return self._enum_to_plural_map()[self]
+
+
 @dataclass
 class ControlAuditEntry:
     user_id: int
@@ -27,6 +66,7 @@ class ControlAuditEntry:
 
 @dataclass
 class Control:
+    team_id: int
     release: ReadRelease
     # we are not using the time now, but keep the control object and time in case of future behaviour requirements
     # For example,
@@ -35,6 +75,9 @@ class Control:
     #
     time: datetime64 = datetime64('now')
     audit: List[ControlAuditEntry] = field(default_factory=list)
+
+    def model_dump(self):
+        return asdict(self)
 
 @dataclass
 class Controller:
@@ -84,9 +127,10 @@ class Controller:
 
         return False
 
-
 @dataclass(eq=False)
-class ControlledModel(StoredModel, ABC):
+class ControlledModel(StoredModel, EnumLabeledModel, ABC):
+    label: ClassVar[ControlledModelLabel]
+
     redacted_str: ClassVar[str] = 'REDACTED'
 
     @abstractmethod
@@ -99,6 +143,11 @@ class ControlledModel(StoredModel, ABC):
         """Do something like this to preserve data privacy when no read access is allowed"""
         # return self.model_copy(deep=True, update={'name': self.redacted_str})
         raise NotImplementedError
+
+    @property
+    def plural(self) -> str:
+        """The plural for this class of model"""
+        return self.label.plural
 
 @dataclass(eq=False)
 class ControlledAggregate(Aggregate, ABC):

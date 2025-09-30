@@ -130,7 +130,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             if 'email' in user.changed:
                 change_props.update({'email_lower': user.email.casefold()})
             await self.tx.run(
-                queries['accounts']['set_user'], props=props
+                queries['accounts']['set_user'], props=change_props, user_id=user.id
             )
 
     async def _update_allowed_emails(self, user: UserStored, allowed_emails: TrackedList[str]):

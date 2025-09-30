@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
+from src.breedgraph.domain.model.base import LabeledModel, StoredModel, EnumLabeledModel
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
 """
@@ -14,7 +14,7 @@ Ontology entry with ID of 0 should be handled in presentation layer as undefined
 """
 
 @dataclass
-class OntologyEntryBase(ABC):
+class OntologyEntryBase(EnumLabeledModel, ABC):
     """
     Common domain fields for all ontology entries.
     Concrete entry families (e.g., DesignBase, TraitBase) should inherit this.
@@ -26,11 +26,6 @@ class OntologyEntryBase(ABC):
     synonyms: List[str] = field(default_factory=list)  # these don't have to be unique
     authors: List[int] = field(default_factory=list)  # internal person ID
     references: List[int] = field(default_factory=list)  # internal reference ID
-
-    @property
-    def plural(self) -> str:
-        """The plural for this class of model"""
-        return self.label.plural
 
     @property
     def names(self):
@@ -54,7 +49,7 @@ class OntologyEntryBase(ABC):
         return dump
 
 @dataclass
-class OntologyEntryInput(OntologyEntryBase, LabeledModel, ABC):
+class OntologyEntryInput(OntologyEntryBase, ABC):
     """
     Combine with a concrete *Base class, e.g.:
       class DesignInput(DesignBase, OntologyEntryInput): ...
@@ -70,7 +65,7 @@ class OntologyEntryStored(OntologyEntryBase, StoredModel, ABC):
     pass
 
 @dataclass
-class OntologyEntryOutput(OntologyEntryBase, LabeledModel, ABC):
+class OntologyEntryOutput(OntologyEntryBase, ABC):
     """
     Combine with a concrete *Base class, e.g.:
       class DesignOutput(DesignBase, OntologyEntryOutput): ...

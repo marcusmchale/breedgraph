@@ -96,7 +96,7 @@ class ControlledRepository(
         controllers = await self.access_control_service.get_controllers_for_aggregate(aggregate)
         if not aggregate.can_remove(controllers, self.user_id, self.access_teams[Access.CURATE]):
             raise UnauthorisedOperationError(
-                f"Removal requires curate permission for all teams that control entities in this {aggregate.root.label}"
+                f"Removal requires curate permission for all teams that control entities in this {aggregate.root.label.label}"
             )
         await self._remove_controlled(aggregate)
 

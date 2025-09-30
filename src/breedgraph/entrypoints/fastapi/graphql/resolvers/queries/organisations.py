@@ -100,6 +100,4 @@ def resolve_admin(obj, info):
 @affiliation.field("user")
 async def resolve_user(obj, info):
     await update_users_map(info.context, user_ids=[obj.get('user')])
-    if not obj.get('user') in info.context.get('users_map', {}):
-        import pdb; pdb.set_trace()
     return info.context.get('users_map', {}).get(obj.get('user'))

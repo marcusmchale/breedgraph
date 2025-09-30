@@ -6,10 +6,7 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loader
     update_ontology_map
 )
 
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.controls import resolve_controller
-
-from src.breedgraph.domain.model.programs import ProgramOutput, TrialStored, StudyStored # todo consider changing to output
-from src.breedgraph.domain.model.controls import Controller
+from src.breedgraph.domain.model.programs import ProgramOutput, TrialOutput, StudyOutput
 
 from typing import List
 
@@ -29,27 +26,19 @@ graphql_resolvers.register_type_resolvers(program, trial, study)
 async def get_programs(
         _,
         info,
-        program: int | None = None,
-        trial: int | None = None,
-        study: int | None = None
+        program_id: int | None = None,
+        trial_id: int | None = None,
+        study_id: int | None = None
 ) -> List[ProgramOutput]:
-    await update_programs_map(info.context, program_id=program, trial_id=trial, study_id=study)
+    await update_programs_map(info.context, program_id=program_id, trial_id=trial_id, study_id=study_id)
     programs_map = info.context.get('programs_map')
     return programs_map.values()
 
-@program.field("controller")
-async def resolve_program_controller(obj, info) -> Controller:
-    controller = await resolve_controller(obj, info)
-    return controller
-
 @program.field("trials")
-def resolve_trials(obj, info) -> List[TrialStored]:
+def resolve_trials(obj, info) -> List[TrialOutput]:
     return obj.trials.values()
-    #import pdb; pdb.set_trace()
-    #return info.context.get('programs_map').get(obj.id).trials
 
 @trial.field("studies")
-def resolve_studies(obj, info) -> List[StudyStored]:
+def resolve_studies(obj, info) -> List[StudyOutput]:
     return obj.studies.values()
-    #return info.context.get('programs_map').get(obj.program).trials.get(obj.id).studies
 

@@ -16,6 +16,7 @@ class AbstractAccountsViews(ABC):
         ...
 
     @abstractmethod
+    # careful exposing this
     async def get_user(self, user_id: int) -> UserOutput:
         ...
 

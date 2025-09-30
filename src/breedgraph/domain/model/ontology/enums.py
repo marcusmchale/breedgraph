@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import lru_cache
+from src.breedgraph.domain.model.base import EnumLabel
 
 class LifecyclePhase(Enum):
     """Enumeration of lifecycle phases for ontology entries and relationships."""
@@ -62,7 +63,7 @@ class ScaleType(str, Enum):
     ORDINAL = "ORDINAL"  # should have categories
     GERMPLASM = "GERMPLASM" # Categories are from Germplasm
 
-class OntologyEntryLabel(str, Enum):
+class OntologyEntryLabel(EnumLabel):
     TERM = "Term"
     SUBJECT = "Subject"
     SCALE = "Scale"
@@ -82,7 +83,7 @@ class OntologyEntryLabel(str, Enum):
 
     @classmethod
     @lru_cache(maxsize=1)
-    def _enum_to_plural_map(cls):
+    def _enum_to_plural_map(cls) -> dict[str, str]:
         return {
             cls.TERM: "Terms",
             cls.SUBJECT: "Subjects",

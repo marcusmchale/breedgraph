@@ -1,6 +1,5 @@
 # Main Entity Types
 type Program {
-    controller: Controller!
     id: Int!
     name: String!
     fullname: String
@@ -19,7 +18,7 @@ type Trial {
     end: DateTime
     contacts: [Int]
     references: [Int]
-    program_id: Int!
+    programId: Int!
     studies: [Study]
 }
 
@@ -28,7 +27,7 @@ type Study {
     name: String!
     fullname: String
     description: String
-    external_id: String
+    externalId: String
     practices: String
     start: DateTime
     end: DateTime
@@ -37,5 +36,5 @@ type Study {
     design: Int
     licence: Int
     references: [Int]
-    trial_id: Int!
+    trialId: Int!
 }

@@ -1,3 +1,6 @@
+from typer.colors import MAGENTA
+
+from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.domain.model.ontology import Version
 from src.breedgraph.custom_exceptions import InconsistentStateError
@@ -59,16 +62,28 @@ async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None
 
 async def update_users_map(context, user_ids: List[int] | None = None):
     bus = context.get('bus')
-    user_id = context.get('user_id')  # This might be None for unauthenticated requests
+    agent_id = context.get('user_id')  # This might be None for unauthenticated requests
     users_map = context.get('users_map', dict())
 
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow.get_uow(user_id=agent_id) as uow:
         user_ids = set(user_ids) if user_ids is not None else set()
         unmapped = list(user_ids - set(users_map.keys()))
         if unmapped:
             team_ids = list(uow.controls.access_teams.get(Access.ADMIN))
             async for user_for_admin in uow.views.accounts.get_users_for_admin(team_ids = team_ids, user_ids=unmapped):
                 users_map[user_for_admin.id] = user_for_admin
+
+        # agents can always see their own account
+        if agent_id in user_ids and not agent_id in users_map:
+            agent = await uow.views.accounts.get_user(user_id=agent_id)
+            users_map[agent_id] = agent
+
+        # Present redacted users, with only the ID property (whether real or not)
+        for user_id in user_ids:
+            if not user_id in users_map:
+                users_map[user_id] = UserOutput(
+                    id=user_id
+                )
 
     context['users_map'] = users_map
 

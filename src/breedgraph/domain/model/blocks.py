@@ -22,8 +22,8 @@ from dataclasses import dataclass, field, replace
 from numpy import datetime64
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller
+from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller, ControlledModelLabel
 from src.breedgraph.domain.model.organisations import Access
 from typing import List, ClassVar, Generator
 
@@ -40,8 +40,7 @@ class UnitBase(ABC):
     """
     Instances of subjects from the ontology
     """
-    label: ClassVar[str] = 'Unit'
-    plural: ClassVar[str] = 'Units'
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.UNIT
 
     subject: int = None  # ref to SubjectTypeStored
 
@@ -54,7 +53,7 @@ class UnitBase(ABC):
         return asdict(self)
 
 @dataclass
-class UnitInput(UnitBase, LabeledModel):
+class UnitInput(UnitBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -77,7 +76,7 @@ class UnitStored(UnitBase, ControlledModel):
             )
 
 @dataclass(eq=False)
-class UnitOutput(UnitStored):
+class UnitOutput(UnitBase, EnumLabeledModel, StoredModel):
     parents: list[int] = field(default_factory=list)
     children: list[int] = field(default_factory=list)
 

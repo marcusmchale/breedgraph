@@ -262,9 +262,9 @@ extend type Mutation {
     ontologyCreateDesign(designInput: DesignInput!): BooleanPayload!
     ontologyCreateLayoutType(layoutTypeInput: LayoutTypeInput!): BooleanPayload!
     ontologyCommitVersion(
-        version_change: VersionChange!,
+        versionChange: VersionChange!,
         comment: String,
-        licence_reference: Int,
-        copyright_reference: Int
+        licenceId: Int,
+        copyrightId: Int
     ): BooleanPayload!
 }

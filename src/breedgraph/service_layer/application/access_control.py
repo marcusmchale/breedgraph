@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 from src.breedgraph.domain.model.controls import (
-    ControlledModel, ControlledAggregate, Controller, ReadRelease, Access
+    ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
 from src.breedgraph.domain.events import Event
 from src.breedgraph.custom_exceptions import IllegalOperationError
@@ -30,8 +30,8 @@ class AbstractAccessControlService(ABC):
     @staticmethod
     async def _parse_input_to_models_by_label(
             input_: List[ControlledModel] | List[ControlledAggregate] | ControlledModel | ControlledAggregate
-    ) -> Dict[str, List[ControlledModel]]:
-        controlled_models = list()
+    ) -> Dict[ControlledModelLabel, List[ControlledModel]]:
+        controlled_models = []
         if isinstance(input_, list):
             for i in input_:
                 if isinstance(i, ControlledAggregate):
@@ -44,7 +44,7 @@ class AbstractAccessControlService(ABC):
             elif isinstance(input_, ControlledModel):
                 controlled_models = [input_]
 
-        models_by_label: Dict[str, List[ControlledModel]] = {}
+        models_by_label: Dict[ControlledModelLabel, List[ControlledModel]] = {}
         for model in controlled_models:
             # exclude input models
             if not hasattr(model, 'id') or not model.id:
@@ -83,24 +83,24 @@ class AbstractAccessControlService(ABC):
                 user_id=user_id
             )
 
-    async def set_controls_by_id_and_label(self, ids: List[int], label: str, control_teams: Set[int], release: ReadRelease, user_id: int):
+    async def set_controls_by_id_and_label(self, ids: List[int], label: ControlledModelLabel, control_teams: Set[int], release: ReadRelease, user_id: int):
         if not ids:
             return
         if not control_teams:
             raise IllegalOperationError("Control teams required to set controls")
-        for _id in ids:
-            await self._set_controls(
-                label=label,
-                model_ids=[_id],
-                team_ids=control_teams,
-                release=release,
-                user_id=user_id
-            )
+
+        await self._set_controls(
+            label=label,
+            model_ids=ids,
+            team_ids=control_teams,
+            release=release,
+            user_id=user_id
+        )
 
     @abstractmethod
     async def _set_controls(
             self,
-            label: str,
+            label: ControlledModelLabel,
             model_ids: Set[int]|List[int],
             team_ids: Set[int]|List[int],
             user_id: int,
@@ -135,25 +135,25 @@ class AbstractAccessControlService(ABC):
     @abstractmethod
     async def _record_writes(
             self,
-            label: str,
+            label: ControlledModelLabel,
             model_ids: Set[int]|List[int],
             user_id: int
     ) -> None:
         """Record write stamps for multiple entities - batch operation"""
         raise NotImplementedError
 
-    async def get_controller(self, label: str, model_id: int) -> Optional[Controller]:
+    async def get_controller(self, label: ControlledModelLabel, model_id: int) -> Optional[Controller]:
         """Get controller by label and model_id"""
         controllers = await self._get_controllers(label, [model_id])
         return controllers.get(model_id)
 
-    async def get_controllers(self, label: str, model_ids: List[int]) -> Dict[int, Controller]:
+    async def get_controllers(self, label: ControlledModelLabel, model_ids: List[int]) -> Dict[int, Controller]:
         """
         Get multiple controllers by label and model_ids
         """
         return await self._get_controllers(label, model_ids)
 
-    async def get_controllers_for_aggregate(self, aggregate: ControlledAggregate) -> Dict[str, Dict[int, Controller]]:
+    async def get_controllers_for_aggregate(self, aggregate: ControlledAggregate) -> Dict[ControlledModelLabel, Dict[int, Controller]]:
         """
         :param aggregate:
         :return: Dict keyed by label, the model_id to controller
@@ -178,12 +178,12 @@ class AbstractAccessControlService(ABC):
 
     # Abstract methods for concrete implementations
     @abstractmethod
-    async def _get_controllers(self, label: str, model_ids: List[int]) -> Dict[int, Controller]:
+    async def _get_controllers(self, label: ControlledModelLabel, model_ids: List[int]) -> Dict[int, Controller]:
         """Get controllers for multiple model instances - key batch operation"""
         ...
 
     @abstractmethod
-    async def remove_controls(self, label: str, model_ids: List[int], team_id: int) -> None:
+    async def remove_controls(self, label: ControlledModelLabel, model_ids: List[int], team_id: int) -> None:
         """Remove a specific team's control from multiple models - batch operation"""
         ...
 

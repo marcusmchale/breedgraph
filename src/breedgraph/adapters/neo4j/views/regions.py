@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from src.breedgraph.service_layer.queries.views.regions import AbstractRegionsViews
+from src.breedgraph.domain.model.controls import ControlledModelLabel
 
 from src.breedgraph.domain.model.regions import LocationOutput
 from src.breedgraph.domain.model.controls import Access
@@ -30,7 +31,7 @@ class Neo4jRegionsViews(AbstractRegionsViews):
 
         # Retrieve controllers for these
         controllers = await self.access_control.get_controllers(
-            label='Location',
+            label=ControlledModelLabel.LOCATION,
             model_ids=list(locations_map.keys())
         )
         read_teams = self.access_control.access_teams.get(Access.READ, set())

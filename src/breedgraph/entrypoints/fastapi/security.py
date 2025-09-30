@@ -61,12 +61,11 @@ async def get_csrf_token(request: Request, response: Response):
     )
     return {"token": signed_token}
 
+# NOTE! these need to be get requests so that the users can follow a link in their email.
 @router.get("/verify")
 async def verify_email(token: str):
     return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}/verify-email?token={token}")
 
-@router.post("/reset")
+@router.get("/reset")
 async def reset_password(token: str):
     return RedirectResponse(url=f"{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}/reset-password?token={token}")
-
-

@@ -137,12 +137,10 @@ class AccountStored(Aggregate, AccountBase):
 @dataclass
 class  AccountOutput(AccountBase):
     user: UserOutput
-    ontology_role: OntologyRole
     allowed_emails: List[str] = field(default_factory=list)
 
     def model_dump(self):
         return {
             'user': self.user.model_dump(),
-            'ontology_role': self.ontology_role,
             'allowed_emails': self.allowed_emails
         }

@@ -1,8 +1,9 @@
 from ariadne import ObjectType, UnionType, InterfaceType
 
-from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyEntryLabel
+from src.breedgraph.domain.model.controls import Access
+from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyEntryLabel, OntologyCommit
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map
+from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map
 
 from typing import List
 
@@ -14,6 +15,7 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 
 # Object types for interfaces and specific types
+ontology_commit = ObjectType("OntologyCommit")
 subject = ObjectType("Subject")
 trait = ObjectType("Trait")
 condition = ObjectType("Condition")
@@ -31,6 +33,7 @@ ontology_entry_interface = InterfaceType("OntologyEntryInterface")
 related_to_terms = InterfaceType("RelatedToTerms")
 
 graphql_resolvers.register_type_resolvers(
+    ontology_commit,
     ontology_entry_union, ontology_entry_interface, related_to_terms,
     subject, trait, condition,
     scale, category,
@@ -204,3 +207,25 @@ async def resolve_event_variables(obj, info):
 @event.field("factors")
 async def resolve_event_factors(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
+
+@graphql_query.field("ontologyCommitHistory")
+@graphql_payload
+@require_authentication
+async def get_commit_history(
+        _,
+        info,
+        limit = 10
+) -> List[OntologyCommit]:
+    context = info.context
+    bus = context.get('bus')
+    user_id = context.get('user_id')
+    async with bus.uow.get_uow(user_id=user_id) as uow:
+        history = [commit async for commit in uow.ontology.get_commit_history(limit=limit)]
+        return history
+
+@ontology_commit.field("user")
+async def resolve_commit_user(obj, info):
+    context = info.context
+    await update_users_map(context, user_ids=[obj.user])
+    users_map = context.get('users_map')
+    return users_map.get(obj.user)

@@ -118,6 +118,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
     async def _remove_controlled(self, program: ProgramStored) -> None:
         await self._delete_trials(list(program.trials.keys()))
+        await self.tx.run(queries['programs']['remove_programs'], program_ids=[program.id])
 
     async def _update_controlled(self, program: TrackableProtocol | ProgramStored):
         if 'trials' in program.changed:

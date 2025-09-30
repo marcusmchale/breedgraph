@@ -1,6 +1,6 @@
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.domain.commands.ontologies import (
-    CommitOntology,
+    CommitOntologyVersion,
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
     CreateScale, CreateScaleCategory, CreateObservationMethod, CreateVariable,
     CreateControlMethod, CreateFactor, CreateEventType,
@@ -22,18 +22,17 @@ async def commit_version(
         info,
         version_change: VersionChange = VersionChange.PATCH,
         comment: str = '',
-        licence_reference: int = None,
-        copyright_reference: int = None
+        licence_id: int = None,
+        copyright_id: int = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} commits {version_change} change to ontology ")
-    cmd = CommitOntology(
+    cmd = CommitOntologyVersion(
         agent_id=user_id,
-        version_change=version_change.value(),
+        version_change=version_change,
         comment=comment,
-        licence=licence_reference,
-        copyright=copyright_reference
-
+        licence=licence_id,
+        copyright=copyright_id
     )
     await info.context['bus'].handle(cmd)
     return True

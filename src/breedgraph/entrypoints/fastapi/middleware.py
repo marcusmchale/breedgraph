@@ -46,8 +46,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             request.method == "OPTIONS" or  # for preflight request
             request.url.path == "/csrf" or  # to retrieve cookie
             request.url.path == "/" or  # to allow redirect
-            request.url.path == "/verify" # to allow user registration, requires a token anyway
-
+            request.url.path == "/verify" or # to allow user registration, requires a token anyway
+            request.url.path == "/reset"  # to allow users to reset password, requires a token anyway
         ):
             return await call_next(request)
 

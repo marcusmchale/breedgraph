@@ -13,6 +13,17 @@ type Version {
     comment: String!
 }
 
+type OntologyCommit {
+    version: Version
+    comment: String
+    # Set by the server
+    time: DateTime
+    user: User
+    # References not handled
+    licence: Int
+    copyright: Int
+}
+
 """
 Ontology entries form a graph
 Each label is represented by directed acyclic graphs with source and sink

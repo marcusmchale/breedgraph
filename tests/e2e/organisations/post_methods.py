@@ -1,19 +1,19 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_create_team(client, token:str, name: str, parent: int | None = None):
-    if parent:
+async def post_to_create_team(client, token:str, name: str, parent_id: int | None = None):
+    if parent_id is not None:
         json={
             "query": (
                 " mutation ( "
                 "  $name: String!,"
                 "  $fullname: String,"
-                "  $parent: Int,"
+                "  $parentId: Int,"
                 " ) { "
                 "  organisationsCreateTeam( "
                 "    name: $name, "
                 "    fullname: $fullname, "
-                "    parent: $parent "
+                "    parentId: $parentId "
                 "  ) { "
                 "    status, "
                 "    result, "
@@ -24,7 +24,7 @@ async def post_to_create_team(client, token:str, name: str, parent: int | None =
             "variables": {
                 "name": name,
                 "fullname": name,
-                "parent": parent
+                "parentId": parent_id
             }
         }
     else:

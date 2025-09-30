@@ -60,7 +60,10 @@ class MessageBus:
             logger.info(command.__class__.__name__)
             logger.debug(command)
             handler = self.command_handlers[type(command)]
-            await handler(command)
+            if not handler:
+                logger.debug(f"Command {type(command)} has no handler")
+            else:
+                await handler(command)
             for event in self.uow.collect_events():
                 await self.event_queue.put(event)
         except Exception as e:
@@ -70,7 +73,10 @@ class MessageBus:
     async def handle_event(self):
         while True:
             event = await self.event_queue.get()
-            for handler in self.event_handlers[type(event)]:
+            handlers = self.event_handlers.get(type(event))
+            if not handlers:
+                logger.debug(f"Event {type(event)} has no handler")
+            for handler in handlers or []:
                 try:
                     logger.info(event.__class__.__name__)
                     logger.debug(event)

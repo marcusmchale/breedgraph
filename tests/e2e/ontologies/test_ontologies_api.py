@@ -11,7 +11,9 @@ from tests.e2e.ontologies.post_methods import (
     post_to_create_scale,
     post_to_create_variable,
     post_to_create_layout_type,
-    post_to_get_entries
+    post_to_get_entries,
+    post_to_commit_version,
+    post_to_commit_history
 )
 
 
@@ -187,3 +189,21 @@ async def test_create_layout_type(client, first_user_login_token, lorem_text_gen
     layout_payload = get_verified_payload(response, "ontologyEntries")
     assert layout_payload.get('result')[0].get('id')
     assert layout_payload.get('result')[0].get('axes') == layout_type_input['axes']
+
+
+@pytest.mark.asyncio(scope="session")
+async def test_commit_version(client, first_account, first_user_login_token):
+    response = await post_to_commit_version(
+        client,
+        token=first_user_login_token,
+        version_change=VersionChange.MAJOR,
+        comment="Test major change"
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCommitVersion"))
+    response = await post_to_commit_history(client, token=first_user_login_token, limit=3)
+    payload = get_verified_payload(response, "ontologyCommitHistory")
+    assert_payload_success(payload)
+
+    assert payload.get('result')[0].get('user').get('name') == first_account.user.name
+    assert payload.get('result')[0].get('version').get('major') > 0
+    assert payload.get('result')[0].get('comment') == 'Test major change'

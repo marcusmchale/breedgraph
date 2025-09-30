@@ -4,13 +4,13 @@ from typing import List, ClassVar, Set, Dict, Self
 from numpy import datetime64
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, ReadRelease, Controller
+from src.breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 @dataclass
 class DataRecordBase(ABC):
-    label: ClassVar[str] = 'Record'
-    plural: ClassVar[str] = 'Records'
+    label: ClassVar[str] = "Record"
+    plural: ClassVar[str] = "Records"
 
     unit: int|None = None
     value: str|None = None
@@ -29,22 +29,12 @@ class DataRecordInput(DataRecordBase, LabeledModel):
     pass
 
 @dataclass
-class DataRecordStored(DataRecordBase, ControlledModel):
+class DataRecordStored(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
-
-    def redacted(self, controller: Controller, user_id=None, read_teams=None) -> Self:
-        if controller.has_access(Access.READ, user_id, read_teams):
-            return self
-        else:
-            return replace(
-                self,
-                value = self.value and self.redacted_str,
-            )
 
 @dataclass
-class DataRecordOutput(DataRecordBase, LabeledModel):
+class DataRecordOutput(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
-
 
 @dataclass(eq=False)
 class DataSetBase(ABC):
@@ -56,8 +46,7 @@ class DataSetBase(ABC):
         "ontology_id" should reference to Variable or Factor in the ontology.
         "Records" is a list of DataRecord
         """
-    label: ClassVar[str] = 'DataSet'
-    plural: ClassVar[str] = 'DataSets'
+    label: ClassVar[str] = ControlledModelLabel.DATASET
 
     concept: int = None
     records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
@@ -75,7 +64,7 @@ class DataSetBase(ABC):
         return dump
 
 @dataclass
-class DataSetInput(DataSetBase, LabeledModel):
+class DataSetInput(DataSetBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -110,8 +99,9 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
             user_id: int = None,
             read_teams: Set[int] = None
     ) -> 'ControlledAggregate|None':
-
-        controller = controllers[self.label][self.id]
+        controller = controllers[self.label].get(self.id)
+        if controller is None:
+            raise ValueError(f"Controller not found for entity {self.label}: {self.id}")
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
 
@@ -121,18 +111,14 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
             else:
                 return replace(
                     self,
-                    records = [
-                        record.redacted(controllers[record.label][record.id], user_id, read_teams)
-                        if isinstance(record, DataRecordStored) else record
-                        for record in self.records
-                    ],
-                    contributors = list(),
-                    references = list()
+                    records = [],
+                    contributors = [],
+                    references = []
                 )
 
     def to_output(self):
         return DataSetOutput(**self.model_dump())
 
 @dataclass(eq=False)
-class DataSetOutput(DataSetBase):
+class DataSetOutput(DataSetBase, StoredModel, EnumLabeledModel):
     id: int | None = None

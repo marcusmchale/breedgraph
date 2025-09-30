@@ -4,8 +4,9 @@ from abc import ABC
 from dataclasses import dataclass, field, replace
 from numpy import datetime64
 
+from src.breedgraph.domain.model.controls import ControlledModelLabel
 from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel
+from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.controls import ControlledModel, Controller
 
@@ -48,8 +49,7 @@ class GermplasmRelationship:
 class GermplasmBase(ABC):
     # For germplasm entries we subclass ontology base
     # so we can return them as categories for a scale.
-    label: ClassVar[str] = 'Germplasm'
-    plural: ClassVar[str] = 'Germplasms'
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.GERMPLASM
     protected_characters: ClassVar[List[str]] = ['/', '*', ';']
 
     name: str = ''
@@ -118,8 +118,9 @@ class GermplasmBase(ABC):
         dump = asdict(self)
         return dump
 
+
 @dataclass
-class GermplasmInput(GermplasmBase, LabeledModel):
+class GermplasmInput(GermplasmBase, EnumLabeledModel):
     pass
 
 @dataclass
@@ -147,6 +148,6 @@ class GermplasmStored(GermplasmBase, ControlledModel):
             )
 
 @dataclass
-class GermplasmOutput(GermplasmBase, LabeledModel):
+class GermplasmOutput(GermplasmBase, StoredModel, EnumLabeledModel):
     pass
 

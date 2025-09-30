@@ -8,7 +8,7 @@ input CreateProgramInput {
 }
 
 input UpdateProgramInput {
-    program: Int!
+    programId: Int!
     name: String
     fullname: String
     description: String
@@ -18,7 +18,7 @@ input UpdateProgramInput {
 
 # Trial Mutations
 input CreateTrialInput {
-    program: Int!
+    programId: Int!
     name: String!
     fullname: String
     description: String
@@ -41,7 +41,7 @@ input UpdateTrialInput {
 
 # Study Mutations
 input CreateStudyInput {
-    trial: Int!
+    trialId: Int!
     name: String!
     fullname: String
     description: String
@@ -56,7 +56,7 @@ input CreateStudyInput {
 }
 
 input UpdateStudyInput {
-    study: Int!
+    studyId: Int!
     name: String
     fullname: String
     description: String

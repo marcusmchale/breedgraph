@@ -137,7 +137,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
         client,
         second_user_login_token,
         second_team_name,
-        parent_team_id
+        parent_id = parent_team_id
     )
     create_child_team_payload = get_verified_payload(add_child_team_response, "organisationsCreateTeam")
     assert_payload_success(create_child_team_payload)

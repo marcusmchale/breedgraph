@@ -1,4 +1,4 @@
 MATCH (user:User {
-  id: $props['id']
+  id: $user_id
 })
 SET user += $props

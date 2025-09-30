@@ -93,11 +93,15 @@ async def verify_email(
 
         account = await uow.repositories.accounts.get(user_id=user_id)
         if account is None:
+            import pdb; pdb.set_trace()
             raise NoResultFoundError
 
         existing_email: AccountStored = await uow.repositories.accounts.get(email=email)
         if existing_email is not None and existing_email.user.email_verified:
-            raise IdentityExistsError("This email address is already verified on another account")
+            if account == existing_email:
+                raise IllegalOperationError("Email address is already verified!")
+            else:
+                raise IdentityExistsError("This email address is already verified on another account")
 
         account.user.email = email
         account.verify_email()
@@ -210,12 +214,12 @@ async def revoke_affiliation(
         cmd: commands.accounts.RevokeAffiliation,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.agent) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         organisation.revoke_affiliation(
-            agent_id = cmd.agent,
-            team_id = cmd.team,
-            user_id = cmd.user,
+            agent_id = cmd.agent_id,
+            team_id = cmd.team_id,
+            user_id = cmd.user_id,
             access=cmd.access
         )
         await uow.commit()

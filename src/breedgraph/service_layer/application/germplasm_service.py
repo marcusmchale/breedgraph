@@ -3,7 +3,7 @@ from typing import List, Dict, Any, AsyncGenerator, Optional, Set
 from src.breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 )
-from src.breedgraph.domain.model.controls import ReadRelease, Access
+from src.breedgraph.domain.model.controls import ReadRelease, Access, ControlledModelLabel
 from src.breedgraph.domain.events.base import Event
 from src.breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
@@ -143,7 +143,7 @@ class GermplasmApplicationService:
         # Batch fetch controllers for access control
         entry_ids = [entry.id for entry in all_entries]
         controllers = await self.access_control.get_controllers(
-            label="Germplasm",
+            label=ControlledModelLabel.GERMPLASM,
             model_ids=entry_ids
         )
 
@@ -198,7 +198,7 @@ class GermplasmApplicationService:
 
         # Check that user has CURATE access to target and READ access to source using stored context
         controllers = await self.access_control.get_controllers(
-            label="Germplasm",
+            label=ControlledModelLabel.GERMPLASM,
             model_ids=[target_id, source_id]
         )
 
@@ -236,7 +236,7 @@ class GermplasmApplicationService:
 
     async def validate_read(self, entry_id: int) -> None:
         """Check if user has read access to a germplasm entry using stored context."""
-        target_controller = await self.access_control.get_controller("Germplasm", entry_id)
+        target_controller = await self.access_control.get_controller(ControlledModelLabel.GERMPLASM, entry_id)
         if not target_controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
             raise UnauthorisedOperationError(f"User {self.user_id} does not have read access to entry {entry_id}")
 
@@ -266,7 +266,7 @@ class GermplasmApplicationService:
         if not self.user_id:
             raise UnauthorisedOperationError("User ID required to set controls in germplasm service")
         # Check that user has ADMIN access to the entry
-        controllers = await self.access_control.get_controllers("Germplasm", entry_ids)
+        controllers = await self.access_control.get_controllers(ControlledModelLabel.GERMPLASM, entry_ids)
         for entry_id in entry_ids:
             controller = controllers.get(entry_id)
             if controller and not controller.has_access(
@@ -287,7 +287,7 @@ class GermplasmApplicationService:
         # Set controls
         await self.access_control.set_controls_by_id_and_label(
             ids = entry_ids,
-            label = "Germplasm",
+            label = ControlledModelLabel.GERMPLASM,
             control_teams=control_teams,
             release=release,
             user_id=self.user_id

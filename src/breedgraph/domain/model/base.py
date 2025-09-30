@@ -1,11 +1,12 @@
-from abc import ABC
 from dataclasses import dataclass, field
-from abc import abstractmethod
+from abc import abstractmethod, ABC, ABCMeta
+from enum import Enum, EnumMeta
+from functools import lru_cache
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.events.accounts import Event
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, ClassVar
 
 import logging
 
@@ -41,6 +42,38 @@ class LabeledModel(SerializableMixin, ABC):
 
     def model_dump(self) -> Dict[str, Any]:
         return asdict(self)
+
+class ABCEnumMeta(EnumMeta, ABCMeta):
+    pass
+
+class EnumLabel(str, Enum, metaclass=ABCEnumMeta):
+
+    @classmethod
+    @abstractmethod
+    @lru_cache(maxsize=1)
+    def _enum_to_plural_map(cls) -> dict[Enum, str]:
+        return {}
+
+    @property
+    @abstractmethod
+    def label(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def plural(self) -> str:
+        return self._enum_to_plural_map()[self]
+
+
+@dataclass
+class EnumLabeledModel(LabeledModel, ABC):
+    label: ClassVar[EnumLabel]
+
+    @property
+    def plural(self) -> str:
+        """The plural for this class of model"""
+        return self.label.plural
+
 
 @dataclass
 class StoredModel(LabeledModel, ABC):

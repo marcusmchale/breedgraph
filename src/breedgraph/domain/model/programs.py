@@ -3,8 +3,8 @@ from dataclasses import dataclass, field, replace
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
-from src.breedgraph.domain.model.base import StoredModel, LabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller
+from src.breedgraph.domain.model.base import StoredModel, EnumLabeledModel
+from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 
 from typing import List, Set, ClassVar, Dict, Any, Self
@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class StudyBase(ABC):
-    label: ClassVar[str] = 'Study'
-    plural: ClassVar[str] = 'Studies'
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.STUDY
 
     """
     This is like the Study concept
@@ -42,7 +41,7 @@ class StudyBase(ABC):
     references: List[int] = field(default_factory=list) # list of other references by IDs
 
 @dataclass
-class StudyInput(StudyBase, LabeledModel):
+class StudyInput(StudyBase, EnumLabeledModel):
     pass
 
 @dataclass
@@ -72,10 +71,22 @@ class StudyStored(StudyBase, ControlledModel):
         )
 
 @dataclass
-class StudyOutput(StudyBase):
-    # MIAPPE DM60: exposure or condition that is being tested.
-    factors: List[int] = field(default_factory=list)  # Factors in the ontology with datasets that vary across subjects within the study
-    variables: List[int] = field(default_factory=list)  # Variables in the ontology with datasets that vary across subjects within the study
+class StudyOutput(StudyBase, EnumLabeledModel):
+
+    @classmethod
+    def from_stored(cls, stored: StudyStored):
+        return cls(
+            name = stored.name,
+            fullname = stored.fullname,
+            description = stored.description,
+            practices = stored.practices,
+            start = stored.start,
+            end = stored.end,
+            datasets = stored.datasets,
+            design = stored.design,
+            licence = stored.licence,
+            references = stored.references
+        )
 
 @dataclass
 class TrialBase(ABC):
@@ -84,8 +95,7 @@ class TrialBase(ABC):
     But using the more widespread terminology from ISA
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
-    label: ClassVar[str] = 'Trial'
-    plural: ClassVar[str] = 'Trials'
+    label: ClassVar[str] = ControlledModelLabel.TRIAL
 
     name: str = None
     fullname: str|None = None
@@ -117,7 +127,7 @@ class TrialBase(ABC):
             raise ValueError("Studies can only be removed from stored trials")
 
 @dataclass
-class TrialInput(TrialBase, LabeledModel):
+class TrialInput(TrialBase, EnumLabeledModel):
     pass
 
 @dataclass
@@ -144,10 +154,19 @@ class TrialStored(TrialBase, ControlledModel):
             references = list()
         )
 
+@dataclass
+class TrialOutput(TrialBase, EnumLabeledModel):
+    studies: Dict[int, StudyOutput] = field(default_factory=dict)
+
+    @classmethod
+    def from_stored(cls, stored: TrialStored):
+        return cls(
+            studies={study_id: StudyOutput.from_stored(study) for study_id, study in stored.studies.items()}
+        )
+
 @dataclass(eq=False)
 class ProgramBase(ABC):
-    label: ClassVar[str] = 'Program'
-    plural: ClassVar[str] = 'Programs'
+    label: ClassVar[str] = ControlledModelLabel.PROGRAM
 
     name: str = None
     fullname: str|None = None
@@ -179,7 +198,7 @@ class ProgramBase(ABC):
 
     def get_study(self, study_id: int):
         if isinstance(self, ProgramStored):
-            for trial in self.trials:
+            for trial in self.trials.values():
                 try:
                     return trial.get_study(study_id)
                 except ValueError:
@@ -210,7 +229,7 @@ class ProgramBase(ABC):
             raise ValueError("Studies can only be removed from stored programs")
 
 @dataclass
-class ProgramInput(ProgramBase):
+class ProgramInput(ProgramBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
@@ -288,13 +307,22 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
 
     def to_output_map(self):
         return {
-            self.id: ProgramOutput(**self.model_dump())
+            self.id: ProgramOutput.from_stored(self)
         }
 
-
 @dataclass(eq=False)
-class ProgramOutput(ProgramBase):
+class ProgramOutput(ProgramBase, StoredModel, EnumLabeledModel):
+    trials: Dict[int, TrialOutput] = field(default_factory=dict)
 
-    trials: Dict[int, TrialStored | TrialInput] = field(default_factory=dict)
-
+    @classmethod
+    def from_stored(cls, stored_program: ProgramStored):
+        return cls(
+            id=stored_program.id,
+            name=stored_program.name,
+            fullname=stored_program.fullname,
+            description=stored_program.description,
+            contacts=stored_program.contacts,
+            references=stored_program.references,
+            trials={trial_id: TrialOutput.from_stored(trial) for trial_id, trial in stored_program.trials.items()},
+        )
 

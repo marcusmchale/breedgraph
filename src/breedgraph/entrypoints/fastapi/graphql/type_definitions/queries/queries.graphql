@@ -26,9 +26,11 @@ type Query {
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """Get an ontology entry"""
-    ontologyEntry (entryId: Int!): OntologyEntryPayload
+    ontologyEntry(entryId: Int!): OntologyEntryPayload!
+    """Get an ontology commit history"""
+    ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
     """Get a list of ontology entries"""
-    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel]): OntologyEntriesPayload
+    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel]): OntologyEntriesPayload!
     """Get a list of countries for use in top level region creation"""
     regionsCountries: LocationsPayload!
     """Get a list of region "root" locations.
@@ -56,14 +58,15 @@ type Query {
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
-    blocks (locationId: Int): UnitsPayload
+    blocks (locationId: Int): UnitsPayload!
     """
     Get a single unit.
     """
-    blocksUnit (unitId: Int!): UnitPayload
+    blocksUnit (unitId: Int!): UnitPayload!
     """
     Get a list of programs
     """
     programs (programId: Int, trialId: Int, studyId: Int) : ProgramsPayload
     datasets (datasetId: Int, conceptId: Int): DatasetsPayload
+    controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [Int]!): ControllersPayload!
 }
