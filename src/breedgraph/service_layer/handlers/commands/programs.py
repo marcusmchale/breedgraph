@@ -34,8 +34,8 @@ async def create_program(
             name=cmd.name,
             fullname=cmd.fullname if cmd.fullname else cmd.name,
             description=cmd.description,
-            contacts=cmd.contact_ids,
-            references=cmd.reference_ids
+            contact_ids=cmd.contact_ids,
+            reference_ids=cmd.reference_ids
         )
         await uow.repositories.programs.create(program)
         await uow.commit()
@@ -64,9 +64,9 @@ async def update_program(
         if cmd.description is not None:
             program.description = cmd.description
         if cmd.contact_ids is not None:
-            program.contacts = cmd.contact_ids
+            program.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
-            program.references = cmd.reference_ids
+            program.reference_ids = cmd.reference_ids
 
         await uow.commit()
 
@@ -101,8 +101,8 @@ async def create_trial(
             description=cmd.description,
             start=cmd.start,
             end=cmd.end,
-            contacts=cmd.contact_ids,
-            references=cmd.reference_ids
+            contact_ids=cmd.contact_ids,
+            reference_ids=cmd.reference_ids
         )
         program.add_trial(trial)
         await uow.commit()
@@ -133,9 +133,9 @@ async def update_trial(
         if cmd.end is not None:
             trial.end = cmd.end
         if cmd.contact_ids is not None:
-            trial.contacts = cmd.contact_ids
+            trial.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
-            trial.references = cmd.reference_ids
+            trial.reference_ids = cmd.reference_ids
 
         await uow.commit()
 
@@ -145,7 +145,7 @@ async def delete_trial(
         uow: AbstractUnitOfWork
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
-        program = await uow.programs.get(trial_id=cmd.trial_id)
+        program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program containing trial with ID {cmd.trial_id} not found")
         trial = program.trials.get(cmd.trial_id)
@@ -163,7 +163,7 @@ async def create_study(
         uow: AbstractUnitOfWork
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
-        program = await uow.programs.get(trial_id=cmd.trial_id)
+        program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")
 
@@ -175,12 +175,11 @@ async def create_study(
             practices=cmd.practices,
             start=cmd.start,
             end=cmd.end,
-            datasets=cmd.dataset_ids,
-            design=cmd.design_id,
-            licence=cmd.licence_id,
-            references=cmd.reference_ids
+            dataset_ids=cmd.dataset_ids,
+            design_id=cmd.design_id,
+            licence_id=cmd.licence_id,
+            reference_ids=cmd.reference_ids
         )
-
         trial.add_study(study)
         await uow.commit()
 
@@ -190,7 +189,7 @@ async def update_study(
         uow: AbstractUnitOfWork
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
-        program = await uow.programs.get(study_id=cmd.study_id)
+        program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study} not found")
 
@@ -210,13 +209,13 @@ async def update_study(
         if cmd.end is not None:
             study.end = cmd.end
         if cmd.dataset_ids is not None:
-            study.datasets = cmd.dataset_ids
+            study.dataset_ids = cmd.dataset_ids
         if cmd.design_id is not None:
-            study.design = cmd.design_id
+            study.design_id = cmd.design_id
         if cmd.licence_id is not None:
-            study.licence = cmd.licence_id
+            study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
-            study.references = cmd.references_ids
+            study.reference_ids = cmd.references_ids
         await uow.commit()
 
 @handlers.command_handler()
@@ -225,7 +224,7 @@ async def delete_study(
         uow: AbstractUnitOfWork
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
-        program = await uow.programs.get(study_id=cmd.study_id)
+        program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
 

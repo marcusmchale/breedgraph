@@ -151,6 +151,30 @@ enum OntologyEntryLabel {
     TITLE
 }
 
+enum OntologyRelationshipLabel{
+    """Any => SAME_TYPE"""
+    PARENT_OF
+    """Any => Term"""
+    HAS_TERM
+    """Scale -> Category"""
+    HAS_CATEGORY
+    """Trait/Condition -> Subject"""
+    DESCRIBES_SUBJECT
+    """Variable -> Trait"""
+    DESCRIBES_TRAIT
+    """Factor -> Condition"""
+    DESCRIBES_CONDITION
+    """Variable -> ObservationMethod"""
+    USES_OBSERVATION_METHOD
+    """Factor -> ControlMethod"""
+    USES_CONTROL_METHOD
+    """Variable/Factor -> Scale"""
+    USES_SCALE
+    """Event -> Factor"""
+    DESCRIBES_FACTOR
+    """EventType -> Variable"""
+    DESCRIBES_VARIABLE
+}
 
 enum AxisType {
     """
@@ -666,3 +690,10 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
 }
 
 union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | GermplasmMethod | LocationType | LayoutType | Design | Role | Title
+
+type OntologyRelationship {
+    id: Int!
+    source_id: Int!
+    target_id: Int!
+    label: OntologyRelationshipLabel!
+}

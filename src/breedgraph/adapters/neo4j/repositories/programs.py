@@ -122,32 +122,32 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
     async def _update_controlled(self, program: TrackableProtocol | ProgramStored):
         if 'trials' in program.changed:
-            for trial_id in program.trials.added:
+            for trial_id in program.trials.added.copy():
                 trial = program.trials[trial_id]
                 if isinstance(trial, TrialInput):
                     stored_trial = await self._create_trial(trial, program.id)
                     program.trials.replace_with_stored(trial_id, stored_trial)
                 else:
                     raise ValueError("only new trials may be added to a program")
-            for trial_id in program.trials.changed:
+            for trial_id in program.trials.changed.copy():
                 trial = program.trials[trial_id]
 
                 if 'studies' in trial.changed:
-                    for study_id in trial.studies.added:
+                    for study_id in trial.studies.added.copy():
                         study = trial.studies[study_id]
                         if isinstance(study, StudyInput):
                             stored_study = await self._create_study(study, trial_id)
                             trial.studies.replace_with_stored(study_id, stored_study)
                         else:
                             raise ValueError("only new studies may be added to a trial")
-                    for study_id in trial.studies.changed:
+                    for study_id in trial.studies.changed.copy():
                         study = trial.studies[study_id]
                         if isinstance(study, StudyStored):
                             await self._update_study(study)
                         else:
                             raise ValueError("only stored studies have tracked changes")
                     if trial.studies.removed:
-                        await self._delete_studies(trial.studies.removed)
+                        await self._delete_studies(list(trial.studies.removed.keys()))
 
                 if isinstance(trial, TrialStored):
                     await self._update_trial(trial)
@@ -155,7 +155,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
                     raise ValueError("Only stored trials have tracked changes")
 
             if program.trials.removed:
-                await self._delete_trials(program.trials.removed)
+                await self._delete_trials(list(program.trials.removed.keys()))
 
         if program.changed - {'trials', 'controller'}:
             await self._update_program(program)

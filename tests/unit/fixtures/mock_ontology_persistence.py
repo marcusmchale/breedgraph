@@ -14,11 +14,12 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         self.next_entry_id = 1
 
         # Storage for relationships
-        self.relationships: Dict[OntologyRelationshipBase.key, OntologyRelationshipBase] = {}
+        self.relationships: Dict[int, OntologyRelationshipBase] = {}
+        self.next_relationship_id = 1
 
         # Storage for lifecycles
         self.entry_lifecycles: Dict[int, EntryLifecycle] = {}
-        self.relationship_lifecycles: Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle] = {}
+        self.relationship_lifecycles: Dict[int, RelationshipLifecycle] = {}
 
         # Storage for scale categories
         self.scale_categories: Dict[int, List[Tuple[int, Optional[int]]]] = defaultdict(list)
@@ -123,13 +124,17 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
         self.entries[entry.id] = entry
 
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
-        self.relationships[relationship.key] = relationship
+        rel_id = self.next_relationship_id
+        self.next_relationship_id += 1
+        relationship.id = rel_id
+        self.relationships[relationship.id] = relationship
+        return relationship
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update attributes of an existing relationship."""
-        self.relationships[relationship.key] = relationship
+        self.relationships[relationship.id] = relationship
 
     async def get_relationships_by_label(
             self,
@@ -137,19 +142,20 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             label: OntologyRelationshipLabel = None
     ) ->AsyncGenerator[OntologyRelationshipBase, None]:
         """Get all relationships for an entry, optionally filtered by label."""
-        for source_id, sink_id, rel_label in self.relationships.keys():
+        for rel in self.relationships.values():
             # Check if this relationship involves the given entry
-            if source_id == entry_id or sink_id == entry_id:
+            if rel.source_id == entry_id or rel.target_id == entry_id:
                 # If a specific label is requested, filter by it
-                if label is None or rel_label == label:
-                    yield self.relationships.get((source_id, sink_id, rel_label))
+                if label is None or rel.label == label:
+                    yield rel
 
     async def get_entries(
             self,
-            version: Version = None,
-            phases: List[LifecyclePhase] = None,
-            labels: List[str] = None,
-            names: List[str] = None,
+            version: Version|None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int] = None,
+            labels: List[OntologyEntryLabel]|None = None,
+            names: List[str]|None = None,
             as_output: bool = False,
     ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
         """Retrieve ontology entries with filtering."""
@@ -163,6 +169,24 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             # in a real implementation, but for tests we can keep it simple
 
             yield entry
+
+    async def get_relationships(
+            self,
+            version: Version | None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int] = None,
+            labels: List[OntologyRelationshipLabel] | None = None,
+    ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
+        """Retrieve ontology relationships with filtering."""
+        for rel in self.relationships.values():
+            # Apply filters
+            if labels and rel.label not in labels:
+                continue
+            if entry_ids and not rel.source_id in entry_ids or rel.target_id in entry_ids:
+                continue
+            # Note: version and phases filtering would require more complex logic
+            # in a real implementation, but for tests we can keep it simple
+            yield rel
 
     async def add_scale_categories(
             self,
@@ -182,7 +206,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
     async def save_relationship_lifecycles(
             self,
-            lifecycles: Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle],
+            lifecycles: Dict[int, RelationshipLifecycle],
             user_id: int = None
     ) -> None:
         """Save relationship lifecycles to storage."""
@@ -199,8 +223,8 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
     async def load_relationship_lifecycles(
             self,
-            relationship_keys: Optional[Set[Tuple[int, int, OntologyRelationshipLabel]]] = None
-    ) -> Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle]:
+            relationship_keys: Optional[Set[int]] = None
+    ) -> Dict[int, RelationshipLifecycle]:
         """Load relationship lifecycles from storage."""
         if relationship_keys is None:
             return self.relationship_lifecycles.copy()
@@ -274,7 +298,10 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             label: OntologyRelationshipLabel
     ) -> bool:
         """Check if a specific relationship already exists."""
-        return (source_id, sink_id, label) in self.relationships
+        for rel in self.relationships.values():
+            if rel.source_id == source_id and rel.target_id == sink_id and rel.label == label:
+                return True
+        return False
 
     async def has_path_between_entries(
             self,
@@ -297,13 +324,13 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             visited.add(current_id)
 
             # Find all outgoing relationships from current node
-            for src, sink, label in self.relationships.keys():
-                if src == current_id:
-                    if relationship_type is None or label == relationship_type:
-                        if sink == target_id:
+            for rel in self.relationships.values():
+                if rel.source_id == current_id:
+                    if relationship_type is None or rel.label == relationship_type:
+                        if rel.target_id == target_id:
                             return True
-                        if sink not in visited:
-                            stack.append(sink)
+                        if rel.target_id not in visited:
+                            stack.append(rel.target_id)
         return False
 
     async def get_entry_dependencies(self, entry_id: int) -> List[int]:

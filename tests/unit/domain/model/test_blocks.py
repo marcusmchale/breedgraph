@@ -32,7 +32,7 @@ def test_graph_redaction(unit_stored):
 
     private_controllers = {
         'Unit': {
-            ug.root.id: Controller(controls={1:Control(release=ReadRelease.PRIVATE)}),
+            ug.root.id: Controller(controls={1:Control(team_id=1, release=ReadRelease.PRIVATE)}),
         }
     }
     ug_red = ug.redacted(controllers=private_controllers, user_id=1, read_teams=None)

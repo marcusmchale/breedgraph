@@ -13,7 +13,8 @@ from tests.e2e.ontologies.post_methods import (
     post_to_create_layout_type,
     post_to_get_entries,
     post_to_commit_version,
-    post_to_commit_history
+    post_to_commit_history,
+    post_to_get_relationships
 )
 
 
@@ -190,7 +191,6 @@ async def test_create_layout_type(client, first_user_login_token, lorem_text_gen
     assert layout_payload.get('result')[0].get('id')
     assert layout_payload.get('result')[0].get('axes') == layout_type_input['axes']
 
-
 @pytest.mark.asyncio(scope="session")
 async def test_commit_version(client, first_account, first_user_login_token):
     response = await post_to_commit_version(
@@ -207,3 +207,19 @@ async def test_commit_version(client, first_account, first_user_login_token):
     assert payload.get('result')[0].get('user').get('name') == first_account.user.name
     assert payload.get('result')[0].get('version').get('major') > 0
     assert payload.get('result')[0].get('comment') == 'Test major change'
+
+@pytest.mark.asyncio(scope="session")
+async def test_get_all_relationships(client, first_account, first_user_login_token):
+    response = await post_to_get_relationships(
+        client,
+        token=first_user_login_token
+    )
+    import pdb; pdb.set_trace()
+
+@pytest.mark.asyncio(scope="session")
+async def test_get_label_relationships(client, first_account, first_user_login_token):
+    response = await post_to_get_relationships(
+        client,
+        token=first_user_login_token,
+        labels=[OntologyRelationshipLabel.HAS_TERM]
+    )

@@ -11,9 +11,9 @@ async def post_to_create_term(
 ):
     json={
         "query": (
-            " mutation ( $termInput: TermInput! ) { "
+            " mutation ( $term: TermInput! ) { "
             "  ontologyCreateTerm( "
-            "   termInput: $termInput  "
+            "   term: $term  "
             "  ) { "
             "    status, "
             "    result, "
@@ -22,7 +22,7 @@ async def post_to_create_term(
             " } "
         ),
         "variables": {
-            "termInput" : term_input
+            "term" : term_input
         }
     }
     headers = with_auth(
@@ -39,9 +39,9 @@ async def post_to_create_subject(
 ):
     json={
         "query": (
-            " mutation ( $subjectInput: SubjectInput! ) { "
+            " mutation ( $subject: SubjectInput! ) { "
             "  ontologyCreateSubject( "
-            "   subjectInput: $subjectInput  "
+            "   subject: $subject  "
             "  ) { "
             "    status, "
             "    result, "
@@ -50,7 +50,7 @@ async def post_to_create_subject(
             " } "
         ),
         "variables": {
-            "subjectInput" : subject_input
+            "subject" : subject_input
         }
     }
     headers = with_auth(
@@ -67,9 +67,9 @@ async def post_to_create_trait(
 ):
     json={
         "query": (
-            " mutation ( $traitInput: TraitInput! ) { "
+            " mutation ( $trait: TraitInput! ) { "
             "  ontologyCreateTrait( "
-            "   traitInput: $traitInput  "
+            "   trait: $trait  "
             "  ) { "
             "    status, "
             "    result, "
@@ -78,7 +78,7 @@ async def post_to_create_trait(
             " } "
         ),
         "variables": {
-            "traitInput" : trait_input
+            "trait" : trait_input
         }
     }
     headers = with_auth(
@@ -95,9 +95,9 @@ async def post_to_create_observation_method(
 ):
     json={
         "query": (
-            " mutation ( $observationMethodInput: ObservationMethodInput! ) { "
+            " mutation ( $observationMethod: ObservationMethodInput! ) { "
             "  ontologyCreateObservationMethod( "
-            "   observationMethodInput: $observationMethodInput  "
+            "   observationMethod: $observationMethod  "
             "  ) { "
             "    status, "
             "    result, "
@@ -106,7 +106,7 @@ async def post_to_create_observation_method(
             " } "
         ),
         "variables": {
-            "observationMethodInput" : observation_method_input
+            "observationMethod" : observation_method_input
         }
     }
     headers = with_auth(
@@ -123,9 +123,9 @@ async def post_to_create_scale(
 ):
     json={
         "query": (
-            " mutation ( $scaleInput: ScaleInput! ) { "
+            " mutation ( $scale: ScaleInput! ) { "
             "  ontologyCreateScale( "
-            "   scaleInput: $scaleInput  "
+            "   scale: $scale  "
             "  ) { "
             "    status, "
             "    result, "
@@ -134,7 +134,7 @@ async def post_to_create_scale(
             " } "
         ),
         "variables": {
-            "scaleInput" : scale_input
+            "scale" : scale_input
         }
     }
     headers = with_auth(
@@ -151,9 +151,9 @@ async def post_to_create_variable(
 ):
     json={
         "query": (
-            " mutation ( $variableInput: VariableInput! ) { "
+            " mutation ( $variable: VariableInput! ) { "
             "  ontologyCreateVariable( "
-            "   variableInput: $variableInput  "
+            "   variable: $variable  "
             "  ) { "
             "    status, "
             "    result, "
@@ -162,7 +162,7 @@ async def post_to_create_variable(
             " } "
         ),
         "variables": {
-            "variableInput" : variable_input
+            "variable" : variable_input
         }
     }
     headers = with_auth(
@@ -179,9 +179,9 @@ async def post_to_create_layout_type(
 ):
     json={
         "query": (
-            " mutation ( $layoutTypeInput: LayoutTypeInput! ) { "
+            " mutation ( $layoutType: LayoutTypeInput! ) { "
             "  ontologyCreateLayoutType( "
-            "   layoutTypeInput: $layoutTypeInput  "
+            "   layoutType: $layoutType  "
             "  ) { "
             "    status, "
             "    result, "
@@ -190,7 +190,7 @@ async def post_to_create_layout_type(
             " } "
         ),
         "variables": {
-            "layoutTypeInput" : layout_type_input
+            "layoutType" : layout_type_input
         }
     }
     headers = with_auth(
@@ -243,6 +243,42 @@ async def post_to_get_entries(
         "variables": {
             "names": names,
             "labels": [label.name for label in labels]
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
+async def post_to_get_relationships(
+        client,
+        token: str,
+        labels: List[OntologyRelationshipLabel] |None = None,
+):
+    json={
+        "query": (
+            " query ( "
+            "  $labels: [OntologyRelationshipLabel]"
+            " ) { "
+            "  ontologyRelationships( "
+            "    labels: $labels "
+            "  ) { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       source_id,"
+            "       target_id, "
+            "       label "
+            "   }, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "labels": [label.name for label in labels] if labels else None
         }
     }
     headers = with_auth(

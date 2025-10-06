@@ -11,7 +11,6 @@ class OntologyRelationshipBase(ABC):
     source_id: int
     target_id: int
     label: OntologyRelationshipLabel  # Type of relationship
-
     id: int = None
 
     @property
@@ -46,7 +45,7 @@ class OntologyRelationshipBase(ABC):
         ...
 
     @staticmethod
-    def relationship_from_label(source_id, target_id, label, relationship_id: int = None, **kwargs):
+    def relationship_from_label(source_id: int, target_id: int, label: OntologyRelationshipLabel, relationship_id: int = None, **kwargs):
         if label == OntologyRelationshipLabel.PARENT_OF:
             if relationship_id is None:
                 return ParentRelationship.build(

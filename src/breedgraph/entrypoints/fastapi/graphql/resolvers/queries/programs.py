@@ -38,6 +38,10 @@ async def get_programs(
 def resolve_trials(obj, info) -> List[TrialOutput]:
     return obj.trials.values()
 
+@trial.field("name")
+def resolve_trial_name(obj, info) -> int | None:
+    return obj.name
+
 @trial.field("studies")
 def resolve_studies(obj, info) -> List[StudyOutput]:
     return obj.studies.values()

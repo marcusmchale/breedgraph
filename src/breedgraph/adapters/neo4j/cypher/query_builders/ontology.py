@@ -68,12 +68,21 @@ def create_ontology_relationship(label: OntologyRelationshipLabel):
     raise ValueError("Only ontology relationship labels can be used")
 
   query = f"""
+    MERGE (c:Counter {{name:'ontology_relationship'}})
+    ON CREATE SET c.count = 0
+    SET c.count = c.count + 1
+    WITH c
     MATCH (source: OntologyEntry {{id:$source_id}})
     MATCH (target: OntologyEntry {{id:$target_id}})
     CREATE (source)
-        -[:HAS_RELATIONSHIP]->(rel:{label.value}:OntologyRelationship)
+        -[:HAS_RELATIONSHIP]->(rel:{label.value}:OntologyRelationship {{id: c.count}})
         -[:RELATES_TO]->(target)
     SET rel += $attributes
+    RETURN 
+        rel.id as relationship_id
+        [label IN labels(rel) WHERE label <> "OntologyRelationship"][0] as label
+        source.id as source_id
+        target.id as target_id
   """
   return query
 
@@ -94,6 +103,7 @@ def get_relationship_by_label(label: OntologyRelationshipLabel):
             -[:RELATES_TO]->(target: OntologyEntry)
         WHERE source = entry OR target = entry
         RETURN 
+            rel.id as relationship_id,
             source.id as source_id, 
             target.id as target_id, 
             [label IN labels(rel) WHERE label <> "OntologyRelationship"][0] as label
@@ -160,7 +170,6 @@ def get_all_entries(
     Dynamically build Cypher query for fetching ontology entries.
 
     Args:
-        version: Point-in-time version to evaluate phases against
         phases: Lifecycle phases to include (evaluated at the given version)
         labels: Neo4j labels (subtypes) to filter by - these go in the MATCH clause
         names: Entry names to filter by - these should be parameterized as a list of lower-case names, $names_lower
@@ -174,9 +183,9 @@ def get_all_entries(
     if labels:
         # get values of label enums as string
         labels = [label.value for label in labels]
-        match_clause = f"MATCH (entry:OntologyEntry:{labels[0]})-[:HAS_LIFECYCLE]->(entry_lifecycle:OntologyEntryLifecycle)"
+        match_clause = f"MATCH (entry:OntologyEntry:{labels[0]})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
     else:
-        match_clause = "MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(entry_lifecycle:OntologyEntryLifecycle)"
+        match_clause = "MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
 
     # Build WHERE conditions
     where_conditions = []
@@ -185,21 +194,21 @@ def get_all_entries(
     phase_conditions = []
     if LifecyclePhase.DRAFT in phases:
         phase_conditions.append(
-            "(entry_lifecycle.drafted <= $version AND "
-            "(entry_lifecycle.activated IS NULL OR entry_lifecycle.activated > $version))"
+            "(lifecycle.drafted <= $version AND "
+            "(lifecycle.activated IS NULL OR lifecycle.activated > $version))"
         )
     if LifecyclePhase.ACTIVE in phases:
         phase_conditions.append(
-            "(entry_lifecycle.activated <= $version AND "
-            "(entry_lifecycle.deprecated IS NULL OR entry_lifecycle.deprecated > $version))"
+            "(lifecycle.activated <= $version AND "
+            "(lifecycle.deprecated IS NULL OR lifecycle.deprecated > $version))"
         )
     if LifecyclePhase.DEPRECATED in phases:
         phase_conditions.append(
-            "(entry_lifecycle.deprecated <= $version AND "
-            "(entry_lifecycle.removed IS NULL OR entry_lifecycle.removed > $version))"
+            "(lifecycle.deprecated <= $version AND "
+            "(lifecycle.removed IS NULL OR lifecycle.removed > $version))"
         )
     if LifecyclePhase.REMOVED in phases:
-        phase_conditions.append("entry_lifecycle.removed <= $version")
+        phase_conditions.append("lifecycle.removed <= $version")
 
     where_conditions.append(f"({' OR '.join(phase_conditions)})")
 
@@ -252,6 +261,87 @@ def get_all_entries(
         queries = []
         for label in labels:
             query_parts = [f"MATCH (entry:OntologyEntry:{label})"]
+            if where_clause:
+                query_parts.append(where_clause)
+            query_parts.append(return_clause)
+            queries.append("\n".join(query_parts))
+
+        return "\nUNION\n".join(queries)
+    else:
+        # Single query
+        query_parts = [match_clause]
+        if where_clause:
+            query_parts.append(where_clause)
+        query_parts.append(return_clause)
+
+        return "\n".join(query_parts)
+
+def get_all_relationships(
+        phases: List[LifecyclePhase],
+        labels: List[OntologyRelationshipLabel] | None = None,
+        entry_ids: List[int] | None = None,
+) -> str:
+    """
+    Dynamically build Cypher query for fetching ontology relationships.
+
+    Args:
+        phases: Lifecycle phases to include (evaluated at the given version)
+        labels: Neo4j labels (subtypes) to filter by - these go in the MATCH clause
+        entry_ids: Entry IDs to filter by
+    Returns:
+        Complete Cypher query string
+    """
+    # Build MATCH clause with label filtering
+    if labels:
+        # get values of label enums as string
+        labels = [label.value for label in labels]
+        match_clause = f"MATCH (relationship:OntologyRelationship:{labels[0]})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
+    else:
+        match_clause = "MATCH (relationship:OntologyRelationship)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
+
+    # Entry ID filtering (parameterized)
+    if entry_ids:
+        match_clause = match_clause + ", (relationship)--(entry:OntologyEntry) where entry.id IN $entry_ids"
+
+    # Phase filtering (applies with version context)
+    phase_conditions = []
+    if LifecyclePhase.DRAFT in phases:
+        phase_conditions.append(
+            "(lifecycle.drafted <= $version AND "
+            "(lifecycle.activated IS NULL OR lifecycle.activated > $version))"
+        )
+    if LifecyclePhase.ACTIVE in phases:
+        phase_conditions.append(
+            "(lifecycle.activated <= $version AND "
+            "(lifecycle.deprecated IS NULL OR lifecycle.deprecated > $version))"
+        )
+    if LifecyclePhase.DEPRECATED in phases:
+        phase_conditions.append(
+            "(lifecycle.deprecated <= $version AND "
+            "(lifecycle.removed IS NULL OR lifecycle.removed > $version))"
+        )
+    if LifecyclePhase.REMOVED in phases:
+        phase_conditions.append("lifecycle.removed <= $version")
+
+    # Build WHERE clause
+    where_clause = ""
+    if phase_conditions:
+        where_clause = "WHERE " + ' OR '.join(phase_conditions)
+
+    return_clause = """RETURN
+      relationship {
+        id: relationship.id,
+        label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
+        source_id: [(relationship)<-[:HAS_RELATIONSHIP]-(source) | source.id][0],
+        target_id: [(relationship)-[:RELATES_TO]->(target) | target.id][0]
+      } as relationship """
+
+    # Handle multiple labels with UNION
+    if labels is not None and len(labels) > 1:
+        # Build separate queries for each label and combine with UNION
+        queries = []
+        for label in labels:
+            query_parts = [f"MATCH (relationship:OntologyRelationship:{label})"]
             if where_clause:
                 query_parts.append(where_clause)
             query_parts.append(return_clause)

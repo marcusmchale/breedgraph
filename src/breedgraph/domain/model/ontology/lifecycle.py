@@ -118,11 +118,4 @@ class EntryLifecycle(BaseLifecycle):
 @dataclass
 class RelationshipLifecycle(BaseLifecycle):
     """Domain model for managing the lifecycle of ontology relationships."""
-    source_id: int = None
-    target_id: int = None
-    label: OntologyRelationshipLabel = None
-
-    @property
-    def key(self) -> Tuple[int, int, OntologyRelationshipLabel]:
-        """Get the composite key for this relationship."""
-        return self.source_id, self.target_id, self.label
+    relationship_id: int = None

@@ -32,7 +32,7 @@ class OntologyApplicationService:
         self.events: List[Event] = []
         # in memory store for lifecycle management
         self._entry_lifecycles: Dict[int, EntryLifecycle] = {}
-        self._relationship_lifecycles: Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle] = {}
+        self._relationship_lifecycles: Dict[int, RelationshipLifecycle] = {}
 
     def collect_events(self):
         while self.events:
@@ -127,12 +127,12 @@ class OntologyApplicationService:
         # Handle parent/child relationships
         for parent_id in (parents or []):
             relationship = ParentRelationship.build(parent_id=parent_id, child_id=created_entry.id)
-            await self.create_relationship(relationship)
-            await self._create_relationship_lifecycle(relationship.key)
+            relationship = await self.create_relationship(relationship)
+            await self._create_relationship_lifecycle(relationship.id)
         for child_id in (children or []):
             relationship = ParentRelationship.build(parent_id=created_entry.id, child_id=child_id)
-            await self.create_relationship(relationship)
-            await self._create_relationship_lifecycle(relationship.key)
+            relationship = await self.create_relationship(relationship)
+            await self._create_relationship_lifecycle(relationship.id)
         await self._save_relationship_lifecycles()
         return created_entry
 
@@ -401,7 +401,7 @@ class OntologyApplicationService:
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
+            entry_ids: List[int] | None = None,
             labels: List[OntologyEntryLabel] | None = None,
             names: List[str] | None = None,
             as_output: bool = False,
@@ -415,6 +415,21 @@ class OntologyApplicationService:
             as_output=as_output
         ):
             yield entry
+
+    async def get_relationships(
+            self,
+            version: Version | None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int] | None = None,
+            labels: List[OntologyRelationshipLabel] | None = None
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
+        async for rel in self.persistence.get_relationships(
+            version=version,
+            phases=phases,
+            entry_ids=entry_ids,
+            labels=labels
+        ):
+            yield rel
 
     async def update_entry(
             self,
@@ -512,7 +527,7 @@ class OntologyApplicationService:
                 f"Terms connect to other Terms through parent/child relationships only."
             )
 
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship """
         logger.debug(f"Creating relationship: {relationship}")
         # Fetch entry types once for all validators that need them
@@ -522,10 +537,11 @@ class OntologyApplicationService:
         await self._validate_relationship_does_not_exist(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
         # Create relationship
-        await self.persistence.create_relationship(relationship)
+        relationship = await self.persistence.create_relationship(relationship)
         # Create and save lifecycle
-        await self._create_relationship_lifecycle(relationship.key)
+        await self._create_relationship_lifecycle(relationship.id)
         await self._save_relationship_lifecycles()
+        return relationship
 
     async def link_to_term(self, source_id, term_id):
         relationship = TermRelationship.build(source_id=source_id, term_id=term_id)
@@ -669,17 +685,15 @@ class OntologyApplicationService:
 
     async def _create_relationship_lifecycle(
             self,
-            key: Tuple[int, int, OntologyRelationshipLabel]
+            relationship_id: int
     ) -> RelationshipLifecycle:
         """Create a new relationship lifecycle."""
         current_version = await self.persistence.get_current_version()
         lifecycle = RelationshipLifecycle(
-            source_id=key[0],
-            target_id=key[1],
-            label=key[2],
+            relationship_id=relationship_id,
             version_drafted=current_version
         )
-        self._relationship_lifecycles[key] = lifecycle
+        self._relationship_lifecycles[relationship_id] = lifecycle
         return lifecycle
 
     def _get_entry_lifecycle(self, entry_id: int) -> EntryLifecycle:

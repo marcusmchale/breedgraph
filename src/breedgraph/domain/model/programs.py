@@ -30,15 +30,15 @@ class StudyBase(ABC):
     start: datetime64|None = None
     end: datetime64|None = None
 
-    datasets: List[int] = field(default_factory=list)  # list of DataSet IDs.
+    dataset_ids: List[int] = field(default_factory=list)  # list of DataSet IDs.
 
     # Germplasm, Location are defined for units, to retrieve from there for read operations
     # Units in turn are accessed through factors/observations
-    design: int | None = None  # Reference to Design in Ontology
+    design_id: int | None = None  # Reference to Design in Ontology
 
-    licence: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
+    licence_id: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
-    references: List[int] = field(default_factory=list) # list of other references by IDs
+    reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
 
 @dataclass
 class StudyInput(StudyBase, EnumLabeledModel):
@@ -64,28 +64,29 @@ class StudyStored(StudyBase, ControlledModel):
             practices = self.practices and self.redacted_str,
             start = None,
             end = None,
-            datasets = list(),
-            design = None,
-            licence = None,
-            references = list()
+            dataset_ids = list(),
+            design_id = None,
+            licence_id = None,
+            reference_ids = list()
         )
 
 @dataclass
-class StudyOutput(StudyBase, EnumLabeledModel):
+class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
 
     @classmethod
     def from_stored(cls, stored: StudyStored):
         return cls(
+            id = stored.id,
             name = stored.name,
             fullname = stored.fullname,
             description = stored.description,
             practices = stored.practices,
             start = stored.start,
             end = stored.end,
-            datasets = stored.datasets,
-            design = stored.design,
-            licence = stored.licence,
-            references = stored.references
+            dataset_ids = stored.dataset_ids,
+            design_id = stored.design_id,
+            licence_id = stored.licence_id,
+            reference_ids = stored.reference_ids
         )
 
 @dataclass
@@ -104,8 +105,8 @@ class TrialBase(ABC):
     start: datetime64|None = None
     end: datetime64|None = None
 
-    contacts: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this study.
-    references: List[int] = field(default_factory=list)  # list of reference by ID
+    contact_ids: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this study.
+    reference_ids: List[int] = field(default_factory=list)  # list of reference by ID
 
     def get_study(self, study_id: int) -> StudyStored | StudyInput | None:
         if isinstance(self, TrialStored):
@@ -151,16 +152,24 @@ class TrialStored(TrialBase, ControlledModel):
             description = self.description and self.redacted_str,
             start = None,
             end = None,
-            references = list()
+            reference_ids = list()
         )
 
 @dataclass
-class TrialOutput(TrialBase, EnumLabeledModel):
+class TrialOutput(TrialBase, EnumLabeledModel, StoredModel):
     studies: Dict[int, StudyOutput] = field(default_factory=dict)
 
     @classmethod
     def from_stored(cls, stored: TrialStored):
         return cls(
+            id = stored.id,
+            name = stored.name,
+            fullname = stored.fullname,
+            description = stored.description,
+            start = stored.start,
+            end = stored.end,
+            contact_ids = stored.contact_ids,
+            reference_ids = stored.reference_ids,
             studies={study_id: StudyOutput.from_stored(study) for study_id, study in stored.studies.items()}
         )
 
@@ -171,8 +180,9 @@ class ProgramBase(ABC):
     name: str = None
     fullname: str|None = None
     description: str|None = None
-    contacts: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this program.
-    references: List[int] = field(default_factory=list)  # list of reference IDs
+
+    contact_ids: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this program.
+    reference_ids: List[int] = field(default_factory=list)  # list of reference IDs
 
     def model_dump(self):
         return asdict(self)
@@ -277,8 +287,8 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
                 name = self.name and self.redacted_str,
                 fullname = None,
                 description = None,
-                contacts = list(),
-                references = list()
+                contact_ids = list(),
+                reference_ids = list()
             )
 
         for trial_key, trial in self.trials.items():
@@ -321,8 +331,7 @@ class ProgramOutput(ProgramBase, StoredModel, EnumLabeledModel):
             name=stored_program.name,
             fullname=stored_program.fullname,
             description=stored_program.description,
-            contacts=stored_program.contacts,
-            references=stored_program.references,
+            contact_ids=stored_program.contact_ids,
+            reference_ids=stored_program.reference_ids,
             trials={trial_id: TrialOutput.from_stored(trial) for trial_id, trial in stored_program.trials.items()},
         )
-

@@ -30,7 +30,9 @@ type Query {
     """Get an ontology commit history"""
     ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
     """Get a list of ontology entries"""
-    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel]): OntologyEntriesPayload!
+    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel], versionId: Int): OntologyEntriesPayload!
+    """Get a list of ontology relationships"""
+    ontologyRelationships(entryIds: [Int], labels: [OntologyRelationshipLabel], versionId: Int): OntologyRelationshipsPayload!
     """Get a list of countries for use in top level region creation"""
     regionsCountries: LocationsPayload!
     """Get a list of region "root" locations.

@@ -53,8 +53,8 @@ class UpdateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contact_ids: List[int] = None
-    reference_ids: List[int] = None
+    contact_ids: List[int] | None = None
+    reference_ids: List[int] | None = None
 
 class DeleteTrial(Command):
     agent_id: int
@@ -93,8 +93,8 @@ class UpdateStudy(Command):
     design_id: int | None = None
     licence_id: int | None = None
 
-    dataset_ids: List[int] = None
-    reference_ids: List[int] = None
+    dataset_ids: List[int] | None = None
+    reference_ids: List[int] | None = None
 
 class DeleteStudy(Command):
     agent_id: int

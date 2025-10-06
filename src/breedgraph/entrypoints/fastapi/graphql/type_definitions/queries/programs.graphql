@@ -18,7 +18,6 @@ type Trial {
     end: DateTime
     contacts: [Int]
     references: [Int]
-    programId: Int!
     studies: [Study]
 }
 
@@ -36,5 +35,4 @@ type Study {
     design: Int
     licence: Int
     references: [Int]
-    trialId: Int!
 }

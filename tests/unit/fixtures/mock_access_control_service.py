@@ -46,6 +46,7 @@ class MockAccessControlService(AbstractAccessControlService):
         for model_id in model_ids_list:
             for team_id in team_ids_list:
                 self._controls[label][model_id][team_id] = Control(
+                    team_id=team_id,
                     release=release,
                     time=datetime64('now')
                 )

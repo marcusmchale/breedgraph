@@ -1,28 +1,37 @@
-from typer.colors import MAGENTA
-
 from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.controls import Access
-from src.breedgraph.domain.model.ontology import Version
+from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel
 from src.breedgraph.custom_exceptions import InconsistentStateError
 
 from typing import List, Set
 
-async def update_ontology_map(context, entry_ids: List[int] = None, version: int = None):
+async def update_ontology_version_context(context, version: Version = None):
+    context_version = context.get('ontology_version')
+    if version:
+        if context_version:
+            if context_version == version:
+                return
+            else:
+                raise InconsistentStateError('Ontology version must be consistent within the request context')
+        else:
+            context['ontology_version'] = version
+    else:
+        if context_version:
+            return
+        else:
+            bus = context.get('bus')
+            user_id = context.get('user_id') # This might be None for unauthenticated requests
+            async with bus.uow.get_uow(user_id=user_id) as uow:
+                context['ontology_version'] = await uow.ontology.get_current_version()
+
+async def update_ontology_map(
+        context,
+        entry_ids: List[int] = None,
+        version: Version = None):
     bus = context.get('bus')
     user_id = context.get('user_id')  # This might be None for unauthenticated requests
-
+    await update_ontology_version_context(context, version)
     async with bus.uow.get_uow(user_id=user_id) as uow:
-        if not 'ontology_version' in context:
-            if version:
-                context['ontology_version'] = Version.from_packed(version)
-            else:
-                context['ontology_version'] = await uow.ontology.get_current_version()
-        elif version is not None:
-            if Version.from_packed(version) != context.get('ontology_version'):
-                # this should only happen if the front end is specifying a version, then changing that.
-                # normally the version is set once, the first time this is called and never changed again.
-                raise InconsistentStateError('Ontology version changed during the request')
-
         version = context.get('ontology_version')
         if not 'ontology_map' in context:
             context['ontology_map'] = dict()
@@ -175,30 +184,28 @@ async def update_programs_map(
     user_id = context.get('user_id')  # This might be None for unauthenticated requests
 
     async with bus.uow.get_uow(user_id=user_id) as uow:
-
         programs_map = context.get('programs_map', dict())
-
         if program_id is None and not programs_map:
-            async for program_id in uow.repositories.programs.get_all():
-                programs_map.update(program_id.to_output_map())
+            async for program in uow.repositories.programs.get_all():
+                programs_map.update(program.to_output_map())
         elif program_id is not None and not program_id in programs_map:
-            program_id = await uow.repositories.programs.get(program_id=program_id)
-            programs_map.update(program_id.to_output_map())
+            program = await uow.repositories.programs.get(program_id=program_id)
+            programs_map.update(program.to_output_map())
         if trial_id is not None:
-            for program_id, program_id in programs_map.values():
-                if trial_id in program_id.trials:
+            for program_id, program in programs_map.values():
+                if trial_id in program.trials:
                     break
             else:
-                program_id = await uow.repositories.programs.get(trial_id=trial_id)
-                programs_map.update(program_id.to_output_map())
+                program = await uow.repositories.programs.get(trial_id=trial_id)
+                programs_map.update(program.to_output_map())
         if study_id is not None:
-            for program_id, program_id in programs_map.values():
-                for trial_id, trial_id in program_id.trials.items():
-                    if study_id in trial_id.studies:
+            for program_id, program in programs_map.values():
+                for trial_id, trial in program.trials.items():
+                    if study_id in trial.studies:
                         break
                 else:
-                    program_id = await uow.repositories.programs.get(study_id=study_id)
-                    programs_map.update(program_id.to_output_map())
+                    program = await uow.repositories.programs.get(study_id=study_id)
+                    programs_map.update(program.to_output_map())
                     break
 
         context['programs_map'] = programs_map

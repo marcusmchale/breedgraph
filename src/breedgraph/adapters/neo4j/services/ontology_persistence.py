@@ -24,6 +24,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
     # Class attributes for type mappings - built once when class is loaded
     _stored_class_mapping: Dict[str, Type[OntologyEntryStored]] = None
     _output_class_mapping: Dict[str, Type[OntologyEntryOutput]] = None
+
     _lifecycle_attributes = ['version_drafted', 'version_activated', 'version_deprecated', 'version_removed']
 
     snake_case_pattern = re.compile(r'(?<!^)(?=[A-Z])')
@@ -155,10 +156,12 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                         record_dict[attr] = [relationship['target_id' if is_source else 'source_id']]
                     else:
                         record_dict[attr] = relationship['target_id' if is_source else 'source_id']
-        try:
-            return entry_class(**record_dict)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+
+        return entry_class(**record_dict)
+
+    @staticmethod
+    def record_to_relationship(record: Record) -> OntologyRelationshipBase:
+        return OntologyRelationshipBase.relationship_from_label(**record)
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
@@ -194,7 +197,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
     async def update_entry(self, entry: OntologyEntryStored) -> None:
         raise NotImplementedError
 
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         logger.debug(
             f"Creating relationship: {str(relationship)})"
@@ -202,12 +205,16 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         query = ontology.create_ontology_relationship(label=relationship.label)
         dump = relationship.model_dump()
         dump.pop('label')
-        await self.tx.run(
+        result = await self.tx.run(
             query,
             source_id=dump.pop('source_id'),
             target_id=dump.pop('target_id'),
             attributes = dump
         )
+        record = await result.single()
+        import pdb; pdb.set_trace()
+        return OntologyRelationshipBase.relationship_from_label(**record)
+
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Create a new relationship between entries."""
@@ -293,15 +300,34 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 raise ValueError("The filters provided match multiple entries")
         return matched_entry
 
-    async def add_scale_categories(
+    async def get_relationships(
             self,
-            scale_id: int,
-            categories: List[int]
-    ) -> None:
-        """Add categories to a scale"""
-        logger.debug(f"Adding {len(categories)} categories to scale {scale_id}")
-        query = queries['ontology']['add_scale_categories']
-        await self.tx.run(query, scale_id=scale_id, categories=categories)
+            version: Version | None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int] = None,
+            labels: List[OntologyEntryLabel]|None = None,
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
+        if version is None:
+            version = await self.get_current_version()
+        if phases is None:
+            phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
+        query = ontology.get_all_relationships(
+            phases=phases,
+            labels=labels,
+            entry_ids=entry_ids
+        )
+        params = {"version": version.packed_version}
+        # Entry IDs parameter (if specified)
+        if entry_ids:
+            params["entry_ids"] = entry_ids
+
+        result = await self.tx.run(query, **params)
+        await self.tx.commit()
+        import pdb;
+        pdb.set_trace()
+        async for record in result:
+            import pdb; pdb.set_trace()
+            yield self.record_to_relationship(record['relationship'])
 
     async def set_scale_categories_ranks(
             self,
@@ -334,7 +360,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
     async def save_relationship_lifecycles(
             self,
-            lifecycles: Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle],
+            lifecycles: Dict[int, RelationshipLifecycle],
             user_id: int
     ) -> None:
         if user_id is None:

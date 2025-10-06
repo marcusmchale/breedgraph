@@ -19,7 +19,7 @@ WITH
 //Link contacts
 CALL {
   WITH trial
-  MATCH (contact: Person) WHERE contact.id in $contacts
+  MATCH (contact: Person) WHERE contact.id in $contact_ids
   CREATE (trial)-[has_contact:HAS_CONTACT]->(contact)
   RETURN
     collect(contact.id) AS contacts
@@ -27,7 +27,7 @@ CALL {
 //Link references
 CALL {
   WITH trial
-  MATCH (reference: Reference) WHERE reference.id IN $references
+  MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   CREATE (reference)-[:REFERENCE_FOR ]->(trial)
   RETURN
     collect(reference.id) AS references
@@ -35,6 +35,6 @@ CALL {
 RETURN
   trial {
     .*,
-    contacts: contacts,
-    references: references
+    contact_ids: contacts,
+    reference_ids: references
   }

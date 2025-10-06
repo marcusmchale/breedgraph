@@ -1,4 +1,4 @@
-from src.breedgraph.domain.model.programs import ProgramInput
+from src.breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
 from src.breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
@@ -64,7 +64,6 @@ async def delete_program(
     await info.context['bus'].handle(cmd)
     return True
 
-
 # Trial mutations
 @graphql_mutation.field("programsCreateTrial")
 @graphql_payload
@@ -72,28 +71,14 @@ async def delete_program(
 async def create_trial(
         _,
         info,
-        program_id: int,
-        name: str,
-        fullname: str = None,
-        description: str = None,
-        start: str = None,  # Will be converted to PyDT64
-        end: str = None,  # Will be converted to PyDT64
-        contact_ids: List[int] = None,
-        reference_ids: List[int] = None
+        trial: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Create trial: {name} in program {program_id} by user {user_id}")
 
+    logger.debug(f"Create trial: {trial.get('name')} in program {trial.get('program_id')} by user {user_id}")
     cmd = CreateTrial(
         agent_id=user_id,
-        program_id=program_id,
-        name=name,
-        fullname=fullname,
-        description=description,
-        start=start,
-        end=end,
-        contacts=contact_ids,
-        references=reference_ids
+        **trial
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -105,28 +90,20 @@ async def create_trial(
 async def update_trial(
         _,
         info,
-        trial_id: int,
-        name: str = None,
-        fullname: str = None,
-        description: str = None,
-        start: str = None,
-        end: str = None,
-        contact_ids: List[int] = None,
-        reference_ids: List[int] = None
+        trial: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Update trial: {trial_id} by user {user_id}")
-
+    logger.debug(f"Update trial: {trial.get('id')} by user {user_id}")
     cmd = UpdateTrial(
         agent_id=user_id,
-        trial_id=trial_id,
-        name=name,
-        fullname=fullname,
-        description=description,
-        start=start,
-        end=end,
-        contacts=contact_ids,
-        references=reference_ids
+        trial_id=trial.get('trial_id'),
+        name=trial.get('name'),
+        fullname=trial.get('fullname'),
+        description=trial.get('description'),
+        start=trial.get('start'),
+        end=trial.get('end'),
+        contact_ids=trial.get('contact_ids'),
+        reference_ids=trial.get('reference_ids')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -158,34 +135,24 @@ async def delete_trial(
 async def create_study(
         _,
         info,
-        trial_id: int,
-        name: str,
-        fullname: str = None,
-        description: str = None,
-        practices: str = None,
-        start: str = None,
-        end: str = None,
-        dataset_ids: List[int] = None,
-        design_id: int = None,
-        licence_id: int = None,
-        reference_ids: List[int] = None
+        study: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Create study: {name} in trial {trial_id} by user {user_id}")
+    logger.debug(f"Create study: {study.get('name')} in trial {study.get('trial_id')} by user {user_id}")
 
     cmd = CreateStudy(
         agent_id=user_id,
-        trial_id=trial_id,
-        name=name,
-        fullname=fullname,
-        description=description,
-        practices=practices,
-        start=start,
-        end=end,
-        datasets=dataset_ids,
-        design=design_id,
-        licence=licence_id,
-        references=reference_ids
+        trial_id=study.get('trial_id'),
+        name=study.get('name'),
+        fullname=study.get('fullname'),
+        description=study.get('description'),
+        practices=study.get('practices'),
+        start=study.get('start'),
+        end=study.get('end'),
+        dataset_ids=study.get('dataset_ids'),
+        design_id=study.get('design_id'),
+        licence_id=study.get('licence_id'),
+        reference_ids=study.get('reference_ids')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -197,34 +164,24 @@ async def create_study(
 async def update_study(
         _,
         info,
-        study_id: int,
-        name: str = None,
-        fullname: str = None,
-        description: str = None,
-        practices: str = None,
-        start: str = None,
-        end: str = None,
-        dataset_ids: List[int] = None,
-        design_id: int = None,
-        licence_id: int = None,
-        reference_ids: List[int] = None
+        study
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Update study: {study_id} by user {user_id}")
+    logger.debug(f"Update study: {study.get('id')} by user {user_id}")
 
     cmd = UpdateStudy(
         agent_id=user_id,
-        study_id=study_id,
-        name=name,
-        fullname=fullname,
-        description=description,
-        practices=practices,
-        start=start,
-        end=end,
-        datasets=dataset_ids,
-        design=design_id,
-        licence=licence_id,
-        references=reference_ids
+        study_id=study.get('study_id'),
+        name=study.get('name'),
+        fullname=study.get('fullname'),
+        description=study.get('description'),
+        practices=study.get('practices'),
+        start=study.get('start'),
+        end=study.get('end'),
+        dataset_ids=study.get('dataset_ids'),
+        design_id=study.get('design_id'),
+        licence_id=study.get('licence_id'),
+        reference_ids=study.get('reference_ids'),
     )
     await info.context['bus'].handle(cmd)
     return True

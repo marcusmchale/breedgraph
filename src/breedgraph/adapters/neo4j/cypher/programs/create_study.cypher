@@ -21,7 +21,7 @@ WITH
 //Link references
 CALL {
   WITH study
-  MATCH (reference: Reference) WHERE reference.id IN $references
+  MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   CREATE (reference)-[:REFERENCE_FOR ]->(study)
   RETURN
     collect(reference.id) AS references
@@ -29,7 +29,7 @@ CALL {
 //Link datasets
 CALL {
   WITH study
-  MATCH (dataset: DataSet) WHERE dataset.id in $datasets
+  MATCH (dataset: DataSet) WHERE dataset.id in $dataset_ids
   CREATE (study)-[has_dataset:HAS_DATASET]->(dataset)
   RETURN
     collect(dataset.id) AS datasets
@@ -37,7 +37,7 @@ CALL {
 //Link design (in ontology)
 CALL {
   WITH study
-  MATCH (design: Design) WHERE design.id = $design
+  MATCH (design: Design) WHERE design.id = $design_id
   CREATE (study)-[uses_design:USES_DESIGN]->(design)
   RETURN
     collect(design.id)[0] AS design
@@ -45,7 +45,7 @@ CALL {
 //Link licence (reference)
 CALL {
   WITH study
-  MATCH (licence: Reference) WHERE licence.id = $licence
+  MATCH (licence: Reference) WHERE licence.id = $licence_id
   CREATE (study)-[uses_licence:USES_LICENCE]->(licence)
   RETURN
     collect(licence.id)[0] AS licence
@@ -53,8 +53,8 @@ CALL {
 RETURN
   study {
     .*,
-    references: references,
-    datasets: datasets,
-    design: design,
-    licence: licence
+    reference_ids: references,
+    dataset_ids: datasets,
+    design_id: design,
+    licence_id: licence
   }

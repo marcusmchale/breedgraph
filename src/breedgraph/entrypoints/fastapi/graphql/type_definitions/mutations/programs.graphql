@@ -48,8 +48,7 @@ input CreateStudyInput {
     practices: String
     start: DateTime
     end: DateTime
-    factorIds: [Int!] = []
-    observationIds: [Int!] = []
+    datasetIds: [Int!] = []
     designId: Int
     licenceId: Int
     referenceIds: [Int!] = []
@@ -63,8 +62,7 @@ input UpdateStudyInput {
     practices: String
     start: DateTime
     end: DateTime
-    factorIds: [Int!]
-    observationIds: [Int!]
+    datasetIds: [Int!]
     designId: Int
     licenceId: Int
     referenceIds: [Int!]

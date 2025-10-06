@@ -96,7 +96,7 @@ input ScaleInput {
     categoryIds: [Int]
 }
 
-input ScaleCategoryInput {
+input CategoryInput {
     name: String!
     description: String
     abbreviation: String
@@ -247,20 +247,20 @@ input LayoutTypeInput {
 }
 
 extend type Mutation {
-    ontologyCreateTerm(termInput: TermInput!): BooleanPayload!
-    ontologyCreateSubject(subjectInput: SubjectInput!): BooleanPayload!
-    ontologyCreateTrait(traitInput: TraitInput!): BooleanPayload!
-    ontologyCreateCondition(conditionInput: ConditionInput!): BooleanPayload!
-    ontologyCreateScale(scaleInput: ScaleInput!): BooleanPayload!
-    ontologyCreateScaleCategory(scaleCategoryInput: ScaleCategoryInput!): BooleanPayload!
-    ontologyCreateObservationMethod(observationMethodInput: ObservationMethodInput!): BooleanPayload!
-    ontologyCreateVariable(variableInput: VariableInput!): BooleanPayload!
-    ontologyCreateControlMethod(controlMethodInput: ControlMethodInput!): BooleanPayload!
-    ontologyCreateFactor(factorInput: FactorInput!): BooleanPayload!
-    ontologyCreateEvent(eventInput: EventInput!): BooleanPayload!
-    ontologyCreateLocationType(locationTypeInput: LocationTypeInput!): BooleanPayload!
-    ontologyCreateDesign(designInput: DesignInput!): BooleanPayload!
-    ontologyCreateLayoutType(layoutTypeInput: LayoutTypeInput!): BooleanPayload!
+    ontologyCreateTerm(term: TermInput!): BooleanPayload!
+    ontologyCreateSubject(subject: SubjectInput!): BooleanPayload!
+    ontologyCreateTrait(trait: TraitInput!): BooleanPayload!
+    ontologyCreateCondition(condition: ConditionInput!): BooleanPayload!
+    ontologyCreateScale(scale: ScaleInput!): BooleanPayload!
+    ontologyCreateCategory(category: CategoryInput!): BooleanPayload!
+    ontologyCreateObservationMethod(observationMethod: ObservationMethodInput!): BooleanPayload!
+    ontologyCreateVariable(variable: VariableInput!): BooleanPayload!
+    ontologyCreateControlMethod(controlMethod: ControlMethodInput!): BooleanPayload!
+    ontologyCreateFactor(factor: FactorInput!): BooleanPayload!
+    ontologyCreateEvent(event: EventInput!): BooleanPayload!
+    ontologyCreateLocationType(locationType: LocationTypeInput!): BooleanPayload!
+    ontologyCreateDesign(design: DesignInput!): BooleanPayload!
+    ontologyCreateLayoutType(layoutType: LayoutTypeInput!): BooleanPayload!
     ontologyCommitVersion(
         versionChange: VersionChange!,
         comment: String,

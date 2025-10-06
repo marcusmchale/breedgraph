@@ -67,7 +67,7 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         ...
 
@@ -97,6 +97,21 @@ class OntologyPersistenceService(ABC):
          """
         ...
 
+    @abstractmethod
+    def get_relationships(
+            self,
+            version: Version | None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int] = None,
+            labels: List[OntologyRelationshipLabel] | None = None,
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
+        """
+        Retrieve ontology relationships,
+            optionally filter by version/phase/label/entry_id
+        :return:
+        """
+        ...
+
     # Lifecycle persistence
     @abstractmethod
     async def save_entry_lifecycles(self, lifecycles: Dict[int, EntryLifecycle], user_id: int) -> None:
@@ -106,7 +121,7 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     async def save_relationship_lifecycles(
         self,
-        lifecycles: Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle],
+        lifecycles: Dict[int, RelationshipLifecycle],
         user_id: int
     ) -> None:
         """Save relationship lifecycles to persistent storage."""
