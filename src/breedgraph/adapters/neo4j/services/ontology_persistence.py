@@ -77,14 +77,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 return 'children', list
             else:
                 return 'parents', list
-        #elif relationship_label is OntologyRelationshipLabel.HAS_TERM:
-        #    import pdb; pdb.set_trace()
-        #    if is_source:
-        #        return 'terms', list
-        #    else:
-        #        other_entity_cls = self._output_class_mapping[other_entity_label]
-        #        return
-        #        return 'related_to', list
         else:
             entity_cls = self._output_class_mapping[entity_label]
             other_entity_cls = self._output_class_mapping[other_entity_label]
@@ -161,7 +153,12 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
     @staticmethod
     def record_to_relationship(record: Record) -> OntologyRelationshipBase:
-        return OntologyRelationshipBase.relationship_from_label(**record)
+        record_dict = record.get('relationship') or dict(record)
+        if not record_dict.get('relationship_id'):
+            import pdb;
+            pdb.set_trace()
+            raise ValueError("Relationship id not created - this typically means a source or target node was not found")
+        return OntologyRelationshipBase.relationship_from_label(**record_dict)
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
@@ -202,9 +199,10 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         logger.debug(
             f"Creating relationship: {str(relationship)})"
         )
-        query = ontology.create_ontology_relationship(label=relationship.label)
         dump = relationship.model_dump()
-        dump.pop('label')
+        query = ontology.create_ontology_relationship(label=dump.pop('label'))
+        if dump.pop('id') is not None:
+            raise(ValueError("Relationship is already stored"))
         result = await self.tx.run(
             query,
             source_id=dump.pop('source_id'),
@@ -212,8 +210,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             attributes = dump
         )
         record = await result.single()
-        import pdb; pdb.set_trace()
-        return OntologyRelationshipBase.relationship_from_label(**record)
+        return self.record_to_relationship(record)
 
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
@@ -239,9 +236,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             entry_id = entry_id
         )
         async for record in result:
-            yield OntologyRelationshipBase.relationship_from_label(
-                **record
-            )
+            yield self.record_to_relationship(record)
 
     async def get_entries(
             self,
@@ -322,11 +317,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params["entry_ids"] = entry_ids
 
         result = await self.tx.run(query, **params)
-        await self.tx.commit()
-        import pdb;
-        pdb.set_trace()
         async for record in result:
-            import pdb; pdb.set_trace()
             yield self.record_to_relationship(record['relationship'])
 
     async def set_scale_categories_ranks(
@@ -370,8 +361,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         lifecycles = [
             lifecycle.model_dump() for lifecycle in lifecycles.values()
         ]
-        query = queries['ontology']['save_relationship_lifecycles']
-        await self.tx.run(query, lifecycles=lifecycles, user_id=user_id)
+        if lifecycles:
+            query = queries['ontology']['save_relationship_lifecycles']
+            await self.tx.run(query, lifecycles=lifecycles, user_id=user_id)
 
     async def load_entry_lifecycles(
             self,

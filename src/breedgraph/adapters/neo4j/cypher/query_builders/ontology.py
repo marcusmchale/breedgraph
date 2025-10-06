@@ -70,28 +70,30 @@ def create_ontology_relationship(label: OntologyRelationshipLabel):
   query = f"""
     MERGE (c:Counter {{name:'ontology_relationship'}})
     ON CREATE SET c.count = 0
+    WITH c
     SET c.count = c.count + 1
     WITH c
-    MATCH (source: OntologyEntry {{id:$source_id}})
-    MATCH (target: OntologyEntry {{id:$target_id}})
+    MATCH (source: OntologyEntry {{id:$source_id}}), (target: OntologyEntry {{id:$target_id}})
     CREATE (source)
-        -[:HAS_RELATIONSHIP]->(rel:{label.value}:OntologyRelationship {{id: c.count}})
+        -[:HAS_RELATIONSHIP]->(relationship:{label.value}:OntologyRelationship)
         -[:RELATES_TO]->(target)
-    SET rel += $attributes
-    RETURN 
-        rel.id as relationship_id
-        [label IN labels(rel) WHERE label <> "OntologyRelationship"][0] as label
-        source.id as source_id
-        target.id as target_id
+    SET relationship.id = c.count
+    SET relationship += $attributes
+    RETURN relationship {{
+        relationship_id: relationship.id,
+        label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
+        source_id: source.id,
+        target_id: target.id
+    }}
   """
   return query
 
 def update_ontology_relationship(label: OntologyRelationshipLabel):
   query = f"""
     MATCH (source: OntologyEntry {{id:$source_id}})
-        -[:HAS_RELATIONSHIP]->(rel:{label.value}:OntologyRelationship)
+        -[:HAS_RELATIONSHIP]->(relationship:{label.value}:OntologyRelationship)
         -[:RELATES_TO]->(target: OntologyEntry {{id:$target_id}})
-    SET rel += $attributes
+    SET relationship += $attributes
   """
   return query
 
@@ -99,26 +101,27 @@ def get_relationship_by_label(label: OntologyRelationshipLabel):
     query = f"""
         MATCH (entry: OntologyEntry {{id:$entry_id}})
         MATCH (source: OntologyEntry)
-            -[:HAS_RELATIONSHIP|RELATES_TO]->(rel:{label.value}:OntologyRelationship)
+            -[:HAS_RELATIONSHIP|RELATES_TO]->(relationship:{label.value}:OntologyRelationship)
             -[:RELATES_TO]->(target: OntologyEntry)
         WHERE source = entry OR target = entry
-        RETURN 
-            rel.id as relationship_id,
-            source.id as source_id, 
-            target.id as target_id, 
-            [label IN labels(rel) WHERE label <> "OntologyRelationship"][0] as label
+        RETURN relationship {{
+            relationship_id: relationship.id,
+            label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
+            source_id: source.id,
+            target_id: target.id
+        }}
     """
     return query
 
 def has_path_between_entries(label: OntologyRelationshipLabel):
     query = f"""
-        MATCH (source:OntologyEntry {{id:$source_id}})
+        MATCH (source:OntologyEntry {{id: $source_id}})
             (
                 (:OntologyEntry)
                 -[:HAS_RELATIONSHIP]->(:{label.value}:OntologyRelationship)
                 -[:RELATES_TO]->(:OntologyEntry)
             ){{1,}}
-            (target:OntologyEntry {{id:$target_id}})
+            (target:OntologyEntry {{id: $target_id}})
         RETURN count(*) >0 as has_path
         LIMIT 1
     """
@@ -237,6 +240,7 @@ def get_all_entries(
       (source)-[:HAS_RELATIONSHIP]-(rel: OntologyRelationship)-[:RELATES_TO]->(target:OntologyEntry)
       WHERE source = entry or target = entry |
       {
+        relationship_id: rel.id,
         source_id: source.id,
         source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
         target_id: target.id,
@@ -330,7 +334,7 @@ def get_all_relationships(
 
     return_clause = """RETURN
       relationship {
-        id: relationship.id,
+        relationship_id: relationship.id,
         label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
         source_id: [(relationship)<-[:HAS_RELATIONSHIP]-(source) | source.id][0],
         target_id: [(relationship)-[:RELATES_TO]->(target) | target.id][0]

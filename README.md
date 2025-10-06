@@ -406,6 +406,7 @@ restart to load config
 To test with the uvicorn server, go to the root of the project, import the envars from instance directory and run, e.g.
   
     . ./instace/envars.sh
+    pip install uvicorn
     uvicorn src.breedgraph.main:app --log-level debug
 
 If you are cloning this project you won't have all the envars provided

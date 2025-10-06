@@ -83,11 +83,13 @@ async def get_ontology_relationships(
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.uow.get_uow(user_id=user_id) as uow:
-        return [rel async for rel in uow.ontology.get_relationships(
+        relationships = [rel async for rel in uow.ontology.get_relationships(
                 entry_ids=entry_ids,
                 labels=labels,
                 version=version
         )]
+        return relationships
+
 
 @graphql_query.field("ontologyEntries")
 @graphql_payload

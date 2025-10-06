@@ -214,7 +214,9 @@ async def test_get_all_relationships(client, first_account, first_user_login_tok
         client,
         token=first_user_login_token
     )
-    import pdb; pdb.set_trace()
+    payload = get_verified_payload(response, "ontologyRelationships")
+    assert_payload_success(payload)
+    assert payload.get('result')[0].get('id') > 0
 
 @pytest.mark.asyncio(scope="session")
 async def test_get_label_relationships(client, first_account, first_user_login_token):
@@ -223,3 +225,8 @@ async def test_get_label_relationships(client, first_account, first_user_login_t
         token=first_user_login_token,
         labels=[OntologyRelationshipLabel.HAS_TERM]
     )
+    payload = get_verified_payload(response, "ontologyRelationships")
+    assert_payload_success(payload)
+    assert payload.get('result')[0].get('id') > 0
+    for record in payload.get('result'):
+        assert record.get('label') == 'HAS_TERM'

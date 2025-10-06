@@ -17,7 +17,7 @@ export MAIL_USE_TLS=1
 
 # Log files
 export BREEDGRAPH_LOG="./logs/breedgraph.log"
-export NEO4J_LOG="/logs/neo4j.log"
+export NEO4J_LOG="./logs/neo4j.log"
 export GRAPHQL_LOG="./logs/graphql.log"
 export FASTAPI_LOG="./logs/fastapi.log"
 export REDIS_LOG="./logs/redis.log"

@@ -64,13 +64,13 @@ class OntologyRelationshipBase(ABC):
             if relationship_id is None:
                 return TermRelationship.build(
                     source_id=source_id,
-                    target_id=target_id,
+                    term_id=target_id,
                     **kwargs
                 )
             else:
                 return TermRelationship.load(
                     source_id=source_id,
-                    target_id=target_id,
+                    term_id=target_id,
                     relationship_id=relationship_id,
                     **kwargs
                 )
@@ -92,13 +92,13 @@ class OntologyRelationshipBase(ABC):
             if relationship_id is None:
                 return SubjectRelationship.build(
                     source_id=source_id,
-                    target_id=target_id,
+                    subject_id=target_id,
                     **kwargs
                 )
             else:
                 return SubjectRelationship.load(
                     source_id=source_id,
-                    target_id=target_id,
+                    subject_id=target_id,
                     relationship_id=relationship_id,
                     **kwargs
                 )
@@ -139,7 +139,7 @@ class OntologyRelationshipBase(ABC):
                 )
             else:
                 return ScaleRelationship.load(
-                    variable_id=source_id,
+                    source_id=source_id,
                     scale_id=target_id,
                     relationship_id=relationship_id,
                     **kwargs

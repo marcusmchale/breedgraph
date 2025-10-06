@@ -1,8 +1,9 @@
 import os
 # The layout template looks for DEV value to load a splash warning
 # Also used in checks for which ports to access Neo4j and Redis instances
-# Set to false for production
-DEV = False
+# Set to false for production or if running services on the default ports
+#DEV = os.environ.get('ENVIRONMENT', 'production') == 'development'
+DEV=False
 
 PROTOCOL = "http"
 SITE_NAME = 'BreedGraph'

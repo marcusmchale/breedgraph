@@ -46,6 +46,7 @@ class RedisLoader:
     async def load_countries(self, uow: AbstractUnitHolder):
         # get the country type
         country_type = await uow.ontology.get_entry(label=OntologyEntryLabel.LOCATION_TYPE, name="Country")
+
         if country_type is None:
             country_type = await uow.ontology.create_entry(LocationTypeInput(name="Country"))
         country_type_id = country_type.id

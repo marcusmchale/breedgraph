@@ -415,6 +415,7 @@ async def basic_region(
             release=ReadRelease.PUBLIC,
     ) as uow:
         # create a new region, from the available countries, it may exist in which case skip to the next
+        region = None
         async for country in bus.read_model.get_countries():
             try:
                 region = await uow.repositories.regions.create(country)
@@ -422,7 +423,10 @@ async def basic_region(
 
             except IdentityExistsError:
                 pass
+        if region is None:
+            raise ValueError("No countries were found in read model to create a test region")
         state_type = await uow.ontology.get_entry(name="State", label=OntologyEntryLabel.LOCATION_TYPE)
+
         state_id = region.add_location(
             LocationInput(name=lorem_text_generator.new_text(10), type=state_type.id),
             parent_id=region.get_root_id()
