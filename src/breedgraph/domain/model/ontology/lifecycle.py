@@ -18,13 +18,13 @@ class LifecycleAuditEntry:
 @dataclass
 class BaseLifecycle(ABC):
     """Abstract base class for ontology lifecycle management."""
-    version_fields: ClassVar[List['str']] = ['version_drafted', 'version_activated', 'version_deprecated', 'version_removed']
+    version_fields: ClassVar[List['str']] = ['drafted', 'activated', 'deprecated', 'removed']
 
     # Version tracking - stored as full Version objects
-    version_drafted: Optional[Version] = None
-    version_activated: Optional[Version] = None
-    version_deprecated: Optional[Version] = None
-    version_removed: Optional[Version] = None
+    drafted: Optional[Version] = None
+    activated: Optional[Version] = None
+    deprecated: Optional[Version] = None
+    removed: Optional[Version] = None
 
     # Edit history (read only attributes)
     _writestamps: List[WriteStamp] = field(default_factory=list)  # history of changes to the corresponding ontology entry
@@ -36,10 +36,7 @@ class BaseLifecycle(ABC):
         for version_field in self.version_fields:
             version_obj = getattr(self, version_field)
             if version_obj is not None:
-                # Remove 'version_' prefix for cleaner nested structure
-                clean_field_name = version_field.replace('version_', '')
-                versions[clean_field_name] = version_obj.id
-
+                versions[version_field] = version_obj.id
         return versions
 
     @property
@@ -55,13 +52,13 @@ class BaseLifecycle(ABC):
     @property
     def current_phase(self) -> LifecyclePhase:
         """Compute current lifecycle phase based on version states."""
-        if self.version_removed is not None:
+        if self.removed is not None:
             return LifecyclePhase.REMOVED
-        elif self.version_deprecated is not None:
+        elif self.deprecated is not None:
             return LifecyclePhase.DEPRECATED
-        elif self.version_activated is not None:
+        elif self.activated is not None:
             return LifecyclePhase.ACTIVE
-        elif self.version_drafted is not None:
+        elif self.drafted is not None:
             return LifecyclePhase.DRAFT
         else:
             # This shouldn't happen in normal operation, but default to draft
@@ -69,28 +66,28 @@ class BaseLifecycle(ABC):
 
     def set_version_drafted(self, version: Version) -> None:
         """Set the drafted version."""
-        self.version_drafted = version
+        self.drafted = version
 
     def set_version_activated(self, version: Version) -> None:
         """Set the validated version (transition to active)."""
         if self.current_phase != LifecyclePhase.DRAFT:
             raise ValueError(f"Cannot transition to active from {self.current_phase.value}")
 
-        self.version_activated = version
+        self.activated = version
 
     def set_version_deprecated(self, version: Version) -> None:
         """Set the deprecated version."""
         if self.current_phase != LifecyclePhase.ACTIVE:
             raise ValueError(f"Cannot transition to deprecated from {self.current_phase.value}")
 
-        self.version_deprecated = version
+        self.deprecated = version
 
     def set_version_removed(self, version: Version) -> None:
         """Set the removed version."""
         if self.current_phase != LifecyclePhase.DEPRECATED:
             raise ValueError(f"Cannot transition to removed from {self.current_phase.value}")
 
-        self.version_removed = version
+        self.removed = version
 
     def is_in_phase(self, phase: LifecyclePhase) -> bool:
         """Check if entity is in a specific phase."""

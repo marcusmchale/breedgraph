@@ -23,7 +23,7 @@ from typing import ClassVar
 @dataclass
 class ControlMethodBase(OntologyEntryBase):
     # Unlike observation methods, control methods do not have a method_type
-    label: ClassVar[str] = OntologyEntryLabel.CONTROL_METHOD
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.CONTROL_METHOD
 
     control_type: ControlMethodType = ControlMethodType.ENVIRONMENTAL
 
@@ -42,7 +42,7 @@ class ControlMethodOutput(ControlMethodBase, OntologyEntryOutput):
 
 @dataclass
 class ConditionBase(OntologyEntryBase):  # akin to a Trait, but is controlled/fixed for a prescribed duration
-    label: ClassVar[str] = OntologyEntryLabel.CONDITION
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.CONDITION
 
     subjects: list[int] = field(default_factory=list)
 
@@ -62,7 +62,7 @@ class ConditionOutput(ConditionBase, OntologyEntryOutput):
 
 @dataclass
 class FactorBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.FACTOR
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.FACTOR
     """
     quantities/qualities that are fixed or constrained for a period of time or throughout in an experiment.
     for example:

@@ -37,6 +37,8 @@ from .people import (
     RoleBase, RoleInput, RoleStored, RoleOutput,
     TitleBase, TitleInput, TitleStored, TitleOutput
 )
+from .mappers import OntologyMapper, ontology_mapper
+
 __all__ = [
     # Enums
     'ObservationMethodType', 'ScaleType', 'OntologyRelationshipLabel', 'AxisType', 'VersionChange', 'OntologyEntryLabel',
@@ -87,4 +89,7 @@ __all__ = [
     # People-related entries
     'RoleBase', 'RoleInput', 'RoleStored', 'RoleOutput',
     'TitleBase', 'TitleInput', 'TitleStored', 'TitleOutput',
+
+    # Mappers
+    'OntologyMapper', 'ontology_mapper'
 ]

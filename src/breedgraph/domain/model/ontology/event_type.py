@@ -22,7 +22,7 @@ from typing import List, ClassVar
 
 @dataclass
 class EventTypeBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.EVENT
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.EVENT
     """
     The EventType may have multiple variables and/or factors associated with it.
     """

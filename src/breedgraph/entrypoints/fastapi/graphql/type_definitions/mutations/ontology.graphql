@@ -46,6 +46,8 @@ input SubjectInput {
     parentIds: [Int]
     childIds: [Int]
     termIds: [Int]
+    traitIds: [Int]
+    conditionIds: [Int]
 }
 
 input TraitInput {
@@ -246,6 +248,218 @@ input LayoutTypeInput {
     axes: [AxisType]!
 }
 
+input TermUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    subjectIds: [Int]
+    scaleIds: [Int]
+    categoryIds: [Int]
+    observationMethodIds: [Int]
+    traitIds: [Int]
+    variableIds: [Int]
+    controlMethodIds: [Int]
+    conditionIds: [Int]
+    factorIds: [Int]
+    eventIds: [Int]
+    locationTypeIds: [Int]
+    layoutTypeIDs: [Int]
+    designIds: [Int]
+    roleIds: [Int]
+    titleIds: [Int]
+}
+
+input SubjectUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input TraitUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    subjectIds: [Int]
+}
+
+input ConditionUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input ScaleUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    scaleType: ScaleType!
+    categoryIds: [Int]
+}
+
+input CategoryUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    rankId: Int
+}
+
+input ObservationMethodUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    observationType: ObservationMethodType!
+}
+
+input VariableUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    traitId: Int
+    observationMethodId: Int
+    scaleId: Int
+}
+
+input ControlMethodUpdate {
+    id: Int
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    controlType: ControlMethodType
+}
+
+input FactorUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    conditionId: Int
+    controlMethodId: Int
+    scaleId: Int
+}
+
+input EventUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    variableIds: [Int]
+    factorIds: [Int]
+    termIds: [Int]
+}
+
+input LocationTypeUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input DesignUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+}
+
+input LayoutTypeUpdate {
+    id: Int!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String]
+    authorIds: [Int]
+    referenceIds: [Int]
+    parentIds: [Int]
+    childIds: [Int]
+    termIds: [Int]
+    axes: [AxisType]
+}
+
+
 extend type Mutation {
     ontologyCreateTerm(term: TermInput!): BooleanPayload!
     ontologyCreateSubject(subject: SubjectInput!): BooleanPayload!
@@ -261,6 +475,28 @@ extend type Mutation {
     ontologyCreateLocationType(locationType: LocationTypeInput!): BooleanPayload!
     ontologyCreateDesign(design: DesignInput!): BooleanPayload!
     ontologyCreateLayoutType(layoutType: LayoutTypeInput!): BooleanPayload!
+    
+    ontologyUpdateTerm(term: TermUpdate!): BooleanPayload!
+    ontologyUpdateSubject(subject: SubjectUpdate!): BooleanPayload!
+    ontologyUpdateTrait(trait: TraitUpdate!): BooleanPayload!
+    ontologyUpdateCondition(condition: ConditionUpdate!): BooleanPayload!
+    ontologyUpdateScale(scale: ScaleUpdate!): BooleanPayload!
+    ontologyUpdateCategory(category: CategoryUpdate!): BooleanPayload!
+    ontologyUpdateObservationMethod(observationMethod: ObservationMethodUpdate!): BooleanPayload!
+    ontologyUpdateVariable(variable: VariableUpdate!): BooleanPayload!
+    ontologyUpdateControlMethod(controlMethod: ControlMethodUpdate!): BooleanPayload!
+    ontologyUpdateFactor(factor: FactorUpdate!): BooleanPayload!
+    ontologyUpdateEvent(event: EventUpdate!): BooleanPayload!
+    ontologyUpdateLocationType(locationType: LocationTypeUpdate!): BooleanPayload!
+    ontologyUpdateDesign(design: DesignUpdate!): BooleanPayload!
+    ontologyUpdateLayoutType(layoutType: LayoutTypeUpdate!): BooleanPayload!
+    
+    ontologyActivateEntries(entryIds: [Int]): BooleanPayload!
+    ontologyDeprecateEntries(entryIds: [Int]): BooleanPayload!
+    ontologyRemoveEntries(entryIds: [Int]): BooleanPayload!
+    ontologyActivateRelationships(relationshipIds: [Int]): BooleanPayload!
+    ontologyDeprecateRelationships(relationshipIds: [Int]): BooleanPayload!
+    ontologyRemoveRelationships(relationshipIds: [Int]): BooleanPayload!
     ontologyCommitVersion(
         versionChange: VersionChange!,
         comment: String,

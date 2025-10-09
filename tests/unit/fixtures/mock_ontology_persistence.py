@@ -136,19 +136,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         """Update attributes of an existing relationship."""
         self.relationships[relationship.id] = relationship
 
-    async def get_relationships_by_label(
-            self,
-            entry_id: int,
-            label: OntologyRelationshipLabel = None
-    ) ->AsyncGenerator[OntologyRelationshipBase, None]:
-        """Get all relationships for an entry, optionally filtered by label."""
-        for rel in self.relationships.values():
-            # Check if this relationship involves the given entry
-            if rel.source_id == entry_id or rel.target_id == entry_id:
-                # If a specific label is requested, filter by it
-                if label is None or rel.label == label:
-                    yield rel
-
     async def get_entries(
             self,
             version: Version|None = None,
@@ -174,15 +161,22 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
             labels: List[OntologyRelationshipLabel] | None = None,
+            entry_ids: List[int] = None,
+            source_ids: List[int] = None,
+            target_ids: List[int] = None
+
     ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
         """Retrieve ontology relationships with filtering."""
         for rel in self.relationships.values():
             # Apply filters
             if labels and rel.label not in labels:
                 continue
-            if entry_ids and not rel.source_id in entry_ids or rel.target_id in entry_ids:
+            if entry_ids and not (rel.source_id in entry_ids or rel.target_id in entry_ids):
+                continue
+            if source_ids and rel.source_id not in source_ids:
+                continue
+            if target_ids and rel.target_id not in target_ids:
                 continue
             # Note: version and phases filtering would require more complex logic
             # in a real implementation, but for tests we can keep it simple
@@ -199,10 +193,16 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             rank = cat_data.get('rank')
             self.scale_categories[scale_id].append((category_id, rank))
 
+    async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
+        return self.entry_lifecycles
+
     # Lifecycle persistence
     async def save_entry_lifecycles(self, lifecycles: Dict[int, EntryLifecycle], user_id: int = None) -> None:
         """Save entry lifecycles to storage."""
         self.entry_lifecycles.update(lifecycles)
+
+    async def get_relationship_lifecycles(self, relationship_keys: List[int]) -> Dict[int, RelationshipLifecycle]:
+        return self.relationship_lifecycles
 
     async def save_relationship_lifecycles(
             self,

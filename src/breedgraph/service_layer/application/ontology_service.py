@@ -63,6 +63,66 @@ class OntologyApplicationService:
         self.events.append(OntologyVersionCreated(version_id=commit.version.id))
         return commit
 
+    async def activate_entries(self, entry_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can activate entries")
+        await self._load_entry_lifecycles(entry_ids)
+        current_version = await self.get_current_version()
+        for entry_id in entry_ids:
+            lifecycle = await self._get_entry_lifecycle(entry_id)
+            lifecycle.set_version_activated(current_version)
+        await self._save_entry_lifecycles()
+
+    async def deprecate_entries(self, entry_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can deprecate entries")
+        await self._load_entry_lifecycles(entry_ids)
+        current_version = await self.get_current_version()
+        for entry_id in entry_ids:
+            lifecycle = await self._get_entry_lifecycle(entry_id)
+            lifecycle.set_version_deprecated(current_version)
+        await self._save_entry_lifecycles()
+
+    async def remove_entries(self, entry_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can remove entries")
+        await self._load_entry_lifecycles(entry_ids)
+        current_version = await self.get_current_version()
+        for entry_id in entry_ids:
+            lifecycle = await self._get_entry_lifecycle(entry_id)
+            lifecycle.set_version_removed(current_version)
+        await self._save_entry_lifecycles()
+
+    async def activate_relationships(self, relationship_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can activate relationships")
+        await self._load_relationship_lifecycles(relationship_ids)
+        current_version = await self.get_current_version()
+        for relationship_id in relationship_ids:
+            lifecycle = await self._get_relationship_lifecycle(relationship_id)
+            lifecycle.set_version_activated(current_version)
+        await self._save_relationship_lifecycles()
+
+    async def deprecate_relationships(self, relationship_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can deprecate relationships")
+        await self._load_relationship_lifecycles(relationship_ids)
+        current_version = await self.get_current_version()
+        for relationship_id in relationship_ids:
+            lifecycle = await self._get_relationship_lifecycle(relationship_id)
+            lifecycle.set_version_deprecated(current_version)
+        await self._save_relationship_lifecycles()
+
+    async def remove_relationships(self, relationship_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise IllegalOperationError("Only admins and editors can remove relationships")
+        await self._load_relationship_lifecycles(relationship_ids)
+        current_version = await self.get_current_version()
+        for relationship_id in relationship_ids:
+            lifecycle = await self._get_relationship_lifecycle(relationship_id)
+            lifecycle.set_version_removed(current_version)
+        await self._save_relationship_lifecycles()
+
     async def get_version_commit_info(self, version_id: Version) -> OntologyCommit:
         """Retrieve commit information for a specific version."""
         return await self.persistence.get_commit(version_id)
@@ -117,20 +177,31 @@ class OntologyApplicationService:
             entry: OntologyEntryInput,
             parents: list[int] = None,
             children: list[int] = None
-    ):
+    ) -> OntologyEntryStored:
         """Create a new ontology entry with validation and persistence."""
         await self._validate_entry_uniqueness(entry)
         # Create and persist entry
         created_entry = await self.persistence.create_entry(entry, self.user_id)
         await self._create_entry_lifecycle(created_entry.id)
         await self._save_entry_lifecycles()
+
         # Handle parent/child relationships
         for parent_id in (parents or []):
-            relationship = ParentRelationship.build(parent_id=parent_id, child_id=created_entry.id)
+            relationship = ParentRelationship.build(
+                parent_id=parent_id,
+                child_id=created_entry.id,
+                source_label = entry.label,
+                target_label = entry.label
+            )
             relationship = await self.create_relationship(relationship)
             await self._create_relationship_lifecycle(relationship.id)
         for child_id in (children or []):
-            relationship = ParentRelationship.build(parent_id=created_entry.id, child_id=child_id)
+            relationship = ParentRelationship.build(
+                parent_id=created_entry.id,
+                child_id=child_id,
+                source_label = entry.label,
+                target_label = entry.label
+            )
             relationship = await self.create_relationship(relationship)
             await self._create_relationship_lifecycle(relationship.id)
         await self._save_relationship_lifecycles()
@@ -159,7 +230,11 @@ class OntologyApplicationService:
         created_entry = await self._create_entry(entry=entry, parents=parents, children=children)
         if subjects:
             for subject_id in subjects:
-                relationship = SubjectRelationship.build(source_id=created_entry.id, subject_id=subject_id)
+                relationship = SubjectRelationship.build(
+                    source_id=created_entry.id,
+                    subject_id=subject_id,
+                    source_label=created_entry.label
+                )
                 await self.create_relationship(relationship)
         return created_entry
 
@@ -182,6 +257,35 @@ class OntologyApplicationService:
                 )
                 await self.create_relationship(relationship)
         return created_scale
+
+    async def create_subject(
+            self,
+            subject: SubjectInput,
+            parents: List[int] = None,
+            children: List[int] = None,
+            traits: List[int] = None,
+            conditions: List[int] = None
+    ) -> SubjectStored:
+        created_subject  = await self._create_entry(entry=subject, parents=parents, children=children)
+        if traits:
+            for trait_id in traits:
+                relationship = SubjectRelationship.build(
+                    source_id=trait_id,
+                    subject_id=created_subject.id,
+                    source_label=OntologyEntryLabel.TRAIT,
+                    target_label=created_subject.label
+                )
+                await self.create_relationship(relationship)
+        if conditions:
+            for condition_id in conditions:
+                relationship = SubjectRelationship.build(
+                    source_id=condition_id,
+                    subject_id=created_subject.id,
+                    source_label=OntologyEntryLabel.CONDITION,
+                    target_label=created_subject.label
+                )
+                await self.create_relationship(relationship)
+        return created_subject
 
     async def create_trait(
             self,
@@ -390,9 +494,9 @@ class OntologyApplicationService:
         return await self.persistence.get_entry(entry_id=entry_id, name=name, label=label, as_output=as_output)
 
     async def get_scale_id(self, entry_id: int) -> int|None:
-        async for relationship in self.persistence.get_relationships_by_label(
-                entry_id = entry_id,
-                label=OntologyRelationshipLabel.USES_SCALE
+        async for relationship in self.persistence.get_relationships(
+                entry_ids = [entry_id],
+                labels=[OntologyRelationshipLabel.USES_SCALE]
         ):
             return relationship.target_id
         return None
@@ -420,14 +524,18 @@ class OntologyApplicationService:
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
+            labels: List[OntologyRelationshipLabel] | None = None,
             entry_ids: List[int] | None = None,
-            labels: List[OntologyRelationshipLabel] | None = None
+            source_ids: List[int] | None = None,
+            target_ids: List[int] | None = None
     ) -> AsyncGenerator[OntologyRelationshipBase, None]:
         async for rel in self.persistence.get_relationships(
             version=version,
             phases=phases,
+            labels=labels,
             entry_ids=entry_ids,
-            labels=labels
+            source_ids=source_ids,
+            target_ids=target_ids,
         ):
             yield rel
 
@@ -438,11 +546,15 @@ class OntologyApplicationService:
         """Update an existing ontology entry with validation."""
         if not entry.id:
             raise ValueError("Entry must have an ID for updates")
+        # Update only if in draft phase
+        lifecycle = await self._get_entry_lifecycle(entry.id)
+        if lifecycle.current_phase != LifecyclePhase.DRAFT:
+            raise ValueError(f"Entry must be in draft phase for updates, got {lifecycle.current_phase} for entry {entry.id}")
 
         # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
         # Update entry
-        await self.persistence.update_entry(entry)
+        await self.persistence.update_entry(entry, user_id=self.user_id)
 
     async def _validate_entry_types_for_relationship(
             self,
@@ -458,17 +570,7 @@ class OntologyApplicationService:
             self._validate_relates_to_relationships(relationship, entry_types)
         else:
             """Validate relationships have correct types."""
-            valid_combinations = {
-                OntologyRelationshipLabel.HAS_CATEGORY: ([OntologyEntryLabel.SCALE], [OntologyEntryLabel.CATEGORY]),
-                OntologyRelationshipLabel.DESCRIBES_SUBJECT: ([OntologyEntryLabel.TRAIT, OntologyEntryLabel.CONDITION], [OntologyEntryLabel.SUBJECT]),
-                OntologyRelationshipLabel.DESCRIBES_TRAIT: ([OntologyEntryLabel.VARIABLE], [OntologyEntryLabel.TRAIT]),
-                OntologyRelationshipLabel.DESCRIBES_CONDITION: ([OntologyEntryLabel.FACTOR], [OntologyEntryLabel.CONDITION]),
-                OntologyRelationshipLabel.USES_CONTROL_METHOD: ([OntologyEntryLabel.FACTOR], [OntologyEntryLabel.CONTROL_METHOD]),
-                OntologyRelationshipLabel.USES_OBSERVATION_METHOD: ([OntologyEntryLabel.VARIABLE], OntologyEntryLabel.OBSERVATION_METHOD),
-                OntologyRelationshipLabel.USES_SCALE: ([OntologyEntryLabel.VARIABLE, OntologyEntryLabel.FACTOR], [OntologyEntryLabel.SCALE]),
-                OntologyRelationshipLabel.DESCRIBES_FACTOR: ([OntologyEntryLabel.EVENT], [OntologyEntryLabel.FACTOR]),
-                OntologyRelationshipLabel.DESCRIBES_VARIABLE: ([OntologyEntryLabel.EVENT], [OntologyEntryLabel.VARIABLE]),
-            }
+            valid_combinations = ontology_mapper.relationship_to_valid_source_and_target()
 
             expected = valid_combinations.get(relationship.label)
             if not expected:
@@ -543,8 +645,8 @@ class OntologyApplicationService:
         await self._save_relationship_lifecycles()
         return relationship
 
-    async def link_to_term(self, source_id, term_id):
-        relationship = TermRelationship.build(source_id=source_id, term_id=term_id)
+    async def link_to_term(self, source_id, source_label, term_id):
+        relationship = TermRelationship.build(source_id=source_id, term_id=term_id, source_label=source_label)
         await self.create_relationship(relationship)
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
@@ -600,8 +702,8 @@ class OntologyApplicationService:
         await self._save_entry_lifecycles()
 
     async def get_scale_category_ids(self, scale_id: int) -> List[int]:
-        relationships = [rel async for rel in self.persistence.get_relationships_by_label(
-                entry_id = scale_id, label= OntologyRelationshipLabel.HAS_CATEGORY
+        relationships = [rel async for rel in self.persistence.get_relationships(
+                entry_ids = [scale_id], labels = [OntologyRelationshipLabel.HAS_CATEGORY]
         )]
         relationships.sort(key=lambda x: x.rank)
         return [rel.target_id for rel in relationships]
@@ -673,15 +775,24 @@ class OntologyApplicationService:
         else:
             raise ValueError("Categories are only valid for Ordinal and Nominal scales")
 
-
     async def _create_entry_lifecycle(self, entry_id: int) -> EntryLifecycle:
         """Create a new entry lifecycle."""
         current_version = await self.persistence.get_current_version()
         if entry_id in self._entry_lifecycles:
             raise ValueError(f"Entry {entry_id} already has a lifecycle")
-        lifecycle = EntryLifecycle(entry_id=entry_id, version_drafted=current_version)
+        lifecycle = EntryLifecycle(entry_id=entry_id, drafted=current_version)
         self._entry_lifecycles[entry_id] = lifecycle
         return lifecycle
+
+    async def _load_entry_lifecycles(self, entry_ids: List[int]) -> None:
+        """Load entry lifecycles for a list of entry ids to perform update operations."""
+        lifecycles = await self.persistence.get_entry_lifecycles(entry_ids)
+        self._entry_lifecycles.update(lifecycles)
+
+    async def _load_relationship_lifecycles(self, relationship_ids: List[int]) -> None:
+        """Load entry lifecycles for a list of entry ids to perform update operations."""
+        lifecycles = await self.persistence.get_relationship_lifecycles(relationship_ids)
+        self._relationship_lifecycles.update(lifecycles)
 
     async def _create_relationship_lifecycle(
             self,
@@ -691,16 +802,29 @@ class OntologyApplicationService:
         current_version = await self.persistence.get_current_version()
         lifecycle = RelationshipLifecycle(
             relationship_id=relationship_id,
-            version_drafted=current_version
+            drafted=current_version
         )
         self._relationship_lifecycles[relationship_id] = lifecycle
         return lifecycle
 
-    def _get_entry_lifecycle(self, entry_id: int) -> EntryLifecycle:
+    async def _get_entry_lifecycle(self, entry_id: int) -> EntryLifecycle:
         """Get entry lifecycle or raise exception."""
         lifecycle = self._entry_lifecycles.get(entry_id)
         if not lifecycle:
-            raise ValueError(f"No lifecycle found for entry {entry_id}")
+            await self._load_entry_lifecycles([entry_id])
+            lifecycle = self._entry_lifecycles.get(entry_id)
+            if not lifecycle:
+                raise ValueError(f"No lifecycle found for entry {entry_id}")
+        return lifecycle
+
+    async def _get_relationship_lifecycle(self, relationship_id: int) -> RelationshipLifecycle:
+        """Get relationship lifecycle or raise exception."""
+        lifecycle = self._relationship_lifecycles.get(relationship_id)
+        if not lifecycle:
+            await self._load_relationship_lifecycles([relationship_id])
+            lifecycle = self._relationship_lifecycles.get(relationship_id)
+            if not lifecycle:
+                raise ValueError(f"No lifecycle found for relationship {relationship_id}")
         return lifecycle
 
     async def _save_entry_lifecycles(self) -> None:
@@ -731,7 +855,7 @@ class OntologyApplicationService:
                     f"Another {entry.label} is using the abbreviation {entry.abbreviation}"
                 )
 
-    async def _validate_entries_exist(self, entry_ids: List[int], label: str|None = None):
+    async def _validate_entries_exist(self, entry_ids: List[int], label: OntologyEntryLabel|None = None):
         if label:
             exist_map = await self.persistence.entries_exist_for_label(entry_ids, label = label)
             missing = [key for key, value in exist_map.items() if not value]
@@ -756,7 +880,10 @@ class OntologyApplicationService:
             )
 
     async def _validate_relationship_does_not_exist(self, relationship: OntologyRelationshipBase):
-        async for rel in self.persistence.get_relationships_by_label(entry_id = relationship.source_id, label=relationship.label):
-            if rel.target_id == relationship.target_id:
-                raise ValueError(f"Relationship already exists: {str(relationship)}")
+        async for rel in self.persistence.get_relationships(
+                source_ids = [relationship.source_id],
+                target_ids = [relationship.target_id],
+                labels=[relationship.label]
+        ):
+            raise ValueError(f"Relationship already exists: {str(rel)}")
 

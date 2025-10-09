@@ -7,7 +7,7 @@ from typing import ClassVar
 
 @dataclass
 class RoleBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.ROLE
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.ROLE
     """
     e.g. Scientist, Admin etc.
     """
@@ -26,7 +26,7 @@ class RoleOutput(RoleBase, OntologyEntryOutput):
 
 @dataclass
 class TitleBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.TITLE
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TITLE
     """
     e.g. Mr, Ms, Dr etc.
     """

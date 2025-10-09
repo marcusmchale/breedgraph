@@ -1,9 +1,8 @@
-import pdb
 import re
-from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
+from functools import lru_cache
 
 from neo4j import AsyncTransaction, Record
-from neo4j.exceptions import ResultNotSingleError, CypherSyntaxError, TransactionError
+from neo4j.exceptions import ResultNotSingleError, CypherSyntaxError, TransactionError, Neo4jError
 
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.time_descriptors import deserialize_time
@@ -14,108 +13,23 @@ from src.breedgraph.adapters.neo4j.cypher import queries, ontology
 # Import all ontology entry types - this ensures all subclasses are registered
 from src.breedgraph.domain.model.ontology import *
 
+from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
 
 import logging
 logger = logging.getLogger(__name__)
 
+
 class Neo4jOntologyPersistenceService(OntologyPersistenceService):
     """Neo4j implementation of the ontology persistence service."""
-
-    # Class attributes for type mappings - built once when class is loaded
-    _stored_class_mapping: Dict[str, Type[OntologyEntryStored]] = None
-    _output_class_mapping: Dict[str, Type[OntologyEntryOutput]] = None
-
-    _lifecycle_attributes = ['version_drafted', 'version_activated', 'version_deprecated', 'version_removed']
-
-    snake_case_pattern = re.compile(r'(?<!^)(?=[A-Z])')
 
     def __init__(self, tx: AsyncTransaction):
         self.tx = tx
         self._current_version_cache: Version | None = None
 
-        # Initialize class mappings if not already done
-        if Neo4jOntologyPersistenceService._stored_class_mapping is None:
-            Neo4jOntologyPersistenceService._build_class_mappings()
-
-    @classmethod
-    def _build_class_mappings(cls):
-        """Build the class mappings once for the class."""
-        # Build stored class mapping
-        cls._stored_class_mapping = {
-            subclass().label: subclass
-            for subclass in OntologyEntryStored.__subclasses__()
-        }
-
-        # Build output class mapping
-        cls._output_class_mapping = {
-            subclass().label: subclass
-            for subclass in OntologyEntryOutput.__subclasses__()
-        }
-
-    def get_relationship_attribute(
-            self,
-            relationship_label: OntologyRelationshipLabel,
-            entity_label: str,
-            other_entity_label: str,
-            is_source: bool
-    ) -> Tuple[str, Type]:
-        """
-        Get the attribute name for storing relationship data based on the relationship label and entity position.
-
-        Args:
-            relationship_label: The type of relationship (e.g., 'DESCRIBES_SUBJECT')
-            entity_label: The label of the entity holding the attribute
-            other_entity_label: The label of the other entity in the relationship
-            is_source: True if the current entity is the source of the relationship, False if target
-
-        Returns:
-            The attribute name to use for storing the ID of the related node
-        """
-        # Handle simple mappings first
-        if relationship_label is OntologyRelationshipLabel.PARENT_OF:
-            if is_source:
-                return 'children', list
-            else:
-                return 'parents', list
-        else:
-            entity_cls = self._output_class_mapping[entity_label]
-            other_entity_cls = self._output_class_mapping[other_entity_label]
-            attr_other_label = self.snake_case_pattern.sub('_', str(other_entity_cls.label.value)).casefold()
-            attr_other_plural = self.snake_case_pattern.sub('_', str(other_entity_cls.label.plural)).casefold()
-            if hasattr(entity_cls, attr_other_label):
-                return attr_other_label, int
-            elif hasattr(entity_cls, attr_other_plural):
-                return attr_other_plural, list
-            elif hasattr(entity_cls, '__dataclass_fields__'):
-                dataclass_fields = entity_cls.__dataclass_fields__
-                if attr_other_label in dataclass_fields:
-                    return attr_other_label, int
-                elif attr_other_plural in dataclass_fields:
-                    return attr_other_plural, list
-                else:
-
-                    raise ValueError(f"No field found for {entity_label} -> {other_entity_label}")
-            else:
-                raise ValueError(f"No attribute found for {entity_label} -> {other_entity_label}")
-
     def record_to_entry(self, record: Record, as_output=False) -> OntologyEntryStored | OntologyEntryOutput:
         record_dict = dict(record)
         # remove lowercase name from record
         record_dict.pop('name_lower')
-        # Extract the label from the record
-        label = record_dict.pop('label')
-        if not label:
-            raise ValueError("Record does not contain a label field")
-
-        # Use the appropriate class mapping
-        if as_output:
-            entry_class = self._output_class_mapping.get(label)
-        else:
-            entry_class = self._stored_class_mapping.get(label)
-
-        if not entry_class:
-            raise ValueError(f"No class found for label: {label}")
-
         # replace strings with enums
         if 'scale_type' in record_dict:
             record_dict['scale_type'] = ScaleType(record_dict['scale_type'])
@@ -124,41 +38,52 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         if 'axes' in record_dict:
             record_dict['axes'] = [AxisType(a) for a in record_dict['axes']]
 
-        # remove lifecycle details, these are fetched separately, todo consider this is inefficient
-        for lifecycle_attribute in self._lifecycle_attributes:
-            record_dict.pop(lifecycle_attribute, None)
+        # Extract the label from the record
+        label_str: str|None = record_dict.pop('label')
+        try:
+            label = OntologyEntryLabel(label_str)
+        except TypeError:
+            raise ValueError("Record does not contain a label field")
+        except ValueError:
+            raise ValueError(f"Label is not recognized as a valid ontology entry label: {label_str}")
+
+        # Get the appropriate entry class
+        if as_output:
+            entry_class = self.ontology_mapper.get_output_class_mapping().get(label)
+        else:
+            entry_class = self.ontology_mapper.get_stored_class_mapping().get(label)
+        if entry_class is None:
+            raise ValueError(f"No class found for label: {label}")
+
         # process relationship data (returned if output format is requested)
         if "relationships" in record_dict:
             for relationship in record_dict.pop('relationships'):
                 is_source = relationship['source_id'] == record_dict['id']
-                attr, _type = self.get_relationship_attribute(
-                    relationship_label=OntologyRelationshipLabel(relationship['relationship_type']),
-                    entity_label=label,
-                    other_entity_label=relationship['target_label'] if is_source else relationship['source_label'],
-                    is_source=True
+                attr, _type = self.ontology_mapper.get_attribute_name_and_type(
+                    source_label=OntologyEntryLabel(relationship['source_label']),
+                    target_label=OntologyEntryLabel(relationship['target_label']),
+                    attr_for_source=is_source
                 )
-                # todo some attributes may need to be renamed, e.g. events to event_types
                 if attr in record_dict:
-                    if _type == list:
+                    if _type == List[int]:
                         record_dict[attr].append(relationship['target_id' if is_source else 'source_id'])
                     else:
                         raise ValueError(f"Attribute {attr} already exists in record_dict")
                 else:
-                    if _type == list:
+                    if _type == List[int]:
                         record_dict[attr] = [relationship['target_id' if is_source else 'source_id']]
                     else:
                         record_dict[attr] = relationship['target_id' if is_source else 'source_id']
-
         return entry_class(**record_dict)
 
     @staticmethod
     def record_to_relationship(record: Record) -> OntologyRelationshipBase:
         record_dict = record.get('relationship') or dict(record)
         if not record_dict.get('relationship_id'):
-            import pdb;
-            pdb.set_trace()
             raise ValueError("Relationship id not created - this typically means a source or target node was not found")
+
         return OntologyRelationshipBase.relationship_from_label(**record_dict)
+
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
@@ -191,8 +116,21 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         record = await result.single()
         return self.record_to_entry(record['entry'])
 
-    async def update_entry(self, entry: OntologyEntryStored) -> None:
-        raise NotImplementedError
+    async def update_entry(self, entry: OntologyEntryStored, user_id: int) -> None:
+        params = entry.model_dump()
+        entry_id = params.pop('id')
+        params['name_lower'] = params['name'].casefold()
+        authors = params.pop('authors')
+        references = params.pop('references')
+        query = ontology.update_ontology_entry(entry.label)
+        await self.tx.run(
+            query=query,
+            entry_id=entry_id,
+            params=params,
+            authors=authors,
+            references=references,
+            user_id=user_id
+        )
 
     async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
@@ -200,7 +138,12 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             f"Creating relationship: {str(relationship)})"
         )
         dump = relationship.model_dump()
-        query = ontology.create_ontology_relationship(label=dump.pop('label'))
+
+        query = ontology.create_ontology_relationship(
+            label=dump.pop('label'),
+            source_label=dump.pop('source_label'),
+            target_label=dump.pop('target_label')
+        )
         if dump.pop('id') is not None:
             raise(ValueError("Relationship is already stored"))
         result = await self.tx.run(
@@ -212,31 +155,20 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         record = await result.single()
         return self.record_to_relationship(record)
 
-
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
-        """Create a new relationship between entries."""
+        """Update relationship attributes, e.g. rank"""
         logger.debug(
             f"Updating relationship: {str(relationship)})"
         )
-        query = ontology.update_ontology_relationship(label=relationship.label)
         dump = relationship.model_dump()
-        dump.pop('label')
+        generic_fields = ['label', 'source_label', 'target_label', 'id', 'source_id', 'target_id']
+        attributes = {key: value for key, value in dump.items() if key not in generic_fields}
+        query = queries['ontology']['update_relationship_attributes']
         await self.tx.run(
             query,
-            source_id=dump.pop('source_id'),
-            target_id=dump.pop('target_id'),
-            attributes=dump
+            relationship_id=relationship.id,
+            attributes=attributes
         )
-
-    async def get_relationships_by_label(self, entry_id: int, label: OntologyRelationshipLabel=None) -> AsyncGenerator[OntologyRelationshipBase, None]:
-        """ Get relationships for an entry_id, filtering by label type """
-        query = ontology.get_relationship_by_label(label=label)
-        result = await self.tx.run(
-            query,
-            entry_id = entry_id
-        )
-        async for record in result:
-            yield self.record_to_relationship(record)
 
     async def get_entries(
             self,
@@ -251,7 +183,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             version = await self.get_current_version()
         if phases is None:
             phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
-        query = ontology.get_all_entries(
+        query = ontology.get_entries(
             entry_ids = entry_ids,
             phases=phases,
             labels=labels,
@@ -299,24 +231,42 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
             labels: List[OntologyEntryLabel]|None = None,
+            entry_ids: List[int] = None,
+            source_ids: List[int] = None,
+            target_ids: List[int] = None
     ) -> AsyncGenerator[OntologyRelationshipBase, None]:
         if version is None:
             version = await self.get_current_version()
         if phases is None:
             phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
-        query = ontology.get_all_relationships(
+        query = ontology.get_relationships(
             phases=phases,
             labels=labels,
-            entry_ids=entry_ids
+            entry_ids=entry_ids,
+            source_ids=source_ids,
+            target_ids=target_ids
         )
         params = {"version": version.packed_version}
-        # Entry IDs parameter (if specified)
+        # Entry ID parameters (if specified)
         if entry_ids:
             params["entry_ids"] = entry_ids
+        if source_ids:
+            params["source_ids"] = source_ids
+        if target_ids:
+            params["target_ids"] = target_ids
 
         result = await self.tx.run(query, **params)
+        async for record in result:
+            yield self.record_to_relationship(record['relationship'])
+
+    async def get_relationships_by_sources_and_labels(
+            self,
+            source_ids: List[int],
+            labels: List[OntologyRelationshipLabel]
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
+        query = ontology.get_relationships_by_sources_and_labels(source_ids=source_ids, labels=labels)
+        result = self.tx.run(query)
         async for record in result:
             yield self.record_to_relationship(record['relationship'])
 
@@ -332,6 +282,16 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         logger.debug(f"Setting ranks for {len(categories)} categories of scale {scale_id}")
         query = queries['ontology']['set_scale_categories_ranks']
         await self.tx.run(query, scale_id=scale_id, categories=categories, ranks=ranks)
+
+    async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
+        query = queries['ontology']['get_entry_lifecycles']
+        result = await self.tx.run(query, entry_ids=entry_ids)
+        return {record.get('lifecycle').get('entry_id'): EntryLifecycle(**record['lifecycle']) async for record in result}
+
+    async def get_relationship_lifecycles(self, relationship_ids: List[int]) -> Dict[int, RelationshipLifecycle]:
+        query = queries['ontology']['get_relationship_lifecycles']
+        result = await self.tx.run(query, relationship_ids=relationship_ids)
+        return {record.get('lifecycle').get('relationship_id'): RelationshipLifecycle(**record['lifecycle']) async for record in result}
 
     # Lifecycle persistence
     async def save_entry_lifecycles(
@@ -364,74 +324,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         if lifecycles:
             query = queries['ontology']['save_relationship_lifecycles']
             await self.tx.run(query, lifecycles=lifecycles, user_id=user_id)
-
-    async def load_entry_lifecycles(
-            self,
-            entry_ids: Optional[Set[int]] = None
-    ) -> Dict[int, EntryLifecycle]:
-        """Load entry lifecycles from persistent storage."""
-        logger.debug(f"Loading entry lifecycles for {entry_ids}")
-
-        entry_filter = ""
-        params = {}
-
-        if entry_ids:
-            entry_filter = "WHERE el.entry_id IN $entry_ids"
-            params["entry_ids"] = list(entry_ids)
-
-        query = f"""
-        MATCH (el:EntryLifecycle)
-        {entry_filter}
-        RETURN el
-        """
-
-        lifecycles = {}
-        result = await self.tx.run(query, **params)
-
-        async for record in result:
-            lifecycle_data = dict(record['el'])
-            lifecycle = self._create_entry_lifecycle_from_data(lifecycle_data)
-            lifecycles[lifecycle.entry_id] = lifecycle
-
-        logger.debug(f"Loaded {len(lifecycles)} entry lifecycles")
-        return lifecycles
-
-    async def load_relationship_lifecycles(
-            self,
-            relationship_keys: Optional[Set[Tuple[int, int, OntologyRelationshipLabel]]] = None
-    ) -> Dict[Tuple[int, int, OntologyRelationshipLabel], RelationshipLifecycle]:
-        """Load relationship lifecycles from persistent storage."""
-        logger.debug(f"Loading relationship lifecycles for {relationship_keys}")
-
-        if relationship_keys:
-            # Build filter for specific relationships
-            key_conditions = []
-            for source_id, target_id, label in relationship_keys:
-                key_conditions.append(
-                    f"(rl.source_id = {source_id} AND rl.target_id = {target_id} AND rl.label = '{label.value}')"
-                )
-
-            filter_clause = f"WHERE {' OR '.join(key_conditions)}"
-        else:
-            filter_clause = ""
-
-        query = f"""
-        MATCH (rl:RelationshipLifecycle)
-        {filter_clause}
-        RETURN rl
-        """
-
-        lifecycles = {}
-        result = await self.tx.run(query)
-
-        async for record in result:
-            lifecycle_data = dict(record['rl'])
-            lifecycle = self._create_relationship_lifecycle_from_data(lifecycle_data)
-            key = lifecycle.key
-            lifecycles[key] = lifecycle
-
-        logger.debug(f"Loaded {len(lifecycles)} relationship lifecycles")
-        return lifecycles
 
     async def name_in_use(
             self,

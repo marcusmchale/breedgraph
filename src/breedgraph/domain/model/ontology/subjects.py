@@ -26,7 +26,7 @@ from typing import ClassVar
 
 @dataclass
 class SubjectBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.SUBJECT
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.SUBJECT
 
 @dataclass
 class SubjectInput(SubjectBase, OntologyEntryInput):

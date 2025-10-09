@@ -8,7 +8,7 @@ class DesignBase(OntologyEntryBase):
     """
     To describe types of experimental design
     """
-    label: ClassVar[str] = OntologyEntryLabel.DESIGN
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.DESIGN
 
 @dataclass
 class DesignInput(DesignBase, OntologyEntryInput):

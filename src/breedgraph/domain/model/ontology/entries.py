@@ -81,7 +81,7 @@ class TermBase(OntologyEntryBase):
     Terms serve as the primary sink for RELATES_TO relationships and can
     relate to other entities or other Terms.
     """
-    label: ClassVar[str] = OntologyEntryLabel.TERM
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TERM
 
 @dataclass
 class TermInput(TermBase, OntologyEntryInput):
@@ -89,7 +89,7 @@ class TermInput(TermBase, OntologyEntryInput):
 
 @dataclass
 class TermStored(TermBase, OntologyEntryStored):
-    related_to: List[int] = field(default_factory=list)  # the incoming entry ids from any other entry type
+    pass
 
 @dataclass
 class TermOutput(TermBase, OntologyEntryOutput):

@@ -28,7 +28,7 @@ from typing import ClassVar, List
 
 @dataclass
 class TraitBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.TRAIT
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TRAIT
 
     subjects: List[int] = field(default_factory=list)
 
@@ -48,7 +48,7 @@ class TraitOutput(TraitBase, OntologyEntryOutput):
 
 @dataclass
 class ObservationMethodBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.OBSERVATION_METHOD
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.OBSERVATION_METHOD
 
     observation_type: ObservationMethodType = ObservationMethodType.MEASUREMENT
 
@@ -86,7 +86,7 @@ class ScaleCategoryOutput(ScaleCategoryBase, OntologyEntryOutput):
 
 @dataclass
 class ScaleBase(OntologyEntryBase):
-    label: ClassVar[str] = OntologyEntryLabel.SCALE
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.SCALE
 
     scale_type: ScaleType = ScaleType.TEXT
 
@@ -111,7 +111,7 @@ class ScaleOutput(ScaleBase, OntologyEntryOutput):
 
 @dataclass
 class VariableBase(OntologyEntryBase):  # quantities/qualities that vary and may be observed
-    label: ClassVar[str] = OntologyEntryLabel.VARIABLE
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.VARIABLE
     # name: # CropOntology requires name to be <TraitAbbreviation>_<MethodAbbreviation >_< ScaleAbbreviation >
     # makes more sense for this format to be the abbreviation value of the OntologyEntry class
     # CropOntology variable properties has a separate label attribute to store the name

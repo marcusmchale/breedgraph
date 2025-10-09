@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 
 from src.breedgraph.service_layer.application.ontology_service import OntologyApplicationService
 from src.breedgraph.domain.model.ontology import (
-    SubjectInput, TraitInput, VariableInput, ScaleInput, TermInput, ObservationMethodInput, ScaleCategoryInput
+    SubjectInput, TraitInput, VariableInput, ScaleInput, TermInput, ObservationMethodInput, ScaleCategoryInput, OntologyEntryLabel
 )
 from src.breedgraph.domain.model.accounts import OntologyRole
 from src.breedgraph.domain.model.ontology.enums import ScaleType, OntologyRelationshipLabel
@@ -177,14 +177,18 @@ class TestOntologyApplicationServiceRelationships:
         # Create parent -> child relationship
         parent_rel = ParentRelationship.build(
             parent_id=parent.id,
-            child_id=child.id
+            child_id=child.id,
+            source_label=OntologyEntryLabel.TRAIT,
+            target_label=OntologyEntryLabel.TRAIT
         )
         await service.create_relationship(parent_rel)
 
         # Try to create child -> parent relationship (would create cycle)
         cycle_rel = ParentRelationship.build(
             parent_id=child.id,
-            child_id=parent.id
+            child_id=parent.id,
+            source_label=OntologyEntryLabel.TRAIT,
+            target_label=OntologyEntryLabel.TRAIT
         )
         # Act & Assert
         with pytest.raises(ValueError):
@@ -210,8 +214,10 @@ class TestOntologyApplicationServiceValidation:
     async def test_entry_must_exist_for_relationship(self, service, version):
         # Try to create relationship with non-existent entries
         relationship = ParentRelationship.build(
-            parent_id=999,  # Doesn't exist
-            child_id=1000  # Doesn't exist
+            parent_id=999, # Doesn't exist
+            child_id=1000, # Doesn't exist
+            source_label= OntologyEntryLabel.TERM,
+            target_label= OntologyEntryLabel.TERM
         )
         with pytest.raises(ValueError, match="do not exist"):
             await service.create_relationship(relationship)
@@ -286,17 +292,17 @@ class TestOntologyApplicationServiceIntegration:
             observation_method_id= entries['observation_method'].id,
             scale_id = entries['scale'].id
         )
-        async for relationship in service.persistence.get_relationships_by_label(entry_id=variable.id, label = OntologyRelationshipLabel.DESCRIBES_TRAIT):
+        async for relationship in service.persistence.get_relationships(source_ids=[variable.id], labels = [OntologyRelationshipLabel.DESCRIBES_TRAIT]):
             if relationship.target_id == entries['trait'].id:
                 break
         else:
             raise ValueError("Scale relationship not created for variable")
-        async for relationship in service.persistence.get_relationships_by_label(entry_id=variable.id, label = OntologyRelationshipLabel.USES_SCALE):
+        async for relationship in service.persistence.get_relationships(source_ids=[variable.id], labels = [OntologyRelationshipLabel.USES_SCALE]):
             if relationship.target_id == entries['scale'].id:
                 break
         else:
             raise ValueError("Observation method relationship not created for variable")
-        async for relationship in service.persistence.get_relationships_by_label(entry_id=variable.id, label = OntologyRelationshipLabel.USES_OBSERVATION_METHOD):
+        async for relationship in service.persistence.get_relationships(source_ids=[variable.id], labels = [OntologyRelationshipLabel.USES_OBSERVATION_METHOD]):
             if relationship.target_id == entries['observation_method'].id:
                 break
         else:

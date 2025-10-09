@@ -206,16 +206,19 @@ async def post_to_get_entries(
         token: str,
         names: List[str] | None = None,
         labels: List[OntologyEntryLabel] |None = None,
+        entry_ids: List[int] | None = None,
 ):
     json={
         "query": (
             " query ( "
             "  $names: [String]"
             "  $labels: [OntologyEntryLabel]"
+            "  $entryIds: [Int]"
             " ) { "
             "  ontologyEntries( "
             "    names: $names "
             "    labels: $labels "
+            "    entryIds: $entryIds "
             "  ) { "
             "    status, "
             "    result { "
@@ -242,7 +245,8 @@ async def post_to_get_entries(
         ),
         "variables": {
             "names": names,
-            "labels": [label.name for label in labels]
+            "labels": [label.name for label in labels],
+            "entryIds": entry_ids
         }
     }
     headers = with_auth(
@@ -343,6 +347,34 @@ async def post_to_commit_history(
         ),
         "variables": {
             "limit" : limit
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_update_term(
+        client,
+        token: str,
+        term_update: dict
+):
+    json={
+        "query": (
+            " mutation ( $term: TermUpdate! ) { "
+            "  ontologyUpdateTerm( "
+            "   term: $term  "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "term" : term_update
         }
     }
     headers = with_auth(

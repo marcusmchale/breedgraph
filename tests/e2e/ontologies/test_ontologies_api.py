@@ -14,7 +14,8 @@ from tests.e2e.ontologies.post_methods import (
     post_to_get_entries,
     post_to_commit_version,
     post_to_commit_history,
-    post_to_get_relationships
+    post_to_get_relationships,
+    post_to_update_term
 )
 
 
@@ -230,3 +231,77 @@ async def test_get_label_relationships(client, first_account, first_user_login_t
     assert payload.get('result')[0].get('id') > 0
     for record in payload.get('result'):
         assert record.get('label') == 'HAS_TERM'
+
+#@pytest.mark.asyncio(scope="session")
+#async def test_update_term(client, first_user_login_token, first_account, lorem_text_generator):
+#    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM])
+#    term_payload = get_verified_payload(response, "ontologyEntries")
+#    term_id = term_payload.get('result')[0].get('id')
+#    term_update = {
+#        'id': term_id,
+#        'name': lorem_text_generator.new_text(10),
+#        'description':lorem_text_generator.new_text(20),
+#        'abbreviation': lorem_text_generator.new_text(5),
+#        'synonyms':[lorem_text_generator.new_text(5), lorem_text_generator.new_text(5)],
+#    }
+#    response = await post_to_update_term(
+#        client,
+#        token=first_user_login_token,
+#        term_update = term_update
+#    )
+#    assert_payload_success(get_verified_payload(response, "ontologyUpdateTerm"))
+#
+#    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM], entry_ids=[term_id])
+#    term_payload_new = get_verified_payload(response, "ontologyEntries")
+#    assert term_payload_new.get('result')[0].get('name') == term_update['name']
+#
+
+@pytest.mark.asyncio(scope="session")
+async def test_update_create_relationships(client, first_user_login_token, first_account, lorem_text_generator):
+    term_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM])
+    term_payload = get_verified_payload(term_response, "ontologyEntries")
+    parent_term_id = term_payload.get('result')[0].get('id')
+
+    subject_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.SUBJECT])
+    subject_payload = get_verified_payload(subject_response, "ontologyEntries")
+    subject_id = subject_payload.get('result')[0].get('id')
+
+    child_term_input = {
+        'name': lorem_text_generator.new_text(10)
+    }
+    response = await post_to_create_term(
+        client,
+        token=first_user_login_token,
+        term_input = child_term_input
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
+
+    child_term_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM], names=child_term_input['name'])
+    child_term_payload = get_verified_payload(child_term_response, "ontologyEntries")
+    child_term_id = child_term_payload.get('result')[0].get('id')
+    child_term_update = {
+        'id': child_term_id,
+        'parentIds': [parent_term_id],
+        'subjectIds': [subject_id]
+    }
+    update_response = await post_to_update_term(
+        client,
+        token=first_user_login_token,
+        term_update=child_term_update
+    )
+    assert_payload_success(get_verified_payload(update_response, "ontologyUpdateTerm"))
+
+
+
+    #update_payload = get_verified_payload(child_term_response, "ontologyEntries")
+    #assert child_term_payload.get('result')[0].get('parents') == [parent_term_id]
+    #assert child_term_payload.get('result')[0].get('subjects') == [subject_id]
+
+    #response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM],
+    #                                     entry_ids=[term_id])
+    #term_payload_new = get_verified_payload(response, "ontologyEntries")
+    #assert term_payload_new.get('result')[0].get('name') == term_update['name']
+
+@pytest.mark.asyncio(scope="session")
+async def test_update_deprecate_relationships(client, first_user_login_token, first_account, lorem_text_generator):
+    pass

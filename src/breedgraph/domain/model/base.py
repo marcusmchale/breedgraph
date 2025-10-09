@@ -28,17 +28,17 @@ class SerializableMixin(ABC):
 class LabeledModel(SerializableMixin, ABC):
     """Base class for models with labels"""
 
-    @property
+    @classmethod
     @abstractmethod
-    def label(self) -> str:
+    def label(cls) -> str | Enum:
         """The label for this class of model"""
-        raise NotImplementedError
+        ...
 
-    @property
+    @classmethod
     @abstractmethod
-    def plural(self) -> str:
+    def plural(cls) -> str:
         """The plural of the label for this class of model"""
-        raise NotImplementedError
+        ...
 
     def model_dump(self) -> Dict[str, Any]:
         return asdict(self)
@@ -56,7 +56,7 @@ class EnumLabel(str, Enum, metaclass=ABCEnumMeta):
 
     @property
     @abstractmethod
-    def label(self) -> str:
+    def label(self) -> str :
         ...
 
     @property
@@ -69,11 +69,9 @@ class EnumLabel(str, Enum, metaclass=ABCEnumMeta):
 class EnumLabeledModel(LabeledModel, ABC):
     label: ClassVar[EnumLabel]
 
-    @property
-    def plural(self) -> str:
-        """The plural for this class of model"""
-        return self.label.plural
-
+    @classmethod
+    def plural(cls) -> str:
+        return cls.label.plural
 
 @dataclass
 class StoredModel(LabeledModel, ABC):

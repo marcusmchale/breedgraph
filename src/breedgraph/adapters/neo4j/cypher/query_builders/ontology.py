@@ -61,11 +61,76 @@ def create_ontology_entry(label: OntologyEntryLabel):
   """
   return query
 
-def create_ontology_relationship(label: OntologyRelationshipLabel):
+def update_ontology_entry(label: OntologyEntryLabel):
+  query = f"""
+    MATCH (entry: {label.value}: OntologyEntry {{id: $entry_id}})
+    SET entry += $params
+    WITH entry
+    // Link user as contributor
+    CALL {{
+      WITH entry
+      MATCH (user: User {{id: $user_id}})
+      MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
+      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(entry)
+    }}
+    // Update authors
+    CALL {{
+      WITH entry
+      MATCH (entry)-[authored:AUTHORED]->(author: Person)
+      WHERE NOT author.id IN $authors
+      DELETE authored
+    }}
+    CALL {{
+      WITH entry      
+      UNWIND $authors as author_id
+      MATCH (author: Person {{id: author_id}})
+      MERGE (author)-[authored:AUTHORED]->(entry)
+      ON CREATE SET authored.time = datetime.transaction()
+      RETURN
+        collect(author.id) as authors
+    }}
+    // Update references
+    CALL {{
+      WITH entry
+      MATCH (entry)<-[ref_for:REFERENCE_FOR]->(reference: Reference)
+      WHERE NOT reference.id IN $references
+      DELETE ref_for
+    }}
+    CALL {{
+      WITH entry      
+      UNWIND $references as ref_id
+      MATCH (reference: Reference {{id: ref_id}})
+      MERGE (reference)-[ref_for:REFERENCE_FOR]->(entry)
+      ON CREATE SET ref_for.time = datetime.transaction()
+      RETURN
+        collect(reference.id) as references
+    }}
+    RETURN entry {{
+      .*,
+      label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
+      authors: authors,
+      references: references
+    }}
+  """
+  return query
+
+def create_ontology_relationship(
+        label: OntologyRelationshipLabel,
+        source_label: OntologyEntryLabel,
+        target_label: OntologyEntryLabel
+):
   try:
     label = OntologyRelationshipLabel(label)
   except KeyError:
     raise ValueError("Only ontology relationship labels can be used")
+  try:
+      source_label = OntologyEntryLabel(source_label)
+  except KeyError:
+    raise ValueError("Only ontology entry labels can be used for source")
+  try:
+      target_label = OntologyEntryLabel(target_label)
+  except KeyError:
+    raise ValueError("Only ontology entry labels can be used for target")
 
   query = f"""
     MERGE (c:Counter {{name:'ontology_relationship'}})
@@ -73,7 +138,8 @@ def create_ontology_relationship(label: OntologyRelationshipLabel):
     WITH c
     SET c.count = c.count + 1
     WITH c
-    MATCH (source: OntologyEntry {{id:$source_id}}), (target: OntologyEntry {{id:$target_id}})
+    MATCH (source:  {source_label.value} : OntologyEntry {{id:$source_id}}), 
+        (target:  {target_label.value} : OntologyEntry {{id:$target_id}})
     CREATE (source)
         -[:HAS_RELATIONSHIP]->(relationship:{label.value}:OntologyRelationship)
         -[:RELATES_TO]->(target)
@@ -83,35 +149,12 @@ def create_ontology_relationship(label: OntologyRelationshipLabel):
         relationship_id: relationship.id,
         label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
         source_id: source.id,
-        target_id: target.id
+        target_id: target.id,
+        source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
+        target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
     }}
   """
   return query
-
-def update_ontology_relationship(label: OntologyRelationshipLabel):
-  query = f"""
-    MATCH (source: OntologyEntry {{id:$source_id}})
-        -[:HAS_RELATIONSHIP]->(relationship:{label.value}:OntologyRelationship)
-        -[:RELATES_TO]->(target: OntologyEntry {{id:$target_id}})
-    SET relationship += $attributes
-  """
-  return query
-
-def get_relationship_by_label(label: OntologyRelationshipLabel):
-    query = f"""
-        MATCH (entry: OntologyEntry {{id:$entry_id}})
-        MATCH (source: OntologyEntry)
-            -[:HAS_RELATIONSHIP|RELATES_TO]->(relationship:{label.value}:OntologyRelationship)
-            -[:RELATES_TO]->(target: OntologyEntry)
-        WHERE source = entry OR target = entry
-        RETURN relationship {{
-            relationship_id: relationship.id,
-            label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
-            source_id: source.id,
-            target_id: target.id
-        }}
-    """
-    return query
 
 def has_path_between_entries(label: OntologyRelationshipLabel):
     query = f"""
@@ -126,7 +169,6 @@ def has_path_between_entries(label: OntologyRelationshipLabel):
         LIMIT 1
     """
     return query
-
 
 def entries_exist_by_label(labels: List[OntologyEntryLabel] | None = None) -> str:
     """
@@ -162,7 +204,7 @@ def entries_exist_by_label(labels: List[OntologyEntryLabel] | None = None) -> st
     return query
 
 
-def get_all_entries(
+def get_entries(
         phases: List[LifecyclePhase],
         labels: List[OntologyEntryLabel] | None = None,
         names: List[str] | None = None,
@@ -280,10 +322,12 @@ def get_all_entries(
 
         return "\n".join(query_parts)
 
-def get_all_relationships(
+def get_relationships(
         phases: List[LifecyclePhase],
         labels: List[OntologyRelationshipLabel] | None = None,
         entry_ids: List[int] | None = None,
+        source_ids: List[int] | None = None,
+        target_ids: List[int] | None = None
 ) -> str:
     """
     Dynamically build Cypher query for fetching ontology relationships.
@@ -305,7 +349,15 @@ def get_all_relationships(
 
     # Entry ID filtering (parameterized)
     if entry_ids:
-        match_clause = match_clause + ", (relationship)--(entry:OntologyEntry) where entry.id IN $entry_ids"
+        match_clause = match_clause + ", (relationship)--(entry:OntologyEntry) "
+    if source_ids:
+        if entry_ids:
+            raise ValueError("Cannot filter by both entry_ids and source_ids")
+        match_clause = match_clause + ", (relationship)<-[:HAS_RELATIONSHIP]-(source:OntologyEntry) "
+    if target_ids:
+        if entry_ids:
+            raise ValueError("Cannot filter by both entry_ids and target_ids")
+        match_clause = match_clause + ", (relationship)-[:RELATES_TO]->(target:OntologyEntry) "
 
     # Phase filtering (applies with version context)
     phase_conditions = []
@@ -329,16 +381,35 @@ def get_all_relationships(
 
     # Build WHERE clause
     where_clause = ""
-    if phase_conditions:
-        where_clause = "WHERE " + ' OR '.join(phase_conditions)
+    if entry_ids:
+        where_clause = "WHERE entry.id IN $entry_ids "
+    if source_ids:
+        where_clause = "WHERE source.id in $source_ids "
+    if target_ids:
+        if where_clause:
+            where_clause = where_clause + " AND target.id in $target_ids "
+        else:
+            where_clause = "WHERE target.id in $target_ids "
 
-    return_clause = """RETURN
-      relationship {
-        relationship_id: relationship.id,
-        label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
-        source_id: [(relationship)<-[:HAS_RELATIONSHIP]-(source) | source.id][0],
-        target_id: [(relationship)-[:RELATES_TO]->(target) | target.id][0]
-      } as relationship """
+    if phase_conditions:
+        if where_clause:
+            where_clause = where_clause + " AND ( " + " OR ".join(phase_conditions) + " )"
+        else:
+            where_clause = "WHERE " + " OR ".join(phase_conditions)
+
+    return_clause = """
+        WITH (relationship)
+        MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry)
+        RETURN
+            relationship {
+                relationship_id: relationship.id,
+                label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
+                source_id: source.id,
+                target_id: target.id,
+                source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
+                target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
+            } as relationship 
+    """
 
     # Handle multiple labels with UNION
     if labels is not None and len(labels) > 1:

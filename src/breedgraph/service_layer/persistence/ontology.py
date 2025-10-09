@@ -1,6 +1,10 @@
+import re
 from abc import ABC, abstractmethod
-from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator
+from functools import lru_cache
 
+from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
+
+from src.breedgraph.domain.model.ontology import OntologyMapper, OntologyEntryBase
 from src.breedgraph.domain.model.ontology.version import VersionChange
 from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
@@ -9,12 +13,13 @@ from src.breedgraph.domain.model.ontology.relationships import OntologyRelations
 from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
 from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
 from src.breedgraph.domain.model.ontology.version import Version, OntologyCommit
+from src.breedgraph.domain.model.ontology.mappers import OntologyMapper, ontology_mapper
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-# strange but..
+# NOTE this is strange but..
 # for async generator abstract methods we need to define them as sync functions for typing to work
 # https://stackoverflow.com/questions/68905848/how-to-correctly-specify-type-hints-with-asyncgenerator-and-asynccontextmanager
 
@@ -24,6 +29,7 @@ class OntologyPersistenceService(ABC):
     Streamlined persistence service that handles both data operations and validation queries.
     Consolidates all persistence-related functionality needed by the application service.
     """
+    ontology_mapper: OntologyMapper = ontology_mapper
 
     async def create_entry(
             self,
@@ -62,7 +68,7 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def update_entry(self, entry: OntologyEntryStored) -> None:
+    async def update_entry(self, entry: OntologyEntryStored, user_id: int) -> None:
         """Update an existing ontology entry."""
         ...
 
@@ -74,10 +80,6 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update attributes of an existing relationship."""
-        ...
-
-    @abstractmethod
-    def get_relationships_by_label(self, entry_id: int, label: OntologyRelationshipLabel=None) -> AsyncGenerator[OntologyRelationshipBase, None]:
         ...
 
     @abstractmethod
@@ -102,14 +104,24 @@ class OntologyPersistenceService(ABC):
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
             labels: List[OntologyRelationshipLabel] | None = None,
+            entry_ids: List[int] = None,
+            source_ids: List[int] = None,
+            target_ids: List[int] = None
     ) -> AsyncGenerator[OntologyRelationshipBase, None]:
         """
         Retrieve ontology relationships,
             optionally filter by version/phase/label/entry_id
         :return:
         """
+        ...
+
+    @abstractmethod
+    async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
+        ...
+
+    @abstractmethod
+    async def get_relationship_lifecycles(self, relationship_ids: List[int]) -> Dict[int, RelationshipLifecycle]:
         ...
 
     # Lifecycle persistence

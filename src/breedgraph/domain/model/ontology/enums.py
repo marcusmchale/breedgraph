@@ -74,7 +74,7 @@ class OntologyEntryLabel(EnumLabel):
     CONTROL_METHOD = "ControlMethod"
     CONDITION = "Condition"
     FACTOR = "Factor"
-    EVENT = "EventType"
+    EVENT = "Event"
     LOCATION_TYPE = "LocationType"
     LAYOUT_TYPE = "LayoutType"
     DESIGN = "Design"

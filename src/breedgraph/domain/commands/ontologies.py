@@ -11,6 +11,30 @@ class CommitOntologyVersion(Command):
     licence: int|None = None
     copyright: int|None = None
 
+class ActivateOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
+class DeprecateOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
+class RemoveOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
+class ActivateOntologyRelationships(Command):
+    agent_id: int
+    relationship_ids: List[int]
+
+class DeprecateOntologyRelationships(Command):
+    agent_id: int
+    relationship_ids: List[int]
+
+class RemoveOntologyRelationships(Command):
+    agent_id: int
+    relationship_ids: List[int]
+
 class CreateEntryBase(BaseModel):
     agent_id: int
 
@@ -43,6 +67,8 @@ class CreateTerm(Command, CreateEntryBase):
 
 class CreateSubject(Command, CreateEntryBase):
     term_ids: List[int] | None = None
+    trait_ids: List[int] | None = None
+    condition_ids: List[int] | None = None
 
 class CreateTrait(Command, CreateEntryBase):
     term_ids: List[int] | None = None
@@ -52,16 +78,13 @@ class CreateCondition(Command, CreateEntryBase):
     term_ids: List[int] | None = None
     subject_ids: List[int] = None
 
-class CreateExposure(Command, CreateEntryBase):
-    term_ids: List[int] | None = None
-    subject_ids: List[int] = None
-
 class CreateScale(Command, CreateEntryBase):
     scale_type: ScaleType
     term_ids: List[int] | None = None
 
 class CreateScaleCategory(Command, CreateEntryBase):
     term_ids: List[int] | None = None
+
 
 class CreateObservationMethod(Command, CreateEntryBase):
     observation_type: ObservationMethodType
@@ -96,3 +119,50 @@ class CreateDesign(Command, CreateEntryBase):
 class CreateLayoutType(Command, CreateEntryBase):
     axes: List[AxisType]
     term_ids: List[int] | None = None
+
+class UpdateEntryBase(BaseModel):
+    id: int
+    name: str | None = None
+
+class UpdateTerm(UpdateEntryBase, CreateTerm):
+    pass
+
+class UpdateSubject(UpdateEntryBase, CreateSubject):
+    pass
+
+class UpdateTrait(UpdateEntryBase, CreateTrait):
+    pass
+
+class UpdateCondition(UpdateEntryBase, CreateCondition):
+    pass
+
+class UpdateScale(UpdateEntryBase, CreateScale):
+    pass
+
+class UpdateCategory(UpdateEntryBase, CreateScaleCategory):
+    pass
+
+class UpdateObservationMethod(UpdateEntryBase, CreateObservationMethod):
+    pass
+
+class UpdateVariable(UpdateEntryBase, CreateVariable):
+    pass
+
+class UpdateControlMethod(UpdateEntryBase, CreateControlMethod):
+    pass
+
+class UpdateFactor(UpdateEntryBase, CreateFactor):
+    pass
+
+class UpdateEventType(UpdateEntryBase, CreateEventType):
+    pass
+
+class UpdateLocationType(UpdateEntryBase, CreateLocationType):
+    pass
+
+class UpdateDesign(UpdateEntryBase, CreateDesign):
+    pass
+
+class UpdateLayoutType(UpdateEntryBase, CreateLayoutType):
+    pass
+
