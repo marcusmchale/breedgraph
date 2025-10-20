@@ -1,3 +1,4 @@
+password-strength
 fastapi~=0.110.0
 pydantic==2.7.4
 ariadne==0.22

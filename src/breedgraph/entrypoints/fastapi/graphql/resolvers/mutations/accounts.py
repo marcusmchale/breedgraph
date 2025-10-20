@@ -37,6 +37,13 @@ async def create_account(
         password: str
 ) -> bool:
     logger.debug(f"Add account: {name}")
+
+    password_policy = config.get_password_policy()
+    password_errors = password_policy.test(password)
+    if password_errors:
+        error_messages = [str(error) for error in password_errors]
+        raise ValueError(f"Password does not meet security requirements: {'; '.join(error_messages)}")
+
     # the bcrypt hash result includes the salt,
     # it is concatenated into the hash then encoded in a modified base64
     # so we can just store the hash in db
@@ -81,6 +88,14 @@ async def reset_password(
         if not account:
             raise UnauthorisedOperationError("Token not valid because user was not found")
         logger.debug(f"Change password for user: {account.user.id}")
+
+        password_policy = config.get_password_policy()
+        password_errors = password_policy.test(password)
+        if password_errors:
+            error_messages = [str(error) for error in password_errors]
+            raise ValueError(f"Password does not meet security requirements: {'; '.join(error_messages)}")
+
+
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     cmd = UpdateUser(user_id=user_id, password_hash=password_hash)
@@ -194,6 +209,14 @@ async def update_user(
     user_id = info.context.get("user_id")
     logger.debug(f"Edit user: {user_id}")
     if password is not None:
+
+        password_policy = config.get_password_policy()
+
+        password_errors = password_policy.test(password)
+        if password_errors:
+            error_messages = [str(error) for error in password_errors]
+            raise ValueError(f"Password does not meet security requirements: {', '.join(error_messages)}")
+
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     else:
         password_hash = password

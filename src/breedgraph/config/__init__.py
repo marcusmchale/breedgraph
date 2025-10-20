@@ -31,3 +31,4 @@ from .secrets import (
     CSRF_SALT,
     CSRF_EXPIRES
 )
+from .passwords import get_password_policy
