@@ -1,6 +1,6 @@
 from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.controls import Access
-from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel
+from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
 from src.breedgraph.custom_exceptions import InconsistentStateError
 
 from typing import List, Set
@@ -27,7 +27,11 @@ async def update_ontology_version_context(context, version: Version = None):
 async def update_ontology_map(
         context,
         entry_ids: List[int] = None,
-        version: Version = None):
+        phases: List[LifecyclePhase] = None,
+        version: Version = None,
+        names: List[str] = None,
+        labels: List[OntologyEntryLabel] = None
+):
     bus = context.get('bus')
     user_id = context.get('user_id')  # This might be None for unauthenticated requests
     await update_ontology_version_context(context, version)
@@ -39,7 +43,14 @@ async def update_ontology_map(
         entries_to_update = [
             entry_id for entry_id in entry_ids or [] if entry_id not in context['ontology_map']
         ]
-        async for entry in uow.ontology.get_entries(version=version, entry_ids=entries_to_update, as_output=True):
+        async for entry in uow.ontology.get_entries(
+            version=version,
+            entry_ids=entries_to_update,
+            phases=phases,
+            names=names,
+            labels=labels,
+            as_output=True
+        ):
             context['ontology_map'][entry.id] = entry
 
 async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None):

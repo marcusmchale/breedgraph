@@ -1,7 +1,5 @@
 import csv
-from itertools import count
-
-import redis
+import redis.asyncio as redis
 import json
 
 from pathlib import Path

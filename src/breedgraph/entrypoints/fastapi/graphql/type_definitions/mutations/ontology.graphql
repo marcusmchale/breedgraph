@@ -313,6 +313,7 @@ input ConditionUpdate {
     parentIds: [Int]
     childIds: [Int]
     termIds: [Int]
+    subjectIds: [Int]
 }
 
 input ScaleUpdate {

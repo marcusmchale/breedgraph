@@ -7,7 +7,7 @@ from src.breedgraph.config import N_EVENT_HANDLERS
 
 #if TYPE_CHECKING:
 from typing import Callable, Dict, List, Union, Type
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, BruteForceProtectionService
 from src.breedgraph.adapters.redis.read_model import ReadModel
 
 Message = Union[commands.Command, events.Event]

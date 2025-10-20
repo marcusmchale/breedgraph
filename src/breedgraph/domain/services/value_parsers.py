@@ -16,7 +16,7 @@ class ValueParser:
 
     def parse(
             self,
-            value:str|int,
+            value: str|int,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored],
             germplasm: GermplasmApplicationService
@@ -34,6 +34,8 @@ class ValueParser:
                 return self._parse_category_text(value, categories)
             elif scale.scale_type == ScaleType.GERMPLASM:
                 return self._parse_germplasm_text(value, germplasm)
+            elif scale.scale_type == ScaleType.COMPLEX:
+                return value
             else:
                 raise ValueError("String value provided for the wrong scale type")
 
@@ -42,6 +44,8 @@ class ValueParser:
                 return self._parse_category_int(value, categories)
             elif scale.scale_type == ScaleType.GERMPLASM:
                 return self._parse_germplasm_int(value, germplasm)
+            elif scale.scale_type == ScaleType.COMPLEX:
+                return value
             else:
                 raise ValueError("Integer values are only supported for nominal, ordinal and Germplasm scales")
         else:

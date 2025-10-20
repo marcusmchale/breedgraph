@@ -4,7 +4,7 @@ from src.breedgraph.domain.model.ontology import (
     OntologyEntryOutput, OntologyRelationshipBase,
     OntologyEntryLabel, OntologyRelationshipLabel,
     OntologyCommit,
-    Version,
+    Version, LifecyclePhase,
 )
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map, update_ontology_version_context
@@ -73,6 +73,7 @@ async def get_ontology_relationships(
         info,
         entry_ids: List[int] = None,
         labels: List[OntologyRelationshipLabel] = None,
+        phases: List[LifecyclePhase] = None,
         version_id: int = None
 ) -> List[OntologyRelationshipBase]:
     if version_id is None:
@@ -86,6 +87,7 @@ async def get_ontology_relationships(
         relationships = [rel async for rel in uow.ontology.get_relationships(
                 entry_ids=entry_ids,
                 labels=labels,
+                phases=phases,
                 version=version
         )]
         return relationships
@@ -100,6 +102,7 @@ async def get_ontology_entries(
         entry_ids: List[int] = None,
         names: List[str] = None,
         labels: List[OntologyEntryLabel] = None,
+        phases: List[LifecyclePhase] = None,
         version_id: int = None  # if not provided, then current
 ) -> List[OntologyEntryOutput]:
     if version_id is None:
@@ -108,30 +111,17 @@ async def get_ontology_entries(
         version = Version.from_packed(version_id)
     await update_ontology_version_context(info.context, version)
     version = info.context.get('ontology_version')
-
-    if entry_ids or not any([entry_ids, names, labels]):
-        # either get the specific entry ids requested, or get all if no filters provided.
-        await update_ontology_map(info.context, entry_ids=entry_ids, version=version)
-    else:
-        info.context.get('ontology_map')
-
-    if not 'ontology_map' in info.context:
-        info.context['ontology_map'] = dict()
+    # either get the specific entry ids requested, or get all if no filters provided.
+    await update_ontology_map(
+        info.context,
+        entry_ids=entry_ids,
+        phases=phases,
+        version=version,
+        names=names,
+        labels=labels
+    )
     ontology_map = info.context.get('ontology_map')
-    entry_ids = entry_ids or []
-
-    if names or labels:
-        # retrieve with name and label filters and add entry ids corresponding to these to the return list
-        user_id = info.context.get('user_id')
-        bus = info.context.get('bus')
-
-        async with bus.uow.get_uow(user_id=user_id) as uow:
-            async for entry in uow.ontology.get_entries(names=names, labels=labels, version=version, as_output=True):
-                entry_ids.append(entry.id)
-                ontology_map[entry.id] = entry
-    else:
-        entry_ids = entry_ids or ontology_map.keys()
-    return [ontology_map[entry_id] for entry_id in entry_ids]
+    return ontology_map.values()
 
 async def resolve_ontology_entries(context, entry_ids):
     await update_ontology_map(context, entry_ids=entry_ids)

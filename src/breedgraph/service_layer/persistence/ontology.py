@@ -131,6 +131,14 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
+    async def activate_drafts(self, version: Version):
+        ...
+
+    @abstractmethod
+    async def remove_deprecated(self, version: Version):
+        ...
+
+    @abstractmethod
     async def save_relationship_lifecycles(
         self,
         lifecycles: Dict[int, RelationshipLifecycle],

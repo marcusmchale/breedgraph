@@ -1,4 +1,4 @@
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from src.breedgraph.custom_exceptions import IllegalOperationError, RelationshipExistsError
 
 from src.breedgraph.domain.model.ontology import *
 from src.breedgraph.domain.model.accounts import OntologyRole
@@ -59,9 +59,19 @@ class OntologyApplicationService:
             licence_reference=licence_reference,
             copyright_reference=copyright_reference
         )
+        await self.activate_drafts(commit.version)
+        await self.remove_deprecated(commit.version)
         # Add event for version creation (e.g. to contact ontology curators etc.)
         self.events.append(OntologyVersionCreated(version_id=commit.version.id))
         return commit
+
+    async def activate_drafts(self, version: Version):
+        """Set all drafts to activated at the corresponding version."""
+        await self.persistence.activate_drafts(version)
+
+    async def remove_deprecated(self, version: Version):
+        """Remove all deprecated entries at the corresponding version."""
+        await self.persistence.remove_deprecated(version)
 
     async def activate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
@@ -70,7 +80,8 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
-            lifecycle.set_version_activated(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.ACTIVE:
+                lifecycle.set_version_activated(current_version)
         await self._save_entry_lifecycles()
 
     async def deprecate_entries(self, entry_ids):
@@ -80,7 +91,8 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
-            lifecycle.set_version_deprecated(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
+                lifecycle.set_version_deprecated(current_version)
         await self._save_entry_lifecycles()
 
     async def remove_entries(self, entry_ids):
@@ -90,7 +102,8 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
-            lifecycle.set_version_removed(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.REMOVED:
+                lifecycle.set_version_removed(current_version)
         await self._save_entry_lifecycles()
 
     async def activate_relationships(self, relationship_ids):
@@ -100,7 +113,8 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
             lifecycle = await self._get_relationship_lifecycle(relationship_id)
-            lifecycle.set_version_activated(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.ACTIVE:
+                lifecycle.set_version_activated(current_version)
         await self._save_relationship_lifecycles()
 
     async def deprecate_relationships(self, relationship_ids):
@@ -110,7 +124,8 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
             lifecycle = await self._get_relationship_lifecycle(relationship_id)
-            lifecycle.set_version_deprecated(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
+                lifecycle.set_version_deprecated(current_version)
         await self._save_relationship_lifecycles()
 
     async def remove_relationships(self, relationship_ids):
@@ -120,12 +135,13 @@ class OntologyApplicationService:
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
             lifecycle = await self._get_relationship_lifecycle(relationship_id)
-            lifecycle.set_version_removed(current_version)
+            if not lifecycle.current_phase==LifecyclePhase.REMOVED:
+                lifecycle.set_version_removed(current_version)
         await self._save_relationship_lifecycles()
 
-    async def get_version_commit_info(self, version_id: Version) -> OntologyCommit:
-        """Retrieve commit information for a specific version."""
-        return await self.persistence.get_commit(version_id)
+    #async def get_version_commit_info(self, version_id: Version) -> OntologyCommit:
+    #    """Retrieve commit information for a specific version."""
+    #    return await self.persistence.get_commit(version_id)
 
     async def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
         """Get version history with commit metadata, ordered by commit time."""
@@ -546,15 +562,21 @@ class OntologyApplicationService:
         """Update an existing ontology entry with validation."""
         if not entry.id:
             raise ValueError("Entry must have an ID for updates")
-        # Update only if in draft phase
-        lifecycle = await self._get_entry_lifecycle(entry.id)
-        if lifecycle.current_phase != LifecyclePhase.DRAFT:
-            raise ValueError(f"Entry must be in draft phase for updates, got {lifecycle.current_phase} for entry {entry.id}")
 
         # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
+
+        lifecycle = await self._get_entry_lifecycle(entry.id)
+        if lifecycle.current_phase != LifecyclePhase.DRAFT:
+            if not self.role == OntologyRole.EDITOR:
+                raise IllegalOperationError("Only Editors may alter entries that have progressed beyond Draft")
+            # any edit reverts the entry to draft
+            current_version = await self.get_current_version()
+            await self.revert_entry_to_draft(entry.id, current_version)
+
         # Update entry
         await self.persistence.update_entry(entry, user_id=self.user_id)
+
 
     async def _validate_entry_types_for_relationship(
             self,
@@ -636,13 +658,23 @@ class OntologyApplicationService:
         # entry type relationship specific validation
         await self._validate_entry_types_for_relationship(relationship)
         await self._validate_no_circular_dependency(relationship)
-        await self._validate_relationship_does_not_exist(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
-        # Create relationship
-        relationship = await self.persistence.create_relationship(relationship)
-        # Create and save lifecycle
-        await self._create_relationship_lifecycle(relationship.id)
-        await self._save_relationship_lifecycles()
+        # Create relationship if it doesn't exist, else revert it to draft'
+        relationship_id = None
+        async for rel in self.persistence.get_relationships(
+                source_ids = [relationship.source_id],
+                target_ids = [relationship.target_id],
+                labels=[relationship.label]
+        ):
+            relationship_id = rel.id
+        if relationship_id is None:
+            relationship = await self.persistence.create_relationship(relationship)
+            # Create and save lifecycle
+            await self._create_relationship_lifecycle(relationship.id)
+            await self._save_relationship_lifecycles()
+        else:
+            relationship.id = relationship_id
+            await self.update_relationship(relationship)
         return relationship
 
     async def link_to_term(self, source_id, source_label, term_id):
@@ -651,7 +683,27 @@ class OntologyApplicationService:
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update the properties of a relationship"""
+        # Update reverts any relationship to draft phase
+        lifecycle = await self._get_relationship_lifecycle(relationship.id)
+        if lifecycle.current_phase != LifecyclePhase.DRAFT:
+            if not self.role == OntologyRole.EDITOR:
+                raise IllegalOperationError("Only Editors may alter relationships that have progressed beyond Draft")
+            # any edit reverts the relationship to draft
+            current_version = await self.get_current_version()
+            await self.revert_relationship_to_draft(relationship.id, current_version)
+
         await self.persistence.update_relationship(relationship)
+
+    # Lifecycle management
+    async def revert_entry_to_draft(
+            self,
+            entry_id: int,
+            version: Version
+    ) -> None:
+        """Commit a draft entry."""
+        lifecycle = await self._get_entry_lifecycle(entry_id)
+        lifecycle.set_version_drafted(version)
+        await self._save_entry_lifecycles()
 
     # Lifecycle management
     async def activate_entry(
@@ -660,9 +712,19 @@ class OntologyApplicationService:
             version: Version
     ) -> None:
         """Commit a draft entry."""
-        lifecycle = self._get_entry_lifecycle(entry_id)
+        lifecycle = await self._get_entry_lifecycle(entry_id)
         lifecycle.set_version_activated(version)
         await self._save_entry_lifecycles()
+
+    async def revert_relationship_to_draft(
+            self,
+            relationship_id: int,
+            version: Version
+    ) -> None:
+        """Commit a draft entry."""
+        lifecycle = await self._get_relationship_lifecycle(relationship_id)
+        lifecycle.set_version_drafted(version)
+        await self._save_relationship_lifecycles()
 
     async def activate_relationship(
             self,
@@ -670,7 +732,7 @@ class OntologyApplicationService:
             version: Version
     ) -> None:
         """Commit a draft entry."""
-        lifecycle = self._get_relationship_lifecycle(relationship_id)
+        lifecycle = await self._get_relationship_lifecycle(relationship_id)
         lifecycle.set_version_activated(version)
         await self._save_entry_lifecycles()
 
@@ -680,7 +742,7 @@ class OntologyApplicationService:
             version: Version
     ) -> None:
         """Deprecate an active entry."""
-        lifecycle = self._get_entry_lifecycle(entry_id)
+        lifecycle = await self._get_entry_lifecycle(entry_id)
         lifecycle.set_version_deprecated(version)
         await self._save_entry_lifecycles()
 
@@ -697,7 +759,7 @@ class OntologyApplicationService:
                 f"Cannot remove entry {entry_id}, it has dependencies: {dependencies}"
             )
 
-        lifecycle = self._get_entry_lifecycle(entry_id)
+        lifecycle = await self._get_entry_lifecycle(entry_id)
         lifecycle.set_version_removed(version)
         await self._save_entry_lifecycles()
 
@@ -867,6 +929,7 @@ class OntologyApplicationService:
             if missing:
                 raise ValueError(f"Entries do not exist: {missing}")
 
+    #todo consider a domain service to implement these sorts of checks, we now have a few of them and the application service is getting busy.
     async def _validate_no_circular_dependency(self, relationship: OntologyRelationshipBase) -> None:
         """Validate that relationship won't create circular dependencies with the same label"""
         if await self.persistence.has_path_between_entries(
@@ -885,5 +948,5 @@ class OntologyApplicationService:
                 target_ids = [relationship.target_id],
                 labels=[relationship.label]
         ):
-            raise ValueError(f"Relationship already exists: {str(rel)}")
+            raise RelationshipExistsError(f"Relationship already exists: {str(rel)}")
 

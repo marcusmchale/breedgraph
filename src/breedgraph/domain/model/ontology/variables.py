@@ -23,7 +23,7 @@ from src.breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
 )
 from src.breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType, OntologyEntryLabel
-from typing import ClassVar, List
+from typing import ClassVar, List, Dict, Any
 
 
 @dataclass
@@ -83,6 +83,9 @@ class ScaleCategoryOutput(ScaleCategoryBase, OntologyEntryOutput):
     terms: list[int] = field(default_factory=list)
 
     scales: list[int] = field(default_factory=list)
+
+
+
 
 @dataclass
 class ScaleBase(OntologyEntryBase):

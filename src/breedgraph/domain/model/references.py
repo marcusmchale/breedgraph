@@ -1,12 +1,20 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from uuid import UUID, uuid4
+from enum import Enum
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import StoredModel, EnumLabeledModel, LabeledModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 from typing import ClassVar, Set, List, Dict, Any
+
+class DataFormat(str, Enum):  # For complex types, this describes the format
+    # todo implement handlers for these types
+    JSON = "JSON"
+    HDF5 = "HDF5"
+    CSV = "CSV"
+    TSV = "TSV"
 
 @dataclass(eq=False)
 class ReferenceBase(ABC):
@@ -103,8 +111,20 @@ Note: should consider describing data format and file format in Ontology.
 """
 @dataclass(eq=False)
 class DataReferenceBase(ReferenceBase):
-    data_format: str = None
-    file_format: str = None
+    format: DataFormat = None
+    #todo Needs further refinement and details about requirements for specification
+    """
+    Schema for parsing the data, 
+    e.g.
+    "schema": {
+      "shape": [300, 50],
+      "dtype": "float32",
+      "taxa": "rows",
+      "units": "columns"
+    }
+    """
+    schema: Dict[str, Any] = None
+
 
 @dataclass(eq=False)
 class DataExternalBase(DataReferenceBase, ExternalReferenceBase):

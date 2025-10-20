@@ -29,8 +29,8 @@ from typing import List, ClassVar, Generator
 
 @dataclass
 class Position:
-    location: int | None = None # ref to LocationStored
-    layout: int | None = None # ref to LayoutStored
+    location_id: int | None = None # ref to LocationStored
+    layout_id: int | None = None # ref to LayoutStored
     coordinates: List[int|str|float] | None = None  # list of axis values should correspond to layout,
     start: datetime64|None = None
     end: datetime64|None = None
@@ -47,7 +47,10 @@ class UnitBase(ABC):
     name: str|None = None
     description: str|None = None
 
+    germplasm_ids: List[int] = field(default_factory=list)
+
     positions: List[Position] = field(default_factory = list)
+
 
     def model_dump(self):
         return asdict(self)

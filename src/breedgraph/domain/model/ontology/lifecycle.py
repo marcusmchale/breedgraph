@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Self, Dict, ClassVar
-
+from neo4j import Record
 from numpy import datetime64
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
@@ -34,9 +34,8 @@ class BaseLifecycle(ABC):
         """Serialize version data into a nested versions dictionary."""
         versions = {}
         for version_field in self.version_fields:
-            version_obj = getattr(self, version_field)
-            if version_obj is not None:
-                versions[version_field] = version_obj.id
+            version_obj: Version = getattr(self, version_field)
+            versions[version_field] = version_obj.packed_version if version_obj else None
         return versions
 
     @property
@@ -67,20 +66,26 @@ class BaseLifecycle(ABC):
     def set_version_drafted(self, version: Version) -> None:
         """Set the drafted version."""
         self.drafted = version
+        self.activated = None
+        self.deprecated = None
+        self.removed = None
 
     def set_version_activated(self, version: Version) -> None:
         """Set the validated version (transition to active)."""
-        if self.current_phase != LifecyclePhase.DRAFT:
+        if self.current_phase not in [LifecyclePhase.DRAFT, LifecyclePhase.DEPRECATED]:
             raise ValueError(f"Cannot transition to active from {self.current_phase.value}")
 
         self.activated = version
+        self.deprecated = None
+        self.removed = None
 
     def set_version_deprecated(self, version: Version) -> None:
         """Set the deprecated version."""
-        if self.current_phase != LifecyclePhase.ACTIVE:
+        if self.current_phase not in [LifecyclePhase.ACTIVE, LifecyclePhase.DRAFT]:
             raise ValueError(f"Cannot transition to deprecated from {self.current_phase.value}")
 
         self.deprecated = version
+        self.removed = None
 
     def set_version_removed(self, version: Version) -> None:
         """Set the removed version."""
@@ -106,6 +111,17 @@ class BaseLifecycle(ABC):
             dump['versions'] = versions
         dump['current_phase'] = self.current_phase.name
         return dump
+
+    @classmethod
+    def from_record(cls, record: dict|Record) -> Self:
+        """Create lifecycle from database record."""
+        if isinstance(record, Record):
+            record = dict(record)
+        record['drafted'] = Version.from_packed(record.get('drafted'))
+        record['activated'] = Version.from_packed(record.get('activated'))
+        record['deprecated'] = Version.from_packed(record.get('deprecated'))
+        record['removed'] = Version.from_packed(record.get('removed'))
+        return cls(**record)
 
 @dataclass
 class EntryLifecycle(BaseLifecycle):

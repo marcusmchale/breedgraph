@@ -389,22 +389,27 @@ def prepare_attr_relationship_updates(
 ):
     # first establish the specified source and target labels and ids and the relationship label for the given attribute
     if attr in ['parent_ids', 'child_ids']:
+        if not isinstance(value, list):
+            raise ValueError('parent or child ids must be provided as a list')
         source_label = entry_label
         target_label = entry_label
         relationship_label = OntologyRelationshipLabel.PARENT_OF
         if attr == 'parent_ids':
-            source_ids = [entry_id]
-            if not isinstance(value, list):
-                raise ValueError('parent_ids must be a list')
-            target_ids = value
-        else:
-            if not isinstance(value, list):
-                raise ValueError('child_ids must be a list')
             source_ids = value
             target_ids = [entry_id]
+            relevant_relationships = [
+                rel for rel in existing_relationships if rel.label == relationship_label and rel.target_id == entry_id
+            ]
+        else:  # attr == 'child_ids'
+            source_ids = [entry_id]
+            target_ids = value
+            relevant_relationships = [
+                rel for rel in existing_relationships if rel.label == relationship_label and rel.source_id == entry_id
+            ]
     else:
         other_label = ontology_mapper.get_other_label_from_attribute(attr)
         relationship_label = ontology_mapper.get_relationship_label(entry_label, other_label)
+        relevant_relationships = [rel for rel in existing_relationships if rel.label == relationship_label]
         valid_sources, valid_targets = ontology_mapper.relationship_to_valid_source_and_target().get(relationship_label)
         if entry_label in valid_sources and other_label in valid_targets:
             source_label = entry_label
@@ -419,11 +424,11 @@ def prepare_attr_relationship_updates(
         else:
             raise ValueError(f'Relationship between {entry_label} and {other_label} is not valid.')
 
-    for relationship in existing_relationships:
+    for relationship in relevant_relationships:
+
         if all([
             relationship.source_id in source_ids,
-            relationship.target_id in target_ids,
-            relationship.label == relationship_label
+            relationship.target_id in target_ids
         ]):
             continue
         else:
@@ -444,15 +449,13 @@ def prepare_attr_relationship_updates(
                     rank=i
                 )
             )
-
     for submitted in submitted_relationships:
         # check if already exists
         exists = False
-        for existing in existing_relationships:
+        for existing in relevant_relationships:
             if all([
                 submitted.source_id == existing.source_id,
-                submitted.target_id == existing.target_id,
-                submitted.label == existing.label
+                submitted.target_id == existing.target_id
             ]):
                 exists = True
                 if submitted.label == OntologyRelationshipLabel.HAS_CATEGORY:
@@ -500,8 +503,10 @@ async def update_relationships(
             if new_attr_value is not None:
 
                 if relationships is None:
-                    relationships = [rel async for rel in ontology_service.get_relationships(entry_ids=[command.id])]
-
+                    relationships = [rel async for rel in ontology_service.get_relationships(
+                        entry_ids=[command.id],
+                        phases=[LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE]
+                    )]
                 prepare_attr_relationship_updates(
                     entry_id=entry.id,
                     entry_label=entry.label,
@@ -512,7 +517,6 @@ async def update_relationships(
                     relationships_to_deprecate=relationships_to_deprecate,
                     relationships_to_update=relationships_to_update
                 )
-
     for relationship in relationships_to_draft:
         await ontology_service.create_relationship(relationship)
     if relationships_to_deprecate:
@@ -521,18 +525,26 @@ async def update_relationships(
         await ontology_service.update_relationship(relationship)
 
 def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
-    if cmd.name:
+    if cmd.name is not None:
         entry.name = cmd.name
-    if cmd.abbreviation:
+    if cmd.abbreviation is not None:
         entry.abbreviation = cmd.abbreviation
-    if cmd.synonyms:
+    if cmd.synonyms is not None:
         entry.synonyms = cmd.synonyms
-    if cmd.description:
+    if cmd.description is not None:
         entry.description = cmd.description
-    if cmd.author_ids:
+    if cmd.author_ids is not None:
         entry.authors = cmd.author_ids
-    if cmd.reference_ids:
+    if cmd.reference_ids is not None:
         entry.references = cmd.reference_ids
+    if hasattr(cmd, 'scale_type') and cmd.scale_type is not None:
+        entry.scale_type = cmd.scale_type
+    if hasattr(cmd, 'observation_type') and cmd.observation_type is not None:
+        entry.observation_type = cmd.observation_type
+    if hasattr(cmd, 'control_type') and cmd.control_type is not None:
+        entry.control_type = cmd.control_type
+    if hasattr(cmd, 'axes') and cmd.axes is not None:
+        entry.axes = cmd.axes
 
 async def update_by_command(cmd: commands.Command, uow: AbstractUnitOfWork):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
@@ -571,7 +583,6 @@ async def update_category(cmd: commands.ontologies.UpdateCategory, uow: Abstract
 @handlers.command_handler()
 async def update_observation_method(cmd: commands.ontologies.UpdateObservationMethod, uow: AbstractUnitOfWork):
     await update_by_command(cmd, uow)
-
 
 @handlers.command_handler()
 async def update_variable(cmd: commands.ontologies.UpdateVariable, uow: AbstractUnitOfWork):

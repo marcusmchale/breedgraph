@@ -39,5 +39,5 @@ class EventTypeStored(EventTypeBase, OntologyEntryStored):
 class EventTypeOutput(EventTypeBase, OntologyEntryOutput):
     terms: List[int] = field(default_factory=list)
 
-    factors: int = None
-    variables: int = None
+    factors: List[int] = None
+    variables: List[int] = None

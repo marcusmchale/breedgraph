@@ -286,12 +286,20 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
     async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
         query = queries['ontology']['get_entry_lifecycles']
         result = await self.tx.run(query, entry_ids=entry_ids)
-        return {record.get('lifecycle').get('entry_id'): EntryLifecycle(**record['lifecycle']) async for record in result}
+        lifecycles = {}
+        async for record in result:
+            lifecycle_record = record.get('lifecycle')
+            lifecycles[lifecycle_record.get('entry_id')] = EntryLifecycle.from_record(lifecycle_record)
+        return lifecycles
 
     async def get_relationship_lifecycles(self, relationship_ids: List[int]) -> Dict[int, RelationshipLifecycle]:
         query = queries['ontology']['get_relationship_lifecycles']
         result = await self.tx.run(query, relationship_ids=relationship_ids)
-        return {record.get('lifecycle').get('relationship_id'): RelationshipLifecycle(**record['lifecycle']) async for record in result}
+        lifecycles = {}
+        async for record in result:
+            lifecycle_record = record.get('lifecycle')
+            lifecycles[lifecycle_record.get('relationship_id')] = RelationshipLifecycle.from_record(lifecycle_record)
+        return lifecycles
 
     # Lifecycle persistence
     async def save_entry_lifecycles(
@@ -324,6 +332,14 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         if lifecycles:
             query = queries['ontology']['save_relationship_lifecycles']
             await self.tx.run(query, lifecycles=lifecycles, user_id=user_id)
+
+    async def activate_drafts(self, version: Version):
+        query = queries['ontology']['activate_drafts']
+        await self.tx.run(query, version=version.packed_version)
+
+    async def remove_deprecated(self, version: Version):
+        query = queries['ontology']['remove_deprecated']
+        await self.tx.run(query, version=version.packed_version)
 
     async def name_in_use(
             self,

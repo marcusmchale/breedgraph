@@ -9,6 +9,7 @@ from src.breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_sch
 
 from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.infrastructure.authentication import AbstractAuthService, ItsDangerousAuthService
+from src.breedgraph.service_layer.infrastructure.brute_force_protection import BruteForceProtectionService
 
 from src.breedgraph.service_layer.messagebus import MessageBus
 
@@ -28,6 +29,12 @@ async def lifespan(fast_api_app: FastAPI):
     logger.debug("Load messaging bus")
     bus: MessageBus = await bootstrap.bootstrap(auth_service=auth_service)
     fast_api_app.bus = bus
+
+    logger.debug("Load brute force protection service")
+    brute_force_service = await BruteForceProtectionService.create(
+        connection=bus.read_model.connection  # share the existing connection
+    )
+    fast_api_app.brute_force_service = brute_force_service
 
     logger.debug("Load graphql schema")
     graphql_schema = create_graphql_schema()

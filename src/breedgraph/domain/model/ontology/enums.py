@@ -62,6 +62,7 @@ class ScaleType(str, Enum):
     NOMINAL = "NOMINAL"  # should have categories
     ORDINAL = "ORDINAL"  # should have categories
     GERMPLASM = "GERMPLASM" # Categories are from Germplasm
+    COMPLEX = "COMPLEX" # Allows for hdf5, json, sparse matrixes, tables, trees etc. should define a schema
 
 class OntologyEntryLabel(EnumLabel):
     TERM = "Term"

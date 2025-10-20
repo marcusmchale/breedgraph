@@ -9,6 +9,8 @@ class IllegalOperationError(Exception):
 class IdentityExistsError(IllegalOperationError):
     pass
 
+class RelationshipExistsError(IllegalOperationError):
+    pass
 
 class ProtectedNodeError(IllegalOperationError):
     pass

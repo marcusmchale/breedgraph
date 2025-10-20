@@ -37,6 +37,9 @@ class Version:
     @classmethod
     def from_packed(cls, packed_version: int) -> Self:
         """Unpack 64-bit integer into version components"""
+        if packed_version is None:
+            return None
+
         major = (packed_version >> 48) & 0xFFFF
         minor = (packed_version >> 32) & 0xFFFF
         patch = packed_version & 0xFFFFFFFF

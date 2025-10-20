@@ -82,11 +82,11 @@ class OntologyMapper:
             OntologyRelationshipLabel.HAS_TERM: (
                 frozenset(label for label in OntologyEntryLabel if label != OntologyEntryLabel.TERM),
                 frozenset({OntologyEntryLabel.TERM})
-            ),
-            OntologyRelationshipLabel.PARENT_OF: (
-                frozenset(OntologyEntryLabel),  # Any ontology entry label
-                frozenset(OntologyEntryLabel)  # Can be the same label
-            )
+            )#,
+            #OntologyRelationshipLabel.PARENT_OF: (
+            #    frozenset(OntologyEntryLabel),  # Any ontology entry label
+            #    frozenset(OntologyEntryLabel)  # Can be the same label
+            #)
         })
 
         return base_mapping

@@ -97,18 +97,41 @@ async def login(
 ) -> bool:
     logger.debug(f"Log in: {username}")
     fail_message = "Invalid username or password"
+
+    brute_force_service = info.context.get('brute_force_service')
+    if brute_force_service:
+        # Check if locked out
+        if await brute_force_service.is_locked_out(username):
+            ttl = await brute_force_service.get_lockout_ttl(username)
+            logger.warning(f"Login attempt blocked for locked out user: {username}")
+            raise UnauthorisedOperationError(
+                f"Too many failed attempts. Please try again in {ttl} seconds."
+            )
+
+        remaining = await brute_force_service.get_remaining_attempts(username)
+        logger.debug(f"Login attempt for {username}, remaining attempts: {remaining}")
+
     async with info.context['bus'].uow.get_uow() as uow:
         account = await uow.repositories.accounts.get(name=username)
         if not account:
+            # Record failed attempt even if user doesn't exist (prevents user enumeration timing attacks)
+            if brute_force_service:
+                await brute_force_service.record_failed_attempt(username)
             raise UnauthorisedOperationError(fail_message)
 
         # failsafe against access to the system account
         if not account.user.password_hash or account.user.password_hash.strip() == "":
+            if brute_force_service:
+                await brute_force_service.record_failed_attempt(username)
             raise UnauthorisedOperationError(fail_message)
 
         if bcrypt.checkpw(password.encode(), account.user.password_hash.encode()):
             if not account.user.email_verified:
                 raise UnauthorisedOperationError("Please confirm email before logging in")
+
+            # Successful login - clear failed attempts
+            if brute_force_service:
+                await brute_force_service.record_successful_attempt(username)
 
             await info.context['bus'].handle(Login(user_id=account.user.id))
             token = info.context['auth_service'].create_login_token(account.user.id)
@@ -128,6 +151,9 @@ async def login(
             logger.debug(f"Auth token cookie queued for user {account.user.id}")
             return True
         else:
+            # Failed password check
+            if brute_force_service:
+                await brute_force_service.record_failed_attempt(username)
             raise UnauthorisedOperationError(fail_message)
 
 

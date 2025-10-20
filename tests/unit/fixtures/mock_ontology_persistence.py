@@ -201,6 +201,16 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         """Save entry lifecycles to storage."""
         self.entry_lifecycles.update(lifecycles)
 
+    async def activate_drafts(self, version: Version):
+        for lifecycle in self.entry_lifecycles.values():
+            if lifecycle.current_phase == LifecyclePhase.DRAFT:
+                lifecycle.set_version_activated(version)
+
+    async def remove_deprecated(self, version: Version):
+        for lifecycle in self.entry_lifecycles.values():
+            if lifecycle.current_phase == LifecyclePhase.DEPRECATED:
+                lifecycle.set_version_removed(version)
+
     async def get_relationship_lifecycles(self, relationship_keys: List[int]) -> Dict[int, RelationshipLifecycle]:
         return self.relationship_lifecycles
 

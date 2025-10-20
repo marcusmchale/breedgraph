@@ -23,6 +23,17 @@ type OntologyCommit {
     licence: Int
     copyright: Int
 }
+"""
+Ontology entries are created in draft phase.
+When a commit is submitted, drafts become active,
+and deprecated become removed.
+"""
+enum LifecyclePhase {
+    DRAFT
+    ACTIVE
+    DEPRECATED
+    REMOVED
+}
 
 """
 Ontology entries form a graph
@@ -237,7 +248,8 @@ enum ScaleType {
     NOMINAL,
     ORDINAL,
     TEXT,
-    GERMPLASM
+    GERMPLASM,
+    COMPLEX
 }
 
 interface OntologyEntryInterface {
@@ -368,14 +380,17 @@ type Condition implements OntologyEntryInterface & RelatedToTerms {
 }
 
 """
-Scale entries describe units or classes used for values in a Dataset.
-These are linked to Variable or Factor.
+Scale entries describe the units, classes or dimensions for values associated with a Variable or Factor.
 Scale entries require a ScaleType.
 For Nominal and Ordinal types, additional Category references may be provided.
 Ordinal scales represent the rank of categories by their presentation order.
+Germplasm scales reference GermplasmEntries
+Complex scales allow for the description of data that cannot be represented by simple values (integer, float, string), nor by
+internal references like Germplasm or Categorical (nominal or ordinal) scales.
 Examples:
 "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
-"Plant Genetic Material" is ScaleType nominal, and categories should include references to GermplasmEntries.
+"Plant Genetic Material" would be ScaleType Germplasm
+"MAG abundance" would be ScaleType complex, with associated datasets providing references to stored files, e.g. in HDF5 format.
 
 """
 type Scale implements OntologyEntryInterface & RelatedToTerms {

@@ -18,14 +18,20 @@ class ReadModel:
         self.connection = connection
 
     @classmethod
-    async def create(cls, uow: AbstractUnitOfWork) -> 'ReadModel':
-        logger.debug("Get redis connection")
-        host, port = get_redis_host_and_port()
-        connection = await redis.Redis(host=host, port=port)
-        logger.debug(f"Ping redis successful: {await connection.ping()}")
+    async def create(
+            cls,
+            uow: AbstractUnitOfWork,
+            connection: redis.Redis|None = None,
+            db: int = 0) -> 'ReadModel':
+        if connection is None:
+            logger.debug(f"Create new redis connection for db = {db}")
+            host, port = get_redis_host_and_port()
+            connection = await redis.Redis(host=host, port=port, db=db)
+            logger.debug(f"Ping redis successful: {await connection.ping()}")
         if not await connection.exists("country"):
             loader = RedisLoader(connection, uow)
             await loader.load_read_model()
+
         return cls(connection)
 
     #async def add_country(self, country: LocationInput) -> None:

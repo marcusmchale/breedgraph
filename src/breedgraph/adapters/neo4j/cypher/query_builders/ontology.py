@@ -228,7 +228,7 @@ def get_entries(
     if labels:
         # get values of label enums as string
         labels = [label.value for label in labels]
-        match_clause = f"MATCH (entry:OntologyEntry:{labels[0]})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
+        match_clause = f"MATCH (entry:{"|".join(labels)})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
     else:
         match_clause = "MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
 
@@ -240,7 +240,8 @@ def get_entries(
     if LifecyclePhase.DRAFT in phases:
         phase_conditions.append(
             "(lifecycle.drafted <= $version AND "
-            "(lifecycle.activated IS NULL OR lifecycle.activated > $version))"
+            "(lifecycle.activated IS NULL OR lifecycle.activated > $version) AND "
+            "(lifecycle.deprecated IS NULL OR lifecycle.deprecated > $version)) "
         )
     if LifecyclePhase.ACTIVE in phases:
         phase_conditions.append(
@@ -272,26 +273,33 @@ def get_entries(
 
     # Build RETURN clause
     if with_relationships:
-        return_clause = """RETURN
-  entry {
-    .*,
-    label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-    authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
-    references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ],
-    relationships: [
-      (source)-[:HAS_RELATIONSHIP]-(rel: OntologyRelationship)-[:RELATES_TO]->(target:OntologyEntry)
-      WHERE source = entry or target = entry |
-      {
-        relationship_id: rel.id,
-        source_id: source.id,
-        source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
-        target_id: target.id,
-        target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0],
-        relationship_type: [label IN labels(rel) WHERE label <> "OntologyRelationship"][0],
-        properties: properties(rel)
-      }
-    ]
-  } as entry"""
+        return_clause = """
+            WITH entry 
+                OPTIONAL MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry),
+                (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
+                WHERE (source = entry OR target = entry) AND
+                (
+                    (relationship_lifecycle.drafted <= $version OR relationship_lifecycle.activated <= $version) AND 
+                    (relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version)
+                )
+            WITH entry, collect({
+                relationship_id: relationship.id,
+                source_id: source.id,
+                source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
+                target_id: target.id,
+                target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0],
+                relationship_type: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
+                properties: properties(relationship)
+            }) as relationships
+            RETURN
+            entry {
+              .*,
+              label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
+              authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
+              references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ],
+              relationships: [rel IN relationships WHERE rel.relationship_id IS NOT NULL] 
+            } as entry
+        """
     else:
         return_clause = """RETURN
   entry {
@@ -301,26 +309,12 @@ def get_entries(
     references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ]
   } as entry"""
 
-    # Handle multiple labels with UNION
-    if labels is not None and len(labels) > 1:
-        # Build separate queries for each label and combine with UNION
-        queries = []
-        for label in labels:
-            query_parts = [f"MATCH (entry:OntologyEntry:{label})"]
-            if where_clause:
-                query_parts.append(where_clause)
-            query_parts.append(return_clause)
-            queries.append("\n".join(query_parts))
+    query_parts = [match_clause]
+    if where_clause:
+        query_parts.append(where_clause)
+    query_parts.append(return_clause)
 
-        return "\nUNION\n".join(queries)
-    else:
-        # Single query
-        query_parts = [match_clause]
-        if where_clause:
-            query_parts.append(where_clause)
-        query_parts.append(return_clause)
-
-        return "\n".join(query_parts)
+    return "\n".join(query_parts)
 
 def get_relationships(
         phases: List[LifecyclePhase],
@@ -343,7 +337,7 @@ def get_relationships(
     if labels:
         # get values of label enums as string
         labels = [label.value for label in labels]
-        match_clause = f"MATCH (relationship:OntologyRelationship:{labels[0]})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
+        match_clause = f"MATCH (relationship:{"|".join(labels)})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
     else:
         match_clause = "MATCH (relationship:OntologyRelationship)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)"
 
@@ -364,7 +358,9 @@ def get_relationships(
     if LifecyclePhase.DRAFT in phases:
         phase_conditions.append(
             "(lifecycle.drafted <= $version AND "
-            "(lifecycle.activated IS NULL OR lifecycle.activated > $version))"
+            "(lifecycle.activated IS NULL OR lifecycle.activated > $version) AND "
+            "(lifecycle.deprecated IS NULL OR lifecycle.deprecated > $version)) "
+
         )
     if LifecyclePhase.ACTIVE in phases:
         phase_conditions.append(
@@ -410,24 +406,9 @@ def get_relationships(
                 target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
             } as relationship 
     """
+    query_parts = [match_clause]
+    if where_clause:
+        query_parts.append(where_clause)
+    query_parts.append(return_clause)
 
-    # Handle multiple labels with UNION
-    if labels is not None and len(labels) > 1:
-        # Build separate queries for each label and combine with UNION
-        queries = []
-        for label in labels:
-            query_parts = [f"MATCH (relationship:OntologyRelationship:{label})"]
-            if where_clause:
-                query_parts.append(where_clause)
-            query_parts.append(return_clause)
-            queries.append("\n".join(query_parts))
-
-        return "\nUNION\n".join(queries)
-    else:
-        # Single query
-        query_parts = [match_clause]
-        if where_clause:
-            query_parts.append(where_clause)
-        query_parts.append(return_clause)
-
-        return "\n".join(query_parts)
+    return "\n".join(query_parts)
