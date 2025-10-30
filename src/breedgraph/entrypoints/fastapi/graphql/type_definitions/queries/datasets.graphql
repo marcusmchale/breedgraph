@@ -4,7 +4,7 @@ type Record {
     value: String
     start: DateTime
     end: DateTime
-    references: [Int]
+    references: [Reference]
     submitted: DateTime
 }
 
@@ -13,6 +13,6 @@ type DataSet {
     # concept is either a Factor or Variable in the ontology
     concept: OntologyEntryInterface
     records: [Record]
-    contributors: [Int]
-    references: [Int]
+    contributors: [Person]
+    references: [Reference]
 }

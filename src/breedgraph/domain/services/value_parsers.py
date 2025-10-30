@@ -135,7 +135,7 @@ class ValueParser:
                 else:
                     raise ValueError(f"The provided ID does not match a stored germplasm entry: {v}")
             except ValueError:
-                matches = germplasm.get_all_entries(names=[v])
+                matches = germplasm.get_entries(names=[v])
                 try:
                     anext(matches)
                 except StopAsyncIteration:

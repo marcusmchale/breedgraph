@@ -1,4 +1,3 @@
-import tests.integration.conftest
 from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
 
 from src.breedgraph.domain import commands

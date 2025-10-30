@@ -4,8 +4,8 @@ type Program {
     name: String!
     fullname: String
     description: String
-    contacts: [Int]
-    references: [Int]
+    contacts: [Person]
+    references: [Reference]
     trials: [Trial]
 }
 
@@ -16,8 +16,8 @@ type Trial {
     description: String
     start: DateTime
     end: DateTime
-    contacts: [Int]
-    references: [Int]
+    contacts: [Person]
+    references: [Reference]
     studies: [Study]
 }
 
@@ -30,9 +30,9 @@ type Study {
     practices: String
     start: DateTime
     end: DateTime
-    factors: [Int]
-    observations: [Int]
-    design: Int
-    licence: Int
-    references: [Int]
+    factors: [DataSet]
+    observations: [DataSet]
+    design: Design
+    licence: Reference
+    references: [Reference]
 }

@@ -34,6 +34,10 @@ class GermplasmPersistenceService(ABC):
         pass
 
     @abstractmethod
+    async def delete_entry(self, entry_id: int):
+        pass
+
+    @abstractmethod
     def get_root_entries(self) -> AsyncGenerator[GermplasmStored, None]:
         """Retrieve all germplasm entries that have no parents."""
         pass
@@ -42,7 +46,7 @@ class GermplasmPersistenceService(ABC):
     def get_entries(
             self,
             entry_ids: List[int] | None = None,
-            names: List[str] | None = None,
+            names: List[str] | None = None
     ) -> AsyncGenerator[GermplasmStored, None]:
         """
         Retrieve germplasm entries with optional filtering by name.
@@ -85,10 +89,38 @@ class GermplasmPersistenceService(ABC):
         """
         pass
 
+    async def update_relationship(self, relationship: GermplasmRelationship) -> None:
+        await self.update_relationships([relationship])
+
+    # Relationship operations
     @abstractmethod
-    async def get_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
+    async def update_relationships(
+        self,
+        relationships: List[GermplasmRelationship]
+    ) -> None:
+        """
+        Update a source relationship between germplasm entries.
+        """
+        pass
+
+    async def delete_relationship(self, relationship: GermplasmRelationship) -> None:
+        await self.delete_relationships([relationship])
+
+    # Relationship operations
+    @abstractmethod
+    async def delete_relationships(
+        self,
+        relationships: List[GermplasmRelationship]
+    ) -> None:
+        """
+        Delete a relationship between germplasm entries.
+        """
+        pass
+
+    @abstractmethod
+    def get_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
         """Get all relationships for a germplasm entry."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_source_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
@@ -96,8 +128,8 @@ class GermplasmPersistenceService(ABC):
         pass
 
     @abstractmethod
-    async def get_target_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
-        """Get all target relationships for a germplasm entry."""
+    def get_sink_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
+        """Get all sink relationships for a germplasm entry."""
         pass
 
     @abstractmethod

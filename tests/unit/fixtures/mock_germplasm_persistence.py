@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional, AsyncGenerator
-from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship
+from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship, GermplasmOutput
 from src.breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 import networkx as nx
 
@@ -43,6 +43,9 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
         if entry.id in self.entries:
             self.entries[entry.id] = entry
 
+    async def delete_entry(self, entry_id: int) -> None:
+        self.entries.pop(entry_id)
+
     async def get_root_entries(self) -> AsyncGenerator[GermplasmStored, None]:
         # Root entries are those with no incoming edges (no sources/parents)
         for entry_id in self.entries:
@@ -52,8 +55,9 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
     async def get_entries(
             self,
             entry_ids: List[int] | None = None,
-            names: List[str] | None = None
-    ) -> AsyncGenerator[GermplasmStored, None]:
+            names: List[str] | None = None,
+            as_output: bool = False
+    ) -> AsyncGenerator[GermplasmStored|GermplasmOutput, None]:
         if entry_ids:
             for entry_id in entry_ids:
                 if entry_id in self.entries:
@@ -86,7 +90,22 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
 
     def _create_relationship(self, relationship) -> None:
         # Add edge from source to target with relationship details
-        self.graph.add_edge(relationship.source_id, relationship.target_id, **relationship.model_dump())
+        self.graph.add_edge(relationship.source_id, relationship.sink_id, **relationship.model_dump())
+
+    async def update_relationships(
+        self,
+        relationships: List[GermplasmRelationship]
+    ) -> None:
+        for rel in relationships:
+            for key, value in rel.model_dump():
+                self.graph[rel.source_id][rel.sink_id][key] = value
+
+    async def delete_relationships(
+        self,
+        relationships: List[GermplasmRelationship]
+    ) -> None:
+        for rel in relationships:
+            self.graph.remove_edge(rel.source_id, rel.sink_id)
 
     async def get_entry_sources(self, entry_id: int) -> Dict[int, Dict[str, Any]]:
         """Get all source relationships for an entry (incoming edges)."""
@@ -173,6 +192,6 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
         for edge in self.graph.in_edges(entry_id, data=True):
             yield GermplasmRelationship(**edge[2])
 
-    async def get_target_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
+    async def get_sink_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
         for edge in self.graph.out_edges(entry_id, data=True):
             yield GermplasmRelationship(**edge[2])

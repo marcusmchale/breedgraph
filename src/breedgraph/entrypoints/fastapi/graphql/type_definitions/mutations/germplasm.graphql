@@ -1,0 +1,78 @@
+enum Reproduction {
+    CLONAL
+    SEXUAL
+    APOMIXIS
+}
+
+enum GermplasmSourceType {
+    UNKNOWN
+    SEED
+    TISSUE
+    MATERNAL
+    PATERNAL
+}
+
+input GermplasmSourceRelationship {
+    sourceId: Int!
+    sourceType: GermplasmSourceType!
+    description: String
+}
+
+input GermplasmSinkRelationship {
+    sinkId: Int!
+    sourceType: GermplasmSourceType!
+    description: String
+}
+
+# Program Mutations
+input GermplasmInput {
+    name: String!
+    description: String
+    synonyms: [String!]
+
+    """
+    Place of origin, a reference to a Location stored in Regions
+    """
+    originId: Int
+    """
+    Time sourced from origin
+    """
+    time: DateTime
+    """
+    Reproduction of germplasm, summarises the genetic impacts/requirements for maintenance
+    """
+    reproduction: Reproduction
+    """
+    Control methods (referenced in the ontology) to provide further details about how this germplasm is maintained
+    """
+    controlMethodIds: [Int!]
+    """Authors of this germplasm entry (A list of personId)"""
+    authorIds: [Int!] = []
+    """References for ths germplasm entry (A list of referenceId)"""
+    referenceIds: [Int!] = []
+    """Source relationships"""
+    sources: [GermplasmSourceRelationship!]
+    """Sink relationships"""
+    sinks: [GermplasmSinkRelationship!]
+}
+
+input GermplasmUpdate {
+    id: Int!
+    name: String
+    description: String
+    synonyms: [String!]
+    originId: Int
+    time: DateTime
+    reproduction: Reproduction
+    controlMethodIds: [Int!]
+    authorIds: [Int] = []
+    referenceIds: [Int] = []
+    sources: [GermplasmSourceRelationship!]
+    sinks: [GermplasmSinkRelationship!]
+}
+
+extend type Mutation {
+    germplasmCreateEntry(entry: GermplasmInput!): BooleanPayload
+    germplasmUpdateEntry(entry: GermplasmUpdate!): BooleanPayload
+    germplasmDeleteEntry(entryId: Int!): BooleanPayload
+}

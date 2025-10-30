@@ -16,7 +16,7 @@ from . import datasets
 from . import programs
 from . import controls
 from . import accounts
-#from . import germplasms
+from . import germplasm
 
 # Export only the main mutation object
 __all__ = ['graphql_mutation']

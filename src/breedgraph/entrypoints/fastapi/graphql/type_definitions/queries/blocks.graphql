@@ -2,11 +2,11 @@ type Position {
     """
     ID of Location in a Region
     """
-    location: Int!
+    location: Location!
     """
     ID of Layout in and Arrangement
     """
-    layout: Int
+    layout: Layout
     """
     Coordinates should be a list of values corresponding to the stored layout axes.
     """

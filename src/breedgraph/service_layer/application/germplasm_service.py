@@ -121,16 +121,20 @@ class GermplasmApplicationService:
 
         return entry
 
-    async def get_root_entries(self) -> AsyncGenerator[GermplasmStored, None]:
+    async def get_root_entries(self, as_output=False) -> AsyncGenerator[GermplasmStored, None]:
         """ retrieve germplasm entries that have no parents """
-        async for entry in self.persistence.get_root_entries():
-            # todo access control
-            yield entry
+        root_entries = [entry async for entry in self.persistence.get_root_entries()]
+        if not root_entries:
+            return
 
-    async def get_all_entries(
+        async for controlled_entry in self.yield_controlled_entries(root_entries, as_output=as_output):
+            yield controlled_entry
+
+    async def get_entries(
             self,
             entry_ids: List[int] | None = None,
-            names: List[str] | None = None
+            names: List[str] | None = None,
+            as_output: bool = False
     ) -> AsyncGenerator[GermplasmStored, None]:
         """Retrieve all germplasm entries with optional filtering and access control using stored context."""
         # Get all entry IDs first to batch fetch controllers
@@ -140,30 +144,73 @@ class GermplasmApplicationService:
         if not all_entries:
             return
 
+        async for controlled_entry in self.yield_controlled_entries(all_entries, as_output=as_output):
+            yield controlled_entry
+
+    async def yield_controlled_entries(self, entries: List[GermplasmStored], as_output=False):
         # Batch fetch controllers for access control
-        entry_ids = [entry.id for entry in all_entries]
+        entry_ids = [entry.id for entry in entries]
         controllers = await self.access_control.get_controllers(
             label=ControlledModelLabel.GERMPLASM,
             model_ids=entry_ids
         )
 
         # Apply access control and yield results using stored context
-        for entry in all_entries:
+        for entry in entries:
             controller = controllers.get(entry.id)
 
             if not controller:
-                # No controller means no access control
-                yield entry
-                continue
+                raise ValueError("Controller not found for entry")
 
             if controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
-                yield entry
+                if as_output:
+                    # get relationships and return where we have read access to the related entries
+                    sources = []
+                    sinks = []
+                    relationships = [rel async for rel in self.get_relationships(entry.id)]
+                    # get controllers for related:
+                    related_model_ids = [next(x for x in [rel.source_id, rel.sink_id] if x != entry.id) for rel in relationships]
+                    controllers_to_fetch = [i for i in related_model_ids if i not in controllers]
+                    related_controllers = await self.access_control.get_controllers(
+                        label=ControlledModelLabel.GERMPLASM,
+                        model_ids=controllers_to_fetch
+                    )
+                    for rel in relationships:
+                        other_id = next(x for x in [rel.source_id, rel.sink_id] if x != entry.id)
+                        controller = controllers.get(other_id) if other_id in controllers else related_controllers.get(other_id)
+                        if controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
+                            if rel.source_id == entry.id:
+                                sinks.append(rel)
+                            elif rel.sink_id == entry.id:
+                                sources.append(rel)
+                    yield entry.to_output(sources=sources, sinks=sinks)
+
+                else:
+                    yield entry
 
             elif self.user_id is not None:
                 # Registered users get redacted version
                 redacted_entry = entry.redacted(controller, self.user_id, self.access_teams[Access.READ])
                 if redacted_entry:  # Some entries might return None when redacted
-                    yield redacted_entry
+                    if as_output:
+                        yield redacted_entry.to_output(sources=[], sinks=[])
+                    else:
+                        yield redacted_entry
+
+    async def delete_entry(
+            self,
+            entry_id: int
+    ) -> None:
+        """Delete a germplasm entry with validation and access control"""
+        logger.debug(f"Deleting germplasm entry: {entry_id}")
+        controller = await self.access_control.get_controller(GermplasmStored.label, entry_id)
+        if controller and not controller.has_access(Access.CURATE, self.user_id, self.access_teams[Access.CURATE]):
+            raise UnauthorisedOperationError(
+                f"User {self.user_id} does not have permission to delete germplasm entry {entry_id}"
+            )
+        async for _ in self.persistence.get_sink_relationships(entry_id):
+            raise IllegalOperationError("Cannot delete entries that have sinks")
+        await self.persistence.delete_entry(entry_id)
 
     async def update_entry(self, entry: GermplasmStored) -> None:
         """Update an existing germplasm entry with validation and access control using stored context."""
@@ -188,28 +235,115 @@ class GermplasmApplicationService:
             user_id=self.user_id
         )
 
-    async def create_relationship(self, relationship: GermplasmRelationship) -> None:
+
+    async def update_entry_relationships(
+            self,
+            entry_id: int,
+            sources: List[GermplasmRelationship]|None = None,
+            sinks: List[GermplasmRelationship] | None = None
+    ) -> None:
+        """
+        Reconcile source and sink relationships for an entry.
+        Creates new relationships, updates changed ones, and removes ones no longer present.
+        """
+        logger.debug(f"Updating source and sink relationships for entry {entry_id}")
+
+        # Validate curate permission on the entry
+        controller = await self.access_control.get_controller(ControlledModelLabel.GERMPLASM, entry_id)
+        if controller and not controller.has_access(Access.CURATE, self.user_id, self.access_teams[Access.CURATE]):
+            raise UnauthorisedOperationError(
+                f"User {self.user_id} does not have curate permission required to update relationships for germplasm entry {entry_id}"
+            )
+
+        # Get stored relationships
+        stored_relationships = []
+        if sources is not None and sinks is not None:
+            async for rel in self.persistence.get_relationships(entry_id):
+                stored_relationships.append(rel)
+        elif sources is not None:
+            async for rel in self.persistence.get_source_relationships(entry_id):
+                stored_relationships.append(rel)
+        elif sinks is not None:
+            async for rel in self.persistence.get_sink_relationships(entry_id):
+                stored_relationships.append(rel)
+
+        # Create lookup keys for comparison
+        def relationship_key(rel: GermplasmRelationship) -> tuple:
+            """Create a unique key for a relationship based on source_id and sink_id"""
+            return (rel.source_id, rel.sink_id)
+
+        stored_by_key = {relationship_key(rel): rel for rel in stored_relationships}
+        submitted_by_key = {}
+        if sources is not None:
+            submitted_by_key.update({relationship_key(rel): rel for rel in sources})
+        if sinks is not None:
+            submitted_by_key.update({relationship_key(rel): rel for rel in sinks})
+
+        # Determine what needs to be created, updated, or deleted
+        to_create = []
+        to_update = []
+        to_delete = []
+
+        # Find new relationships and changed relationships
+        for key, submitted_rel in submitted_by_key.items():
+            if key not in stored_by_key:
+                to_create.append(submitted_rel)
+            else:
+                stored_rel = stored_by_key[key]
+                # Check if relationship details changed
+                if (submitted_rel.source_type != stored_rel.source_type or
+                        submitted_rel.description != stored_rel.description):
+                    to_update.append(submitted_rel)
+
+        # Find relationships to delete (in stored but not in submitted)
+        for key, stored_rel in stored_by_key.items():
+            if key not in submitted_by_key:
+                if sources is not None and stored_rel.sink_id == entry_id:
+                    to_delete.append(stored_rel)
+                elif sinks is not None and stored_rel.source_id == entry_id:
+                    to_delete.append(stored_rel)
+
+        # Execute the changes
+        if to_delete:
+            logger.debug(f"Deleting {len(to_delete)} relationships for entry {entry_id}")
+            await self.delete_relationships(to_delete)
+
+        if to_update:
+            logger.debug(f"Updating {len(to_update)} relationships for entry {entry_id}")
+            await self.update_relationships(to_update)
+
+        if to_create:
+            logger.debug(f"Creating {len(to_create)} relationships for entry {entry_id}")
+            await self.create_relationships(to_create)
+
+    async def create_relationships(self, relationships: List[GermplasmRelationship]) -> None:
+        for relationship in relationships:
+            await self.validate_new_relationship(relationship)
+        # Create the relationships
+        await self.persistence.create_relationships(relationships)
+
+    async def validate_new_relationship(self, relationship: GermplasmRelationship) -> None:
         """Add a source relationship between germplasm entries with access control"""
-        target_id = relationship.target_id
+        sink_id = relationship.sink_id
         source_id = relationship.source_id
         source_type = relationship.source_type
 
-        logger.debug(f"Adding source relationship: {source_id} -[{source_type}]> {target_id}")
+        logger.debug(f"Adding source relationship: {source_id} -[{source_type}]> {sink_id}")
 
-        # Check that user has CURATE access to target and READ access to source using stored context
+        # Check that user has WRITE access to sink and READ access to source using stored context
         controllers = await self.access_control.get_controllers(
             label=ControlledModelLabel.GERMPLASM,
-            model_ids=[target_id, source_id]
+            model_ids=[sink_id, source_id]
         )
 
-        target_controller = controllers.get(target_id)
+        sink_controller = controllers.get(sink_id)
         source_controller = controllers.get(source_id)
 
-        if target_controller and not target_controller.has_access(
+        if sink_controller and not sink_controller.has_access(
                 Access.WRITE, self.user_id, self.access_teams[Access.WRITE]
         ):
             raise IllegalOperationError(
-                f"User {self.user_id} does not have permission to write source relationships to target germplasm entry {target_id}"
+                f"User {self.user_id} does not have permission to write source relationships to sink germplasm entry {sink_id}"
             )
 
         if source_controller and not source_controller.has_access(
@@ -220,24 +354,70 @@ class GermplasmApplicationService:
             )
 
         # Validate both entries exist
-        entries_exist = await self.persistence.entries_exist([target_id, source_id])
-        if not entries_exist.get(target_id):
-            raise ValueError(f"Target entry {target_id} does not exist")
+        entries_exist = await self.persistence.entries_exist([sink_id, source_id])
+        if not entries_exist.get(sink_id):
+            raise ValueError(f"sink entry {sink_id} does not exist")
         if not entries_exist.get(source_id):
             raise ValueError(f"Source entry {source_id} does not exist")
 
         # Check for circular dependencies
-        if await self.persistence.has_path(target_id, source_id):
+        if await self.persistence.has_path(sink_id, source_id):
             raise ValueError(
-                f"Adding relationship from {source_id} to {target_id} would create a circular dependency"
+                f"Adding relationship from {source_id} to {sink_id} would create a circular dependency"
+            )
+
+    async def update_relationships(self, relationships: List[GermplasmRelationship]) -> None:
+        """Update existing relationships with new details."""
+        for relationship in relationships:
+            await self.update_relationship(relationship)
+
+    async def update_relationship(self, relationship: GermplasmRelationship) -> None:
+        """Update an existing relationship between germplasm entries."""
+        sink_id = relationship.sink_id
+        source_id = relationship.source_id
+        source_type = relationship.source_type
+
+        logger.debug(f"Updating source relationship: {source_id} -[{source_type}]> {sink_id}")
+
+        # Check that user has CURATE access to sink
+        controllers = await self.access_control.get_controllers(
+            label=ControlledModelLabel.GERMPLASM,
+            model_ids=[sink_id]
+        )
+        sink_controller = controllers.get(sink_id)
+        if sink_controller and not sink_controller.has_access(
+                Access.CURATE, self.user_id, self.access_teams[Access.CURATE]
+        ):
+            raise IllegalOperationError(
+                f"User {self.user_id} does not have permission to curate source relationships to sink germplasm entry {sink_id}"
             )
         # Create the relationship
-        await self.persistence.create_relationship(relationship)
+        await self.persistence.update_relationship(relationship)
+
+    async def delete_relationships(self, relationships: List[GermplasmRelationship]) -> None:
+        """Delete multiple relationships."""
+        for relationship in relationships:
+            await self.delete_relationship(relationship)
+
+    async def delete_relationship(self, relationship: GermplasmRelationship) -> None:
+        """Delete a relationship between germplasm entries with access control."""
+        sink_id = relationship.sink_id
+
+        # Check that user has CURATE access to sink
+        controller = await self.access_control.get_controller(ControlledModelLabel.GERMPLASM, sink_id)
+        if controller and not controller.has_access(Access.CURATE, self.user_id, self.access_teams[Access.CURATE]):
+            raise UnauthorisedOperationError(
+                f"User {self.user_id} does not have permission to curate relationships from germplasm entry {sink_id}"
+            )
+
+        await self.persistence.delete_relationship(relationship)
+
+
 
     async def validate_read(self, entry_id: int) -> None:
         """Check if user has read access to a germplasm entry using stored context."""
-        target_controller = await self.access_control.get_controller(ControlledModelLabel.GERMPLASM, entry_id)
-        if not target_controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
+        sink_controller = await self.access_control.get_controller(ControlledModelLabel.GERMPLASM, entry_id)
+        if not sink_controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
             raise UnauthorisedOperationError(f"User {self.user_id} does not have read access to entry {entry_id}")
 
     async def get_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
@@ -251,9 +431,9 @@ class GermplasmApplicationService:
         async for rel in self.persistence.get_source_relationships(entry_id):
             yield rel
 
-    async def get_target_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
+    async def get_sink_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
         await self.validate_read(entry_id)
-        async for rel in self.persistence.get_target_relationships(entry_id):
+        async for rel in self.persistence.get_sink_relationships(entry_id):
             yield rel
 
     async def get_ancestor_ids(self, entry_id: int, path_length_limit=None) -> List[int]:

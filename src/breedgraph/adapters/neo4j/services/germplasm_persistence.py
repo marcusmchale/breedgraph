@@ -2,7 +2,10 @@ from typing import Dict, List, Any, Optional, AsyncGenerator, Tuple
 from neo4j import AsyncTransaction, Record
 from neo4j.time import DateTime as Neo4jDateTime
 
-from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, Reproduction, GermplasmSourceType, GermplasmRelationship
+from src.breedgraph.domain.model.germplasm import (
+    GermplasmInput, GermplasmStored, GermplasmOutput,
+    Reproduction, GermplasmSourceType, GermplasmRelationship
+)
 from src.breedgraph.domain.model.time_descriptors import serialize_npdt64, deserialize_time, npdt64_to_neo4j
 from src.breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 
@@ -89,6 +92,11 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         references = params.pop('references', [])
         await self.tx.run(query, props = params, entry_id = entry_id, control_methods=control_methods, references=references)
 
+    async def delete_entry(self, entry_id: int) -> None:
+        """Delete an existing germplasm entry."""
+        query = queries['germplasm']['delete_entries']
+        await self.tx.run(query, entry_ids = [entry_id])
+
     async def get_entries(
             self,
             entry_ids: List[int] | None = None,
@@ -135,6 +143,24 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         query = queries['germplasm']['create_relationships']
         await self.tx.run(query, relationships=relationships_dump)
 
+    async def update_relationships(self, relationships: List[GermplasmRelationship]) -> None:
+        """Update relationships between germplasm entries."""
+        # convert enum to string for storage in neo4j
+        relationships_dump = [
+            relationship.model_dump() for relationship in relationships
+        ]
+        query = queries['germplasm']['set_relationships']
+        await self.tx.run(query, relationships=relationships_dump)
+
+    async def delete_relationships(self, relationships: List[GermplasmRelationship]) -> None:
+        """Update relationships between germplasm entries."""
+        # convert enum to string for storage in neo4j
+        relationships_dump = [
+            relationship.model_dump() for relationship in relationships
+        ]
+        query = queries['germplasm']['delete_relationships']
+        await self.tx.run(query, relationships=relationships_dump)
+
     async def get_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
         """Get all relationships for a germplasm entry."""
         query = queries['germplasm']['get_relationships']
@@ -149,15 +175,18 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         async for record in result:
             yield GermplasmRelationship(**record)
 
-    async def get_target_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
-        """Get all target relationships for a germplasm entry."""
-        query = queries['germplasm']['get_target_relationships']
+    async def get_sink_relationships(self, entry_id: int) -> AsyncGenerator[GermplasmRelationship, None]:
+        """Get all sink relationships for a germplasm entry."""
+        query = queries['germplasm']['get_sink_relationships']
         result = await self.tx.run(query, entry_id=entry_id)
         async for record in result:
             yield GermplasmRelationship(**record)
 
     async def get_root_entries(self) -> AsyncGenerator[GermplasmStored, None]:
-        raise NotImplementedError
+        query = queries['germplasm']['get_root_entries']
+        result = await self.tx.run(query)
+        async for record in result:
+            yield self.record_to_entry(record)
 
     async def get_ancestor_ids(self, entry_id: int, path_length_limit=None) -> List[int]:
         if path_length_limit:
@@ -177,9 +206,9 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
             result = await self.tx.run(query, entry_id=entry_id, limit=path_length_limit)
         return [record['descendant.id'] async for record in result]
 
-    async def has_path(self, source_id: int, target_id: int) -> bool:
+    async def has_path(self, source_id: int, sink_id: int) -> bool:
         """Check if there's a path between two entries (for cycle detection)."""
         query = queries['germplasm']['has_path_between_entries']
-        result = await self.tx.run(query, source_id=source_id, target_id=target_id)
+        result = await self.tx.run(query, source_id=source_id, sink_id=sink_id)
         record = await result.single()
         return record['has_path']

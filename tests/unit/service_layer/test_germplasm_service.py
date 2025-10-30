@@ -115,12 +115,12 @@ class TestGermplasmApplicationService:
         child = await germplasm_service.create_entry(GermplasmInput(name="Child"))
 
         # Act & Assert - admin can create relationship (has necessary access)
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, target_id=child.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, sink_id=child.id))
 
         # Act & Assert - user without CURATE access cannot create relationship
         await germplasm_service.access_control.initialize_user_context(user_id=2)
         with pytest.raises(IllegalOperationError, match="does not have permission"):
-            await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, target_id=child.id))
+            await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, sink_id=child.id))
 
     @pytest.mark.asyncio
     async def test_get_all_entries_applies_stored_context(self, germplasm_service):
@@ -140,7 +140,7 @@ class TestGermplasmApplicationService:
         # Act - anonymous user (should only see public entries)
         await germplasm_service.access_control.initialize_user_context(user_id=None)
         entries = []
-        async for entry in germplasm_service.get_all_entries():
+        async for entry in germplasm_service.get_entries():
             entries.append(entry)
 
         # Assert - only public entries visible
@@ -153,7 +153,7 @@ class TestGermplasmApplicationService:
         # Act - Registered user (should see public and registered entries)
         await germplasm_service.access_control.initialize_user_context(user_id=2)
         entries = []
-        async for entry in germplasm_service.get_all_entries():
+        async for entry in germplasm_service.get_entries():
             entries.append(entry)
 
         # Assert entries visible
@@ -166,7 +166,7 @@ class TestGermplasmApplicationService:
         # Act - admin user (should see all entries they control)
         await germplasm_service.access_control.initialize_user_context(user_id=1)
         entries = []
-        async for entry in germplasm_service.get_all_entries():
+        async for entry in germplasm_service.get_entries():
             entries.append(entry)
 
         # Assert - admin sees all entries
@@ -195,7 +195,7 @@ class TestGermplasmApplicationService:
         child = await germplasm_service.create_entry(GermplasmInput(name="Child"))
 
         # Create relationship
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, target_id=child.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=parent.id, sink_id=child.id))
 
         # Admin can see the source (has access to both)
         async for relationship in germplasm_service.get_source_relationships(child.id):

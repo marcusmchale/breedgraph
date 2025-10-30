@@ -259,8 +259,8 @@ interface OntologyEntryInterface {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [OntologyEntryInterface]
     children: [OntologyEntryInterface]
@@ -283,8 +283,8 @@ type Term implements OntologyEntryInterface {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Term]
     children: [Term]
@@ -318,8 +318,8 @@ type Subject implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Subject]
     children: [Subject]
@@ -343,8 +343,8 @@ type Trait implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Trait]
     children: [Trait]
@@ -367,8 +367,8 @@ type Condition implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Condition]
     children: [Condition]
@@ -400,8 +400,8 @@ type Scale implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Scale]
     children: [Scale]
@@ -426,8 +426,8 @@ type Category implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Category]
     children: [Category]
@@ -450,8 +450,8 @@ type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [ObservationMethod]
     children: [ObservationMethod]
@@ -482,8 +482,8 @@ type Variable implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Variable]
     children: [Variable]
@@ -507,8 +507,8 @@ type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [ControlMethod]
     children: [ControlMethod]
@@ -539,8 +539,8 @@ type Factor implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Factor]
     children: [Factor]
@@ -564,8 +564,9 @@ type Event implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+
+    authors: [Person]
+    references: [Reference]
 
     parents: [Event]
     children: [Event]
@@ -588,8 +589,8 @@ type GermplasmMethod implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [GermplasmMethod]
     children: [GermplasmMethod]
@@ -609,8 +610,8 @@ type LocationType implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [LocationType]
     children: [LocationType]
@@ -630,8 +631,8 @@ type LayoutType implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [LayoutType]
     children: [LayoutType]
@@ -653,8 +654,8 @@ type Design implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Design]
     children: [Design]
@@ -674,8 +675,8 @@ type Role implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Role]
     children: [Role]
@@ -695,8 +696,8 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
     description: String
     abbreviation: String
     synonyms: [String]
-    authors: [Int]
-    references: [Int]
+    authors: [Person]
+    references: [Reference]
 
     parents: [Title]
     children: [Title]

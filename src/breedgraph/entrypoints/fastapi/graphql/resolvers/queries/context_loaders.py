@@ -220,3 +220,26 @@ async def update_programs_map(
                     break
 
         context['programs_map'] = programs_map
+
+
+async def update_germplasm_map(
+        context,
+        entry_ids: List[int] = None,
+        names: List[str] = None
+):
+    bus = context.get('bus')
+    user_id = context.get('user_id')  # This might be None for unauthenticated requests
+
+    async with bus.uow.get_uow(user_id=user_id) as uow:
+        if not 'germplasm_map' in context:
+            context['germplasm_map'] = dict()
+
+        entries_to_update = [
+            entry_id for entry_id in entry_ids or [] if entry_id not in context['germplasm_map']
+        ]
+        async for entry in uow.germplasm.get_entries(
+            entry_ids=entries_to_update,
+            names=names,
+            as_output=True
+        ):
+            context['germplasm_map'][entry.id] = entry

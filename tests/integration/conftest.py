@@ -361,7 +361,7 @@ async def example_variety(
         references=[example_external_reference.id]
     )
     entry = await germplasm_service.create_entry(new_entry)
-    await germplasm_service.create_relationship(GermplasmRelationship(source_id = example_crop.id, target_id = entry.id))
+    await germplasm_service.create_relationship(GermplasmRelationship(source_id = example_crop.id, sink_id= entry.id))
     yield entry
 
 @pytest_asyncio.fixture(scope='session')

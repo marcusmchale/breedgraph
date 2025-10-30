@@ -145,3 +145,9 @@ type ControllersPayload {
     result: [Controller]
     errors: [Error]
 }
+
+type GermplasmEntriesPayload {
+    status: QueryStatus!
+    result: [GermplasmEntry]
+    errors: [Error]
+}

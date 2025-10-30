@@ -398,7 +398,7 @@ def prepare_attr_relationship_updates(
             source_ids = value
             target_ids = [entry_id]
             relevant_relationships = [
-                rel for rel in existing_relationships if rel.label == relationship_label and rel.target_id == entry_id
+                rel for rel in existing_relationships if rel.label == relationship_label and rel.sink_id == entry_id
             ]
         else:  # attr == 'child_ids'
             source_ids = [entry_id]
@@ -428,7 +428,7 @@ def prepare_attr_relationship_updates(
 
         if all([
             relationship.source_id in source_ids,
-            relationship.target_id in target_ids
+            relationship.sink_id in target_ids
         ]):
             continue
         else:
@@ -455,7 +455,7 @@ def prepare_attr_relationship_updates(
         for existing in relevant_relationships:
             if all([
                 submitted.source_id == existing.source_id,
-                submitted.target_id == existing.target_id
+                submitted.sink_id == existing.sink_id
             ]):
                 exists = True
                 if submitted.label == OntologyRelationshipLabel.HAS_CATEGORY:

@@ -1,0 +1,21 @@
+type GermplasmRelationship {
+    source: GermplasmEntry
+    sink: GermplasmEntry
+    sourceType: GermplasmSourceType!
+    description: String
+}
+
+type GermplasmEntry {
+    id: Int!
+    name: String!
+    description: String
+    synonyms: [String!]
+    originId: Location
+    time: DateTime
+    reproduction: Reproduction
+    controlMethods: [ControlMethod!]
+    authors: [Person!]
+    references: [Reference!]
+    sources: [GermplasmRelationship!]
+    sinks: [GermplasmRelationship!]
+}

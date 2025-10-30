@@ -72,7 +72,7 @@ class TestGermplasmServiceIntegration:
 
         relationship = GermplasmRelationship(
             source_id=example_crop.id,
-            target_id=created_variety.id,
+            sink_id=created_variety.id,
             source_type=GermplasmSourceType.SEED,
             description="Seed selection from crop"
         )
@@ -164,7 +164,7 @@ class TestGermplasmServiceIntegration:
         child = await germplasm_service.create_entry(child_input)
         relationship = GermplasmRelationship(
             source_id=parent.id,
-            target_id=child.id,
+            sink_id=child.id,
             source_type=GermplasmSourceType.SEED,
             description="TEST"
         )
@@ -198,7 +198,7 @@ class TestGermplasmServiceIntegration:
 
         # Act - Get entries by name filter (admin service)
         admin_results = []
-        async for entry in germplasm_service.get_all_entries(
+        async for entry in germplasm_service.get_entries(
                 names=[entry1.name, entry2.name]
         ):
             admin_results.append(entry)
@@ -212,7 +212,7 @@ class TestGermplasmServiceIntegration:
         # Get entries with read-only service
         await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
         no_read_results = []
-        async for entry in germplasm_service.get_all_entries(
+        async for entry in germplasm_service.get_entries(
                 names=[entry1.name, entry2.name]
         ):
             no_read_results.append(entry)
@@ -225,7 +225,7 @@ class TestGermplasmServiceIntegration:
         # Get entries with unregistered service
         await neo4j_access_control_service.initialize_user_context(user_id=None)
         unregistered_results = []
-        async for entry in germplasm_service.get_all_entries(
+        async for entry in germplasm_service.get_entries(
                 names=[entry1.name, entry2.name]
         ):
             unregistered_results.append(entry)
@@ -252,11 +252,11 @@ class TestGermplasmServiceIntegration:
         entry_c = await germplasm_service.create_entry(entry_c_input)
 
         # Create chain: A -> B -> C
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_a.id, target_id=entry_b.id))
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_b.id, target_id=entry_c.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_a.id, sink_id=entry_b.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_b.id, sink_id=entry_c.id))
         # Act & Assert - Try to create circular dependency C -> A
         with pytest.raises(ValueError, match="circular dependency"):
-            await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_c.id, target_id=entry_a.id))
+            await germplasm_service.create_relationship(GermplasmRelationship(source_id=entry_c.id, sink_id=entry_a.id))
 
 
     async def test_get_descendants_and_ancestors(
@@ -271,8 +271,8 @@ class TestGermplasmServiceIntegration:
         selection_input = GermplasmInput(name=f"{lorem_text_generator.new_text(6)}_selection")
         variety = await germplasm_service.create_entry(variety_input)
         selection = await germplasm_service.create_entry(selection_input)
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=example_crop.id, target_id=variety.id))
-        await germplasm_service.create_relationship(GermplasmRelationship(source_id=variety.id, target_id=selection.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=example_crop.id, sink_id=variety.id))
+        await germplasm_service.create_relationship(GermplasmRelationship(source_id=variety.id, sink_id=selection.id))
 
         # Act - Get descendants of crop
         crop_descendants = await germplasm_service.get_descendant_ids(

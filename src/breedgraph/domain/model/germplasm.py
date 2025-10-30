@@ -33,7 +33,7 @@ class Reproduction(str, Enum):
 @dataclass
 class GermplasmRelationship:
     source_id: int
-    target_id: int
+    sink_id: int
     source_type: GermplasmSourceType = GermplasmSourceType.UNKNOWN
     description: str | None = None
 
@@ -147,7 +147,13 @@ class GermplasmStored(GermplasmBase, ControlledModel):
                 references = list()
             )
 
+    def to_output(self, sources: List[GermplasmRelationship], sinks: List[GermplasmRelationship]):
+        return GermplasmOutput(**self.model_dump(), sources=sources, sinks=sinks)
+
+
 @dataclass
-class GermplasmOutput(GermplasmBase, StoredModel, EnumLabeledModel):
-    pass
+class GermplasmOutput(GermplasmStored):
+    sources: List[GermplasmRelationship] = field(default_factory=list)
+    sinks:  List[GermplasmRelationship] = field(default_factory=list)
+
 

@@ -16,6 +16,7 @@ from . import datasets
 from . import programs
 from . import controls
 from . import accounts
+from . import germplasm
 
 # Export only the main query object
 __all__ = ['graphql_query']

@@ -3,7 +3,7 @@ from src.breedgraph.domain.model.controls import ControlledModelLabel, ReadRelea
 
 from typing import List
 
-class SetControls(Command):
+class SetRelease(Command):
     agent_id: int
 
     entity_ids: List[int]

@@ -71,4 +71,11 @@ type Query {
     programs (programId: Int, trialId: Int, studyId: Int) : ProgramsPayload
     datasets (datasetId: Int, conceptId: Int): DatasetsPayload
     controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [Int]!): ControllersPayload!
+    """Get a list of Germplasm entries"""
+    germplasmEntries (names: [String!], entryIds: [Int!]): GermplasmEntriesPayload
+    """
+        Get a list of Germplasm entries that have no sources defined,
+        these should typically represent the Crop concept
+    """
+    germplasmCrops: GermplasmEntriesPayload
 }

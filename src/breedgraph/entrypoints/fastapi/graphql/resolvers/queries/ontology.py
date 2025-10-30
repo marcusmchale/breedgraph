@@ -133,7 +133,6 @@ async def resolve_ontology_entries(context, entry_ids):
 async def resolve_parents(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.parents)
 
-
 @ontology_entry_interface.field("children")
 async def resolve_children(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.children)

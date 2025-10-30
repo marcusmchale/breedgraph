@@ -1,7 +1,3 @@
-# waiting on @oneof directive for ariadne to solve this more elegantly
-# see https://github.com/graphql/graphql-wg/pull/1105
-# and https://github.com/mirumee/ariadne/issues/1194
-
 enum VersionChange {MAJOR, MINOR, PATCH}
 
 input TermInput {
