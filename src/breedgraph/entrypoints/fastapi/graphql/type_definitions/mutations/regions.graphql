@@ -24,8 +24,28 @@ input LocationInput {
     parentId: Int
 }
 
+input LocationUpdate {
+    locationId: Int!
+    name: String
+    """ Optional code for location, e.g. zip-code """
+    code: String
+    description: String
+    address: String
+    coordinates: [GeoCoordinateInput]
+    """ Ontology LocationType identifier """
+    typeId: Int
+    """ A parent location, required unless a country (see countries) """
+    parentId: Int
+}
+
 extend type Mutation {
     regionsCreateLocation(
         location: LocationInput!
+    ): BooleanPayload!,
+    regionsUpdateLocation(
+        location: LocationUpdate!
+    ): BooleanPayload!,
+    regionsDeleteLocation(
+        locationId: Int!
     ): BooleanPayload!
 }

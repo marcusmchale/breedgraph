@@ -27,13 +27,13 @@ async def get_arrangements(_, info, location_id: int|None = None) -> List[Layout
     arrangement_roots = info.context.get('arrangement_roots')
     return [layouts_map.get(i) for i in arrangement_roots]
 
-@graphql_query.field("arrangementsLayout")
+@graphql_query.field("arrangementsLayouts")
 @graphql_payload
 @require_authentication
-async def get_layout(_, info, layout_id: int) -> LayoutOutput:
-    await update_layouts_map(info.context, layout_id=layout_id)
+async def get_layouts(_, info, layout_ids: List[int]) -> List[LayoutOutput]:
+    await update_layouts_map(info.context, layout_ids=layout_ids)
     layouts_map = info.context.get('layouts_map')
-    return layouts_map.get(layout_id)
+    return [layouts_map.get(i) for i in layout_ids]
 
 @layout.field("parent")
 def resolve_parent(obj, info):

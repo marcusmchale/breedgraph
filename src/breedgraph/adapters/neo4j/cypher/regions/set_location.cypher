@@ -19,21 +19,23 @@ CALL {
   ON CREATE SET of_type.time = datetime.transaction()
   RETURN collect(type.id)[0] as type
 }
-// Create coordinates
-CALL {
-  WITH location
+// Remove existing coordinates
+OPTIONAL CALL (location) {
   MATCH (location)<-[coordinate_of:COORDINATE_OF]-(coordinate: Coordinate)
-  DELETE coordinate_of, coordinate
-  WITH DISTINCT location
-  UNWIND $coordinates AS c
-  CREATE (location)<-[:COORDINATE_OF]-(coordinate:Coordinate {
-    sequence:    c.sequence,
-    latitude:    c.latitude,
-    longitude:   c.longitude,
-    altitude:    c.altitude,
-    uncertainty: c.uncertainty,
-    description: c.description
+  DETACH DELETE coordinate
+}
+// Create coordinates
+CALL (location) {
+  UNWIND range(0, size($coordinates)-1) as i
+  CREATE (location)<-[coordinate_of:COORDINATE_OF {position: i}]-(coordinate:Coordinate {
+    sequence:    $coordinates[i].sequence,
+    latitude:    $coordinates[i].latitude,
+    longitude:   $coordinates[i].longitude,
+    altitude:    $coordinates[i].altitude,
+    uncertainty: $coordinates[i].uncertainty,
+    description: $coordinates[i].description
   })
+  WITH coordinate ORDER BY coordinate_of.position
   RETURN collect(coordinate {.*}) as coordinates
 }
 RETURN

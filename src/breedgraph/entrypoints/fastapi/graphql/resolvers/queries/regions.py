@@ -27,6 +27,7 @@ async def get_countries(_, info) -> List[LocationInput|LocationOutput]:
     countries = [c async for c in regions.countries(bus.read_model)]
     return countries
 
+
 @graphql_query.field("regions")
 @graphql_payload
 @require_authentication
@@ -34,29 +35,28 @@ async def get_regions(_, info) -> List[LocationOutput]:
     await update_locations_map(info.context)
     locations_map = info.context.get('locations_map')
     region_roots = info.context.get('region_roots')
-    return [locations_map.get(i) for i in region_roots]
+    return [locations_map.get(i) for i in region_roots if i in locations_map]
 
 @graphql_query.field("regionsLocations")
 @graphql_payload
 @require_authentication
-async def get_locations(_, info, location_type_id: int) -> List[LocationOutput]:
+async def get_locations(_, info, location_ids: List[int]|None = None, location_type_id: int|None = None) -> List[LocationOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     locations_map = info.context.get('locations_map', dict())
-    locations_by_type = []
-    async with bus.uow.get_uow(user_id = user_id) as uow:
-        async for location_ in uow.views.regions.get_locations_by_type(location_type_id = location_type_id):
-            locations_map[location_.id] = location_
-            locations_by_type.append(location_.id)
-        return [locations_map.get(i) for i in locations_by_type]
-
-@graphql_query.field("regionsLocation")
-@graphql_payload
-@require_authentication
-async def get_location(_, info, location_id: int) -> LocationOutput | None:
-    await update_locations_map(info.context, location_ids=[location_id])
-    locations_map = info.context.get('locations_map')
-    return locations_map.get(location_id)
+    if location_type_id:
+        locations_by_type = []
+        async with bus.uow.get_uow(user_id = user_id) as uow:
+            async for location_ in uow.views.regions.get_locations_by_type(location_type_id = location_type_id):
+                locations_map[location_.id] = location_
+                locations_by_type.append(location_.id)
+            return [locations_map.get(i) for i in locations_by_type]
+    elif location_ids:
+        await update_locations_map(info.context, location_ids=location_ids)
+        locations_map = info.context.get('locations_map')
+        return [locations_map.get(i) for i in location_ids if i in locations_map]
+    else:
+        raise ValueError("Must provide either location_ids or location_type_id")
 
 @location.field("parent")
 async def resolve_parent(obj, info) -> LocationOutput:

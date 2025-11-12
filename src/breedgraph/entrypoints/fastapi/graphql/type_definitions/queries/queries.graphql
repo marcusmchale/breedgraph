@@ -40,22 +40,19 @@ type Query {
     """
     regions: LocationsPayload!
     """
-    Get a single location details
+    Search for locations by or locationId or ontology Location type
     """
-    regionsLocation (locationId: Int!): LocationPayload! # see team
-    """
-    Search for locations by ontology Location type
-    """
-    regionsLocations (locationTypeId: Int!): LocationsPayload!
+    regionsLocations (locationIds: [Int!], locationTypeId: Int): LocationsPayload!
+
     """Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
     """
     arrangements (locationId: Int): LayoutsPayload!
     """
-    Get a single layout details
+    Get a layout details by ID
     """
-    arrangementsLayout (layoutId: Int!): LayoutPayload! # see team
+    arrangementsLayouts (layoutIds: [Int!]): LayoutPayload! # see team
     """
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.

@@ -456,7 +456,6 @@ input LayoutTypeUpdate {
     axes: [AxisType]
 }
 
-
 extend type Mutation {
     ontologyCreateTerm(term: TermInput!): BooleanPayload!
     ontologyCreateSubject(subject: SubjectInput!): BooleanPayload!

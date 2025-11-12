@@ -13,8 +13,24 @@ input LayoutInput {
     position: [String]
 }
 
+input LayoutUpdate {
+    layoutId: Int!
+    locationId: Int
+    typeId: Int
+    axes: [String!]
+    name: String
+    parentId: Int
+    position: [String]
+}
+
 extend type Mutation {
     arrangementsCreateLayout(
         layout: LayoutInput!
+    ): BooleanPayload!
+    arrangementsUpdateLayout(
+        layout: LayoutUpdate!
+    ): BooleanPayload!
+    arrangementsDeleteLayout(
+        layoutId: Int!
     ): BooleanPayload!
 }

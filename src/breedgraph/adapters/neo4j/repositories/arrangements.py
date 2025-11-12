@@ -41,7 +41,7 @@ class Neo4jArrangementsRepository(
 
     async def _delete_layouts(self, layout_ids: List[int]) -> None:
         logger.debug(f"Remove layouts: {layout_ids}")
-        await self.tx.run(queries['arrangements']['remove_layouts'], layout_ids=layout_ids)
+        await self.tx.run(queries['arrangements']['delete_layouts'], layout_ids=layout_ids)
 
     async def _get_controlled(self, layout_id: int = None) -> Arrangement | None:
         if layout_id is None:

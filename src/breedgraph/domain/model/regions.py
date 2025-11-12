@@ -4,16 +4,16 @@ from dataclasses import dataclass, field, replace
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller, ControlledModelLabel
+from typing_extensions import TypedDict
 
 from typing import List, ClassVar, Dict, Any
 
-@dataclass
-class GeoCoordinate:  # ISO 6709
+class GeoCoordinate(TypedDict):  # ISO 6709
     latitude: float
     longitude: float
-    altitude: float = None
-    uncertainty: float = None
-    description: str = None
+    altitude: float
+    uncertainty: float
+    description: str
 
 @dataclass
 class LocationBase(ABC):
@@ -97,3 +97,6 @@ class Region(ControlledTreeAggregate):
         for e in self.entries.values():
             if e.type == type_id:
                 yield e
+
+    def remove_location(self, location_id: int):
+        self.remove_entry(location_id)

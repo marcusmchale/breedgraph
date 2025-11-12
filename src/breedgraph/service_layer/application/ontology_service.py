@@ -524,7 +524,7 @@ class OntologyApplicationService:
             entry_ids: List[int] | None = None,
             labels: List[OntologyEntryLabel] | None = None,
             names: List[str] | None = None,
-            as_output: bool = False,
+            as_output: bool = False
     ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
         async for entry in self.persistence.get_entries(
             version=version,
@@ -535,6 +535,8 @@ class OntologyApplicationService:
             as_output=as_output
         ):
             yield entry
+
+
 
     async def get_relationships(
             self,

@@ -1,6 +1,6 @@
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput
+from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput, GeoCoordinate
 
 from src.breedgraph.adapters.redis.read_model import ReadModel
 from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
@@ -49,7 +49,7 @@ async def create_location(
             location = region.add_location(location_input, parent_id=cmd.parent_id)
 
         if cmd.coordinates:
-            location.coordinates = cmd.coordinates
+            location.coordinates = [GeoCoordinate(**coord.model_dump()) for coord in cmd.coordinates]
             await uow.repositories.regions.update_seen()
 
         await uow.commit()
@@ -62,10 +62,12 @@ async def update_location(
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         region = await uow.repositories.regions.get(location_id=cmd.location_id)
-        location = region.get_location(location_id=cmd.location_id)
+        location = region.get_location(cmd.location_id)
 
         if cmd.name is not None:
             location.name = cmd.name
+        if cmd.code is not None:
+            location.code = cmd.code
         if cmd.fullname is not None:
             location.fullname = cmd.fullname
         if cmd.description is not None:
@@ -73,10 +75,9 @@ async def update_location(
         if cmd.address is not None:
             location.address = cmd.address
         if cmd.coordinates is not None:
-            location.coordinates = cmd.coordinates
+            location.coordinates = [GeoCoordinate(**coord.model_dump()) for coord in cmd.coordinates]
         if cmd.parent_id is not None:
-            region.change_source(cmd.parent_id)
-
+            region.change_source(node_id=cmd.location_id, parent_id=cmd.parent_id)
         await uow.repositories.regions.update_seen()
         await uow.commit()
 
@@ -85,8 +86,11 @@ async def delete_location(
         cmd: commands.regions.DeleteLocation,
         uow: AbstractUnitOfWork
 ):
-    raise NotImplementedError
-    #we should think about when these need to be protected, e.g. if they are referenced as the locations for layouts etc.
-    #async with uow.get_uow(user_id=cmd.agent_id) as uow:
-    #    region = await uow.repositories.regions.get(location_id=cmd.location_id)
-    #    location = region.get_location(location_id=cmd.location_id)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        region = await uow.repositories.regions.get(location_id=cmd.location_id)
+        if cmd.location_id == region.root.id:
+            await uow.repositories.regions.remove(region)
+        else:
+            region.remove_location(cmd.location_id)
+
+        await uow.commit()

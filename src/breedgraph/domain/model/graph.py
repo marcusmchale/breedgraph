@@ -166,7 +166,6 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
             raise ValueError("Node is in sources, self-loops are not supported")
         if set(sources).intersection(self.get_descendants(node_id)):
             raise IllegalOperationError("A supplied source is a child, cycles are not supported")
-
         self._graph.remove_edges_from(list(self._graph.in_edges(node_id)))
         self._graph.add_edges_from([(source_id, node_id) for source_id in sources])
 

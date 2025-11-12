@@ -42,6 +42,6 @@ def get_controllers(label:ControlledModelLabel):
             entity.id as entity_id,
             [(entity)<-[controls:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team) |
             {{team: team.id, releases: controls.releases, times: controls.times, users: controls.users}}] as controls,
-            [(entry)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User) |
+            [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User) |
             {{user:user.id, time: write.time}}] as writes
    """

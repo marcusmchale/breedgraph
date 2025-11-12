@@ -86,6 +86,9 @@ class Arrangement(ControlledTreeAggregate):
 
         return super().add_entry(layout, sources)
 
+    def remove_layout(self, layout_id):
+        return super().remove_entry(layout_id)
+
     def get_layout(self, layout: int) -> LayoutStored:
         layout_model = super().get_entry(layout)
         return layout_model

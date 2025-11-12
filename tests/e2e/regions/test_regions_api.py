@@ -4,7 +4,7 @@ from src.breedgraph.custom_exceptions import NoResultFoundError
 from src.breedgraph.domain.model.ontology import OntologyEntryLabel
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
-from tests.e2e.regions.post_methods import post_to_countries, post_to_create_location, post_to_regions, post_to_location
+from tests.e2e.regions.post_methods import post_to_countries, post_to_create_location, post_to_regions, post_to_locations
 from tests.e2e.ontologies.post_methods import post_to_get_entries
 
 @pytest.mark.usefixtures("session_database")
@@ -63,13 +63,13 @@ async def test_extend_region(client, basic_ontology, first_user_login_token, sec
     else:
         raise NoResultFoundError("Couldn't find the location in children")
 
-    location_request_response = await post_to_location(client, location_id=child_id, token=first_user_login_token)
+    location_request_response = await post_to_locations(client, location_ids=[child_id], token=first_user_login_token)
     location_payload = get_verified_payload(location_request_response, "regionsLocation")
-    assert location_payload.get('result').get('parent').get('id') == region_root_id
+    assert location_payload.get('result')[0].get('parent').get('id') == region_root_id
 
     # assure this location isn't visible to a user without read affiliation.
-    unaffililated_request_response = await post_to_location(client, location_id=region_root_id, token=second_user_login_token)
+    unaffililated_request_response = await post_to_locations(client, location_ids=[region_root_id], token=second_user_login_token)
     unaffililated_payload = get_verified_payload(unaffililated_request_response, "regionsLocation")
-    assert new_name not in [i.get('name') for i in unaffililated_payload.get('result').get('children')]
+    assert new_name not in [i.get('name') for i in unaffililated_payload.get('result')[0].get('children')]
     # todo, reconsider access for non registered users, currently requiring authentication on most gql endpoints
 
