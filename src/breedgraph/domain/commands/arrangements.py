@@ -8,7 +8,7 @@ class CreateLayout(Command):
     location_id: int
     type_id: int
 
-    name: str
+    name: str|None
     axes: List[str]
 
     parent: int|None = None
@@ -21,7 +21,7 @@ class UpdateLayout(Command):
     location_id: int
     type_id: int
 
-    name: str
+    name: str|None
     axes: List[str]
 
     parent: int | None

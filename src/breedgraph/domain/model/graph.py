@@ -161,13 +161,18 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
 
         return [ancestor_id for _, ancestor_id in sorted(ancestor_distances)]
 
-    def _change_sources(self, node_id: int, sources: Set[int]):
+    def _change_sources(self, node_id: int, sources: Set[int] | Dict[int, Dict]):
         if node_id in sources:
             raise ValueError("Node is in sources, self-loops are not supported")
         if set(sources).intersection(self.get_descendants(node_id)):
             raise IllegalOperationError("A supplied source is a child, cycles are not supported")
         self._graph.remove_edges_from(list(self._graph.in_edges(node_id)))
-        self._graph.add_edges_from([(source_id, node_id) for source_id in sources])
+        if isinstance(sources, set):
+            self._graph.add_edges_from([(source_id, node_id) for source_id in sources])
+        elif isinstance(sources, dict):
+            self._graph.add_edges_from([(source_id, node_id, attributes) for source_id, attributes in sources.items()])
+        else:
+            raise ValueError('Sources should be set of source ID or a dict mapping source ID to a dict of attributes')
 
     @staticmethod
     def remove_node_and_reconnect(graph: nx.DiGraph, node_id: int, label: str=None):
@@ -273,8 +278,11 @@ class TreeAggregate(RootedAggregate, ABC):
                 if degree > 1:
                     raise ValueError("TreeAggregate nodes must have a single source")
 
-    def change_source(self, node_id: int, parent_id: int):
-        self._change_sources(node_id, {parent_id})
+    def change_source(self, node_id: int, parent_id: int, attributes: dict|None = None):
+        if attributes is None:
+            self._change_sources(node_id, {parent_id})
+        else:
+            self._change_sources(node_id, {parent_id: attributes})
 
     def get_parent_id(self, node_id: int) -> int | None:
         in_edges = list(self._graph.in_edges(node_id))

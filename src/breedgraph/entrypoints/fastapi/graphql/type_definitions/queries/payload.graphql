@@ -98,21 +98,9 @@ type LocationsPayload {
     errors: [Error]
 }
 
-type LocationPayload {
-    status: QueryStatus!
-    result: Location
-    errors: [Error]
-}
-
 type LayoutsPayload {
     status: QueryStatus!
     result: [Layout]
-    errors: [Error]
-}
-
-type LayoutPayload {
-    status: QueryStatus!
-    result: Layout
     errors: [Error]
 }
 

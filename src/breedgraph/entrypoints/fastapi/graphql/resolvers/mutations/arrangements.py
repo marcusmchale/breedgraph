@@ -41,7 +41,7 @@ async def update_layout(
     logger.debug(f"User {user_id} updating layout: {layout}")
     cmd = UpdateLayout(
         agent_id=user_id,
-        layout_id=layout.get('id'),
+        layout_id=layout.get('layout_id'),
         name=layout.get('name'),
         type_id=layout.get('type_id'),
         location_id=layout.get('location_id'),

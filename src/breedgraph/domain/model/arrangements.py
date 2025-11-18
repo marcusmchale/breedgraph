@@ -56,6 +56,7 @@ class LayoutOutput(LayoutBase, StoredModel, EnumLabeledModel):
 
     parent: int | None = None
     children: list[int] = field(default_factory=list)
+    position: List[str|int|float] = field(default_factory=list)
 
 
 # Set the generic typing for return of the base model type stored in the graph.
@@ -86,6 +87,18 @@ class Arrangement(ControlledTreeAggregate):
 
         return super().add_entry(layout, sources)
 
+    def change_parent(self, layout_id: int, parent_id: int, position: List[str]|None = None):
+        super().change_source(layout_id, parent_id, attributes= {'position': position})
+
+
+    def get_position(self, layout_id: int):
+        source_edges = super().get_source_edges(entry_id=layout_id)
+        try:
+            position = next(iter(source_edges.values())).get('position')
+            return position
+        except StopIteration:
+            return None
+
     def remove_layout(self, layout_id):
         return super().remove_entry(layout_id)
 
@@ -99,6 +112,7 @@ class Arrangement(ControlledTreeAggregate):
                 **self.get_layout(node).model_dump(),
                 parent=self.get_parent_id(node),
                 children=self.get_children_ids(node),
+                position=self.get_position(layout_id=node)
             ) for node in self._graph
         }
 

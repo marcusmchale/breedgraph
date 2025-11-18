@@ -167,7 +167,6 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
 
             layouts_map = context.get('layouts_map', dict())
             arrangement_roots = context.get('arrangement_roots', list())
-
             if layout_ids is None:
                 if not layouts_map:
                     async for arrangement in uow.repositories.arrangements.get_all(location_id=location_id):
@@ -179,7 +178,7 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
             else:
                 for layout_id in layout_ids:
                     if layout_id in layouts_map:
-                        return # already loaded
+                        continue # already loaded
                     else:
                         arrangement = await uow.repositories.arrangements.get(layout_id=layout_id)
                         if arrangement is not None:

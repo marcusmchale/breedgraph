@@ -19,7 +19,9 @@ class Neo4jArrangementsRepository(
 
     @staticmethod
     def record_to_layout(record: Record|Dict[str, Any]) -> LayoutStored:
-        if record.get('layout'):
+        if isinstance(record, Record):
+            record = dict(record)
+        if 'layout' in record:
             record = record.get('layout')
         return LayoutStored(**record)
 
@@ -33,11 +35,9 @@ class Neo4jArrangementsRepository(
         record: Record = await result.single()
         return self.record_to_layout(record)
 
-    async def _update_layout(self, layout: LayoutStored) -> LayoutStored:
+    async def _update_layout(self, layout: LayoutStored) -> None:
         logger.debug(f"Set layout: {layout}")
-        result: AsyncResult = await self.tx.run(queries['arrangements']['set_layout'], layout.model_dump())
-        record: Record = await result.single()
-        return self.record_to_layout(record['layout'])
+        await self.tx.run(queries['arrangements']['set_layout'], layout.model_dump())
 
     async def _delete_layouts(self, layout_ids: List[int]) -> None:
         logger.debug(f"Remove layouts: {layout_ids}")
@@ -110,10 +110,10 @@ class Neo4jArrangementsRepository(
 
             await self._update_layout(layout)
 
-        await self._create_edges([(*e, arrangement._graph.edges[e]['position']) for e in arrangement._graph.added_edges])
         await self._delete_edges(arrangement._graph.removed_edges)
+        await self._create_edges([(*e, arrangement._graph.edges[e]['position']) for e in arrangement._graph.added_edges])
 
-    async def _create_edges(self, edges: Set[Tuple[int, int, int|str|tuple]]):
+    async def _create_edges(self, edges: Set[Tuple[int, int, list[int|str|tuple]]]):
         if edges:
             await self.tx.run(queries['arrangements']['create_edges'], edges=list(edges))
 

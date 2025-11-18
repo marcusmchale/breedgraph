@@ -1,5 +1,6 @@
 from ariadne import ObjectType
 
+from src.breedgraph.domain.model.ontology import OntologyEntryOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
@@ -36,15 +37,17 @@ async def get_layouts(_, info, layout_ids: List[int]) -> List[LayoutOutput]:
     return [layouts_map.get(i) for i in layout_ids]
 
 @layout.field("parent")
-def resolve_parent(obj, info):
+async def resolve_parent(obj, info) -> LayoutOutput:
+    await update_layouts_map(info.context, layout_ids=[obj.parent])
     return info.context.get('layouts_map').get(obj.parent)
 
 @layout.field("children")
-def resolve_children(obj, info):
+async def resolve_children(obj, info) -> List[LayoutOutput]:
+    await update_layouts_map(info.context, layout_ids=obj.children)
     return [info.context.get('layouts_map').get(child) for child in obj.children]
 
 @layout.field("type")
-async def resolve_type(obj, info):
+async def resolve_type(obj, info) -> OntologyEntryOutput:
     await update_ontology_map(info.context, entry_ids=[obj.type])
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.type)

@@ -71,7 +71,8 @@ async def update_layout(
         if any([
             (cmd.type_id and not cmd.type_id == layout.type),
             (cmd.axes and not cmd.axes == layout.axes),
-            (cmd.parent and not cmd.parent == layout.parent),
+            (cmd.parent and not cmd.parent == arrangement.get_parent_id(layout.id)),
+            (cmd.position and not cmd.position == arrangement.get_position(layout.id))
         ]):
             ontology_service = uow.ontology
 
@@ -90,15 +91,29 @@ async def update_layout(
                 if cmd.axes and not cmd.axes == layout.axes:
                     layout.axes = cmd.axes
 
-            if cmd.parent and not cmd.parent == layout.parent:
-                # validate coordinates match parent layout type also
-                parent_layout = arrangement.get_entry(cmd.parent)
-                parent_type = await ontology_service.get_entry(entry_id=parent_layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
-                position = cmd.position or []
-                validate_position_within_parent(position, parent_layout, parent_type)
+            if any([
+                (cmd.parent and not cmd.parent == arrangement.get_parent_id(layout.id)),
+                (cmd.position and not cmd.position == arrangement.get_position(layout.id))
+            ]):
+                # validate coordinates match parent layout type
+                try:
+                    parent_layout = arrangement.get_entry(cmd.parent)
+                    current_position = arrangement.get_position(layout.id)
 
-                arrangement.change_source(layout.id, cmd.parent)
+                    parent_type = await ontology_service.get_entry(
+                        entry_id=parent_layout.type,
+                        label=OntologyEntryLabel.LAYOUT_TYPE
+                    )
+                    position = cmd.position or []
+                    validate_position_within_parent(position, parent_layout, parent_type)
 
+                    if cmd.position and not cmd.position == current_position:
+                        arrangement.change_parent(layout.id, cmd.parent, cmd.position)
+                    else:
+                        arrangement.change_parent(layout.id, cmd.parent)
+
+                except KeyError:
+                    raise ValueError('The provided parent ID is not in the same arrangement')
         await uow.commit()
 
 
