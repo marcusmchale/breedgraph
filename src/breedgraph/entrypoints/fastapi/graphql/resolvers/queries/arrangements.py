@@ -1,10 +1,12 @@
 from ariadne import ObjectType
 
 from src.breedgraph.domain.model.ontology import OntologyEntryOutput
+from src.breedgraph.domain.model.regions import LocationOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
-    update_ontology_map
+    update_ontology_map,
+    update_locations_map
 )
 
 
@@ -51,3 +53,9 @@ async def resolve_type(obj, info) -> OntologyEntryOutput:
     await update_ontology_map(info.context, entry_ids=[obj.type])
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.type)
+
+@layout.field("location")
+async def resolve_location(obj, info) -> LocationOutput:
+    await update_locations_map(info.context, location_ids=[obj.location])
+    location_map = info.context.get('locations_map')
+    return location_map.get(obj.location)

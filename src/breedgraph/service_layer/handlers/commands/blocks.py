@@ -118,8 +118,8 @@ async def add_position(
         unit = block.get_unit(cmd.unit_id)
         unit.positions.append(
             Position(
-                location=cmd.location_id,
-                layout=cmd.layout_id,
+                location_id=cmd.location_id,
+                layout_id=cmd.layout_id,
                 coordinates=cmd.coordinates,
                 start=cmd.start,
                 end=cmd.end

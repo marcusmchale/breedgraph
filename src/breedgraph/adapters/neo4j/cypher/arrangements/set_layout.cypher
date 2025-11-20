@@ -27,7 +27,7 @@ CALL {
 CALL {
   WITH layout
   MATCH (location:Location {id: $location})
-  MERGE (location)-[at_location:AT_LOCATION]->(location)
+  MERGE (layout)-[at_location:AT_LOCATION]->(location)
   ON CREATE SET at_location.time = datetime.transaction()
 }
 RETURN NULL

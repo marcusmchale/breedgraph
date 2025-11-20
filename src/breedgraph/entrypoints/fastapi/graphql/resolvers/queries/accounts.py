@@ -1,11 +1,13 @@
 from ariadne import ObjectType
 
 from typing import List
+
 from src.breedgraph.domain.model.accounts import (
     AccountOutput,
-    UserOutput
+    UserOutput,
+    OntologyRole
 )
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
+from src.breedgraph.custom_exceptions import NoResultFoundError
 
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -19,8 +21,9 @@ logger = logging.getLogger(__name__)
 from . import graphql_query
 from ..registry import graphql_resolvers
 account = ObjectType("Account")
+user = ObjectType("User")
 user_access = ObjectType("UserAccess")
-graphql_resolvers.register_type_resolvers(account, user_access)
+graphql_resolvers.register_type_resolvers(account, user, user_access)
 
 
 @graphql_query.field("accountsUsers")
@@ -47,7 +50,6 @@ async def get_account(_, info) -> AccountOutput:
             raise NoResultFoundError
         else:
             return AccountOutput(user=account_.user, allowed_emails=account_.allowed_emails)
-
 
 @graphql_query.field("accountsUserAccess")
 @graphql_payload
@@ -93,4 +95,3 @@ async def resolve_curate_teams(obj: dict, info):
     await update_teams_map(info.context, team_ids)
     teams_map = info.context.get('teams_map', {})
     return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
-

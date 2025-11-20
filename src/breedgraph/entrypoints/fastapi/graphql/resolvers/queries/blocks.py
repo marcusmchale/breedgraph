@@ -28,13 +28,13 @@ async def get_blocks(_, info, location_id: int = None) -> List[UnitOutput]:
     block_roots = info.context.get('block_roots')
     return [units_map.get(i) for i in block_roots]
 
-@graphql_query.field("blocksUnit")
+@graphql_query.field("blocksUnits")
 @graphql_payload
 @require_authentication
-async def get_unit(_, info, unit_id: int) -> List[UnitOutput]:
-    await update_units_map(info.context, unit_id=unit_id)
+async def get_units(_, info, unit_ids: List[int]) -> List[UnitOutput]:
+    await update_units_map(info.context, unit_ids=unit_ids)
     units_map = info.context.get('units_map')
-    return units_map[unit_id]
+    return [units_map.get(i) for i in units_map]
 
 @unit.field("subject")
 async def resolve_subject(obj, info):

@@ -8,14 +8,17 @@ from src.breedgraph.domain.commands.accounts import (
     Login,
     VerifyEmail,
     AddEmail, RemoveEmail,
-    RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation
+    RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation,
+    SetOntologyRole,
+    RequestOntologyRole
 )
 from src.breedgraph.domain.events.accounts import (
     PasswordChangeRequested
 )
 from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
+from src.breedgraph.domain.model.accounts import OntologyRole
 
+from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 
@@ -347,4 +350,29 @@ async def revoke_affiliation(
         access=access
     )
     await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("accountsRequestOntologyRole")
+@graphql_payload
+async def request_ontology_role(
+        _,
+        info,
+        ontology_role: OntologyRole
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"Request change ontology role user: {user_id, ontology_role}")
+    await info.context['bus'].handle(RequestOntologyRole(user_id=user_id, ontology_role=ontology_role.value))
+    return True
+
+@graphql_mutation.field("accountsSetOntologyRole")
+@graphql_payload
+async def set_ontology_role(
+        _,
+        info,
+        user_id: int,
+        ontology_role: OntologyRole
+) -> bool:
+    agent_id = info.context.get('user_id')
+    logger.debug(f"Agent {agent_id} changes ontology role for user: {user_id, ontology_role}")
+    await info.context['bus'].handle(SetOntologyRole(agent_id=agent_id, user_id=user_id, ontology_role=ontology_role.value))
     return True

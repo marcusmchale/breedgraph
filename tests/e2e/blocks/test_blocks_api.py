@@ -1,7 +1,7 @@
 import pytest
 
 from src.breedgraph.domain.model.ontology import OntologyEntryLabel
-from tests.e2e.blocks.post_methods import post_to_create_unit, post_to_blocks, post_to_unit, post_to_add_position
+from tests.e2e.blocks.post_methods import post_to_create_unit, post_to_blocks, post_to_units, post_to_add_position
 from tests.e2e.ontologies.post_methods import post_to_get_entries
 from tests.e2e.organisations.post_methods import post_to_create_team
 from tests.e2e.utils import get_verified_payload, assert_payload_success
@@ -38,7 +38,7 @@ async def test_extend_block(
     assert blocks_payload.get('result')
     tree_unit_id = blocks_payload.get('result')[0].get('id')
 
-    tree_unit_response = await post_to_unit(client, unit_id=tree_unit_id, token=first_user_login_token)
+    tree_unit_response = await post_to_units(client, unit_ids=[tree_unit_id], token=first_user_login_token)
     tree_unit_payload = get_verified_payload(tree_unit_response, "blocksUnit")
     assert tree_unit_payload.get('result')
 

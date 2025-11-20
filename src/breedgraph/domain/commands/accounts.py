@@ -28,11 +28,15 @@ class RemoveEmail(Command):
     user_id: int
     email: str
 
+class RequestOntologyRole(Command):
+    user_id: int
+    ontology_role: str
+
 class SetOntologyRole(Command):
     agent_id: int
 
     user_id: int
-    role: str
+    ontology_role: str
 
 class RequestAffiliation(Command):
     user_id: int

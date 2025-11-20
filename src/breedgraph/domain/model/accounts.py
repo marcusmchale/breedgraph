@@ -14,6 +14,7 @@ from typing import List, ClassVar, Dict, Any, Self
 logger = logging.getLogger(__name__)
 
 class OntologyRole(Enum):
+    VIEWER = "viewer"  # read only
     CONTRIBUTOR = "contributor"  # Can propose changes
     EDITOR = "editor"           # Can commit versions
     ADMIN = "admin"             # Can manage roles
@@ -27,15 +28,19 @@ class UserBase(ABC):
     fullname: str = ''
     email: str = ''
     ontology_role: OntologyRole = OntologyRole.CONTRIBUTOR
+    ontology_role_requested: OntologyRole|None = None
 
     def model_dump(self):
         dump = asdict(self)
         dump['ontology_role'] = dump['ontology_role'].value
+        dump['ontology_role_requested'] = dump['ontology_role_requested'].value if 'ontology_role_requested' in dump else None
         return dump
 
     def __post_init__(self):
         if isinstance(self.ontology_role, str):
             self.ontology_role = OntologyRole(self.ontology_role)
+        if isinstance(self.ontology_role_requested, str):
+            self.ontology_role_requested = OntologyRole(self.ontology_role_requested)
 
 @dataclass
 class UserInput(UserBase, LabeledModel):
@@ -123,7 +128,7 @@ class AccountStored(Aggregate, AccountBase):
             raise ValueError(f"Email {email} not found in allowed emails")
 
     def can_contribute_ontology(self) -> bool:
-        """All users can contribute to ontology"""
+        """Only these roles can contribute to ontology"""
         return self.user.ontology_role in [OntologyRole.CONTRIBUTOR, OntologyRole.EDITOR, OntologyRole.ADMIN]
 
     def can_commit_ontology_version(self) -> bool:

@@ -23,3 +23,7 @@ class AbstractAccountsViews(ABC):
     @abstractmethod
     def get_users_for_admin(self, team_ids: List[int], user_ids: List[int]) -> AsyncGenerator[UserOutput, None]:
         ...
+
+    @abstractmethod
+    def get_users_with_ontology_role_requests(self) -> AsyncGenerator[UserOutput, None]:
+        ...

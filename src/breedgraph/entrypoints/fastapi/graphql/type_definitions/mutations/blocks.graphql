@@ -33,7 +33,19 @@ input UnitInput {
     childrenIds: [Int]
 }
 
+input UnitUpdate {
+    unitId: Int!
+    subjectId: Int!
+    name: String
+    synonyms: [String]
+    description: String
+    parentIds: [Int]
+    childrenIds: [Int]
+}
+
 extend type Mutation {
     blocksCreateUnit(unit: UnitInput!): BooleanPayload!
+    blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!
+    blocksDeleteUnit(unitId: Int!): BooleanPayload!
     blocksAddPosition(unitId: Int!, position: PositionInput): BooleanPayload!
 }

@@ -33,6 +33,21 @@ type Query {
     ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel], phases: [LifecyclePhase], versionId: Int): OntologyEntriesPayload!
     """Get a list of ontology relationships"""
     ontologyRelationships(entryIds: [Int], labels: [OntologyRelationshipLabel], phases: [LifecyclePhase], versionId: Int): OntologyRelationshipsPayload!
+    """
+    Get a list of users requesting new ontology roles.
+    Only available to Users with the admin ontology role.
+    """
+    ontologyRoleRequests: UsersPayload!
+    """
+    Get a list of Ontology Editors
+    Only available to Users with the admin ontology role.
+    """
+    ontologyEditors: UsersPayload!
+    """
+    Get a list of Ontology Admins
+    Only available to Users with the admin ontology role.
+    """
+    ontologyAdmins: UsersPayload!
     """Get a list of countries for use in top level region creation"""
     regionsCountries: LocationsPayload!
     """Get a list of region "root" locations.
@@ -59,9 +74,9 @@ type Query {
     """
     blocks (locationId: Int): UnitsPayload!
     """
-    Get a single unit.
+    Get units by ID.
     """
-    blocksUnit (unitId: Int!): UnitPayload!
+    blocksUnits (unitIds: [Int!]): UnitsPayload!
     """
     Get a list of programs
     """

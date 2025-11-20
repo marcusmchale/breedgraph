@@ -3,6 +3,7 @@ from numpy import datetime64
 from datetime import datetime
 
 from .registry import graphql_resolvers
+from src.breedgraph.domain.model.accounts import OntologyRole
 from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.domain.model.ontology import VersionChange, OntologyEntryLabel, OntologyRelationshipLabel, \
@@ -36,6 +37,7 @@ graphql_resolvers.register_enums(EnumType("Access", Access))
 graphql_resolvers.register_enums(EnumType("OntologyEntryLabel", OntologyEntryLabel))
 graphql_resolvers.register_enums(EnumType("OntologyRelationshipLabel", OntologyRelationshipLabel))
 graphql_resolvers.register_enums(EnumType("LifecyclePhase", LifecyclePhase))
+graphql_resolvers.register_enums(EnumType('OntologyRole', OntologyRole))
 
 # Export only what's needed
 __all__ = ['graphql_query', 'graphql_mutation', 'datetime_scalar', 'graphql_resolvers']

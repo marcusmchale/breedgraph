@@ -1,6 +1,8 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
+from typing import List
+
 async def post_to_create_unit(client, token:str, unit: dict):
     json={
         "query": (
@@ -88,14 +90,14 @@ async def post_to_blocks(client, token:str, location_id: int = None):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_unit(client, unit_id: int, token:str = None):
+async def post_to_units(client, unit_ids: List[int], token:str = None):
     json = {
         "query": (
             " query ("
-            "   $unitId : Int!"
+            "   $unitIds : [Int!]"
             " ) { "
-            "  blocksUnit ( "
-            "  unitId: $unitId,"
+            "  blocksUnits ( "
+            "  unitIds: $unitIds,"
             "  ) {"
             "    status, "
             "    result { "
@@ -110,7 +112,7 @@ async def post_to_unit(client, unit_id: int, token:str = None):
             " } "
         ),
         "variables": {
-            "unitId": unit_id,
+            "unitIds": unit_ids,
         }
     }
     headers = with_auth(

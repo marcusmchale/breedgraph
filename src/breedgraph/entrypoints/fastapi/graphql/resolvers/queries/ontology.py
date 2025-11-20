@@ -1,11 +1,13 @@
 from ariadne import ObjectType, UnionType, InterfaceType
 
+from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 from src.breedgraph.domain.model.ontology import (
     OntologyEntryOutput, OntologyRelationshipBase,
     OntologyEntryLabel, OntologyRelationshipLabel,
     OntologyCommit,
     Version, LifecyclePhase,
 )
+from src.breedgraph.domain.model.accounts import UserOutput, OntologyRole
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map, update_ontology_version_context
 
@@ -267,3 +269,57 @@ async def resolve_commit_user(obj, info):
     await update_users_map(context, user_ids=[obj.user])
     users_map = context.get('users_map')
     return users_map.get(obj.user)
+
+@graphql_query.field("ontologyRoleRequests")
+@graphql_payload
+@require_authentication
+async def get_ontology_role_requests(
+        _,
+        info
+) -> List[UserOutput]:
+    # Return only users with outstanding role change requests
+    context = info.context
+    bus = context.get('bus')
+    user_id = context.get('user_id')
+    async with bus.uow.get_uow(user_id=user_id) as uow_holder:
+        ontology_role = uow_holder.ontology.role
+        if ontology_role != OntologyRole.ADMIN:
+            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
+        requesting_users = [a async for a in uow_holder.views.accounts.get_users_with_ontology_role_requests()]
+        return requesting_users
+
+@graphql_query.field("ontologyEditors")
+@graphql_payload
+@require_authentication
+async def get_ontology_editors(
+        _,
+        info
+) -> List[UserOutput]:
+    # Return only users with ontology role as editor
+    context = info.context
+    bus = context.get('bus')
+    user_id = context.get('user_id')
+    async with bus.uow.get_uow(user_id=user_id) as uow_holder:
+        ontology_role = uow_holder.ontology.role
+        if ontology_role != OntologyRole.ADMIN:
+            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
+        editor_users = [a async for a in uow_holder.views.accounts.get_editors_for_ontology_admin()]
+        return editor_users
+
+@graphql_query.field("ontologyAdmins")
+@graphql_payload
+@require_authentication
+async def get_ontology_admins(
+        _,
+        info
+) -> List[UserOutput]:
+    # Return only users with ontology role as admin
+    context = info.context
+    bus = context.get('bus')
+    user_id = context.get('user_id')
+    async with bus.uow.get_uow(user_id=user_id) as uow_holder:
+        ontology_role = uow_holder.ontology.role
+        if ontology_role != OntologyRole.ADMIN:
+            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
+        admin_users = [a async for a in uow_holder.views.accounts.get_admins_for_ontology_admin()]
+        return admin_users

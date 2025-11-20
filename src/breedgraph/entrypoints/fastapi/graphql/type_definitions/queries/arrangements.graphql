@@ -7,4 +7,5 @@ type Layout {
     """Position within parent layout"""
     position: [String!]
     children: [Layout!]
+    location: Location
 }

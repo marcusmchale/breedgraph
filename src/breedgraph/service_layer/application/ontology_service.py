@@ -570,8 +570,8 @@ class OntologyApplicationService:
 
         lifecycle = await self._get_entry_lifecycle(entry.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
-            if not self.role == OntologyRole.EDITOR:
-                raise IllegalOperationError("Only Editors may alter entries that have progressed beyond Draft")
+            if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+                raise IllegalOperationError("Only Editors and Admins may alter entries that have progressed beyond Draft")
             # any edit reverts the entry to draft
             current_version = await self.get_current_version()
             await self.revert_entry_to_draft(entry.id, current_version)

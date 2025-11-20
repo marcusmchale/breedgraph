@@ -149,17 +149,40 @@ async def remove_email(
         await uow.commit()
 
 @handlers.command_handler()
+async def request_ontology_role(
+        cmd: commands.accounts.RequestOntologyRole,
+        uow: AbstractUnitOfWork
+):
+    async with uow.get_uow(user_id=cmd.user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        account.user.ontology_role_requested = OntologyRole(cmd.ontology_role)
+        await uow.commit()
+
+@handlers.command_handler()
 async def set_ontology_role(
         cmd: commands.accounts.SetOntologyRole,
         uow: AbstractUnitOfWork
 ):
-    async with uow.get_uow(user_id=cmd.user_id) as uow:
-        agent = await uow.repositories.accounts.get(user_id=cmd.agent)
+    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+        agent = await uow.repositories.accounts.get(user_id=cmd.agent_id)
         if not agent.user.ontology_role == OntologyRole.ADMIN:
             raise IllegalOperationError("Only OntologyRole.ADMIN can change user ontology role")
 
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
-        account.user.ontology_role = OntologyRole[cmd.role]
+        # check if user is an admin, if so only if the agent is the user can deprecation be performed
+        if account.user.ontology_role == OntologyRole.ADMIN:
+            if not account.user.id == cmd.agent_id:
+                raise UnauthorisedOperationError('Admins may only deprecate their own ontology role')
+            # also ensure that if we did perform this deprecation there would still be ontology admins
+            async for ontology_admin in uow.views.accounts.get_admins_for_ontology_admin():
+                if ontology_admin.id == account.user.id:
+                    continue
+                else:
+                    break
+            else:
+                raise IllegalOperationError("Deprecating this admin would result in no ontology Admins")
+
+        account.user.ontology_role = OntologyRole(cmd.ontology_role)
         await uow.commit()
 
 @handlers.command_handler()

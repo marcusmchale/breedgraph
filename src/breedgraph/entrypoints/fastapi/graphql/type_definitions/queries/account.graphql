@@ -1,8 +1,17 @@
+enum OntologyRole {
+    VIEWER
+    CONTRIBUTOR
+    EDITOR
+    ADMIN
+}
+
 type User {
     id: Int!
     name: String!,
     fullname: String!
     email: String!
+    ontologyRole: OntologyRole!
+    ontologyRoleRequested: OntologyRole
 }
 
 type Account {

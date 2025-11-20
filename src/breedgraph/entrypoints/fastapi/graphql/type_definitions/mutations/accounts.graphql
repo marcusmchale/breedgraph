@@ -45,4 +45,11 @@ extend type Mutation {
         teamId: Int!
         access: Access!
     ): BooleanPayload!
+    accountsRequestOntologyRole(
+        ontologyRole: OntologyRole!
+    ): BooleanPayload!
+    accountsSetOntologyRole(
+        userId: Int!
+        ontologyRole: OntologyRole!
+    ): BooleanPayload!
 }
