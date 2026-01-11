@@ -11,18 +11,30 @@ from tests.e2e.ontologies.post_methods import post_to_get_entries
 @pytest.mark.asyncio(scope="session")
 async def test_create_location(client, first_user_login_token, first_account_with_all_affiliations):
     countries_response = await post_to_countries(client, first_user_login_token)
+
     countries_payload = get_verified_payload(countries_response, "regionsCountries")
     assert countries_payload['result']
-    country = countries_payload['result'][0]
-    country['typeId'] = country.pop('type')['id']
 
-    create_location_response = await post_to_create_location(
-        client,
-        token=first_user_login_token,
-        location=country
-    )
-    create_location_payload = get_verified_payload(create_location_response, "regionsCreateLocation")
-    assert_payload_success(create_location_payload)
+    country = countries_payload['result'][0]
+
+    for country in countries_payload['result']:
+        create_location_response = await post_to_create_location(
+            client,
+            token=first_user_login_token,
+            location=country
+        )
+        create_location_payload = get_verified_payload(create_location_response, "regionsCreateLocation")
+        try:
+            assert_payload_success(create_location_payload)
+            break
+        except AssertionError as e:
+            payload_errors = create_location_payload.get('errors')
+            exists_error = False
+            for error in payload_errors:
+                if error.get('name') == 'ValueError' and "already registered" in error.get('message'):
+                    exists_error = True
+            if not exists_error:
+                raise ValueError(f"Unexpected error creating location: {e}")
 
     regions_request_response = await post_to_regions(client, first_user_login_token)
     regions_payload = get_verified_payload(regions_request_response, "regions")
@@ -64,12 +76,12 @@ async def test_extend_region(client, basic_ontology, first_user_login_token, sec
         raise NoResultFoundError("Couldn't find the location in children")
 
     location_request_response = await post_to_locations(client, location_ids=[child_id], token=first_user_login_token)
-    location_payload = get_verified_payload(location_request_response, "regionsLocation")
+    location_payload = get_verified_payload(location_request_response, "regionsLocations")
     assert location_payload.get('result')[0].get('parent').get('id') == region_root_id
 
     # assure this location isn't visible to a user without read affiliation.
     unaffililated_request_response = await post_to_locations(client, location_ids=[region_root_id], token=second_user_login_token)
-    unaffililated_payload = get_verified_payload(unaffililated_request_response, "regionsLocation")
+    unaffililated_payload = get_verified_payload(unaffililated_request_response, "regionsLocations")
     assert new_name not in [i.get('name') for i in unaffililated_payload.get('result')[0].get('children')]
     # todo, reconsider access for non registered users, currently requiring authentication on most gql endpoints
 

@@ -1,7 +1,10 @@
 MATCH
   (location: Location)-[:OF_LOCATION_TYPE]->(type:LocationType {id: $location_type})
-OPTIONAL MATCH (location)-[:OF_LOCATION_TYPE]->(type:LocationType)
+
 OPTIONAL MATCH (parent:Location)-[:INCLUDES_LOCATION]->(location)
+
+OPTIONAL MATCH (root:Location)-[:INCLUDES_LOCATION*]->(location)
+WHERE NOT (root)<-[:INCLUDES_LOCATION]-(:Location)
 
 OPTIONAL CALL (location) {
   MATCH (location)<-[coord_of:COORDINATE_OF]-(coordinate:Coordinate)
@@ -19,6 +22,7 @@ RETURN location {
   .*,
   type: type.id,
   coordinates: coalesce(coordinates, []),
+  region: coalesce(root.id, location.id),
   parent: parent.id,
   children: coalesce(children, [])
 }

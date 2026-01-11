@@ -43,7 +43,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
 
     async def _delete_units(self, unit_ids: List[int]) -> None:
         logger.debug(f"Remove units: {unit_ids}")
-        await self.tx.run(queries['blocks']['remove_units'], unit_ids=unit_ids)
+        await self.tx.run(queries['blocks']['delete_units'], unit_ids=unit_ids)
 
     async def _get_controlled(self, unit_id: int = None) -> Block | None:
         if unit_id is None:
@@ -57,33 +57,35 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
         nodes = []
         edges = []
         async for record in result:
-            parent_id = record.get('unit').pop('parent_id', None)
+            parent_ids = record.get('unit').pop('parent_ids', None)
             unit = self.record_to_unit(record.get('unit'))
             nodes.append(unit)
-            if parent_id is not None:
-                edge = (parent_id, unit.id, None)
-                edges.append(edge)
+            if parent_ids is not None:
+                for parent_id in parent_ids:
+                    edge = (parent_id, unit.id, None)
+                    edges.append(edge)
 
         if nodes:
             return Block(nodes=nodes, edges=edges)
         else:
             return None
 
-    async def _get_all_controlled(self, location_id: int|None = None) -> AsyncGenerator[Block, None]:
-        if location_id is None:
+    async def _get_all_controlled(self, location_ids: List[int]|None = None) -> AsyncGenerator[Block, None]:
+        if not location_ids:
             result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
         else:
-            import pdb; pdb.set_trace()
-            # todo filter by location in query (current position only)
-            result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks_by_location'])
-
+            result: AsyncResult = await self.tx.run(
+                queries['blocks']['read_blocks_by_locations'],
+                location_ids = location_ids
+            )
         async for record in result:
             units_data = record.get('block')
             edges = []
             for unit_data in units_data:
-                parent_id = unit_data.pop('parent_id')
-                if parent_id is not None:
-                    edges.append((parent_id, unit_data.get('id'), None))
+                parent_ids = unit_data.pop('parent_ids')
+                if parent_ids is not None:
+                    for parent_id in parent_ids:
+                        edges.append((parent_id, unit_data.get('id'), None))
             units = [self.record_to_unit(u) for u in units_data]
             yield Block(nodes=units, edges=edges)
 
@@ -111,8 +113,10 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
                 raise ValueError("Can only commit changes to stored layouts")
             await self._update_unit(unit)
 
-        await self._create_edges(block._graph.added_edges)
-        await self._delete_edges(block._graph.removed_edges)
+        to_remove = block._graph.removed_edges - block._graph.added_edges
+        to_add = block._graph.added_edges - block._graph.removed_edges
+        await self._create_edges(to_add)
+        await self._delete_edges(to_remove)
 
     async def _create_edges(self, edges: Set[Tuple[int, int]]):
         if edges:

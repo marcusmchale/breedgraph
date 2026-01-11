@@ -31,9 +31,7 @@ async def lifespan(fast_api_app: FastAPI):
     fast_api_app.bus = bus
 
     logger.debug("Load brute force protection service")
-    brute_force_service = await BruteForceProtectionService.create(
-        connection=bus.read_model.connection  # share the existing connection
-    )
+    brute_force_service = BruteForceProtectionService(state_store=bus.state_store)
     fast_api_app.brute_force_service = brute_force_service
 
     logger.debug("Load graphql schema")
@@ -47,8 +45,9 @@ async def lifespan(fast_api_app: FastAPI):
         if hasattr(bus.uow, "driver"):
             logger.info("Closing Neo4j driver")
             await bus.uow.driver.close()
-        logger.info("Closing Redis connection pool")
-        await bus.read_model.connection.aclose()
+        if hasattr(bus.state_store, "connection"):
+            logger.info("Closing Redis connection pool")
+            await bus.state_store.connection.aclose()
     logger.info("Finished shutting down")
 
 

@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 
 from neo4j import AsyncTransaction, AsyncDriver, AsyncGraphDatabase, AsyncSession
 
-from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME, MAIL_USERNAME, MAIL_HOST
+from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from src.breedgraph.domain.model.controls import ReadRelease
 
 from src.breedgraph.service_layer.queries.views import AbstractViewsHolder
@@ -16,14 +16,17 @@ from src.breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
 from src.breedgraph.service_layer.application import (
     AbstractAccessControlService,
     OntologyApplicationService,
-    GermplasmApplicationService
+    GermplasmApplicationService,
+    AbstractExtraAggregateService
 )
 from src.breedgraph.adapters.neo4j.services import (
-    Neo4jAccessControlService, Neo4jOntologyPersistenceService, Neo4jGermplasmPersistenceService
+    Neo4jAccessControlService, Neo4jOntologyPersistenceService, Neo4jGermplasmPersistenceService, Neo4jExtraAggregateService
 )
 from src.breedgraph.service_layer.persistence import (
     OntologyPersistenceService, GermplasmPersistenceService
 )
+
+
 from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder, AbstractUnitOfWork
 
 from src.breedgraph.adapters.neo4j.cypher import queries
@@ -40,6 +43,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             controls: AbstractAccessControlService,
             ontology: OntologyApplicationService,
             germplasm: GermplasmApplicationService,
+            extra: AbstractExtraAggregateService,
             repositories: AbstractRepoHolder
     ):
         self.tx = tx
@@ -47,6 +51,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         self.controls = controls
         self.ontology = ontology
         self.germplasm = germplasm
+        self.extra = extra
         self.repositories: AbstractRepoHolder = repositories
 
     async def commit(self):
@@ -61,6 +66,10 @@ class Neo4jUnitHolder(AbstractUnitHolder):
     async def db_is_empty(self) -> bool:
         result = await self.tx.run(queries['infrastructure']['is_empty'])
         return (await result.single())["empty"]
+
+    async def create_constraints(self):
+        logger.info("Creating constraints...")
+        await self.tx.run(queries['infrastructure']['create_constraints'])
 
 
 class Neo4jUnitOfWork(AbstractUnitOfWork):
@@ -119,6 +128,9 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             access_control_service=access_control_service,
             release=release
         )
+        logger.debug("initialize extra aggregate service")
+        extra_aggregate_service: AbstractExtraAggregateService = Neo4jExtraAggregateService(tx)
+
         logger.debug("Build unit of work holder")
         unit_holder = Neo4jUnitHolder(
             tx=tx,
@@ -126,7 +138,8 @@ class Neo4jUnitOfWork(AbstractUnitOfWork):
             controls=access_control_service,
             repositories=repo_holder,
             ontology=ontology_service,
-            germplasm=germplasm_service
+            germplasm=germplasm_service,
+            extra=extra_aggregate_service
         )
         try:
             yield unit_holder

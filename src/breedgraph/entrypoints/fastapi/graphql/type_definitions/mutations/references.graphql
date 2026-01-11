@@ -1,0 +1,92 @@
+enum DataFormat {
+    JSON
+    HDF5
+    CSV
+    TSV
+}
+
+input CreateLegalReferenceInput {
+    description: String
+    text: String!
+}
+
+input CreateExternalReferenceInput {
+    description: String
+    url: String!
+    externalId: String
+}
+
+input CreateExternalDataReferenceInput {
+    description: String
+    url: String!
+    externalId: String
+
+    format: DataFormat!
+    schema: String
+}
+
+input CreateFileReferenceInput {
+    description: String
+    file: Upload!
+}
+
+input CreateDataFileReferenceInput {
+    description: String
+    file: Upload!
+
+    format: DataFormat!
+    schema: String
+}
+
+
+
+input UpdateLegalReferenceInput {
+    description: String
+    text: String!
+}
+
+input UpdateExternalReferenceInput {
+    description: String
+    url: String!
+    externalId: String
+}
+
+input UpdateExternalDataReferenceInput {
+    description: String
+    url: String!
+    externalId: String
+
+    format: DataFormat!
+    schema: String
+}
+
+input UpdateFileReferenceInput {
+    description: String
+    file: Upload
+}
+
+input UpdateDataFileReferenceInput {
+    description: String
+    file: Upload
+
+    format: DataFormat!
+    schema: String
+}
+
+extend type Mutation {
+    referencesCreateLegal(reference: CreateLegalReferenceInput!): BooleanPayload
+    referencesCreateExternal(reference: CreateExternalReferenceInput!): BooleanPayload
+    referencesCreateExternalData(reference: CreateExternalDataReferenceInput!): BooleanPayload
+
+    """As for dataset submissions, creating a file is asynchronous and we are returned a key """
+    referencesCreateFile(reference: CreateFileReferenceInput): FileIdPayload
+    referencesCreateDataFile(reference: CreateDataFileReferenceInput): FileIdPayload
+    
+    referencesUpdateLegal(reference: UpdateLegalReferenceInput!): BooleanPayload
+    referencesUpdateExternal(reference: UpdateExternalReferenceInput!): BooleanPayload
+    referencesUpdateExternalData(reference: UpdateExternalDataReferenceInput!): BooleanPayload
+    referencesUpdateFile(reference: UpdateFileReferenceInput): BooleanPayload
+    referencesUpdateDataFile(reference: UpdateDataFileReferenceInput): BooleanPayload
+    
+    referencesDelete(referenceIds: [Int!]!): BooleanPayload
+}

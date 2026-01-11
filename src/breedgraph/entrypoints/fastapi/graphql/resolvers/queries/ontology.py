@@ -126,6 +126,8 @@ async def get_ontology_entries(
     return ontology_map.values()
 
 async def resolve_ontology_entries(context, entry_ids):
+    if entry_ids is None:
+        return []
     await update_ontology_map(context, entry_ids=entry_ids)
     ontology_map = context.get('ontology_map')
     return [ontology_map[entry_id] for entry_id in entry_ids]

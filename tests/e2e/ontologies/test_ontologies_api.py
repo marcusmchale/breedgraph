@@ -1,7 +1,7 @@
 import pytest
 
 from src.breedgraph.domain.model.ontology import *
-from src.breedgraph.service_layer.handlers.commands.setup import load_read_model
+
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.ontologies.post_methods import (
     post_to_create_term,

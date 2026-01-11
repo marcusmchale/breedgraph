@@ -20,8 +20,9 @@ input UnitInput {
     ID of Subject in the ontology
     """
     subjectId: Int!
+    germplasmId: Int
+
     name: String
-    synonyms: [String]
     description: String
     """
     IDs of parent Units, of which this unit forms a component
@@ -35,17 +36,18 @@ input UnitInput {
 
 input UnitUpdate {
     unitId: Int!
-    subjectId: Int!
+    subjectId: Int
+    germplasmId: Int
     name: String
-    synonyms: [String]
     description: String
     parentIds: [Int]
     childrenIds: [Int]
 }
 
 extend type Mutation {
-    blocksCreateUnit(unit: UnitInput!): BooleanPayload!
+    blocksCreateUnit(unit: UnitInput!, position: PositionInput): BooleanPayload!
     blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!
     blocksDeleteUnit(unitId: Int!): BooleanPayload!
-    blocksAddPosition(unitId: Int!, position: PositionInput): BooleanPayload!
+    blocksAddPosition(unitId: Int!, position: PositionInput!): BooleanPayload!
+    blocksRemovePosition(unitId: Int!, position: PositionInput!): BooleanPayload!
 }

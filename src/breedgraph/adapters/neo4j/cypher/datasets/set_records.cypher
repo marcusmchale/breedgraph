@@ -4,12 +4,12 @@ ORDER BY cnt
   MATCH (record:Record {id: record_data['id']})
   SET
     record.value = record_data['value'],
-    record.start = datetime(record_data['start']['str']),
-    record.start_unit = record_data['start']['unit'],
-    record.start_step = record_data['start']['step'],
-    record.end = datetime(record_data['end']['str']),
-    record.end_unit = record_data['end']['unit'],
-    record.end_step = record_data['end']['step']
+    record.start = record_data['start'],
+    record.start_unit = record_data['start_unit'],
+    record.start_step = record_data['start_step'],
+    record.end = record_data['end'],
+    record.end_unit = record_data['end_unit'],
+    record.end_step = record_data['end_step']
   WITH record_data, record
   //Update Unit
   CALL {

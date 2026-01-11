@@ -13,10 +13,9 @@ type GeoCoordinate {
 
 type Location {
     """
-    ID is not always required for location
-    We return Country LocationInputs that are not yet stored using this type
+    Stored Locations
     """
-    id: Int
+    id: Int!
     name: String!
     type: OntologyEntryInterface
     code: String
@@ -24,6 +23,20 @@ type Location {
     description: String
     address: String
     coordinates: [GeoCoordinate]
+    """ The root location for this region, for the root location this references itself. """
+    region: Location
     parent: Location
     children: [Location]
+}
+
+
+type LocationTemplate {
+    name: String!
+    """ Optional code for location, e.g. zip-code """
+    code: String
+    description: String
+    address: String
+    coordinates: [GeoCoordinate]
+    """ Ontology LocationType identifier """
+    typeId: Int!
 }

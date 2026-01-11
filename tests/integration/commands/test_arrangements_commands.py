@@ -14,6 +14,7 @@ async def test_add_layout_command_simple(
         lorem_text_generator
 ):
     async with bus.uow.get_uow(user_id=first_account_with_all_affiliations.user.id) as uow:
+
         named_layout_type = await uow.ontology.get_entry(name="Named", label=OntologyEntryLabel.LAYOUT_TYPE)
         location_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         location = next(basic_region.yield_locations_by_type(location_type.id))

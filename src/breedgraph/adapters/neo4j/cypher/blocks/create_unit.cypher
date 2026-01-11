@@ -16,24 +16,30 @@ CALL (unit) {
   CREATE (unit)-[:OF_SUBJECT]->(subject)
   RETURN collect(subject.id)[0] AS subject
 }
+//Link to germplasm (optional)
+OPTIONAL CALL (unit) {
+  MATCH (germplasm: Germplasm {id: $germplasm})
+  CREATE (unit)-[:OF_GERMPLASM]->(germplasm)
+  RETURN collect(germplasm.id)[0] as germplasm
+}
 // Link to positions
 CALL (unit) {
   UNWIND $positions as position_map
-  MATCH (location:Location {id: position_map['location']})
-  OPTIONAL MATCH (layout: Layout {id: position_map['layout']})
+  MATCH (location:Location {id: position_map['location_id']})
+  OPTIONAL MATCH (layout: Layout {id: position_map['layout_id']})
   CREATE (unit)-[:IN_POSITION]->(position:Position {
     coordinates: position_map['coordinates'],
     start: datetime(position_map['start']),
-    start_unit: position_map['start_unit'],
-    start_step: position_map['start_step'],
+    start_unit: coalesce(position_map['start_unit'], NULL),
+    start_step: coalesce(position_map['start_step'], NULL),
     end:   datetime(position_map['end']),
-    end_unit:   position_map['end_unit'],
-    end_step:   position_map['end_step']
+    end_unit:   coalesce(position_map['end_unit'], NULL),
+    end_step:   coalesce(position_map['end_step'], NULL)
   })-[:AT_LOCATION]->(location)
   FOREACH(i in CASE WHEN layout IS NOT NULL THEN [1] ELSE [] END |
     MERGE (position)-[:IN_LAYOUT]->(layout)
   )
-  RETURN collect(position {.*, location: location.id, layout: layout.id}) AS positions
+  RETURN collect(position {.*, location_id: location.id, layout_id: layout.id}) AS positions
 }
 RETURN
   unit {

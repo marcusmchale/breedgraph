@@ -16,3 +16,39 @@ type DataSet {
     contributors: [Person]
     references: [Reference]
 }
+
+type SubmittedRecord {
+    id: Int  # may be null if a new record, or provided if an update
+    unitId: Int!
+    value: String
+    start: DateTime
+    end: DateTime
+    referenceIds: [Int]
+}
+
+type SubmittedData {
+    conceptId: Int!
+    records: [SubmittedRecord]
+    contributors: [Person]
+    references: [Reference]
+}
+
+enum SubmissionStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+}
+
+type ItemError {
+    index: Int!
+    error: String!
+}
+
+type Submission {
+    data: SubmittedData
+    datasetId: Int
+    status: SubmissionStatus
+    errors: [String]
+    itemErrors: [ItemError]
+}

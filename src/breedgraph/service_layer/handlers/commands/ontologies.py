@@ -192,6 +192,9 @@ async def create_scale(cmd: commands.ontologies.CreateScale, uow: AbstractUnitOf
         entry = await ontology_service.create_entry(entry, cmd.parent_ids, cmd.child_ids)
         for term_id in cmd.term_ids or []:
             await ontology_service.link_to_term(source_id=entry.id, source_label=entry.label, term_id=term_id)
+        if cmd.category_ids:
+            for category_id in cmd.category_ids:
+                await ontology_service.link_to_category(scale_id=entry.id, category_id=category_id)
         await uow_holder.commit()
 
 @handlers.command_handler()

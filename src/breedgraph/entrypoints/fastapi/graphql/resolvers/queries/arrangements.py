@@ -38,6 +38,11 @@ async def get_layouts(_, info, layout_ids: List[int]) -> List[LayoutOutput]:
     layouts_map = info.context.get('layouts_map')
     return [layouts_map.get(i) for i in layout_ids]
 
+@layout.field("arrangement")
+async def resolve_arrangement(obj, info) -> LayoutOutput:
+    await update_layouts_map(info.context, layout_ids=[obj.arrangement])
+    return info.context.get('layouts_map').get(obj.arrangement)
+
 @layout.field("parent")
 async def resolve_parent(obj, info) -> LayoutOutput:
     await update_layouts_map(info.context, layout_ids=[obj.parent])

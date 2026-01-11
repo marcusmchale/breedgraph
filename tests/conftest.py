@@ -20,7 +20,7 @@ from src.breedgraph.adapters.aiosmtp import EmailNotifications
 from src.breedgraph.config import get_base_url, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
 from src.breedgraph import bootstrap
 from src.breedgraph.service_layer.messagebus import MessageBus
-from src.breedgraph.adapters.redis.read_model import ReadModel
+from src.breedgraph.adapters.redis.state_store import RedisStateStore
 from src.breedgraph.custom_exceptions import IdentityExistsError
 
 from src.breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES
@@ -116,14 +116,14 @@ async def bus(neo4j_uow, email_notifications) -> AsyncGenerator[MessageBus, None
 #
 
 @pytest_asyncio.fixture(scope="session")
-async def read_model(bus) -> AsyncGenerator[ReadModel, None]:
-    yield bus.read_model
+async def state_store(bus) -> AsyncGenerator[RedisStateStore, None]:
+    yield bus.state_store
     # flush read-model when done with tests
-    await bus.read_model.connection.flushdb()
-    await bus.read_model.connection.aclose()
+    await bus.state_store.connection.flushdb()
+    await bus.state_store.connection.aclose()
 
 @pytest_asyncio.fixture(scope="session")
-async def session_database(read_model, neo4j_uow) -> AsyncGenerator[None, None]:
+async def session_database(state_store, neo4j_uow) -> AsyncGenerator[None, None]:
     yield
     logger.debug("Starting database cleanup...")
     try:
@@ -250,55 +250,35 @@ async def basic_ontology(bus, first_account_with_all_affiliations, lorem_text_ge
             observation_method_id=method.id,
             scale_id=mm_scale.id
         )
-        genotype_scale = await ontology_service.create_entry(
+        light_scale = await ontology_service.create_entry(
             ScaleInput(
-                name="Genotype",
-                synonyms=["Variety", "Cultivar","Germplasm"],
-                scale_type=ScaleType.GERMPLASM,
-                description="A genotype reference from Germplasm"
+                name="Einsteins",
+                synonyms=["umol/m2/s"],
+                scale_type=ScaleType.NUMERICAL,
+                description="Average light intensity at leaf surface near shoot apical meristem"
             )
         )
-        genotype_condition = await ontology_service.create_entry(
+        light_condition = await ontology_service.create_entry(
             ConditionInput(
-                name="Genotype",
-                synonyms=["Variety", "Cultivar","Germplasm"],
-                description="Genotype of the subject"
+                name="Light level",
+                synonyms=["Light intensity"],
+                description="Light intensity during the day"
             )
         )
-        genotypes_condition = await ontology_service.create_entry(
-            ConditionInput(
-                name="Genotypes",
-                description="Genotypes associated with subject"
-            )
-        )
-        genotype_method = await ontology_service.create_entry(
+        light_method = await ontology_service.create_entry(
             ControlMethodInput(
-                name="Genotype",
-                synonyms=["Germplasm"],
-                description="Germplasm obtained from controlled source"
-            )
-        )
-        variety_method = await ontology_service.create_entry(
-            ControlMethodInput(
-                name="Variety",
-                description="Varieties as reported by locals"
+                name="Fluorescent lighting",
+                synonyms=["Artificial lighting"],
+                description="Artificial lighting provided by fluorescent light tubes"
             )
         )
         await ontology_service.create_factor(
             FactorInput(
-                name="Genotype"
+                name="Light"
             ),
-            condition_id=genotype_condition.id,
-            control_method_id=genotype_method.id,
-            scale_id=genotype_scale.id
-        )
-        await ontology_service.create_factor(
-            FactorInput(
-                name="Genotypes"
-            ),
-            condition_id=genotypes_condition.id,
-            control_method_id=variety_method.id,
-            scale_id=genotype_scale.id
+            condition_id=light_condition.id,
+            control_method_id=light_method.id,
+            scale_id=light_scale.id
         )
         # In case country type is already found:
         country_type = await ontology_service.get_entry(name="Country", label=OntologyEntryLabel.LOCATION_TYPE)
@@ -416,7 +396,7 @@ async def basic_region(
     ) as uow:
         # create a new region, from the available countries, it may exist in which case skip to the next
         region = None
-        async for country in bus.read_model.get_countries():
+        async for country in bus.state_store.get_countries():
             try:
                 region = await uow.repositories.regions.create(country)
                 break
@@ -492,7 +472,7 @@ async def basic_block(
             description="The big field at the end of the road",
             positions=[
                 Position(
-                    location=field_location.id,
+                    location_id=field_location.id,
                     start=datetime64("2010")
                 )
             ]
@@ -502,9 +482,9 @@ async def basic_block(
             name="First Tree",
             positions=[
                 Position(
-                    location=field_location.id,
+                    location_id=field_location.id,
                     start=datetime64("2010"),
-                    layout=field_arrangement.get_root_id(),
+                    layout_id=field_arrangement.get_root_id(),
                     coordinates=["1", "1"],
                     end=datetime64("2025")
                 )

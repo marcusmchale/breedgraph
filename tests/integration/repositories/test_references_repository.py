@@ -6,13 +6,13 @@ from src.breedgraph.domain.model.organisations import Access
 from src.breedgraph.domain.model.references import (
     ExternalReferenceInput,
     FileReferenceInput,
-    DataExternalInput,
+    ExternalDataInput,
     DataFileInput,
     LegalReferenceInput,
 
     ExternalReferenceStored,
     FileReferenceStored,
-    DataExternalStored,
+    ExternalDataStored,
     DataFileStored,
     LegalReferenceStored
 )

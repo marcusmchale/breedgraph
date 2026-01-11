@@ -43,3 +43,6 @@ export HOST_ADDRESS='localhost'
 export HOST_PORT=8000
 export GQL_API_PATH='graphql'
 export VUE_PORT=8080
+
+# Pathing
+export FILE_STORAGE_PATH="./file_store"

@@ -1,8 +1,12 @@
 __pycache__
 .pytest_cache
+
 /instance/envars.sh
+/instance/file_store/
+
 /src/data/
 /logs/
+
 /venv
 /.venv
 /.idea
@@ -10,3 +14,4 @@ __pycache__
 /erd/.venv/
 /erd/figures/
 /erd/logs/
+

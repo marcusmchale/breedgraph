@@ -1,14 +1,15 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
+from typing import List
 
-async def post_to_create_dataset(client, token:str, concept_id: int):
+async def post_to_create_dataset(client, token:str, dataset: dict):
     json={
         "query": (
             " mutation ( "
-            "  $conceptId: Int!"
+            "  $dataset: DatasetInput!"
             " ) { "
             "  datasetsCreateDataset( "
-            "    conceptId: $conceptId "
+            "    dataset: $dataset "
             "  ) { "
             "    status, "
             "    result, "
@@ -17,7 +18,7 @@ async def post_to_create_dataset(client, token:str, concept_id: int):
             " } "
         ),
         "variables": {
-            "conceptId": concept_id
+            "dataset": dataset
         }
     }
     headers = with_auth(
@@ -28,14 +29,17 @@ async def post_to_create_dataset(client, token:str, concept_id: int):
     return response
 
 
-async def post_to_add_record(client, token:str, record: dict):
+
+async def post_to_add_records(client, token:str, dataset_id: int, records: List[dict]):
     json={
         "query": (
             " mutation ( "
-            "  $record: RecordInput!"
+            "  $datasetId: Int! "
+            "  $records: [RecordInput!]!"
             " ) { "
-            "  datasetsAddRecord( "
-            "    record: $record "
+            "  datasetsAddRecords( "
+            "    datasetId: $datasetId "
+            "    records: $records "
             "  ) { "
             "    status, "
             "    result, "
@@ -44,7 +48,34 @@ async def post_to_add_record(client, token:str, record: dict):
             " } "
         ),
         "variables": {
-            "record": record
+            "datasetId": dataset_id,
+            "records": records
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_update_dataset(client, token:str, dataset:dict):
+    json={
+        "query": (
+            " mutation ( "
+            "  $dataset: DatasetUpdate!"
+            " ) { "
+            "  datasetsUpdateDataset( "
+            "    dataset: $dataset "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "dataset": dataset
         }
     }
     headers = with_auth(
@@ -78,6 +109,39 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, c
         "variables": {
             "datasetId": dataset_id,
             "conceptId": concept_id
+
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
+
+async def post_to_get_dataset_submission(client, token:str, submission_id: str):
+    json={
+        "query": (
+            " query ( "
+            "  $submissionId: String!"
+            " ) { "
+            "  datasetsSubmission( "
+            "    submissionId: $submissionId "
+            "  ) { "
+            "    status, "
+            "    result { "
+            "       status,"
+            "       errors,"
+            "       itemErrors { index, error } "
+            "    }, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "submissionId": submission_id
 
         }
     }

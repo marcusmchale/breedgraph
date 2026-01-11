@@ -393,7 +393,8 @@ class TrackedList(ObjectProxy, MutableSequence, TrackableProtocol):
         self.changed.add(i)
         self.on_changed()
 
-    def _shift_indices(self, indices: set, threshold_index: int, increment: True):
+    @staticmethod
+    def _shift_indices(indices: set, threshold_index: int, increment: bool = True):
         for j in indices.copy():
             if j >= threshold_index:
                 indices.remove(j)

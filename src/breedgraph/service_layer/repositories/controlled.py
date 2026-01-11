@@ -96,7 +96,7 @@ class ControlledRepository(
         controllers = await self.access_control_service.get_controllers_for_aggregate(aggregate)
         if not aggregate.can_remove(controllers, self.user_id, self.access_teams[Access.CURATE]):
             raise UnauthorisedOperationError(
-                f"Removal requires curate permission for all teams that control entities in this {aggregate.root.label.label}"
+                f"Removal requires curate permission"
             )
         await self._remove_controlled(aggregate)
 
@@ -113,14 +113,14 @@ class ControlledRepository(
             if isinstance(model, ControlledModel):
                 controller = controllers[model.label][model.id]
                 if not controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE]):
-                    raise UnauthorisedOperationError(f"Curate affiliation is required to remove {model.label} (id: {model.id})")
+                    raise UnauthorisedOperationError(f"Removal requires curate permission")
 
         for model in aggregate.changed_models:
             if isinstance(model, ControlledModel):
                 controller = controllers[model.label][model.id]
                 if not controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE]):
                     raise UnauthorisedOperationError(
-                        f"Curate affiliation is required to change {model.label} (id: {model.id})")
+                        f"Editing requires curate permission")
 
         await self._update_controlled(aggregate)
 
@@ -157,7 +157,7 @@ class ControlledRepository(
         # Check authorization for this specific entity
         if not controller.has_access(Access.ADMIN, access_teams=self.access_teams[Access.ADMIN]):
             raise UnauthorisedOperationError(
-                f"Admin affiliation required to change access controls for {entity.label} (id: {entity.id})")
+                f"Changing access controls requires admin permission")
         # Set controls for this specific entity
         await self.access_control_service.set_controls(
             entity,  # Single entity, not aggregate

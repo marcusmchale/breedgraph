@@ -4,7 +4,7 @@ from tests.e2e.utils import with_auth
 
 from typing import List
 
-async def post_to_set_controls(
+async def post_to_set_release(
         client,
         token: str,
         entity_label: ControlledModelLabel,
@@ -13,8 +13,8 @@ async def post_to_set_controls(
 ):
     json={
         "query": (
-            " mutation ( $entityLabel: ControlledModelLabel!, $entityIds: [Int]!, $release: ReadRelease!) { "
-            "  controlsSetControls( "
+            " mutation ( $entityLabel: ControlledModelLabel!, $entityIds: [Int!]!, $release: ReadRelease!) { "
+            "  controlsSetRelease( "
             "   entityLabel: $entityLabel  "
             "   entityIds: $entityIds "
             "   release: $release "

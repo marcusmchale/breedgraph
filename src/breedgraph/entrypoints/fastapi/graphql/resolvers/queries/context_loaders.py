@@ -190,7 +190,7 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
             context['layouts_map'] = layouts_map
             context['arrangement_roots'] = arrangement_roots
 
-async def update_units_map(context, location_id: int | None = None, unit_ids: List[int] | None = None):
+async def update_units_map(context, location_ids: List[int] | None = None, unit_ids: List[int] | None = None):
     async with _get_lock(context, '_units_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
@@ -201,12 +201,12 @@ async def update_units_map(context, location_id: int | None = None, unit_ids: Li
             block_roots = context.get('block_roots', list())
 
             if unit_ids is None and not units_map:
-                async for block in uow.repositories.blocks.get_all(location_id=location_id):
+                async for block in uow.repositories.blocks.get_all(location_ids=location_ids):
                     units_map.update(block.to_output_map())
                     block_roots.append(block.root.id)
 
             if unit_ids is not None:
-                unmapped = units_map.keys - set(unit_ids)
+                unmapped = set(unit_ids) - units_map.keys()
                 if unmapped:
                     for unit_id in unmapped:
                         if unit_id in units_map:

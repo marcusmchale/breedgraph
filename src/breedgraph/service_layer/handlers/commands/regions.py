@@ -2,7 +2,7 @@ from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput, GeoCoordinate
 
-from src.breedgraph.adapters.redis.read_model import ReadModel
+from src.breedgraph.adapters.redis.state_store import RedisStateStore
 from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
 
 from src.breedgraph.custom_exceptions import IdentityExistsError
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def create_location(
         cmd: commands.regions.CreateLocation,
         uow: AbstractUnitOfWork,
-        read_model: ReadModel
+        state_store: RedisStateStore
 ):
     if cmd.parent_id is None:
         logger.warning("Root locations must have public read-access, forcing release level to Public")
@@ -34,7 +34,7 @@ async def create_location(
 
     async with uow.get_uow(user_id=cmd.agent_id, release=release) as uow:
         if cmd.parent_id is None:
-            country = await read_model.get_country(cmd.code)
+            country = await state_store.get_country(cmd.code)
             if country is None:
                 raise ValueError(
                     "Locations without parent must have 3-letter code of Country according to ISO3166."
@@ -68,6 +68,8 @@ async def update_location(
             location.name = cmd.name
         if cmd.code is not None:
             location.code = cmd.code
+        if cmd.type_id is not None:
+            location.type = cmd.type_id
         if cmd.fullname is not None:
             location.fullname = cmd.fullname
         if cmd.description is not None:
@@ -78,6 +80,7 @@ async def update_location(
             location.coordinates = [GeoCoordinate(**coord.model_dump()) for coord in cmd.coordinates]
         if cmd.parent_id is not None:
             region.change_source(node_id=cmd.location_id, parent_id=cmd.parent_id)
+
         await uow.repositories.regions.update_seen()
         await uow.commit()
 

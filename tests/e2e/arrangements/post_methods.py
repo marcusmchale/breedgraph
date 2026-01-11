@@ -1,5 +1,6 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
+from typing import List
 
 async def post_to_create_layout(
     client,
@@ -66,14 +67,14 @@ async def post_to_arrangements(client, location_id: int=None, token:str = None):
     return response
 
 
-async def post_to_layout(client, layout_id: int, token:str = None):
+async def post_to_layouts(client, layout_ids: List[int], token:str = None):
     json = {
         "query": (
             " query ("
-            "   $layoutId : Int!"
+            "   $layoutIds : [Int!]!"
             " ) { "
-            "  arrangementsLayout ( "
-            "  layoutId: $layoutId,"
+            "  arrangementsLayouts ( "
+            "  layoutIds: $layoutIds,"
             "  ) {"
             "    status, "
             "    result { "
@@ -90,7 +91,7 @@ async def post_to_layout(client, layout_id: int, token:str = None):
             " } "
         ),
         "variables": {
-            "layoutId": layout_id,
+            "layoutIds": layout_ids,
         }
     }
     headers = with_auth(

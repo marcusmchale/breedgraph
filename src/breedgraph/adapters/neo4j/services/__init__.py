@@ -1,3 +1,4 @@
 from .access_control_service import Neo4jAccessControlService
 from .ontology_persistence import Neo4jOntologyPersistenceService
 from .germplasm_persistence import Neo4jGermplasmPersistenceService
+from .extra_aggregate_service import Neo4jExtraAggregateService

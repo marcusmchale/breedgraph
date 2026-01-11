@@ -15,7 +15,7 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
         self.seen: Dict[TrackedObject|TAggregate,TrackedObject|TAggregate] = dict()
 
     @staticmethod
-    def deserialize_dt64(record: dict):
+    def deserialize_dt64(record: dict) -> dict:
         if record.get('submitted', None) is not None:
             record['submitted'] = deserialize_time(record['submitted'])
         if record.get('start', None) is not None:
@@ -24,9 +24,10 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
             record['end'] = deserialize_time(record['end'], record.pop('end_unit'), record.pop('end_step'))
         if record.get('time', None) is not None:
             record['time'] = deserialize_time(record['time'], record.pop('time_unit'), record.pop('time_step'))
+        return record
 
     @staticmethod
-    def serialize_dt64(record: dict, to_neo4j: bool = False):
+    def serialize_dt64(record: dict, to_neo4j: bool = False) -> dict:
         if record.get('submitted', None) is not None:
             record.pop('submitted')  # we don't want to update submitted timestamp, this is set by neo4j tx
         if record.get('start', None) is not None:
@@ -50,6 +51,7 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
                 'time_unit': serialized['unit'],
                 'time_step': serialized['step']
             })
+        return record
 
     def _track(self, aggregate: TAggregate) -> Union[TrackedObject|TAggregate]:
         # Check if this aggregate is already being tracked,

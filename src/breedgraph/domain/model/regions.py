@@ -66,6 +66,7 @@ class LocationStored(LocationBase, ControlledModel):
 
 @dataclass
 class LocationOutput(LocationBase, StoredModel, EnumLabeledModel):
+    region: int = None
     parent: int | None = None
     children: list[int] = field(default_factory=list)
 
@@ -89,6 +90,7 @@ class Region(ControlledTreeAggregate):
     def to_output_map(self) -> dict[int, LocationOutput]:
         return {node: LocationOutput(
             **self.get_location(node).model_dump(),
+            region=self.get_root_id(),
             parent=self.get_parent_id(node),
             children=self.get_children_ids(node)
         ) for node in self._graph}

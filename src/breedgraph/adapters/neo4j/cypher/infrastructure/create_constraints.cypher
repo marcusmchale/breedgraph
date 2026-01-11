@@ -1,0 +1,13 @@
+CREATE CONSTRAINT FOR (counter:Counter) REQUIRE counter.name IS UNIQUE;
+CREATE CONSTRAINT FOR (user:User) REQUIRE user.id IS UNIQUE;
+CREATE CONSTRAINT FOR (team:Team) REQUIRE team.id IS UNIQUE;
+CREATE CONSTRAINT FOR (ontologyEntry:OntologyEntry) REQUIRE ontologyEntry.id IS UNIQUE;
+CREATE CONSTRAINT FOR (ontologyRelationship:OntologyRelationship) REQUIRE OntologyRelationship.id IS UNIQUE;
+CREATE CONSTRAINT FOR (germplasm:Germplasm) REQUIRE germplasm.id IS UNIQUE;
+CREATE CONSTRAINT FOR (program:Program) REQUIRE program.id IS UNIQUE;
+CREATE CONSTRAINT FOR (study:Study) REQUIRE study.id IS UNIQUE;
+CREATE CONSTRAINT FOR (trial:Trial) REQUIRE trial.id IS UNIQUE;
+CREATE CONSTRAINT FOR (location:Location) REQUIRE location.id IS UNIQUE;
+CREATE CONSTRAINT FOR (layout:Layout) REQUIRE layout.id IS UNIQUE;
+CREATE CONSTRAINT FOR (unit:Unit) REQUIRE unit.id IS UNIQUE;
+CREATE CONSTRAINT FOR (dataset:DataSet) REQUIRE dataset.id IS UNIQUE;

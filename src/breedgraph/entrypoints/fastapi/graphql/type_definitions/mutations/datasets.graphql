@@ -1,5 +1,4 @@
 input RecordInput {
-    datasetId: Int!
     unitId: Int!
     value: String
     start: DateTime
@@ -7,8 +6,43 @@ input RecordInput {
     referenceIds: [Int]
 }
 
+input RecordUpdate {
+    recordId: Int!
+    unitId: Int
+    value: String
+    start: DateTime
+    end: DateTime
+    referenceIds: [Int]
+}
+
+input DatasetInput {
+    """ concept is either a Factor or Variable in the ontology """
+    conceptId: Int!
+    records: [RecordInput]
+    contributorIds: [Int!]
+    referenceIds: [Int!]
+}
+
+input DatasetUpdate {
+    """
+    Optionally provide a list of records to update
+    """
+    datasetId: Int!
+    conceptId: Int
+    records: [RecordUpdate]
+    contributorIds: [Int!]
+    referenceIds: [Int!]
+}
+
 extend type Mutation {
-    """For each dataset the concept is the Variable or Factor from the Ontology to which this data corresponds"""
-    datasetsCreateDataset(conceptId: Int!): BooleanPayload!
-    datasetsAddRecord(record: RecordInput): BooleanPayload!
+    """
+    Submission Payloads include a key, the dataset is processed asynchronously,
+    you can check status and errors at the
+    """
+    datasetsCreateDataset(dataset: DatasetInput!): SubmissionIdPayload!,
+    datasetsUpdateDataset(dataset: DatasetUpdate!): SubmissionIdPayload!
+    """Extend an existing dataset with new records"""
+    datasetsAddRecords(datasetId: Int!, records:[RecordInput]): SubmissionIdPayload!
+    """Delete records from a dataset"""
+    datasetsRemoveRecords(datasetId: Int!, recordIds: [Int!]): BooleanPayload!
 }

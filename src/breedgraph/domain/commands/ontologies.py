@@ -80,6 +80,7 @@ class CreateCondition(Command, CreateEntryBase):
 
 class CreateScale(Command, CreateEntryBase):
     scale_type: ScaleType
+    category_ids: List[int] | None = None
     term_ids: List[int] | None = None
 
 class CreateScaleCategory(Command, CreateEntryBase):

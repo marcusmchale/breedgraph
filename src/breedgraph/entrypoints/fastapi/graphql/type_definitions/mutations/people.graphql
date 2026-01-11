@@ -1,0 +1,22 @@
+input PersonInput {
+    name: String!
+    fullname: String
+}
+
+input PersonUpdate {
+    id: Int!
+    name: String
+    fullname: String
+}
+
+extend type Mutation {
+    peopleCreatePerson(
+        person: PersonInput!
+    ): BooleanPayload!,
+    peopleUpdatePerson(
+        person: PersonUpdate!
+    ): BooleanPayload!,
+    peopleDeletePerson(
+        personId: Int!
+    ): BooleanPayload!
+}

@@ -77,7 +77,7 @@ class TestGermplasmServiceIntegration:
             description="Seed selection from crop"
         )
         # create source relationships
-        await germplasm_service.create_relationship(relationship)
+        await germplasm_service.create_relationships([relationship])
         # Act - Get source relationships
         async for rel in germplasm_service.get_source_relationships(created_variety.id):
             if rel.source_id == example_crop.id:

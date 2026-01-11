@@ -126,9 +126,6 @@ async def login(
                 f"Too many failed attempts. Please try again in {ttl} seconds."
             )
 
-        remaining = await brute_force_service.get_remaining_attempts(username)
-        logger.debug(f"Login attempt for {username}, remaining attempts: {remaining}")
-
     async with info.context['bus'].uow.get_uow() as uow:
         account = await uow.repositories.accounts.get(name=username)
         if not account:
@@ -194,7 +191,7 @@ async def logout(_, info) -> bool:
     }
     info.context["cookies_to_set"].append(cookie_data)
 
-    logger.debug(f"Auth token cookie queued for removal for user {user_id}")
+    logger.debug(f"Auth token cookie set to expire immediately for user {user_id}")
     return True
 
 

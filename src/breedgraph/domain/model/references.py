@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
-from uuid import UUID, uuid4
 from enum import Enum
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
@@ -82,12 +81,8 @@ File reference
 @dataclass(eq=False)
 class FileReferenceBase(ReferenceBase):
     filename: str = None  # filename
-    uuid: UUID | None = uuid4()  # for file datastore. # normally required, but allow none for redacted return
+    uuid: str | None = None # name in file datastore.
 
-    def model_dump(self) -> Dict[str, Any]:
-        dump = asdict(self)
-        dump.update(uuid = str(self.uuid))
-        return dump
 
 @dataclass
 class FileReferenceInput(FileReferenceBase, EnumLabeledModel):
@@ -127,15 +122,15 @@ class DataReferenceBase(ReferenceBase):
 
 
 @dataclass(eq=False)
-class DataExternalBase(DataReferenceBase, ExternalReferenceBase):
+class ExternalDataBase(DataReferenceBase, ExternalReferenceBase):
     pass
 
 @dataclass
-class DataExternalInput(DataExternalBase, EnumLabeledModel):
+class ExternalDataInput(ExternalDataBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
-class DataExternalStored(DataExternalBase, ExternalReferenceStored):
+class ExternalDataStored(ExternalDataBase, ExternalReferenceStored):
     pass
 
 @dataclass(eq=False)

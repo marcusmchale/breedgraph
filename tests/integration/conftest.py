@@ -126,14 +126,17 @@ async def regions_repo(uncommitted_neo4j_tx, neo4j_access_control_service) -> As
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def example_region(regions_repo, read_model, country_type) -> AsyncGenerator[Region, None]:
-    async for c in regions.countries(read_model):
+async def example_region(regions_repo, state_store, country_type) -> AsyncGenerator[Region, None]:
+    async for c in regions.countries(state_store):
         if isinstance(c, LocationInput):
             country_input = c
+            try:
+                stored: Region = await regions_repo.create(country_input)
+            except Exception as e:
+                continue
             break
     else:
         raise ValueError('No input LocationInputs found in read model countries')
-    stored: Region = await regions_repo.create(country_input)
     yield stored
 
 @pytest_asyncio.fixture(scope='session')
@@ -361,7 +364,7 @@ async def example_variety(
         references=[example_external_reference.id]
     )
     entry = await germplasm_service.create_entry(new_entry)
-    await germplasm_service.create_relationship(GermplasmRelationship(source_id = example_crop.id, sink_id= entry.id))
+    await germplasm_service.create_relationships([GermplasmRelationship(source_id = example_crop.id, sink_id= entry.id)])
     yield entry
 
 @pytest_asyncio.fixture(scope='session')
@@ -385,8 +388,8 @@ async def tree_block(
         description="The first tree planted",
         positions=[
             Position(
-                location=field_location.id,
-                layout=example_arrangement.root.id,
+                location_id=field_location.id,
+                layout_id=example_arrangement.root.id,
                 coordinates=["1","1"],
                 start=datetime64("2010")
             )
@@ -408,8 +411,8 @@ async def second_tree_block(
         description="The second tree planted",
         positions=[
             Position(
-                location=field_location.id,
-                layout=example_arrangement.root.id,
+                location_id=field_location.id,
+                layout_id=example_arrangement.root.id,
                 coordinates=["1","2"],
                 start=datetime64("2010")
             )

@@ -683,13 +683,17 @@ class OntologyApplicationService:
         relationship = TermRelationship.build(source_id=source_id, term_id=term_id, source_label=source_label)
         await self.create_relationship(relationship)
 
+    async def link_to_category(self, scale_id, category_id):
+        relationship = CategoryRelationship.build(scale_id=scale_id, category_id=category_id, source_label=OntologyEntryLabel.SCALE)
+        await self.create_relationship(relationship)
+
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update the properties of a relationship"""
         # Update reverts any relationship to draft phase
         lifecycle = await self._get_relationship_lifecycle(relationship.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
-            if not self.role == OntologyRole.EDITOR:
-                raise IllegalOperationError("Only Editors may alter relationships that have progressed beyond Draft")
+            if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+                raise IllegalOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
             # any edit reverts the relationship to draft
             current_version = await self.get_current_version()
             await self.revert_relationship_to_draft(relationship.id, current_version)
@@ -769,7 +773,7 @@ class OntologyApplicationService:
         relationships = [rel async for rel in self.persistence.get_relationships(
                 entry_ids = [scale_id], labels = [OntologyRelationshipLabel.HAS_CATEGORY]
         )]
-        relationships.sort(key=lambda x: x.rank)
+        relationships.sort(key=lambda x: x.rank or x.id)
         return [rel.target_id for rel in relationships]
 
     # Scale operations

@@ -60,7 +60,6 @@ enum OntologyEntryLabel {
     For Nominal and Ordinal types, additional Category references may be provided.
     Examples:
     "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
-    "Plant Genetic Material" is ScaleType nominal, and categories should include references to GermplasmEntries.
     """
     SCALE
     """
@@ -101,7 +100,7 @@ enum OntologyEntryLabel {
     """
     Control method entries describe the way a value is maintained for an experiment.
     These are linked to Factor.
-    Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
+    Examples: "Fluorescent Lighting", "Fertilizer application"
     """
     CONTROL_METHOD
     """
@@ -235,8 +234,6 @@ enum ControlMethodType{
     CHEMICAL
     """ Biological controls, e.g. microbial treatment, fungal inoculation, insect colonization"""
     BIOLOGICAL
-    """ Genetic controls, e.g. germplasm selection """
-    GENETIC
     """ Management controls, e.g. cropping density, pruning """
     MANAGEMENT
 }
@@ -248,7 +245,6 @@ enum ScaleType {
     NOMINAL,
     ORDINAL,
     TEXT,
-    GERMPLASM,
     COMPLEX
 }
 
@@ -384,13 +380,12 @@ Scale entries describe the units, classes or dimensions for values associated wi
 Scale entries require a ScaleType.
 For Nominal and Ordinal types, additional Category references may be provided.
 Ordinal scales represent the rank of categories by their presentation order.
-Germplasm scales reference GermplasmEntries
+
 Complex scales allow for the description of data that cannot be represented by simple values (integer, float, string), nor by
-internal references like Germplasm or Categorical (nominal or ordinal) scales.
+internal references like Categorical (nominal or ordinal) scales.
 Examples:
 "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
-"Plant Genetic Material" would be ScaleType Germplasm
-"MAG abundance" would be ScaleType complex, with associated datasets providing references to stored files, e.g. in HDF5 format.
+"MAG abundance" would be ScaleType complex, with associated datasets or records each providing references to stored files, e.g. in HDF5 format.
 
 """
 type Scale implements OntologyEntryInterface & RelatedToTerms {
@@ -498,7 +493,7 @@ type Variable implements OntologyEntryInterface & RelatedToTerms {
 """
 Control method entries describe the way a value is maintained for an experiment.
 These are linked to Factor.
-Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
+Examples: "Fluorescent Lighting", "Fertilizer application"
 """
 type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
     id: Int!
@@ -575,27 +570,6 @@ type Event implements OntologyEntryInterface & RelatedToTerms {
 
     variables: [Variable]
     factors: [Factor]
-}
-
-"""
-Germplasm method entries describe maintenance or sourcing of germplasm.
-These are linked to GermplasmEntry (see Germplasms).
-Examples: "Controlled cross", "Mutagenesis", "Ecological survey"
-"""
-type GermplasmMethod implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
-    name: String!
-
-    description: String
-    abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [Reference]
-
-    parents: [GermplasmMethod]
-    children: [GermplasmMethod]
-
-    terms: [Term]
 }
 
 """
@@ -705,7 +679,7 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
     terms: [Term]
 }
 
-union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | GermplasmMethod | LocationType | LayoutType | Design | Role | Title
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | Role | Title
 
 type OntologyRelationship {
     id: Int!

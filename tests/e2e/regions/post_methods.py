@@ -11,7 +11,7 @@ async def post_to_countries(client, token:str):
             "    result { "
             "       name, "
             "       code, "  
-            "       type { id, name }"
+            "       typeId "
             "    }, "
             "    errors { name, message } "
             "   } "
@@ -81,15 +81,46 @@ async def post_to_regions(client, token:str):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_locations(client, location_ids: List[int]|None=None,  location_type_id: int|None=None, token:str = None):
+async def post_to_locations(client, location_ids: List[int],  token:str = None):
     json = {
         "query": (
             " query ("
-            "   $locationIds : [Int!]"
-            "   $locationTypeId : Int "
+            "   $locationIds : [Int!]!"
             " ) { "
             "  regionsLocations ( "
-            "    locationIds: $locationIds,"
+            "    locationIds: $locationIds"
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name }"
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "locationIds": location_ids
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_locations_by_type(client, location_type_id: int, token:str = None):
+    json = {
+        "query": (
+            " query ("
+            "   $locationTypeId : Int! "
+            " ) { "
+            "  regionsLocationsByType ( "
             "    locationTypeId: $locationTypeId "
             "  ) {"
             "    status, "
@@ -106,7 +137,6 @@ async def post_to_locations(client, location_ids: List[int]|None=None,  location
             " } "
         ),
         "variables": {
-            "locationIds": location_ids,
             "locationTypeId": location_type_id
         }
     }

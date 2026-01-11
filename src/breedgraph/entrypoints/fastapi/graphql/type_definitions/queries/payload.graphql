@@ -58,7 +58,7 @@ type AccountPayload {
 
 type UsersPayload {
     status: QueryStatus!
-    result: [User]
+    result: [User!]
     errors: [Error]
 }
 
@@ -70,7 +70,7 @@ type VersionPayload {
 
 type OntologyCommitsPayload {
     status: QueryStatus!
-    result: [OntologyCommit]
+    result: [OntologyCommit!]
     errors: [Error]
 }
 
@@ -82,7 +82,7 @@ type OntologyEntryPayload {
 
 type OntologyEntriesPayload {
     status: QueryStatus!
-    result: [OntologyEntryInterface]
+    result: [OntologyEntryInterface!]
     errors: [Error]
 }
 
@@ -94,19 +94,25 @@ type OntologyRelationshipsPayload {
 
 type LocationsPayload {
     status: QueryStatus!
-    result: [Location]
+    result: [Location!]
+    errors: [Error]
+}
+
+type LocationTemplatesPayload {
+    status: QueryStatus!
+    result: [LocationTemplate!]
     errors: [Error]
 }
 
 type LayoutsPayload {
     status: QueryStatus!
-    result: [Layout]
+    result: [Layout!]
     errors: [Error]
 }
 
 type UnitsPayload {
     status: QueryStatus!
-    result: [Unit]
+    result: [Unit!]
     errors: [Error]
 }
 
@@ -119,6 +125,24 @@ type UnitPayload {
 type DatasetsPayload {
     status: QueryStatus!
     result: [DataSet]
+    errors: [Error]
+}
+
+type FileIdPayload {
+    status: QueryStatus!,
+    result: String
+    errors: [Error]
+}
+
+type SubmissionIdPayload {
+    status: QueryStatus!,
+    result: String
+    errors: [Error]
+}
+
+type SubmissionPayload {
+    status: QueryStatus!,
+    result: Submission
     errors: [Error]
 }
 

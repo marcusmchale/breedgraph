@@ -1,17 +1,18 @@
-from src.breedgraph.domain.model.time_descriptors import PyDT64
-
 from .base import Command
 
-class CreateDataSet(Command):
+class CreateDataset(Command):
     agent_id: int
-    concept_id: int
+    submission_id: str
 
-class AddRecord(Command):
+class UpdateDataset(Command):
+    agent_id: int
+    key: str
+
+class AddRecords(Command):
+    agent_id: int
+    key: str
+
+class RemoveRecords(Command):
     agent_id: int
     dataset_id: int
-    unit_id: int
-
-    value: str|int|float|None = None
-    start: PyDT64|None = None
-    end: PyDT64|None = None
-    references: list[int]|None = None
+    record_ids: list[int]

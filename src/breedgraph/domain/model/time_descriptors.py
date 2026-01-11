@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 from typing import Any, Annotated, TypeAlias, Dict
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from neo4j.time import DateTime as Neo4jDateTime
 from pydantic_core.core_schema import ValidationInfo
 
@@ -44,30 +44,39 @@ def deserialize_time(time: Neo4jDateTime | str | None, unit:str = None, step:str
                 warnings.simplefilter('ignore', UserWarning)
                 return np.datetime64(time.isoformat(), (unit, step))
     else:
-        import pdb; pdb.set_trace()
+        raise NotImplementedError(f"Cannot deserialize time from type {type(time)}")
 
-def npdt64_to_pydt(ts: np.datetime64) -> datetime:
-    # Convert to ns, then Python datetime via integer timestamp
-    ns = ts.astype('datetime64[ns]').astype('int')  # nanoseconds since epoch
-    py_dt = datetime.fromtimestamp(ns / 1_000_000_000, tz=timezone.utc)
-    return py_dt
 
-def npdt64_to_neo4j(npdt: np.datetime64) -> Neo4jDateTime|None:
-    # Convert to Python datetime
-    if npdt is None:
-        return None
-    py_dt = npdt64_to_pydt(npdt)
-    # Ensure timezone-aware (Neo4j prefers that)
-    if py_dt.tzinfo is None:
-        py_dt = py_dt.replace(tzinfo=timezone.utc)
-    # Wrap in neo4j.time.DateTime
-    return Neo4jDateTime(
-        py_dt.year, py_dt.month, py_dt.day,
-        py_dt.hour, py_dt.minute, py_dt.second,
-        py_dt.microsecond * 1000,
-        tzinfo=py_dt.tzinfo
-    )
 
+def npdt64_to_neo4j(ts: np.datetime64, tzinfo=timezone.utc):
+    py_obj = ts.astype('O')  # could be datetime, date, or int
+    # Defaults
+    year = 1
+    month = 1
+    day = 1
+    hour = 0
+    minute = 0
+    second = 0
+    microsecond = 0
+    if isinstance(py_obj, int):
+        # year-only precision
+        year = py_obj
+    elif isinstance(py_obj, date) and not isinstance(py_obj, datetime):
+        # date object (year, month, day)
+        year = py_obj.year
+        month = py_obj.month
+        day = py_obj.day
+    elif isinstance(py_obj, datetime):
+        # full datetime object
+        year = py_obj.year
+        month = py_obj.month
+        day = py_obj.day
+        hour = py_obj.hour
+        minute = py_obj.minute
+        second = py_obj.second
+        microsecond = py_obj.microsecond
+    nanosecond = microsecond * 1000
+    return Neo4jDateTime(year, month, day, hour, minute, second, nanosecond, tzinfo=tzinfo)
 
 # https://docs.pydantic.dev/latest/concepts/types/#handling-third-party-types
 class _DT64PydanticAnnotation:

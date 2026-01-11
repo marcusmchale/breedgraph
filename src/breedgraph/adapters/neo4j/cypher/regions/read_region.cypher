@@ -5,12 +5,14 @@ OPTIONAL MATCH (captured)-[:INCLUDES_LOCATION*]-(extended:Location)
 WITH captured, coalesce(collect(extended), []) AS locations
 WITH captured + locations AS region
 UNWIND region AS location
+
 OPTIONAL CALL (location) {
   MATCH (location)<-[coord_of:COORDINATE_OF]-(coordinate:Coordinate)
   WITH coordinate, coord_of
   ORDER BY coord_of.position
   RETURN collect(coordinate {.*}) as coordinates
 }
+
 RETURN location {
   .*,
   type: [(location)-[:OF_LOCATION_TYPE]->(type:LocationType) | type.id][0],

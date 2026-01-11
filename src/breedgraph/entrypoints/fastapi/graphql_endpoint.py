@@ -1,7 +1,7 @@
 import json
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from ariadne import graphql
+from ariadne import graphql, combine_multipart_data
 
 from typing import Optional, Dict, Any
 
@@ -53,6 +53,21 @@ async def extract_graphql_data(request: Request) -> Dict[str, Any]:
     if "application/json" in content_type:
         # Standard JSON GraphQL request
         return await request.json()
+    elif "multipart/form-data" in content_type:
+        # Get the form data from FastAPI/Starlette
+        form = await request.form()
+
+        # operations and map are sent as strings in the form
+        operations = json.loads(form.get("operations"))
+        map_data = json.loads(form.get("map"))
+
+        # combine_multipart_data takes operations, map, and the files
+        # It puts the file objects into the 'operations' variables dict
+        return combine_multipart_data(
+            operations,
+            map_data,
+            form  # Pass the form object containing files
+        )
     elif "application/graphql" in content_type:
         # Raw GraphQL query
         body = await request.body()

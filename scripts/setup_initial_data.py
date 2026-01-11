@@ -27,6 +27,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+async def create_constraints(uow: AbstractUnitOfWork = Neo4jUnitOfWork()) -> None:
+    async with uow.get_uow() as uow_holder:
+        logger.info("Creating constraints...")
+        await uow_holder.create_constraints()
+
 async def ensure_not_empty(uow: AbstractUnitOfWork = Neo4jUnitOfWork()) -> None:
     async with uow.get_uow() as uow_holder:
         # Check if any records exist in the db, if so then stop now

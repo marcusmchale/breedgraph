@@ -3,14 +3,16 @@ from tests.e2e.utils import with_auth
 
 from typing import List
 
-async def post_to_create_unit(client, token:str, unit: dict):
+async def post_to_create_unit(client, token:str, unit: dict, position: dict|None = None):
     json={
         "query": (
             " mutation ( "
-            "  $unit: UnitInput!"
+            "  $unit: UnitInput! "
+            "  $position: PositionInput "
             " ) { "
             "  blocksCreateUnit( "
             "    unit: $unit "
+            "    position: $position "
             "  ) { "
             "    status, "
             "    result, "
@@ -19,7 +21,8 @@ async def post_to_create_unit(client, token:str, unit: dict):
             " } "
         ),
         "variables": {
-            "unit": unit
+            "unit": unit,
+            "position": position
         }
     }
     headers = with_auth(
@@ -34,7 +37,7 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
         "query": (
             " mutation ( "
             "  $unitId: Int! "
-            "  $position: PositionInput"
+            "  $position: PositionInput! "
             " ) { "
             "  blocksAddPosition( "
             "    unitId: $unitId "
@@ -59,14 +62,14 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
     return response
 
 
-async def post_to_blocks(client, token:str, location_id: int = None):
+async def post_to_blocks(client, token:str, location_ids: List[int] = None):
     json={
         "query": (
             " query ( "
-            "  $locationId: Int"
+            "  $locationIds: [Int!]"
             " ) { "
             "  blocks( "
-            "    locationId: $locationId "
+            "    locationIds: $locationIds "
             "  ) { "
             "    status, "
             "    result { "
@@ -80,7 +83,7 @@ async def post_to_blocks(client, token:str, location_id: int = None):
             " } "
         ),
         "variables": {
-            "locationId": location_id
+            "locationIds": location_ids or []
         }
     }
     headers = with_auth(

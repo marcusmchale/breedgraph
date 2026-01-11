@@ -322,6 +322,9 @@ class GermplasmApplicationService:
         # Create the relationships
         await self.persistence.create_relationships(relationships)
 
+    async def create_relationship(self, relationship: GermplasmRelationship) -> None:
+        await self. create_relationships(relationships=[relationship])
+
     async def validate_new_relationship(self, relationship: GermplasmRelationship) -> None:
         """Add a source relationship between germplasm entries with access control"""
         sink_id = relationship.sink_id

@@ -1,11 +1,16 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, replace, InitVar
 from abc import ABC
-from typing import List, ClassVar, Set, Dict, Self
+from typing import List, ClassVar, Set, Dict, Self, Generator
 from numpy import datetime64
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+
+from src.breedgraph.domain.services.value_parsers import ValueParser
+from src.breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored
+
+
 
 @dataclass
 class DataRecordBase(ABC):
@@ -26,7 +31,15 @@ class DataRecordBase(ABC):
 
 @dataclass
 class DataRecordInput(DataRecordBase, LabeledModel):
-    pass
+    unit_id: InitVar[int|None] = None
+
+    def __post_init__(self, unit_id):
+        if unit_id is not None:
+            self.unit = unit_id
+        if self.start:
+            self.start = datetime64(self.start)
+        if self.end:
+            self.end = datetime64(self.end)
 
 @dataclass
 class DataRecordStored(DataRecordBase, StoredModel):
@@ -55,13 +68,72 @@ class DataSetBase(ABC):
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
-    def add_record(self, record: DataRecordInput):
-        self.records.append(record)
+    @staticmethod
+    def input_dict_to_record(record: dict) -> DataRecordInput:
+        return DataRecordInput(**record)
+
+    def add_records(
+            self,
+            records: List[DataRecordInput|dict],
+            scale: ScaleStored,
+            categories: List[ScaleCategoryStored]|None
+    ) -> Generator[None|str, None, None]:
+        for record in records:
+            if isinstance(record, dict):
+                record = self.input_dict_to_record(record)
+            try:
+                record.value = self.parse_value(record.value, scale, categories)
+                self.records.append(record)
+                yield None
+            except Exception as e:
+                yield str(e)
+
+    def update_records(
+            self,
+            records: List[DataRecordStored|dict],
+            scale: ScaleStored,
+            categories: List[ScaleCategoryStored]|None
+    ) -> Generator[None|str, None, None]:
+        record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
+        for record in records:
+            if isinstance(record, dict):
+                record = self.input_dict_to_record(record)
+            try:
+                record.value = self.parse_value(record.value, scale, categories)
+                record_index = record_index_map[record.id]
+                self.records[record_index] = record
+                yield None
+            except Exception as e:
+                yield str(e)
+
+    def remove_records(self, record_ids: List[int]) -> Generator[None|str, None, None]:
+        record_index_map = {record.id: record_index for record_index, record in enumerate(self.records)}
+        indices_to_remove = set()
+        for record_id in record_ids:
+            if record_id in record_index_map:
+                indices_to_remove.add(record_index_map[record_id])
+                yield None
+            else:
+                yield f"Record with id {record_id} not found in dataset"
+        indices_to_remove = list(indices_to_remove)
+        indices_to_remove.sort(reverse=True)
+        for i in indices_to_remove:
+            del self.records[i]
 
     def model_dump(self):
         dump = asdict(self)
         dump['records'] = [record.model_dump() for record in self.records]
         return dump
+
+    @staticmethod
+    def parse_value(value: str|int, scale: ScaleStored, categories: List[ScaleCategoryStored]):
+        return ValueParser().parse(
+            value=value,
+            scale=scale,
+            categories=categories
+        )
+
+
 
 @dataclass
 class DataSetInput(DataSetBase, EnumLabeledModel):

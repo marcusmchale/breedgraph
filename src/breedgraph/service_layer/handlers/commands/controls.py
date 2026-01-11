@@ -19,7 +19,6 @@ async def set_release(
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         control_service: AbstractAccessControlService = uow.controls
         admin_teams = control_service.access_teams.get(Access.ADMIN)
-
         await uow.controls.set_controls_by_id_and_label(
             user_id=cmd.agent_id,
             ids=cmd.entity_ids,

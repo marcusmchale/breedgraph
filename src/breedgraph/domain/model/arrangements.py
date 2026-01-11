@@ -47,13 +47,13 @@ class LayoutStored(LayoutBase, ControlledModel):
                 self,
                 name=self.name and self.redacted_str,  # replace name if "truthy"
                 axes=list(),
-                location=None,
+                #location=None, As we can query by location it makes sense to expose this still.
                 type=None
             )
 
 @dataclass
 class LayoutOutput(LayoutBase, StoredModel, EnumLabeledModel):
-
+    arrangement: int | None = None
     parent: int | None = None
     children: list[int] = field(default_factory=list)
     position: List[str|int|float] = field(default_factory=list)
@@ -110,6 +110,7 @@ class Arrangement(ControlledTreeAggregate):
         return {
             node: LayoutOutput(
                 **self.get_layout(node).model_dump(),
+                arrangement=self.get_root_id(),
                 parent=self.get_parent_id(node),
                 children=self.get_children_ids(node),
                 position=self.get_position(layout_id=node)

@@ -12,7 +12,8 @@ async def test_create_unit(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology
+        basic_ontology,
+        basic_region
 ):
     tree_subject_response = await post_to_get_entries(client, token=first_user_login_token, names= ["tree"], labels=[OntologyEntryLabel.SUBJECT])
     subject_payload = get_verified_payload(tree_subject_response, "ontologyEntries")
@@ -20,9 +21,12 @@ async def test_create_unit(
 
     unit_input = {
         'subjectId': subject_id,
-        'name': "New Tree"
+        'name': "New Tree",
     }
-    response = await post_to_create_unit(client, first_user_login_token, unit=unit_input)
+    initial_position = {
+        'locationId': basic_region.get_root_id()
+    }
+    response = await post_to_create_unit(client, first_user_login_token, unit=unit_input, position=initial_position)
     payload = get_verified_payload(response, "blocksCreateUnit")
     assert_payload_success(payload)
 
@@ -31,7 +35,8 @@ async def test_extend_block(
         client,
         first_user_login_token,
         first_account_with_all_affiliations,
-        basic_ontology
+        basic_ontology,
+        basic_region
 ):
     blocks_response = await post_to_blocks(client, first_user_login_token)
     blocks_payload = get_verified_payload(blocks_response, "blocks")
@@ -39,7 +44,7 @@ async def test_extend_block(
     tree_unit_id = blocks_payload.get('result')[0].get('id')
 
     tree_unit_response = await post_to_units(client, unit_ids=[tree_unit_id], token=first_user_login_token)
-    tree_unit_payload = get_verified_payload(tree_unit_response, "blocksUnit")
+    tree_unit_payload = get_verified_payload(tree_unit_response, "blocksUnits")
     assert tree_unit_payload.get('result')
 
     rhizosphere_subject_response = await post_to_get_entries(
@@ -74,7 +79,10 @@ async def test_extend_block(
         'name': "Small Field",
         'childrenIds': [tree_unit_id]
     }
-    add_field_response = await post_to_create_unit(client, first_user_login_token, unit=field_unit_input)
+    position = {
+        'locationId': basic_region.get_root_id()
+    }
+    add_field_response = await post_to_create_unit(client, first_user_login_token, unit=field_unit_input, position=position)
     add_field_payload = get_verified_payload(add_field_response, "blocksCreateUnit")
     assert_payload_success(add_field_payload)
 

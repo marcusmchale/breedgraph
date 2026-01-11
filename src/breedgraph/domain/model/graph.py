@@ -106,6 +106,11 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
 
         self._graph.remove_nodes_from(node_ids)
 
+    def get_node(self, node_id):
+        if not node_id in self._graph:
+            raise ValueError(f"Node with ID {node_id} does not exist in the graph")
+        return self._graph.nodes[node_id]
+
     def get_nodes(self, node_ids: List[int]|None = None):
         if node_ids is None:
             return self._graph.nodes
@@ -266,6 +271,18 @@ class RootedAggregate(DiGraphAggregate, ABC):
     def get_children_ids(self, node_id: int) -> List[int]:
         return [edge[1] for edge in self._graph.out_edges(node_id)]
 
+    def can_split(self, node_id: int) -> bool:
+        """
+        Splitting may be provided by domain services if this returns True
+        We ensure that
+         - child nodes have no relationships to the rest of the graph
+        """
+        subtree = nx.descendants(self._graph, node_id) | {node_id}
+        for node in subtree:
+            for neighbour in self._graph.neighbors(node):
+                if neighbour not in subtree:
+                    return False
+        return True
 
 class TreeAggregate(RootedAggregate, ABC):
     """An aggregate where nodes in the graph each have a single source"""

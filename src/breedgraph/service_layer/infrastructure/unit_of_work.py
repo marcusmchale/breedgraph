@@ -8,9 +8,7 @@ from src.breedgraph.service_layer.application.access_control import AbstractAcce
 from src.breedgraph.service_layer.application import OntologyApplicationService, GermplasmApplicationService
 from src.breedgraph.service_layer.queries.views import AbstractViewsHolder
 
-
 from typing import List
-
 
 import logging
 logger = logging.getLogger(__name__)

@@ -2,6 +2,9 @@ password-strength
 fastapi~=0.110.0
 pydantic==2.7.4
 ariadne==0.22
+aiofiles~=25.1.0
+
+python-multipart==0.0.21
 
 neo4j==5.18.0
 redis==5.0.3

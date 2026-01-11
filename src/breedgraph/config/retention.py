@@ -1,0 +1,3 @@
+import os
+
+SUBMISSION_RETENTION_DAYS = int(os.environ.get('SUBMISSION_RETENTION_DAYS', 3))

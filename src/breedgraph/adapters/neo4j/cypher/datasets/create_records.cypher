@@ -11,15 +11,12 @@ ORDER BY cnt
     id: record_counter.count,
     submitted: datetime.transaction(),
     value:record_data['value'],
-    time: datetime(record_data['time']),
-    time_unit:record_data['time']['unit'],
-    time_step:record_data['time']['step'],
-    start:datetime(record_data['start']['str']),
-    start_unit:record_data['start']['unit'],
-    start_step:record_data['start']['step'],
-    end:datetime(record_data['end']['str']),
-    end_unit:record_data['end']['unit'],
-    end_step:record_data['end']['step']
+    start:record_data['start'],
+    start_unit:record_data['start_unit'],
+    start_step:record_data['start_step'],
+    end:record_data['end'],
+    end_unit:record_data['end_unit'],
+    end_step:record_data['end_step']
   })-[:FOR_UNIT]->(unit)
   WITH unit, record, record_data
   OPTIONAL MATCH (reference:Reference) WHERE reference.id IN record_data['references']

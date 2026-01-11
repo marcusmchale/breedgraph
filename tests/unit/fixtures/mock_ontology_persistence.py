@@ -357,7 +357,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
     async def get_current_version(self) -> Version|None:
         if not self.commit_history:
-            return None
+            return Version()
         return max(commit.version for commit in self.commit_history)
 
     async def _commit_version(self, user_id: int, commit: OntologyCommit):

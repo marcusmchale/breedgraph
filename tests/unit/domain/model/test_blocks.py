@@ -15,7 +15,7 @@ def get_unit_input(lorem_text_generator):
         subject=1,
         name=lorem_text_generator.new_text(5),
         description=lorem_text_generator.new_text(10),
-        positions=[Position(location=1, start='2001', end='2004'), Position(location=1, layout=2, coordinates=[1,1], start='2001', end='2004')]
+        positions=[Position(location_id=1, start='2001', end='2004'), Position(location_id=1, layout_id=2, coordinates=[1,1], start='2001', end='2004')]
     )
 
 @pytest.fixture

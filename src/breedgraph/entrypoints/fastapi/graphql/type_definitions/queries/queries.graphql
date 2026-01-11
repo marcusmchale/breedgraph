@@ -48,17 +48,20 @@ type Query {
     Only available to Users with the admin ontology role.
     """
     ontologyAdmins: UsersPayload!
-    """Get a list of countries for use in top level region creation"""
-    regionsCountries: LocationsPayload!
+    """Get a list of country templates for use in top level region creation"""
+    regionsCountries: LocationTemplatesPayload!
     """Get a list of region "root" locations.
     These are all countries that form the top-level location in the region.
     """
     regions: LocationsPayload!
     """
-    Search for locations by or locationId or ontology Location type
+    Get locations by locationId
     """
-    regionsLocations (locationIds: [Int!], locationTypeId: Int): LocationsPayload!
-
+    regionsLocations (locationIds: [Int!]!): LocationsPayload!
+    """
+    Search for locations by ontology Location type
+    """
+    regionsLocationsByType (locationTypeId: Int!): LocationsPayload!
     """Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
@@ -72,7 +75,7 @@ type Query {
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
-    blocks (locationId: Int): UnitsPayload!
+    blocks (locationIds: [Int!]): UnitsPayload!
     """
     Get units by ID.
     """
@@ -81,7 +84,17 @@ type Query {
     Get a list of programs
     """
     programs (programId: Int, trialId: Int, studyId: Int) : ProgramsPayload
+    """
+    Get datasets by ID or concept
+    """
     datasets (datasetId: Int, conceptId: Int): DatasetsPayload
+    """
+    Get dataset submission by key
+    """
+    datasetsSubmission(submissionId: String): SubmissionPayload
+    """
+    Get the controller data for access controlled entities
+    """
     controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [Int]!): ControllersPayload!
     """Get a list of Germplasm entries"""
     germplasmEntries (names: [String!], entryIds: [Int!]): GermplasmEntriesPayload

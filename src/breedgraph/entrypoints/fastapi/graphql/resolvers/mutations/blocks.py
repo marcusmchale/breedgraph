@@ -3,7 +3,8 @@ from src.breedgraph.domain.commands.blocks import (
     CreateUnit,
     UpdateUnit,
     DeleteUnit,
-    AddPosition
+    AddPosition,
+    RemovePosition
 )
 
 import logging
@@ -17,19 +18,26 @@ from . import graphql_mutation
 async def create_unit(
         _,
         info,
-        unit: dict
+        unit: dict,
+        position: dict = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds unit: {unit}")
     cmd = CreateUnit(
         agent_id=user_id,
         name=unit.get('name'),
-        synonyms=unit.get('synonyms'),
         description=unit.get('description'),
         subject_id=unit.get('subject_id'),
+        germplasm_id=unit.get('germplasm_id'),
         parents=unit.get('parent_ids'),
-        children=unit.get('children_ids')
+        children=unit.get('children_ids'),
+        location_id = position.get('location_id') if position else None,
+        layout_id = position.get('layout_id') if position else None,
+        coordinates = position.get('coordinates') if position else None,
+        start = position.get('start') if position else None,
+        end = position.get('end') if position else None
     )
+
     await info.context['bus'].handle(cmd)
     return True
 
@@ -47,9 +55,9 @@ async def update_unit(
         agent_id=user_id,
         unit_id=unit.get('unit_id'),
         name=unit.get('name'),
-        synonyms=unit.get('synonyms'),
         description=unit.get('description'),
         subject_id=unit.get('subject_id'),
+        germplasm_id=unit.get('germplasm_id'),
         parents=unit.get('parent_ids'),
         children=unit.get('children_ids')
     )
@@ -83,6 +91,25 @@ async def add_position(
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds position: {unit_id}: {position}")
     cmd = AddPosition(
+        agent_id=user_id,
+        unit_id=unit_id,
+        **position
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("blocksRemovePosition")
+@graphql_payload
+@require_authentication
+async def remove_position(
+        _,
+        info,
+        unit_id: int,
+        position: dict
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} removes position: {unit_id}: {position}")
+    cmd = RemovePosition(
         agent_id=user_id,
         unit_id=unit_id,
         **position

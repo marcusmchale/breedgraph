@@ -12,6 +12,7 @@ from src.breedgraph.domain.model.ontology.relationships import (
     ParentRelationship,
     VariableComponentRelationship
 )
+from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
 from src.breedgraph.domain.model.ontology.version import Version
 
 from tests.unit.fixtures.mock_ontology_persistence import MockOntologyPersistenceService
@@ -145,7 +146,7 @@ class TestOntologyApplicationServiceRelationships:
             )
 
     @pytest.mark.asyncio
-    async def test_prevent_duplicate_relationship(self, service, version):
+    async def test_revert_to_draft_on_duplicate_relationship(self, service, version):
         # Arrange
         trait = await service.create_trait(TraitInput(name="Height"))
         observation_method = await service.create_entry(ObservationMethodInput(name="Tape Measure"))
@@ -162,8 +163,27 @@ class TestOntologyApplicationServiceRelationships:
             variable_id=variable.id,
             trait_id=trait.id
         )
-        with pytest.raises(ValueError, match="Relationship already exists"):
-            await service.create_relationship(relationship)
+        rel = None
+        async for relationship in service.persistence.get_relationships(
+                source_ids=[variable.id], target_ids=[trait.id], labels = [OntologyRelationshipLabel.DESCRIBES_TRAIT]
+        ):
+            rel = relationship
+        await service.activate_relationships(relationship_ids=[rel.id])
+        lifecycles = await service.persistence.get_relationship_lifecycles([rel.id])
+        current_lifecycle = lifecycles[rel.id]
+        assert current_lifecycle.current_phase == LifecyclePhase.ACTIVE
+
+        await service.create_relationship(relationship)
+        updated_rel = None
+        async for relationship in service.persistence.get_relationships(
+                source_ids=[variable.id], target_ids=[trait.id], labels = [OntologyRelationshipLabel.DESCRIBES_TRAIT]
+        ):
+            updated_rel = relationship
+        updated_lifecycles = await service.persistence.get_relationship_lifecycles([rel.id])
+        updated_lifecycle = updated_lifecycles[rel.id]
+        assert updated_lifecycle.current_phase == LifecyclePhase.DRAFT
+
+
 
     @pytest.mark.asyncio
     async def test_prevent_circular_dependency(self, service, version):

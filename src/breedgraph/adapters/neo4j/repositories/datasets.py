@@ -28,11 +28,25 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DataSetInput, DataSetSto
     async def _create_dataset(self, dataset: DataSetInput) -> DataSetStored:
         logger.debug(f"Create dataset: {dataset}")
         params = dataset.model_dump()
-        for record_data in params.get('records', []):
-            self.serialize_dt64(record_data, to_neo4j=True)
+        records = params.pop('records', [])
+
         result: AsyncResult = await self.tx.run(queries['datasets']['create_dataset'], **params)
-        record: Record = await result.single()
-        return self.record_to_dataset(record.get('dataset'))
+        dataset_record: Record = await result.single()
+
+        if records:
+            for record_data in records:
+                self.serialize_dt64(record_data, to_neo4j=True)
+            result = await self.tx.run(
+                queries['datasets']['create_records'],
+                dataset_id=dataset_record.get('dataset').get('id'),
+                records=records
+            )
+            dataset_record_dict = dataset_record.data()
+            dataset_record_dict['records'] = [record.get('record') async for record in result]
+
+        dataset = self.record_to_dataset(dataset_record.get('dataset'))
+        return dataset
+
 
     async def _update_dataset(self, dataset: DataSetStored|TrackableProtocol):
         if dataset.changed - {'records', 'controller'}:
@@ -45,35 +59,32 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DataSetInput, DataSetSto
                 changed_records = [
                     self.serialize_dt64(dataset.records[i].model_dump(), to_neo4j=True) for i in dataset.records.changed
                 ]
-
                 await self.tx.run(
                     queries['datasets']['set_records'],
                     records=changed_records
                 )
 
-        if dataset.records.removed:
-            await self.tx.run(
-                queries['datasets']['delete_records'],
-                record_ids=[r.id for r in dataset.records.removed]
-            )
+            if dataset.records.removed:
+                await self.tx.run(
+                    queries['datasets']['delete_records'],
+                    record_ids=[r.id for r in dataset.records.removed]
+                )
 
-        if dataset.records.added:
-            ordered_added = list(dataset.records.added)
-            added_records = [
-                self.serialize_dt64(dataset.records[i].model_dump(), to_neo4j=True) for i in ordered_added
-            ]
-            result = await self.tx.run(
-                queries['datasets']['create_records'],
-                dataset_id=dataset.id,
-                records=added_records
-            )
-            i = 0
-            async for r in result:
-                record = r.get('record')
-                self.deserialize_dt64(record)
-                record_index = ordered_added[i]
-                dataset.records[record_index] = DataRecordStored(**record)
-                i += 1
+            if dataset.records.added:
+                ordered_added = list(dataset.records.added)
+                added_records = [self.serialize_dt64(dataset.records[i].model_dump(), to_neo4j=True) for i in ordered_added]
+                result = await self.tx.run(
+                    queries['datasets']['create_records'],
+                    dataset_id=dataset.id,
+                    records=added_records
+                )
+                i = 0
+                async for r in result:
+                    record = r.get('record')
+                    self.deserialize_dt64(record)
+                    record_index = ordered_added[i]
+                    dataset.records[record_index] = DataRecordStored(**record)
+                    i += 1
 
     async def _delete_datasets(self, dataset_ids: List[int]) -> None:
         logger.debug(f"Remove datasets: {dataset_ids}")

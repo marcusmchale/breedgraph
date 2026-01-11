@@ -51,7 +51,6 @@ class ControlMethodType(str, Enum):
     NUTRITIONAL = "NUTRITIONAL"  # fertilizer etc
     CHEMICAL = "CHEMICAL" # herbicides, hormones etc.
     BIOLOGICAL = "BIOLOGICAL" # microbial treatments etc.
-    GENETIC = "GENETIC" # germplasm etc
     MANAGEMENT = "MANAGEMENT" # management of planting, pruning etc
 
 class ScaleType(str, Enum):
@@ -61,7 +60,6 @@ class ScaleType(str, Enum):
     TEXT = "TEXT"
     NOMINAL = "NOMINAL"  # should have categories
     ORDINAL = "ORDINAL"  # should have categories
-    GERMPLASM = "GERMPLASM" # Categories are from Germplasm
     COMPLEX = "COMPLEX" # Allows for hdf5, json, sparse matrixes, tables, trees etc. should define a schema
 
 class OntologyEntryLabel(EnumLabel):

@@ -19,6 +19,7 @@ async def set_release(
         entity_label: ControlledModelLabel,
         release: ReadRelease
 ) -> bool:
+
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} sets controls for {entity_label}: {entity_ids} to {release.value}")
     cmd = SetRelease(agent_id=user_id, entity_ids=entity_ids, entity_label=entity_label, release=release)

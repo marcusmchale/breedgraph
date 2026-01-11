@@ -89,6 +89,28 @@ class AffiliationApprovedMessage(Email):
         )
         self.message.set_content(body)
 
+class FileUploadSuccess(Email):
+
+    def __init__(self, user: UserBase, filename: str, reference_id: int):
+        super().__init__()
+        self.message['SUBJECT'] = f'{SITE_NAME} file upload success notification'
+        body = (
+            f'Hi {user.fullname}, \n'
+            f'Your file upload ({filename}) was successfully completed and linked to reference {reference_id}'
+        )
+        self.message.set_content(body)
+
+
+class FileUploadFailed(Email):
+
+    def __init__(self, user: UserBase, filename: str, reference_id: int):
+        super().__init__()
+        self.message['SUBJECT'] = f'{SITE_NAME} file upload failure notification'
+        body = (
+            f'Hi {user.fullname}, \n'
+            f'Your file upload ({filename}) failed for reference {reference_id}'
+        )
+        self.message.set_content(body)
 
 #class AffiliationConfirmedMessage(Email):
 #

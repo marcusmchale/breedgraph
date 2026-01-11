@@ -7,8 +7,7 @@ from src.breedgraph.config import N_EVENT_HANDLERS
 
 #if TYPE_CHECKING:
 from typing import Callable, Dict, List, Union, Type
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, BruteForceProtectionService
-from src.breedgraph.adapters.redis.read_model import ReadModel
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, FileManagementService, AbstractStateStore
 
 Message = Union[commands.Command, events.Event]
 
@@ -23,12 +22,14 @@ class MessageBus:
     def __init__(
             self,
             uow: AbstractUnitOfWork,
-            read_model: ReadModel,
+            state_store: AbstractStateStore,
+            file_management: FileManagementService,
             event_handlers: Dict[Type[events.Event], List[Callable]],
             command_handlers: Dict[Type[commands.Command], Callable]
     ):
         self.uow = uow
-        self.read_model = read_model
+        self.state_store = state_store
+        self.file_management = file_management
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
         self.event_queue = Queue()

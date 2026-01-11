@@ -14,7 +14,7 @@ from src.breedgraph.domain.model.references import (
     FileReferenceStored,
     ExternalReferenceStored,
     DataFileStored,
-    DataExternalStored,
+    ExternalDataStored,
     LegalReferenceStored
 )
 
@@ -39,7 +39,7 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             return LegalReferenceStored(**record)
         elif record.get('url') is not None:
             if record.get('data_format') is not None:
-                return DataExternalStored(**record)
+                return ExternalDataStored(**record)
             else:
                 return ExternalReferenceStored(**record)
         elif record.get('data_format') is not None:

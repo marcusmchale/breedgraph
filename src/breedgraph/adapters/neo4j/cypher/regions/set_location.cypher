@@ -8,8 +8,7 @@ SET
 WITH
   location
 // Link type
-CALL {
-  WITH location
+CALL (location) {
   MATCH (location)-[of_type:OF_LOCATION_TYPE]->(type:LocationType)
   WHERE NOT type.id = $type
   DELETE of_type

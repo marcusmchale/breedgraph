@@ -17,9 +17,11 @@ type Position {
 
 type Unit {
     id: Int!
+
     subject: OntologyEntryInterface
+    germplasm: GermplasmEntry
+
     name: String
-    synonyms: [String]
     description: String
     positions: [Position]
 

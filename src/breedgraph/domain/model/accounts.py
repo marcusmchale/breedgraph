@@ -33,7 +33,7 @@ class UserBase(ABC):
     def model_dump(self):
         dump = asdict(self)
         dump['ontology_role'] = dump['ontology_role'].value
-        dump['ontology_role_requested'] = dump['ontology_role_requested'].value if 'ontology_role_requested' in dump else None
+        dump['ontology_role_requested'] = dump['ontology_role_requested'].value if 'ontology_role_requested' in dump and dump['ontology_role_requested'] else None
         return dump
 
     def __post_init__(self):
