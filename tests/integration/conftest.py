@@ -3,7 +3,6 @@ from typing import AsyncGenerator
 
 import pytest_asyncio
 
-from src.breedgraph.service_layer.queries.read_models import regions
 from src.breedgraph.adapters.neo4j import (
     # services
     Neo4jGermplasmPersistenceService,
@@ -28,8 +27,7 @@ from src.breedgraph.domain.model.germplasm import (
     GermplasmInput,
     GermplasmStored,
     Reproduction,
-    GermplasmRelationship,
-    GermplasmSourceType
+    GermplasmRelationship
 )
 from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.organisations import Organisation, TeamInput
@@ -40,7 +38,8 @@ from src.breedgraph.domain.model.ontology import *
 from src.breedgraph.domain.model.people import PersonInput
 from src.breedgraph.domain.model.references import ExternalReferenceInput, ExternalReferenceStored
 from src.breedgraph.domain.model.regions import LocationInput, LocationStored, Region
-from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, DataRecordInput
+from src.breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DataRecordInput
+from src.breedgraph.domain.model.programs import ProgramInput, ProgramStored, TrialInput, TrialStored, StudyInput, StudyStored
 
 @pytest_asyncio.fixture(scope="session")
 async def accounts_repo(uncommitted_neo4j_tx) -> AsyncGenerator[Neo4jAccountRepository, None]:
@@ -126,18 +125,18 @@ async def regions_repo(uncommitted_neo4j_tx, neo4j_access_control_service) -> As
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def example_region(regions_repo, state_store, country_type) -> AsyncGenerator[Region, None]:
-    async for c in regions.countries(state_store):
-        if isinstance(c, LocationInput):
-            country_input = c
-            try:
-                stored: Region = await regions_repo.create(country_input)
-            except Exception as e:
-                continue
-            break
-    else:
-        raise ValueError('No input LocationInputs found in read model countries')
+async def example_region(bus, regions_repo, state_store, country_type) -> AsyncGenerator[Region, None]:
+    country_input = None
+    async with bus.views.get_views() as views:
+        for country in await views.regions.countries():
+            if isinstance(country, LocationInput):
+                country_input = country
+    if not country_input:
+        raise ValueError('No input LocationInputs found in view for countries')
+
+    stored: Region = await regions_repo.create(country_input)
     yield stored
+
 
 @pytest_asyncio.fixture(scope='session')
 async def germplasm_persistence_service(uncommitted_neo4j_tx, neo4j_access_control_service, ) -> AsyncGenerator[Neo4jGermplasmPersistenceService, None]:
@@ -449,8 +448,8 @@ async def datasets_repo(uncommitted_neo4j_tx, neo4j_access_control_service) -> A
     )
 
 @pytest_asyncio.fixture(scope='session')
-async def stored_dataset(datasets_repo, tree_block, height_variable, unstored_person, example_external_reference) -> AsyncGenerator[DataSetStored, None]:
-    dataset_input = DataSetInput(
+async def stored_dataset(datasets_repo, tree_block, height_variable, unstored_person, example_external_reference) -> AsyncGenerator[DatasetStored, None]:
+    dataset_input = DatasetInput(
         concept=height_variable.id,
         contributors=[unstored_person.id],
         references=[example_external_reference.id],
@@ -458,3 +457,16 @@ async def stored_dataset(datasets_repo, tree_block, height_variable, unstored_pe
     )
     stored_dataset = await datasets_repo.create(dataset_input)
     yield stored_dataset
+
+@pytest_asyncio.fixture(scope='session')
+async def study_with_dataset(stored_dataset, programs_repo):
+    program = ProgramInput(name='Test program')
+    program_stored = await programs_repo.create(program)
+    program_stored.add_trial(TrialInput(name='Test trial'))
+    await programs_repo.update_seen()
+    trial = [t for t in program_stored.trials.values()][0]
+    trial.add_study(StudyInput(name='Test study with dataset', dataset_ids=[stored_dataset.id]))
+    await programs_repo.update_seen()
+    study_with_dataset = [s for s in trial.studies.values() if s.name == 'Test study with dataset'][0]
+    yield study_with_dataset
+

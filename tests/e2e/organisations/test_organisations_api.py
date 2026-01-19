@@ -16,7 +16,6 @@ async def test_rename_team(client, user_input_generator, first_user_login_token,
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
     team_id = organisation_root_ids[0]
-
     new_input = user_input_generator.new_user_input()
     teams_edit_response = await post_to_update_team(
         client,

@@ -4,7 +4,7 @@ from src.breedgraph.domain.model.organisations import (
     Authorisation, Access, Affiliation,
 )
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, unit_of_work
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, unit_of_work
 
 from src.breedgraph.custom_exceptions import (
     UnauthorisedOperationError,
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_team(
         cmd: commands.organisations.CreateTeam,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     # strange behaviour here, possibly async conflict but needs dissecting
     # three times we are calling get_access_teams in calling get_uow....
@@ -44,7 +44,7 @@ async def create_team(
 @handlers.command_handler()
 async def delete_team(
         cmd: commands.organisations.DeleteTeam,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         access_teams = uow.controls.access_teams
@@ -61,7 +61,7 @@ async def delete_team(
 @handlers.command_handler()
 async def update_team(
         cmd: commands.organisations.UpdateTeam,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         access_teams = uow.controls.access_teams

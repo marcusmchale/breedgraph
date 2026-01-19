@@ -1,12 +1,7 @@
-from enum import Enum
 from .base import Command
 from typing import List
 
-class DataFormat(Enum):
-    JSON = "json"
-    HDF5 = "hdf5"
-    CSV = "csv"
-    TSV = "tsv"
+from src.breedgraph.domain.model.references import DataFormat
 
 class CreateLegalReference(Command):
     agent_id: int
@@ -36,6 +31,7 @@ class CreateFileReference(Command):
     description: str | None = None
 
     filename: str
+    content_type: str
     uuid: str | None
     
 class CreateDataFileReference(Command):
@@ -43,6 +39,7 @@ class CreateDataFileReference(Command):
     description: str | None = None
 
     filename: str
+    content_type: str
     uuid: str | None
 
     format: DataFormat | None = None
@@ -88,6 +85,7 @@ class UpdateFileReference(Command):
     description: str | None = None
 
     filename: str | None = None
+    content_type: str | None = None
     uuid: str | None = None
 
 class UpdateDataFileReference(Command):
@@ -97,6 +95,7 @@ class UpdateDataFileReference(Command):
     description: str | None = None
 
     filename: str | None = None
+    content_type: str | None = None
     uuid: str | None = None
 
     format: DataFormat | None = None

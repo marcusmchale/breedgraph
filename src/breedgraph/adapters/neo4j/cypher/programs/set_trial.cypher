@@ -1,16 +1,6 @@
 MATCH
-  (trial: Trial {id: $id})
-SET
-  trial.name = $name,
-  trial.fullname = $fullname,
-  trial.description = $description,
-  trial.start = datetime($start['str']),
-  trial.start_unit = datetime($start['unit']),
-  trial.start_step = datetime($start['step']),
-  trial.end = datetime($end['str']),
-  trial.end_unit = datetime($end['unit']),
-  trial.end_step = datetime($end['step'])
-
+  (trial: Trial {id: $trial_id})
+SET trial += $trial_data
 // Update contacts
 WITH trial
 CALL {

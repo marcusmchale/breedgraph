@@ -38,13 +38,14 @@ class FileManagementService:
                     bytes_written += len(chunk)
                     progress = int((bytes_written/file_size) * 100)
                     await self.state_store.set_file_progress(uuid, progress)
-            await self.state_store.set_file_status(uuid, SubmissionStatus.COMPLETED)
             if on_complete:
                 await on_complete(uuid)
+            await self.state_store.set_file_status(uuid, SubmissionStatus.COMPLETED)
 
         except Exception as e:
             logger.exception(f"Failed to save file {file.filename} with UUID {uuid}: {e}")
             await self.state_store.set_file_status(uuid, SubmissionStatus.FAILED)
+            await self.state_store.set_file_errors(uuid, [str(e)])
             if on_failed:
                 await on_failed(uuid)
 

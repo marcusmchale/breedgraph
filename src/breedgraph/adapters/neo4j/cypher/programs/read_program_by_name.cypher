@@ -12,7 +12,7 @@ RETURN
         studies: [(trial)-[:HAS_STUDY]->(study:Study) | study {
           .*,
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->(study)|reference.id],
-          dataset_ids: [(study)-[:HAS_DATASET]->(dataset:DataSet)|dataset.id],
+          dataset_ids: [(study)-[:HAS_DATASET]->(dataset:Dataset)|dataset.id],
           design_id: [(study)-[:USES_DESIGN]->(design:Design)|design.id][0],
           licence_id: [(study)-[:USES_LICENCE]->(licence:Reference)|licence.id][0]
           }

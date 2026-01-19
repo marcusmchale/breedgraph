@@ -3,12 +3,16 @@ from collections import defaultdict
 
 from src.breedgraph.service_layer.persistence import OntologyPersistenceService
 from src.breedgraph.domain.model.ontology import *
+from src.breedgraph.domain.model.accounts import OntologyRole
 
 
 class MockOntologyPersistenceService(OntologyPersistenceService):
     """Mock implementation for testing ontology application service."""
 
     def __init__(self):
+        # for testing
+        self.ontology_role = OntologyRole.ADMIN
+
         # Storage for entries
         self.entries: Dict[int, OntologyEntryStored] = {}
         self.next_entry_id = 1
@@ -35,6 +39,9 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
     def reset(self):
         """Reset all stored data - useful for test cleanup."""
         self.__init__()
+
+    def get_user_ontology_role(self, user_id: int):
+        return self.ontology_role
 
     async def _create_entry(self, entry: OntologyEntryInput, user_id: int) -> OntologyEntryStored:
         """Create a new ontology entry and return it in stored form."""

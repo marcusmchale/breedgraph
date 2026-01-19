@@ -284,9 +284,6 @@ async def get_ontology_role_requests(
     bus = context.get('bus')
     user_id = context.get('user_id')
     async with bus.uow.get_uow(user_id=user_id) as uow_holder:
-        ontology_role = uow_holder.ontology.role
-        if ontology_role != OntologyRole.ADMIN:
-            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
         requesting_users = [a async for a in uow_holder.views.accounts.get_users_with_ontology_role_requests()]
         return requesting_users
 
@@ -302,9 +299,6 @@ async def get_ontology_editors(
     bus = context.get('bus')
     user_id = context.get('user_id')
     async with bus.uow.get_uow(user_id=user_id) as uow_holder:
-        ontology_role = uow_holder.ontology.role
-        if ontology_role != OntologyRole.ADMIN:
-            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
         editor_users = [a async for a in uow_holder.views.accounts.get_editors_for_ontology_admin()]
         return editor_users
 

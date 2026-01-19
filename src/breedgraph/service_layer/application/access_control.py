@@ -71,7 +71,6 @@ class AbstractAccessControlService(ABC):
             raise IllegalOperationError("Control teams required to set controls")
 
         models_by_label = await self._parse_input_to_models_by_label(models)
-
         # Create/Set controllers using batch operations
         for label, models in models_by_label.items():
             model_ids = [model.id for model in models]

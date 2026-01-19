@@ -2,7 +2,6 @@ import pytest
 
 from src.breedgraph.domain.model.ontology import OntologyEntryLabel
 from src.breedgraph.domain.commands.arrangements import CreateLayout
-from src.breedgraph.domain.model.controls import ReadRelease
 
 @pytest.mark.usefixtures("session_database")
 @pytest.mark.asyncio(scope="session")

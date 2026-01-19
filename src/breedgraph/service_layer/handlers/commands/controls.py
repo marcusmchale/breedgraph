@@ -2,7 +2,7 @@ from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.controls import Control, Access
 
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def set_release(
         cmd: commands.controls.SetRelease,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         control_service: AbstractAccessControlService = uow.controls

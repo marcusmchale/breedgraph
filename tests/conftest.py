@@ -10,7 +10,6 @@ from itsdangerous import URLSafeTimedSerializer
 from typing import AsyncIterator, AsyncGenerator
 
 import src.breedgraph.adapters.neo4j.unit_of_work
-import tests.integration.conftest
 from src.breedgraph.service_layer.application import OntologyApplicationService
 from tests.utilities.inputs import UserInputGenerator, LoremTextGenerator
 
@@ -30,7 +29,6 @@ from src.breedgraph.domain.commands.organisations import CreateTeam
 from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.organisations import Organisation, Affiliation, Authorisation, Access
 from src.breedgraph.domain.model.ontology import *
-from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.domain.model.regions import Region, LocationInput
 from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput
 from src.breedgraph.domain.model.blocks import Block, UnitInput, Position
@@ -72,8 +70,18 @@ async def client(test_app: FastAPI, csrf_headers: dict) -> AsyncGenerator[AsyncC
         yield client
 
 @pytest_asyncio.fixture(scope="session")
-async def neo4j_uow() -> AsyncGenerator[src.breedgraph.adapters.neo4j.unit_of_work.Neo4jUnitOfWork, None]:
-    yield src.breedgraph.adapters.neo4j.unit_of_work.Neo4jUnitOfWork()
+async def bus() -> AsyncGenerator[MessageBus, None]:
+    bus = await bootstrap.bootstrap()
+    try:
+        await bus.start()
+        yield bus
+    finally:
+        await bus.stop()
+
+@pytest_asyncio.fixture(scope="session")
+async def neo4j_uow(bus) -> AsyncGenerator[src.breedgraph.adapters.neo4j.unit_of_work.Neo4jUnitOfWorkFactory, None]:
+    yield bus.uow
+    #yield src.breedgraph.adapters.neo4j.unit_of_work.Neo4jUnitOfWorkFactory()
 
 @pytest_asyncio.fixture(scope="session")
 async def uncommitted_neo4j_tx(neo4j_uow, session_database):
@@ -83,29 +91,24 @@ async def uncommitted_neo4j_tx(neo4j_uow, session_database):
         try:
             yield uow.tx
         finally:
-            # Ensure explicit rollback and proper cleanup
-            try:
-                logger.debug("Checking if tx is closed")
-                if uow.tx.closed is False:  # Check if transaction is still open
-                    logger.debug("tx is not closed, explicit rollback")
-                    await uow.rollback()
-            except Exception as e:
-                logger.debug(f"Error during transaction rollback: {e}")
-
+            pass
+            # no longer rolling back, we need the context for views testing
+            # we just delete everything in cleanup instead
+        #    # Ensure explicit rollback and proper cleanup
+        #    try:
+        #        logger.debug("Checking if tx is closed")
+        #        if uow.tx.closed is False:  # Check if transaction is still open
+        #            logger.debug("tx is not closed, explicit rollback")
+        #            await uow.rollback()
+        #    except Exception as e:
+        #        logger.debug(f"Error during transaction rollback: {e}")
 
 
 @pytest_asyncio.fixture(scope="session")
 async def email_notifications() -> AsyncGenerator[EmailNotifications, None]:
     yield EmailNotifications()
 
-@pytest_asyncio.fixture(scope="session")
-async def bus(neo4j_uow, email_notifications) -> AsyncGenerator[MessageBus, None]:
-    bus = await bootstrap.bootstrap(
-        uow=neo4j_uow,
-        notifications=email_notifications
-    )
-    yield bus
-#
+
 #@pytest_asyncio.fixture(scope="session")
 #async def quiet_bus() -> MessageBus:
 #    bus = await bootstrap.bootstrap(
@@ -161,31 +164,27 @@ async def create_account(bus, user_input_generator, inviting_user=None):
     )
     await bus.handle(cmd)
 
-async def get_account(bus, user_input_generator, user_id: int) -> AccountStored:
+
+async def get_account(bus, user_id: int) -> AccountStored:
     async with bus.uow.get_uow() as uow:
-        account = None
-        while account is None:
-            account = await uow.repositories.accounts.get(user_id=user_id)
-            if account is None:
-                if user_id > 1:
-                    inviting_user = 1
-                else:
-                    inviting_user = None
-                await create_account(bus, user_input_generator, inviting_user=inviting_user)
-
-        if not account.user.email_verified:
-            account.user.email_verified = True
-            await uow.commit()
-
+        account = await uow.repositories.accounts.get(user_id=user_id)
         return account
 
 @pytest_asyncio.fixture(scope="session")
 async def first_account(bus, user_input_generator) -> AsyncGenerator[AccountStored, None]:
-    yield await get_account(bus, user_input_generator, user_id=2)
+    account = await get_account(bus, user_id=2)
+    if account is None:
+        await create_account(bus, user_input_generator)
+        account = await get_account(bus, user_id=2)
+        yield account
 
 @pytest_asyncio.fixture(scope="session")
 async def second_account(bus, user_input_generator, first_account) -> AsyncGenerator[AccountStored, None]:
-    yield await get_account(bus, user_input_generator, user_id=3)
+    account = await get_account(bus, user_id=3)
+    if account is None:
+        await create_account(bus, user_input_generator)
+        account = await get_account(bus, user_id=3)
+        yield account
 
 async def create_organisation(bus, user_input_generator, user_id: int):
     team_name = user_input_generator.new_user_input().get('team_name')
@@ -391,8 +390,7 @@ async def basic_region(
         lorem_text_generator
 ) -> AsyncGenerator[Region, None]:
     async with bus.uow.get_uow(
-            user_id=first_account_with_all_affiliations.user.id,
-            release=ReadRelease.PUBLIC,
+            user_id=first_account_with_all_affiliations.user.id
     ) as uow:
         # create a new region, from the available countries, it may exist in which case skip to the next
         region = None
@@ -433,8 +431,7 @@ async def field_arrangement(
         lorem_text_generator
 ) -> AsyncGenerator[Arrangement, None]:
     async with bus.uow.get_uow(
-            user_id=first_account_with_all_affiliations.user.id,
-            release=ReadRelease.PUBLIC
+            user_id=first_account_with_all_affiliations.user.id
     ) as uow:
         field_type = await uow.ontology.get_entry(name="Field", label=OntologyEntryLabel.LOCATION_TYPE)
         field = next(basic_region.yield_locations_by_type(field_type.id))

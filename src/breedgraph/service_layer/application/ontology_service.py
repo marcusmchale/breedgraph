@@ -24,7 +24,7 @@ class OntologyApplicationService:
             self,
             persistence_service: OntologyPersistenceService,
             user_id: int|None = None,
-            role: OntologyRole|None = None,
+            role: OntologyRole|None = None
     ):
         self.persistence = persistence_service
         self.user_id = user_id

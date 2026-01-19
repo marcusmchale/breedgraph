@@ -8,7 +8,7 @@ from src.breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, Sto
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 from src.breedgraph.domain.services.value_parsers import ValueParser
-from src.breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored
+from src.breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
 
 
 
@@ -20,8 +20,6 @@ class DataRecordBase(ABC):
     unit: int|None = None
     value: str|None = None
 
-    # time and/or start and/or end time to describe period of relevance for the record.
-    time: datetime64|None = None
     start: datetime64|None = None
     end: datetime64|None = None
 
@@ -29,17 +27,24 @@ class DataRecordBase(ABC):
     # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
+
 @dataclass
 class DataRecordInput(DataRecordBase, LabeledModel):
     unit_id: InitVar[int|None] = None
+    reference_ids: InitVar[List[int] | None] = None
 
-    def __post_init__(self, unit_id):
+    def __post_init__(self, unit_id, reference_ids):
         if unit_id is not None:
             self.unit = unit_id
+        if reference_ids is not None:
+            self.references = reference_ids
         if self.start:
             self.start = datetime64(self.start)
         if self.end:
             self.end = datetime64(self.end)
+        if self.start and self.end:
+            if self.start > self.end:
+                raise ValueError("Start date cannot be after end date")
 
 @dataclass
 class DataRecordStored(DataRecordBase, StoredModel):
@@ -50,27 +55,22 @@ class DataRecordOutput(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
 
 @dataclass(eq=False)
-class DataSetBase(ABC):
+class DatasetBase(ABC):
     """
-        DataRecords are aggregated per ontology_id into a DataSet.
-        Typically, a dataset will be referenced by a single study,
-        though multiple studies may reference a common dataset.
-
-        "ontology_id" should reference to Variable or Factor in the ontology.
+        DataRecords are aggregated by ontology_id AND study into a Dataset.
+        "concept" should reference to Variable or Factor in the ontology.
+        "study" should reference to Study in the study repository
         "Records" is a list of DataRecord
         """
     label: ClassVar[str] = ControlledModelLabel.DATASET
 
+    study: int = None
     concept: int = None
     records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
 
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
-
-    @staticmethod
-    def input_dict_to_record(record: dict) -> DataRecordInput:
-        return DataRecordInput(**record)
 
     def add_records(
             self,
@@ -79,11 +79,11 @@ class DataSetBase(ABC):
             categories: List[ScaleCategoryStored]|None
     ) -> Generator[None|str, None, None]:
         for record in records:
-            if isinstance(record, dict):
-                record = self.input_dict_to_record(record)
             try:
-                record.value = self.parse_value(record.value, scale, categories)
-                self.records.append(record)
+                if isinstance(record, dict):
+                    record = DataRecordInput(**record)
+                parsed_record = self.parse_record(record, scale, categories)
+                self.records.append(parsed_record)
                 yield None
             except Exception as e:
                 yield str(e)
@@ -97,7 +97,7 @@ class DataSetBase(ABC):
         record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
         for record in records:
             if isinstance(record, dict):
-                record = self.input_dict_to_record(record)
+                record = DataRecordInput(**record)
             try:
                 record.value = self.parse_value(record.value, scale, categories)
                 record_index = record_index_map[record.id]
@@ -133,14 +133,20 @@ class DataSetBase(ABC):
             categories=categories
         )
 
+    def parse_record(self, record: DataRecordInput, scale: ScaleStored, categories: List[ScaleCategoryStored]):
+        if scale.scale_type == ScaleType.COMPLEX:
+            if not record.references:
+                raise ValueError("Complex scale records require at least one reference")
+        record.value = self.parse_value(record.value, scale, categories)
+        return record
 
 
 @dataclass
-class DataSetInput(DataSetBase, EnumLabeledModel):
+class DatasetInput(DatasetBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
-class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
+class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
 
     @property
     def controlled_models(self) -> List[ControlledModel]:
@@ -162,7 +168,7 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
     @property
     def protected(self) -> str | None:
         if self.records:
-            return "DataSet with records may not be removed"
+            return "Dataset with records may not be removed"
         return None
 
     def redacted(
@@ -189,8 +195,8 @@ class DataSetStored(DataSetBase, ControlledModel, ControlledAggregate):
                 )
 
     def to_output(self):
-        return DataSetOutput(**self.model_dump())
+        return DatasetOutput(**self.model_dump())
 
 @dataclass(eq=False)
-class DataSetOutput(DataSetBase, StoredModel, EnumLabeledModel):
+class DatasetOutput(DatasetBase, StoredModel, EnumLabeledModel):
     id: int | None = None

@@ -10,7 +10,7 @@ import erdantic as erd
 from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.domain.model.arrangements import Arrangement, LayoutStored
 from src.breedgraph.domain.model.blocks import Block, UnitBase
-from src.breedgraph.domain.model.datasets import DataSetStored, DataRecordStored
+from src.breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
 from src.breedgraph.domain.model.organisations import Organisation, TeamStored
 from src.breedgraph.domain.model.controls import Controller
 from src.breedgraph.domain.model.programs import ProgramStored
@@ -53,7 +53,7 @@ erd.draw(LayoutStored, out="./figures/layout.svg")
 erd.draw(Block, out="./figures/block.svg")
 erd.draw(UnitBase, out="./figures/unit.svg")
 
-erd.draw(DataSetStored, out="./figures/dataset.svg")
+erd.draw(DatasetStored, out="./figures/dataset.svg")
 erd.draw(DataRecordStored, out="./figures/datarecord.svg")
 
 erd.draw(OntologyEntryStored, out="./figures/ontology_entry.svg")

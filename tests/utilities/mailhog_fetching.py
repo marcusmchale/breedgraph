@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import json
 import requests
@@ -7,7 +6,7 @@ from email import header
 
 from src.breedgraph.config import MAIL_HOST
 
-from tests.utilities.exceptions import TooManyRetries
+from tests.utilities.retry import retry
 
 
 MAILHOG_HTTP_PORT = 8025
@@ -34,19 +33,6 @@ def decode_b64(b):
     return replace_linebreaks(s)
 
 
-def retry(attempts):
-    def func_wrapper(f):
-        async def wrapper(*args, **kwargs):
-            for attempt in range(attempts):
-                result = await f(*args, **kwargs)
-                if result is not None:
-                    return result
-                else:
-                    await asyncio.sleep(1)
-            raise TooManyRetries
-        return wrapper
-    return func_wrapper
-
 
 @retry(10)
 async def get_email(mailto: str, subject: str, string_in_body: None|str = None):
@@ -54,7 +40,7 @@ async def get_email(mailto: str, subject: str, string_in_body: None|str = None):
     for e in all_emails['items']:
         if all([
             mailto in e['Raw']['To'],
-            subject in [decode_mime_words(w) for w in e['Content']['Headers']['SUBJECT']]
+            subject in [decode_mime_words(w) for w in e['Content']['Headers']['Subject']]
         ]):
             if string_in_body is not None:
                 #if not string_in_body in decode_mime_words(e['Content']['Body']):

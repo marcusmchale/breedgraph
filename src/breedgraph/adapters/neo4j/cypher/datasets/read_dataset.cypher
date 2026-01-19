@@ -1,7 +1,8 @@
-MATCH (dataset: DataSet {id: $dataset_id})
+MATCH (dataset: Dataset {id: $dataset_id})
 RETURN
   dataset {
     .*,
+    study: [(dataset)<-[:HAS_DATASET]-(study) | study.id][0],
     concept: [(dataset)-[:FOR_CONCEPT]-(concept:Variable|Factor) | concept.id][0],
     contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person)|contributor.id],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],

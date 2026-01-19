@@ -1,4 +1,4 @@
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, AbstractUnitHolder
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.blocks import UnitInput, Position
 from src.breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_unit(
         cmd: commands.blocks.CreateUnit,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         unit_input = UnitInput(
@@ -54,7 +54,7 @@ async def create_unit(
 @handlers.command_handler()
 async def update_unit(
         cmd: commands.blocks.UpdateUnit,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
@@ -94,7 +94,7 @@ async def update_unit(
 @handlers.command_handler()
 async def delete_unit(
         cmd: commands.blocks.DeleteUnit,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
@@ -104,7 +104,7 @@ async def delete_unit(
 @handlers.command_handler()
 async def add_position(
         cmd: commands.blocks.AddPosition,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
@@ -146,7 +146,7 @@ async def _validate_position(uow: AbstractUnitHolder, position: Position):
 @handlers.command_handler()
 async def remove_position(
         cmd: commands.blocks.RemovePosition,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)

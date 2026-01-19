@@ -20,7 +20,7 @@ class EmailAddedMessage(Email):
 
     def __init__(self, ):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} registration now available'
+        self.message['Subject'] = f'{SITE_NAME} registration now available'
         self.message.set_content(
             f'Welcome to {SITE_NAME}\n'
             f'You are now able to register with this email address.'
@@ -31,7 +31,7 @@ class VerifyEmailMessage(Email):
 
     def __init__(self, user: UserBase, token: str):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} account email verification'
+        self.message['Subject'] = f'{SITE_NAME} account email verification'
         verify_url = f'{get_base_url()}verify'
         body = (
             f'Hi {user.fullname}, \n'
@@ -50,7 +50,7 @@ class ResetPasswordMessage(Email):
 
     def __init__(self, user: UserBase, token: str):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} account reset password'
+        self.message['Subject'] = f'{SITE_NAME} account reset password'
         reset_url = f'{get_base_url()}reset'
         body = (
             f'Hi {user.fullname}, \n'
@@ -69,7 +69,7 @@ class AffiliationRequestedMessage(Email):
 
     def __init__(self, requesting_user: UserBase, team: TeamBase, access: Access):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access requested'
+        self.message['Subject'] = f'{SITE_NAME} {access.name.casefold()} access requested'
         body = (
             f'Admin notification:\n'
             f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.name}.\n'
@@ -82,7 +82,7 @@ class AffiliationApprovedMessage(Email):
 
     def __init__(self, user: UserBase, team: TeamBase, access: Access):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} {access.name.casefold()} access approved'
+        self.message['Subject'] = f'{SITE_NAME} {access.name.casefold()} access approved'
         body = (
             f'Hi {user.fullname},\n'
             f'Your account was approved for {access.name.casefold()} access to {team.name}.\n'
@@ -93,7 +93,7 @@ class FileUploadSuccess(Email):
 
     def __init__(self, user: UserBase, filename: str, reference_id: int):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} file upload success notification'
+        self.message['Subject'] = f'{SITE_NAME} file upload success notification'
         body = (
             f'Hi {user.fullname}, \n'
             f'Your file upload ({filename}) was successfully completed and linked to reference {reference_id}'
@@ -105,7 +105,7 @@ class FileUploadFailed(Email):
 
     def __init__(self, user: UserBase, filename: str, reference_id: int):
         super().__init__()
-        self.message['SUBJECT'] = f'{SITE_NAME} file upload failure notification'
+        self.message['Subject'] = f'{SITE_NAME} file upload failure notification'
         body = (
             f'Hi {user.fullname}, \n'
             f'Your file upload ({filename}) failed for reference {reference_id}'
@@ -116,7 +116,7 @@ class FileUploadFailed(Email):
 #
 #    def __init__(self, user: UserBase, team: TeamBase):
 #        super().__init__()
-#        self.message['SUBJECT'] = f'{SITE_NAME} affiliation confirmed'
+#        self.message['Subject'] = f'{SITE_NAME} affiliation confirmed'
 #        self.message.set_content(
 #            f'Hi {user.fullname}. '
 #            f'Your affiliation with {team.fullname} has been confirmed. '
@@ -127,7 +127,7 @@ class FileUploadFailed(Email):
 #
 #    def __init__(self, user: UserBase, team: TeamBase):
 #        super().__init__()
-#        self.message['SUBJECT'] = f'{SITE_NAME} admin granted'
+#        self.message['Subject'] = f'{SITE_NAME} admin granted'
 #        self.message.set_content(
 #            f'Hi {user.fullname}. '
 #            f'Your administrator status for {team.fullname} has been confirmed. '

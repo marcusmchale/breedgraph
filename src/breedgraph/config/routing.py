@@ -31,6 +31,12 @@ def get_vue_url():
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
+def get_download_endpoint():
+    if HOST_PORT != 80:
+        return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/download?token='
+    else:
+        return f'{PROTOCOL}://{HOST_ADDRESS}/download?token='
+
 DATABASE_NAME = os.environ.get("DATABASE_NAME")  # currently only a single database available
 def get_bolt_url():
     host = os.environ.get('DB_HOST', 'localhost')

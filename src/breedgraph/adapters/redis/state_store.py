@@ -2,11 +2,8 @@ import json
 import redis.asyncio as redis
 
 from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWork
 
 from src.breedgraph.config import get_redis_host_and_port
-
-from src.breedgraph.adapters.redis.load_data import RedisLoader
 
 from src.breedgraph.domain.model.regions import LocationInput, LocationStored
 from src.breedgraph.domain.model.errors import ItemError
@@ -19,13 +16,12 @@ from typing import AsyncGenerator, List, Self
 
 
 class RedisStateStore(AbstractStateStore):
-    def __init__(self, connection: redis.Redis):
+    def __init__(self, connection: redis.Redis = None):
         self.connection = connection
 
     @classmethod
     async def create(
             cls,
-            uow: AbstractUnitOfWork,
             connection: redis.Redis|None = None,
             db: int = 0
     ) -> Self:
@@ -34,9 +30,6 @@ class RedisStateStore(AbstractStateStore):
             host, port = get_redis_host_and_port()
             connection = await redis.Redis(host=host, port=port, db=db)
             logger.debug(f"Ping redis successful: {await connection.ping()}")
-        if not await connection.exists("country"):
-            loader = RedisLoader(connection, uow)
-            await loader.load_read_model()
 
         return cls(connection)
 
@@ -59,8 +52,10 @@ class RedisStateStore(AbstractStateStore):
             value=str(agent_id)
         )
 
-    async def _verify_agent(self, agent_id, key: str):
+    async def verify_agent(self, agent_id, key: str):
         agent = await self.connection.hget(key, key="agent")
+        if agent is None:
+            raise ValueError(f"Agent information not found for key: {key}")
         agent = int(agent.decode('utf-8'))
         if not agent_id == agent:
             raise ValueError(f"Requesting user does not match stored agent for this key: {key}")
@@ -169,6 +164,8 @@ class RedisStateStore(AbstractStateStore):
 
     async def _get_submission_status(self, submission_id: str):
         status = await self.connection.hget(submission_id, key=SubmissionKeys.STATUS.value)
+        if status is None:
+            return None
         return SubmissionStatus(status.decode('utf-8'))
 
     async def _get_submission_errors(self, submission_id):
@@ -182,6 +179,8 @@ class RedisStateStore(AbstractStateStore):
 
     async def _get_file_progress(self, file_id: str):
         progress = await self.connection.hget(file_id, key='progress')
+        if progress is None:
+            return None
         return int(progress.decode('utf-8')) if progress else 0
 
     async def _get_file_status(self, file_id: str):
@@ -189,6 +188,8 @@ class RedisStateStore(AbstractStateStore):
             name=file_id,
             key='status'
         )
+        if status is None:
+            return None
         return SubmissionStatus(status.decode('utf-8'))
 
     async def set_file_reference_id(self, file_id: str, reference_id: int):
@@ -203,7 +204,33 @@ class RedisStateStore(AbstractStateStore):
             name=file_id,
             key=SubmissionKeys.FILE_ID.value
         )
+        if reference_id is None:
+            return None
         return int(reference_id.decode('utf-8')) if reference_id else None
+
+    async def set_file_errors(self, file_id: str, errors: List[str]):
+        await self.connection.hset(
+            name=file_id,
+            key=SubmissionKeys.ERRORS.value,
+            value=json.dumps(errors)
+        )
+
+    async def _get_file_errors(self, file_id: str):
+        errors = await self.connection.hget(file_id, key=SubmissionKeys.ERRORS.value)
+        return json.loads(errors) if errors else []
+
+    async def _get_user_files(self, agent_id) -> List[str]:
+        user_files_key = f"user:{agent_id}:files"
+        file_ids = await self.connection.smembers(user_files_key)
+        return list(file_ids)
+
+    async def _file_exists(self, file_id) -> bool:
+        return await self.connection.exists(file_id)
+
+    async def _remove_user_file(self, agent_id, file_id) -> None:
+        user_files_key = f"user:{agent_id}:files"
+        await self.connection.srem(user_files_key, file_id)
+
 
     """ Brute force protection state """
 

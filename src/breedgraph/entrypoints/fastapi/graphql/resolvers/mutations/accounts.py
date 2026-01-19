@@ -148,8 +148,9 @@ async def login(
             if brute_force_service:
                 await brute_force_service.record_successful_attempt(username)
 
-            await info.context['bus'].handle(Login(user_id=account.user.id))
-            token = info.context['auth_service'].create_login_token(account.user.id)
+            bus = info.context.get('bus')
+            await bus.handle(Login(user_id=account.user.id))
+            token = bus.auth_service.create_login_token(account.user.id)
 
             # Queue the cookie to be set on the response
             cookie_data = {

@@ -44,6 +44,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
         return self.user_record_to_user(record['user'])
 
     async def _get(self, user_id=None, name=None, email=None) -> AccountStored|None:
+
         if user_id is not None:
             result: AsyncResult = await self.tx.run(
                 queries['accounts']['get_account'],

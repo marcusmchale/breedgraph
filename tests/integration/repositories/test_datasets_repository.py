@@ -1,5 +1,5 @@
 import pytest
-from src.breedgraph.domain.model.datasets import DataSetStored, DataRecordInput
+from src.breedgraph.domain.model.datasets import DatasetStored, DataRecordInput
 
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
@@ -11,7 +11,7 @@ async def test_get(
         stored_dataset,
         height_variable
 ):
-    retrieved: DataSetStored = await datasets_repo.get(dataset_id=1)
+    retrieved: DatasetStored = await datasets_repo.get(dataset_id=1)
     assert retrieved == stored_dataset
     async for d in datasets_repo.get_all():
         if d == stored_dataset:

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from enum import Enum
+import json
 
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import StoredModel, EnumLabeledModel, LabeledModel
@@ -9,8 +10,10 @@ from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggr
 from typing import ClassVar, Set, List, Dict, Any
 
 class DataFormat(str, Enum):  # For complex types, this describes the format
-    # todo implement handlers for these types
-    JSON = "JSON"
+    # todo implement handlers and json schema templates for these types
+    FASTA = "FASTA"
+    FASTQ = "FASTQ"
+    ODGI = "ODGI"
     HDF5 = "HDF5"
     CSV = "CSV"
     TSV = "TSV"
@@ -21,7 +24,18 @@ class ReferenceBase(ABC):
     description: None|str = None
 
     def model_dump(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if 'format' in d:
+            d['format'] = d['format'].value
+        if 'schema' in d and d['schema'] is not None:
+            d['schema'] = json.dumps(d['schema'])
+        return d
+
+    def to_output(self) -> Dict[str, Any]:
+        d = self.model_dump()
+        d.pop('events')
+        return d
+
 
 @dataclass(eq=False)
 class ReferenceStoredBase(ControlledModel, ControlledAggregate, ABC):
@@ -53,6 +67,29 @@ class ReferenceStoredBase(ControlledModel, ControlledAggregate, ABC):
                 return None
             return self._redacted()
 
+
+"""
+Legal reference
+"""
+@dataclass(eq=False)
+class LegalReference(ReferenceBase):
+    text: str = None
+
+@dataclass
+class LegalReferenceInput(LegalReference, EnumLabeledModel):
+    pass
+
+@dataclass(eq=False)
+class LegalReferenceStored(LegalReference, ReferenceStoredBase):
+
+    def _redacted(self):
+        return replace(
+            self,
+            description=self.redacted_str,
+            text=self.redacted_str
+        )
+
+
 """
 External reference
 """
@@ -81,7 +118,8 @@ File reference
 @dataclass(eq=False)
 class FileReferenceBase(ReferenceBase):
     filename: str = None  # filename
-    uuid: str | None = None # name in file datastore.
+    file_id: str | None = None # name in file datastore.
+    content_type: str | None = None
 
 
 @dataclass
@@ -96,7 +134,8 @@ class FileReferenceStored(FileReferenceBase, ReferenceStoredBase):
                 self,
                 description = self.redacted_str,
                 filename = self.redacted_str,
-                uuid = None
+                content_type = self.redacted_str,
+                file_id = None
             )
 
 """
@@ -142,26 +181,6 @@ class DataFileInput(DataFileBase, EnumLabeledModel):
     pass
 
 @dataclass(eq=False)
-class DataFileStored(DataFileBase, ExternalReferenceStored):
+class DataFileStored(DataFileBase, FileReferenceStored):
     pass
 
-"""
-Legal reference
-"""
-@dataclass(eq=False)
-class LegalReference(ReferenceBase):
-    text: str = None
-
-@dataclass
-class LegalReferenceInput(LegalReference, EnumLabeledModel):
-    pass
-
-@dataclass(eq=False)
-class LegalReferenceStored(LegalReference, ReferenceStoredBase):
-
-    def _redacted(self):
-        return replace(
-            self,
-            description=self.redacted_str,
-            text=self.redacted_str
-        )

@@ -15,7 +15,7 @@ type GermplasmEntry {
     reproduction: Reproduction
     controlMethods: [ControlMethod!]
     authors: [Person!]
-    references: [Reference!]
+    references: [ReferenceInterface!]
     sources: [GermplasmRelationship!]
     sinks: [GermplasmRelationship!]
 }

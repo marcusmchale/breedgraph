@@ -25,45 +25,104 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
     async def _create_program(self, program: ProgramInput) -> ProgramStored:
         logger.debug(f"Create program: {program}")
-        result: AsyncResult = await self.tx.run(queries['programs']['create_program'], **program.model_dump())
+        program_data = program.model_dump()
+        contact_ids = program_data.pop('contact_ids')
+        reference_ids = program_data.pop('reference_ids')
+        result: AsyncResult = await self.tx.run(
+            queries['programs']['create_program'],
+            program_data = program_data,
+            contact_ids = contact_ids,
+            reference_ids = reference_ids
+        )
         record: Record = await result.single()
-        return ProgramStored(**record['program'])
+        return self.record_to_program(record)
 
     async def _create_trial(self, trial: TrialInput, program_id: int) -> TrialStored:
         logger.debug(f"Create trial: {trial}")
+        trial_data = trial.model_dump()
+        self.serialize_dt64(trial_data, to_neo4j=True)
+        contact_ids = trial_data.pop('contact_ids')
+        reference_ids = trial_data.pop('reference_ids')
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_trial'],
-            **trial.model_dump(),
+            trial_data = trial_data,
+            contact_ids = contact_ids,
+            reference_ids = reference_ids,
             program_id=program_id
         )
         record: Record = await result.single()
-        return TrialStored(**record['trial'])
+        return self.record_to_trial(record)
 
     async def _create_study(self, study: StudyInput, trial_id: int) -> StudyStored:
         logger.debug(f"Create study: {study}")
+        study_data = study.model_dump()
+        self.serialize_dt64(study_data, to_neo4j=True)
+        reference_ids = study_data.pop('reference_ids')
+        licence_id = study_data.pop('licence_id')
+        dataset_ids = study_data.pop('dataset_ids')
+        design_id = study_data.pop('design_id')
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_study'],
-            **study.model_dump(),
+            study_data=study_data,
+            reference_ids = reference_ids,
+            licence_id = licence_id,
+            dataset_ids = dataset_ids,
+            design_id = design_id,
             trial_id=trial_id
         )
         record: Record = await result.single()
-        return StudyStored(**record['study'])
+        return self.record_to_study(record)
 
     async def _update_program(self, program: ProgramStored):
         logger.debug(f"Set program: {program}")
-        params=program.model_dump()
-        params.pop('trials')
-        await self.tx.run(queries['programs']['set_program'], params)
+        program_data = program.model_dump()
+        program_data.pop('trials')
+        program_id = program_data.pop('id')
+        contact_ids = program_data.pop('contact_ids')
+        reference_ids = program_data.pop('reference_ids')
+        await self.tx.run(
+            queries['programs']['set_program'],
+            program_id=program_id,
+            program_data=program_data,
+            contact_ids=contact_ids,
+            reference_ids=reference_ids
+        )
 
     async def _update_trial(self, trial: TrialStored):
         logger.debug(f"Set trial: {trial}")
-        params = trial.model_dump()
-        params.pop('studies')
-        await self.tx.run(queries['programs']['set_trial'], params)
+        trial_data = trial.model_dump()
+        trial_data.pop('studies')
+        self.serialize_dt64(trial_data, to_neo4j=True)
+        trial_id = trial_data.pop('id')
+        contact_ids = trial_data.pop('contact_ids')
+        reference_ids = trial_data.pop('reference_ids')
+        await self.tx.run(
+            queries['programs']['set_trial'],
+            trial_id=trial_id,
+            trial_data=trial_data,
+            contact_ids=contact_ids,
+            reference_ids=reference_ids
+        )
 
     async def _update_study(self, study: StudyStored):
         logger.debug(f"Set study: {study}")
-        await self.tx.run(queries['programs']['set_study'], study.model_dump())
+        study_data = study.model_dump()
+        self.serialize_dt64(study_data, to_neo4j=True)
+        study_id = study_data.pop('id')
+        reference_ids = study_data.pop('reference_ids')
+        licence_id = study_data.pop('licence_id')
+        dataset_ids = study_data.pop('dataset_ids')
+        design_id = study_data.pop('design_id')
+
+        await self.tx.run(
+            queries['programs']['set_study'],
+            study_id = study_id,
+            study_data=study_data,
+            reference_ids=reference_ids,
+            licence_id=licence_id,
+            dataset_ids=dataset_ids,
+            design_id=design_id
+        )
 
     async def _delete_trials(self, trial_ids: List[int]) -> None:
         logger.debug(f"Remove trials: {trial_ids}")
@@ -73,16 +132,38 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         logger.debug(f"Remove studies: {study_ids}")
         await self.tx.run(queries['programs']['remove_studies'], study_ids=study_ids)
 
-    @staticmethod
-    def record_to_program(program: dict):
-        for trial in program['trials']:
-            trial['studies'] = {
-                study['id']: StudyStored(**study) for study in trial['studies']
+    def record_to_study(self, record: Record | dict) -> StudyStored:
+        if isinstance(record, Record):
+            record = record.data()
+        if 'study' in record:
+            record = record.get('study')
+        record = self.deserialize_dt64(record)
+        return StudyStored(**record)
+
+    def record_to_trial(self, record: Record | dict) -> TrialStored:
+        if isinstance(record, Record):
+            record = record.data()
+        if 'trial' in record:
+            record = record.get('trial')
+        record = self.deserialize_dt64(record)
+
+        if 'studies' in record:
+            record['studies'] = {
+                study['id']: self.record_to_study(study) for study in record['studies']
             }
-        program['trials'] = {
-            trial['id']: TrialStored(**trial) for trial in program['trials']
-        }
-        return ProgramStored(**program)
+        return TrialStored(**record)
+
+    def record_to_program(self, record: Record | dict) -> ProgramStored:
+        if isinstance(record, Record):
+            record = record.data()
+        if 'program' in record:
+            record = record.get('program')
+
+        if 'trials' in record:
+            record['trials'] = {
+                trial['id']: self.record_to_trial(trial) for trial in record['trials']
+            }
+        return ProgramStored(**record)
 
     async def _get_controlled(
             self,
@@ -149,10 +230,8 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
                     if trial.studies.removed:
                         await self._delete_studies(list(trial.studies.removed.keys()))
 
-                if isinstance(trial, TrialStored):
+                if isinstance(trial, TrialStored) and trial.changed - {'studies'}:
                     await self._update_trial(trial)
-                else:
-                    raise ValueError("Only stored trials have tracked changes")
 
             if program.trials.removed:
                 await self._delete_trials(list(program.trials.removed.keys()))

@@ -2,19 +2,8 @@ MATCH (trial: Trial {id: $trial_id})
 MERGE (counter: Counter {name: 'study'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (trial)-[:HAS_STUDY]->(study: Study {
-  id:          counter.count,
-  name:        $name,
-  fullname:    $fullname,
-  description: $description,
-  practices:   $practices,
-  start: datetime($start['str']),
-  start_unit: datetime($start['unit']),
-  start_step: datetime($start['step']),
-  end: datetime($end['str']),
-  end_unit: datetime($end['unit']),
-  end_step: datetime($end['step'])
-})
+CREATE (trial)-[:HAS_STUDY]->(study: Study {id: counter.count})
+SET study += $study_data
 
 WITH
   study
@@ -29,7 +18,7 @@ CALL {
 //Link datasets
 CALL {
   WITH study
-  MATCH (dataset: DataSet) WHERE dataset.id in $dataset_ids
+  MATCH (dataset: Dataset) WHERE dataset.id in $dataset_ids
   CREATE (study)-[has_dataset:HAS_DATASET]->(dataset)
   RETURN
     collect(dataset.id) AS datasets

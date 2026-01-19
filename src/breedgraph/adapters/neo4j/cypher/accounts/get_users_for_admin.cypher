@@ -1,6 +1,6 @@
 MATCH (team: Team)
     <-[:READ|WRITE|ADMIN|CURATE]-(user:User)
-WHERE team.id in $team_ids
+WHERE team.id in $admin_teams
 AND user.id in $user_ids
 WITH distinct user
 RETURN

@@ -54,53 +54,57 @@ type Query {
     These are all countries that form the top-level location in the region.
     """
     regions: LocationsPayload!
-    """
-    Get locations by locationId
-    """
+    """ Get locations by locationId """
     regionsLocations (locationIds: [Int!]!): LocationsPayload!
-    """
-    Search for locations by ontology Location type
-    """
+    """ Search for locations by ontology Location type """
     regionsLocationsByType (locationTypeId: Int!): LocationsPayload!
-    """Get a list of arrangement roots.
+    """
+    Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
     """
     arrangements (locationId: Int): LayoutsPayload!
-    """
-    Get a layout details by ID
-    """
+    """ Get a layout details by ID """
     arrangementsLayouts (layoutIds: [Int!]): LayoutsPayload! # see team
     """
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
     blocks (locationIds: [Int!]): UnitsPayload!
-    """
-    Get units by ID.
-    """
+    """ Get units by ID. """
     blocksUnits (unitIds: [Int!]): UnitsPayload!
-    """
-    Get a list of programs
-    """
-    programs (programId: Int, trialId: Int, studyId: Int) : ProgramsPayload
-    """
-    Get datasets by ID or concept
-    """
-    datasets (datasetId: Int, conceptId: Int): DatasetsPayload
-    """
-    Get dataset submission by key
-    """
-    datasetsSubmission(submissionId: String): SubmissionPayload
-    """
-    Get the controller data for access controlled entities
-    """
+    """ Get a list of all programs """
+    programs: ProgramsPayload!
+    """Get a program by Id of program, trial or study """
+    programsProgram(programId: Int, trialId: Int, studyId: Int) : ProgramPayload!
+    """ Get trials by Id of trial or study """
+    programsTrial(trialId: Int, studyId: Int): TrialPayload!
+    """ Get study by study Id """
+    programsStudy(studyId: Int!): StudyPayload!
+    """ Get datasets by ID or concept """
+    datasets (datasetId: Int, conceptId: Int): DatasetsPayload!
+    """ Get dataset submission by key """
+    datasetsSubmission(submissionId: String!): DatasetSubmissionPayload!
+    """ Get a summary of datasets for a study """
+    datasetsSummaries(studyId: Int!): DatasetSummariesPayload!
+    """ Get the controller data for access controlled entities """
     controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [Int]!): ControllersPayload!
     """Get a list of Germplasm entries"""
-    germplasmEntries (names: [String!], entryIds: [Int!]): GermplasmEntriesPayload
+    germplasmEntries (names: [String!], entryIds: [Int!]): GermplasmEntriesPayload!
     """
         Get a list of Germplasm entries that have no sources defined,
         these should typically represent the Crop concept
     """
-    germplasmCrops: GermplasmEntriesPayload
+    germplasmCrops: GermplasmEntriesPayload!
+    """ Get reference by reference ID """
+    references(referenceIds: [Int!]): ReferencesPayload!
+    """ Get a users recently created/updated file references """
+    referencesRecentFiles: ReferencesPayload!
+    """ Search for references by text in description """
+    referencesDescription(description: String!): ReferencesPayload!
+    """ Get file submission by fileId for progress and status updates """
+    referencesFileSubmission(fileId: String!): FileSubmissionPayload!
+    """ Get a token to download a file """
+    referencesFileDownload(fileId: String!): FileDownloadPayload!
+
 }

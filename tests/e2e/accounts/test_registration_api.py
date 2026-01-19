@@ -1,7 +1,6 @@
 import pytest
 
 from src.breedgraph.config import SITE_NAME
-
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.accounts.post_methods import (
     post_to_create_account,
@@ -52,10 +51,13 @@ async def test_first_user_register_verify_login(client, user_input_generator):
     login_payload = get_verified_payload(login_response, "accountsLogin")
     assert_payload_success(login_payload)
 
+
 @pytest.mark.asyncio(scope="session")
 async def test_second_user_invited_registers_and_verifies(client, user_input_generator, first_user_login_token):
     # first user invites the second by adding an email address to their allowed list
+
     second_user_input = user_input_generator.new_user_input()
+
     invite_response = await post_to_add_email(
         client,
         first_user_login_token,
@@ -81,7 +83,7 @@ async def test_second_user_invited_registers_and_verifies(client, user_input_gen
 
 @pytest.mark.asyncio(scope="session")
 async def test_first_user_creates_deletes_team(client, user_input_generator, first_user_login_token):
-    new_team_name = user_input_generator.user_inputs[1]['team_name']
+    new_team_name = user_input_generator.user_inputs[0]['team_name']
     create_team_response = await post_to_create_team(
         client,
         first_user_login_token,
@@ -124,7 +126,7 @@ async def test_first_user_creates_deletes_team(client, user_input_generator, fir
 
 @pytest.mark.asyncio(scope="session")
 async def test_second_user_builds_organisation(client, user_input_generator, second_user_login_token):
-    first_team_name = user_input_generator.new_user_input()['team_name']
+    first_team_name = user_input_generator.user_inputs[0]['team_name']
     await post_to_create_team(client, second_user_login_token, first_team_name)
 
     organisations_request_response = await post_to_organisations(client,second_user_login_token)
@@ -132,7 +134,7 @@ async def test_second_user_builds_organisation(client, user_input_generator, sec
     organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
 
     parent_team_id = organisation_root_ids[0]
-    second_team_name = user_input_generator.new_user_input()['team_name']
+    second_team_name = user_input_generator.user_inputs[1]['team_name']
     add_child_team_response = await post_to_create_team(
         client,
         second_user_login_token,
@@ -174,6 +176,7 @@ async def test_first_user_requests_read_affiliation(client, user_input_generator
 
     first_user_input = user_input_generator.user_inputs[0]
     second_user_input = user_input_generator.user_inputs[1]
+
     # the second user should receive an email
     assert await confirm_email_delivered(
         second_user_input["email"],

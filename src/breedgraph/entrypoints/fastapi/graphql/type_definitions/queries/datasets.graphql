@@ -4,17 +4,17 @@ type Record {
     value: String
     start: DateTime
     end: DateTime
-    references: [Reference]
+    references: [ReferenceInterface]
     submitted: DateTime
 }
 
-type DataSet {
+type Dataset {
     id: Int!
     # concept is either a Factor or Variable in the ontology
     concept: OntologyEntryInterface
     records: [Record]
     contributors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 }
 
 type SubmittedRecord {
@@ -30,7 +30,7 @@ type SubmittedData {
     conceptId: Int!
     records: [SubmittedRecord]
     contributors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 }
 
 enum SubmissionStatus {
@@ -45,10 +45,22 @@ type ItemError {
     error: String!
 }
 
-type Submission {
+type DatasetSubmission {
     data: SubmittedData
     datasetId: Int
     status: SubmissionStatus
     errors: [String]
     itemErrors: [ItemError]
+}
+
+type DatasetSummary {
+    id: Int!
+    concept: OntologyEntryInterface,
+    subjects: [Subject]
+    locations: [Location]
+    blocks: [Unit]
+    unit_count: Int!
+    record_count: Int!
+    start: DateTime
+    end: DateTime
 }

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, AsyncGenerator, TypeVar, Generic, Union
+from neo4j import Record
 
 from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject, tracked
 from src.breedgraph.domain.model.time_descriptors import deserialize_time, serialize_npdt64, npdt64_to_neo4j
@@ -15,7 +16,10 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
         self.seen: Dict[TrackedObject|TAggregate,TrackedObject|TAggregate] = dict()
 
     @staticmethod
-    def deserialize_dt64(record: dict) -> dict:
+    def deserialize_dt64(record: Dict | Record) -> dict:
+        if isinstance(record, Record):
+            record = record.data()
+
         if record.get('submitted', None) is not None:
             record['submitted'] = deserialize_time(record['submitted'])
         if record.get('start', None) is not None:

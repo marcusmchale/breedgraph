@@ -1,5 +1,7 @@
 enum DataFormat {
-    JSON
+    FASTA
+    FASTQ
+    ODGI
     HDF5
     CSV
     TSV
@@ -41,17 +43,20 @@ input CreateDataFileReferenceInput {
 
 
 input UpdateLegalReferenceInput {
+    referenceId: Int!
     description: String
     text: String!
 }
 
 input UpdateExternalReferenceInput {
+    referenceId: Int!
     description: String
     url: String!
     externalId: String
 }
 
 input UpdateExternalDataReferenceInput {
+    referenceId: Int!
     description: String
     url: String!
     externalId: String
@@ -61,11 +66,13 @@ input UpdateExternalDataReferenceInput {
 }
 
 input UpdateFileReferenceInput {
+    referenceId: Int!
     description: String
     file: Upload
 }
 
 input UpdateDataFileReferenceInput {
+    referenceId: Int!
     description: String
     file: Upload
 
@@ -74,19 +81,20 @@ input UpdateDataFileReferenceInput {
 }
 
 extend type Mutation {
-    referencesCreateLegal(reference: CreateLegalReferenceInput!): BooleanPayload
-    referencesCreateExternal(reference: CreateExternalReferenceInput!): BooleanPayload
-    referencesCreateExternalData(reference: CreateExternalDataReferenceInput!): BooleanPayload
+    referencesCreateLegal(reference: CreateLegalReferenceInput!): CreatedIdPayload!
+    referencesCreateExternal(reference: CreateExternalReferenceInput!): CreatedIdPayload!
+    referencesCreateExternalData(reference: CreateExternalDataReferenceInput!): CreatedIdPayload!
 
     """As for dataset submissions, creating a file is asynchronous and we are returned a key """
-    referencesCreateFile(reference: CreateFileReferenceInput): FileIdPayload
-    referencesCreateDataFile(reference: CreateDataFileReferenceInput): FileIdPayload
+    referencesCreateFile(reference: CreateFileReferenceInput): FileIdPayload!
+    referencesCreateDataFile(reference: CreateDataFileReferenceInput): FileIdPayload!
     
-    referencesUpdateLegal(reference: UpdateLegalReferenceInput!): BooleanPayload
-    referencesUpdateExternal(reference: UpdateExternalReferenceInput!): BooleanPayload
-    referencesUpdateExternalData(reference: UpdateExternalDataReferenceInput!): BooleanPayload
-    referencesUpdateFile(reference: UpdateFileReferenceInput): BooleanPayload
-    referencesUpdateDataFile(reference: UpdateDataFileReferenceInput): BooleanPayload
+    referencesUpdateLegal(reference: UpdateLegalReferenceInput!): BooleanPayload!
+    referencesUpdateExternal(reference: UpdateExternalReferenceInput!): BooleanPayload!
+    referencesUpdateExternalData(reference: UpdateExternalDataReferenceInput!): BooleanPayload!
+
+    referencesUpdateFile(reference: UpdateFileReferenceInput): FileIdPayload!
+    referencesUpdateDataFile(reference: UpdateDataFileReferenceInput): FileIdPayload!
     
-    referencesDelete(referenceIds: [Int!]!): BooleanPayload
+    referencesDelete(referenceIds: [Int!]!): BooleanPayload!
 }

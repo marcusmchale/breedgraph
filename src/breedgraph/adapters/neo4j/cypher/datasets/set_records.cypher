@@ -34,6 +34,6 @@ ORDER BY cnt
     WITH record_data, record
     MATCH (reference: Reference)
     WHERE reference.id in record_data['references']
-    MERGE (reference)-[:REFERENCE_FOR]->(record)
+    MERGE (reference)-[ref_for:REFERENCE_FOR]->(record)
   }
   RETURN NULL

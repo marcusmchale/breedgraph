@@ -1,4 +1,4 @@
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_germplasm_entry(
         cmd: commands.germplasm.CreateGermplasm,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
@@ -50,7 +50,7 @@ async def create_germplasm_entry(
 @handlers.command_handler()
 async def update_germplasm_entry(
         cmd: commands.germplasm.UpdateGermplasm,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
@@ -88,7 +88,7 @@ async def update_germplasm_entry(
 @handlers.command_handler()
 async def delete_germplasm_entry(
         cmd: commands.germplasm.DeleteGermplasm,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm

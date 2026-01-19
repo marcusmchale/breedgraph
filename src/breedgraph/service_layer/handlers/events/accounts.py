@@ -10,7 +10,7 @@ from src.breedgraph.domain.services import email_templates
 from src.breedgraph.domain.model.organisations import Access, Authorisation
 from src.breedgraph.domain.model.accounts import UserOutput
 
-from src.breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 
@@ -32,7 +32,7 @@ async def email_user_allowed(
 @handlers.event_handler()
 async def send_user_verify_url(
         event: events.accounts.AccountCreated,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
     async with uow.get_uow() as uow:
@@ -55,7 +55,7 @@ async def send_user_verify_url(
 @handlers.event_handler()
 async def email_change_requested(
         event: events.accounts.EmailChangeRequested,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
     async with uow.get_uow() as uow:
@@ -82,7 +82,7 @@ async def email_change_requested(
 @handlers.event_handler()
 async def email_verified(
         event: events.accounts.EmailVerified,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     # now that email is verified we can remove the allowed email to keep things tidy
     async with uow.get_uow() as uow:
@@ -93,7 +93,7 @@ async def email_verified(
 @handlers.event_handler()
 async def password_change_requested(
         event: events.accounts.PasswordChangeRequested,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
     async with uow.get_uow() as uow:
@@ -117,7 +117,7 @@ async def password_change_requested(
 @handlers.event_handler()
 async def process_affiliation_request(
         event: events.accounts.AffiliationRequested,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
     async with uow.get_uow(redacted=False) as uow:
@@ -147,7 +147,7 @@ async def process_affiliation_request(
 @handlers.event_handler()
 async def notify_user_approved(
         event: events.accounts.AffiliationApproved,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
     async with uow.get_uow(redacted=False) as uow:

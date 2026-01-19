@@ -1,46 +1,33 @@
-from neo4j import AsyncTransaction, AsyncResult
-from typing import AsyncGenerator
+from neo4j import AsyncResult, AsyncSession
 
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
-from src.breedgraph.service_layer.queries.views.regions import AbstractRegionsViews
-from src.breedgraph.domain.model.controls import ControlledModelLabel
-
-from src.breedgraph.domain.model.regions import LocationOutput
-from src.breedgraph.domain.model.controls import Access
+from src.breedgraph.service_layer.queries.views.regions import AbstractRegionsView
+from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
 from src.breedgraph.adapters.neo4j.cypher import queries
+from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
-class Neo4jRegionsViews(AbstractRegionsViews):
+
+from src.breedgraph.domain.model.regions import LocationOutput
+
+from typing import List, AsyncGenerator
+
+class Neo4jRegionsView(AbstractRegionsView):
     def __init__(
             self,
-            tx: AsyncTransaction,
-            access_control: AbstractAccessControlService,
+            state_store: AbstractStateStore,
+            read_teams: List[int],
+            session: AsyncSession
     ):
-        self.tx = tx
-        self.access_control = access_control
+        self.state_store = state_store
+        self.read_teams: List[int] = read_teams
+        self.session = session
 
-    async def get_locations_by_type(self, location_type_id: int) -> AsyncGenerator[LocationOutput, None]:
-        # First get all locations of this type
-        result: AsyncResult = await self.tx.run(queries['regions']['get_locations_by_type'], location_type=location_type_id)
-
-        # collect these for filtering
-        locations_map = {}
-        async for record in result:
-            location_output = LocationOutput(**record['location'])
-            locations_map[location_output.id] = location_output
-
-        # Retrieve controllers for these
-        controllers = await self.access_control.get_controllers(
-            label=ControlledModelLabel.LOCATION,
-            model_ids=list(locations_map.keys())
-        )
-        read_teams = self.access_control.access_teams.get(Access.READ, set())
-        user_id = self.access_control.user_id
-
-        # Filter and yield based on access control
-        for location_id, location_output in locations_map.items():
-            controller = controllers.get(location_id)
-            if controller and controller.has_access(Access.READ, user_id, read_teams):
-                yield location_output
-            else:
-                continue
+    async def _get_locations_by_type(self, location_type_id: int) -> AsyncGenerator[LocationOutput, None]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['regions']['get_locations_by_type_for_read_teams'],
+                location_type=location_type_id,
+                read_teams=self.read_teams
+            )
+            async for record in result:
+                yield LocationOutput(**record['location'])

@@ -44,5 +44,7 @@ export HOST_PORT=8000
 export GQL_API_PATH='graphql'
 export VUE_PORT=8080
 
-# Pathing
+# Files
 export FILE_STORAGE_PATH="./file_store"
+export FILE_DOWNLOAD_SALT="PROVIDE_SALT_FOR_DOWNLOAD_LINKS"
+export FILE_DOWNLOAD_EXPIRES=1440

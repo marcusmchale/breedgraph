@@ -1,3 +1,68 @@
-type Reference {
+interface ReferenceInterface {
     id: Int!
+    description: String
 }
+
+type LegalReference implements ReferenceInterface {
+    id: Int!
+    description: String
+
+    text: String
+}
+
+type ExternalReference implements ReferenceInterface {
+    id: Int!
+    description: String
+
+    url: String
+    externalId: String
+}
+
+type FileReference implements ReferenceInterface {
+    id: Int!
+    description: String
+
+    filename: String
+    fileId: String
+    contentType: String
+}
+
+type ExternalDataReference implements ReferenceInterface {
+    id: Int!
+    description: String
+
+    url: String
+    externalId: String
+
+    format: DataFormat
+    schema: String
+}
+
+type DataFileReference implements ReferenceInterface {
+    id: Int!
+    description: String
+
+    filename: String
+    fileId: String
+    contentType: String
+
+    format: DataFormat
+    schema: String
+}
+
+type FileSubmission {
+    referenceId: Int
+    status: SubmissionStatus
+    progress: Int
+    errors: [String]
+}
+
+type FileDownload {
+    filename: String!
+    contentType: String!
+    token: String!
+    expiresAt: DateTime!
+    url: String!
+}
+
+union ReferenceUnion = LegalReference | ExternalReference | ExternalDataReference | DataFileReference | FileReference

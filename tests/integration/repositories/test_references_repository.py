@@ -32,7 +32,7 @@ def get_file_reference_input(lorem_text_generator):
     return FileReferenceInput(
         description=lorem_text_generator.new_text(20),
         filename=lorem_text_generator.new_text(5),
-        uuid=uuid.uuid4()
+        file_id=uuid.uuid4().hex
     )
 
 @pytest.mark.usefixtures("session_database")
@@ -78,5 +78,5 @@ async def test_file_reference(uncommitted_neo4j_tx, neo4j_access_control_service
     reference_input = get_file_reference_input(lorem_text_generator)
     stored_ref: FileReferenceStored = await repo.create(reference_input)
     retrieved_ref: FileReferenceStored = await repo.get(reference_id=stored_ref.id)
-    assert retrieved_ref.uuid == retrieved_ref.uuid
+    assert retrieved_ref.file_id == retrieved_ref.file_id
 

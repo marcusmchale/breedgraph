@@ -1,16 +1,6 @@
 MATCH
-  (study: Study {id: $id})
-SET
-  study.name = $name,
-  study.fullname = $fullname,
-  study.description = $description,
-  study.practices = $practices,
-  study.start = datetime($start['str']),
-  study.start_unit = datetime($start['unit']),
-  study.start_step = datetime($start['step']),
-  study.end = datetime($end['str']),
-  study.end_unit = datetime($end['unit']),
-  study.end_step = datetime($end['step'])
+  (study: Study {id: $study_id})
+SET study += $study_data
 WITH study
 // Update references
 CALL {
@@ -24,15 +14,15 @@ CALL {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   MERGE (reference)-[reference_for:REFERENCE_FOR]->(study)
 }
-// Update DataSets
+// Update Datasets
 CALL {
   WITH study
-  MATCH (study)-[has_dataset:HAS_DATASET]->(dataset: DataSet) WHERE NOT dataset.id IN $dataset_ids
+  MATCH (study)-[has_dataset:HAS_DATASET]->(dataset: Dataset) WHERE NOT dataset.id IN $dataset_ids
   DELETE has_dataset
 }
 CALL {
   WITH study
-  MATCH (dataset: DataSet) WHERE dataset.id IN $dataset_ids
+  MATCH (dataset: Dataset) WHERE dataset.id IN $dataset_ids
   MERGE (study)-[:HAS_DATASET]->(dataset)
 }
 //Update design (in ontology)

@@ -5,7 +5,7 @@ import bcrypt
 from faker import Faker
 
 from src.breedgraph.config import MAIL_USERNAME, MAIL_HOST
-
+import traceback
 logger = logging.getLogger(__name__)
 
 class UserInputGenerator:

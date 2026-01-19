@@ -2,7 +2,13 @@ from src.breedgraph.domain import commands, events
 from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
 from src.breedgraph.domain.model.organisations import Authorisation, Access
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork, AbstractAuthService
+
+from src.breedgraph.service_layer.infrastructure import (
+    AbstractUnitOfWorkFactory,
+    AbstractAuthService
+)
+
+from src.breedgraph.service_layer.queries.views import AbstractViewsFactory
 
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
@@ -18,13 +24,13 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_account(
         cmd: commands.accounts.CreateAccount,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
+
     async with uow.get_uow() as uow:
-        # First check if any accounts exist
-        if await uow.views.accounts.check_any_account():
+        if await uow.constraints.accounts_exist():
             # And if so, the email must be included in the allowed emails of some other account
-            if not await uow.views.accounts.check_allowed_email(cmd.email):
+            if not await uow.constraints.email_allowed(cmd.email):
                 raise UnauthorisedOperationError("Please contact an existing user to be invited")
             ontology_role = OntologyRole.CONTRIBUTOR
         else:
@@ -64,7 +70,7 @@ async def create_account(
 @handlers.command_handler()
 async def edit_user(
         cmd: commands.accounts.UpdateUser,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow() as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
@@ -82,7 +88,7 @@ async def edit_user(
 @handlers.command_handler()
 async def verify_email(
         cmd: commands.accounts.VerifyEmail,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         auth_service: AbstractAuthService
 ):
     async with uow.get_uow() as uow:
@@ -116,7 +122,7 @@ async def verify_email(
 @handlers.command_handler()
 async def login(
         cmd: commands.accounts.Login,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     # todo logic to record login events etc.
     pass
@@ -125,7 +131,7 @@ async def login(
 @handlers.command_handler()
 async def add_email(
         cmd: commands.accounts.AddEmail,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.user_id) as uow:
         if await uow.repositories.accounts.get(email=cmd.email):
@@ -138,7 +144,7 @@ async def add_email(
 @handlers.command_handler()
 async def remove_email(
         cmd: commands.accounts.RemoveEmail,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.user_id) as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
@@ -151,7 +157,7 @@ async def remove_email(
 @handlers.command_handler()
 async def request_ontology_role(
         cmd: commands.accounts.RequestOntologyRole,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.user_id) as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
@@ -161,34 +167,28 @@ async def request_ontology_role(
 @handlers.command_handler()
 async def set_ontology_role(
         cmd: commands.accounts.SetOntologyRole,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
-        agent = await uow.repositories.accounts.get(user_id=cmd.agent_id)
-        if not agent.user.ontology_role == OntologyRole.ADMIN:
-            raise IllegalOperationError("Only OntologyRole.ADMIN can change user ontology role")
+        # first just check that the user is an admin
+        if not await uow.constraints.is_ontology_admin():
+            raise UnauthorisedOperationError("Only ontology admins can change roles")
 
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
-        # check if user is an admin, if so only if the agent is the user can deprecation be performed
         if account.user.ontology_role == OntologyRole.ADMIN:
             if not account.user.id == cmd.agent_id:
-                raise UnauthorisedOperationError('Admins may only deprecate their own ontology role')
-            # also ensure that if we did perform this deprecation there would still be ontology admins
-            async for ontology_admin in uow.views.accounts.get_admins_for_ontology_admin():
-                if ontology_admin.id == account.user.id:
-                    continue
-                else:
-                    break
-            else:
-                raise IllegalOperationError("Deprecating this admin would result in no ontology Admins")
-
+                raise UnauthorisedOperationError('Admins may only change their own role')
+            if cmd.ontology_role != OntologyRole.ADMIN and await uow.constraints.is_last_ontology_admin():
+                raise IllegalOperationError(
+                    "This would result in no ontology admins, please select another admin before retiring!"
+                )
         account.user.ontology_role = OntologyRole(cmd.ontology_role)
         await uow.commit()
 
 @handlers.command_handler()
 async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.user_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
@@ -204,7 +204,7 @@ async def request_affiliation(
 @handlers.command_handler()
 async def approve_affiliation(
         cmd: commands.accounts.ApproveAffiliation,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
@@ -220,7 +220,7 @@ async def approve_affiliation(
 @handlers.command_handler()
 async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
@@ -235,7 +235,7 @@ async def remove_affiliation(
 @handlers.command_handler()
 async def revoke_affiliation(
         cmd: commands.accounts.RevokeAffiliation,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)

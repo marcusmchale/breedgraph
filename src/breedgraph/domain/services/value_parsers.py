@@ -16,7 +16,10 @@ class ValueParser:
             value: str|int,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored]
-    ) -> str|int:
+    ) -> str|int|None:
+        if scale.scale_type == ScaleType.COMPLEX:
+            return None
+
         if isinstance(value, str):
             if scale.scale_type == ScaleType.DATETIME:
                 return self._parse_datetime(value)
@@ -28,18 +31,15 @@ class ValueParser:
                 return self._parse_text(value)
             elif scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
                 return self._parse_category_text(value, categories)
-            elif scale.scale_type == ScaleType.COMPLEX:
-                return value
             else:
                 raise ValueError("String value provided for the wrong scale type")
 
         elif isinstance(value, int):
             if scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
                 return self._parse_category_int(value, categories)
-            elif scale.scale_type == ScaleType.COMPLEX:
-                return value
             else:
                 raise ValueError("Integer values are only supported for nominal and ordinal scales")
+
         else:
             raise ValueError("Only str and int values may be parsed as values")
 

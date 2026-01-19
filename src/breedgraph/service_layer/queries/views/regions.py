@@ -1,15 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator
 
-from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.domain.model.regions import LocationOutput
-from src.breedgraph.service_layer.application import AbstractAccessControlService
+from src.breedgraph.service_layer.infrastructure import AbstractStateStore
 
-from typing import Dict, Set
+from src.breedgraph.domain.model.regions import LocationInput
+from typing import List, AsyncGenerator
 
-class AbstractRegionsViews(ABC):
-    access_control: AbstractAccessControlService
+class AbstractRegionsView(ABC):
+    state_store: AbstractStateStore
+    read_teams: List[int]
+
+    async def countries(self) -> List[LocationInput]:
+        return [country async for country in self.state_store.get_countries()]
+
+    async def get_locations_by_type(self, location_type: int) -> List[LocationOutput]:
+        return [location async for location in self._get_locations_by_type(location_type)]
 
     @abstractmethod
-    def get_locations_by_type(self, location_type: int) -> AsyncGenerator[LocationOutput, None]:
+    def _get_locations_by_type(self, location_type: int) -> AsyncGenerator[LocationOutput, None]:
         ...

@@ -2,18 +2,8 @@ MATCH (program:Program {id:$program_id})
 MERGE (counter: Counter {name: 'trial'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (program)-[:HAS_TRIAL]->(trial: Trial {
-  id:          counter.count,
-  name:        $name,
-  fullname:    $fullname,
-  description: $description,
-  start: datetime($start['str']),
-  start_unit: datetime($start['unit']),
-  start_step: datetime($start['step']),
-  end: datetime($end['str']),
-  end_unit: datetime($end['unit']),
-  end_step: datetime($end['step'])
-})
+CREATE (program)-[:HAS_TRIAL]->(trial: Trial {id: counter.count})
+SET trial += $trial_data
 WITH
   trial
 //Link contacts

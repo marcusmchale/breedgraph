@@ -1,7 +1,7 @@
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.ontology import *
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 from src.breedgraph.service_layer.application import OntologyApplicationService
 
 from ..registry import handlers
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @handlers.command_handler()
-async def commit_ontology(cmd: commands.ontologies.CommitOntologyVersion, uow: AbstractUnitOfWork):
+async def commit_ontology(cmd: commands.ontologies.CommitOntologyVersion, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.commit_version(
@@ -28,7 +28,7 @@ async def commit_ontology(cmd: commands.ontologies.CommitOntologyVersion, uow: A
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def activate_ontology_entries(cmd: commands.ontologies.ActivateOntologyEntries, uow: AbstractUnitOfWork):
+async def activate_ontology_entries(cmd: commands.ontologies.ActivateOntologyEntries, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.activate_entries(
@@ -37,7 +37,7 @@ async def activate_ontology_entries(cmd: commands.ontologies.ActivateOntologyEnt
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def deprecate_ontology_entries(cmd: commands.ontologies.DeprecateOntologyEntries, uow: AbstractUnitOfWork):
+async def deprecate_ontology_entries(cmd: commands.ontologies.DeprecateOntologyEntries, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.deprecate_entries(
@@ -46,7 +46,7 @@ async def deprecate_ontology_entries(cmd: commands.ontologies.DeprecateOntologyE
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def remove_ontology_entries(cmd: commands.ontologies.RemoveOntologyEntries, uow: AbstractUnitOfWork):
+async def remove_ontology_entries(cmd: commands.ontologies.RemoveOntologyEntries, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.remove_entries(
@@ -55,7 +55,7 @@ async def remove_ontology_entries(cmd: commands.ontologies.RemoveOntologyEntries
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def activate_ontology_relationships(cmd: commands.ontologies.ActivateOntologyRelationships, uow: AbstractUnitOfWork):
+async def activate_ontology_relationships(cmd: commands.ontologies.ActivateOntologyRelationships, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.activate_relationships(
@@ -64,7 +64,7 @@ async def activate_ontology_relationships(cmd: commands.ontologies.ActivateOntol
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def deprecate_ontology_relationships(cmd: commands.ontologies.DeprecateOntologyRelationships, uow: AbstractUnitOfWork):
+async def deprecate_ontology_relationships(cmd: commands.ontologies.DeprecateOntologyRelationships, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.deprecate_relationships(
@@ -73,7 +73,7 @@ async def deprecate_ontology_relationships(cmd: commands.ontologies.DeprecateOnt
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def remove_ontology_relationships(cmd: commands.ontologies.RemoveOntologyRelationships, uow: AbstractUnitOfWork):
+async def remove_ontology_relationships(cmd: commands.ontologies.RemoveOntologyRelationships, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         await ontology_service.remove_relationships(
@@ -82,7 +82,7 @@ async def remove_ontology_relationships(cmd: commands.ontologies.RemoveOntologyR
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def create_term(cmd: commands.ontologies.CreateTerm, uow: AbstractUnitOfWork):
+async def create_term(cmd: commands.ontologies.CreateTerm, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = TermInput(
@@ -124,7 +124,7 @@ async def create_term(cmd: commands.ontologies.CreateTerm, uow: AbstractUnitOfWo
 
 
 @handlers.command_handler()
-async def create_subject(cmd: commands.ontologies.CreateSubject, uow: AbstractUnitOfWork):
+async def create_subject(cmd: commands.ontologies.CreateSubject, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = SubjectInput(
@@ -141,7 +141,7 @@ async def create_subject(cmd: commands.ontologies.CreateSubject, uow: AbstractUn
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def create_trait(cmd: commands.ontologies.CreateTrait, uow: AbstractUnitOfWork):
+async def create_trait(cmd: commands.ontologies.CreateTrait, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = TraitInput(
@@ -159,7 +159,7 @@ async def create_trait(cmd: commands.ontologies.CreateTrait, uow: AbstractUnitOf
 
 
 @handlers.command_handler()
-async def create_condition(cmd: commands.ontologies.CreateCondition, uow: AbstractUnitOfWork):
+async def create_condition(cmd: commands.ontologies.CreateCondition, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = ConditionInput(
@@ -177,7 +177,7 @@ async def create_condition(cmd: commands.ontologies.CreateCondition, uow: Abstra
 
 
 @handlers.command_handler()
-async def create_scale(cmd: commands.ontologies.CreateScale, uow: AbstractUnitOfWork):
+async def create_scale(cmd: commands.ontologies.CreateScale, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = ScaleInput(
@@ -198,7 +198,7 @@ async def create_scale(cmd: commands.ontologies.CreateScale, uow: AbstractUnitOf
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def create_scale_category(cmd: commands.ontologies.CreateScaleCategory, uow: AbstractUnitOfWork):
+async def create_scale_category(cmd: commands.ontologies.CreateScaleCategory, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = ScaleCategoryInput(
@@ -216,7 +216,7 @@ async def create_scale_category(cmd: commands.ontologies.CreateScaleCategory, uo
 
 
 @handlers.command_handler()
-async def create_observation_method(cmd: commands.ontologies.CreateObservationMethod, uow: AbstractUnitOfWork):
+async def create_observation_method(cmd: commands.ontologies.CreateObservationMethod, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = ObservationMethodInput(
@@ -235,7 +235,7 @@ async def create_observation_method(cmd: commands.ontologies.CreateObservationMe
 
 
 @handlers.command_handler()
-async def create_variable(cmd: commands.ontologies.CreateVariable, uow: AbstractUnitOfWork):
+async def create_variable(cmd: commands.ontologies.CreateVariable, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = VariableInput(
@@ -260,7 +260,7 @@ async def create_variable(cmd: commands.ontologies.CreateVariable, uow: Abstract
 
 
 @handlers.command_handler()
-async def create_control_method(cmd: commands.ontologies.CreateControlMethod, uow: AbstractUnitOfWork):
+async def create_control_method(cmd: commands.ontologies.CreateControlMethod, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = ControlMethodInput(
@@ -278,7 +278,7 @@ async def create_control_method(cmd: commands.ontologies.CreateControlMethod, uo
 
 
 @handlers.command_handler()
-async def create_factor(cmd: commands.ontologies.CreateFactor, uow: AbstractUnitOfWork):
+async def create_factor(cmd: commands.ontologies.CreateFactor, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = FactorInput(
@@ -304,7 +304,7 @@ async def create_factor(cmd: commands.ontologies.CreateFactor, uow: AbstractUnit
 
 
 @handlers.command_handler()
-async def create_event_type(cmd: commands.ontologies.CreateEventType, uow: AbstractUnitOfWork):
+async def create_event_type(cmd: commands.ontologies.CreateEventType, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = EventTypeInput(  # Using EventTypeInput
@@ -327,7 +327,7 @@ async def create_event_type(cmd: commands.ontologies.CreateEventType, uow: Abstr
         await uow_holder.commit()
 
 @handlers.command_handler()
-async def create_location_type(cmd: commands.ontologies.CreateLocationType, uow: AbstractUnitOfWork):
+async def create_location_type(cmd: commands.ontologies.CreateLocationType, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = LocationTypeInput(
@@ -345,7 +345,7 @@ async def create_location_type(cmd: commands.ontologies.CreateLocationType, uow:
 
 
 @handlers.command_handler()
-async def create_design(cmd: commands.ontologies.CreateDesign, uow: AbstractUnitOfWork):
+async def create_design(cmd: commands.ontologies.CreateDesign, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = DesignInput(
@@ -363,7 +363,7 @@ async def create_design(cmd: commands.ontologies.CreateDesign, uow: AbstractUnit
 
 
 @handlers.command_handler()
-async def create_layout_type(cmd: commands.ontologies.CreateLayoutType, uow: AbstractUnitOfWork):
+async def create_layout_type(cmd: commands.ontologies.CreateLayoutType, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry_input = LayoutTypeInput(
@@ -549,7 +549,7 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
     if hasattr(cmd, 'axes') and cmd.axes is not None:
         entry.axes = cmd.axes
 
-async def update_by_command(cmd: commands.Command, uow: AbstractUnitOfWork):
+async def update_by_command(cmd: commands.Command, uow: AbstractUnitOfWorkFactory):
     async with uow.get_uow(user_id=cmd.agent_id) as uow_holder:
         ontology_service = uow_holder.ontology
         entry = await ontology_service.get_entry(cmd.id)
@@ -560,57 +560,57 @@ async def update_by_command(cmd: commands.Command, uow: AbstractUnitOfWork):
 
 """Update handlers"""
 @handlers.command_handler()
-async def update_term(cmd: commands.ontologies.UpdateTerm, uow: AbstractUnitOfWork):
+async def update_term(cmd: commands.ontologies.UpdateTerm, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_subject(cmd: commands.ontologies.UpdateSubject, uow: AbstractUnitOfWork):
+async def update_subject(cmd: commands.ontologies.UpdateSubject, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_trait(cmd: commands.ontologies.UpdateTrait, uow: AbstractUnitOfWork):
+async def update_trait(cmd: commands.ontologies.UpdateTrait, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_condition(cmd: commands.ontologies.UpdateCondition, uow: AbstractUnitOfWork):
+async def update_condition(cmd: commands.ontologies.UpdateCondition, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_scale(cmd: commands.ontologies.UpdateScale, uow: AbstractUnitOfWork):
+async def update_scale(cmd: commands.ontologies.UpdateScale, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_category(cmd: commands.ontologies.UpdateCategory, uow: AbstractUnitOfWork):
+async def update_category(cmd: commands.ontologies.UpdateCategory, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_observation_method(cmd: commands.ontologies.UpdateObservationMethod, uow: AbstractUnitOfWork):
+async def update_observation_method(cmd: commands.ontologies.UpdateObservationMethod, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_variable(cmd: commands.ontologies.UpdateVariable, uow: AbstractUnitOfWork):
+async def update_variable(cmd: commands.ontologies.UpdateVariable, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_control_method(cmd: commands.ontologies.UpdateControlMethod, uow: AbstractUnitOfWork):
+async def update_control_method(cmd: commands.ontologies.UpdateControlMethod, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_factor(cmd: commands.ontologies.UpdateFactor, uow: AbstractUnitOfWork):
+async def update_factor(cmd: commands.ontologies.UpdateFactor, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_event_type(cmd: commands.ontologies.UpdateEventType, uow: AbstractUnitOfWork):
+async def update_event_type(cmd: commands.ontologies.UpdateEventType, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_location_type(cmd: commands.ontologies.UpdateLocationType, uow: AbstractUnitOfWork):
+async def update_location_type(cmd: commands.ontologies.UpdateLocationType, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_design(cmd: commands.ontologies.UpdateDesign, uow: AbstractUnitOfWork):
+async def update_design(cmd: commands.ontologies.UpdateDesign, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)
 
 @handlers.command_handler()
-async def update_layout_type(cmd: commands.ontologies.UpdateLayoutType, uow: AbstractUnitOfWork):
+async def update_layout_type(cmd: commands.ontologies.UpdateLayoutType, uow: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow)

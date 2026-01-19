@@ -16,6 +16,7 @@ input RecordUpdate {
 }
 
 input DatasetInput {
+    studyId: Int!
     """ concept is either a Factor or Variable in the ontology """
     conceptId: Int!
     records: [RecordInput]
@@ -28,6 +29,7 @@ input DatasetUpdate {
     Optionally provide a list of records to update
     """
     datasetId: Int!
+    studyId: Int
     conceptId: Int
     records: [RecordUpdate]
     contributorIds: [Int!]

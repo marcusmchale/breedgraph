@@ -1,5 +1,6 @@
 from ariadne import ObjectType
-from src.breedgraph.service_layer.queries.read_models import regions
+
+from src.breedgraph.service_layer.queries.views import regions, AbstractRegionsView
 
 from src.breedgraph.domain.model.regions import LocationInput, LocationOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -25,9 +26,8 @@ graphql_resolvers.register_type_resolvers(location, location_template)
 @require_authentication
 async def get_countries(_, info) -> List[LocationInput]:
     bus = info.context.get('bus')
-    countries = [c async for c in regions.countries(bus.state_store)]
-    return countries
-
+    async with bus.views.get_views(user_id = info.context.get('user_id')) as views:
+        return await views.regions.countries()
 
 @graphql_query.field("regions")
 @graphql_payload
@@ -53,12 +53,11 @@ async def get_locations_by_type(_, info, location_type_id: int | None = None) ->
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     locations_map = info.context.get('locations_map', dict())
-    locations_by_type = []
-    async with bus.uow.get_uow(user_id = user_id) as uow:
-        async for location_ in uow.views.regions.get_locations_by_type(location_type_id = location_type_id):
+    async with bus.views.get_views(user_id=user_id) as views:
+        locations = await views.regions.get_locations_by_type(location_type = location_type_id)
+        for location_ in locations:
             locations_map[location_.id] = location_
-            locations_by_type.append(location_.id)
-        return [locations_map.get(i) for i in locations_by_type]
+        return locations
 
 @location.field("region")
 async def resolve_region(obj, info) -> LocationOutput:

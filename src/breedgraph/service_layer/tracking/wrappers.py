@@ -238,6 +238,7 @@ class TrackedObject(ObjectProxy, TrackableProtocol):
             value = getattr(self.__wrapped__, attr)
             if hasattr(value, 'collect_added_models'):
                 value.collect_added_models(added_models)
+
         return added_models
 
     @property
@@ -500,6 +501,7 @@ class TrackedSet(ObjectProxy, MutableSet, TrackableProtocol):
                 elif hasattr(value, 'collect_added_models'):
                     value.collect_added_models(added_models)
 
+
     def collect_removed_models(self, removed_models: List):
         for value in self.removed:
             if isinstance(value, TrackedObject):
@@ -627,17 +629,22 @@ class TrackedDict(ObjectProxy, MutableMapping, TrackableProtocol):
         return self._self_changed
 
     def collect_added_models(self, added_models: List):
-        for key in self.added:
+        for key in self.added | self.changed:
             value = self[key]
             if isinstance(value, TrackedObject):
-                added_models.append(value)
+                if key in self.added:
+                    added_models.append(value)
+                if hasattr(value, 'added_models'):
+                    added_models.extend(value.added_models)
             elif hasattr(value, 'collect_added_models'):
                 value.collect_added_models(added_models)
 
     def collect_removed_models(self, removed_models: List):
-        for key, value in self.removed.items():
+        for key in self.removed.keys() | self.changed:
+            value = self[key]
             if isinstance(value, TrackedObject):
-                removed_models.append(value)
+                if key in self.removed:
+                    removed_models.append(value)
             elif hasattr(value, 'collect_removed_models'):
                 value.collect_removed_models(removed_models)
 

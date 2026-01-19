@@ -20,8 +20,8 @@ type OntologyCommit {
     time: DateTime
     user: User
     # References not handled
-    licence: Int
-    copyright: Int
+    licence: LegalReference
+    copyright: LegalReference
 }
 """
 Ontology entries are created in draft phase.
@@ -256,7 +256,7 @@ interface OntologyEntryInterface {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [OntologyEntryInterface]
     children: [OntologyEntryInterface]
@@ -280,7 +280,7 @@ type Term implements OntologyEntryInterface {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Term]
     children: [Term]
@@ -315,7 +315,7 @@ type Subject implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Subject]
     children: [Subject]
@@ -340,7 +340,7 @@ type Trait implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Trait]
     children: [Trait]
@@ -364,7 +364,7 @@ type Condition implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Condition]
     children: [Condition]
@@ -396,7 +396,7 @@ type Scale implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Scale]
     children: [Scale]
@@ -422,7 +422,7 @@ type Category implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Category]
     children: [Category]
@@ -446,7 +446,7 @@ type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [ObservationMethod]
     children: [ObservationMethod]
@@ -478,7 +478,7 @@ type Variable implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Variable]
     children: [Variable]
@@ -503,7 +503,7 @@ type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [ControlMethod]
     children: [ControlMethod]
@@ -535,7 +535,7 @@ type Factor implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Factor]
     children: [Factor]
@@ -561,7 +561,7 @@ type Event implements OntologyEntryInterface & RelatedToTerms {
     synonyms: [String]
 
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Event]
     children: [Event]
@@ -585,7 +585,7 @@ type LocationType implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [LocationType]
     children: [LocationType]
@@ -606,7 +606,7 @@ type LayoutType implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [LayoutType]
     children: [LayoutType]
@@ -629,7 +629,7 @@ type Design implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Design]
     children: [Design]
@@ -650,7 +650,7 @@ type Role implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Role]
     children: [Role]
@@ -671,7 +671,7 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
     abbreviation: String
     synonyms: [String]
     authors: [Person]
-    references: [Reference]
+    references: [ReferenceInterface]
 
     parents: [Title]
     children: [Title]

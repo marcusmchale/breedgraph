@@ -2,7 +2,7 @@ from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.arrangements import LayoutInput
 from src.breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 
@@ -23,7 +23,7 @@ def validate_position_within_parent(position, parent_layout, parent_type):
 @handlers.command_handler()
 async def create_layout(
         cmd: commands.arrangements.CreateLayout,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
@@ -56,7 +56,7 @@ async def create_layout(
 @handlers.command_handler()
 async def update_layout(
         cmd: commands.arrangements.UpdateLayout,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         arrangement = await uow.repositories.arrangements.get(layout_id=cmd.layout_id)
@@ -120,7 +120,7 @@ async def update_layout(
 @handlers.command_handler()
 async def delete_layout(
         cmd: commands.arrangements.DeleteLayout,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         arrangement = await uow.repositories.arrangements.get(layout_id=cmd.layout_id)

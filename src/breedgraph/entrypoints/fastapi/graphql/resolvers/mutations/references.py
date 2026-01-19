@@ -32,18 +32,18 @@ from . import graphql_mutation
 def start_creating_file(user_id:int, bus: MessageBus, key: str, reference_id: int, file: UploadFile):
     # sets the uuid and notifies user
     success_event = UploadCompleted(user_id=user_id, uuid=key, reference_id=reference_id)
-    async def on_complete():
+    async def on_complete(*args, **kwargs):
         logger.debug(f'file saving complete for uuid: {key}')
         await bus.handle(success_event)
     # removes the file and notifies user
     fail_event = UploadFailed(user_id=user_id, uuid=key, reference_id=reference_id)
-    async def on_failed():
-        logger.debug(f'file saving failed for uuid: {key}')
+    async def on_failed(*args, **kwargs):
+        logger.error(f'file saving failed for uuid: {key}')
         await bus.handle(fail_event)
 
     asyncio.create_task(bus.file_management.save_file(
         uuid=key,
-        file = file,
+        file=file,
         on_complete=on_complete,
         on_failed=on_failed
     ))
@@ -62,7 +62,7 @@ def start_updating_file(
     success_event = UploadCompleted(user_id=user_id, uuid=key, reference_id=reference_id)
     fail_event = UploadFailed(user_id=user_id, uuid=key, reference_id=reference_id)
 
-    async def on_complete():
+    async def on_complete(*args, **kwargs):
         try:
             await bus.handle(cmd)
             await bus.handle(success_event)
@@ -70,7 +70,7 @@ def start_updating_file(
             logger.error(f"Failed to update file reference: {e}")
             await bus.handle(fail_event)
 
-    async def on_failed():
+    async def on_failed(*args, **kwargs):
         await bus.handle(fail_event)
 
     asyncio.create_task(bus.file_management.save_file(
@@ -91,9 +91,11 @@ async def start_file_ref_update(
         await bus.handle(cmd)
         return None
     else:
+
         key = await bus.state_store.store_file(
             agent_id=user_id,
-            filename=file.filename
+            filename=file.filename,
+            reference_id=reference_id
         )
         start_updating_file(
             user_id=user_id,
@@ -113,12 +115,12 @@ async def create_legal_reference(
         _,
         info,
         reference: dict
-) -> bool:
+) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates legal reference')
     cmd = CreateLegalReference(agent_id=user_id, **reference)
-    await info.context['bus'].handle(cmd)
-    return True
+    reference_id: int = await info.context['bus'].handle(cmd)
+    return reference_id
 
 
 @graphql_mutation.field("referencesCreateExternal")
@@ -128,12 +130,12 @@ async def create_external_reference(
         _,
         info,
         reference: dict
-) -> bool:
+) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates external reference')
     cmd = CreateExternalReference(agent_id=user_id, **reference)
-    await info.context['bus'].handle(cmd)
-    return True
+    reference_id: int = await info.context['bus'].handle(cmd)
+    return reference_id
 
 @graphql_mutation.field("referencesCreateExternalData")
 @graphql_payload
@@ -142,13 +144,14 @@ async def create_external_data_reference(
         _,
         info,
         reference: dict
-) -> bool:
+) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates external data reference')
     json_schema = reference.pop('schema')
     cmd = CreateExternalDataReference(agent_id=user_id, **reference, json_schema=json_schema)
     await info.context['bus'].handle(cmd)
-    return True
+    reference_id: int = await info.context['bus'].handle(cmd)
+    return reference_id
 
 
 @graphql_mutation.field("referencesCreateFile")
@@ -164,6 +167,8 @@ async def create_file_reference(
     logger.debug(f'User {user_id} creating file reference')
 
     file: UploadFile = reference.get('file')
+    if not file:
+        raise ValueError("File upload is required for creating a file reference")
 
     key = await bus.state_store.store_file(
         agent_id=user_id,
@@ -173,12 +178,14 @@ async def create_file_reference(
         agent_id=user_id,
         description=reference.get('description'),
         filename=file.filename,
+        content_type=file.content_type,
         uuid=key
     )
     await bus.handle(cmd)
     # get the reference id from the state store
     bus: MessageBus = info.context.get('bus')
     reference_id = await bus.state_store.get_file_reference_id(key)
+
     start_creating_file(
         user_id=user_id,
         bus=bus,
@@ -201,6 +208,9 @@ async def create_data_file_reference(
     logger.debug(f'User {user_id} creates data file reference')
 
     file = reference.get('file')
+    if not file:
+        raise ValueError("File upload is required for creating a data file reference")
+
     key = await bus.state_store.store_file(
         agent_id=user_id,
         filename=file.filename
@@ -209,13 +219,16 @@ async def create_data_file_reference(
         agent_id=user_id,
         description=reference.get('description'),
         filename=file.filename,
+        content_type=file.content_type,
         format=reference.get('format'),
         json_schema=reference.get('schema'),
         uuid=key
     )
+
     await bus.handle(cmd)
     bus: MessageBus = info.context.get('bus')
     reference_id = await bus.state_store.get_file_reference_id(key)
+
     start_creating_file(
         user_id=user_id,
         bus=bus,
@@ -285,7 +298,8 @@ async def update_file_reference(
         agent_id=user_id,
         reference_id=reference.get('reference_id'),
         description=reference.get('description'),
-        filename=file.filename if file else None
+        filename=file.filename if file else None,
+        content_type = file.content_type if file else None,
     )
     key = await start_file_ref_update(
         user_id=user_id,
@@ -313,6 +327,7 @@ async def update_file_data_reference(
         reference_id=reference.get('reference_id'),
         description=reference.get('description'),
         filename=file.filename if file else None,
+        content_type=file.content_type if file else None,
         format=reference.get('format'),
         json_schema=reference.get('schema')
     )
@@ -334,7 +349,7 @@ async def delete_references(
         reference_ids: List[int]
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f'User {user_id} updates legal reference')
+    logger.debug(f'User {user_id} deletes references {reference_ids}')
     cmd = DeleteReferences(agent_id=user_id, reference_ids=reference_ids)
     await info.context['bus'].handle(cmd)
     return True

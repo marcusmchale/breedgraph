@@ -1,12 +1,8 @@
 MERGE (counter: Counter {name: 'program'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (program: Program {
-  id:          counter.count,
-  name:        $name,
-  fullname:    $fullname,
-  description: $description
-})
+CREATE (program: Program {id: counter.count})
+SET program += $program_data
 WITH
   program
 //Link contacts

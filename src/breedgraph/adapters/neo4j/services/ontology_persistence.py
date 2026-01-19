@@ -1,8 +1,5 @@
-import re
-from functools import lru_cache
-
 from neo4j import AsyncTransaction, Record
-from neo4j.exceptions import ResultNotSingleError, CypherSyntaxError, TransactionError, Neo4jError
+from neo4j.exceptions import ResultNotSingleError
 
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.time_descriptors import deserialize_time
@@ -12,6 +9,7 @@ from src.breedgraph.adapters.neo4j.cypher import queries, ontology
 
 # Import all ontology entry types - this ensures all subclasses are registered
 from src.breedgraph.domain.model.ontology import *
+from src.breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
 
@@ -25,6 +23,14 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
     def __init__(self, tx: AsyncTransaction):
         self.tx = tx
         self._current_version_cache: Version | None = None
+
+    async def get_user_ontology_role(self, user_id: int):
+        query = queries['accounts']['get_user_ontology_role']
+        result = await self.tx.run(query, user_id = user_id)
+        record = await result.single()
+        if record is None:
+            raise ValueError(f"User with id {user_id} not found")
+        return OntologyRole(record.value() or 'viewer')
 
     def record_to_entry(self, record: Record, as_output=False) -> OntologyEntryStored | OntologyEntryOutput:
         record_dict = dict(record)

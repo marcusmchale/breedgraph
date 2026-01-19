@@ -28,7 +28,7 @@ class ControlledModelLabel(EnumLabel):
     TRIAL = "Trial"
     PROGRAM = "Program"
     RECORD = "Record"
-    DATASET = "DataSet"
+    DATASET = "Dataset"
     LAYOUT = "Layout"
     LOCATION = "Location"
     REFERENCE = "Reference"
@@ -43,7 +43,7 @@ class ControlledModelLabel(EnumLabel):
             cls.STUDY: "Studies",
             cls.TRIAL: "Trials",
             cls.PROGRAM: "Programs",
-            cls.DATASET: "DataSets",
+            cls.DATASET: "Datasets",
             cls.LAYOUT: "Layouts",
             cls.LOCATION: "Locations",
             cls.REFERENCE: "References"

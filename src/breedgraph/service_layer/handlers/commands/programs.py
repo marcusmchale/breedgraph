@@ -1,4 +1,4 @@
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.programs import (
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_program(
         cmd: commands.programs.CreateProgram,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         # Check if a program with the same name already exists
@@ -43,7 +43,7 @@ async def create_program(
 @handlers.command_handler()
 async def update_program(
         cmd: commands.programs.UpdateProgram,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
@@ -73,7 +73,7 @@ async def update_program(
 @handlers.command_handler()
 async def delete_program(
         cmd: commands.programs.DeleteProgram,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
 
@@ -88,7 +88,7 @@ async def delete_program(
 @handlers.command_handler()
 async def create_trial(
         cmd: commands.programs.CreateTrial,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
@@ -110,7 +110,7 @@ async def create_trial(
 @handlers.command_handler()
 async def update_trial(
         cmd: commands.programs.UpdateTrial,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
@@ -142,7 +142,7 @@ async def update_trial(
 @handlers.command_handler()
 async def delete_trial(
         cmd: commands.programs.DeleteTrial,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
@@ -160,7 +160,7 @@ async def delete_trial(
 @handlers.command_handler()
 async def create_study(
         cmd: commands.programs.CreateStudy,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
@@ -186,7 +186,7 @@ async def create_study(
 @handlers.command_handler()
 async def update_study(
         cmd: commands.programs.UpdateStudy,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
@@ -215,18 +215,18 @@ async def update_study(
         if cmd.licence_id is not None:
             study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
-            study.reference_ids = cmd.references_ids
+            study.reference_ids = cmd.reference_ids
         await uow.commit()
 
 @handlers.command_handler()
 async def delete_study(
         cmd: commands.programs.DeleteStudy,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
-
-        program.remove_study(cmd.study_id)
+        study = program.get_study(cmd.study_id)
+        program.remove_study(study)
         await uow.commit()

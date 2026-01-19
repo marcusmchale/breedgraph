@@ -23,7 +23,7 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def get_countries(self) -> AsyncGenerator[LocationInput | LocationStored, None]:
+    def get_countries(self) -> AsyncGenerator[LocationInput | LocationStored, None]:
         ...
 
     """ Agent Control (for dataset submission and file management) """
@@ -32,7 +32,7 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def _verify_agent(self, agent_id: int, key: str):
+    async def verify_agent(self, agent_id: int, key: str):
         ...
 
     """ Dataset Submission"""
@@ -59,11 +59,11 @@ class AbstractStateStore(ABC):
         return valid_submissions
 
     async def get_submission_data(self, agent_id: int, submission_id: str):
-        await self._verify_agent(agent_id, submission_id)
+        await self.verify_agent(agent_id, submission_id)
         return await self._get_submission_data(submission_id)
 
     async def get_submission_dataset_id(self, agent_id: int, submission_id: str) -> int | None:
-        await self._verify_agent(agent_id, submission_id)
+        await self.verify_agent(agent_id, submission_id)
         return await self._get_submission_dataset_id(submission_id)
 
     async def add_submission_errors(self, submission_id, errors: List[str]):
@@ -73,8 +73,8 @@ class AbstractStateStore(ABC):
         await self._set_submission_errors(submission_id, errors)
 
     async def get_submission_errors(self, agent_id: int, submission_id: str):
-        await self._verify_agent(agent_id, submission_id)
-        await self._get_submission_errors(submission_id)
+        await self.verify_agent(agent_id, submission_id)
+        return await self._get_submission_errors(submission_id)
 
     async def add_submission_item_errors(self, submission_id: str, item_errors: List[ItemError]):
         stored_item_errors = await self._get_submission_item_errors(submission_id)
@@ -83,8 +83,8 @@ class AbstractStateStore(ABC):
         await self._set_submission_item_errors(submission_id, item_errors)
 
     async def get_submission_item_errors(self, agent_id: int, submission_id: str):
-        await self._verify_agent(agent_id, submission_id)
-        await self._get_submission_item_errors(submission_id)
+        await self.verify_agent(agent_id, submission_id)
+        return await self._get_submission_item_errors(submission_id)
 
     async def set_submission_status(self, submission_id: str, status: SubmissionStatus):
         await self._set_submission_status(submission_id, status)
@@ -96,7 +96,7 @@ class AbstractStateStore(ABC):
             await self._set_expiry(submission_id, duration_seconds=60 * 60 * 24 * SUBMISSION_RETENTION_DAYS)
 
     async def get_submission_status(self, agent_id: int, submission_id: str) -> SubmissionStatus:
-        await self._verify_agent(agent_id, submission_id)
+        await self.verify_agent(agent_id, submission_id)
         return await self._get_submission_status(submission_id)
 
     @abstractmethod
@@ -173,22 +173,51 @@ class AbstractStateStore(ABC):
         ...
 
     """ File management state """
-    async def store_file(self, agent_id: int, filename: str) -> str:
+    async def store_file(self, agent_id: int, filename: str, reference_id: int | None = None) -> str:
         file_id = uuid4().hex
         await self._set_agent(agent_id, file_id)
         await self._store_user_file(agent_id, file_id)
+        if reference_id is not None:
+            await self.set_file_reference_id(file_id, reference_id)
         await self._set_filename(file_id, filename)
         await self.set_file_progress(file_id, 0)
         await self.set_file_status(file_id, SubmissionStatus.PENDING)
         return file_id
 
     async def get_file_status(self, agent_id: int, file_id: str) -> SubmissionStatus:
-        await self._verify_agent(agent_id, file_id)
+        await self.verify_agent(agent_id, file_id)
         return await self._get_file_status(file_id)
 
     async def get_file_progress(self, agent_id: int, file_id: str):
-        await self._verify_agent(agent_id, file_id)
+        await self.verify_agent(agent_id, file_id)
         return await self._get_file_progress(file_id)
+
+    async def get_file_errors(self, agent_id: int, file_id: str):
+        await self.verify_agent(agent_id, file_id)
+        return await self._get_file_errors(file_id)
+
+    async def get_user_file_ids(self, agent_id: int) -> List[str]:
+        """ Return a list of submission ID """
+        file_ids = await self._get_user_files(agent_id)
+        valid_files = []
+        for file_id in file_ids:
+            if await self._file_exists(file_id):
+                status = await self._get_file_status(file_id)
+                if status == SubmissionStatus.COMPLETED:
+                    valid_files.append(file_id)
+            else:
+                # clean up expired submissions
+                await self._remove_user_file(agent_id, file_id)
+        return valid_files
+
+    async def get_user_file_reference_ids(self, user_id: int) -> List[str]:
+        """ Return a list of reference ID """
+        file_ids = await self.get_user_file_ids(user_id)
+        reference_ids = []
+        for file_id in file_ids:
+            reference_id = await self.get_file_reference_id(file_id)
+            reference_ids.append(reference_id)
+        return reference_ids
 
     @abstractmethod
     async def _store_user_file(self, agent_id: int, file_id: str):
@@ -215,6 +244,14 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
+    async def set_file_errors(self, file_id: str, errors: List[str]):
+        ...
+
+    @abstractmethod
+    async def _get_file_errors(self, file_id: str):
+        ...
+
+    @abstractmethod
     async def set_file_reference_id(self, file_id: str, reference_id: int):
         ...
 
@@ -223,6 +260,17 @@ class AbstractStateStore(ABC):
         """ Get reference ID for the given file ID """
         ...
 
+    @abstractmethod
+    async def _get_user_files(self, agent_id) -> List[str]:
+        ...
+
+    @abstractmethod
+    async def _file_exists(self, file_id) -> bool:
+        ...
+
+    @abstractmethod
+    async def _remove_user_file(self, agent_id, file_id) -> None:
+        ...
 
     """
     Brute force protection state
@@ -259,4 +307,3 @@ class AbstractStateStore(ABC):
     async def get_lockout_ttl(self, identifier: str) -> int | None:
         lockout_key = f"login_lockout:{identifier}"
         return await self._get_ttl(lockout_key)
-

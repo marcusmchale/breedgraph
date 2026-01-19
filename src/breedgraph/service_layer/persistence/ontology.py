@@ -31,6 +31,10 @@ class OntologyPersistenceService(ABC):
     """
     ontology_mapper: OntologyMapper = ontology_mapper
 
+    @abstractmethod
+    async def get_user_ontology_role(self, user_id: int):
+        ...
+
     async def create_entry(
             self,
             entry: OntologyEntryInput,

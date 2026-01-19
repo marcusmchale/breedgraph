@@ -1,12 +1,13 @@
 import asyncio
 from src.breedgraph.domain.model.accounts import UserOutput
-from src.breedgraph.domain.model.controls import Access
 from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
 from src.breedgraph.custom_exceptions import InconsistentStateError
 
 from typing import List, Set
 
 import logging
+
+from src.breedgraph.service_layer.queries.views import AbstractAccountsView
 
 logger = logging.getLogger(__name__)
 
@@ -101,31 +102,27 @@ async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None
             context['organisation_roots'] = organisation_roots
 
 async def update_users_map(context, user_ids: List[int] | None = None):
-    async with _get_lock(context, '_users_lock'):
+    async with (_get_lock(context, '_users_lock')):
 
         bus = context.get('bus')
         agent_id = context.get('user_id')  # This might be None for unauthenticated requests
         users_map = context.get('users_map', dict())
 
-        async with bus.uow.get_uow(user_id=agent_id) as uow:
+        async with bus.views.get_views(user_id=agent_id) as views:
             user_ids = set(user_ids) if user_ids is not None else set()
             unmapped = list(user_ids - set(users_map.keys()))
-            if unmapped:
-                team_ids = list(uow.controls.access_teams.get(Access.ADMIN))
-                async for user_for_admin in uow.views.accounts.get_users_for_admin(team_ids = team_ids, user_ids=unmapped):
-                    users_map[user_for_admin.id] = user_for_admin
+            for user in await views.accounts.get_users_for_admin(user_ids=unmapped):
+                users_map[user.id] = user
 
-            # agents can always see their own account
             if agent_id in user_ids and not agent_id in users_map:
-                agent = await uow.views.accounts.get_user(user_id=agent_id)
-                users_map[agent_id] = agent
+                users_map[agent_id] = await views.accounts.get_user()
 
-            # Present redacted users, with only the ID property (whether real or not)
-            for user_id in user_ids:
-                if not user_id in users_map:
-                    users_map[user_id] = UserOutput(
-                        id=user_id
-                    )
+            ## Present redacted users, with only the ID property (whether real or not)
+            #for user_id in user_ids:
+            #    if not user_id in users_map:
+            #        users_map[user_id] = UserOutput(
+            #            id=user_id
+            #        )
 
         context['users_map'] = users_map
 
@@ -221,43 +218,6 @@ async def update_units_map(context, location_ids: List[int] | None = None, unit_
             context['units_map'] = units_map
             context['block_roots'] = block_roots
 
-async def update_programs_map(
-        context,
-        program_id: int | None = None,
-        trial_id: int | None = None,
-        study_id: int | None = None
-):
-    async with _get_lock(context, '_programs_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
-
-        async with bus.uow.get_uow(user_id=user_id) as uow:
-            programs_map = context.get('programs_map', dict())
-            if program_id is None and not programs_map:
-                async for program in uow.repositories.programs.get_all():
-                    programs_map.update(program.to_output_map())
-            elif program_id is not None and not program_id in programs_map:
-                program = await uow.repositories.programs.get(program_id=program_id)
-                programs_map.update(program.to_output_map())
-            if trial_id is not None:
-                for program_id, program in programs_map.values():
-                    if trial_id in program.trials:
-                        break
-                else:
-                    program = await uow.repositories.programs.get(trial_id=trial_id)
-                    programs_map.update(program.to_output_map())
-            if study_id is not None:
-                for program_id, program in programs_map.values():
-                    for trial_id, trial in program.trials.items():
-                        if study_id in trial.studies:
-                            break
-                    else:
-                        program = await uow.repositories.programs.get(study_id=study_id)
-                        programs_map.update(program.to_output_map())
-                        break
-
-            context['programs_map'] = programs_map
-
 
 async def update_germplasm_map(
         context,
@@ -281,3 +241,25 @@ async def update_germplasm_map(
                 as_output=True
             ):
                 context['germplasm_map'][entry.id] = entry
+
+async def update_reference_map(
+        context,
+        reference_ids: List[int] = None
+):
+    async with _get_lock(context, '_reference_lock'):
+        bus = context.get('bus')
+        user_id = context.get('user_id')  # This might be None for unauthenticated requests
+        async with bus.uow.get_uow(user_id=user_id) as uow:
+            if not 'reference_map' in context:
+                context['reference_map'] = dict()
+
+            if reference_ids:
+                references_to_update = [
+                    reference_id for reference_id in reference_ids or [] if reference_id not in context['reference_map']
+                ]
+                if references_to_update:
+                    async for reference in uow.repositories.references.get_all(
+                            reference_ids=references_to_update
+                    ):
+                        context['reference_map'][reference.id] = reference
+

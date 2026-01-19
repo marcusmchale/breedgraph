@@ -3,7 +3,7 @@ from src.breedgraph.domain.model.people import (
     PersonBase, PersonStored
 )
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def add_person(
         cmd: commands.people.CreatePerson,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow() as uow:
         person = PersonBase(**cmd.model_dump())

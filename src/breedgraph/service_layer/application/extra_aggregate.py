@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 
 from src.breedgraph.domain.model.blocks import Block
+from src.breedgraph.domain.model.references import ReferenceStoredBase
 from src.breedgraph.custom_exceptions import IllegalOperationError
 
 import logging
@@ -9,8 +10,10 @@ logger = logging.getLogger(__name__)
 
 class AbstractExtraAggregateService(ABC):
     """
-    Persistence service for germplasm operations.
-    Handles data operations and validation queries for germplasm entries.
+    Service for operations that span outside the aggregate boundaries.
+    In theory, these operate under different bounded contexts,
+     but as the operations are limited in scope we are handling them ad-hoc
+     As these domain elements grow split them off into dedicated services
     """
 
     async def split_block(self, block: Block, unit_id: int) -> None:
@@ -33,8 +36,16 @@ class AbstractExtraAggregateService(ABC):
             )
 
     @abstractmethod
-    async def _delete_relationship(self, source_id, source_label, sink_id, sink_label, relationship_label):
-        raise NotImplementedError
+    async def _delete_relationship(self, source_id, source_label, sink_id, sink_label, relationship_label) -> None:
+        ...
+
+    async def reference_in_use(self, reference: ReferenceStoredBase) -> bool:
+        return await self._reference_in_use(reference.id)
+
+    @abstractmethod
+    async def _reference_in_use(self, reference_id) -> bool:
+        ...
+
 
 
 

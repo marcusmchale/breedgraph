@@ -1,9 +1,16 @@
 MERGE (counter: Counter {name: 'dataset'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
-CREATE (dataset: DataSet {id: counter.count})
+CREATE (dataset: Dataset {id: counter.count})
 WITH
   dataset
+//Link study
+CALL (dataset) {
+  MATCH (study: Study {id: $study})
+  CREATE (study)-[:HAS_DATASET]->(dataset)
+  RETURN
+    collect(study.id)[0] as study
+}
 //Link concept
 CALL (dataset) {
   MATCH (concept: Variable|Factor {id: $concept})
@@ -29,6 +36,7 @@ CALL (dataset){
 RETURN
   dataset {
     .*,
+    study: study,
     concept: concept,
     records: [],
     contributors: contributors,

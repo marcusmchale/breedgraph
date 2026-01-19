@@ -124,7 +124,37 @@ type UnitPayload {
 
 type DatasetsPayload {
     status: QueryStatus!
-    result: [DataSet]
+    result: [Dataset]
+    errors: [Error]
+}
+
+type SubmissionIdPayload {
+    status: QueryStatus!
+    result: String
+    errors: [Error]
+}
+
+type DatasetSubmissionPayload {
+    status: QueryStatus!
+    result: DatasetSubmission
+    errors: [Error]
+}
+
+type DatasetSummariesPayload {
+    status: QueryStatus!
+    result: [DatasetSummary]
+    errors: [Error]
+}
+
+type ReferencesPayload {
+    status: QueryStatus!
+    result: [ReferenceInterface!]
+    errors: [Error]
+}
+
+type CreatedIdPayload {
+    status: QueryStatus!
+    result: Int
     errors: [Error]
 }
 
@@ -134,21 +164,40 @@ type FileIdPayload {
     errors: [Error]
 }
 
-type SubmissionIdPayload {
-    status: QueryStatus!,
-    result: String
+type FileSubmissionPayload {
+    status: QueryStatus!
+    result: FileSubmission
     errors: [Error]
 }
 
-type SubmissionPayload {
-    status: QueryStatus!,
-    result: Submission
+type FileDownloadPayload {
+    status: QueryStatus!
+    result: FileDownload
     errors: [Error]
 }
+
 
 type ProgramsPayload {
     status: QueryStatus!
     result: [Program]
+    errors: [Error]
+}
+
+type ProgramPayload {
+    status: QueryStatus!
+    result: Program
+    errors: [Error]
+}
+
+type TrialPayload {
+    status: QueryStatus!
+    result: Trial
+    errors: [Error]
+}
+
+type StudyPayload {
+    status: QueryStatus!
+    result: Study
     errors: [Error]
 }
 

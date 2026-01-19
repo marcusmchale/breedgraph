@@ -1,11 +1,11 @@
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWork
+from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from src.breedgraph.service_layer.infrastructure import AbstractStateStore
 from src.breedgraph.service_layer.application import OntologyApplicationService
 
 from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.datasets import DataSetInput, DataSetStored, DataRecordInput
+from src.breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DataRecordInput
 from src.breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from src.breedgraph.domain.model.errors import ItemError
 from src.breedgraph.domain.model.submissions import SubmissionStatus
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_dataset(
         cmd: commands.datasets.CreateDataset,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         state_store: AbstractStateStore
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
@@ -26,7 +26,7 @@ async def create_dataset(
             await state_store.set_submission_status(cmd.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
             scale, categories = await get_scale_and_categories(uow, submission.get("concept_id"))
-            dataset = await uow.repositories.datasets.create(DataSetInput(concept=submission.get("concept_id")))
+            dataset = await uow.repositories.datasets.create(DatasetInput(concept=submission.get("concept_id")))
             item_errors = []
             records = submission.get('records')
             if records:
@@ -47,7 +47,7 @@ async def create_dataset(
 @handlers.command_handler()
 async def update_dataset(
         cmd: commands.datasets.UpdateDataset,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         state_store: AbstractStateStore
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
@@ -56,6 +56,19 @@ async def update_dataset(
             submission = await state_store.get_submission_data(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
             scale, categories = await get_scale_and_categories(uow, submission.get("concept_id"))
             dataset = await uow.repositories.datasets.get(dataset_id=submission.get("dataset_id"))
+
+            concept_id = submission.get('concept_id')
+            if concept_id:
+                dataset.concept = concept_id
+            study_id = submission.get('study_id')
+            if study_id:
+                dataset.study = study_id
+            contributor_ids = submission.get('contributor_ids')
+            if contributor_ids:
+                dataset.contributors = contributor_ids
+            reference_ids = submission.get('reference_ids')
+            if reference_ids:
+                dataset.references = reference_ids
 
             item_errors = []
             for i, e in enumerate(dataset.update_records(submission.get('records'), scale, categories)):
@@ -76,7 +89,7 @@ async def update_dataset(
 @handlers.command_handler()
 async def add_records(
         cmd: commands.datasets.AddRecords,
-        uow: AbstractUnitOfWork,
+        uow: AbstractUnitOfWorkFactory,
         state_store: AbstractStateStore
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
@@ -105,7 +118,7 @@ async def add_records(
 @handlers.command_handler()
 async def remove_records(
         cmd: commands.datasets.RemoveRecords,
-        uow: AbstractUnitOfWork
+        uow: AbstractUnitOfWorkFactory
 ):
     async with uow.get_uow(user_id=cmd.agent_id) as uow:
         dataset = await uow.repositories.datasets.get(dataset_id=cmd.dataset_id)

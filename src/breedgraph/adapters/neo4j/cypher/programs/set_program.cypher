@@ -1,9 +1,6 @@
 MATCH
-  (program: Program {id: $id})
-SET
-  program.name = $name,
-  program.fullname = $fullname,
-  program.description = $description
+  (program: Program {id: $program_id})
+SET program += $program_data
 // Update contacts
 WITH program
 CALL {

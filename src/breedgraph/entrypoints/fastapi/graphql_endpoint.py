@@ -23,7 +23,7 @@ async def get_user_id(request: Request) -> Optional[AccountStored]:
     logger.debug(f"GraphQL context builder - auth_token cookie: {token}")
     if token is not None:
         try:
-            auth_service = request.app.auth_service
+            auth_service = request.app.bus.auth_service
             return auth_service.validate_login_token(token)
         except UnauthorisedOperationError as e:
             pass
@@ -36,7 +36,7 @@ async def get_context_value(request: Request):
     context = {
         "request": request,
         "bus": request.app.bus,
-        "auth_service": request.app.auth_service,
+        "auth_service": request.app.bus.auth_service,
         "brute_force_service": request.app.brute_force_service,
         "user_id": await get_user_id(request),
         "cached_uow": None,
@@ -102,7 +102,6 @@ async def graphql_server(request: Request):
             context_value=context,
             debug=True,
         )
-
         status_code = 200 if success else 400
 
         # Create the response with the GraphQL result

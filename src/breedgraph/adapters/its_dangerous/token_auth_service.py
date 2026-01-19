@@ -4,7 +4,7 @@ from typing import Optional
 from src.breedgraph import config
 from src.breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from .auth_service import AbstractAuthService
+from src.breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
 
 import logging
 

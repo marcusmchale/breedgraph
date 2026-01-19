@@ -30,7 +30,7 @@ class StudyBase(ABC):
     start: datetime64|None = None
     end: datetime64|None = None
 
-    dataset_ids: List[int] = field(default_factory=list)  # list of DataSet IDs.
+    dataset_ids: List[int] = field(default_factory=list)  # list of Dataset IDs.
 
     # Germplasm, Location are defined for units, to retrieve from there for read operations
     # Units in turn are accessed through factors/observations
@@ -69,6 +69,9 @@ class StudyStored(StudyBase, ControlledModel):
             licence_id = None,
             reference_ids = list()
         )
+
+    def to_output(self):
+        return StudyOutput.from_stored(self)
 
 @dataclass
 class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
@@ -118,6 +121,7 @@ class TrialBase(ABC):
         if isinstance(self, TrialStored):
             temp_key = -len(self.studies) - 1
             self.studies[temp_key] = study
+            return temp_key
         else:
             raise ValueError("Studies can only be added to stored trials")
 
@@ -155,6 +159,9 @@ class TrialStored(TrialBase, ControlledModel):
             reference_ids = list()
         )
 
+    def to_output(self):
+        return TrialOutput.from_stored(self)
+
 @dataclass
 class TrialOutput(TrialBase, EnumLabeledModel, StoredModel):
     studies: Dict[int, StudyOutput] = field(default_factory=dict)
@@ -191,6 +198,7 @@ class ProgramBase(ABC):
         if isinstance(self, ProgramStored):
             temp_key = -len(self.trials) - 1
             self.trials[temp_key] = trial
+            return temp_key
         else:
             raise ValueError("Trials can only be added to stored programs")
 
@@ -200,19 +208,27 @@ class ProgramBase(ABC):
         else:
             raise ValueError("Trials can only be removed from stored programs")
 
-    def get_trial(self, trial_id: int):
+    def get_trial(self, trial_id: int|None = None, study_id: int|None = None):
+        if not trial_id or study_id:
+            raise ValueError("Trial or Study ID required to fetch a trial")
         if isinstance(self, ProgramStored):
-            return self.trials.get(trial_id)
+            if trial_id:
+                return self.trials.get(trial_id)
+            else:
+                for trial in self.trials.values():
+                    if study_id in trial.studies:
+                        return trial
+                else:
+                    raise ValueError(f"Trial with study ID {study_id} not found in program {self.id}")
         else:
             raise ValueError("Trials can only be retrieved from stored programs")
 
     def get_study(self, study_id: int):
         if isinstance(self, ProgramStored):
             for trial in self.trials.values():
-                try:
-                    return trial.get_study(study_id)
-                except ValueError:
-                    pass
+                study = trial.get_study(study_id)
+                if study is not None:
+                    return study
             return None
         else:
             raise ValueError("Studies can only be retrieved from stored programs")
@@ -315,10 +331,8 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
 
         return aggregate
 
-    def to_output_map(self):
-        return {
-            self.id: ProgramOutput.from_stored(self)
-        }
+    def to_output(self):
+        return ProgramOutput.from_stored(self)
 
 @dataclass(eq=False)
 class ProgramOutput(ProgramBase, StoredModel, EnumLabeledModel):

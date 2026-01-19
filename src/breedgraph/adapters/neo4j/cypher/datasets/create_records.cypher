@@ -1,4 +1,4 @@
-MATCH (dataset: DataSet {id: $dataset_id})
+MATCH (dataset: Dataset {id: $dataset_id})
 MERGE (record_counter: Counter {name: 'record'})
 ON CREATE SET record_counter.count = 0
 WITH dataset, record_counter
