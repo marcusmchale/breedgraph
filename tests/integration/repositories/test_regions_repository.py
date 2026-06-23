@@ -1,55 +1,115 @@
 import pytest
 
 from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.adapters.neo4j.repositories import Neo4jRegionsRepository
-from src.breedgraph.domain.model.regions import LocationInput
+from src.breedgraph.domain.model.regions import LocationInput, LocationStored
+from src.breedgraph.custom_exceptions import IdentityExistsError
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+from tests.scenarios import RegionBuilder
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_region(
+        uow_factory,
+        state_store,
+        region_build_context
+):
+    user_id = region_build_context['user_id']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        region = None
+        count = 0
+        async for country in state_store.get_countries():
+            count += 1
+            if isinstance(country, LocationStored):
+                pass
+            else:
+                try:
+                    region = await uow.repositories.regions.create(country)
+                    break
+                except IdentityExistsError:
+                    pass
+        if count == 0:
+            raise ValueError("No countries were found in read model to create a test region")
+        elif region is None:
+            raise ValueError("All stored countries are already created!")
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        region = await uow.repositories.regions.get()
+        assert region
+        assert region.root.name == country.name
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_extend_region(
-        state_type,
-        lorem_text_generator,
-        regions_repo,
-        example_region
+        uow_factory,
+        state_store,
+        region_build_context,
+        lorem_text_generator
 ):
-    region = example_region
-    county_input = LocationInput(
-        type=state_type.id,
-        name=lorem_text_generator.new_text()
-    )
-    region.add_location(location=county_input, parent_id=region.root.id)
-    await regions_repo.update_seen()
-    region = await regions_repo.get(location_id=region.root.id)
-    added_region_id = region.get_location(county_input.name).id
-    assert added_region_id in region.get_sinks(region.root.id)
+    user_id = region_build_context['user_id']
+    state_type_id = region_build_context['ontology_location_state']
+    field_type_id = region_build_context['ontology_location_field']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        region = await RegionBuilder(uow_factory=uow_factory, state_store=state_store).region_from_country(uow)
+        temp_field_id = region.add_location(
+            LocationInput(
+                name=lorem_text_generator.new_text(10),
+                type=state_type_id
+            ),
+            parent_id=region.get_root_id()
+        )
+        region.add_location(
+            LocationInput(
+                name=lorem_text_generator.new_text(10),
+                type=field_type_id
+            ),
+            parent_id=temp_field_id
+        )
+        await uow.commit()
 
-@pytest.mark.asyncio(scope="session")
-async def test_make_sub_region_private(
-        uncommitted_neo4j_tx,
-        neo4j_access_control_service,
-        first_unstored_account,
-        second_unstored_account,
-        first_unstored_organisation,
-        field_type,
-        regions_repo,
-        example_region
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        region = await uow.repositories.regions.get(location_id=region.root.id)
+        assert region.size == 3
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_make_location_visible_to_registered(
+        uow_factory,
+        state_store,
+        region_build_context,
+        lorem_text_generator
 ):
-    region = example_region
-    county_id = list(region.get_sinks(region.root.id).keys())[0]
-    county = region.get_location(county_id)
-    await neo4j_access_control_service.initialize_user_context(user_id = first_unstored_account.user.id)
-    await regions_repo.set_entity_access_controls(
-        county,
-        control_teams= {first_unstored_organisation.root.id},
-        release=ReadRelease.PRIVATE
+    user_id_1 = region_build_context['user_id_1']
+    user_id_2 = region_build_context['user_id_2']
+    team_id = region_build_context['team_id']
+    state_type_id = region_build_context['ontology_location_state']
+    field_type_id = region_build_context['ontology_location_field']
+    lab_type_id = region_build_context['ontology_location_lab']
+    region_ids = await RegionBuilder(uow_factory, state_store).region(
+        user_id=user_id_1,
+        ontology_location_state=state_type_id,
+        ontology_location_field=field_type_id,
+        ontology_location_lab=lab_type_id
     )
-    await regions_repo.update_seen()
+    # Ensure registered can't see field in aggregate
+    async with uow_factory.get_uow(user_id=user_id_2) as uow:
+        region = await uow.repositories.regions.get(location_id=region_ids['location_country_id'])
+        assert region.size == 1
 
-    await neo4j_access_control_service.initialize_user_context(user_id=second_unstored_account.user.id)
-    registered_repo = Neo4jRegionsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    region = await registered_repo.get(location_id = region.root.id)
-    assert county_id not in region.entries
+    # Change access to registered
+    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+        region = await uow.repositories.regions.get(location_id=region_ids['location_country_id'])
+        assert region
+        assert region.size == 4
+        field = region.get_location(region_ids['location_field_id'])
+        assert field
+        await uow.controls.set_controls(
+            models=[field],
+            control_teams={team_id},
+            release=ReadRelease.REGISTERED
+        )
+        await uow.commit()
 
+    # Ensure registered now have visibility of a redacted graph (only root and field)
+    async with uow_factory.get_uow(user_id=user_id_2) as uow:
+        region = await uow.repositories.regions.get(location_id=region_ids['location_field_id'])
+        assert region.size == 2

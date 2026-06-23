@@ -1,19 +1,16 @@
-import re
 from abc import ABC, abstractmethod
-from functools import lru_cache
 
-from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
+from typing import List, Dict, AsyncGenerator
 
-from src.breedgraph.domain.model.ontology import OntologyMapper, OntologyEntryBase
 from src.breedgraph.domain.model.ontology.version import VersionChange
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.relationships import OntologyRelationshipBase
 from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
 from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
 from src.breedgraph.domain.model.ontology.version import Version, OntologyCommit
-from src.breedgraph.domain.model.ontology.mappers import OntologyMapper, ontology_mapper
+from src.breedgraph.service_layer.mappers import OntologyMapper, ontology_mapper
 
 import logging
 logger = logging.getLogger(__name__)
@@ -65,9 +62,8 @@ class OntologyPersistenceService(ABC):
             self,
             entry_id: int = None,
             name: str = None,
-            label: OntologyEntryLabel = None,
-            as_output: bool = False
-    )-> OntologyEntryStored|OntologyEntryOutput|None:
+            label: OntologyEntryLabel = None
+    )-> OntologyEntryStored|None:
         """Retrieve an ontology entry"""
         ...
 
@@ -93,18 +89,15 @@ class OntologyPersistenceService(ABC):
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] = None,
             labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None,
-            as_output: bool = False,
-    ) -> AsyncGenerator[OntologyEntryStored|OntologyEntryOutput, None]:
+            names: List[str]|None = None
+    ) -> AsyncGenerator[OntologyEntryStored, None]:
         """
         Retrieve ontology entries
           optionally filter by version/phase/label/name
-          and optionally return in output format which includes relationships (default: stored)
          """
         ...
 
-    @abstractmethod
-    def get_relationships(
+    async def get_relationships(
             self,
             version: Version | None = None,
             phases: List[LifecyclePhase] | None = None,
@@ -116,8 +109,24 @@ class OntologyPersistenceService(ABC):
         """
         Retrieve ontology relationships,
             optionally filter by version/phase/label/entry_id
-        :return:
         """
+        if version is None:
+            version = await self.get_current_version()
+        if phases is None:
+            phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
+        async for rel in self._get_relationships(version, phases, labels, entry_ids, source_ids, target_ids):
+            yield rel
+
+    @abstractmethod
+    def _get_relationships(
+            self,
+            version: Version,
+            phases: List[LifecyclePhase],
+            labels: List[OntologyRelationshipLabel] | None = None,
+            entry_ids: List[int] = None,
+            source_ids: List[int] = None,
+            target_ids: List[int] = None
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
         ...
 
     @abstractmethod

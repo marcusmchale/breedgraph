@@ -7,7 +7,6 @@ enum ControlledModelLabel{
     STUDY,
     TRIAL,
     PROGRAM,
-    RECORD,
     DATASET,
     LAYOUT,
     LOCATION,

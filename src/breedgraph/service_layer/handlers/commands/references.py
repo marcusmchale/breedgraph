@@ -33,10 +33,10 @@ def parse_json_schema(schema: str | None) -> Dict:
 @handlers.command_handler(commands.references.CreateLegalReference)
 async def create_legal_reference(
     cmd: commands.references.CreateLegalReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> int:
     logger.debug(f'f"Creating legal reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference = LegalReferenceInput(
             description=cmd.description,
             text=cmd.text
@@ -48,10 +48,10 @@ async def create_legal_reference(
 @handlers.command_handler(commands.references.CreateExternalReference)
 async def create_external_reference(
     cmd: commands.references.CreateExternalReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> int:
     logger.debug(f'f"Creating external reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference = ExternalReferenceInput(
             description=cmd.description,
             url=cmd.url,
@@ -64,11 +64,11 @@ async def create_external_reference(
 @handlers.command_handler(commands.references.CreateExternalDataReference)
 async def create_external_data(
     cmd: commands.references.CreateExternalDataReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> int:
     logger.debug(f'f"Creating external data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference = ExternalDataInput(
             description=cmd.description,
             url=cmd.url,
@@ -83,11 +83,11 @@ async def create_external_data(
 @handlers.command_handler(commands.references.CreateFileReference)
 async def create_file_reference(
     cmd: commands.references.CreateFileReference,
-    uow: AbstractUnitOfWorkFactory,
+    uow_factory: AbstractUnitOfWorkFactory,
     state_store: AbstractStateStore
 ) -> int:
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference_input = FileReferenceInput(
             description=cmd.description,
             filename=cmd.filename,
@@ -103,12 +103,12 @@ async def create_file_reference(
 @handlers.command_handler(commands.references.CreateDataFileReference)
 async def create_data_file_reference(
     cmd: commands.references.CreateDataFileReference,
-    uow: AbstractUnitOfWorkFactory,
+    uow_factory: AbstractUnitOfWorkFactory,
     state_store: AbstractStateStore
 ) -> int:
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference_input = DataFileInput(
             description=cmd.description,
             filename=cmd.filename,
@@ -125,10 +125,10 @@ async def create_data_file_reference(
 @handlers.command_handler(commands.references.UpdateLegalReference)
 async def update_legal_reference(
     cmd: commands.references.UpdateLegalReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Updating legal reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: LegalReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         reference.description = cmd.description or reference.description
         reference.text = cmd.text or reference.text
@@ -137,10 +137,10 @@ async def update_legal_reference(
 @handlers.command_handler(commands.references.UpdateExternalReference)
 async def update_external_reference(
     cmd: commands.references.UpdateExternalReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Updating external reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: ExternalReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         reference.description = cmd.description or reference.description
         reference.url = cmd.url or reference.url
@@ -150,11 +150,11 @@ async def update_external_reference(
 @handlers.command_handler(commands.references.UpdateExternalDataReference)
 async def update_external_data(
     cmd: commands.references.UpdateExternalDataReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Updating external data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: ExternalDataStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         reference.description = cmd.description or reference.description
         reference.url = cmd.url or reference.url
@@ -166,10 +166,10 @@ async def update_external_data(
 @handlers.command_handler(commands.references.UpdateFileReference)
 async def update_file_reference(
     cmd: commands.references.UpdateFileReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Updating local data reference for user {cmd.agent_id}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: FileReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         reference.description = cmd.description or reference.description
         reference.filename = cmd.filename or reference.filename
@@ -180,11 +180,11 @@ async def update_file_reference(
 @handlers.command_handler(commands.references.UpdateDataFileReference)
 async def update_data_file_reference(
     cmd: commands.references.UpdateDataFileReference,
-    uow: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Updating local data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: DataFileStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         reference.description = cmd.description or reference.description
         reference.filename = cmd.filename or reference.filename
@@ -197,11 +197,11 @@ async def update_data_file_reference(
 @handlers.command_handler(commands.references.DeleteReferences)
 async def delete_reference(
     cmd: commands.references.DeleteReferences,
-    uow: AbstractUnitOfWorkFactory,
+    uow_factory: AbstractUnitOfWorkFactory,
     extra: AbstractExtraAggregateService
 ) -> None:
     logger.debug(f'f"Deleting references {cmd.reference_ids}')
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         repo = uow.repositories.references
         async for reference in repo.get_all(reference_ids=cmd.reference_ids):
             if await extra.reference_in_use(reference):

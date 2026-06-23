@@ -32,7 +32,7 @@ class CreateFileReference(Command):
 
     filename: str
     content_type: str
-    uuid: str | None
+    uuid: str
     
 class CreateDataFileReference(Command):
     agent_id: int

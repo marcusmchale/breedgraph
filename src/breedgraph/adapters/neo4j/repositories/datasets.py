@@ -8,7 +8,9 @@ from src.breedgraph.domain.model.datasets import (
 
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+
 
 from typing import AsyncGenerator, List
 
@@ -29,11 +31,8 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
         logger.debug(f"Create dataset: {dataset}")
         params = dataset.model_dump()
         records = params.pop('records', [])
-
-        #todo update and create need to link study!
         result: AsyncResult = await self.tx.run(queries['datasets']['create_dataset'], **params)
         dataset_record: Record = await result.single()
-
         if records:
             for record_data in records:
                 self.serialize_dt64(record_data, to_neo4j=True)
@@ -44,7 +43,6 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
             )
             dataset_record_dict = dataset_record.data()
             dataset_record_dict['records'] = [record.get('record') async for record in result]
-
         dataset = self.record_to_dataset(dataset_record.get('dataset'))
         return dataset
 
@@ -92,8 +90,9 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
         await self.tx.run(queries['datasets']['remove_datasets'], dataset_ids=dataset_ids)
 
     async def _get_controlled(
-            self, dataset_id: int = None
-    ) -> DatasetStored | None:
+            self,
+            dataset_id: int|None = None
+    ) -> ControlledQueryResult[DatasetStored] | None:
         if dataset_id is not None:
             result: AsyncResult = await self.tx.run( queries['datasets']['read_dataset'], dataset_id=dataset_id)
         else:
@@ -101,17 +100,45 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                 return await anext(self._get_all_controlled())
             except StopAsyncIteration:
                 return None
-        record = await result.single()
-        return self.record_to_dataset(record.get('dataset'))
+        record = await result.single(strict=True)
+        return ControlledQueryResult(self.record_to_dataset(record.get('dataset')))
 
-    async def _get_all_controlled(self, concept_id: int = None) -> AsyncGenerator[DatasetStored, None]:
-        if concept_id is not None:
-            result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets_for_concept'], concept_id=concept_id)
+    async def _get_all_controlled(
+            self,
+            study_ids: List[int]|None = None,
+            dataset_ids: List[int]|None = None,
+            concept_ids: List[int]|None = None
+    ) -> AsyncGenerator[ControlledQueryResult[DatasetStored], None]:
+
+        if study_ids is not None:
+            if concept_ids is not None:
+                result: AsyncResult = await self.tx.run(
+                    queries['datasets']['read_datasets_for_studies_and_concepts'],
+                    study_ids=study_ids,
+                    concept_ids=concept_ids
+                )
+            else:
+                result: AsyncResult = await self.tx.run(
+                    queries['datasets']['read_datasets_for_studies'],
+                    study_ids=study_ids
+                )
+        elif concept_ids is not None:
+            result: AsyncResult = await self.tx.run(
+                queries['datasets']['read_datasets_for_concepts'],
+                concept_ids=concept_ids
+            )
+        elif dataset_ids is not None:
+            result: AsyncResult = await self.tx.run(
+                queries['datasets']['read_datasets_by_id'],
+                dataset_ids=dataset_ids
+            )
+
+
         else:
             result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets'])
 
         async for record in result:
-            yield self.record_to_dataset(record.get('dataset'))
+            yield ControlledQueryResult(self.record_to_dataset(record.get('dataset')))
 
     async def _remove_controlled(self, dataset: DatasetStored) -> None:
         await self._delete_datasets([dataset.id])

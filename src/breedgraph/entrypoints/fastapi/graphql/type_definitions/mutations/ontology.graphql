@@ -487,12 +487,12 @@ extend type Mutation {
     ontologyUpdateDesign(design: DesignUpdate!): BooleanPayload!
     ontologyUpdateLayoutType(layoutType: LayoutTypeUpdate!): BooleanPayload!
     
-    ontologyActivateEntries(entryIds: [Int]): BooleanPayload!
-    ontologyDeprecateEntries(entryIds: [Int]): BooleanPayload!
-    ontologyRemoveEntries(entryIds: [Int]): BooleanPayload!
-    ontologyActivateRelationships(relationshipIds: [Int]): BooleanPayload!
-    ontologyDeprecateRelationships(relationshipIds: [Int]): BooleanPayload!
-    ontologyRemoveRelationships(relationshipIds: [Int]): BooleanPayload!
+    ontologyActivateEntries(entryIds: [Int!]!): BooleanPayload!
+    ontologyDeprecateEntries(entryIds: [Int!]!): BooleanPayload!
+    ontologyRemoveEntries(entryIds: [Int!]!): BooleanPayload!
+    ontologyActivateRelationships(relationshipIds: [Int!]!): BooleanPayload!
+    ontologyDeprecateRelationships(relationshipIds: [Int!]!): BooleanPayload!
+    ontologyRemoveRelationships(relationshipIds: [Int!]!): BooleanPayload!
     ontologyCommitVersion(
         versionChange: VersionChange!,
         comment: String,

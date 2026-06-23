@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_team(
         cmd: commands.organisations.CreateTeam,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
     # strange behaviour here, possibly async conflict but needs dissecting
     # three times we are calling get_access_teams in calling get_uow....
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         if cmd.parent is not None:
             access_teams = uow.controls.access_teams
             if cmd.parent not in access_teams.get(Access.ADMIN):
@@ -44,9 +44,9 @@ async def create_team(
 @handlers.command_handler()
 async def delete_team(
         cmd: commands.organisations.DeleteTeam,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         access_teams = uow.controls.access_teams
         if not cmd.team_id in access_teams.get(Access.ADMIN):
             raise UnauthorisedOperationError("Only admins for the given team can remove it")
@@ -61,9 +61,9 @@ async def delete_team(
 @handlers.command_handler()
 async def update_team(
         cmd: commands.organisations.UpdateTeam,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         access_teams = uow.controls.access_teams
         if not cmd.team_id in access_teams.get(Access.ADMIN):
             raise UnauthorisedOperationError("Only admins for the given team can update team details")

@@ -1,13 +1,15 @@
 MATCH (study: Study {id: $study_id})
-        -[:HAS_DATASET]->(dataset:Dataset)
+        <-[:FOR_STUDY]-(dataset:Dataset)
         -[:FOR_CONCEPT]->(concept:Variable|Factor),
       (dataset)<-[controls:CONTROLS]-(:TeamDatasets)<-[:CONTROLS]-(team:Team)
+
 WITH concept, dataset, team, last(controls.releases) as release
 WITH concept, dataset where team.id in $read_teams OR release = "PUBLIC"
 WITH DISTINCT concept, dataset
 
 MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record),
-      (record)-[:FOR_UNIT]->(unit:Unit),
+      (record)-[:FOR_UNIT]->(unit:Unit)
+OPTIONAL MATCH
       (unit)-[:OF_SUBJECT]->(subject:Subject)
 
 OPTIONAL MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)

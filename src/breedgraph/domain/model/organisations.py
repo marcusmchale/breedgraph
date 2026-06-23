@@ -49,6 +49,8 @@ class Affiliations:
 
     def set_by_access(self, access: Access, user_id: int, affiliation: Affiliation):
         """Set an affiliation for a specific access level and user."""
+        if access == Access.WRITE and affiliation.heritable:
+            raise IllegalOperationError("Write affiliations may not be heritable")
         affiliations_dict = self.get_by_access(access)
         affiliations_dict[user_id] = affiliation
 
@@ -299,7 +301,7 @@ class Organisation(TreeAggregate):
 
         return affiliations
 
-    def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = True) -> None:
+    def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = False) -> None:
         if not agent_id == user_id:
             raise IllegalOperationError("Requests may only be made by the given user")
 
@@ -316,7 +318,7 @@ class Organisation(TreeAggregate):
 
         team.affiliations.set_by_access(access, user_id, Affiliation(authorisation=Authorisation.REQUESTED, heritable=heritable))
 
-        self.events.append(AffiliationRequested(user=user_id, team=team_id, access=access))
+        self.events.append(AffiliationRequested(user_id=user_id, team_id=team_id, access=access))
 
     def remove_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int):
         if not any([
@@ -380,7 +382,7 @@ class Organisation(TreeAggregate):
             user_id,
             Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
         )
-        self.events.append(AffiliationApproved(user=user_id, team=team_id, access=access))
+        self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
 
     def revoke_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):

@@ -2,7 +2,7 @@ MATCH (dataset: Dataset)-[:FOR_CONCEPT]->(entry: Variable|Factor {id: $concept_i
 RETURN
   dataset {
     .*,
-    study: [(dataset)<-[:HAS_DATASET]-(study) | study.id][0],
+    study: [(dataset)-[:FOR_STUDY]->(study) | study.id][0],
     concept: [(dataset)-[:FOR_CONCEPT]->(entry: Variable:Factor)|entry.id][0],
     contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person)|contributor.id],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],

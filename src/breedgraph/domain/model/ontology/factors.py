@@ -14,7 +14,7 @@ A typical case would be fixed light intensity for example.
 """
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import ControlMethodType, OntologyEntryLabel
 
@@ -35,10 +35,6 @@ class ControlMethodInput(ControlMethodBase, OntologyEntryInput):
 class ControlMethodStored(ControlMethodBase, OntologyEntryStored):
     pass
 
-@dataclass
-class ControlMethodOutput(ControlMethodBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-    factors: list[int] = field(default_factory=list)
 
 @dataclass
 class ConditionBase(OntologyEntryBase):  # akin to a Trait, but is controlled/fixed for a prescribed duration
@@ -53,12 +49,6 @@ class ConditionInput(ConditionBase, OntologyEntryInput):
 @dataclass
 class ConditionStored(ConditionBase, OntologyEntryStored):
     pass
-
-@dataclass
-class ConditionOutput(ConditionBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    factors: list[int] = field(default_factory=list)
 
 @dataclass
 class FactorBase(OntologyEntryBase):
@@ -79,10 +69,3 @@ class FactorInput(FactorBase, OntologyEntryInput):
 class FactorStored(FactorBase, OntologyEntryStored):
     pass
 
-@dataclass
-class FactorOutput(FactorBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    condition: int = None
-    control_method: int = None
-    scale: int = None

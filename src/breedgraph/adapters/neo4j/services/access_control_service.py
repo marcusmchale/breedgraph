@@ -14,10 +14,34 @@ class Neo4jAccessControlService(AbstractAccessControlService):
 
     def __init__(
             self,
-            tx: AsyncTransaction
+            tx: AsyncTransaction,
+            user_id: int|None,
+            access_teams: Dict[Access, Set[int]]
     ):
         super().__init__()
         self.tx = tx
+        self.user_id = user_id
+        self.access_teams = access_teams
+
+    @classmethod
+    async def create(cls, tx, user_id):
+        access_teams = {a: set() for a in Access}
+
+        if user_id is not None:
+            access_teams.update(await cls._load_access_teams(tx, user_id))
+
+        return cls(tx, user_id, access_teams)
+
+    @classmethod
+    async def _load_access_teams(cls, tx: AsyncTransaction, user_id: int | None = None) -> Dict[Access, Set[int]]:
+        """Get access teams for a user"""
+        result: AsyncResult = await tx.run(queries['controls']['get_access_teams'], user_id=user_id)
+        record = await result.single()
+        if record is None:
+            raise ValueError("User not found")
+
+        access_teams = {Access(key): set(value) for key, value in record.get('access_teams').items()}
+        return access_teams
 
     async def _set_controls(
             self,
@@ -96,15 +120,3 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             team_ids=team_ids
         )
 
-    async def get_access_teams(self, user_id: int = None) -> Dict[Access, Set[int]]:
-        """Get access teams for a user"""
-        if user_id is None:
-            return {a: set() for a in Access}
-
-        result: AsyncResult = await self.tx.run(queries['controls']['get_access_teams'], user_id=user_id)
-        record = await result.single()
-        if record is None:
-            raise ValueError("User not found")
-
-        access_teams = {Access(key): set(value) for key, value in record.get('access_teams').items()}
-        return access_teams

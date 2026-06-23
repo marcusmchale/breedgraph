@@ -1,5 +1,6 @@
 import pytest
 
+from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
 from src.breedgraph.domain.model.ontology import *
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
@@ -14,14 +15,20 @@ from tests.e2e.ontologies.post_methods import (
     post_to_get_entries,
     post_to_commit_version,
     post_to_commit_history,
-    post_to_get_relationships,
+    post_to_get_ontology,
     post_to_update_term
 )
 
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
-async def test_create_term(client, first_user_login_token, lorem_text_generator):
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_term(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     term_input = {
         'name': lorem_text_generator.new_text(10),
         'description': lorem_text_generator.new_text(20),
@@ -30,14 +37,22 @@ async def test_create_term(client, first_user_login_token, lorem_text_generator)
     }
     response = await post_to_create_term(
         client,
-        token=first_user_login_token,
+        token=login_token,
         term_input = term_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_subject_relates_to_term(client, first_user_login_token, lorem_text_generator):
-    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM])
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_subject_relates_to_term(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
+
     term_payload = get_verified_payload(response, "ontologyEntries")
     term_id = term_payload.get('result')[0].get('id')
     subject_input = {
@@ -48,20 +63,33 @@ async def test_create_subject_relates_to_term(client, first_user_login_token, lo
     }
     response = await post_to_create_subject(
         client,
-        token=first_user_login_token,
+        token=login_token,
         subject_input = subject_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateSubject"))
-    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.SUBJECT], names=[subject_input['name']])
-    subject_payload = get_verified_payload(response, "ontologyEntries")
-    assert subject_payload.get('result')[0].get('id')
-    assert term_id in [i.get('id') for i in subject_payload.get('result')[0].get('terms')]
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_trait_relates_to_subject(client, first_user_login_token, lorem_text_generator):
+    # Verify the linked term is in the draft
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT], draft=True)
+    subject_payload = get_verified_payload(response, "ontologyEntries")
+    if not any(
+            term.get("id") == term_id
+            for subject in subject_payload.get("result", [])
+            for term in subject.get("terms", [])
+    ):
+        raise NoResultFoundError("Term not found for the created subject")
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_trait_relates_to_subject(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     response = await post_to_get_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         labels=[OntologyEntryLabel.SUBJECT]
     )
 
@@ -76,22 +104,34 @@ async def test_create_trait_relates_to_subject(client, first_user_login_token, l
     }
     response = await post_to_create_trait(
         client,
-        token=first_user_login_token,
+        token=login_token,
         trait_input= trait_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateTrait"))
     response = await post_to_get_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         labels=[OntologyEntryLabel.TRAIT],
-        names=[trait_input['name']],
+        draft=True
     )
     trait_payload = get_verified_payload(response, "ontologyEntries")
-    assert trait_payload.get('result')[0].get('id')
-    assert subject_id in [i.get('id') for i in trait_payload.get('result')[0].get('subjects')]
+    if not any(
+            subject.get("id") == subject_id
+            for trait in trait_payload.get("result", [])
+            for subject in trait.get("subjects", [])
+    ):
+        raise NoResultFoundError("Subject not found for the created trait")
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_observation_method(client, first_user_login_token, lorem_text_generator):
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_observation_method(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     observation_method_input = {
         'name': lorem_text_generator.new_text(10),
         'description': lorem_text_generator.new_text(20),
@@ -101,51 +141,63 @@ async def test_create_observation_method(client, first_user_login_token, lorem_t
     }
     response = await post_to_create_observation_method(
         client,
-        token=first_user_login_token,
+        token=login_token,
         observation_method_input=observation_method_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateObservationMethod"))
     response = await post_to_get_entries(
         client,
-        token=first_user_login_token,
-        labels=[OntologyEntryLabel.OBSERVATION_METHOD],
-        names=[observation_method_input['name']]
+        token=login_token,
+        labels=[OntologyEntryLabel.OBSERVATION_METHOD]
     )
     method_payload = get_verified_payload(response, "ontologyEntries")
     assert method_payload.get('result')[0].get('id')
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_scale(client, first_user_login_token, lorem_text_generator):
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_scale(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     scale_input = {
         'name': lorem_text_generator.new_text(10),
         'scaleType': ScaleType.NUMERICAL
     }
     response = await post_to_create_scale(
         client,
-        token=first_user_login_token,
+        token=login_token,
         scale_input = scale_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateScale"))
     response = await post_to_get_entries(
         client,
-        token=first_user_login_token,
-        labels=[OntologyEntryLabel.SCALE],
-        names=[scale_input['name']]
+        token=login_token,
+        labels=[OntologyEntryLabel.SCALE]
     )
     method_payload = get_verified_payload(response, "ontologyEntries")
     assert method_payload.get('result')[0].get('id')
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_variable(client, first_user_login_token, lorem_text_generator):
-    trait_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TRAIT])
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_variable(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
+    trait_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TRAIT])
     trait_payload = get_verified_payload(trait_response, "ontologyEntries")
     trait_id = trait_payload.get('result')[0].get('id')
 
-    method_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.OBSERVATION_METHOD])
+    method_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.OBSERVATION_METHOD])
     method_payload = get_verified_payload(method_response, "ontologyEntries")
     method_id = method_payload.get('result')[0].get('id')
 
-    scale_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.SCALE])
+    scale_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SCALE])
     scale_payload = get_verified_payload(scale_response, "ontologyEntries")
     scale_id = scale_payload.get('result')[0].get('id')
 
@@ -157,16 +209,16 @@ async def test_create_variable(client, first_user_login_token, lorem_text_genera
     }
     add_response = await post_to_create_variable(
         client,
-        token=first_user_login_token,
+        token=login_token,
         variable_input = variable_input
     )
     assert_payload_success(get_verified_payload(add_response, "ontologyCreateVariable"))
 
     variable_response = await post_to_get_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         labels=[OntologyEntryLabel.VARIABLE],
-        names=[variable_input['name']]
+        draft=True
     )
     variable_payload = get_verified_payload(variable_response, "ontologyEntries")
     assert variable_payload.get('result')[0].get('id')
@@ -174,8 +226,15 @@ async def test_create_variable(client, first_user_login_token, lorem_text_genera
     assert variable_payload.get('result')[0].get('observationMethod').get('id') == method_id
     assert variable_payload.get('result')[0].get('scale').get('id') == scale_id
 
-@pytest.mark.asyncio(scope="session")
-async def test_create_layout_type(client, first_user_login_token, lorem_text_generator):
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_layout_type(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     layout_type_input = {
         'name': lorem_text_generator.new_text(),
         'axes': [AxisType.CARTESIAN, AxisType.CARTESIAN]
@@ -183,86 +242,82 @@ async def test_create_layout_type(client, first_user_login_token, lorem_text_gen
     }
     response = await post_to_create_layout_type(
         client,
-        token=first_user_login_token,
+        token=login_token,
         layout_type_input=layout_type_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateLayoutType"))
-    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.LAYOUT_TYPE], names=layout_type_input['name'])
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.LAYOUT_TYPE])
     layout_payload = get_verified_payload(response, "ontologyEntries")
     assert layout_payload.get('result')[0].get('id')
     assert layout_payload.get('result')[0].get('axes') == layout_type_input['axes']
 
-@pytest.mark.asyncio(scope="session")
-async def test_commit_version(client, first_account, first_user_login_token):
+@pytest.mark.asyncio(loop_scope="session")
+async def test_commit_version(
+        ontology_build_context,
+        login_token_factory,
+        client
+):
+    # commits not available to contributor role users
+    with pytest.raises(AssertionError):
+        user_id = ontology_build_context['user_id_2']
+        login_token = login_token_factory(user_id)
+        response = await post_to_commit_version(
+            client,
+            token=login_token,
+            version_change=VersionChange.MAJOR,
+            comment="Test major change"
+        )
+        payload = get_verified_payload(response, "ontologyCommitVersion")
+        assert_payload_success(payload)
+
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
     response = await post_to_commit_version(
         client,
-        token=first_user_login_token,
+        token=login_token,
         version_change=VersionChange.MAJOR,
         comment="Test major change"
     )
     assert_payload_success(get_verified_payload(response, "ontologyCommitVersion"))
-    response = await post_to_commit_history(client, token=first_user_login_token, limit=3)
+    response = await post_to_commit_history(client, token=login_token, limit=3)
     payload = get_verified_payload(response, "ontologyCommitHistory")
     assert_payload_success(payload)
 
-    assert payload.get('result')[0].get('user').get('name') == first_account.user.name
+    assert payload.get('result')[0].get('user').get('id') == user_id
     assert payload.get('result')[0].get('version').get('major') > 0
     assert payload.get('result')[0].get('comment') == 'Test major change'
 
-@pytest.mark.asyncio(scope="session")
-async def test_get_all_relationships(client, first_account, first_user_login_token):
-    response = await post_to_get_relationships(
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_ontology(
+        ontology_build_context,
+        login_token_factory,
+        client):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
+    response = await post_to_get_ontology(
         client,
-        token=first_user_login_token
+        token=login_token
     )
-    payload = get_verified_payload(response, "ontologyRelationships")
+    payload = get_verified_payload(response, "ontology")
     assert_payload_success(payload)
-    assert payload.get('result')[0].get('id') > 0
+    assert payload.get('result').get('entries')
+    assert payload.get('result').get('relationships')
+    assert payload.get('result').get('versionId')
 
-@pytest.mark.asyncio(scope="session")
-async def test_get_label_relationships(client, first_account, first_user_login_token):
-    response = await post_to_get_relationships(
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_create_relationships(
+        ontology_build_context,
+        login_token_factory,
         client,
-        token=first_user_login_token,
-        labels=[OntologyRelationshipLabel.HAS_TERM]
-    )
-    payload = get_verified_payload(response, "ontologyRelationships")
-    assert_payload_success(payload)
-    assert payload.get('result')[0].get('id') > 0
-    for record in payload.get('result'):
-        assert record.get('label') == 'HAS_TERM'
-
-#@pytest.mark.asyncio(scope="session")
-#async def test_update_term(client, first_user_login_token, first_account, lorem_text_generator):
-#    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM])
-#    term_payload = get_verified_payload(response, "ontologyEntries")
-#    term_id = term_payload.get('result')[0].get('id')
-#    term_update = {
-#        'id': term_id,
-#        'name': lorem_text_generator.new_text(10),
-#        'description':lorem_text_generator.new_text(20),
-#        'abbreviation': lorem_text_generator.new_text(5),
-#        'synonyms':[lorem_text_generator.new_text(5), lorem_text_generator.new_text(5)],
-#    }
-#    response = await post_to_update_term(
-#        client,
-#        token=first_user_login_token,
-#        term_update = term_update
-#    )
-#    assert_payload_success(get_verified_payload(response, "ontologyUpdateTerm"))
-#
-#    response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM], entry_ids=[term_id])
-#    term_payload_new = get_verified_payload(response, "ontologyEntries")
-#    assert term_payload_new.get('result')[0].get('name') == term_update['name']
-#
-
-@pytest.mark.asyncio(scope="session")
-async def test_update_create_relationships(client, first_user_login_token, first_account, lorem_text_generator):
-    term_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM])
+        lorem_text_generator
+):
+    user_id = ontology_build_context['user_id']
+    login_token = login_token_factory(user_id)
+    term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
     term_payload = get_verified_payload(term_response, "ontologyEntries")
     parent_term_id = term_payload.get('result')[0].get('id')
 
-    subject_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.SUBJECT])
+    subject_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT])
     subject_payload = get_verified_payload(subject_response, "ontologyEntries")
     subject_id = subject_payload.get('result')[0].get('id')
 
@@ -271,12 +326,12 @@ async def test_update_create_relationships(client, first_user_login_token, first
     }
     response = await post_to_create_term(
         client,
-        token=first_user_login_token,
+        token=login_token,
         term_input = child_term_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
 
-    child_term_response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM], names=child_term_input['name'])
+    child_term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
     child_term_payload = get_verified_payload(child_term_response, "ontologyEntries")
     child_term_id = child_term_payload.get('result')[0].get('id')
     child_term_update = {
@@ -286,22 +341,8 @@ async def test_update_create_relationships(client, first_user_login_token, first
     }
     update_response = await post_to_update_term(
         client,
-        token=first_user_login_token,
+        token=login_token,
         term_update=child_term_update
     )
     assert_payload_success(get_verified_payload(update_response, "ontologyUpdateTerm"))
 
-
-
-    #update_payload = get_verified_payload(child_term_response, "ontologyEntries")
-    #assert child_term_payload.get('result')[0].get('parents') == [parent_term_id]
-    #assert child_term_payload.get('result')[0].get('subjects') == [subject_id]
-
-    #response = await post_to_get_entries(client, token=first_user_login_token, labels=[OntologyEntryLabel.TERM],
-    #                                     entry_ids=[term_id])
-    #term_payload_new = get_verified_payload(response, "ontologyEntries")
-    #assert term_payload_new.get('result')[0].get('name') == term_update['name']
-
-@pytest.mark.asyncio(scope="session")
-async def test_update_deprecate_relationships(client, first_user_login_token, first_account, lorem_text_generator):
-    pass

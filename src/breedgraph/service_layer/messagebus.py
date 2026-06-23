@@ -27,22 +27,24 @@ class MessageBus:
 
     def __init__(
             self,
-            uow: AbstractUnitOfWorkFactory,
-            views: AbstractViewsFactory,
+            uow_factory: AbstractUnitOfWorkFactory,
+            views_factory: AbstractViewsFactory,
             state_store: AbstractStateStore,
             auth_service: AbstractAuthService,
             file_management: FileManagementService,
             event_handlers: Dict[Type[events.Event], List[Callable]],
-            command_handlers: Dict[Type[commands.Command], Callable]
+            command_handlers: Dict[Type[commands.Command], Callable],
+            event_queue: Queue
     ):
-        self.uow = uow
-        self.views = views
+        self.uow_factory = uow_factory
+        self.views_factory = views_factory
         self.state_store = state_store
         self.auth_service = auth_service
         self.file_management = file_management
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
-        self.event_queue = Queue()
+        self.event_queue = event_queue
+        self.uow_factory.set_event_publisher(self.event_queue.put)
 
         self._workers: List[Task] = []
         self._started = False
@@ -85,10 +87,7 @@ class MessageBus:
                 logger.debug(f"Command {type(command)} has no handler")
                 return None
             else:
-                result = await handler(command)
-                for event in self.uow.collect_events():
-                    await self.event_queue.put(event)
-                return result
+                return await handler(command)
         except Exception as e:
             logger.error(e)
             raise
@@ -107,6 +106,4 @@ class MessageBus:
                 except Exception as e:
                     logger.error(e)
                     continue
-            for e in self.uow.collect_events():
-                await self.event_queue.put(e)
             self.event_queue.task_done()

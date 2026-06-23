@@ -9,127 +9,146 @@ from tests.e2e.germplasm.post_methods import (
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_crop(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     germplasm_input = {
         'name': "Coffee"
     }
     response = await post_to_create_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_entry(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         names=["Coffee"]
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
     assert_payload_success(germplasm_payload)
     assert germplasm_payload.get('result')
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_crops(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_crops(
         client,
-        token=first_user_login_token
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmCrops")
     assert_payload_success(germplasm_payload)
     assert germplasm_payload.get('result')
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_crop_same_name_fails(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     germplasm_input = {
         'name': "Coffee"
     }
     response = await post_to_create_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert germplasm_payload.get('errors')
 
-@pytest_asyncio.fixture(scope='session')
-async def crop_details(client, first_user_login_token, first_account_with_all_affiliations):
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
+async def crop_details(
+        germplasm_build_context,
+        login_token_factory,
+        client
+):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_crops(
         client,
-        token=first_user_login_token
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmCrops")
     yield germplasm_payload.get('result')[0]
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_variety(
+        germplasm_build_context,
+        login_token_factory,
         client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
         crop_details
 ):
     germplasm_input = {
         'name': "Marsellesa",
         'sources': [ {'sourceId': crop_details.get('id'), 'sourceType': 'UNKNOWN'}]
     }
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_create_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_second_variety(
+        germplasm_build_context,
+        login_token_factory,
         client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
         crop_details
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     germplasm_input = {
         'name': "CIR-SM01",
         'sources': [ {'sourceId': crop_details.get('id'), 'sourceType': 'UNKNOWN'}]
     }
     response = await post_to_create_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_hybrid(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         names=["Marsellesa", "CIR-SM01"]
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
@@ -143,7 +162,7 @@ async def test_create_hybrid(
     }
     response = await post_to_create_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
@@ -151,7 +170,7 @@ async def test_create_hybrid(
 
     response = await post_to_get_germplasm_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         names=["Starmaya"]
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
@@ -161,15 +180,17 @@ async def test_create_hybrid(
     assert 'CIR-SM01' in source_names
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_update_variety(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations,
+        germplasm_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = germplasm_build_context['user_id']
+    login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         names=["Starmaya"]
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
@@ -189,7 +210,7 @@ async def test_update_variety(
     }
     response = await post_to_update_germplasm_entry(
         client,
-        token=first_user_login_token,
+        token=login_token,
         germplasm_input=germplasm_input
     )
     germplasm_payload = get_verified_payload(response, "germplasmUpdateEntry")
@@ -197,7 +218,7 @@ async def test_update_variety(
 
     response = await post_to_get_germplasm_entries(
         client,
-        token=first_user_login_token,
+        token=login_token,
         names=["Starmaya2"]
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")

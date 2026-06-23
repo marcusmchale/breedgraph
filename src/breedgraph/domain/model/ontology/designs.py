@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from src.breedgraph.domain.model.ontology.entries import OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+from src.breedgraph.domain.model.ontology.entries import OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar, List
 
@@ -17,7 +17,3 @@ class DesignInput(DesignBase, OntologyEntryInput):
 @dataclass
 class DesignStored(DesignBase, OntologyEntryStored):
     pass
-
-@dataclass
-class DesignOutput(DesignBase, OntologyEntryOutput):
-    terms: List[int] = field(default_factory=list)

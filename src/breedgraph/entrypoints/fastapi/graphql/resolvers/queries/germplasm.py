@@ -40,7 +40,7 @@ async def get_germplasm_crops(
 ) -> List[GermplasmOutput]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         return [entry async for entry in uow.germplasm.get_root_entries(as_output=True)]
 
 async def resolve_germplasm_entries(context, entry_ids):

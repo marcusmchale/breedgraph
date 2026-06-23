@@ -28,7 +28,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
     async def _create(self, account: AccountInput) -> AccountStored:
         user = await self._create_user(account.user)
         account = AccountStored(user=user)
-        account.events.append(AccountCreated(user=account.user.id))
+        account.events.append(AccountCreated(user_id=account.user.id))
         return account
 
     async def _create_user(self, user: UserInput) -> UserStored:
@@ -151,7 +151,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             )
 
     @staticmethod
-    def user_record_to_user(record) -> UserStored:
+    def user_record_to_user(record) -> UserStored | None:
         return UserStored(
             name=record['name'],
             fullname=record['fullname'],
@@ -163,9 +163,12 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             ontology_role_requested=OntologyRole(record['ontology_role_requested']) if 'ontology_role_requested' in record else None
         ) if record else None
 
-    def record_to_account(self, record: Record) -> AccountStored:
+    def record_to_account(self, record: Record) -> AccountStored | None:
+        user = self.user_record_to_user(record['user'])
+        if user is None:
+            raise ValueError("User details not found")
         return AccountStored(
-            user=self.user_record_to_user(record['user']),
+            user=user,
             allowed_emails=record['allowed_emails'],
             allowed_users=record['allowed_users']
         ) if record else None

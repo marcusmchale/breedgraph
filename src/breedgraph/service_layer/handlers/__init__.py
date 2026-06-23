@@ -12,6 +12,8 @@ from .commands import (
 )
 from .events import (
     accounts as accounts_events,
-    references
+    analysis as analysis_events,
+    datasets as datasets_events,
+    references as references_events
 )
 from .registry import handlers

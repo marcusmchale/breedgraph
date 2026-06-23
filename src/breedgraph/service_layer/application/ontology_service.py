@@ -1,4 +1,4 @@
-from src.breedgraph.custom_exceptions import IllegalOperationError, RelationshipExistsError
+from src.breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
 
 from src.breedgraph.domain.model.ontology import *
 from src.breedgraph.domain.model.accounts import OntologyRole
@@ -49,7 +49,7 @@ class OntologyApplicationService:
             copyright_reference: int = None
     ) -> OntologyCommit:
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can commit versions")
+            raise UnauthorisedOperationError("Only admins and editors can commit versions")
         """Create a new ontology version with commit metadata."""
         # Save through persistence service
         commit = await self.persistence.commit_version(
@@ -75,7 +75,7 @@ class OntologyApplicationService:
 
     async def activate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can activate entries")
+            raise UnauthorisedOperationError("Only admins and editors can activate entries")
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
@@ -86,7 +86,7 @@ class OntologyApplicationService:
 
     async def deprecate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can deprecate entries")
+            raise UnauthorisedOperationError("Only admins and editors can deprecate entries")
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
@@ -97,7 +97,7 @@ class OntologyApplicationService:
 
     async def remove_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can remove entries")
+            raise UnauthorisedOperationError("Only admins and editors can remove entries")
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
@@ -108,7 +108,7 @@ class OntologyApplicationService:
 
     async def activate_relationships(self, relationship_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can activate relationships")
+            raise UnauthorisedOperationError("Only admins and editors can activate relationships")
         await self._load_relationship_lifecycles(relationship_ids)
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
@@ -119,7 +119,7 @@ class OntologyApplicationService:
 
     async def deprecate_relationships(self, relationship_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can deprecate relationships")
+            raise UnauthorisedOperationError("Only admins and editors can deprecate relationships")
         await self._load_relationship_lifecycles(relationship_ids)
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
@@ -130,7 +130,7 @@ class OntologyApplicationService:
 
     async def remove_relationships(self, relationship_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise IllegalOperationError("Only admins and editors can remove relationships")
+            raise UnauthorisedOperationError("Only admins and editors can remove relationships")
         await self._load_relationship_lifecycles(relationship_ids)
         current_version = await self.get_current_version()
         for relationship_id in relationship_ids:
@@ -228,8 +228,8 @@ class OntologyApplicationService:
             entry: SubjectInput|TermInput|ObservationMethodInput|\
                    ScaleCategoryInput|ControlMethodInput|\
                    LocationTypeInput|LayoutTypeInput|DesignInput|RoleInput|TitleInput,
-            parents: list[int] = None,
-            children: list[int] = None
+            parents: list[int]|None = None,
+            children: list[int]|None = None
     ):
         """Create a simple ontology entry (these types only support parent/children relationships on creation"""
         # Validate that this entry type is appropriate for direct creation
@@ -239,11 +239,13 @@ class OntologyApplicationService:
     async def create_entry_with_subjects(
             self,
             entry: TraitInput|ConditionInput,
-            parents: List[int] = None,
-            children: List[int] = None,
-            subjects: List[int] = None
+            parents: List[int]|None = None,
+            children: List[int]|None = None,
+            subjects: List[int]|None = None
     ) -> TraitStored|ConditionStored:
         created_entry = await self._create_entry(entry=entry, parents=parents, children=children)
+        if not isinstance(created_entry, (TraitStored, ConditionStored)):
+            raise ValueError("Subjects may only be defined for Trait and Condition ontology entries")
         if subjects:
             for subject_id in subjects:
                 relationship = SubjectRelationship.build(
@@ -431,83 +433,46 @@ class OntologyApplicationService:
             await self.create_relationship(factor_rel)
         return event_type
 
-
-
-    # Type overloads for get_entry based on label parameter and as_output
+    # Type overloads for get_entry based on label parameter
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["SUBJECT"], as_output: Literal[False] = False) -> SubjectStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.SUBJECT]) -> SubjectStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TRAIT"], as_output: Literal[False] = False) -> TraitStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.TRAIT]) -> TraitStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["SCALE"], as_output: Literal[False] = False) -> ScaleStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.SCALE]) -> ScaleStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TERM"], as_output: Literal[False] = False) -> TermStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.TERM]) -> TermStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["OBSERVATION_METHOD"], as_output: Literal[False] = False) -> ObservationMethodStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.OBSERVATION_METHOD]) -> ObservationMethodStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CONDITION"], as_output: Literal[False] = False) -> ConditionStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CONDITION]) -> ConditionStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CATEGORY"], as_output: Literal[False] = False) -> ScaleCategoryStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CATEGORY]) -> ScaleCategoryStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CONTROL_METHOD"], as_output: Literal[False] = False) -> ControlMethodStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CONTROL_METHOD]) -> ControlMethodStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["LOCATION_TYPE"], as_output: Literal[False] = False) -> LocationTypeStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.LOCATION_TYPE]) -> LocationTypeStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["LAYOUT_TYPE"], as_output: Literal[False] = False) -> LayoutTypeStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.LAYOUT_TYPE]) -> LayoutTypeStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["DESIGN"], as_output: Literal[False] = False) -> DesignStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.DESIGN]) -> DesignStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["ROLE"], as_output: Literal[False] = False) -> RoleStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.ROLE]) -> RoleStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TITLE"], as_output: Literal[False] = False) -> TitleStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.TITLE]) -> TitleStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["VARIABLE"], as_output: Literal[False] = False) -> VariableStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.VARIABLE]) -> VariableStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["FACTOR"], as_output: Literal[False] = False) -> FactorStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.FACTOR]) -> FactorStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["EVENT"], as_output: Literal[False] = False) -> EventTypeStored|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.EVENT]) -> EventTypeStored|None: ...
 
     @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["SUBJECT"], as_output: Literal[True]) -> SubjectOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TRAIT"], as_output: Literal[True]) -> TraitOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["SCALE"], as_output: Literal[True]) -> ScaleOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TERM"], as_output: Literal[True]) -> TermOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["OBSERVATION_METHOD"], as_output: Literal[True]) -> ObservationMethodOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CONDITION"], as_output: Literal[True]) -> ConditionOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CATEGORY"], as_output: Literal[True]) -> ScaleCategoryOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["CONTROL_METHOD"], as_output: Literal[True]) -> ControlMethodOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["LOCATION_TYPE"], as_output: Literal[True]) -> LocationTypeOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["LAYOUT_TYPE"], as_output: Literal[True]) -> LayoutTypeOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["DESIGN"], as_output: Literal[True]) -> DesignOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["ROLE"], as_output: Literal[True]) -> RoleOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["TITLE"], as_output: Literal[True]) -> TitleOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["VARIABLE"], as_output: Literal[True]) -> VariableOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["FACTOR"], as_output: Literal[True]) -> FactorOutput|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, *, label: Literal["EVENT"], as_output: Literal[True]) -> EventTypeOutput|None: ...
-    
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, label: OntologyEntryLabel = None, as_output: Literal[False] = False) -> OntologyEntryStored|None: ...
-    @overload
-    async def get_entry(self, entry_id: int = None, name: str = None, label: OntologyEntryLabel = None, as_output: Literal[True] = False) -> OntologyEntryOutput|None: ...
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, label: OntologyEntryLabel|None = None) -> OntologyEntryStored|None: ...
 
-    async def get_entry(self, entry_id: int = None, name: str = None, label: OntologyEntryLabel = None, as_output: bool = False) -> OntologyEntryStored|OntologyEntryOutput|None:
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, label: OntologyEntryLabel|None = None) -> OntologyEntryStored|None:
         """Retrieve an ontology entry"""
-        return await self.persistence.get_entry(entry_id=entry_id, name=name, label=label, as_output=as_output)
+        return await self.persistence.get_entry(entry_id=entry_id, name=name, label=label)
 
     async def get_scale_id(self, entry_id: int) -> int|None:
         async for relationship in self.persistence.get_relationships(
@@ -523,20 +488,16 @@ class OntologyApplicationService:
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] | None = None,
             labels: List[OntologyEntryLabel] | None = None,
-            names: List[str] | None = None,
-            as_output: bool = False
-    ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
+            names: List[str] | None = None
+    ) -> AsyncGenerator[OntologyEntryStored, None]:
         async for entry in self.persistence.get_entries(
             version=version,
             entry_ids=entry_ids,
             phases=phases,
             labels=labels,
-            names=names,
-            as_output=as_output
+            names=names
         ):
             yield entry
-
-
 
     async def get_relationships(
             self,
@@ -553,7 +514,7 @@ class OntologyApplicationService:
             labels=labels,
             entry_ids=entry_ids,
             source_ids=source_ids,
-            target_ids=target_ids,
+            target_ids=target_ids
         ):
             yield rel
 
@@ -571,7 +532,7 @@ class OntologyApplicationService:
         lifecycle = await self._get_entry_lifecycle(entry.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-                raise IllegalOperationError("Only Editors and Admins may alter entries that have progressed beyond Draft")
+                raise UnauthorisedOperationError("Only Editors and Admins may alter entries that have progressed beyond Draft")
             # any edit reverts the entry to draft
             current_version = await self.get_current_version()
             await self.revert_entry_to_draft(entry.id, current_version)
@@ -693,7 +654,7 @@ class OntologyApplicationService:
         lifecycle = await self._get_relationship_lifecycle(relationship.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-                raise IllegalOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
+                raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
             # any edit reverts the relationship to draft
             current_version = await self.get_current_version()
             await self.revert_relationship_to_draft(relationship.id, current_version)
@@ -775,6 +736,22 @@ class OntologyApplicationService:
         )]
         relationships.sort(key=lambda x: x.rank or x.id)
         return [rel.target_id for rel in relationships]
+
+    async def get_concept_scale(self, concept_id: int) -> ScaleStored:
+        scale_rel = None
+        async for rel in self.persistence.get_relationships(
+                source_ids=[concept_id],
+                labels=[OntologyRelationshipLabel.USES_SCALE],
+                phases=[LifecyclePhase.ACTIVE]
+        ):
+            scale_rel = rel
+            break
+        if not scale_rel:
+            raise ValueError(f"Concept with ID {concept_id} has no active scale")
+        scale = await self.persistence.get_entry(entry_id=scale_rel.target_id, label=OntologyEntryLabel.SCALE)
+        if not scale:
+            raise ValueError(f"Scale with ID {scale_rel.target_id} not found")
+        return scale
 
     # Scale operations
     async def add_scale_categories(
@@ -914,12 +891,12 @@ class OntologyApplicationService:
         else:
             exclude_id = None
         if await self.persistence.name_in_use(entry.label, entry.name, exclude_id):
-            raise ValueError(
+            raise IdentityExistsError(
                 f"Another {entry.label} is using the name: {entry.name}"
             )
         if entry.abbreviation:
             if await self.persistence.abbreviation_in_use(entry.label, entry.abbreviation, exclude_id):
-                raise ValueError(
+                raise IdentityExistsError(
                     f"Another {entry.label} is using the abbreviation {entry.abbreviation}"
                 )
 

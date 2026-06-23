@@ -2,6 +2,7 @@ from typing import List, ClassVar, Any, Dict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
+from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
 from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import LabeledModel, StoredModel, EnumLabeledModel
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
@@ -65,16 +66,6 @@ class OntologyEntryStored(OntologyEntryBase, StoredModel, ABC):
     pass
 
 @dataclass
-class OntologyEntryOutput(OntologyEntryBase, ABC):
-    """
-    Combine with a concrete *Base class, e.g.:
-      class DesignOutput(DesignBase, OntologyEntryOutput): ...
-    """
-    id: int = None
-    parents: List[int] = field(default_factory=list)
-    children: List[int] = field(default_factory=list)
-
-@dataclass
 class TermBase(OntologyEntryBase):
     """
     Generic ontology entry used primarily as a bridge/target for relationships.
@@ -90,21 +81,3 @@ class TermInput(TermBase, OntologyEntryInput):
 @dataclass
 class TermStored(TermBase, OntologyEntryStored):
     pass
-
-@dataclass
-class TermOutput(TermBase, OntologyEntryOutput):
-    subjects: List[int] = field(default_factory=list)
-    scales: List[int] = field(default_factory=list)
-    categories: List[int] = field(default_factory=list)
-    observation_methods: List[int] = field(default_factory=list)
-    traits: List[int] = field(default_factory=list)
-    variables: List[int] = field(default_factory=list)
-    control_methods: List[int] = field(default_factory=list)
-    conditions: List[int] = field(default_factory=list)
-    factors: List[int] = field(default_factory=list)
-    events: List[int] = field(default_factory=list)
-    location_types: List[int] = field(default_factory=list)
-    layout_types: List[int] = field(default_factory=list)
-    designs: List[int] = field(default_factory=list)
-    roles: List[int] = field(default_factory=list)
-    titles: List[int] = field(default_factory=list)

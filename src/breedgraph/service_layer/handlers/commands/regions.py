@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_location(
         cmd: commands.regions.CreateLocation,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         state_store: RedisStateStore
 ):
     location_input = LocationInput(
@@ -26,7 +26,7 @@ async def create_location(
         address = cmd.address
     )
 
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         if cmd.parent_id is None:
             # Ensure that root locations have public read-access
             uow.repositories.regions.release = ReadRelease.PUBLIC
@@ -56,9 +56,9 @@ async def create_location(
 @handlers.command_handler()
 async def update_location(
         cmd: commands.regions.UpdateLocation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         region = await uow.repositories.regions.get(location_id=cmd.location_id)
         location = region.get_location(cmd.location_id)
 
@@ -85,9 +85,9 @@ async def update_location(
 @handlers.command_handler()
 async def delete_location(
         cmd: commands.regions.DeleteLocation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         region = await uow.repositories.regions.get(location_id=cmd.location_id)
         if cmd.location_id == region.root.id:
             await uow.repositories.regions.remove(region)

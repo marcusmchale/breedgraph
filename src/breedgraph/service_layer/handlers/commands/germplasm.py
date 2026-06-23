@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_germplasm_entry(
         cmd: commands.germplasm.CreateGermplasm,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
         entry = GermplasmInput(
             name=cmd.name,
@@ -50,9 +50,9 @@ async def create_germplasm_entry(
 @handlers.command_handler()
 async def update_germplasm_entry(
         cmd: commands.germplasm.UpdateGermplasm,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
         entry = await germplasm_service.get_entry(cmd.id)
 
@@ -88,9 +88,9 @@ async def update_germplasm_entry(
 @handlers.command_handler()
 async def delete_germplasm_entry(
         cmd: commands.germplasm.DeleteGermplasm,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
         await germplasm_service.delete_entry(cmd.id)
         await uow.commit()

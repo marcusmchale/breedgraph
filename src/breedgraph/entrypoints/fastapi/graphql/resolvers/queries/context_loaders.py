@@ -1,5 +1,4 @@
 import asyncio
-from src.breedgraph.domain.model.accounts import UserOutput
 from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
 from src.breedgraph.custom_exceptions import InconsistentStateError
 
@@ -7,7 +6,7 @@ from typing import List, Set
 
 import logging
 
-from src.breedgraph.service_layer.queries.views import AbstractAccountsView
+from src.breedgraph.service_layer.queries.read_models import OntologyEntryOutput
 
 logger = logging.getLogger(__name__)
 
@@ -19,54 +18,24 @@ def _get_lock(context, lock_name: str):
         context[lock_name] = asyncio.Lock()
     return context[lock_name]
 
-async def update_ontology_version_context(context, version: Version = None):
-    context_version = context.get('ontology_version')
-    if version:
-        if context_version:
-            if context_version == version:
-                return
-            else:
-                raise InconsistentStateError('Ontology version must be consistent within the request context')
-        else:
-            context['ontology_version'] = version
-    else:
-        if context_version:
-            return
-        else:
-            bus = context.get('bus')
-            user_id = context.get('user_id') # This might be None for unauthenticated requests
-            async with bus.uow.get_uow(user_id=user_id) as uow:
-                context['ontology_version'] = await uow.ontology.get_current_version()
-
 async def update_ontology_map(
         context,
-        entry_ids: List[int] = None,
-        phases: List[LifecyclePhase] = None,
-        version: Version = None,
-        names: List[str] = None,
-        labels: List[OntologyEntryLabel] = None
+        entries: List[OntologyEntryOutput] | None = None,
+        entry_ids: List[int] | None = None
 ):
     async with _get_lock(context, '_ontology_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
-        await update_ontology_version_context(context, version)
-        async with bus.uow.get_uow(user_id=user_id) as uow:
-            version = context.get('ontology_version')
-            if not 'ontology_map' in context:
-                context['ontology_map'] = dict()
-
-            entries_to_update = [
-                entry_id for entry_id in entry_ids or [] if entry_id not in context['ontology_map']
-            ]
-            async for entry in uow.ontology.get_entries(
-                version=version,
-                entry_ids=entries_to_update,
-                phases=phases,
-                names=names,
-                labels=labels,
-                as_output=True
-            ):
-                context['ontology_map'][entry.id] = entry
+        if not 'ontology_map' in context:
+            context['ontology_map'] = dict()
+        ontology_map = context.get('ontology_map')
+        if entries:
+            ontology_map.update({entry.id: entry for entry in entries})
+        elif entry_ids:
+            bus = context.get('bus')
+            entry_ids = set(entry_ids or [])
+            entries_to_update = [i for i in entry_ids - ontology_map.keys()]
+            async with bus.views_factory.get_views() as views:
+                entries = await views.ontology.get_entries(entry_ids=entries_to_update)
+                ontology_map.update({entry.id: entry for entry in entries})
 
 async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None):
     async with _get_lock(context, '_teams_lock'):
@@ -75,7 +44,7 @@ async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None
         teams_map = context.get('teams_map', dict())
         organisation_roots = context.get('organisation_roots', list())
         logger.debug('Updating teams map for user ' + str(user_id) + ' with team ids: ' + str(team_ids) + '')
-        async with bus.uow.get_uow(user_id=user_id) as uow:
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
             # if called with teams = None, retrieve all organisations
             if team_ids is None:
                 async for org in uow.repositories.organisations.get_all():
@@ -108,7 +77,7 @@ async def update_users_map(context, user_ids: List[int] | None = None):
         agent_id = context.get('user_id')  # This might be None for unauthenticated requests
         users_map = context.get('users_map', dict())
 
-        async with bus.views.get_views(user_id=agent_id) as views:
+        async with bus.views_factory.get_views(user_id=agent_id) as views:
             user_ids = set(user_ids) if user_ids is not None else set()
             unmapped = list(user_ids - set(users_map.keys()))
             for user in await views.accounts.get_users_for_admin(user_ids=unmapped):
@@ -131,7 +100,7 @@ async def update_locations_map(context, location_ids: List[int] | None = None):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
 
-        async with bus.uow.get_uow(user_id=user_id) as uow:
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
             locations_map = context.get('locations_map', dict())
             region_roots = context.get('region_roots', list())
 
@@ -160,7 +129,7 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
 
-        async with bus.uow.get_uow(user_id=user_id) as uow:
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
 
             layouts_map = context.get('layouts_map', dict())
             arrangement_roots = context.get('arrangement_roots', list())
@@ -192,7 +161,7 @@ async def update_units_map(context, location_ids: List[int] | None = None, unit_
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
 
-        async with bus.uow.get_uow(user_id=user_id) as uow:
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
 
             units_map = context.get('units_map', dict())
             block_roots = context.get('block_roots', list())
@@ -221,45 +190,46 @@ async def update_units_map(context, location_ids: List[int] | None = None, unit_
 
 async def update_germplasm_map(
         context,
-        entry_ids: List[int] = None,
-        names: List[str] = None
+        entry_ids: List[int]|None = None,
+        names: List[str]|None = None
 ):
     async with _get_lock(context, '_germplasm_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
-
-        async with bus.uow.get_uow(user_id=user_id) as uow:
+        entry_ids = entry_ids or []
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
             if not 'germplasm_map' in context:
                 context['germplasm_map'] = dict()
-
             entries_to_update = [
-                entry_id for entry_id in entry_ids or [] if entry_id not in context['germplasm_map']
+                entry_id for entry_id in entry_ids if entry_id not in context['germplasm_map']
             ]
             async for entry in uow.germplasm.get_entries(
-                entry_ids=entries_to_update,
-                names=names,
+                entry_ids=entries_to_update or None,
+                names=names or None,
                 as_output=True
             ):
                 context['germplasm_map'][entry.id] = entry
 
 async def update_reference_map(
         context,
-        reference_ids: List[int] = None
+        reference_ids: List[int]|None = None
 ):
+    if not 'reference_map' in context:
+        context['reference_map'] = dict()
+    if not reference_ids:
+        return
+
     async with _get_lock(context, '_reference_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
-        async with bus.uow.get_uow(user_id=user_id) as uow:
-            if not 'reference_map' in context:
-                context['reference_map'] = dict()
-
-            if reference_ids:
-                references_to_update = [
-                    reference_id for reference_id in reference_ids or [] if reference_id not in context['reference_map']
-                ]
-                if references_to_update:
-                    async for reference in uow.repositories.references.get_all(
-                            reference_ids=references_to_update
-                    ):
-                        context['reference_map'][reference.id] = reference
+        reference_ids = reference_ids or []
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+            references_to_update = [
+                reference_id for reference_id in reference_ids if reference_id not in context['reference_map']
+            ]
+            if references_to_update:
+                async for reference in uow.repositories.references.get_all(
+                        reference_ids=references_to_update
+                ):
+                    context['reference_map'][reference.id] = reference
 

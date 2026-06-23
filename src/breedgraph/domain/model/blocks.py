@@ -127,6 +127,9 @@ class Block(ControlledRootedAggregate):
     def remove_unit(self, unit_id: int):
         self.remove_entry(unit_id)
 
+    def has_unit(self, unit_id: int):
+        return self._graph.has_node(unit_id)
+
     def get_unit(self, unit_id: int):
         return self._graph.nodes[unit_id].get('model')
 

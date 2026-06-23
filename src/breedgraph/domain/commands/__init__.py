@@ -1,2 +1,17 @@
 from .base import Command
-from . import accounts, regions, arrangements, organisations, setup, ontologies, people, blocks, datasets, programs, controls, germplasm, references
+from . import (
+    accounts,
+    regions,
+    arrangements,
+    organisations,
+    setup,
+    ontologies,
+    people,
+    blocks,
+    datasets,
+    programs,
+    controls,
+    germplasm,
+    references,
+    analysis
+)

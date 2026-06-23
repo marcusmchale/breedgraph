@@ -16,28 +16,30 @@ from tests.e2e.references.post_methods import (
 )
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_legal(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations
+        reference_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = reference_build_context['user_id']
+    login_token = login_token_factory(user_id)
     legal_ref = LegalReferenceInput(
         description="This is a test legal reference",
         text="This is the actual text of the legal reference"
     ).model_dump()
-    create_legal_response = await post_to_create_legal_reference(client, token=first_user_login_token, reference=legal_ref)
+    create_legal_response = await post_to_create_legal_reference(client, token=login_token, reference=legal_ref)
     legal_payload = get_verified_payload(create_legal_response, "referencesCreateLegal")
     assert_payload_success(legal_payload)
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_file(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations
+        reference_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = reference_build_context['user_id']
+    login_token = login_token_factory(user_id)
     # 1. Create a dummy file in memory
     test_file_content = b"fake file content"
     test_file_path = Path(FILE_STORAGE_PATH, "test_document.pdf")
@@ -51,7 +53,7 @@ async def test_create_file(
 
         create_file_response = await post_to_create_file_reference(
             client,
-            token=first_user_login_token,
+            token=login_token,
             reference=file_reference
         )
 
@@ -73,13 +75,15 @@ async def test_create_file(
     assert file_content == test_file_content
 
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_monitor_progress_and_get_file(
-        client,
-        first_user_login_token,
-        first_account_with_all_affiliations
+        reference_build_context,
+        login_token_factory,
+        client
 ):
+    user_id = reference_build_context['user_id']
+    login_token = login_token_factory(user_id)
+
     # 1. Create a dummy file in memory
     test_file_content = b"fake file content2"
     test_file_path = Path(FILE_STORAGE_PATH, "test_document2.pdf")
@@ -93,7 +97,7 @@ async def test_create_monitor_progress_and_get_file(
 
         create_file_response = await post_to_create_file_reference(
             client,
-            token=first_user_login_token,
+            token=login_token,
             reference=file_reference
         )
 
@@ -110,7 +114,7 @@ async def test_create_monitor_progress_and_get_file(
     for i in range(max_retries):
         file_submission_response = await post_to_file_submission(
             client,
-            token=first_user_login_token,
+            token=login_token,
             file_id=key
         )
         file_submission_payload = get_verified_payload(file_submission_response, "referencesFileSubmission")
@@ -134,7 +138,7 @@ async def test_create_monitor_progress_and_get_file(
     for i in range(max_retries):
         file_download_response = await post_to_file_download(
             client,
-            token=first_user_login_token,
+            token=login_token,
             file_id=key
         )
         file_download_payload = get_verified_payload(file_download_response, "referencesFileDownload")

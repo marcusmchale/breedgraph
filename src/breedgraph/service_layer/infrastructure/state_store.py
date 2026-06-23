@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Self, List, AsyncGenerator
 from src.breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
-from src.breedgraph.config import SUBMISSION_RETENTION_DAYS
+from src.breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
 from src.breedgraph.domain.model.regions import LocationInput, LocationStored
 from src.breedgraph.domain.model.errors import ItemError
 
@@ -26,7 +26,7 @@ class AbstractStateStore(ABC):
     def get_countries(self) -> AsyncGenerator[LocationInput | LocationStored, None]:
         ...
 
-    """ Agent Control (for dataset submission and file management) """
+    """ Agent and Status control (for dataset, analysis and file management) """
     @abstractmethod
     async def _set_agent(self, agent_id: int, key: str):
         ...
@@ -35,13 +35,37 @@ class AbstractStateStore(ABC):
     async def verify_agent(self, agent_id: int, key: str):
         ...
 
+    @abstractmethod
+    async def set_status(self, key: str, status: SubmissionStatus):
+        ...
+
+    async def get_status(self, agent_id: int, key: str) -> SubmissionStatus:
+        await self.verify_agent(agent_id, key)
+        return await self._get_status(key)
+
+    @abstractmethod
+    async def _get_status(self, key: str):
+        ...
+
+    @abstractmethod
+    async def set_errors(self, key: str, errors: List[str]):
+        ...
+
+    @abstractmethod
+    async def _set_expiry(self, key: str, duration_seconds: int):
+        ...
+
+    @abstractmethod
+    async def _get_ttl(self, key: str) -> int | None:
+        """Return time to expiry in seconds"""
+        ...
+
     """ Dataset Submission"""
 
     async def store_submission(self, agent_id: int, submission: dict) -> str:
         submission_id = uuid4().hex
         await self._set_agent(agent_id, submission_id)
         await self._store_user_submission(agent_id, submission_id)
-        await self._set_agent(agent_id, submission_id)
         await self._set_submission_data(submission_id, submission)
         await self.set_submission_status(submission_id, SubmissionStatus.PENDING)
         return submission_id
@@ -67,14 +91,14 @@ class AbstractStateStore(ABC):
         return await self._get_submission_dataset_id(submission_id)
 
     async def add_submission_errors(self, submission_id, errors: List[str]):
-        stored_errors = await self._get_submission_errors(submission_id)
+        stored_errors = await self._get_errors(submission_id)
         if stored_errors:
             errors = stored_errors + errors
-        await self._set_submission_errors(submission_id, errors)
+        await self.set_errors(submission_id, errors)
 
-    async def get_submission_errors(self, agent_id: int, submission_id: str):
-        await self.verify_agent(agent_id, submission_id)
-        return await self._get_submission_errors(submission_id)
+    async def get_errors(self, agent_id: int, key: str):
+        await self.verify_agent(agent_id, key)
+        return await self._get_errors(key)
 
     async def add_submission_item_errors(self, submission_id: str, item_errors: List[ItemError]):
         stored_item_errors = await self._get_submission_item_errors(submission_id)
@@ -87,7 +111,7 @@ class AbstractStateStore(ABC):
         return await self._get_submission_item_errors(submission_id)
 
     async def set_submission_status(self, submission_id: str, status: SubmissionStatus):
-        await self._set_submission_status(submission_id, status)
+        await self.set_status(submission_id, status)
         if status == SubmissionStatus.COMPLETED:
             # remove data if successful, no need to keep it in redis,
             # it can be accessed via the dataset_id from the db
@@ -95,18 +119,6 @@ class AbstractStateStore(ABC):
             # reset expiry from when complete
             await self._set_expiry(submission_id, duration_seconds=60 * 60 * 24 * SUBMISSION_RETENTION_DAYS)
 
-    async def get_submission_status(self, agent_id: int, submission_id: str) -> SubmissionStatus:
-        await self.verify_agent(agent_id, submission_id)
-        return await self._get_submission_status(submission_id)
-
-    @abstractmethod
-    async def _set_expiry(self, key: str, duration_seconds: int):
-        ...
-
-    @abstractmethod
-    async def _get_ttl(self, key: str) -> int | None:
-        """Return time to expiry in seconds"""
-        ...
 
     @abstractmethod
     async def _store_user_submission(self, agent_id: int, submission_id: str):
@@ -145,11 +157,7 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def _set_submission_errors(self, submission_id: str, errors: List[str]):
-        ...
-
-    @abstractmethod
-    async def _get_submission_errors(self, submission_id: str) -> List[str]:
+    async def _get_errors(self, submission_id: str) -> List[str]:
         ...
 
     @abstractmethod
@@ -164,12 +172,57 @@ class AbstractStateStore(ABC):
     async def _remove_submission_data(self, submission_id: str):
         ...
 
+    """ Analysis submissions """
+
+    async def store_analysis(self, agent_id: int, analysis: dict) -> str:
+        analysis_id = uuid4().hex
+        await self._set_agent(agent_id, analysis_id)
+        await self._store_user_analysis(agent_id, analysis_id)
+        await self._set_analysis_config(analysis_id, analysis)
+        await self.set_submission_status(analysis_id, SubmissionStatus.PENDING)
+        return analysis_id
+
     @abstractmethod
-    async def _set_submission_status(self, submission_id: str, status: SubmissionStatus):
+    async def _store_user_analysis(self, agent_id: int, analysis_id: str):
+        ...
+
+    async def set_analysis_config(self, agent_id, analysis_id, analysis):
+        await self.verify_agent(agent_id, analysis_id)
+        await self._set_analysis_config(analysis_id, analysis)
+
+
+    @abstractmethod
+    async def _set_analysis_config(self, analysis_id: str, analysis: dict):
         ...
 
     @abstractmethod
-    async def _get_submission_status(self, submission_id: str):
+    async def _get_analysis_config(self, analysis_id: str):
+        ...
+
+    async def set_analysis_status(self, analysis_id: str, status: SubmissionStatus):
+        await self.set_status(analysis_id, status)
+        if status == SubmissionStatus.COMPLETED:
+            # reset expiry from when complete
+            await self._set_expiry(analysis_id, duration_seconds=60 * 60 * 24 * ANALYSIS_RETENTION_DAYS)
+
+    async def get_analysis_config(self, agent_id: int, analysis_id: str):
+        await self.verify_agent(agent_id, analysis_id)
+        return await self._get_analysis_config(analysis_id)
+
+    async def set_analysis_result(self, analysis_id: str, result: dict):
+        await self.set_status(analysis_id, SubmissionStatus.COMPLETED)
+        await self._set_analysis_result(analysis_id, result)
+
+    @abstractmethod
+    async def _set_analysis_result(self, analysis_id: str, result: dict):
+        ...
+
+    async def get_analysis_result(self, agent_id: int, analysis_id: str):
+        await self.verify_agent(agent_id, analysis_id)
+        return await self._get_analysis_result(analysis_id)
+
+    @abstractmethod
+    async def _get_analysis_result(self, analysis_id: str) -> dict | None:
         ...
 
     """ File management state """
@@ -181,20 +234,16 @@ class AbstractStateStore(ABC):
             await self.set_file_reference_id(file_id, reference_id)
         await self._set_filename(file_id, filename)
         await self.set_file_progress(file_id, 0)
-        await self.set_file_status(file_id, SubmissionStatus.PENDING)
+        await self.set_status(file_id, SubmissionStatus.PENDING)
         return file_id
-
-    async def get_file_status(self, agent_id: int, file_id: str) -> SubmissionStatus:
-        await self.verify_agent(agent_id, file_id)
-        return await self._get_file_status(file_id)
 
     async def get_file_progress(self, agent_id: int, file_id: str):
         await self.verify_agent(agent_id, file_id)
         return await self._get_file_progress(file_id)
 
-    async def get_file_errors(self, agent_id: int, file_id: str):
-        await self.verify_agent(agent_id, file_id)
-        return await self._get_file_errors(file_id)
+    async def get_errors(self, agent_id: int, key: str):
+        await self.verify_agent(agent_id, key)
+        return await self._get_errors(key)
 
     async def get_user_file_ids(self, agent_id: int) -> List[str]:
         """ Return a list of submission ID """
@@ -202,7 +251,7 @@ class AbstractStateStore(ABC):
         valid_files = []
         for file_id in file_ids:
             if await self._file_exists(file_id):
-                status = await self._get_file_status(file_id)
+                status = await self._get_status(file_id)
                 if status == SubmissionStatus.COMPLETED:
                     valid_files.append(file_id)
             else:
@@ -228,14 +277,6 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def set_file_status(self, file_id: str, status: SubmissionStatus):
-        ...
-
-    @abstractmethod
-    async def _get_file_status(self, file_id: str) -> SubmissionStatus:
-        ...
-
-    @abstractmethod
     async def set_file_progress(self, file_id: str, progress: int):
         ...
 
@@ -244,11 +285,7 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def set_file_errors(self, file_id: str, errors: List[str]):
-        ...
-
-    @abstractmethod
-    async def _get_file_errors(self, file_id: str):
+    async def _get_errors(self, key: str):
         ...
 
     @abstractmethod

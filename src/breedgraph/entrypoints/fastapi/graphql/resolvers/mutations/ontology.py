@@ -67,7 +67,7 @@ async def activate_entries(
 async def deprecate_entries(
         _,
         info,
-        entry_ids: List[int]
+        entry_ids: List[int] | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} marks entries {entry_ids} as deprecated")

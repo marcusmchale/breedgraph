@@ -113,7 +113,7 @@ class AccountStored(Aggregate, AccountBase):
 
     def verify_email(self):
         self.user.email_verified = True
-        self.events.append(EmailVerified(user=self.user.id))
+        self.events.append(EmailVerified(user_id=self.user.id))
 
     def remove_email(self, email: str):
         email_to_remove = None # need case insensitive remove

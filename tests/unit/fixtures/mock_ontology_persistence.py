@@ -5,6 +5,8 @@ from src.breedgraph.service_layer.persistence import OntologyPersistenceService
 from src.breedgraph.domain.model.ontology import *
 from src.breedgraph.domain.model.accounts import OntologyRole
 
+from src.breedgraph.service_layer.queries.read_models import OntologyEntryOutput
+
 
 class MockOntologyPersistenceService(OntologyPersistenceService):
     """Mock implementation for testing ontology application service."""
@@ -92,8 +94,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             self,
             entry_id: int = None,
             name:str = None,
-            label:str = None,
-            as_output:bool = False
+            label:str = None
     ) -> OntologyEntryStored|None:
         """Retrieve an ontology entry by ID."""
         if entry_id is not None:
@@ -104,12 +105,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
                     break
             else:
                 entry = None
-        if entry is None:
-            return None
-        elif not as_output:
-            return entry
-        else:
-            raise NotImplementedError
+        return entry
 
     async def update_entry(self, entry: OntologyEntryStored) -> None:
         """Update an existing ontology entry."""
@@ -149,9 +145,8 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] = None,
             labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None,
-            as_output: bool = False,
-    ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
+            names: List[str]|None = None
+    ) -> AsyncGenerator[OntologyEntryStored, None]:
         """Retrieve ontology entries with filtering."""
         for entry in self.entries.values():
             # Apply filters
@@ -164,10 +159,10 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
             yield entry
 
-    async def get_relationships(
+    async def _get_relationships(
             self,
-            version: Version | None = None,
-            phases: List[LifecyclePhase] | None = None,
+            version: Version,
+            phases: List[LifecyclePhase],
             labels: List[OntologyRelationshipLabel] | None = None,
             entry_ids: List[int] = None,
             source_ids: List[int] = None,

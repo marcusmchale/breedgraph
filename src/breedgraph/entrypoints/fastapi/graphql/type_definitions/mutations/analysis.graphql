@@ -1,0 +1,50 @@
+enum VariableType {
+  CONCEPT
+  GERMPLASM
+  TIMEPOINT
+}
+
+input AnalysisVariableInput {
+  """Type of variable: concept from dataset, germplasm, or timepoint"""
+  type: VariableType!
+
+  """Concept ID (required when type is CONCEPT)"""
+  conceptId: Int
+
+  """Human-readable label for the variable"""
+  label: String!
+}
+
+input InteractionTermInput {
+  """Index of first variable in independentVariables array"""
+  var1Index: Int!
+
+  """Index of second variable in independentVariables array"""
+  var2Index: Int!
+}
+
+input AnalysisInput {
+  """Optional name for this analysis"""
+  name: String
+
+  """Dataset IDs to include in analysis"""
+  datasetIds: [Int!]!
+
+  """The dependent (response) variable"""
+  dependentVariable: AnalysisVariableInput!
+
+  """Independent (predictor) variables"""
+  independentVariables: [AnalysisVariableInput!]!
+
+  """Interaction terms between independent variables"""
+  interactionTerms: [InteractionTermInput!]
+
+  """Timepoint boundaries for binning (partial datetime strings)"""
+  timepointBoundaries: [DateTime!]
+
+}
+
+extend type Mutation {
+    "Submit an analysis request"
+    analysisSubmit(analysis: AnalysisInput!): AnalysisSubmissionIdPayload!
+}

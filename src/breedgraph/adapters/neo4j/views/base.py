@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from src.breedgraph.adapters.neo4j.views.datasets import Neo4jDatasetsView
+from src.breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
 from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from src.breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
 
@@ -17,8 +18,10 @@ class Neo4jViewsHolder(AbstractViewsHolder):
             self,
             accounts: Neo4jAccountsView,
             regions: Neo4jRegionsView,
-            datasets: Neo4jDatasetsView
+            datasets: Neo4jDatasetsView,
+            ontology: Neo4jOntologyView
     ):
+        self.ontology = ontology
         self.accounts = accounts
         self.regions = regions
         self.datasets = datasets
@@ -39,7 +42,8 @@ class Neo4jViewsFactory(AbstractViewsFactory):
             accounts_view = Neo4jAccountsView(session=session, user_id=user_id)
             read_teams = await accounts_view.get_read_teams()
             yield Neo4jViewsHolder(
-                accounts_view,
-                Neo4jRegionsView(state_store=self.state_store, read_teams=read_teams, session=session),
-                Neo4jDatasetsView(read_teams=read_teams, session=session)
+                ontology = Neo4jOntologyView(session=session),
+                accounts = accounts_view,
+                regions = Neo4jRegionsView(state_store=self.state_store, read_teams=read_teams, session=session),
+                datasets = Neo4jDatasetsView(read_teams=read_teams, session=session)
             )

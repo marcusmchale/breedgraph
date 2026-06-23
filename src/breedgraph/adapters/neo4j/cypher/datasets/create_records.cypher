@@ -6,9 +6,8 @@ UNWIND range(0, size($records)-1) as cnt
 WITH dataset, record_counter, cnt, $records[cnt] AS record_data
 ORDER BY cnt
   MATCH (unit:Unit {id:record_data['unit']})
-  SET record_counter.count = record_counter.count + 1
   CREATE (dataset)-[:INCLUDES_RECORD]->(record:Record {
-    id: record_counter.count,
+    id: record_counter.count + cnt,
     submitted: datetime.transaction(),
     value:record_data['value'],
     start:record_data['start'],
@@ -18,6 +17,8 @@ ORDER BY cnt
     end_unit:record_data['end_unit'],
     end_step:record_data['end_step']
   })-[:FOR_UNIT]->(unit)
+  WITH unit, record, record_data, record_counter
+  SET record_counter.count = record_counter.count + size($records)
   WITH unit, record, record_data
   OPTIONAL MATCH (reference:Reference) WHERE reference.id IN record_data['references']
   FOREACH( i IN CASE WHEN reference IS NOT NULL THEN [1] ELSE [] END |

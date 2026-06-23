@@ -1,3 +1,4 @@
+from asyncio import Queue
 
 from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
@@ -18,31 +19,32 @@ from src.breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from src.breedgraph.service_layer.handlers import handlers
 from src.breedgraph.service_layer.messagebus import MessageBus
 
+
 from typing import Type
 
 import logging
 logger = logging.getLogger(__name__)
 
-
 async def bootstrap(
         driver: Type[AbstractAsyncDriver] = Neo4jAsyncDriver,
-        uow: Type[AbstractUnitOfWorkFactory] = Neo4jUnitOfWorkFactory,
-        views: Type[AbstractViewsFactory] = Neo4jViewsFactory,
+        uow_factory: Type[AbstractUnitOfWorkFactory] = Neo4jUnitOfWorkFactory,
+        views_factory: Type[AbstractViewsFactory] = Neo4jViewsFactory,
         state_store: Type[AbstractStateStore] = RedisStateStore,
         notifications: Type[AbstractNotifications] = EmailNotifications,
         auth_service: Type[AbstractAuthService] = ItsDangerousAuthService,
+        event_queue: Queue = Queue()
 ) -> MessageBus:
     logger.debug("Init driver")
     driver = driver()
 
     logger.debug("Init uow factory")
-    uow = uow(driver=driver)
+    uow_factory = uow_factory(driver=driver)
 
     logger.debug("Init state store")
     state_store = await state_store.create()
 
     logger.debug("Init views factory")
-    views = views(driver=driver, state_store=state_store)
+    views_factory = views_factory(driver=driver, state_store=state_store)
 
     logger.debug("Init notifications")
     notifications = notifications()
@@ -54,20 +56,22 @@ async def bootstrap(
     file_management: FileManagementService = FileManagementService(state_store)
 
     handlers.register_dependencies(
-        uow=uow,
-        views=views,
+        uow_factory=uow_factory,
+        views_factory=views_factory,
         notifications=notifications,
         state_store=state_store,
         auth_service=auth_service,
-        file_management=file_management
+        file_management=file_management,
+        event_queue=event_queue
     )
 
     return MessageBus(
-        uow=uow,
-        views=views,
+        uow_factory=uow_factory,
+        views_factory=views_factory,
         state_store=state_store,
         auth_service=auth_service,
         file_management=file_management,
         event_handlers=handlers.event_handlers,
-        command_handlers=handlers.command_handlers
+        command_handlers=handlers.command_handlers,
+        event_queue=event_queue
     )

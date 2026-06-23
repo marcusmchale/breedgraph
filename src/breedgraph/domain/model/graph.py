@@ -190,7 +190,6 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
 class RootedAggregate(DiGraphAggregate, ABC):
     """ An aggregate a single source node is an ancestor of all nodes """
 
-
     def __init__(self, nodes=None, edges=None, **kwargs):
         super().__init__(nodes, edges, **kwargs)
 

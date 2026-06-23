@@ -14,17 +14,6 @@ CALL {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   MERGE (reference)-[reference_for:REFERENCE_FOR]->(study)
 }
-// Update Datasets
-CALL {
-  WITH study
-  MATCH (study)-[has_dataset:HAS_DATASET]->(dataset: Dataset) WHERE NOT dataset.id IN $dataset_ids
-  DELETE has_dataset
-}
-CALL {
-  WITH study
-  MATCH (dataset: Dataset) WHERE dataset.id IN $dataset_ids
-  MERGE (study)-[:HAS_DATASET]->(dataset)
-}
 //Update design (in ontology)
 CALL {
   WITH study

@@ -8,7 +8,6 @@ from src.breedgraph.service_layer.infrastructure import (
     AbstractAuthService
 )
 
-from src.breedgraph.service_layer.queries.views import AbstractViewsFactory
 
 from src.breedgraph.custom_exceptions import (
     NoResultFoundError,
@@ -24,10 +23,10 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_account(
         cmd: commands.accounts.CreateAccount,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
 
-    async with uow.get_uow() as uow:
+    async with uow_factory.get_uow() as uow:
         if await uow.constraints.accounts_exist():
             # And if so, the email must be included in the allowed emails of some other account
             if not await uow.constraints.email_allowed(cmd.email):
@@ -39,7 +38,7 @@ async def create_account(
             ontology_role = OntologyRole.ADMIN
 
         # Check for accounts with same email but not verified
-        existing_email: AccountStored = await uow.repositories.accounts.get(email=cmd.email)
+        existing_email = await uow.repositories.accounts.get(email=cmd.email)
         if existing_email is not None:
             # and if it exists but isn't verified
             if not existing_email.user.email_verified:
@@ -51,7 +50,7 @@ async def create_account(
                 raise UnauthorisedOperationError("This email address is already registered and verified")
 
         # Check for accounts with the same username. These should be unique
-        existing_name: AccountStored = await uow.repositories.accounts.get(name=cmd.name)
+        existing_name = await uow.repositories.accounts.get(name=cmd.name)
         if existing_name is not None:
             raise IdentityExistsError(f"Username already taken")
 
@@ -70,17 +69,20 @@ async def create_account(
 @handlers.command_handler()
 async def edit_user(
         cmd: commands.accounts.UpdateUser,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow() as uow:
+    async with uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
         if cmd.name is not None:
             account.user.name = cmd.name
         if cmd.fullname is not None:
             account.user.fullname = cmd.fullname
-        if cmd.email is not None and cmd.email != account.user.email:
-            # Don't change the email, but initiate the request event
-            account.events.append(events.accounts.EmailChangeRequested(user=account.user.id, email=cmd.email))
+        if cmd.email != account.user.email:
+            if cmd.email is not None:
+                # Initiate the change email requested event
+                account.events.append(events.accounts.EmailChangeRequested(user_id=account.user.id, email=cmd.email))
         if cmd.password_hash is not None:
             account.user.password_hash = cmd.password_hash
         await uow.commit()
@@ -88,10 +90,10 @@ async def edit_user(
 @handlers.command_handler()
 async def verify_email(
         cmd: commands.accounts.VerifyEmail,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         auth_service: AbstractAuthService
 ):
-    async with uow.get_uow() as uow:
+    async with uow_factory.get_uow() as uow:
         token_data = auth_service.validate_email_verification_token(cmd.token)
 
         user_id = token_data['user_id']
@@ -99,10 +101,9 @@ async def verify_email(
 
         account = await uow.repositories.accounts.get(user_id=user_id)
         if account is None:
-            import pdb; pdb.set_trace()
-            raise NoResultFoundError
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
 
-        existing_email: AccountStored = await uow.repositories.accounts.get(email=email)
+        existing_email= await uow.repositories.accounts.get(email=email)
         if existing_email is not None and existing_email.user.email_verified:
             if account == existing_email:
                 raise IllegalOperationError("Email address is already verified!")
@@ -122,7 +123,7 @@ async def verify_email(
 @handlers.command_handler()
 async def login(
         cmd: commands.accounts.Login,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
     # todo logic to record login events etc.
     pass
@@ -131,50 +132,58 @@ async def login(
 @handlers.command_handler()
 async def add_email(
         cmd: commands.accounts.AddEmail,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.user_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         if await uow.repositories.accounts.get(email=cmd.email):
             raise IdentityExistsError("This email is already registered to an account")
 
-        account:AccountStored = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
         account.allow_email(cmd.email)
         await uow.commit()
 
 @handlers.command_handler()
 async def remove_email(
         cmd: commands.accounts.RemoveEmail,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.user_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
         try:
             account.remove_email(cmd.email)
-        except ValueError:
+        except NoResultFoundError:
             raise NoResultFoundError("Email not found among those allowed by this account")
         await uow.commit()
 
 @handlers.command_handler()
 async def request_ontology_role(
         cmd: commands.accounts.RequestOntologyRole,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.user_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
         account.user.ontology_role_requested = OntologyRole(cmd.ontology_role)
         await uow.commit()
 
 @handlers.command_handler()
 async def set_ontology_role(
         cmd: commands.accounts.SetOntologyRole,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         # first just check that the user is an admin
         if not await uow.constraints.is_ontology_admin():
             raise UnauthorisedOperationError("Only ontology admins can change roles")
 
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
         if account.user.ontology_role == OntologyRole.ADMIN:
             if not account.user.id == cmd.agent_id:
                 raise UnauthorisedOperationError('Admins may only change their own role')
@@ -188,10 +197,12 @@ async def set_ontology_role(
 @handlers.command_handler()
 async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.user_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        if organisation is None:
+            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
         organisation.request_affiliation(
             agent_id=cmd.user_id,
             user_id=cmd.user_id,
@@ -204,10 +215,12 @@ async def request_affiliation(
 @handlers.command_handler()
 async def approve_affiliation(
         cmd: commands.accounts.ApproveAffiliation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        if organisation is None:
+            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
         organisation.authorise_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,
@@ -220,10 +233,12 @@ async def approve_affiliation(
 @handlers.command_handler()
 async def remove_affiliation(
         cmd: commands.accounts.RemoveAffiliation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        if organisation is None:
+            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
         organisation.remove_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,
@@ -235,10 +250,12 @@ async def remove_affiliation(
 @handlers.command_handler()
 async def revoke_affiliation(
         cmd: commands.accounts.RevokeAffiliation,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        if organisation is None:
+            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
         organisation.revoke_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,

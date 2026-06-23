@@ -1,12 +1,16 @@
 import logging
 
 from src.breedgraph.adapters.neo4j.cypher import queries
+from src.breedgraph.custom_exceptions import IllegalOperationError
+
 from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import AsyncGenerator
 
 from src.breedgraph.domain.model.people import PersonInput, PersonStored
+from src.breedgraph.domain.model.controls import DiscoveryMatch
 
 logger = logging.getLogger(__name__)
 
@@ -20,26 +24,42 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
 
     async def _get_controlled(
             self,
-            person_id: int = None
-    ) -> PersonStored|None:
-
-        if person_id is None:
-            raise TypeError(f"person_id is required")
-
-        result = await self.tx.run(
-            queries['people']['get_person'],
-            person_id=person_id
-        )
-        record = await result.single()
-        if record:
-            return PersonStored(**record['person'])
+            person_id: int|None = None,
+            name: str|None = None
+    ) -> ControlledQueryResult[PersonStored]|None:
+        if person_id is not None:
+            result = await self.tx.run(
+                queries['people']['get_person'],
+                person_id=person_id
+            )
+            record = await result.single(strict=True)
+            return ControlledQueryResult(aggregate=PersonStored(**record['person']))
+        elif name is not None:
+            try:
+                return await anext(self._get_all_controlled(name=name))
+            except StopAsyncIteration:
+                return None
+        elif name is None and person_id is None:
+            raise IllegalOperationError("Get person requires name or person_id")
         else:
             return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[PersonStored, None]:
-        result = await self.tx.run(queries['people']['get_people'])
-        async for record in result:
-            yield PersonStored(**record['person'])
+    async def _get_all_controlled(self, name: str|None = None) -> AsyncGenerator[ControlledQueryResult[PersonStored], None]:
+        if name is None:
+            result = await self.tx.run(queries['people']['get_people'])
+            async for record in result:
+                yield ControlledQueryResult(PersonStored(**record['person']))
+        else:
+            result = await self.tx.run(
+                queries['people']['get_people_by_name'],
+                name_regex=f"(?i)^{name}$"
+            )
+            async for record in result:
+                person=PersonStored(**record['person'])
+                yield ControlledQueryResult(
+                    aggregate=person,
+                    matches=(DiscoveryMatch(label=PersonStored.label, model_id=person.id, key="name"),)
+                )
 
     async def _remove_controlled(self, person: PersonStored):
         await self.tx.run(queries['people']['remove_person'], person_id=person.id)

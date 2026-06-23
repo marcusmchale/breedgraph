@@ -30,12 +30,7 @@ class StudyBase(ABC):
     start: datetime64|None = None
     end: datetime64|None = None
 
-    dataset_ids: List[int] = field(default_factory=list)  # list of Dataset IDs.
-
-    # Germplasm, Location are defined for units, to retrieve from there for read operations
-    # Units in turn are accessed through factors/observations
     design_id: int | None = None  # Reference to Design in Ontology
-
     licence_id: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
     reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
@@ -64,7 +59,6 @@ class StudyStored(StudyBase, ControlledModel):
             practices = self.practices and self.redacted_str,
             start = None,
             end = None,
-            dataset_ids = list(),
             design_id = None,
             licence_id = None,
             reference_ids = list()
@@ -86,7 +80,6 @@ class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
             practices = stored.practices,
             start = stored.start,
             end = stored.end,
-            dataset_ids = stored.dataset_ids,
             design_id = stored.design_id,
             licence_id = stored.licence_id,
             reference_ids = stored.reference_ids
@@ -115,7 +108,7 @@ class TrialBase(ABC):
         if isinstance(self, TrialStored):
             return self.studies.get(study_id)
         else:
-            raise ValueError("Studies can only be retrieved from stored trials")
+            raise ValueError("Studies can only be retrieved from stored trials - consider running update_seen on repository")
 
     def add_study(self, study: StudyInput):
         if isinstance(self, TrialStored):
@@ -123,13 +116,13 @@ class TrialBase(ABC):
             self.studies[temp_key] = study
             return temp_key
         else:
-            raise ValueError("Studies can only be added to stored trials")
+            raise ValueError("Studies can only be added to stored trials - consider running update_seen on repository")
 
     def remove_study(self, study: StudyStored):
         if isinstance(self, TrialStored):
             self.studies.pop(study.id)
         else:
-            raise ValueError("Studies can only be removed from stored trials")
+            raise ValueError("Studies can only be removed from stored trials - consider running update_seen on repository")
 
 @dataclass
 class TrialInput(TrialBase, EnumLabeledModel):

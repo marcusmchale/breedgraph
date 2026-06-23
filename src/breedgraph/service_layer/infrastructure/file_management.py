@@ -1,11 +1,13 @@
 import logging
+
 import aiofiles
+import asyncio
 
 from pathlib import Path
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.config import FILE_STORAGE_PATH
+from src.breedgraph.config import FILE_STORAGE_PATH, MAX_CONCURRENT_UPLOADS
 from src.breedgraph.custom_exceptions import IllegalOperationError
 from src.breedgraph.domain.model.submissions import SubmissionStatus
 
@@ -18,6 +20,7 @@ class FileManagementService:
         self.file_storage_path = Path(FILE_STORAGE_PATH)
         self.file_storage_path.mkdir(parents=True, exist_ok=True)
         self.state_store = state_store
+        self.upload_semaphore = asyncio.Semaphore(MAX_CONCURRENT_UPLOADS)
 
     async def save_file(
             self, 
@@ -26,28 +29,35 @@ class FileManagementService:
             on_complete: Callable | None = None,
             on_failed: Callable | None = None
     ):
-        file_path = Path(self.file_storage_path, uuid)
-        file_size = file.size
-        logger.debug(f"Saving file {file.filename} with size {file_size} bytes as {uuid} ")
-        await self.state_store.set_file_status(uuid, SubmissionStatus.PROCESSING)
-        try:
-            async with aiofiles.open(file_path, 'wb') as buffer:
-                bytes_written = 0
-                while chunk := await file.read(8192):
-                    await buffer.write(chunk)
-                    bytes_written += len(chunk)
-                    progress = int((bytes_written/file_size) * 100)
-                    await self.state_store.set_file_progress(uuid, progress)
-            if on_complete:
-                await on_complete(uuid)
-            await self.state_store.set_file_status(uuid, SubmissionStatus.COMPLETED)
+        if not self.upload_semaphore.locked():
+            logger.debug(f'Processing file for upload: {uuid}')
+        else:
+            logger.warning(f'Processing too many files for upload, rejecting: {uuid}')
+            raise HTTPException(status_code=503, detail='Too many concurrent uploads')
 
-        except Exception as e:
-            logger.exception(f"Failed to save file {file.filename} with UUID {uuid}: {e}")
-            await self.state_store.set_file_status(uuid, SubmissionStatus.FAILED)
-            await self.state_store.set_file_errors(uuid, [str(e)])
-            if on_failed:
-                await on_failed(uuid)
+        async with self.upload_semaphore:
+            try:
+                file_path = Path(self.file_storage_path, uuid)
+                file_size = file.size
+                logger.debug(f"Saving file {file.filename} with size {file_size} bytes as {uuid} ")
+                await self.state_store.set_status(uuid, SubmissionStatus.PROCESSING)
+                async with aiofiles.open(file_path, 'wb') as buffer:
+                    bytes_written = 0
+                    while chunk := await file.read(8192):
+                        await buffer.write(chunk)
+                        bytes_written += len(chunk)
+                        progress = int((bytes_written/file_size) * 100)
+                        await self.state_store.set_file_progress(uuid, progress)
+                if on_complete:
+                    await on_complete(uuid)
+                await self.state_store.set_status(uuid, SubmissionStatus.COMPLETED)
+
+            except Exception as e:
+                logger.exception(f"Failed to save file {file.filename} with UUID {uuid}: {e}")
+                await self.state_store.set_status(uuid, SubmissionStatus.FAILED)
+                await self.state_store.set_errors(uuid, [str(e)])
+                if on_failed:
+                    await on_failed(uuid)
 
     async def delete_file(
             self,

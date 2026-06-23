@@ -1,3 +1,4 @@
+from numpy import datetime64
 from ariadne import ObjectType
 
 from src.breedgraph.adapters.redis.state_store import SubmissionStatus
@@ -12,7 +13,8 @@ from src.breedgraph.service_layer.queries.read_models import DatasetSummary
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_units_map,
-    update_locations_map
+    update_locations_map,
+    update_reference_map
 )
 
 from typing import List
@@ -33,19 +35,22 @@ graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, d
 @graphql_query.field("datasets")
 @graphql_payload
 @require_authentication
-async def get_datasets(_, info, dataset_id: int = None, concept_id: int = None) -> List[DatasetOutput]:
+async def get_datasets(
+        _,
+        info,
+        study_ids: List[int]|None = None,
+        concept_ids: List[int]|None = None,
+        dataset_ids: List[int]|None = None
+) -> List[DatasetOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
-        if dataset is None:
-            return [d.to_output() async for d in uow.repositories.datasets.get_all(concept_id=concept_id)]
-        else:
-            d = await uow.repositories.datasets.get(dataset_id=dataset_id)
-            if d is not None:
-                return [d.to_output()]
-            else:
-                return []
-
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        datasets = [d.to_output() async for d in uow.repositories.datasets.get_all(
+            study_ids=study_ids,
+            concept_ids=concept_ids,
+            dataset_ids=dataset_ids
+        )]
+        return datasets
 
 @dataset.field('concept')
 async def resolve_concept(obj, info):
@@ -53,12 +58,19 @@ async def resolve_concept(obj, info):
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.concept)
 
-
 @record.field('unit')
-async def resolve_unit(obj, info):
-    await update_units_map(info.context, unit_ids=[obj.unit])
+async def resolve_unit(obj: dict, info):
+    # todo preload all units if units are requested,
+    #  there are many cases like this throughout resolvers that require query introspection
+    await update_units_map(info.context, unit_ids=[obj.get('unit')])
     units_map = info.context.get('units_map')
-    return units_map.get(obj.unit)
+    return units_map.get(obj.get('unit'))
+
+@record.field('references')
+async def resolve_references(obj: dict, info):
+    await update_reference_map(info.context, reference_ids=obj.get('references'))
+    reference_map = info.context.get('reference_map')
+    return [reference_map.get(ref_id) for ref_id in obj.get('references')]
 
 
 """Submission resolver"""
@@ -88,7 +100,7 @@ async def resolve_submission_status(submission_id: str, info) -> SubmissionStatu
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     logger.debug(f"Resolving submission status for submission_id: {submission_id}")
-    status = await bus.state_store.get_submission_status(agent_id=user_id, submission_id=submission_id)
+    status = await bus.state_store.get_status(agent_id=user_id, key=submission_id)
     return status
 
 @dataset_submission.field("errors")
@@ -96,7 +108,7 @@ async def resolve_submission_errors(submission_id: str, info) -> List[str]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     logger.debug(f"Resolving submission errors for submission_id: {submission_id}")
-    errors = await bus.state_store.get_submission_errors(agent_id=user_id, submission_id=submission_id)
+    errors = await bus.state_store.get_errors(agent_id=user_id, key=submission_id)
     logger.debug(f'errors resolved: {errors}')
     return errors
 
@@ -116,7 +128,7 @@ async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemE
 async def get_dataset_summaries(_, info, study_id: int = None) -> List[DatasetSummary]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_views(user_id=user_id) as views:
+    async with bus.views_factory.get_views(user_id=user_id) as views:
         summaries = await views.datasets.get_dataset_summaries(study_id=study_id)
         return summaries
 
@@ -124,11 +136,11 @@ async def get_dataset_summaries(_, info, study_id: int = None) -> List[DatasetSu
 async def resolve_summary_concept(obj, info):
     await update_ontology_map(info.context, entry_ids=[obj.concept_id])
     ontology_map = info.context.get('ontology_map')
-    return ontology_map.get(obj.concept)
+    return ontology_map.get(obj.concept_id)
 
 @dataset_summary.field("subjects")
 async def resolve_summary_subjects(obj, info):
-    await update_ontology_map(info.context, entry_ids=[obj.subject_ids])
+    await update_ontology_map(info.context, entry_ids=obj.subject_ids)
     ontology_map = info.context.get('ontology_map')
     return [ontology_map.get(subject_id) for subject_id in obj.subject_ids]
 

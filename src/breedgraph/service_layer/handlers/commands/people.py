@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def add_person(
         cmd: commands.people.CreatePerson,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow() as uow:
+    async with uow_factory.get_uow() as uow:
         person = PersonBase(**cmd.model_dump())
         await uow.repositories.people.create(person)
         await uow.commit()

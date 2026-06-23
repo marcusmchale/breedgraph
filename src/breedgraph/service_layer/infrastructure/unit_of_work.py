@@ -2,66 +2,74 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 
 from src.breedgraph.domain.events import Event
-from src.breedgraph.domain.model.controls import ReadRelease
+
 from src.breedgraph.service_layer.repositories import AbstractRepoHolder
+from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
 from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from src.breedgraph.service_layer.application import OntologyApplicationService, GermplasmApplicationService
-from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
+
 from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
-from typing import List, AsyncGenerator
+from typing import AsyncGenerator, Callable, Awaitable, Iterable, TYPE_CHECKING
 
 import logging
 logger = logging.getLogger(__name__)
 
+EventPublisher = Callable[[Event], Awaitable[None]]
 
 class AbstractUnitHolder(ABC):
+
     constraints: AbstractConstraintsHandler
     controls: AbstractAccessControlService
     ontology: OntologyApplicationService
     germplasm: GermplasmApplicationService
     repositories: AbstractRepoHolder
+    committed: bool = False
+
+    def collect_events(self) -> Iterable[Event]:
+        ...
 
     @abstractmethod
     async def commit(self):
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def rollback(self):
-        raise NotImplementedError
+        ...
 
-    @abstractmethod
-    async def db_is_empty(self) -> bool:
-        raise NotImplementedError
 
 class AbstractUnitOfWorkFactory(ABC):
-    events: List[Event] = list()
 
     def __init__(self, driver: AbstractAsyncDriver):
         super().__init__()
         self.driver = driver
+        self.event_publisher: EventPublisher|None = None
+
+    def set_event_publisher(self, event_publisher: EventPublisher|None):
+        self.event_publisher = event_publisher
 
     @asynccontextmanager
-    async def get_uow(self, user_id: int = None, redacted: bool = True):
+    async def get_uow(
+            self,
+            user_id: int|None = None,
+            redacted: bool = True
+    ) -> AsyncGenerator[AbstractUnitHolder, None]:
         async with self._get_uow(user_id=user_id, redacted=redacted) as uow:
             try:
                 yield uow
             except Exception as e:
                 logger.error(f"Error in unit of work: {e}")
                 raise e
-            finally:
-                logger.debug("Collect events from uow")
-                self.events.extend(uow.repositories.collect_events())
-                self.events.extend(uow.controls.collect_events())
-                self.events.extend(uow.ontology.collect_events())
-                self.events.extend(uow.germplasm.collect_events())
+            else:
+                if self.event_publisher is not None and uow.committed:
+                    for event in uow.collect_events():
+                        await self.event_publisher(event)
 
     @abstractmethod
-    def _get_uow(self, user_id: int = None, redacted: bool = True) -> AbstractAsyncContextManager[AbstractUnitHolder, None]:
+    def _get_uow(
+            self,
+            user_id: int|None = None,
+            redacted: bool = True
+    ) -> AbstractAsyncContextManager[AbstractUnitHolder]:
         ...
-
-    def collect_events(self):
-        while self.events:
-            yield self.events.pop(0)
-
 

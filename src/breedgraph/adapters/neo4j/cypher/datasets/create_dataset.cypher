@@ -7,7 +7,7 @@ WITH
 //Link study
 CALL (dataset) {
   MATCH (study: Study {id: $study})
-  CREATE (study)-[:HAS_DATASET]->(dataset)
+  CREATE (dataset)-[:FOR_STUDY]->(study)
   RETURN
     collect(study.id)[0] as study
 }

@@ -204,21 +204,21 @@ async def post_to_create_layout_type(
 async def post_to_get_entries(
         client,
         token: str,
-        names: List[str] | None = None,
         labels: List[OntologyEntryLabel] |None = None,
         entry_ids: List[int] | None = None,
+        draft: bool = False
 ):
     json={
         "query": (
             " query ( "
-            "  $names: [String]"
             "  $labels: [OntologyEntryLabel]"
-            "  $entryIds: [Int]"
+            "  $entryIds: [Int!]"
+            "  $draft: Boolean "
             " ) { "
             "  ontologyEntries( "
-            "    names: $names "
             "    labels: $labels "
             "    entryIds: $entryIds "
+            "    draft: $draft "
             "  ) { "
             "    status, "
             "    result { "
@@ -244,9 +244,9 @@ async def post_to_get_entries(
             " } "
         ),
         "variables": {
-            "names": names,
             "labels": [label.name for label in labels],
-            "entryIds": entry_ids
+            "entryIds": entry_ids,
+            "draft": draft
         }
     }
     headers = with_auth(
@@ -257,32 +257,31 @@ async def post_to_get_entries(
     return response
 
 
-async def post_to_get_relationships(
+async def post_to_get_ontology(
         client,
         token: str,
-        labels: List[OntologyRelationshipLabel] |None = None,
+        version_id: str|None = None,
 ):
     json={
         "query": (
             " query ( "
-            "  $labels: [OntologyRelationshipLabel]"
+            "  $versionId: ID"
             " ) { "
-            "  ontologyRelationships( "
-            "    labels: $labels "
+            "  ontology( "
+            "    versionId: $versionId "
             "  ) { "
             "    status, "
             "    result { "
-            "       id, "
-            "       source_id,"
-            "       target_id, "
-            "       label "
+            "       versionId, "
+            "       entries { id, name },"
+            "       relationships {id, label, sourceId, targetId} "
             "   }, "
             "    errors { name, message } "
             "  } "
             " } "
         ),
         "variables": {
-            "labels": [label.name for label in labels] if labels else None
+            "versionId": version_id
         }
     }
     headers = with_auth(

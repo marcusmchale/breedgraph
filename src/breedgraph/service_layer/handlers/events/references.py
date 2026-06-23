@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 @handlers.event_handler()
 async def upload_completed(
         event: events.references.UploadCompleted,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications,
         file_management: FileManagementService
 ):
-    async with uow.get_uow(user_id=event.user_id) as uow:
+    async with uow_factory.get_uow(user_id=event.user_id) as uow:
         reference: FileReferenceStored = await uow.repositories.references.get(reference_id=event.reference_id)
         if reference.file_id and not reference.file_id == event.uuid:
             # delete any old referenced file if it exists (from updates)
@@ -47,14 +47,14 @@ async def upload_completed(
 @handlers.event_handler()
 async def upload_failed(
         event: events.references.UploadFailed,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications,
         file_management: FileManagementService
 ):
     # delete the failed file
     await file_management.delete_file(uuid=event.uuid)
     # and notify the user
-    async with uow.get_uow(user_id=event.user_id) as uow:
+    async with uow_factory.get_uow(user_id=event.user_id) as uow:
         reference: FileReferenceStored = await uow.repositories.references.get(reference_id=event.reference_id)
 
         account = await uow.repositories.accounts.get(user_id=event.user)

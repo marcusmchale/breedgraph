@@ -68,6 +68,12 @@ type VersionPayload {
     errors: [Error]
 }
 
+type OntologyPayload {
+    status: QueryStatus!
+    result: Ontology
+    errors: [Error]
+}
+
 type OntologyCommitsPayload {
     status: QueryStatus!
     result: [OntologyCommit!]
@@ -211,4 +217,16 @@ type GermplasmEntriesPayload {
     status: QueryStatus!
     result: [GermplasmEntry]
     errors: [Error]
+}
+
+type AnalysisSubmissionIdPayload {
+  status: QueryStatus!
+  result: String
+  errors: [Error]
+}
+
+type AnalysisSubmissionPayload {
+  status: QueryStatus!
+  result: AnalysisSubmission
+  errors: [Error]
 }

@@ -1,67 +1,96 @@
 import pytest
-from src.breedgraph.domain.model.datasets import DatasetStored, DataRecordInput
 
+from src.breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
+async def create_dataset(uow_factory, user_id, dataset_input):
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        await uow.repositories.datasets.create(dataset_input)
+        await uow.commit()
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
-async def test_get(
-        datasets_repo,
-        stored_dataset,
-        height_variable
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_and_get(
+        uow_factory,
+        dataset_build_context
 ):
-    retrieved: DatasetStored = await datasets_repo.get(dataset_id=1)
-    assert retrieved == stored_dataset
-    async for d in datasets_repo.get_all():
-        if d == stored_dataset:
+    user_id = dataset_build_context['user_id']
+    concept_id = dataset_build_context['concept_id']
+    study_id = dataset_build_context['study_id']
+    dataset_input = DatasetInput(
+        concept=concept_id,
+        study=study_id
+    )
+    await create_dataset(uow_factory, user_id, dataset_input)
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        async for d in uow.repositories.datasets.get_all():
+            assert d.concept == dataset_input.concept
+            assert d.study == dataset_input.study
             break
-    else:
-        raise NoResultFoundError("Couldn't find created dataset by get all")
-    async for d in datasets_repo.get_all(concept_id=height_variable.id):
-        if d == stored_dataset:
-            break
-    else:
-        raise NoResultFoundError("Couldn't find created dataset by get all with ontology id")
+        else:
+            raise NoResultFoundError("Couldn't find created dataset by get all")
 
-@pytest.mark.asyncio(scope="session")
+        async for d in uow.repositories.datasets.get_all(concept_ids=[concept_id]):
+            assert d.study == dataset_input.study
+            break
+        else:
+            raise NoResultFoundError("Couldn't find created dataset by get all with ontology id")
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_update_contributors(
-        datasets_repo,
-        stored_dataset,
-        unstored_person
+        uow_factory,
+        dataset_build_context
 ):
-    stored_dataset.contributors.remove(unstored_person.id)
-    await datasets_repo.update_seen()
-    retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
-    assert stored_dataset == retrieved
-    stored_dataset.contributors.append(unstored_person.id)
-    await datasets_repo.update_seen()
-    retrieved = await datasets_repo.get(dataset_id=stored_dataset.id)
-    assert stored_dataset == retrieved
+    user_id = dataset_build_context['user_id']
+    concept_id = dataset_build_context['concept_id']
+    study_id = dataset_build_context['study_id']
+    person_id = dataset_build_context['person_id']
+    dataset_input = DatasetInput(
+        concept=concept_id,
+        study=study_id
+    )
+    await create_dataset(uow_factory, user_id, dataset_input)
 
-@pytest.mark.asyncio(scope="session")
-async def test_add_record_to_existing_unit(
-        datasets_repo,
-        stored_dataset,
-        unstored_person,
-        tree_block
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get()
+        dataset.contributors.append(person_id)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
+        assert person_id in dataset.contributors
+        dataset.contributors.remove(person_id)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
+        assert person_id not in dataset.contributors
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_record(
+        uow_factory,
+        dataset_build_context
 ):
-    new_record = DataRecordInput(unit=tree_block.get_root_id(), value='50')
-    stored_dataset.records.append(new_record)
-    await datasets_repo.update_seen()
-    retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
+    user_id = dataset_build_context['user_id']
+    concept_id = dataset_build_context['concept_id']
+    study_id = dataset_build_context['study_id']
+    dataset_input = DatasetInput(
+        concept=concept_id,
+        study=study_id
+    )
+    await create_dataset(uow_factory, user_id, dataset_input)
 
-    assert len(retrieved.records) == len(stored_dataset.records)
+    unit_id = dataset_build_context['unit_id']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get()
+        if dataset is None:
+            raise ValueError("Dataset not found to add record")
+        new_record = DataRecordInput(unit=unit_id, value='50')
+        dataset.records.append(new_record)
+        await uow.repositories.datasets.update_seen()
 
-@pytest.mark.asyncio(scope="session")
-async def test_add_new_unit_record(
-        datasets_repo,
-        stored_dataset,
-        unstored_person,
-        second_tree_block
-):
-    new_record = DataRecordInput(unit=second_tree_block.root.id, value='50')
-    stored_dataset.records.append(new_record)
-    await datasets_repo.update_seen()
-    retrieved = await datasets_repo.get(dataset_id = stored_dataset.id)
-    assert len(retrieved.records) == len(stored_dataset.records)
+        retrieved = await uow.repositories.datasets.get(dataset_id = dataset.id)
+        if not retrieved:
+            raise ValueError("Dataset not found to compare length of records")
+        assert len(retrieved.records) == 1

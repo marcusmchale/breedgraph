@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+
+from .security import CSRFTokenManager
 from src.breedgraph.config import (
     ENVIRONMENT,
     SECRET_KEY,
@@ -12,6 +14,7 @@ from src.breedgraph.config import (
     Environment
 
 )
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -47,7 +50,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             request.url.path == "/csrf" or  # to retrieve cookie
             request.url.path == "/" or  # to allow redirect
             request.url.path == "/verify" or # to allow user registration, requires a token anyway
-            request.url.path == "/reset"  # to allow users to reset password, requires a token anyway
+            request.url.path == "/reset" or # to allow users to reset password, requires a token anyway
+            request.url.path == "/download"  # to allow users to download files, requires a token anyway
         ):
             return await call_next(request)
 
@@ -56,19 +60,33 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         header_token = request.headers.get(self.csrf_token_header)
 
         if not cookie_token or not header_token:
-            raise HTTPException(status_code=403, detail="CSRF token missing")
-
+            logger.debug("CSRF token missing - attempt to provide a new token")
+            new_token = CSRFTokenManager.generate_token()
+            response = Response(
+                content='{"detail":"CSRF token missing - new token provided"}',
+                status_code=403,
+                headers={"X-CSRF-Token": new_token}
+            )
+            CSRFTokenManager.set_token_cookie(response, new_token)
+            response.headers[self.csrf_token_header] = new_token
+            return response
         try:
             if cookie_token != header_token:
                 raise HTTPException(status_code=403, detail="CSRF token mismatch")
 
-            # Use configured expiry time
-            ts = URLSafeTimedSerializer(SECRET_KEY)
-            ts.loads(cookie_token, salt=CSRF_SALT, max_age=CSRF_EXPIRES * 60)
+            CSRFTokenManager.validate_token(cookie_token)
 
-        except SignatureExpired:
-            logger.exception("CSRF token expired")
-            raise HTTPException(status_code=403, detail="CSRF token expired")
+        except (SignatureExpired, HTTPException):
+            logger.info("CSRF token expired")
+            new_token = CSRFTokenManager.generate_token()
+            response = Response(
+                content='{"detail":"CSRF token missing - new token provided"}',
+                status_code=403,
+                headers={"X-CSRF-Token": new_token}
+            )
+            CSRFTokenManager.set_token_cookie(response, new_token)
+            response.headers[self.csrf_token_header] = new_token
+            return response
         except Exception as e:
             logger.exception("CSRF validation failed")
             raise HTTPException(status_code=403, detail="Invalid CSRF token")
@@ -78,12 +96,17 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 def setup_middlewares(app: FastAPI) -> None:
     """Configure all middleware for the application"""
-    # app.add_middleware(RequestLoggingMiddleware)
+    # handy for debugging, note this breaks with file uploads
+    #app.add_middleware(RequestLoggingMiddleware)
 
-    #origins = [get_vue_url()]
-    origins = [get_vue_url().rstrip('/')]  # Remove trailing slash
+    origins = [get_vue_url().rstrip('/')]
     logger.debug(f"Setting up CORS middleware with origins: {origins}")
-
+    # Setup CSRF
+    app.add_middleware(
+        CSRFMiddleware,
+        csrf_token_header="X-CSRF-Token",
+        csrf_token_cookie="csrf_token"
+    )
     # Setup CORS
     app.add_middleware(
         CORSMiddleware,
@@ -92,12 +115,6 @@ def setup_middlewares(app: FastAPI) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
         expose_headers=["X-CSRF-Token"]
-    )
-    # Setup CSRF
-    app.add_middleware(
-        CSRFMiddleware,
-        csrf_token_header="X-CSRF-Token",
-        csrf_token_cookie="csrf_token"
     )
 
 

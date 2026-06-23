@@ -32,11 +32,11 @@ async def email_user_allowed(
 @handlers.event_handler()
 async def send_user_verify_url(
         event: events.accounts.AccountCreated,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow.get_uow() as uow:
-        account = await uow.repositories.accounts.get(user_id=event.user)
+    async with uow_factory.get_uow() as uow:
+        account = await uow.repositories.accounts.get(user_id=event.user_id)
         if not account:
             raise NoResultFoundError
         token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
@@ -55,12 +55,12 @@ async def send_user_verify_url(
 @handlers.event_handler()
 async def email_change_requested(
         event: events.accounts.EmailChangeRequested,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow.get_uow() as uow:
-        logger.debug("Request to change email to %s for user %s", event.email, event.user)
-        account = await uow.repositories.accounts.get(user_id=event.user)
+    async with uow_factory.get_uow() as uow:
+        logger.debug("Request to change email to %s for user %s", event.email, event.user_id)
+        account = await uow.repositories.accounts.get(user_id=event.user_id)
         if not account:
             raise NoResultFoundError("Request to change email but matching account was not found")
         token = URLSafeTimedSerializer(config.SECRET_KEY).dumps(
@@ -82,21 +82,21 @@ async def email_change_requested(
 @handlers.event_handler()
 async def email_verified(
         event: events.accounts.EmailVerified,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
     # now that email is verified we can remove the allowed email to keep things tidy
-    async with uow.get_uow() as uow:
-        new_account = await uow.repositories.accounts.get(user_id=event.user)
+    async with uow_factory.get_uow() as uow:
+        new_account = await uow.repositories.accounts.get(user_id=event.user_id)
         async for account in uow.repositories.accounts.get_all(allowed_email=new_account.user.email):
             account.allowed_emails.remove(new_account.user.email)
 
 @handlers.event_handler()
 async def password_change_requested(
         event: events.accounts.PasswordChangeRequested,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow.get_uow() as uow:
+    async with uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(email=event.email)
         if not account:
             raise NoResultFoundError("Request to reset password by email but no account found")
@@ -117,20 +117,20 @@ async def password_change_requested(
 @handlers.event_handler()
 async def process_affiliation_request(
         event: events.accounts.AffiliationRequested,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow.get_uow(redacted=False) as uow:
-        organisation = await uow.repositories.organisations.get(team_id = event.team)
-        team = organisation.get_team(event.team)
-        request = team.affiliations.get_by_access(Access(event.access)).get(event.user)
-        admins = organisation.get_affiliates(team_id=event.team, access=Access.ADMIN)
-        if event.user in admins:
+    async with uow_factory.get_uow(redacted=False) as uow:
+        organisation = await uow.repositories.organisations.get(team_id = event.team_id)
+        team = organisation.get_team(event.team_id)
+        request = team.affiliations.get_by_access(Access(event.access)).get(event.user_id)
+        admins = organisation.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
+        if event.user_id in admins:
             # Automatically approve if user is an admin, don't need to email
             request.authorisation = Authorisation.AUTHORISED
             await uow.commit()
         else:
-            account = await uow.repositories.accounts.get(user_id=event.user)
+            account = await uow.repositories.accounts.get(user_id=event.user_id)
             user = UserOutput.from_stored(account.user)
             message = email_templates.AffiliationRequestedMessage(
                 requesting_user = user,
@@ -147,13 +147,13 @@ async def process_affiliation_request(
 @handlers.event_handler()
 async def notify_user_approved(
         event: events.accounts.AffiliationApproved,
-        uow: AbstractUnitOfWorkFactory,
+        uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow.get_uow(redacted=False) as uow:
-        organisation = await uow.repositories.organisations.get(team_id = event.team)
-        team = organisation.get_team(event.team)
-        account = await uow.repositories.accounts.get(user_id=event.user)
+    async with uow_factory.get_uow(redacted=False) as uow:
+        organisation = await uow.repositories.organisations.get(team_id = event.team_id)
+        team = organisation.get_team(event.team_id)
+        account = await uow.repositories.accounts.get(user_id=event.user_id)
         user = UserOutput.from_stored(account.user)
         message = email_templates.AffiliationApprovedMessage(
             user = user,

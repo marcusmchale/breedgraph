@@ -5,6 +5,7 @@ from neo4j import Record
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 
 from typing import AsyncGenerator, List
 
@@ -63,8 +64,7 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             self,
             reference_id: int = None,
             file_id: str = None
-    ) -> ReferenceStoredBase|None:
-        record = None
+    ) -> ControlledQueryResult[ReferenceStoredBase]|None:
         if reference_id:
             result = await self.tx.run(
                 queries['references']['get_reference'],
@@ -77,12 +77,10 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
                 file_id=file_id
             )
             record = await result.single(strict=False)
-
         else:
             raise ValueError("reference_id or file_id is required to get a reference")
-
         if record:
-            return self.record_to_reference(record.get('reference'))
+            return ControlledQueryResult(self.record_to_reference(record.get('reference')))
         else:
             return None
 
@@ -91,7 +89,7 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             reference_ids: List[int]|None = None,
             file_ids: List[str] = None,
             description: str = None
-    ) -> AsyncGenerator[ReferenceStoredBase, None]:
+    ) -> AsyncGenerator[ControlledQueryResult[ReferenceStoredBase], None]:
         if reference_ids:
             result = await self.tx.run(queries['references']['get_references_by_ids'], reference_ids=reference_ids)
         elif file_ids:
@@ -103,7 +101,7 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
 
         async for record in result:
             reference = self.record_to_reference(record)
-            yield reference
+            yield ControlledQueryResult(reference)
 
     async def _remove_controlled(self, reference: ReferenceStoredBase):
         await self.tx.run(queries['references']['remove_reference'], reference_id=reference.id)

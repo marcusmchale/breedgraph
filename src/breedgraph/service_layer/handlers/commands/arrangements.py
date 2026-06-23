@@ -1,3 +1,4 @@
+from asyncio import Queue
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.arrangements import LayoutInput
 from src.breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
@@ -23,9 +24,9 @@ def validate_position_within_parent(position, parent_layout, parent_type):
 @handlers.command_handler()
 async def create_layout(
         cmd: commands.arrangements.CreateLayout,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
         layout_type = await ontology_service.get_entry(entry_id=cmd.type_id, label=LayoutTypeStored.label)
         if layout_type is None:
@@ -53,12 +54,13 @@ async def create_layout(
 
 
 
+
 @handlers.command_handler()
 async def update_layout(
         cmd: commands.arrangements.UpdateLayout,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         arrangement = await uow.repositories.arrangements.get(layout_id=cmd.layout_id)
         layout = arrangement.get_entry(cmd.layout_id)
 
@@ -120,9 +122,9 @@ async def update_layout(
 @handlers.command_handler()
 async def delete_layout(
         cmd: commands.arrangements.DeleteLayout,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         arrangement = await uow.repositories.arrangements.get(layout_id=cmd.layout_id)
 
         if arrangement.root.id == cmd.layout_id:

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, Tuple, TypeVar, Type, Self
+from typing import Optional, Tuple, Self, cast
 
 
 from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
@@ -174,20 +174,42 @@ class OntologyRelationshipBase(ABC):
                     target_label=target_label
                 )
         elif label == OntologyRelationshipLabel.USES_SCALE:
-            if relationship_id is None:
-                return ScaleRelationship.build(
-                    source_id=source_id,
-                    scale_id=target_id,
-                    source_label=source_label,
-                    target_label=target_label
-                )
+            if source_label == OntologyEntryLabel.VARIABLE:
+                if relationship_id is None:
+                    return VariableComponentRelationship.ScaleRelationship.build(
+                        variable_id=source_id,
+                        scale_id=target_id,
+                        source_label=source_label,
+                        target_label=target_label
+                    )
+                else:
+                    return VariableComponentRelationship.ScaleRelationship.load(
+                        variable_id=source_id,
+                        scale_id=target_id,
+                        source_label=source_label,
+                        target_label=target_label,
+                        relationship_id=relationship_id
+                    )
+            elif source_label == OntologyEntryLabel.FACTOR:
+                if relationship_id is None:
+                    return FactorComponentRelationship.ScaleRelationship.build(
+                        factor_id=source_id,
+                        scale_id=target_id,
+                        source_label=source_label,
+                        target_label=target_label
+                    )
+                else:
+                    return FactorComponentRelationship.ScaleRelationship.load(
+                        factor_id=source_id,
+                        scale_id=target_id,
+                        source_label=source_label,
+                        target_label=target_label,
+                        relationship_id=relationship_id
+                    )
             else:
-                return ScaleRelationship.load(
-                    source_id=source_id,
-                    scale_id=target_id,
-                    source_label=source_label,
-                    target_label=target_label,
-                    relationship_id=relationship_id
+                raise ValueError(
+                    f"{OntologyRelationshipLabel.USES_SCALE} must relate from "
+                    f"{OntologyEntryLabel.VARIABLE} or {OntologyEntryLabel.FACTOR}, not {source_label}"
                 )
         elif label == OntologyRelationshipLabel.DESCRIBES_CONDITION:
             if relationship_id is None:
@@ -531,8 +553,67 @@ class ScaleRelationship(OntologyRelationshipBase):
         )
 
 
+@dataclass
+class VariableScaleRelationship(ScaleRelationship):
+    """Variable uses scale as part of its Trait / Method / Scale definition."""
+
+    @classmethod
+    def validate_labels(cls, source_label: OntologyEntryLabel, target_label: OntologyEntryLabel):
+        if not source_label == OntologyEntryLabel.VARIABLE:
+            raise ValueError(
+                f"{cls.__name__} must relate from {OntologyEntryLabel.VARIABLE}, not {source_label}"
+            )
+        if not target_label == OntologyEntryLabel.SCALE:
+            raise ValueError(
+                f"{cls.__name__} must relate to {OntologyEntryLabel.SCALE}, not {target_label}"
+            )
+
+    @classmethod
+    def build(
+            cls,
+            *,
+            variable_id: int,
+            scale_id: int,
+            source_label: OntologyEntryLabel = OntologyEntryLabel.VARIABLE,
+            target_label: OntologyEntryLabel = OntologyEntryLabel.SCALE,
+            **kwargs
+    ) -> Self:
+        cls.validate_labels(source_label, target_label)
+        if kwargs:
+            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
+        return cast(Self, super().build(
+            source_id=variable_id,
+            scale_id=scale_id,
+            source_label=source_label,
+            target_label=target_label,
+        ))
+
+    @classmethod
+    def load(
+            cls,
+            *,
+            variable_id: int,
+            scale_id: int,
+            source_label: OntologyEntryLabel,
+            target_label: OntologyEntryLabel,
+            relationship_id: int,
+            **kwargs
+    ) -> Self:
+        cls.validate_labels(source_label, target_label)
+        if kwargs:
+            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
+        return cast(Self, super().load(
+            source_id=variable_id,
+            scale_id=scale_id,
+            source_label=source_label,
+            target_label=target_label,
+            relationship_id=relationship_id,
+        ))
+
+
 class VariableComponentRelationship:
     """Variable describes trait, uses method, uses scale"""
+    ScaleRelationship = VariableScaleRelationship
 
     @dataclass
     class TraitRelationship(OntologyRelationshipBase):
@@ -640,60 +721,68 @@ class VariableComponentRelationship:
                 id=relationship_id
             )
 
-    class ScaleRelationship:
-        """Factory for Variable -> Scale relationships"""
 
-        @classmethod
-        def build(
-                cls,
-                *,
-                variable_id: int,
-                scale_id: int,
-                source_label: OntologyEntryLabel = OntologyEntryLabel.VARIABLE,
-                target_label: OntologyEntryLabel = OntologyEntryLabel.SCALE,
-                **kwargs
-        ) -> ScaleRelationship:
-            if not source_label in [OntologyEntryLabel.VARIABLE, OntologyEntryLabel.FACTOR]:
-                raise ValueError(
-                    f"{cls.__name__} must relate from {OntologyEntryLabel.VARIABLE} or {OntologyEntryLabel.FACTOR}, not {source_label}"
-                )
-            if not target_label == OntologyEntryLabel.SCALE:
-                raise ValueError(
-                    f"{cls.__name__} must relate to {OntologyEntryLabel.SCALE}, not {target_label}"
-                )
-            if kwargs:
-                raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-            return ScaleRelationship.build(
-                source_id=variable_id,
-                scale_id=scale_id,
-                source_label=source_label,
-                target_label=target_label,
+@dataclass
+class FactorScaleRelationship(ScaleRelationship):
+    """Factor uses scale as part of its Condition / Method / Scale definition."""
+
+    @classmethod
+    def validate_labels(cls, source_label: OntologyEntryLabel, target_label: OntologyEntryLabel):
+        if not source_label == OntologyEntryLabel.FACTOR:
+            raise ValueError(
+                f"{cls.__name__} must relate from {OntologyEntryLabel.FACTOR}, not {source_label}"
+            )
+        if not target_label == OntologyEntryLabel.SCALE:
+            raise ValueError(
+                f"{cls.__name__} must relate to {OntologyEntryLabel.SCALE}, not {target_label}"
             )
 
-        @classmethod
-        def load(
-                cls,
-                *,
-                variable_id: int,
-                scale_id: int,
-                source_label: OntologyEntryLabel,
-                target_label: OntologyEntryLabel,
-                relationship_id: int,
-                **kwargs
-        ) -> ScaleRelationship:
-            if kwargs:
-                raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-            return ScaleRelationship.load(
-                source_id=variable_id,
-                scale_id=scale_id,
-                source_label=source_label,
-                target_label=target_label,
-                relationship_id=relationship_id,
-            )
+    @classmethod
+    def build(
+            cls,
+            *,
+            factor_id: int,
+            scale_id: int,
+            source_label: OntologyEntryLabel = OntologyEntryLabel.FACTOR,
+            target_label: OntologyEntryLabel = OntologyEntryLabel.SCALE,
+            **kwargs
+    ) -> Self:
+        cls.validate_labels(source_label, target_label)
+        if kwargs:
+            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
+        return cast(Self, super().build(
+            source_id=factor_id,
+            scale_id=scale_id,
+            source_label=source_label,
+            target_label=target_label
+        ))
+
+    @classmethod
+    def load(
+            cls,
+            *,
+            factor_id: int,
+            scale_id: int,
+            source_label: OntologyEntryLabel,
+            target_label: OntologyEntryLabel,
+            relationship_id: int,
+            **kwargs
+    ) -> ScaleRelationship:
+        cls.validate_labels(source_label, target_label)
+        if kwargs:
+            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
+        return cast(Self, super().load(
+            source_id=factor_id,
+            scale_id=scale_id,
+            source_label=source_label,
+            target_label=target_label,
+            relationship_id=relationship_id
+        ))
 
 
 class FactorComponentRelationship:
     """Factor describes condition, uses method, uses scale"""
+    ScaleRelationship = FactorScaleRelationship
 
     @dataclass
     class ConditionRelationship(OntologyRelationshipBase):
@@ -795,57 +884,6 @@ class FactorComponentRelationship:
                 target_label=target_label,
                 label=OntologyRelationshipLabel.USES_CONTROL_METHOD,
                 id=relationship_id
-            )
-
-    class ScaleRelationship:
-        """Factory for Factor -> Scale relationships"""
-
-        @classmethod
-        def build(
-                cls,
-                *,
-                factor_id: int,
-                scale_id: int,
-                source_label: OntologyEntryLabel = OntologyEntryLabel.FACTOR,
-                target_label: OntologyEntryLabel = OntologyEntryLabel.SCALE,
-                **kwargs
-        ) -> ScaleRelationship:
-            if not source_label in [OntologyEntryLabel.VARIABLE, OntologyEntryLabel.FACTOR]:
-                raise ValueError(
-                    f"{cls.__name__} must relate from {OntologyEntryLabel.VARIABLE} or {OntologyEntryLabel.FACTOR}, not {source_label}"
-                )
-            if not target_label == OntologyEntryLabel.SCALE:
-                raise ValueError(
-                    f"{cls.__name__} must relate to {OntologyEntryLabel.SCALE}, not {target_label}"
-                )
-            if kwargs:
-                raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-            return ScaleRelationship.build(
-                source_id=factor_id,
-                scale_id=scale_id,
-                source_label=source_label,
-                target_label=target_label
-            )
-
-        @classmethod
-        def load(
-                cls,
-                *,
-                factor_id: int,
-                scale_id: int,
-                source_label: OntologyEntryLabel,
-                target_label: OntologyEntryLabel,
-                relationship_id: int,
-                **kwargs
-        ) -> ScaleRelationship:
-            if kwargs:
-                raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-            return ScaleRelationship.load(
-                source_id=factor_id,
-                scale_id=scale_id,
-                source_label=source_label,
-                target_label=target_label,
-                relationship_id=relationship_id
             )
 
 

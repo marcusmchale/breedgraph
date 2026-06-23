@@ -1,54 +1,29 @@
 from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
-async def post_to_create_team(client, token:str, name: str, parent_id: int | None = None):
-    if parent_id is not None:
-        json={
-            "query": (
-                " mutation ( "
-                "  $name: String!,"
-                "  $fullname: String,"
-                "  $parentId: Int,"
-                " ) { "
-                "  organisationsCreateTeam( "
-                "    name: $name, "
-                "    fullname: $fullname, "
-                "    parentId: $parentId "
-                "  ) { "
-                "    status, "
-                "    result, "
-                "    errors { name, message } "
-                "  } "
-                " } "
-            ),
-            "variables": {
-                "name": name,
-                "fullname": name,
-                "parentId": parent_id
-            }
+async def post_to_create_team(
+    client,
+    token:str,
+    team: dict
+):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $team: TeamInput!"
+            " ) { "
+            "  organisationsCreateTeam( "
+            "    team: $team, "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "team": team
         }
-    else:
-        json = {
-            "query": (
-                " mutation ( "
-                "  $name: String!,"
-                "  $fullname: String"
-                " ) { "
-                "  organisationsCreateTeam( "
-                "    name: $name, "
-                "    fullname: $fullname"
-                "  ) { "
-                "    status, "
-                "    result, "
-                "    errors { name, message } "
-                "  } "
-                " } "
-            ),
-            "variables": {
-                "name": name,
-                "fullname": name
-            }
-        }
+    }
     headers = with_auth(
         csrf_token=client.headers["X-CSRF-Token"],
         auth_token=token
@@ -216,19 +191,14 @@ async def post_to_delete_team(client, token:str, team_id: int):
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_update_team(client, token:str, team_id: int, name: str, fullname: str):
+async def post_to_update_team(client, token:str, team: dict):
     json = {
         "query": (
             " mutation ( "
-            "  $teamId: Int!,"
-            "  $name: String, "
-            "  $fullname: String "
-            "   "
+            "  $team: TeamUpdate! "
             " ) { "
             "  organisationsUpdateTeam( "
-            "    teamId: $teamId, "
-            "    name: $name, "
-            "    fullname: $fullname, "
+            "    team: $team "
             "  ) { "
             "    status, "
             "    result, "
@@ -237,9 +207,7 @@ async def post_to_update_team(client, token:str, team_id: int, name: str, fullna
             " } "
         ),
         "variables": {
-            "teamId": team_id,
-            "name": name,
-            "fullname": fullname
+            "team": team
         }
     }
     headers = with_auth(

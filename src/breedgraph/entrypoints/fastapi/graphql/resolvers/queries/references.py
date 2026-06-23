@@ -84,7 +84,7 @@ def resolve_reference_interface_type(obj, *_):
 async def get_references(_, info, reference_ids: List[int]) -> List[ReferenceStoredBase]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         references = [reference async for reference in uow.repositories.references.get_all(reference_ids=reference_ids)]
         return references
 
@@ -96,7 +96,7 @@ async def get_references(_, info, reference_ids: List[int]) -> List[ReferenceSto
 async def get_references_by_description(_, info, description: str) -> List[ReferenceStoredBase]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         references = [reference async for reference in uow.repositories.references.get_all(description=description)]
         return references
 
@@ -118,7 +118,7 @@ async def get_recent_file_references(_, info) -> List[ReferenceStoredBase]:
     reference_ids = await bus.state_store.get_user_file_reference_ids(user_id=info.context['user_id'])
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         references = [reference async for reference in uow.repositories.references.get_all(reference_ids=reference_ids)]
         return references
 
@@ -140,7 +140,7 @@ async def get_file_reference_id(file_id, info) -> int:
 @file_submission.field("status")
 async def get_file_status(file_id, info) -> SubmissionStatus:
     bus = info.context['bus']
-    status = await bus.state_store._get_file_status(file_id)
+    status = await bus.state_store._get_status(file_id)
     return status
 
 @file_submission.field("progress")
@@ -152,7 +152,7 @@ async def get_file_progress(file_id, info) -> int:
 @file_submission.field("errors")
 async def get_file_errors(file_id, info) -> List[str]:
     bus = info.context['bus']
-    errors = await bus.state_store._get_file_errors(file_id)
+    errors = await bus.state_store._get_errors(file_id)
     return errors
 
 @graphql_query.field("referencesFileDownload")
@@ -161,11 +161,11 @@ async def get_file_errors(file_id, info) -> List[str]:
 async def get_file_download(_, info, file_id: str):
     user_id = info.context.get('user_id')
     bus = info.context['bus']
-    async with bus.uow.get_uow(user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id) as uow:
         reference: FileReferenceStored | DataFileStored = await uow.repositories.references.get(file_id=file_id)
         if not reference:
             # Check if the upload is still in progress
-            status = await bus.state_store.get_file_status(agent_id=user_id, file_id=file_id)
+            status = await bus.state_store.get_status(agent_id=user_id, key=file_id)
             if status and status is not SubmissionStatus.COMPLETED:
                 if status in [SubmissionStatus.PENDING, SubmissionStatus.PROCESSING]:
                     raise NoResultFoundError("The file upload is still in progress")

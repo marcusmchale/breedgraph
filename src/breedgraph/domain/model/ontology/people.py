@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar
@@ -20,9 +20,6 @@ class RoleInput(RoleBase, OntologyEntryInput):
 class RoleStored(RoleBase, OntologyEntryStored):
     pass
 
-@dataclass
-class RoleOutput(RoleBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
 
 @dataclass
 class TitleBase(OntologyEntryBase):
@@ -38,7 +35,3 @@ class TitleInput(TitleBase, OntologyEntryInput):
 @dataclass
 class TitleStored(TitleBase, OntologyEntryStored):
     pass
-
-@dataclass
-class TitleOutput(TitleBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)

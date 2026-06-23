@@ -3,7 +3,8 @@ from functools import lru_cache
 from typing import Dict, Type, List, Tuple, FrozenSet, Set
 
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel, OntologyRelationshipLabel
-from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyEntryOutput
+from src.breedgraph.domain.model.ontology import OntologyEntryStored
+from src.breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
 
 
 class OntologyMapper:
@@ -13,14 +14,14 @@ class OntologyMapper:
     @lru_cache(maxsize=1)
     def get_stored_class_mapping(self) -> Dict[OntologyEntryLabel, Type[OntologyEntryStored]]:
         return {
-            subclass().label: subclass
+            subclass.label: subclass
             for subclass in OntologyEntryStored.__subclasses__()
         }
 
     @lru_cache(maxsize=1)
     def get_output_class_mapping(self) -> Dict[OntologyEntryLabel, Type[OntologyEntryOutput]]:
         return {
-            subclass().label: subclass
+            subclass.label: subclass
             for subclass in OntologyEntryOutput.__subclasses__()
         }
 
@@ -102,41 +103,40 @@ class OntologyMapper:
             return mapping
         return _create_mapping()
 
-    def get_attribute_name_and_type(
+    def get_attribute_name(
             self,
             source_label: OntologyEntryLabel,
             target_label: OntologyEntryLabel,
             attr_for_source: bool = True  # returns either the attribute name for the source or target entity
-    ) -> Tuple[str, Type[int|List[int]]]:
+    ) -> str:
         output_class_mapping = self.get_output_class_mapping()
         source_cls = output_class_mapping[source_label]
         target_cls = output_class_mapping[target_label]
 
         if source_cls == target_cls:  # PARENT_OF relationship
             if attr_for_source:
-                return 'children', List[int]
+                return 'children'
             else:
-                return 'parents', List[int]
+                return 'parents'
 
-        entity_cls = source_cls if attr_for_source else target_cls
         other_cls = target_cls if attr_for_source else source_cls
-
+        entity_cls = source_cls if attr_for_source else target_cls
         # most cases are dataclasses
         # for these, the attribute may not be present until an instance is created
         attr_other_singular = self.snake_case_pattern.sub('_', str(other_cls.label.value)).casefold()
         attr_other_plural = self.snake_case_pattern.sub('_', str(other_cls.label.plural)).casefold()
         if hasattr(entity_cls, '__dataclass_fields__'):
             if attr_other_singular in entity_cls.__dataclass_fields__.keys():
-                return attr_other_singular, int
+                return attr_other_singular
             elif attr_other_plural in entity_cls.__dataclass_fields__.keys():
-                return attr_other_plural, List[int]
+                return attr_other_plural
         else:
             if hasattr(entity_cls, attr_other_singular):
-                return attr_other_singular, int
+                return attr_other_singular
             if hasattr(entity_cls, attr_other_plural):
-                return attr_other_plural, List[int]
+                return attr_other_plural
 
-        raise ValueError(f'Attribute for {other_cls} not found on {entity_cls}')
+        raise ValueError(f'Attribute name for {other_cls} not found on {entity_cls}')
 
     def get_other_label_from_attribute(
             self,
@@ -170,6 +170,15 @@ class OntologyMapper:
                     return mapping[labels]
 
             raise ValueError(f"Relationship label not found for {entry_label} and {other_label}")
+
+    @staticmethod
+    def get_rank(rel_dict: dict) -> int:
+        properties = rel_dict.get('properties')
+        if properties:
+            rank = properties.get('rank')
+            return rank if rank else 0
+        else:
+            return 0
 
 
 ontology_mapper = OntologyMapper()

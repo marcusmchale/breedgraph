@@ -72,6 +72,13 @@ class RedisStateStore(AbstractStateStore):
             submission_id
         )
 
+    async def _store_user_analysis(self, agent_id: int, analysis_id: str):
+        await self.connection.sadd(
+            f"user:{agent_id}:analyses",
+            analysis_id
+        )
+
+
     async def _store_user_file(self, agent_id: int, file_id: str):
         await self.connection.sadd(
             f"user:{agent_id}:files",
@@ -84,6 +91,30 @@ class RedisStateStore(AbstractStateStore):
             key=SubmissionKeys.DATA.value,
             value=json.dumps(submission, default=str) # the default str makes datetime64 objects strings
         )
+
+    async def _set_analysis_config(self, analysis_id: str, analysis: dict):
+        await self.connection.hset(
+            name=analysis_id,
+            key=SubmissionKeys.ANALYSIS.value,
+            value=json.dumps(analysis, default=str) # the default str makes datetime64 objects strings
+        )
+
+    async def _get_analysis_config(self, analysis_id: str):
+        dataset_json = await self.connection.hget(analysis_id, key=SubmissionKeys.ANALYSIS.value)
+        return json.loads(dataset_json)
+
+    async def _set_analysis_result(self, analysis_id: str, result: dict):
+        await self.connection.hset(
+            name=analysis_id,
+            key=SubmissionKeys.RESULT.value,
+            value=json.dumps(result)
+        )
+
+    async def _get_analysis_result(self, analysis_id: str) -> dict | None:
+        result_json = await self.connection.hget(analysis_id, key=SubmissionKeys.RESULT.value)
+        if result_json is None:
+            return None
+        return json.loads(result_json)
 
     async def _set_filename(self, file_id: str, filename: str):
         await self.connection.hset(
@@ -99,9 +130,9 @@ class RedisStateStore(AbstractStateStore):
             value=str(progress)
         )
 
-    async def set_file_status(self, file_id: str, status: SubmissionStatus):
+    async def set_status(self, key: str, status: SubmissionStatus):
         await self.connection.hset(
-            name=file_id,
+            name=key,
             key='status',
             value=status.value
         )
@@ -116,17 +147,16 @@ class RedisStateStore(AbstractStateStore):
     async def _remove_submission_data(self, submission_id: str):
         await self.connection.hdel(submission_id, SubmissionKeys.DATA.value)
 
-    async def _set_submission_status(self, submission_id: str, status: SubmissionStatus):
+    async def _set_status(self, key: str, status: SubmissionStatus):
         await self.connection.hset(
-            name=submission_id,
+            name=key,
             key=SubmissionKeys.STATUS.value,
             value=status.value
         )
 
-
-    async def _set_submission_errors(self, submission_id: str, errors: List[str]):
+    async def set_errors(self, key: str, errors: List[str]):
         await self.connection.hset(
-            name=submission_id,
+            name=key,
             key=SubmissionKeys.ERRORS.value,
             value=json.dumps(errors)
         )
@@ -162,13 +192,13 @@ class RedisStateStore(AbstractStateStore):
         else:
             return int(dataset_id.decode('utf-8'))
 
-    async def _get_submission_status(self, submission_id: str):
-        status = await self.connection.hget(submission_id, key=SubmissionKeys.STATUS.value)
+    async def _get_status(self, key: str):
+        status = await self.connection.hget(key, key=SubmissionKeys.STATUS.value)
         if status is None:
             return None
         return SubmissionStatus(status.decode('utf-8'))
 
-    async def _get_submission_errors(self, submission_id):
+    async def _get_errors(self, submission_id):
         errors = await self.connection.hget(submission_id, key=SubmissionKeys.ERRORS.value)
         return json.loads(errors) if errors else []
 
@@ -182,15 +212,6 @@ class RedisStateStore(AbstractStateStore):
         if progress is None:
             return None
         return int(progress.decode('utf-8')) if progress else 0
-
-    async def _get_file_status(self, file_id: str):
-        status = await self.connection.hget(
-            name=file_id,
-            key='status'
-        )
-        if status is None:
-            return None
-        return SubmissionStatus(status.decode('utf-8'))
 
     async def set_file_reference_id(self, file_id: str, reference_id: int):
         await self.connection.hset(
@@ -208,14 +229,7 @@ class RedisStateStore(AbstractStateStore):
             return None
         return int(reference_id.decode('utf-8')) if reference_id else None
 
-    async def set_file_errors(self, file_id: str, errors: List[str]):
-        await self.connection.hset(
-            name=file_id,
-            key=SubmissionKeys.ERRORS.value,
-            value=json.dumps(errors)
-        )
-
-    async def _get_file_errors(self, file_id: str):
+    async def _get_errors(self, file_id: str):
         errors = await self.connection.hget(file_id, key=SubmissionKeys.ERRORS.value)
         return json.loads(errors) if errors else []
 

@@ -1,6 +1,7 @@
 from ariadne import ObjectType
 
-from src.breedgraph.domain.model import LegalReferenceStored, DesignOutput
+from src.breedgraph.service_layer.queries.read_models.ontology import DesignOutput
+from src.breedgraph.domain.model import LegalReferenceStored
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
@@ -32,7 +33,7 @@ async def get_programs(
 ) -> List[ProgramOutput]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         programs = [p.to_output() async for p in uow.repositories.programs.get_all()]
         return programs
 
@@ -50,7 +51,7 @@ async def get_program(
         raise ValueError("Program, Trial or Study ID required to fetch a program")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         program_stored = await uow.repositories.programs.get(program_id=program_id, trial_id=trial_id, study_id=study_id)
         return program_stored.to_output()
 
@@ -67,7 +68,7 @@ async def get_trial(
         raise ValueError("Trial or Study ID required to fetch a trial")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         program_stored = await uow.repositories.programs.get(trial_id=trial_id, study_id=study_id)
         trial_stored = program_stored.get_trial(trial_id=trial_id, study_id=study_id)
         return trial_stored.to_output()
@@ -82,7 +83,7 @@ async def get_study(
 ) -> StudyOutput:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         program_stored = await uow.repositories.programs.get(study_id=study_id)
         study_stored = program_stored.get_study(study_id=study_id)
         return study_stored.to_output()
@@ -123,7 +124,7 @@ async def resolve_licence(obj, info) -> LegalReferenceStored | None:
     return reference_map.get(obj.licence_id)
 
 @study.field("design")
-async def resolve_design(obj, info) -> DesignOutput:
+async def resolve_design(obj, info) -> DesignOutput | None:
     if not obj.design_id:
         return None
     await update_ontology_map(context = info.context, entry_ids=[obj.design_id])

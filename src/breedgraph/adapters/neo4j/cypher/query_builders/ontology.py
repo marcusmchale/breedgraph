@@ -205,11 +205,10 @@ def entries_exist_by_label(labels: List[OntologyEntryLabel] | None = None) -> st
 
 
 def get_entries(
-        phases: List[LifecyclePhase],
+        phases: List[LifecyclePhase] | None = None,
         labels: List[OntologyEntryLabel] | None = None,
         names: List[str] | None = None,
-        entry_ids: List[int] | None = None,
-        with_relationships: bool = False
+        entry_ids: List[int] | None = None
 ) -> str:
     """
     Dynamically build Cypher query for fetching ontology entries.
@@ -224,6 +223,8 @@ def get_entries(
     Returns:
         Complete Cypher query string
     """
+    if not phases:
+        phases = list(LifecyclePhase)
     # Build MATCH clause with label filtering
     if labels:
         # get values of label enums as string
@@ -271,43 +272,16 @@ def get_entries(
     if where_conditions:
         where_clause = "WHERE " + " AND ".join(where_conditions)
 
-    # Build RETURN clause
-    if with_relationships:
-        return_clause = """
-            WITH entry 
-                OPTIONAL MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry),
-                (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
-                WHERE (source = entry OR target = entry) AND
-                (
-                    (relationship_lifecycle.drafted <= $version OR relationship_lifecycle.activated <= $version) AND 
-                    (relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version)
-                )
-            WITH entry, collect({
-                relationship_id: relationship.id,
-                source_id: source.id,
-                source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
-                target_id: target.id,
-                target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0],
-                relationship_type: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
-                properties: properties(relationship)
-            }) as relationships
-            RETURN
-            entry {
-              .*,
-              label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-              authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
-              references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ],
-              relationships: [rel IN relationships WHERE rel.relationship_id IS NOT NULL] 
-            } as entry
-        """
-    else:
-        return_clause = """RETURN
-  entry {
-    .*,
-    label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-    authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
-    references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ]
-  } as entry"""
+    return_clause = """
+        RETURN
+        entry {
+            .*,
+            label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
+            authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
+            references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ]
+        } as entry,
+        lifecycle { .* } as lifecycle
+    """
 
     query_parts = [match_clause]
     if where_clause:
@@ -394,7 +368,7 @@ def get_relationships(
             where_clause = "WHERE " + " OR ".join(phase_conditions)
 
     return_clause = """
-        WITH (relationship)
+        WITH relationship
         MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry)
         RETURN
             relationship {
@@ -404,7 +378,7 @@ def get_relationships(
                 target_id: target.id,
                 source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
                 target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
-            } as relationship 
+            } as relationship
     """
     query_parts = [match_clause]
     if where_clause:

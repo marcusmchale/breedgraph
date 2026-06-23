@@ -19,7 +19,7 @@ input DatasetInput {
     studyId: Int!
     """ concept is either a Factor or Variable in the ontology """
     conceptId: Int!
-    records: [RecordInput]
+    records: [RecordInput!]!
     contributorIds: [Int!]
     referenceIds: [Int!]
 }
@@ -31,20 +31,18 @@ input DatasetUpdate {
     datasetId: Int!
     studyId: Int
     conceptId: Int
-    records: [RecordUpdate]
+    records: [RecordUpdate!]!
     contributorIds: [Int!]
     referenceIds: [Int!]
 }
 
 extend type Mutation {
     """
-    Submission Payloads include a key, the dataset is processed asynchronously,
-    you can check status and errors at the
+    Submission Payloads include a key, the dataset is processed asynchronously
+    Poll the datasetsSubmission using the returned submission ID for status reports.
     """
-    datasetsCreateDataset(dataset: DatasetInput!): SubmissionIdPayload!,
-    datasetsUpdateDataset(dataset: DatasetUpdate!): SubmissionIdPayload!
-    """Extend an existing dataset with new records"""
-    datasetsAddRecords(datasetId: Int!, records:[RecordInput]): SubmissionIdPayload!
+    datasetsSubmitRecords(dataset: DatasetInput!): SubmissionIdPayload!,
+    datasetsUpdateRecords(dataset: DatasetUpdate!): SubmissionIdPayload!
     """Delete records from a dataset"""
-    datasetsRemoveRecords(datasetId: Int!, recordIds: [Int!]): BooleanPayload!
+    datasetsRemoveRecords(datasetId: Int!, recordIds: [Int!]!): BooleanPayload!
 }

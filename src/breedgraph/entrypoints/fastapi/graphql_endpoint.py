@@ -95,7 +95,6 @@ async def graphql_server(request: Request):
     try:
         data = await extract_graphql_data(request)
         context = await get_context_value(request)
-
         success, result = await graphql(
             request.app.graphql_schema,
             data,
@@ -103,7 +102,6 @@ async def graphql_server(request: Request):
             debug=True,
         )
         status_code = 200 if success else 400
-
         # Create the response with the GraphQL result
         json_response = JSONResponse(content=result, status_code=status_code)
         # Set any cookies that were queued during GraphQL execution
@@ -114,6 +112,7 @@ async def graphql_server(request: Request):
             cookie_params = {k: v for k, v in cookie_data.items() if k != "key"}
             json_response.set_cookie(cookie_name, **cookie_params)
             logger.debug(f"Set cookie: {cookie_name}")
+        logger.debug(f"GraphQL endpoint complete")
 
         return json_response
 

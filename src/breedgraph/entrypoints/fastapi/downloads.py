@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from pathlib import Path
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired

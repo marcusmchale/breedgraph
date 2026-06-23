@@ -1,6 +1,6 @@
 from ariadne import ObjectType
 
-from src.breedgraph.domain.model.ontology import OntologyEntryOutput
+from src.breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
 from src.breedgraph.domain.model.regions import LocationOutput
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (

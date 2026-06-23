@@ -51,5 +51,6 @@ graphql_resolvers.register_enums(EnumType('OntologyRole', OntologyRole))
 graphql_resolvers.register_enums(EnumType("SubmissionStatus", SubmissionStatus))
 graphql_resolvers.register_enums(EnumType("DataFormat", DataFormat))
 
+
 # Export only what's needed
 __all__ = ['graphql_query', 'graphql_mutation', 'datetime_scalar', 'graphql_resolvers']

@@ -10,14 +10,12 @@ from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggr
 from src.breedgraph.domain.services.value_parsers import ValueParser
 from src.breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
 
-
-
 @dataclass
 class DataRecordBase(ABC):
     label: ClassVar[str] = "Record"
     plural: ClassVar[str] = "Records"
 
-    unit: int|None = None
+    unit: int = None
     value: str|None = None
 
     start: datetime64|None = None
@@ -45,6 +43,10 @@ class DataRecordInput(DataRecordBase, LabeledModel):
         if self.start and self.end:
             if self.start > self.end:
                 raise ValueError("Start date cannot be after end date")
+        if not self.unit:
+            raise ValueError("Unit is required for record")
+        if not self.value and not self.references:
+            raise ValueError("Either a value or list of references are required for a record to be created")
 
 @dataclass
 class DataRecordStored(DataRecordBase, StoredModel):
@@ -96,12 +98,26 @@ class DatasetBase(ABC):
     ) -> Generator[None|str, None, None]:
         record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
         for record in records:
-            if isinstance(record, dict):
-                record = DataRecordInput(**record)
             try:
+                if isinstance(record, dict):
+                    if 'record_id' in record:
+                        record['id'] = record.pop('record_id')
+                    if 'reference_ids' in record:
+                        record['references'] = record.pop('reference_ids')
+                    record = DataRecordStored(**record)
                 record.value = self.parse_value(record.value, scale, categories)
                 record_index = record_index_map[record.id]
-                self.records[record_index] = record
+                stored_record = self.records[record_index]
+                if record.value is not None and stored_record.value != record.value:
+                    stored_record.value = record.value
+                if record.start is not None and stored_record.start != record.start:
+                    stored_record.start = datetime64(record.start)
+                if record.end is not None and stored_record.end != record.end:
+                    stored_record.end = datetime64(record.end)
+                if record.unit is not None and stored_record.unit != record.unit:
+                    stored_record.unit = record.unit
+                if record.references is not None and stored_record.references != record.references:
+                    stored_record.references = record.references
                 yield None
             except Exception as e:
                 yield str(e)
@@ -143,7 +159,27 @@ class DatasetBase(ABC):
 
 @dataclass
 class DatasetInput(DatasetBase, EnumLabeledModel):
-    pass
+
+    concept_id: InitVar[int|None] = None
+    study_id: InitVar[int|None] = None
+
+    contributor_ids: InitVar[List[int] | None] = None
+    reference_ids: InitVar[List[int] | None] = None
+
+    def __post_init__(self, concept_id, study_id, contributor_ids, reference_ids):
+        if concept_id is not None:
+            self.concept = concept_id
+        if self.concept is None:
+            raise ValueError("Concept cannot be None")
+        if study_id is not None:
+            self.study = study_id
+        if self.study is None:
+            raise ValueError("Study cannot be None")
+        if contributor_ids is not None:
+            self.contributors = contributor_ids
+        if reference_ids is not None:
+            self.references = reference_ids
+
 
 @dataclass(eq=False)
 class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
@@ -159,6 +195,7 @@ class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
     def model_dump(self):
         return {
             'id': self.id,
+            'study': self.study,
             'concept': self.concept,
             'records': [record.model_dump() for record in self.records],
             'contributors': self.contributors,

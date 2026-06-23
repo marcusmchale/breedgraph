@@ -1,109 +1,39 @@
-import pytest, pytest_asyncio
-from src.breedgraph.domain.model.programs import (
-    ProgramInput, ProgramStored,
-    TrialInput, TrialStored,
-    StudyInput, StudyStored
-)
+import pytest
 
-from src.breedgraph.adapters.neo4j.repositories import Neo4jProgramsRepository
-from src.breedgraph.domain.model.controls import Access
-from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from src.breedgraph.custom_exceptions import NoResultFoundError
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
-async def test_create_and_get(
-        programs_repo
+from tests.scenarios.program_builder import ProgramBuilder
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create(
+        uow_factory,
+        program_build_context
 ):
-    program_input = ProgramInput(name='BOLERO')
-    stored_program = await programs_repo.create(program_input)
-    retrieved_program: ProgramStored = await programs_repo.get(program_id = stored_program.id)
-    assert stored_program.name == retrieved_program.name
-    async for program in programs_repo.get_all():
-        if program.name == program_input.name:
-            break
-    else:
-        raise NoResultFoundError("Couldn't find created program by get all")
+    user_id = program_build_context['user_id']
+    program_input = ProgramBuilder.program_input()
+    trial_input = ProgramBuilder.trial_input()
+    study_input = ProgramBuilder.study_input()
 
-@pytest.mark.asyncio(scope="session")
-async def test_extend_program_with_trial(
-        programs_repo,
-        lorem_text_generator
-):
-    program = await programs_repo.get()
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.create(program_input)
+        program.add_trial(trial_input)
+        await uow.commit()
 
-    new_trial = TrialInput(name='New Trial')
-    program.add_trial(new_trial)
-    await programs_repo.update_seen()
-    assert list(program.trials.keys())[0] > 0
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(program_id=program.id)
+        trial_id = list(program.trials.keys())[0]
+        program.add_study(trial_id=trial_id, study=study_input)
+        await uow.commit()
 
-@pytest.mark.asyncio(scope="session")
-async def test_extend_trial_with_study(
-        programs_repo,
-        lorem_text_generator
-):
-    program = await programs_repo.get()
-    new_study = StudyInput(name='New Study')
-    program.trials[1].add_study(new_study)
-    await programs_repo.update_seen()
-    assert list(list(program.trials.values())[0].studies.keys())[0] > 0
-
-@pytest.mark.asyncio(scope="session")
-async def test_edit_study(
-        programs_repo,
-        neo4j_access_control_service,
-        lorem_text_generator,
-        uncommitted_neo4j_tx,
-        first_unstored_account,
-        first_unstored_organisation
-):
-    program = await programs_repo.get()
-    study = program.trials[1].studies[1]
-    study.name = 'New Study Name'
-    await programs_repo.update_seen()
-
-    await neo4j_access_control_service.initialize_user_context(user_id = first_unstored_account.user.id)
-    new_repo = Neo4jProgramsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    retrieved = await new_repo.get()
-    study = retrieved.trials[1].studies[1]
-    assert study.name == 'New Study Name'
-
-@pytest.mark.asyncio(scope="session")
-async def test_edit_trial(
-        programs_repo,
-        neo4j_access_control_service,
-        lorem_text_generator,
-        uncommitted_neo4j_tx
-):
-    program = await programs_repo.get()
-    trial = program.trials[1]
-    trial.name = 'New Trial Name'
-    await programs_repo.update_seen()
-
-    new_repo = Neo4jProgramsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    retrieved = await new_repo.get()
-    trial = retrieved.trials[1]
-    assert trial.name == 'New Trial Name'
-
-@pytest.mark.asyncio(scope="session")
-async def test_edit_program(
-        programs_repo,
-        neo4j_access_control_service,
-        lorem_text_generator,
-        uncommitted_neo4j_tx
-):
-    program = await programs_repo.get()
-    program.name = 'New Program Name'
-    await programs_repo.update_seen()
-
-    new_repo = Neo4jProgramsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    retrieved = await new_repo.get()
-    assert retrieved.name == 'New Program Name'
+    trial_id = list(program.trials.keys())[0]
+    study_id = list(program.get_trial(trial_id).studies.keys())[0]
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        async for program in uow.repositories.programs.get_all():
+            if program.name == program_input.name:
+                trial = program.get_trial(trial_id=trial_id)
+                assert trial.name == trial_input.name
+                study = program.get_study(study_id=study_id)
+                assert study.name == study_input.name
+                break
+        else:
+            raise NoResultFoundError("Couldn't find created program by get all")

@@ -2,13 +2,13 @@ from src.breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 from typing import List
 
-async def post_to_create_dataset(client, token:str, dataset: dict):
+async def post_to_submit_records(client, token:str, dataset: dict):
     json={
         "query": (
             " mutation ( "
             "  $dataset: DatasetInput!"
             " ) { "
-            "  datasetsCreateDataset( "
+            "  datasetsSubmitRecords( "
             "    dataset: $dataset "
             "  ) { "
             "    status, "
@@ -29,43 +29,13 @@ async def post_to_create_dataset(client, token:str, dataset: dict):
     return response
 
 
-
-async def post_to_add_records(client, token:str, dataset_id: int, records: List[dict]):
-    json={
-        "query": (
-            " mutation ( "
-            "  $datasetId: Int! "
-            "  $records: [RecordInput!]!"
-            " ) { "
-            "  datasetsAddRecords( "
-            "    datasetId: $datasetId "
-            "    records: $records "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "datasetId": dataset_id,
-            "records": records
-        }
-    }
-    headers = with_auth(
-        csrf_token=client.headers["X-CSRF-Token"],
-        auth_token=token
-    )
-    response = await client.post(GQL_API_PATH, json=json, headers=headers)
-    return response
-
-async def post_to_update_dataset(client, token:str, dataset:dict):
+async def post_to_update_records(client, token:str, dataset:dict):
     json={
         "query": (
             " mutation ( "
             "  $dataset: DatasetUpdate!"
             " ) { "
-            "  datasetsUpdateDataset( "
+            "  datasetsUpdateRecords( "
             "    dataset: $dataset "
             "  ) { "
             "    status, "
@@ -118,7 +88,6 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, c
     )
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
-
 
 
 async def post_to_get_dataset_submission(client, token:str, submission_id: str):

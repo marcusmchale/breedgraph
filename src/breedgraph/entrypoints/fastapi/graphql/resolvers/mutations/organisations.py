@@ -16,17 +16,15 @@ from . import graphql_mutation
 async def create_team(
         _,
         info,
-        name: str,
-        fullname: Optional[str] = None,
-        parent_id: Optional[int] = None
+        team: dict
 ) -> bool:
     user_id: int = info.context.get('user_id')
-    logger.debug(f"User {user_id} creates team: {name}")
+    logger.debug(f"User {user_id} creates team: {team.get('name')}")
     cmd = CreateTeam(
         agent_id=user_id,
-        name=name,
-        fullname=fullname,
-        parent=parent_id
+        name=team.get('name'),
+        fullname=team.get('fullname'),
+        parent=team.get('parent_id')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -54,18 +52,15 @@ async def delete_team(
 async def update_team(
         _,
         info,
-        team_id: int,
-        name: str|None = None,
-        fullname: str|None = None
+        team: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-
-    logger.debug(f"User {user_id} updates team: {team_id}")
+    logger.debug(f"User {user_id} updates team: {team.get('team_id')}")
     cmd = UpdateTeam(
         agent_id=user_id,
-        team_id=team_id,
-        name=name,
-        fullname=fullname
+        team_id=team.get('team_id'),
+        name=team.get('name'),
+        fullname=team.get('fullname')
     )
     await info.context['bus'].handle(cmd)
     return True

@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_program(
         cmd: commands.programs.CreateProgram,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         # Check if a program with the same name already exists
         existing_program = await uow.repositories.programs.get(name=cmd.name)
         if existing_program is not None:
@@ -43,9 +43,9 @@ async def create_program(
 @handlers.command_handler()
 async def update_program(
         cmd: commands.programs.UpdateProgram,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program_id} not found")
@@ -73,9 +73,9 @@ async def update_program(
 @handlers.command_handler()
 async def delete_program(
         cmd: commands.programs.DeleteProgram,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
 
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
@@ -88,9 +88,9 @@ async def delete_program(
 @handlers.command_handler()
 async def create_trial(
         cmd: commands.programs.CreateTrial,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
@@ -110,9 +110,9 @@ async def create_trial(
 @handlers.command_handler()
 async def update_trial(
         cmd: commands.programs.UpdateTrial,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
@@ -142,9 +142,9 @@ async def update_trial(
 @handlers.command_handler()
 async def delete_trial(
         cmd: commands.programs.DeleteTrial,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program containing trial with ID {cmd.trial_id} not found")
@@ -160,9 +160,9 @@ async def delete_trial(
 @handlers.command_handler()
 async def create_study(
         cmd: commands.programs.CreateStudy,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")
@@ -186,9 +186,9 @@ async def create_study(
 @handlers.command_handler()
 async def update_study(
         cmd: commands.programs.UpdateStudy,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study} not found")
@@ -221,9 +221,9 @@ async def update_study(
 @handlers.command_handler()
 async def delete_study(
         cmd: commands.programs.DeleteStudy,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")

@@ -11,13 +11,13 @@ In particular we do not use the same meaning of Factor, see notes on that page.
 Given this, and our hierarchical subject structure, Events are applied to subjects.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
-from typing import List, ClassVar
+from typing import ClassVar
 
 
 @dataclass
@@ -35,9 +35,3 @@ class EventTypeInput(EventTypeBase, OntologyEntryInput):
 class EventTypeStored(EventTypeBase, OntologyEntryStored):
     pass
 
-@dataclass
-class EventTypeOutput(EventTypeBase, OntologyEntryOutput):
-    terms: List[int] = field(default_factory=list)
-
-    factors: List[int] = None
-    variables: List[int] = None

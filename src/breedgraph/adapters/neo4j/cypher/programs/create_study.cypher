@@ -15,14 +15,6 @@ CALL {
   RETURN
     collect(reference.id) AS references
 }
-//Link datasets
-CALL {
-  WITH study
-  MATCH (dataset: Dataset) WHERE dataset.id in $dataset_ids
-  CREATE (study)-[has_dataset:HAS_DATASET]->(dataset)
-  RETURN
-    collect(dataset.id) AS datasets
-}
 //Link design (in ontology)
 CALL {
   WITH study
@@ -43,7 +35,6 @@ RETURN
   study {
     .*,
     reference_ids: references,
-    dataset_ids: datasets,
     design_id: design,
     licence_id: licence
   }

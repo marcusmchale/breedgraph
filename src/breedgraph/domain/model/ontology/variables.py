@@ -20,10 +20,10 @@ Note: The "Variable Status" concept from Crop Ontology is to be handled by ontol
 """
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType, OntologyEntryLabel
-from typing import ClassVar, List, Dict, Any
+from typing import ClassVar, List
 
 
 @dataclass
@@ -40,11 +40,6 @@ class TraitInput(TraitBase, OntologyEntryInput):
 class TraitStored(TraitBase, OntologyEntryStored):
     pass
 
-@dataclass
-class TraitOutput(TraitBase, OntologyEntryOutput):
-    terms: List[int] = field(default_factory=list)
-
-    variables: List[int] = field(default_factory=list)
 
 @dataclass
 class ObservationMethodBase(OntologyEntryBase):
@@ -60,11 +55,6 @@ class ObservationMethodInput(ObservationMethodBase, OntologyEntryInput):
 class ObservationMethodStored(ObservationMethodBase, OntologyEntryStored):
     pass
 
-@dataclass
-class ObservationMethodOutput(ObservationMethodBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    variables: list[int] = field(default_factory=list)
 
 @dataclass
 class ScaleCategoryBase(OntologyEntryBase):
@@ -77,15 +67,6 @@ class ScaleCategoryInput(ScaleCategoryBase, OntologyEntryInput):
 @dataclass
 class ScaleCategoryStored(ScaleCategoryBase, OntologyEntryStored):
     pass
-
-@dataclass
-class ScaleCategoryOutput(ScaleCategoryBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    scales: list[int] = field(default_factory=list)
-
-
-
 
 @dataclass
 class ScaleBase(OntologyEntryBase):
@@ -104,20 +85,10 @@ class ScaleStored(ScaleBase, OntologyEntryStored):
         self.scale_type = ScaleType(self.scale_type)
 
 @dataclass
-class ScaleOutput(ScaleBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    categories: list[int]|None = None
-
-    variables: list[int] = field(default_factory=list)
-    factors: list[int] = field(default_factory=list)
-
-@dataclass
 class VariableBase(OntologyEntryBase):  # quantities/qualities that vary and may be observed
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.VARIABLE
-    # name: # CropOntology requires name to be <TraitAbbreviation>_<MethodAbbreviation >_< ScaleAbbreviation >
+    # CropOntology requires name to be <TraitAbbreviation>_<MethodAbbreviation >_< ScaleAbbreviation >
     # makes more sense for this format to be the abbreviation value of the OntologyEntry class
-    # CropOntology variable properties has a separate label attribute to store the name
 
 @dataclass
 class VariableInput(VariableBase, OntologyEntryInput):
@@ -126,11 +97,3 @@ class VariableInput(VariableBase, OntologyEntryInput):
 @dataclass
 class VariableStored(VariableBase, OntologyEntryStored):
     pass
-
-@dataclass
-class VariableOutput(VariableBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    trait: int = None
-    observation_method: int = None
-    scale: int = None

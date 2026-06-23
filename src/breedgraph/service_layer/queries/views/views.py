@@ -4,9 +4,11 @@ from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
+from .ontology import AbstractOntologyView
 from .accounts import AbstractAccountsView
 from .regions import AbstractRegionsView
 from .datasets import AbstractDatasetsView
+
 
 from typing import AsyncGenerator
 
@@ -14,6 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AbstractViewsHolder(ABC):
+    ontology: AbstractOntologyView
     accounts: AbstractAccountsView
     regions: AbstractRegionsView
     datasets: AbstractDatasetsView

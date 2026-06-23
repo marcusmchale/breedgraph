@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel, AxisType
 
@@ -23,7 +23,3 @@ class LayoutTypeInput(LayoutTypeBase, OntologyEntryInput):
 @dataclass
 class LayoutTypeStored(LayoutTypeBase, OntologyEntryStored):
     pass
-
-@dataclass
-class LayoutTypeOutput(LayoutTypeBase, OntologyEntryOutput):
-    terms: List[int] = field(default_factory=list)

@@ -24,8 +24,8 @@ class FakeAccountRepository(BaseRepository):
     def orphan_teams(self):
         for account in self._accounts:
             for affiliation in account.affiliations:
-                if affiliation.team.parent_id is None:
-                    yield affiliation.team
+                if affiliation.team_id.parent_id is None:
+                    yield affiliation.team_id
 
     async def _create(self, account: AccountInput) -> AccountStored:
         self.user_id_counter += 1
@@ -41,7 +41,7 @@ class FakeAccountRepository(BaseRepository):
         return account
 
     async def _get(self, user_id: int) -> AccountStored:
-        return next(a for a in self._accounts if a.user.id == user_id)
+        return next(a for a in self._accounts if a.user_id.id == user_id)
 
     #def _get_all(
     #        self,
@@ -56,10 +56,10 @@ class FakeAccountRepository(BaseRepository):
     #        yield account
 
     async def _get_by_email(self, email: str) -> AccountStored:
-        return next(a for a in self._accounts if a.user.email == email)
+        return next(a for a in self._accounts if a.user_id.email == email)
 
     async def _get_by_name(self, name: str) -> AccountStored:
-        return next(a for a in self._accounts if a.user.name == name)
+        return next(a for a in self._accounts if a.user_id.name == name)
 
     async def _remove(self, account: AccountStored):
         self._accounts.remove(account)

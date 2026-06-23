@@ -2,11 +2,14 @@ import logging
 
 from neo4j import AsyncResult, Record
 
+from src.breedgraph.custom_exceptions import IdentityExistsError
 from src.breedgraph.domain.model.regions import (
     Region, LocationInput, LocationStored
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.domain.model.controls import DiscoveryMatch
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import Set, AsyncGenerator, Tuple, List
@@ -22,7 +25,7 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
     async def _create_location(self, location: LocationInput) -> LocationStored:
         logger.debug(f"Create location: {location}")
         async for _ in self._get_all_controlled(location.name, location.code):
-            raise ValueError("A region root location with this name or code is already registered")
+            raise IdentityExistsError("A region root location with this name or code is already registered")
         result: AsyncResult = await self.tx.run(queries['regions']['create_location'], **location.model_dump())
         record: Record = await result.single()
         return LocationStored(**record['location'])
@@ -35,7 +38,7 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
         logger.debug(f"Remove locations: {location_ids}")
         await self.tx.run(queries['regions']['delete_locations'], location_ids=location_ids)
 
-    async def _get_controlled(self, location_id: int = None) -> Region | None:
+    async def _get_controlled(self, location_id: int|None = None, name: str|None = None, code:str|None = None) -> ControlledQueryResult[Region] | None:
         if location_id:
             result: AsyncResult = await self.tx.run( queries['regions']['read_region'], location_id=location_id)
             nodes = []
@@ -48,12 +51,12 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
                     edges.append((parent_id, location.id, None))
 
             if nodes:
-                return Region(nodes=nodes, edges=edges)
+                return ControlledQueryResult(Region(nodes=nodes, edges=edges))
             else:
                 return None
         else:
             try:
-                return await anext(self._get_all_controlled())
+                return await anext(self._get_all_controlled(name=name, code=code))
             except StopAsyncIteration:
                 return None
 
@@ -67,9 +70,11 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
         locations = [LocationStored(**l) for l in record['region']]
         return Region(nodes=locations, edges=edges)
 
-    async def _get_all_controlled(self, name=None, code=None) -> AsyncGenerator[Region, None]:
+    async def _get_all_controlled(self, name:str|None = None, code:str|None = None) -> AsyncGenerator[ControlledQueryResult[Region], None]:
         if name is None and code is None:
             result: AsyncResult = await self.tx.run(queries['regions']['read_regions'])
+            async for record in result:
+                yield  ControlledQueryResult(self.record_to_region(record))
         else:
             result = await self.tx.run(
                 queries['regions']['get_regions_by_root_name_or_code'],
@@ -77,8 +82,8 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
                 # case insensitive matching won't use indices, so use sparingly
                 code_regex=f"(?i)^{code}$"
             )
-        async for record in result:
-            yield self.record_to_region(record)
+            async for record in result:
+                yield ControlledQueryResult(self.record_to_region(record), matches=tuple(DiscoveryMatch(**m) for m in record.get('matches')))
 
     async def _remove_controlled(self, region: Region) -> None:
         await self._delete_locations(list(region._graph.nodes.keys()))

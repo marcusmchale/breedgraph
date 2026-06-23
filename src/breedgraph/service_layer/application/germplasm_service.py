@@ -93,14 +93,10 @@ class GermplasmApplicationService:
         await self.access_control.set_controls(
             models=stored_entry,
             control_teams=self.access_teams[Access.WRITE],
-            release=self.release,
-            user_id=self.user_id
+            release=self.release
         )
         # Record write stamp
-        await self.access_control.record_writes(
-            models=stored_entry,
-            user_id=self.user_id
-        )
+        await self.access_control.record_writes(models=stored_entry)
         return stored_entry
 
     async def get_entry(self, entry_id: int) -> Optional[GermplasmStored]:
@@ -137,6 +133,11 @@ class GermplasmApplicationService:
             as_output: bool = False
     ) -> AsyncGenerator[GermplasmStored, None]:
         """Retrieve all germplasm entries with optional filtering and access control using stored context."""
+        if entry_ids is not None and names is not None:
+            raise IllegalOperationError("Cannot filter germplasm entries by both entry_ids and names")
+
+        name_discovery_query = names is not None
+
         # Get all entry IDs first to batch fetch controllers
         all_entries = []
         async for entry in self.persistence.get_entries(entry_ids=entry_ids, names=names):
@@ -144,10 +145,19 @@ class GermplasmApplicationService:
         if not all_entries:
             return
 
-        async for controlled_entry in self.yield_controlled_entries(all_entries, as_output=as_output):
+        async for controlled_entry in self.yield_controlled_entries(
+            all_entries,
+            as_output=as_output,
+            suppress_redacted = name_discovery_query
+        ):
             yield controlled_entry
 
-    async def yield_controlled_entries(self, entries: List[GermplasmStored], as_output=False):
+    async def yield_controlled_entries(
+            self,
+            entries: List[GermplasmStored],
+            as_output= False,
+            suppress_redacted: bool = False
+    ):
         # Batch fetch controllers for access control
         entry_ids = [entry.id for entry in entries]
         controllers = await self.access_control.get_controllers(
@@ -188,8 +198,12 @@ class GermplasmApplicationService:
                 else:
                     yield entry
 
+
             elif self.user_id is not None:
-                # Registered users get redacted version
+                if suppress_redacted:
+                    continue
+
+                # Registered users get redacted version unless using name discovery
                 redacted_entry = entry.redacted(controller, self.user_id, self.access_teams[Access.READ])
                 if redacted_entry:  # Some entries might return None when redacted
                     if as_output:
@@ -221,7 +235,7 @@ class GermplasmApplicationService:
         controller = await self.access_control.get_controller(entry.label, entry.id)
         if controller and not controller.has_access(Access.CURATE, self.user_id, self.access_teams[Access.CURATE]):
             raise UnauthorisedOperationError(
-                f"User {self.user_id} does not have permission to update germplasm entry {entry.id}"
+                f"User {self.user_id} does not have permission to curate germplasm entry {entry.id}"
             )
         # Validate uniqueness excluding current entry
         await self._validate_entry_uniqueness(entry, exclude_id=entry.id)
@@ -230,10 +244,7 @@ class GermplasmApplicationService:
         await self.persistence.update_entry(entry)
 
         # Record write stamp
-        await self.access_control.record_writes(
-            models=entry,
-            user_id=self.user_id
-        )
+        await self.access_control.record_writes(models=entry)
 
 
     async def update_entry_relationships(
@@ -472,8 +483,7 @@ class GermplasmApplicationService:
             ids = entry_ids,
             label = ControlledModelLabel.GERMPLASM,
             control_teams=control_teams,
-            release=release,
-            user_id=self.user_id
+            release=release
         )
 
     # Validation methods

@@ -25,14 +25,25 @@ type Query {
     organisationsTeams(teamIds: [Int!]): TeamsPayload! # see team
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
-    """Get an ontology entry"""
-    ontologyEntry(entryId: Int!): OntologyEntryPayload!
+    """
+    Get the complete ontology at a given version for editing.
+    Defaults to latest version.
+    Relationship attributes on entries (e.g. terms) are determined by draft and active relationships.
+    """
+    ontology(versionId: ID): OntologyPayload!
+    """
+    Get a list of ontology entries.
+    Defaults to latest version.
+    Relationship attributes (e.g. terms) are determined by active relationships in the given version only.
+    """
+    ontologyEntries(
+        entryIds: [Int!],
+        labels:[OntologyEntryLabel],
+        versionId: Int,
+        draft: Boolean = false
+    ): OntologyEntriesPayload!
     """Get an ontology commit history"""
     ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
-    """Get a list of ontology entries"""
-    ontologyEntries (entryIds: [Int], names: [String], labels: [OntologyEntryLabel], phases: [LifecyclePhase], versionId: Int): OntologyEntriesPayload!
-    """Get a list of ontology relationships"""
-    ontologyRelationships(entryIds: [Int], labels: [OntologyRelationshipLabel], phases: [LifecyclePhase], versionId: Int): OntologyRelationshipsPayload!
     """
     Get a list of users requesting new ontology roles.
     Only available to Users with the admin ontology role.
@@ -81,8 +92,8 @@ type Query {
     programsTrial(trialId: Int, studyId: Int): TrialPayload!
     """ Get study by study Id """
     programsStudy(studyId: Int!): StudyPayload!
-    """ Get datasets by ID or concept """
-    datasets (datasetId: Int, conceptId: Int): DatasetsPayload!
+    """ Filter datasets by study and/or concept Id, OR retrieve by array of dataset ids """
+    datasets (studyIds: [Int!], conceptIds: [Int!], datasetIds: [Int!]): DatasetsPayload!
     """ Get dataset submission by key """
     datasetsSubmission(submissionId: String!): DatasetSubmissionPayload!
     """ Get a summary of datasets for a study """
@@ -106,5 +117,6 @@ type Query {
     referencesFileSubmission(fileId: String!): FileSubmissionPayload!
     """ Get a token to download a file """
     referencesFileDownload(fileId: String!): FileDownloadPayload!
-
+    " Get analysis status and results "
+    analysisSubmission(analysisId: String!): AnalysisSubmissionPayload!
 }

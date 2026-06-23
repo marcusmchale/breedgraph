@@ -1,4 +1,4 @@
-from typing import Dict, Set
+from typing import Dict, Set, Callable
 
 from neo4j import AsyncTransaction
 
@@ -15,12 +15,10 @@ from src.breedgraph.adapters.neo4j.repositories.references import Neo4jReference
 from src.breedgraph.adapters.neo4j.repositories.regions import Neo4jRegionsRepository
 
 from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.organisations import Access
-
-import logging
 
 from src.breedgraph.service_layer.repositories.holder import AbstractRepoHolder
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -28,19 +26,22 @@ class Neo4jRepoHolder(AbstractRepoHolder):
     def __init__(
             self,
             tx: AsyncTransaction,
-            access_control_service: AbstractAccessControlService,
-            redacted: bool = True,
-            release: ReadRelease = ReadRelease.PRIVATE
+            controls: AbstractAccessControlService,
+            release: ReadRelease = ReadRelease.PRIVATE,
+            redacted: bool = True
     ):
         self.tx = tx
-        self.user_id = access_control_service.user_id
-        self.access_teams = access_control_service.access_teams
+        self.access_teams = controls.access_teams
 
         # Access control for account security
         self.accounts = Neo4jAccountRepository(self.tx)
         # Similarly, the access control for organisations is via internally described affiliations
 
-        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=self.user_id, redacted=redacted)
+        self.organisations = Neo4jOrganisationsRepository(
+            self.tx,
+            user_id=controls.user_id,
+            redacted=redacted
+        )
         """
         The below repositories are controlled in a common pattern that determine access
          to the values of models within an aggregate
@@ -56,7 +57,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         """
         repo_params = {
             'tx': self.tx,
-            'access_control_service': access_control_service,
+            'controls': controls,
             'release': release
         }
         self.arrangements = Neo4jArrangementsRepository(**repo_params)

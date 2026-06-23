@@ -7,13 +7,14 @@ from src.breedgraph.domain.model.blocks import (
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import Set, AsyncGenerator, Tuple, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
+class Neo4jBlocksRepository(Neo4jControlledRepository[UnitInput, Block]):
 
     async def _create_controlled(self, unit: UnitInput) -> Block:
         stored_unit = await self._create_unit(unit)
@@ -45,7 +46,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
         logger.debug(f"Remove units: {unit_ids}")
         await self.tx.run(queries['blocks']['delete_units'], unit_ids=unit_ids)
 
-    async def _get_controlled(self, unit_id: int = None) -> Block | None:
+    async def _get_controlled(self, unit_id: int|None = None) -> ControlledQueryResult[Block]|None:
         if unit_id is None:
             try:
                 return await anext(self._get_all_controlled())
@@ -66,18 +67,27 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
                     edges.append(edge)
 
         if nodes:
-            return Block(nodes=nodes, edges=edges)
+            return ControlledQueryResult(Block(nodes=nodes, edges=edges))
         else:
             return None
 
-    async def _get_all_controlled(self, location_ids: List[int]|None = None) -> AsyncGenerator[Block, None]:
-        if not location_ids:
-            result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
-        else:
+    async def _get_all_controlled(
+            self,
+            location_ids: List[int]|None = None,
+            unit_ids: List[int]|None = None
+    ) -> AsyncGenerator[ControlledQueryResult[Block]|None, None]:
+        if unit_ids:
+            result: AsyncResult = await self.tx.run(
+                queries['blocks']['read_blocks_by_unit_ids'],
+                unit_ids = unit_ids
+            )
+        elif location_ids:
             result: AsyncResult = await self.tx.run(
                 queries['blocks']['read_blocks_by_locations'],
                 location_ids = location_ids
             )
+        else:
+            result: AsyncResult = await self.tx.run(queries['blocks']['read_blocks'])
         async for record in result:
             units_data = record.get('block')
             edges = []
@@ -87,7 +97,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitStored, Block]):
                     for parent_id in parent_ids:
                         edges.append((parent_id, unit_data.get('id'), None))
             units = [self.record_to_unit(u) for u in units_data]
-            yield Block(nodes=units, edges=edges)
+            yield ControlledQueryResult(Block(nodes=units, edges=edges))
 
     async def _remove_controlled(self, block: Block) -> None:
         await self._delete_units(list(block._graph.nodes.keys()))

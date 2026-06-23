@@ -1,6 +1,7 @@
 import pytest
 from typing import List, Dict, Any
 
+from src.breedgraph.custom_exceptions import IdentityExistsError
 from src.breedgraph.service_layer.application.ontology_service import OntologyApplicationService
 from src.breedgraph.domain.model.ontology import (
     SubjectInput, TraitInput, VariableInput, ScaleInput, TermInput, ObservationMethodInput, ScaleCategoryInput, OntologyEntryLabel
@@ -60,7 +61,7 @@ class TestOntologyApplicationServiceEntryCreation:
         subject_input2 = SubjectInput(name="Tree")
 
         # Act & Assert
-        with pytest.raises(ValueError, match="Another.*is using the name"):
+        with pytest.raises(IdentityExistsError, match="Another.*is using the name"):
             await service.create_entry(subject_input2)
 
     @pytest.mark.asyncio
@@ -86,7 +87,7 @@ class TestOntologyApplicationServiceEntryCreation:
         await service.create_entry(scale1)
 
         # Act & Assert
-        with pytest.raises(ValueError, match="Another.*is using the abbreviation"):
+        with pytest.raises(IdentityExistsError, match="Another.*is using the abbreviation"):
             await service.create_entry(scale2)
 
 class TestOntologyApplicationServiceRelationships:

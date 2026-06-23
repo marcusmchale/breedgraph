@@ -1,17 +1,17 @@
-from neo4j import AsyncTransaction, AsyncResult
+from neo4j import AsyncResult, AsyncTransaction
 
 from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.domain.model.accounts import OntologyRole
 
 class Neo4jConstraintsHandler(AbstractConstraintsHandler):
-    def __init__(self, tx: AsyncTransaction, user_id: int = None):
+    def __init__(self, tx: AsyncTransaction, user_id: int|None = None):
         self.tx = tx
         self.user_id = user_id
 
     async def accounts_exist(self) -> bool:
         result: AsyncResult = await self.tx.run(queries['accounts']['check_any_account'])
-        record = await result.single()
+        record = await result.single(strict=True)
         return record.value()
 
     async def email_allowed(self, email: str) -> bool:
@@ -19,7 +19,7 @@ class Neo4jConstraintsHandler(AbstractConstraintsHandler):
             queries['accounts']['check_allowed_email'],
             email_lower=email.casefold()
         )
-        record = await result.single()
+        record = await result.single(strict=True)
         return record.value()
 
     async def is_ontology_admin(self) -> bool:
@@ -27,7 +27,7 @@ class Neo4jConstraintsHandler(AbstractConstraintsHandler):
             queries['accounts']['get_user_ontology_role'],
             user_id=self.user_id
         )
-        record = await result.single()
+        record = await result.single(strict=True)
         role = OntologyRole(record.value())
         return role == OntologyRole.ADMIN
 
@@ -36,5 +36,5 @@ class Neo4jConstraintsHandler(AbstractConstraintsHandler):
             queries['constraints']['is_last_ontology_admin'],
             user_id=self.user_id
         )
-        record = await result.single()
+        record = await result.single(strict=True)
         return record.value()

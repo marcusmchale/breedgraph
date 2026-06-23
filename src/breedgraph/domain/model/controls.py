@@ -27,7 +27,6 @@ class ControlledModelLabel(EnumLabel):
     STUDY = "Study"
     TRIAL = "Trial"
     PROGRAM = "Program"
-    RECORD = "Record"
     DATASET = "Dataset"
     LAYOUT = "Layout"
     LOCATION = "Location"
@@ -79,6 +78,12 @@ class Control:
     def model_dump(self):
         return asdict(self)
 
+@dataclass(frozen=True)
+class DiscoveryMatch:
+    label: ControlledModelLabel
+    model_id: int
+    key: str
+
 @dataclass
 class Controller:
     controls: Dict[int, Control] = field(default_factory=dict) # key should be team_id
@@ -111,7 +116,7 @@ class Controller:
     def set_release(self, team_id: int, release: ReadRelease):
         self.controls[team_id].release = release
 
-    def has_access(self, access: Access, user_id: int = None, access_teams: Set[int] = None) -> bool:
+    def has_access(self, access: Access, user_id: int|None = None, access_teams: Set[int]|None = None) -> bool:
         if access_teams is None:
             access_teams = set()
         if access is Access.READ:
@@ -148,6 +153,12 @@ class ControlledModel(StoredModel, EnumLabeledModel, ABC):
     def plural(self) -> str:
         """The plural for this class of model"""
         return self.label.plural
+
+    @staticmethod
+    def is_controlled_model() -> bool:
+        # this is a hack to avoid circular imports for tracking wrappers, look into changing the structure here
+        return True
+
 
 @dataclass(eq=False)
 class ControlledAggregate(Aggregate, ABC):

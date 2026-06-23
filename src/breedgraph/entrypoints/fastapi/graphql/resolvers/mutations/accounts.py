@@ -40,7 +40,6 @@ async def create_account(
         password: str
 ) -> bool:
     logger.debug(f"Add account: {name}")
-
     password_policy = config.get_password_policy()
     password_errors = password_policy.test(password)
     if password_errors:
@@ -86,11 +85,11 @@ async def reset_password(
         logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
         raise UnauthorisedOperationError("This token has expired")
 
-    async with info.context['bus'].uow.get_uow() as uow:
+    async with info.context['bus'].uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(user_id=user_id)
         if not account:
             raise UnauthorisedOperationError("Token not valid because user was not found")
-        logger.debug(f"Change password for user: {account.user.id}")
+        logger.debug(f"Change password for user: {account.user_id.id}")
 
         password_policy = config.get_password_policy()
         password_errors = password_policy.test(password)
@@ -126,7 +125,7 @@ async def login(
                 f"Too many failed attempts. Please try again in {ttl} seconds."
             )
 
-    async with info.context['bus'].uow.get_uow() as uow:
+    async with info.context['bus'].uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(name=username)
         if not account:
             # Record failed attempt even if user doesn't exist (prevents user enumeration timing attacks)

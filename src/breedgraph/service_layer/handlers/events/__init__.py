@@ -1,3 +1,3 @@
-from . import accounts, references
+from . import accounts, references, analysis, datasets, ontology
 
 

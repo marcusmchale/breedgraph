@@ -5,7 +5,7 @@ from typing import AsyncGenerator
 from neo4j import AsyncTransaction, AsyncSession
 
 from src.breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from src.breedgraph.domain.events import Event
 
 from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
@@ -31,7 +31,7 @@ from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUni
 
 from src.breedgraph.domain.model.accounts import OntologyRole
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from typing import List, Generator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,40 +41,54 @@ class Neo4jUnitHolder(AbstractUnitHolder):
     def __init__(
             self,
             tx: AsyncTransaction,
-            constraints: AbstractConstraintsHandler,
             controls: AbstractAccessControlService,
             ontology: OntologyApplicationService,
             germplasm: GermplasmApplicationService,
             extra: AbstractExtraAggregateService,
-            repositories: AbstractRepoHolder
+            redacted: bool = True
     ):
         self.tx = tx
-        self.constraints = constraints
+        self.committed = False
+
         self.controls = controls
         self.ontology = ontology
         self.germplasm = germplasm
         self.extra = extra
-        self.repositories: AbstractRepoHolder = repositories
+
+        logger.debug("Initialize repositories holder")
+        self.repositories = Neo4jRepoHolder(tx, controls, redacted=redacted)
+
+        logger.debug("Initialize constraints handler")
+        self.constraints = Neo4jConstraintsHandler(tx, self.controls.user_id)
+
+
+    def collect_events(self) -> Generator[Event, None, None]:
+        yield from self.repositories.collect_events()
+        yield from self.ontology.collect_events()
+        yield from self.germplasm.collect_events()
 
     async def commit(self):
         logger.debug("Transaction commit")
-        await self.repositories.update_all_seen()
+        await self._commit_repositories()
         await self.tx.commit()
+        self.committed = True
 
     async def rollback(self):
         logger.debug("Transaction roll back (explicit)")
         await self.tx.rollback()
+        self.committed = False
 
-    async def db_is_empty(self) -> bool:
-        result = await self.tx.run(queries['infrastructure']['is_empty'])
-        return (await result.single())["empty"]
-
-    async def create_constraints(self):
-        logger.info("Creating constraints...")
-        constraints = queries['infrastructure']['create_constraints']
-        for constraint in constraints.split(';\n'):
-            logger.debug(f"Creating constraint: {constraint}")
-            await self.tx.run(constraint)
+    async def _commit_repositories(self):
+        logger.debug("Update seen aggregates across all repositories")
+        await self.repositories.accounts.update_seen()
+        await self.repositories.organisations.update_seen()
+        await self.repositories.arrangements.update_seen()
+        await self.repositories.datasets.update_seen()
+        await self.repositories.people.update_seen()
+        await self.repositories.programs.update_seen()
+        await self.repositories.references.update_seen()
+        await self.repositories.regions.update_seen()
+        await self.repositories.blocks.update_seen()
 
 
 class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
@@ -82,7 +96,7 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
     @asynccontextmanager
     async def _get_uow(
             self,
-            user_id: int = None,
+            user_id: int|None = None,
             redacted: bool = True,
             release: ReadRelease = ReadRelease.PRIVATE
     ) -> AsyncGenerator[Neo4jUnitHolder, None]:
@@ -96,20 +110,8 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
         logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
 
-        logger.debug("Initialize constraints handler")
-        constraints_handler = Neo4jConstraintsHandler(tx, user_id=user_id)
-
         logger.debug("Initialize user context and access control")
-        access_control_service = Neo4jAccessControlService(tx)
-        await access_control_service.initialize_user_context(user_id=user_id)
-
-        logger.debug("Initialize repositories holder")
-        repo_holder = Neo4jRepoHolder(
-            tx=tx,
-            access_control_service=access_control_service,
-            redacted=redacted,
-            release=release
-        )
+        access_control_service = await Neo4jAccessControlService.create(tx, user_id=user_id)
 
         logger.debug("Initialize ontology service")
         ontology_persistence_service: OntologyPersistenceService = Neo4jOntologyPersistenceService(tx)
@@ -117,6 +119,7 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
             ontology_role = await ontology_persistence_service.get_user_ontology_role(user_id=user_id)
         else:
             ontology_role = OntologyRole.VIEWER
+
         ontology_service = OntologyApplicationService(
             persistence_service=ontology_persistence_service,
             user_id=user_id,
@@ -137,12 +140,11 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
         logger.debug("Build unit of work holder")
         unit_holder = Neo4jUnitHolder(
             tx=tx,
-            constraints=constraints_handler,
             controls=access_control_service,
-            repositories=repo_holder,
             ontology=ontology_service,
             germplasm=germplasm_service,
-            extra=extra_aggregate_service
+            extra=extra_aggregate_service,
+            redacted=redacted
         )
         try:
             yield unit_holder

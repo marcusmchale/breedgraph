@@ -1,62 +1,67 @@
 import pytest
-import pytest_asyncio
 
-from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput, LayoutStored
+from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput
 from src.breedgraph.domain.model.ontology import AxisType
-from src.breedgraph.domain.model.controls import Access
 
-from src.breedgraph.adapters.neo4j.repositories import Neo4jArrangementsRepository
-
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_row_arrangement(
-        uncommitted_neo4j_tx,
-        neo4j_access_control_service,
-        row_layout_type,
-        field_location
+        uow_factory,
+        layout_build_context
 ):
-    repo = Neo4jArrangementsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    row_layout_input = LayoutInput(type=row_layout_type.id, location=field_location.id, axes=[AxisType.ORDINAL])
-    stored: Arrangement = await repo.create(row_layout_input)
-    retrieved = await repo.get(layout_id = stored.root.id)
-    assert stored.root == retrieved.root
-    async for l in repo.get_all():
-        if stored.root.id == l.root.id:
-            break
-    else:
-        raise AssertionError("couldn't find stored arrangement by get all")
+    user_id = layout_build_context['user_id']
+    row_type_id = layout_build_context['ontology_layout_row']
+    location_id = layout_build_context['location_id']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        row_layout_input = LayoutInput(
+            type=row_type_id,
+            location=location_id,
+            axes=[AxisType.ORDINAL]
+        )
+        arrangements_repo = uow.repositories.arrangements
+        stored: Arrangement = await arrangements_repo.create(row_layout_input)
+        await uow.commit()
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        arrangements_repo = uow.repositories.arrangements
+        retrieved = await arrangements_repo.get(layout_id = stored.root.id)
+        assert stored.root == retrieved.root
+        async for l in arrangements_repo.get_all():
+            if stored.root.id == l.root.id:
+                break
+        else:
+            raise AssertionError("couldn't find stored arrangement by get all")
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_extend_row_with_grid(
-        uncommitted_neo4j_tx,
-        neo4j_access_control_service,
-        row_layout_type,
-        field_location,
-        grid_layout_type
+        uow_factory,
+        layout_build_context
 ):
-    repo = Neo4jArrangementsRepository(
-        uncommitted_neo4j_tx,
-        access_control_service=neo4j_access_control_service
-    )
-    arrangement = None
-    async for arrangement in repo.get_all(location_id=field_location.id):
-        if arrangement.root.type == row_layout_type.id:
-            break
+    user_id = layout_build_context['user_id']
+    row_type_id = layout_build_context['ontology_layout_row']
+    grid_type_id = layout_build_context['ontology_layout_grid']
+    location_id = layout_build_context['location_id']
 
-    grid_layout_input_1 = LayoutInput(name = "layout 1", type=grid_layout_type.id, location=arrangement.root.location)
-    grid_layout_input_2 = LayoutInput(name = "layout 2", type=grid_layout_type.id)
-    arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position = ["1"])
-    arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position = ["2"])
-    with pytest.raises(ValueError, match="Position should have same length as the parent layout axes"):
-        arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=["3", "4"])
-    await repo.update_seen()
-    arrangement = await repo.get(layout_id = arrangement.root.id)
-    found = 0
-    for k, v in arrangement.get_sinks(arrangement.root.id).items():
-        if v.name in [grid_layout_input_1.name, grid_layout_input_2.name]:
-            found += 1
-    assert found == 2
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        row_layout_input = LayoutInput(
+            type=row_type_id,
+            location=location_id,
+            axes=[AxisType.ORDINAL]
+        )
+        arrangements_repo = uow.repositories.arrangements
+        arrangement = await arrangements_repo.create(row_layout_input)
+        grid_layout_input_1 = LayoutInput(name = "layout 1", type=grid_type_id, location=arrangement.root.location)
+        grid_layout_input_2 = LayoutInput(name = "layout 2", type=grid_type_id)
+        arrangement.add_layout(layout=grid_layout_input_1, parent_id=arrangement.root.id, position = ["1"])
+        arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position = ["2"])
+        with pytest.raises(ValueError, match="Position should have same length as the parent layout axes"):
+            arrangement.add_layout(layout=grid_layout_input_2, parent_id=arrangement.root.id, position=["3", "4"])
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        arrangements_repo = uow.repositories.arrangements
+        arrangement = await arrangements_repo.get(layout_id = arrangement.root.id)
+        found = 0
+        for k, v in arrangement.get_sinks(arrangement.root.id).items():
+            if v.name in [grid_layout_input_1.name, grid_layout_input_2.name]:
+                found += 1
+        assert found == 2

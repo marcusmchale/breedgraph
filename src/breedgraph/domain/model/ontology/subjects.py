@@ -19,7 +19,7 @@ Most Subject descriptions are well detailed in the Plant Ontology, references to
 """
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar
@@ -35,10 +35,3 @@ class SubjectInput(SubjectBase, OntologyEntryInput):
 @dataclass
 class SubjectStored(SubjectBase, OntologyEntryStored):
     pass
-
-@dataclass
-class SubjectOutput(SubjectBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-
-    traits: list[int] = field(default_factory=list)
-    conditions: list[int] = field(default_factory=list)

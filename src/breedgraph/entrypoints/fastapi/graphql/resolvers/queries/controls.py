@@ -29,7 +29,7 @@ graphql_resolvers.register_enums(ControlledModelLabel)
 async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_ids: List[int]) -> List[Controller]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         controllers = await uow.controls.get_controllers(label=entity_label, model_ids=entity_ids)
         return [controllers.get(entity_id) for entity_id in entity_ids]
 

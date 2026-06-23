@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(eq=False)
 class PersonBase(ABC):
-    label: ClassVar[str] = ControlledModelLabel.PERSON
+    label: ClassVar[ControlledModelLabel] = ControlledModelLabel.PERSON
 
     name: str = None
     fullname: None|str = None
@@ -31,7 +31,6 @@ class PersonBase(ABC):
 
     roles: List[int]|None = None  # references to PersonRole in ontology
     titles: List[int]|None = None  # references to PersonTitle in ontology
-
 
 @dataclass(eq=False)
 class PersonInput(PersonBase, EnumLabeledModel):

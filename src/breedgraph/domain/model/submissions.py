@@ -9,6 +9,8 @@ class SubmissionStatus(Enum):
 class SubmissionKeys(Enum):
     AGENT = "agent"
     DATA = "data"
+    ANALYSIS = '"analysis'
+    RESULT = "result"
     DATASET_ID = "dataset_id"
     FILE_ID = "file_id"
     STATUS = "status"

@@ -1,13 +1,11 @@
 . ./instance/envars.sh
-python -m pytest tests/unit
 
-python scripts/setup_initial_data.py
-python -m pytest tests/integration
+services=(mailhog neo4j redis)
+for service in "${services[@]}"; do
+    if ! systemctl is-active --quiet "$service"; then
+        echo "$service is not active"
+        exit 1
+    fi
+done
 
-if systemctl is-active mailhog; then
-  python scripts/setup_initial_data.py
-  python -m pytest tests/e2e
-else
-  echo "Start mailhog service to run e2e tests"
-fi
-
+python -m pytest tests --log-disable faker.factory

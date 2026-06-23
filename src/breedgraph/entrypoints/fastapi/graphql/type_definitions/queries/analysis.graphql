@@ -1,0 +1,119 @@
+type AnovaRow {
+  """Source of variation (factor name or 'Residual')"""
+  term: String
+
+  """Sum of squares"""
+  sumSq: Float
+
+  """Degrees of freedom"""
+  df: Int
+
+  """F statistic"""
+  fValue: Float
+
+  """p-value"""
+  pValue: Float
+}
+
+type FactorLevel {
+  label: String!
+  level: String!
+}
+
+type GroupSummary {
+  """Group identifier"""
+  group: [FactorLevel!]
+
+  """Group mean"""
+  mean: Float
+
+  """Standard deviation"""
+  sd: Float
+
+  """Standard error"""
+  se: Float
+
+  """Sample size"""
+  n: Int
+
+  """Quartile and median for box-plots"""
+  Q1: Float
+  median: Float
+  Q3: Float
+}
+
+type TukeyRow {
+  group1: [FactorLevel!]
+  group2: [FactorLevel!]
+  qval: Float
+  lower: Float
+  upper: Float
+}
+
+type AnalysisResult {
+  """Analysis configuration that was submitted"""
+  config: AnalysisConfig
+
+  """ANOVA table"""
+  anova: [AnovaRow!]
+
+  """Group details for visualization"""
+  group: [GroupSummary!]
+
+  """Tukey HSD results across groups"""
+  tukey: [TukeyRow!]
+
+}
+
+
+type AnalysisVariable {
+  """Type of variable: concept from dataset, germplasm, or timepoint"""
+  type: VariableType!
+
+  """Concept ID (provided when type is CONCEPT)"""
+  conceptId: Int
+
+  """Human-readable label for the variable"""
+  label: String!
+}
+
+type InteractionTerm {
+  """Index of first variable in independentVariables array"""
+  var1Index: Int!
+
+  """Index of second variable in independentVariables array"""
+  var2Index: Int!
+}
+
+type AnalysisConfig {
+  """Dataset IDs included in analysis"""
+  datasetIds: [Int!]!
+
+  """The dependent (response) variable"""
+  dependentVariable: AnalysisVariable!
+
+  """Independent (predictor) variables"""
+  independentVariables: [AnalysisVariable!]!
+
+  """Interaction terms between independent variables"""
+  interactionTerms: [InteractionTerm!]
+
+  """Timepoint boundaries for binning (partial datetime strings)"""
+  timepointBoundaries: [DateTime!]
+
+  """Optional name for this analysis"""
+  name: String
+}
+
+
+type AnalysisSubmission {
+
+  """Current processing status"""
+  status: SubmissionStatus!
+
+  """Analysis results (available when COMPLETED)"""
+  result: AnalysisResult
+
+  """Error messages (if FAILED)"""
+  errors: [String!]
+}

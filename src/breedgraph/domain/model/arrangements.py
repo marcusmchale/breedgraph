@@ -106,6 +106,11 @@ class Arrangement(ControlledTreeAggregate):
         layout_model = super().get_entry(layout)
         return layout_model
 
+    def yield_layouts_by_type(self, type_id: int):
+        for e in self.entries.values():
+            if e.type == type_id:
+                yield e
+
     def to_output_map(self) -> dict[int, LayoutOutput]:
         return {
             node: LayoutOutput(
@@ -116,5 +121,13 @@ class Arrangement(ControlledTreeAggregate):
                 position=self.get_position(layout_id=node)
             ) for node in self._graph
         }
+
+    def get_location(self, layout_id) -> int | None:
+        for lid in [layout_id, *reversed(self.get_ancestors(layout_id))]:
+            location = self.get_layout(lid).location
+            if location is not None:
+                return location
+        return None
+
 
 

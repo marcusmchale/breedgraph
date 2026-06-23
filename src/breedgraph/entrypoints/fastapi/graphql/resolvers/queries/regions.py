@@ -26,7 +26,7 @@ graphql_resolvers.register_type_resolvers(location, location_template)
 @require_authentication
 async def get_countries(_, info) -> List[LocationInput]:
     bus = info.context.get('bus')
-    async with bus.views.get_views(user_id = info.context.get('user_id')) as views:
+    async with bus.views_factory.get_views(user_id = info.context.get('user_id')) as views:
         return await views.regions.countries()
 
 @graphql_query.field("regions")
@@ -53,7 +53,7 @@ async def get_locations_by_type(_, info, location_type_id: int | None = None) ->
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     locations_map = info.context.get('locations_map', dict())
-    async with bus.views.get_views(user_id=user_id) as views:
+    async with bus.views_factory.get_views(user_id=user_id) as views:
         locations = await views.regions.get_locations_by_type(location_type = location_type_id)
         for location_ in locations:
             locations_map[location_.id] = location_

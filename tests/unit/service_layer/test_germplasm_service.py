@@ -42,10 +42,6 @@ class TestGermplasmApplicationService:
                 Access.CURATE: set()
             }
         )
-        mock_access_control.set_test_access_teams(
-            user_id=None,
-            access_teams={}
-        )
         return GermplasmApplicationService(
             persistence_service=mock_persistence,
             access_control_service=mock_access_control,
@@ -57,7 +53,7 @@ class TestGermplasmApplicationService:
         # Arrange
         germplasm_input = GermplasmInput(name="Admin Created Variety")
         # Act - no need to pass user_id or teams, they're stored on the service
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         result = await germplasm_service.create_entry(germplasm_input)
 
         # Assert
@@ -72,18 +68,18 @@ class TestGermplasmApplicationService:
     async def test_get_entry_respects_stored_context(self, germplasm_service):
         # Arrange - admin creates entry
         germplasm_input = GermplasmInput(name="Private Variety")
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         entry = await germplasm_service.create_entry(germplasm_input)
         # Act & Assert - admin can read (has team 1 which controls the entry)
         result = await germplasm_service.get_entry(entry.id)
         assert result.name == "Private Variety"
 
-        await germplasm_service.access_control.initialize_user_context(user_id=2)
+        await germplasm_service.access_control._change_user_context(user_id=2)
         # Act & Assert - user without access gets redacted version
         result = await germplasm_service.get_entry(entry.id)
         assert result.name == "REDACTED"
 
-        await germplasm_service.access_control.initialize_user_context(user_id=None)
+        await germplasm_service.access_control._change_user_context(user_id=None)
         # Act & Assert - anonymous user gets nothing
         result = await germplasm_service.get_entry(entry.id)
         assert result is None
@@ -92,7 +88,7 @@ class TestGermplasmApplicationService:
     async def test_update_entry_requires_curate_access_from_stored_context(self, germplasm_service):
         # Arrange - admin creates entry
         germplasm_input = GermplasmInput(name="Protected Variety")
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         entry = await germplasm_service.create_entry(germplasm_input)
 
         # Modify the entry
@@ -103,14 +99,14 @@ class TestGermplasmApplicationService:
 
         # Act & Assert - user without CURATE access cannot update
         entry.description = "Updated by user"
-        await germplasm_service.access_control.initialize_user_context(user_id=2)
-        with pytest.raises(IllegalOperationError, match="does not have permission to update"):
+        await germplasm_service.access_control._change_user_context(user_id=2)
+        with pytest.raises(IllegalOperationError, match="does not have permission to curate"):
             await germplasm_service.update_entry(entry)
 
     @pytest.mark.asyncio
     async def test_add_relationship_uses_stored_context(self, germplasm_service):
         # Arrange - admin creates two entries
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         parent = await germplasm_service.create_entry(GermplasmInput(name="Parent"))
         child = await germplasm_service.create_entry(GermplasmInput(name="Child"))
 
@@ -118,13 +114,36 @@ class TestGermplasmApplicationService:
         await germplasm_service.create_relationships([GermplasmRelationship(source_id=parent.id, sink_id=child.id)])
 
         # Act & Assert - user without CURATE access cannot create relationship
-        await germplasm_service.access_control.initialize_user_context(user_id=2)
+        await germplasm_service.access_control._change_user_context(user_id=2)
         with pytest.raises(IllegalOperationError, match="does not have permission"):
             await germplasm_service.create_relationships([GermplasmRelationship(source_id=parent.id, sink_id=child.id)])
 
     @pytest.mark.asyncio
+    async def test_circular_dependency_prevention(self, germplasm_service):
+        """Test that circular dependencies are prevented in source relationships."""
+        await germplasm_service.access_control._change_user_context(user_id=1)
+
+        # Arrange - create a chain of entries: A -> B -> C
+        entry_a = await germplasm_service.create_entry(GermplasmInput(name="Entry A"))
+        entry_b = await germplasm_service.create_entry(GermplasmInput(name="Entry B"))
+        entry_c = await germplasm_service.create_entry(GermplasmInput(name="Entry C"))
+
+        await germplasm_service.create_relationship(
+            GermplasmRelationship(source_id=entry_a.id, sink_id=entry_b.id)
+        )
+        await germplasm_service.create_relationship(
+            GermplasmRelationship(source_id=entry_b.id, sink_id=entry_c.id)
+        )
+
+        # Act & Assert - creating C -> A would close the cycle
+        with pytest.raises(ValueError, match="circular dependency"):
+            await germplasm_service.create_relationship(
+                GermplasmRelationship(source_id=entry_c.id, sink_id=entry_a.id)
+            )
+
+    @pytest.mark.asyncio
     async def test_get_all_entries_applies_stored_context(self, germplasm_service):
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         germplasm_service.release = ReadRelease.PUBLIC
         # Arrange - admin creates entries with different access levels
         public_entry = await germplasm_service.create_entry(GermplasmInput(name="Public Variety"))
@@ -138,7 +157,7 @@ class TestGermplasmApplicationService:
         private_entry = await germplasm_service.create_entry(GermplasmInput(name="Private Variety"))
 
         # Act - anonymous user (should only see public entries)
-        await germplasm_service.access_control.initialize_user_context(user_id=None)
+        await germplasm_service.access_control._change_user_context(user_id=None)
         entries = []
         async for entry in germplasm_service.get_entries():
             entries.append(entry)
@@ -151,7 +170,7 @@ class TestGermplasmApplicationService:
 
 
         # Act - Registered user (should see public and registered entries)
-        await germplasm_service.access_control.initialize_user_context(user_id=2)
+        await germplasm_service.access_control._change_user_context(user_id=2)
         entries = []
         async for entry in germplasm_service.get_entries():
             entries.append(entry)
@@ -164,7 +183,7 @@ class TestGermplasmApplicationService:
         assert len([e for e in entries if e.name in ["Private Variety"]]) == 0
 
         # Act - admin user (should see all entries they control)
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         entries = []
         async for entry in germplasm_service.get_entries():
             entries.append(entry)
@@ -190,7 +209,7 @@ class TestGermplasmApplicationService:
     @pytest.mark.asyncio
     async def test_get_entry_sources_respects(self, germplasm_service):
         # Arrange - create parent and child
-        await germplasm_service.access_control.initialize_user_context(user_id=1)
+        await germplasm_service.access_control._change_user_context(user_id=1)
         parent = await germplasm_service.create_entry(GermplasmInput(name="Secret Parent"))
         child = await germplasm_service.create_entry(GermplasmInput(name="Child"))
 

@@ -3,13 +3,13 @@ MATCH
 WITH dataset
 //Update study
 CALL (dataset) {
-  MATCH (study: Study)-[has_dataset:HAS_DATASET]->(dataset)
+  MATCH (dataset)-[for_study:FOR_STUDY]->(study: Study)
   WHERE NOT study.id = $study
-  DELETE has_dataset
+  DELETE for_study
 }
 CALL (dataset) {
   MATCH (study: Study {id: $study})
-  MERGE (study)-[:HAS_DATASET]->(dataset)
+  MERGE (dataset)-[:FOR_STUDY]->(study)
 }
 //Update concept
 CALL (dataset) {

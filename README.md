@@ -383,7 +383,7 @@ get the key, add the source and apt install
 
     wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/neo4j.gpg
     deb [signed-by=/usr/share/keyrings/neo4j.gpg] https://debian.neo4j.com stable latest
-    sudo apt install neo4j=1:5.1.0
+    sudo apt install neo4j
 
 set initial password for neo4j user (only works if run before starting for the first time)
 

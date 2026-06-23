@@ -12,3 +12,5 @@ from .repositories import (
     Neo4jAccountRepository,
     Neo4jOrganisationsRepository
 )
+from .views import Neo4jViewsFactory
+from .cypher import queries

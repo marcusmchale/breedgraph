@@ -7,6 +7,7 @@ from src.breedgraph.domain.model.programs import (
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import AsyncGenerator, List
@@ -59,14 +60,12 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         self.serialize_dt64(study_data, to_neo4j=True)
         reference_ids = study_data.pop('reference_ids')
         licence_id = study_data.pop('licence_id')
-        dataset_ids = study_data.pop('dataset_ids')
         design_id = study_data.pop('design_id')
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_study'],
             study_data=study_data,
             reference_ids = reference_ids,
             licence_id = licence_id,
-            dataset_ids = dataset_ids,
             design_id = design_id,
             trial_id=trial_id
         )
@@ -111,7 +110,6 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         study_id = study_data.pop('id')
         reference_ids = study_data.pop('reference_ids')
         licence_id = study_data.pop('licence_id')
-        dataset_ids = study_data.pop('dataset_ids')
         design_id = study_data.pop('design_id')
 
         await self.tx.run(
@@ -120,7 +118,6 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             study_data=study_data,
             reference_ids=reference_ids,
             licence_id=licence_id,
-            dataset_ids=dataset_ids,
             design_id=design_id
         )
 
@@ -171,12 +168,13 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             program_id: int = None,
             trial_id: int=None,
             study_id:int=None
-    ) -> ProgramStored | None:
+    ) -> ControlledQueryResult[ProgramStored] | None:
         if program_id is not None:
             result: AsyncResult = await self.tx.run( queries['programs']['read_program'], program_id=program_id)
         elif trial_id is not None:
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_trial'], trial_id=trial_id)
         elif study_id is not None:
+            logger.debug(f'get program by study_id: {study_id}')
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_study'], study_id=study_id)
         elif name is not None:
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_by_name'], name_lower=name.casefold())
@@ -187,15 +185,15 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
                 return None
 
         record = await result.single()
-
         if record:
-            return self.record_to_program(record.get('program'))
+            return ControlledQueryResult(self.record_to_program(record.get('program')))
+
         return None
 
-    async def _get_all_controlled(self) -> AsyncGenerator[ProgramStored, None]:
+    async def _get_all_controlled(self) -> AsyncGenerator[ControlledQueryResult[ProgramStored], None]:
         result: AsyncResult = await self.tx.run(queries['programs']['read_programs'])
         async for record in result:
-            yield self.record_to_program(record.get('program'))
+            yield ControlledQueryResult(self.record_to_program(record.get('program')))
 
     async def _remove_controlled(self, program: ProgramStored) -> None:
         await self._delete_trials(list(program.trials.keys()))

@@ -13,3 +13,4 @@ class AbstractDatasetsView(ABC):
     @abstractmethod
     async def _get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
         ...
+

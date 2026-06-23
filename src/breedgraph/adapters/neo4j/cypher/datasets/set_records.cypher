@@ -21,7 +21,7 @@ ORDER BY cnt
   CALL {
     WITH record_data, record
     MATCH (unit:Unit {id: record_data['unit']})
-    MERGE (record)-[:RECORD_FOR]->(unit)
+    MERGE (record)-[:FOR_UNIT]->(unit)
   }
   // Update references
   CALL {

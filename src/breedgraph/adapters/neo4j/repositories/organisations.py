@@ -115,7 +115,6 @@ class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
             return None
 
         org = Organisation(nodes=nodes, edges=edges)
-
         if self.redacted:
             return org.redacted(self.user_id)
         else:

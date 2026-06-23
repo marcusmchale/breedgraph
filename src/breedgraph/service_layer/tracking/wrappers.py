@@ -297,6 +297,7 @@ class TrackedObject(ObjectProxy, TrackableProtocol):
     def model_dump(self):
         return self.__wrapped__.model_dump()
 
+
     @property
     def controlled_models(self):
         """
@@ -308,7 +309,7 @@ class TrackedObject(ObjectProxy, TrackableProtocol):
 
         removed_controlled_models = []
         for removed_model in self.removed_models:
-            if hasattr(removed_model, 'label') and hasattr(removed_model, 'id'):
+            if hasattr(removed_model, 'is_controlled_model') and removed_model.is_controlled_model():
                 removed_controlled_models.append(removed_model)
 
         return base_controlled_models + removed_controlled_models

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from src.breedgraph.domain.model.accounts import OntologyRole
 
 class AbstractConstraintsHandler(ABC):
-    user_id: int = None
+    user_id: int|None = None
 
     @abstractmethod
     async def accounts_exist(self) -> bool:

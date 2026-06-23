@@ -43,9 +43,9 @@ async def lifespan(fast_api_app: FastAPI):
 
     logger.info("Start shutting down")
     if bus is not None:
-        if hasattr(bus.uow, "driver"):
+        if hasattr(bus.uow_factory, "driver"):
             logger.info("Closing driver")
-            await bus.uow.driver.close()
+            await bus.uow_factory.driver.close()
         if hasattr(bus.state_store, "connection"):
             logger.info("Closing state_store connection pool")
             await bus.state_store.connection.aclose()

@@ -13,7 +13,7 @@ LOGIN_SALT = os.environ.get('LOGIN_SALT')
 LOGIN_EXPIRES = int(os.environ.get('LOGIN_EXPIRES', 10080)) # default 7 days
 
 CSRF_SALT = os.environ.get('CSRF_SALT')
-CSRF_EXPIRES = int(os.environ.get('CSRF_EXPIRES', 60)) # Default 1 hour
+CSRF_EXPIRES = int(os.environ.get('CSRF_EXPIRES', 60 * 60)) # Default 1 hour
 
 def get_graphdb_auth():
     username = os.environ['NEO4J_USERNAME']

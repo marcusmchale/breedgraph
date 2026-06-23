@@ -10,6 +10,38 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+class CSRFTokenManager:
+    """Shared utility for CSRF token generation and validation"""
+
+    @staticmethod
+    def generate_token() -> str:
+        """Generate a new CSRF token"""
+        ts = URLSafeTimedSerializer(SECRET_KEY)
+        return ts.dumps('csrf_token', salt=CSRF_SALT)
+
+    @staticmethod
+    def set_token_cookie(response: Response, token: str) -> None:
+        """Set CSRF token cookie on response"""
+        response.set_cookie(
+            key="csrf_token",
+            value=token,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            domain=HOST_ADDRESS,
+            max_age=CSRF_EXPIRES
+        )
+
+    @staticmethod
+    def validate_token(token: str) -> bool:
+        """Validate a CSRF token. Returns True if valid, raises exception if not."""
+        ts = URLSafeTimedSerializer(SECRET_KEY)
+        ts.loads(token, salt=CSRF_SALT, max_age=CSRF_EXPIRES)
+        return True
+
+
+
 @router.options("/csrf")
 async def csrf_preflight():
     return Response(status_code=200)
@@ -27,9 +59,7 @@ async def get_csrf_token(request: Request, response: Response):
                 raise UnauthorisedOperationError("CSRF token mismatch")
 
             # Then verify the token
-            ts = URLSafeTimedSerializer(SECRET_KEY)
-            ts.loads(cookie_token, salt=CSRF_SALT, max_age=CSRF_EXPIRES * 60)
-            # If both checks pass, return the existing token
+            CSRFTokenManager.validate_token(cookie_token)
             return {"token": cookie_token}
         except SignatureExpired:
             logger.debug("CSRF token has expired")
@@ -44,21 +74,8 @@ async def get_csrf_token(request: Request, response: Response):
             # Generate new token for any other error
             pass
 
-    # Generate new token
-    ts = URLSafeTimedSerializer(SECRET_KEY)
-    signed_token = ts.dumps(
-        "csrf_token",
-        salt=CSRF_SALT
-    )
-    response.set_cookie(
-        key="csrf_token",
-        value=signed_token,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        domain=HOST_ADDRESS,
-        max_age=CSRF_EXPIRES * 60
-    )
+    signed_token = CSRFTokenManager.generate_token()
+    CSRFTokenManager.set_token_cookie(response, signed_token)
     return {"token": signed_token}
 
 # NOTE! these need to be get requests so that the users can follow a link in their email.

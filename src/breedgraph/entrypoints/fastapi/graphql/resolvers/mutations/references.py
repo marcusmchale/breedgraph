@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 from . import graphql_mutation
 
-
+# We don't want to pass the UploadFile to the bus,
+# so just pass in callbacks to raise events and create a new task on the process
 def start_creating_file(user_id:int, bus: MessageBus, key: str, reference_id: int, file: UploadFile):
     # sets the uuid and notifies user
     success_event = UploadCompleted(user_id=user_id, uuid=key, reference_id=reference_id)
@@ -166,14 +167,19 @@ async def create_file_reference(
     bus = info.context.get('bus')
     logger.debug(f'User {user_id} creating file reference')
 
-    file: UploadFile = reference.get('file')
+    file: UploadFile | None = reference.get('file')
     if not file:
         raise ValueError("File upload is required for creating a file reference")
+    if not file.filename:
+        raise ValueError("File must have name")
+    if not file.content_type:
+        raise ValueError("File must have content type")
 
     key = await bus.state_store.store_file(
         agent_id=user_id,
         filename=file.filename
     )
+
     cmd = CreateFileReference(
         agent_id=user_id,
         description=reference.get('description'),
@@ -185,6 +191,8 @@ async def create_file_reference(
     # get the reference id from the state store
     bus: MessageBus = info.context.get('bus')
     reference_id = await bus.state_store.get_file_reference_id(key)
+    if not reference_id:
+        raise ValueError("File reference id is invalid")
 
     start_creating_file(
         user_id=user_id,

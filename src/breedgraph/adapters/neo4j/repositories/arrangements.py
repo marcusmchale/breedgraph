@@ -7,6 +7,7 @@ from src.breedgraph.domain.model.arrangements import (
 )
 from src.breedgraph.adapters.neo4j.cypher import queries
 from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
+from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import Set, AsyncGenerator, Tuple, List, Dict, Any, Union, overload
@@ -43,7 +44,7 @@ class Neo4jArrangementsRepository(
         logger.debug(f"Remove layouts: {layout_ids}")
         await self.tx.run(queries['arrangements']['delete_layouts'], layout_ids=layout_ids)
 
-    async def _get_controlled(self, layout_id: int = None) -> Arrangement | None:
+    async def _get_controlled(self, layout_id: int|None = None) -> ControlledQueryResult[Arrangement]|None:
         if layout_id is None:
             try:
                 return await anext(self._get_all_controlled())
@@ -64,11 +65,11 @@ class Neo4jArrangementsRepository(
             nodes.append(layout)
 
         if nodes:
-            return Arrangement(nodes=nodes, edges=edges)
+            return ControlledQueryResult(Arrangement(nodes=nodes, edges=edges))
         else:
             return None
 
-    async def _get_all_controlled(self, location_id: int|None = None) -> AsyncGenerator[Arrangement, None]:
+    async def _get_all_controlled(self, location_id: int|None = None) -> AsyncGenerator[ControlledQueryResult[Arrangement], None]:
         if location_id is None:
             result: AsyncResult = await self.tx.run(queries['arrangements']['read_arrangements'])
         else:
@@ -83,7 +84,7 @@ class Neo4jArrangementsRepository(
                     if edge_data is not None:
                         edges.append((edge_data[0], layout_data.get('id'), {'position':edge_data[1]}))
                 layouts.append(self.record_to_layout(layout_data))
-            yield Arrangement(nodes=layouts, edges=edges)
+            yield ControlledQueryResult(Arrangement(nodes=layouts, edges=edges))
 
     async def _remove_controlled(self, arrangement: Arrangement) -> None:
         await self._delete_layouts(list(arrangement._graph.nodes.keys()))

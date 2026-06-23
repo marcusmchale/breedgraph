@@ -1,7 +1,8 @@
+from src.breedgraph.custom_exceptions import NoResultFoundError
 from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from src.breedgraph.domain import commands
 from src.breedgraph.domain.model.blocks import UnitInput, Position
-from src.breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel
+from src.breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 
 
 from ..registry import handlers
@@ -12,9 +13,9 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_unit(
         cmd: commands.blocks.CreateUnit,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         unit_input = UnitInput(
             subject = cmd.subject_id,
             germplasm = cmd.germplasm_id,
@@ -54,9 +55,9 @@ async def create_unit(
 @handlers.command_handler()
 async def update_unit(
         cmd: commands.blocks.UpdateUnit,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
         unit = block.get_unit(cmd.unit_id)
 
@@ -94,9 +95,9 @@ async def update_unit(
 @handlers.command_handler()
 async def delete_unit(
         cmd: commands.blocks.DeleteUnit,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
         block.remove_unit(cmd.unit_id)
         await uow.commit()
@@ -104,9 +105,9 @@ async def delete_unit(
 @handlers.command_handler()
 async def add_position(
         cmd: commands.blocks.AddPosition,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
         position = Position(
             location_id=cmd.location_id,
@@ -129,13 +130,18 @@ async def _validate_position(uow: AbstractUnitHolder, position: Position):
             raise ValueError("Coordinates required if a layout is specified")
 
         arrangement = await uow.repositories.arrangements.get(layout_id=position.layout_id)
+        if arrangement is None:
+            raise NoResultFoundError("Arrangement with the provided layout ID was not found")
         layout = arrangement.get_layout(position.layout_id)
         if not len(position.coordinates) == len(layout.axes):
             raise ValueError(f"Coordinates must match the length of specified layout axes")
-        if not layout.location == position.location_id:
+
+        if not arrangement.get_location(layout.id) == position.location_id:
             raise ValueError("Layout location does not match the position location")
 
         layout_type = await uow.ontology.get_entry(entry_id=layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
+        if layout_type is None:
+            raise NoResultFoundError("Layout type with the provided type ID was not found")
         for i, p in enumerate(position.coordinates):
             if layout_type.axes[i] in [AxisType.COORDINATE, AxisType.CARTESIAN]:
                 try:
@@ -146,9 +152,9 @@ async def _validate_position(uow: AbstractUnitHolder, position: Position):
 @handlers.command_handler()
 async def remove_position(
         cmd: commands.blocks.RemovePosition,
-        uow: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
         position = Position(
             location_id=cmd.location_id,

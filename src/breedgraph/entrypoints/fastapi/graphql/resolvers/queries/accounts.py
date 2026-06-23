@@ -44,12 +44,12 @@ async def get_users(_, info, user: None|int = None) -> List[UserOutput]:
 async def get_account(_, info) -> AccountOutput:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_uow() as uow:
+    async with bus.uow_factory.get_uow() as uow:
         account_ = await uow.repositories.accounts.get(user_id=user_id)
         if account_ is None:
             raise NoResultFoundError
         else:
-            return AccountOutput(user=account_.user, allowed_emails=account_.allowed_emails)
+            return AccountOutput(user=account_.user_id, allowed_emails=account_.allowed_emails)
 
 @graphql_query.field("accountsUserAccess")
 @graphql_payload
@@ -59,7 +59,7 @@ async def get_user_access(_, info) -> dict:
     # Use current user if no user provided
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    async with bus.uow.get_uow(user_id=user_id) as uow:
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         access_teams = uow.controls.access_teams
         # Convert Access enum keys to strings and sets to lists for GraphQL
         return {

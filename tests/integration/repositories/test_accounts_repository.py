@@ -1,54 +1,53 @@
 import pytest
 
-from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored
-from src.breedgraph.adapters.neo4j import Neo4jAccountRepository
+from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from src.breedgraph.domain.model.accounts import AccountStored
 from src.breedgraph.custom_exceptions import NoResultFoundError
 
-async def create_account_input(user_input_generator) -> AccountInput:
-    new_user_input = user_input_generator.new_user_input()
-    new_user = UserInput(
-        name=new_user_input['name'],
-        fullname=new_user_input['name'],
-        email=new_user_input['email'],
-        password_hash=new_user_input['password_hash']
-    )
-    return AccountInput(user=new_user)
+from tests.scenarios.account_builder import AccountBuilder
 
-@pytest.mark.usefixtures("session_database")
-@pytest.mark.asyncio(scope="session")
-async def test_create_and_get_account(uncommitted_neo4j_tx, user_input_generator):
-    account_input = await create_account_input(user_input_generator)
-    accounts_repo = Neo4jAccountRepository(uncommitted_neo4j_tx)
-    stored_account: AccountStored = await accounts_repo.create(account_input)
-    assert stored_account.user.name == account_input.user.name
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_and_get_account(uow_factory: AbstractUnitOfWorkFactory):
+    account_input = AccountBuilder.account_input()
+    async with uow_factory.get_uow() as uow:
+        accounts_repo = uow.repositories.accounts
+        stored_account: AccountStored = await accounts_repo.create(account_input)
+        await uow.commit()
 
-    retrieved_account = await accounts_repo.get(user_id=stored_account.user.id)
-    assert retrieved_account.user.name == account_input.user.name
+    async with uow_factory.get_uow() as uow:
+        accounts_repo = uow.repositories.accounts
+        account_by_id = await accounts_repo.get(user_id=stored_account.user.id)
+        assert account_by_id.user.name == account_input.user.name
+        account_by_name = await accounts_repo.get(name=stored_account.user.name)
+        assert account_by_name.user.id == stored_account.user.id
+        account_by_email = await accounts_repo.get(email=account_input.user.email)
+        assert account_by_email.user.name == account_input.user.name
 
-    retrieved_account = await accounts_repo.get(name=stored_account.user.name)
-    assert retrieved_account.user.name == account_input.user.name
+    async with uow_factory.get_uow() as uow:
+        accounts_repo = uow.repositories.accounts
+        async for account in accounts_repo.get_all():
+            if account.user.name == account_input.user.name:
+                break
+        else:
+            raise NoResultFoundError("Created account is not retrieved by get_all")
 
-    retrieved_account = await accounts_repo.get(email=account_input.user.email)
-    assert retrieved_account.user.name == account_input.user.name
+@pytest.mark.asyncio(loop_scope="session")
+async def test_change_user_details_on_account(uow_factory):
+    account_input = AccountBuilder.account_input()
 
-    async for account in accounts_repo.get_all():
-        if account.user.name == account_input.user.name:
-            break
-    else:
-        raise NoResultFoundError("Account is not retrieved by get_all without filters")
+    async with uow_factory.get_uow() as uow:
+        accounts_repo = uow.repositories.accounts
+        stored_account: AccountStored = await accounts_repo.create(account_input)
 
-@pytest.mark.asyncio(scope="session")
-async def test_change_user_details_on_account(uncommitted_neo4j_tx, user_input_generator):
-    new_account_input = await create_account_input(user_input_generator)
-    accounts_repo = Neo4jAccountRepository(uncommitted_neo4j_tx)
-    stored_account: AccountStored = await accounts_repo.create(new_account_input)
+        changed_account_input = AccountBuilder.account_input()
+        assert changed_account_input.user.name != account_input.user.name
 
-    changed_account_input = await create_account_input(user_input_generator)
-    stored_account.user.name = changed_account_input.user.name
-    stored_account.user.email = changed_account_input.user.email
-    stored_account.user.fullname = changed_account_input.user.name
+        stored_account.user.name = changed_account_input.user.name
+        stored_account.user.email = changed_account_input.user.email
+        stored_account.user.fullname = changed_account_input.user.name
+        await uow.commit()
 
-    await accounts_repo.update_seen()
-
-    retrieved_stored_account = await accounts_repo.get(user_id=stored_account.user.id)
-    assert retrieved_stored_account.user == stored_account.user
+    async with uow_factory.get_uow() as uow:
+        accounts_repo = uow.repositories.accounts
+        retrieved_stored_account = await accounts_repo.get(user_id=stored_account.user.id)
+        assert retrieved_stored_account.user.name == changed_account_input.user.name

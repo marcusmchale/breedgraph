@@ -34,7 +34,7 @@ class RedisLoader:
         async with self.driver.session() as session:
             async with await session.begin_transaction() as tx:
                 ontology_service = Neo4jOntologyPersistenceService(tx=tx)
-                async for entry in ontology_service.get_entries(as_output=True):
+                async for entry in ontology_service.get_entries():
                     await self.connection.hset(
                         name=entry.label,
                         key=entry.name,

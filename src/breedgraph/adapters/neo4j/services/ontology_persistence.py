@@ -32,20 +32,23 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             raise ValueError(f"User with id {user_id} not found")
         return OntologyRole(record.value() or 'viewer')
 
-    def record_to_entry(self, record: Record, as_output=False) -> OntologyEntryStored | OntologyEntryOutput:
-        record_dict = dict(record)
+    def record_to_entry(self, entry: Record) -> OntologyEntryStored:
+        entry_dict = dict(entry)
         # remove lowercase name from record
-        record_dict.pop('name_lower')
+        entry_dict.pop('name_lower')
+
         # replace strings with enums
-        if 'scale_type' in record_dict:
-            record_dict['scale_type'] = ScaleType(record_dict['scale_type'])
-        if 'observation_type' in record_dict:
-            record_dict['observation_type'] = ObservationMethodType(record_dict['observation_type'])
-        if 'axes' in record_dict:
-            record_dict['axes'] = [AxisType(a) for a in record_dict['axes']]
+        if 'scale_type' in entry_dict:
+            entry_dict['scale_type'] = ScaleType(entry_dict['scale_type'])
+        if 'observation_type' in entry_dict:
+            entry_dict['observation_type'] = ObservationMethodType(entry_dict['observation_type'])
+        if 'control_type' in entry_dict:
+            entry_dict['control_type'] = ControlMethodType(entry_dict['control_type'])
+        if 'axes' in entry_dict:
+            entry_dict['axes'] = [AxisType(a) for a in entry_dict['axes']]
 
         # Extract the label from the record
-        label_str: str|None = record_dict.pop('label')
+        label_str: str|None = entry_dict.pop('label')
         try:
             label = OntologyEntryLabel(label_str)
         except TypeError:
@@ -53,43 +56,20 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         except ValueError:
             raise ValueError(f"Label is not recognized as a valid ontology entry label: {label_str}")
 
-        # Get the appropriate entry class
-        if as_output:
-            entry_class = self.ontology_mapper.get_output_class_mapping().get(label)
-        else:
-            entry_class = self.ontology_mapper.get_stored_class_mapping().get(label)
+        entry_class = self.ontology_mapper.get_stored_class_mapping().get(label)
+
         if entry_class is None:
             raise ValueError(f"No class found for label: {label}")
 
-        # process relationship data (returned if output format is requested)
-        if "relationships" in record_dict:
-            for relationship in record_dict.pop('relationships'):
-                is_source = relationship['source_id'] == record_dict['id']
-                attr, _type = self.ontology_mapper.get_attribute_name_and_type(
-                    source_label=OntologyEntryLabel(relationship['source_label']),
-                    target_label=OntologyEntryLabel(relationship['target_label']),
-                    attr_for_source=is_source
-                )
-                if attr in record_dict:
-                    if _type == List[int]:
-                        record_dict[attr].append(relationship['target_id' if is_source else 'source_id'])
-                    else:
-                        raise ValueError(f"Attribute {attr} already exists in record_dict")
-                else:
-                    if _type == List[int]:
-                        record_dict[attr] = [relationship['target_id' if is_source else 'source_id']]
-                    else:
-                        record_dict[attr] = relationship['target_id' if is_source else 'source_id']
-        return entry_class(**record_dict)
+        return entry_class(**entry_dict)
 
     @staticmethod
-    def record_to_relationship(record: Record) -> OntologyRelationshipBase:
+    def record_to_relationship(record: Record|Dict) -> OntologyRelationshipBase:
         record_dict = record.get('relationship') or dict(record)
         if not record_dict.get('relationship_id'):
             raise ValueError("Relationship id not created - this typically means a source or target node was not found")
 
         return OntologyRelationshipBase.relationship_from_label(**record_dict)
-
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
@@ -182,9 +162,8 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             phases: List[LifecyclePhase] | None = None,
             entry_ids: List[int] = None,
             labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None,
-            as_output: bool = False,
-    ) -> AsyncGenerator[OntologyEntryStored|OntologyEntryOutput, None]:
+            names: List[str]|None = None
+    ) -> AsyncGenerator[OntologyEntryStored, None]:
         if version is None:
             version = await self.get_current_version()
         if phases is None:
@@ -193,10 +172,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             entry_ids = entry_ids,
             phases=phases,
             labels=labels,
-            names=names,
-            with_relationships=as_output
+            names=names
         )
-        params = {"version": version.packed_version}
+        params = { "version": version.packed_version }
         # Entry IDs parameter (if specified)
         if entry_ids:
             params["entry_ids"] = entry_ids
@@ -205,7 +183,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params["names_lower"] = [name.casefold() for name in names]
         result = await self.tx.run(query, **params)
         async for record in result:
-            yield self.record_to_entry(record['entry'], as_output)
+            yield self.record_to_entry(record['entry'])
 
     async def get_entry(
             self,
@@ -213,8 +191,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             name: str = None,
             label: OntologyEntryLabel = None,
             version: Version | None = None,
-            phases: List[LifecyclePhase] = None,
-            as_output: bool = False
+            phases: List[LifecyclePhase] = None
     ) -> OntologyEntryStored | None:
         matched_entry = None
         count = 0
@@ -223,8 +200,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             version=version,
             phases=phases,
             labels=[label] if label is not None else [],
-            names=[name] if name is not None else [],
-            as_output=as_output
+            names=[name] if name is not None else []
         ):
             count += 1
             if count == 1:
@@ -233,19 +209,15 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 raise ValueError("The filters provided match multiple entries")
         return matched_entry
 
-    async def get_relationships(
+    async def _get_relationships(
             self,
-            version: Version | None = None,
-            phases: List[LifecyclePhase] | None = None,
-            labels: List[OntologyEntryLabel]|None = None,
-            entry_ids: List[int] = None,
-            source_ids: List[int] = None,
-            target_ids: List[int] = None
+            version: Version,
+            phases: List[LifecyclePhase],
+            labels: List[OntologyEntryLabel] | None = None,
+            entry_ids: List[int] | None = None,
+            source_ids: List[int] | None = None,
+            target_ids: List[int] |None = None
     ) -> AsyncGenerator[OntologyRelationshipBase, None]:
-        if version is None:
-            version = await self.get_current_version()
-        if phases is None:
-            phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
         query = ontology.get_relationships(
             phases=phases,
             labels=labels,
@@ -261,10 +233,11 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params["source_ids"] = source_ids
         if target_ids:
             params["target_ids"] = target_ids
-
         result = await self.tx.run(query, **params)
         async for record in result:
-            yield self.record_to_relationship(record['relationship'])
+            yield self.record_to_relationship(
+                record['relationship']
+            )
 
     async def get_relationships_by_sources_and_labels(
             self,

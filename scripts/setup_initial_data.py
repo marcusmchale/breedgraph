@@ -8,6 +8,8 @@ import sys
 
 from pathlib import Path
 
+from neo4j import AsyncTransaction, AsyncSession
+
 # Add src to path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -22,22 +24,32 @@ from src.breedgraph.domain.model.accounts import AccountInput, UserInput, Accoun
 
 from src.breedgraph.config import MAIL_USERNAME, MAIL_HOST
 
+from src.breedgraph.adapters.neo4j.cypher import queries
+
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def ensure_empty_db(uow: AbstractUnitOfWorkFactory) -> None:
-    async with uow.get_uow() as uow_holder:
-        # Check if any records exist in the db, if so then stop now
-        # This is a safeguard against running this script unintentionally
-        logger.info("Checking if database is empty...")
-        if not await uow_holder.db_is_empty():
-            raise Exception("Database is not empty, aborting setup...")
+async def ensure_empty_db(session: AsyncSession) -> None:
+    logger.info("Checking if database is empty...")
+    result = await session.run(queries['infrastructure']['is_empty'])
+    is_empty = (await result.single(strict=True))["empty"]
+    if not is_empty:
+        raise Exception("Database is not empty, aborting setup...")
 
-async def create_constraints(uow: AbstractUnitOfWorkFactory) -> None:
-    async with uow.get_uow() as uow_holder:
-        logger.info("Creating constraints...")
-        await uow_holder.create_constraints()
+async def create_constraints(session: AsyncSession):
+    logger.info("Creating constraints...")
+    constraints = queries['infrastructure']['create_constraints']
+    try:
+        async with await session.begin_transaction() as tx:
+            for constraint in constraints.split(';\n'):
+                logger.debug(f"Creating constraint: {constraint}")
+                await tx.run(constraint)
+            await tx.commit()
+    except Exception as e:
+        logger.error(f"Error creating constraints: {e}")
+        logger.error(f"Continuing")
+        return
 
 async def create_system_account(uow: AbstractUnitOfWorkFactory) -> AccountStored:
     async with uow.get_uow() as uow_holder:
@@ -55,7 +67,6 @@ async def create_system_account(uow: AbstractUnitOfWorkFactory) -> AccountStored
         )
         await uow_holder.commit()
         return system_account
-
 
 async def create_initial_ontology_entries(
     system_account: AccountStored,
@@ -88,10 +99,12 @@ async def main():
     try:
         logger.info("Build neo4j driver")
         driver = Neo4jAsyncDriver()
+        async with driver.session() as session:
+            await ensure_empty_db(session)
+            await create_constraints(session)
+
         logger.debug("Build uow holder")
         uow = Neo4jUnitOfWorkFactory(driver)
-        await ensure_empty_db(uow)
-        await create_constraints(uow)
         system_account = await create_system_account(uow)
         await create_initial_ontology_entries(system_account, uow)
         logger.info("Initial data setup completed successfully!")

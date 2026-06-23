@@ -34,7 +34,7 @@ export PASSWORD_RESET_EXPIRES=60 # in minutes
 export LOGIN_SALT="Since-you-asked-so-nicely"
 export LOGIN_EXPIRES=10080 # in minutes
 export CSRF_SALT='tell-me-who-is-asking'
-export CSRF_EXPIRES=60
+export CSRF_EXPIRES=3600
 
 # Hosting environment
 export PROTOCOL="http"
@@ -48,3 +48,4 @@ export VUE_PORT=8080
 export FILE_STORAGE_PATH="./file_store"
 export FILE_DOWNLOAD_SALT="PROVIDE_SALT_FOR_DOWNLOAD_LINKS"
 export FILE_DOWNLOAD_EXPIRES=1440
+export MAX_CONCURRENT_UPLOADS=5

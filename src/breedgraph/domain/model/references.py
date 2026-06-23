@@ -145,7 +145,7 @@ Note: should consider describing data format and file format in Ontology.
 """
 @dataclass(eq=False)
 class DataReferenceBase(ReferenceBase):
-    format: DataFormat = None
+    format: DataFormat | None = None
     #todo Needs further refinement and details about requirements for specification
     """
     Schema for parsing the data, 

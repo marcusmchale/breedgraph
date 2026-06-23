@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from src.breedgraph.domain.model.ontology.entries import (
-    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored, OntologyEntryOutput
+    OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
 from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
@@ -20,8 +20,3 @@ class LocationTypeInput(LocationTypeBase, OntologyEntryInput):
 @dataclass
 class LocationTypeStored(LocationTypeBase, OntologyEntryStored):
     pass
-
-@dataclass
-class LocationTypeOutput(LocationTypeBase, OntologyEntryOutput):
-    terms: list[int] = field(default_factory=list)
-

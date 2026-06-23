@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, AsyncGenerator, TypeVar, Generic, Union
+from typing import Dict, AsyncGenerator, TypeVar, Generic, Union, cast
 from neo4j import Record
 
 from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject, tracked
@@ -61,25 +61,25 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
         # Check if this aggregate is already being tracked,
         # if so return the tracked version rather than the refetched version
         if aggregate in self.seen:
-            return self.seen[aggregate]
+            return cast(TAggregate, self.seen[aggregate])
 
         tracked_aggregate = tracked(aggregate)
         self.seen[tracked_aggregate]=tracked_aggregate
-        return tracked_aggregate
+        return cast(TAggregate, tracked_aggregate)
 
-    async def create(self, aggregate_input: TAggregateInput|None = None) -> Union[TrackedObject, TAggregate]:
+    async def create(self, aggregate_input: TAggregateInput|None = None) -> TAggregate:
         aggregate = await self._create(aggregate_input)
         tracked_aggregate = self._track(aggregate)
-        return tracked_aggregate
+        return cast(TAggregate, tracked_aggregate)
 
     @abstractmethod
     async def _create(self, aggregate_input: TAggregateInput|None) -> TAggregate:
         ...
 
-    async def get(self, **kwargs) -> Union[TrackedObject, TAggregate, None]:
+    async def get(self, **kwargs) -> TAggregate|None:
         aggregate = await self._get(**kwargs)
         if aggregate is not None:
-            return self._track(aggregate)
+            return cast(TAggregate, self._track(aggregate))
         return None
 
     @abstractmethod
