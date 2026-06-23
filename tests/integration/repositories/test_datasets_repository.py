@@ -59,6 +59,7 @@ async def test_update_contributors(
     async with uow_factory.get_uow(user_id=user_id) as uow:
         dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
         assert person_id in dataset.contributors
+
         dataset.contributors.remove(person_id)
         await uow.commit()
 

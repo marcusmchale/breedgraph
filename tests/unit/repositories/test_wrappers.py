@@ -19,8 +19,6 @@ class ComplexModel:
     int_value: int = 1
     list_int: List[int] = field(default_factory = lambda: [1, 2, 3])
     list_model: List[SimpleModel] = field(default_factory = lambda: [SimpleModel()])
-    set_int: Set[int] = field(default_factory = lambda: {1, 2, 3})
-    set_model: Set[SimpleModel] = field(default_factory = lambda: {SimpleModel()})
     dict_int_str: Dict[int, str] = field(default_factory = lambda: {1: 'a'})
     dict_int_model: Dict[int, SimpleModel] = field(default_factory= lambda: {1: SimpleModel()})
 
@@ -145,48 +143,6 @@ async def test_tracked_list_model_things_change():
     assert not tracked_model.list_model.changed
     assert not tracked_model.list_model[0].changed
     assert not tracked_model.list_model[0].things.added
-
-
-@pytest.mark.asyncio
-async def test_tracked_set_add():
-    tracked_model= tracked(ComplexModel())
-    assert not tracked_model.changed
-    assert not tracked_model.set_int.changed
-
-    tracked_model.set_int.add(-1)
-    assert 'set_int' in tracked_model.changed
-    assert hash(-1) in tracked_model.set_int.added
-
-    tracked_model.reset_tracking()
-    assert not tracked_model.set_int.changed
-
-@pytest.mark.asyncio
-async def test_tracked_set_discard():
-    tracked_model= tracked(ComplexModel())
-    assert not tracked_model.changed
-    assert not tracked_model.set_int.changed
-
-    tracked_model.set_int.discard(1)
-    assert 'set_int' in tracked_model.changed
-    assert hash(1) in tracked_model.set_int.removed
-
-    tracked_model.reset_tracking()
-    assert not tracked_model.set_int.changed
-
-@pytest.mark.asyncio
-async def test_tracked_set_changed():
-    tracked_model= tracked(ComplexModel())
-    assert not tracked_model.changed
-    assert not tracked_model.set_int.changed
-
-    for item in tracked_model.set_model:
-        item.name = "new name"
-        assert 'name' in item.changed
-        assert hash(item) in tracked_model.set_model.changed
-    assert 'set_model' in tracked_model.changed
-
-    tracked_model.reset_tracking()
-    assert not tracked_model.set_model.changed
 
 @pytest.mark.asyncio
 async def test_tracked_dict_change():

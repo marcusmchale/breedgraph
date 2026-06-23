@@ -1,12 +1,10 @@
 from abc import ABC
 from dataclasses import dataclass, field, replace
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
 from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
 from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller, ControlledModelLabel
-from typing_extensions import TypedDict
 
-from typing import List, ClassVar, Dict, Any
+from typing import List, ClassVar, Dict, Any, TypedDict
 
 class GeoCoordinate(TypedDict):  # ISO 6709
     latitude: float
