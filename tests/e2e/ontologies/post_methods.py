@@ -272,7 +272,7 @@ async def post_to_get_ontology(
             "  ) { "
             "    status, "
             "    result { "
-            "       versionId, "
+            "       version { major, minor, patch } , "
             "       entries { id, name },"
             "       relationships {id, label, sourceId, targetId} "
             "   }, "

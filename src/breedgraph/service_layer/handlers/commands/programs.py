@@ -175,7 +175,6 @@ async def create_study(
             practices=cmd.practices,
             start=cmd.start,
             end=cmd.end,
-            dataset_ids=cmd.dataset_ids,
             design_id=cmd.design_id,
             licence_id=cmd.licence_id,
             reference_ids=cmd.reference_ids
@@ -208,8 +207,6 @@ async def update_study(
             study.start = cmd.start
         if cmd.end is not None:
             study.end = cmd.end
-        if cmd.dataset_ids is not None:
-            study.dataset_ids = cmd.dataset_ids
         if cmd.design_id is not None:
             study.design_id = cmd.design_id
         if cmd.licence_id is not None:

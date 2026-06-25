@@ -75,7 +75,6 @@ class CreateStudy(Command):
     design_id: int | None = None
     licence_id: int | None = None
 
-    dataset_ids: List[int] = None
     reference_ids: List[int] = None
 
 
@@ -93,7 +92,6 @@ class UpdateStudy(Command):
     design_id: int | None = None
     licence_id: int | None = None
 
-    dataset_ids: List[int] | None = None
     reference_ids: List[int] | None = None
 
 class DeleteStudy(Command):

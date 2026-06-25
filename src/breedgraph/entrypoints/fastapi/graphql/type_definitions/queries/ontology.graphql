@@ -759,7 +759,7 @@ type OntologyRelationship {
 }
 
 type Ontology {
-    versionId: ID!
+    version: Version!
     entries: [OntologyEntryInterface!]
     relationships: [OntologyRelationship!]
 }

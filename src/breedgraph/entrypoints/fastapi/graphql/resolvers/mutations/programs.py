@@ -1,12 +1,10 @@
-from src.breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
 from src.breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
     CreateStudy, UpdateStudy, DeleteStudy
 )
-from src.breedgraph.domain.model.controls import ReadRelease
 from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from typing import List
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -149,7 +147,6 @@ async def create_study(
         practices=study.get('practices'),
         start=study.get('start'),
         end=study.get('end'),
-        dataset_ids=study.get('dataset_ids'),
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
         reference_ids=study.get('reference_ids')
@@ -178,7 +175,6 @@ async def update_study(
         practices=study.get('practices'),
         start=study.get('start'),
         end=study.get('end'),
-        dataset_ids=study.get('dataset_ids'),
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
         reference_ids=study.get('reference_ids'),

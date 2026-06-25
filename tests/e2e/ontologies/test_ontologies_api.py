@@ -302,7 +302,7 @@ async def test_get_ontology(
     assert_payload_success(payload)
     assert payload.get('result').get('entries')
     assert payload.get('result').get('relationships')
-    assert payload.get('result').get('versionId')
+    assert payload.get('result').get('version')
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_create_relationships(

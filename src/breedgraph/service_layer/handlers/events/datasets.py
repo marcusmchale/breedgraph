@@ -67,7 +67,7 @@ async def record_updates_submitted(
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
             dataset = await uow.repositories.datasets.get(dataset_id=submission.get("dataset_id"))
-            scale, categories = await get_scale_and_categories(uow, dataset.concept)
+            scale, categories = await get_scale_and_categories(dataset.concept, uow.ontology)
             study_id = submission.get('study_id')
             if study_id:
                 dataset.study = study_id

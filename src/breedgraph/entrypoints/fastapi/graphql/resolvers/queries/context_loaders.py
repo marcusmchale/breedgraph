@@ -33,9 +33,10 @@ async def update_ontology_map(
             bus = context.get('bus')
             entry_ids = set(entry_ids or [])
             entries_to_update = [i for i in entry_ids - ontology_map.keys()]
-            async with bus.views_factory.get_views() as views:
-                entries = await views.ontology.get_entries(entry_ids=entries_to_update)
-                ontology_map.update({entry.id: entry for entry in entries})
+            if entries_to_update:
+                async with bus.views_factory.get_views() as views:
+                    entries = await views.ontology.get_entries(entry_ids=entries_to_update)
+                    ontology_map.update({entry.id: entry for entry in entries})
 
 async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None):
     async with _get_lock(context, '_teams_lock'):

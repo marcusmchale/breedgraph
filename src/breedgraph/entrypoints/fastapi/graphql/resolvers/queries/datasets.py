@@ -125,7 +125,7 @@ async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemE
 @graphql_query.field("datasetsSummaries")
 @graphql_payload
 @require_authentication
-async def get_dataset_summaries(_, info, study_id: int = None) -> List[DatasetSummary]:
+async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[DatasetSummary]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id=user_id) as views:

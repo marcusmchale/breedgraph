@@ -49,7 +49,7 @@ async def get_account(_, info) -> AccountOutput:
         if account_ is None:
             raise NoResultFoundError
         else:
-            return AccountOutput(user=account_.user_id, allowed_emails=account_.allowed_emails)
+            return AccountOutput(user=account_.user, allowed_emails=account_.allowed_emails)
 
 @graphql_query.field("accountsUserAccess")
 @graphql_payload

@@ -8,8 +8,6 @@ from fastapi import FastAPI
 from itsdangerous import URLSafeTimedSerializer
 
 from src.breedgraph.main import app
-from src.breedgraph import bootstrap
-
 from src.breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
 from src.breedgraph.domain.model.ontology import *
 
@@ -35,7 +33,7 @@ from tests.scenarios import (
 from typing import Dict, cast, AsyncGenerator
 
 from src.breedgraph.config import (
-    SECRET_KEY, CSRF_SALT, LOGIN_SALT,
+    SECRET_KEY, CSRF_SALT,
     MAIL_USERNAME, MAIL_HOST,
     get_base_url, get_redis_host_and_port
 )

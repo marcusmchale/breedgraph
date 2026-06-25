@@ -113,11 +113,6 @@ async def get_ontology(
         )
         return ontology_version
 
-@ontology.field("versionId")
-async def resolve_version_id(obj, _):
-    return obj.version.packed_version
-
-
 #
 #@ontology.field('entries')
 #async def resolve_ontology_entries(obj, info):
