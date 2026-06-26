@@ -1,4 +1,4 @@
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledModelLabel
+from breedgraph.domain.model.controls import ControlledModel, ControlledModelLabel
 
 def set_controls(label:ControlledModelLabel):
     return f"""

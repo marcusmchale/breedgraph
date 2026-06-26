@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
 from .ontology import AbstractOntologyView
 from .accounts import AbstractAccountsView

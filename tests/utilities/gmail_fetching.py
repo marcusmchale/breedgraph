@@ -14,7 +14,7 @@ import base64
 import json
 from email import message_from_bytes, header
 
-from src.breedgraph.config import MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD
+from breedgraph.config import MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD
 from tests.utilities.exceptions import TooManyRetries
 
 logger = logging.getLogger(__name__)

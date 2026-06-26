@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError
 from tests.e2e.organisations.post_methods import (
     post_to_create_team,
     post_to_organisations,

@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import BaseModel
 from neo4j.exceptions import ServiceUnavailable
 
-from src.breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, UnauthorisedOperationError
 
 import logging
 

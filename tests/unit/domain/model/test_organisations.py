@@ -1,11 +1,11 @@
 import pytest
 import pytest_asyncio
 
-from src.breedgraph.domain.model.organisations import (
+from breedgraph.domain.model.organisations import (
     TeamInput, TeamStored, Organisation,
     Access, Affiliation, Affiliations, Authorisation
 )
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.custom_exceptions import IllegalOperationError
 
 def get_team_input(lorem_text_generator) -> TeamInput:
     return TeamInput(name=lorem_text_generator.new_text(5), fullname = lorem_text_generator.new_text(10))

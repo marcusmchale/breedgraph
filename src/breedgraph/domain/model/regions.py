@@ -1,8 +1,8 @@
 from abc import ABC
 from dataclasses import dataclass, field, replace
 
-from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller, ControlledModelLabel
+from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
+from breedgraph.domain.model.controls import ControlledModel, ControlledTreeAggregate, Controller, ControlledModelLabel
 
 from typing import List, ClassVar, Dict, Any, TypedDict
 

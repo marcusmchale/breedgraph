@@ -1,0 +1,22 @@
+# sample file for /etc/systemd/system/breedgraph.service
+[Unit]
+Description=BreedGraph Application
+After=network.target
+
+[Service]
+User=breedgraph
+Group=breedgraph
+
+WorkingDirectory=/opt/breedgraph
+EnvironmentFile=/opt/breedgraph/breedgraph.env
+
+ExecStart=/opt/breedgraph/.venv/bin/uvicorn \
+    breedgraph.main:app \
+    --host 127.0.0.1 \
+    --port 8000
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

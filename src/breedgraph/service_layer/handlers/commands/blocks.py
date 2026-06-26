@@ -1,8 +1,8 @@
-from src.breedgraph.custom_exceptions import NoResultFoundError
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.blocks import UnitInput, Position
-from src.breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
+from breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
+from breedgraph.domain import commands
+from breedgraph.domain.model.blocks import UnitInput, Position
+from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 
 
 from ..registry import handlers

@@ -2,18 +2,18 @@ import logging
 
 from asyncio import Queue, create_task, gather, Task
 
-from src.breedgraph.domain import commands, events
-from src.breedgraph.config import N_EVENT_HANDLERS
+from breedgraph.domain import commands, events
+from breedgraph.config import N_EVENT_HANDLERS
 
 #if TYPE_CHECKING:
 from typing import Callable, Dict, List, Union, Type
-from src.breedgraph.service_layer.infrastructure import (
+from breedgraph.service_layer.infrastructure import (
     AbstractUnitOfWorkFactory,
     FileManagementService,
     AbstractStateStore,
     AbstractAuthService
 )
-from src.breedgraph.service_layer.queries.views.views import AbstractViewsFactory
+from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
 
 Message = Union[commands.Command, events.Event]
 

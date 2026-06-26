@@ -1,19 +1,19 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from src.breedgraph.entrypoints.fastapi.middleware import setup_middlewares
+from breedgraph.entrypoints.fastapi.middleware import setup_middlewares
 
-from src.breedgraph.entrypoints.fastapi.redirect import router as redirect_router
-from src.breedgraph.entrypoints.fastapi.security import router as security_router
-from src.breedgraph.entrypoints.fastapi.downloads import router as download_router
+from breedgraph.entrypoints.fastapi.redirect import router as redirect_router
+from breedgraph.entrypoints.fastapi.security import router as security_router
+from breedgraph.entrypoints.fastapi.downloads import router as download_router
 
-from src.breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphql_router
-from src.breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
+from breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphql_router
+from breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
 
-from src.breedgraph import bootstrap
-from src.breedgraph.service_layer.infrastructure.brute_force_protection import BruteForceProtectionService
+from breedgraph import bootstrap
+from breedgraph.service_layer.infrastructure.brute_force_protection import BruteForceProtectionService
 
-from src.breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.service_layer.messagebus import MessageBus
 
 import logging
 

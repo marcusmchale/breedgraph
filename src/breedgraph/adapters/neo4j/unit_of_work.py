@@ -4,32 +4,32 @@ from typing import AsyncGenerator
 
 from neo4j import AsyncTransaction, AsyncSession
 
-from src.breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
-from src.breedgraph.domain.events import Event
+from breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
+from breedgraph.domain.events import Event
 
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
 
-from src.breedgraph.service_layer.repositories.holder import AbstractRepoHolder
-from src.breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
+from breedgraph.service_layer.repositories.holder import AbstractRepoHolder
+from breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
 
-from src.breedgraph.service_layer.application import (
+from breedgraph.service_layer.application import (
     AbstractAccessControlService,
     OntologyApplicationService,
     GermplasmApplicationService,
     AbstractExtraAggregateService
 )
-from src.breedgraph.adapters.neo4j.services import (
+from breedgraph.adapters.neo4j.services import (
     Neo4jAccessControlService, Neo4jOntologyPersistenceService, Neo4jGermplasmPersistenceService, Neo4jExtraAggregateService
 )
-from src.breedgraph.service_layer.persistence import (
+from breedgraph.service_layer.persistence import (
     OntologyPersistenceService, GermplasmPersistenceService
 )
 
 
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder, AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder, AbstractUnitOfWorkFactory
 
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List, Generator
 

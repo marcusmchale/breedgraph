@@ -1,8 +1,8 @@
 from neo4j import AsyncResult, AsyncTransaction
 
-from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.domain.model.accounts import OntologyRole
 
 class Neo4jConstraintsHandler(AbstractConstraintsHandler):
     def __init__(self, tx: AsyncTransaction, user_id: int|None = None):

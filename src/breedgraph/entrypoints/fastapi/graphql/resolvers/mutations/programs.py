@@ -1,9 +1,9 @@
-from src.breedgraph.domain.commands.programs import (
+from breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
     CreateStudy, UpdateStudy, DeleteStudy
 )
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 
 import logging

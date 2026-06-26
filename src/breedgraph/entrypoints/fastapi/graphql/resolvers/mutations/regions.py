@@ -1,7 +1,7 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.regions import CreateLocation, UpdateLocation, DeleteLocation
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.regions import CreateLocation, UpdateLocation, DeleteLocation
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.entrypoints.fastapi.graphql.resolvers.mutations import graphql_mutation
 
 import logging
 logger = logging.getLogger(__name__)

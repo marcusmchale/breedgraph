@@ -2,12 +2,12 @@ from typing import Dict, Set, List
 
 from neo4j import AsyncTransaction, AsyncResult
 
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.adapters.neo4j.cypher.query_builders import controls
-from src.breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry, ControlledModelLabel
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders import controls
+from breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry, ControlledModelLabel
+from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 
 class Neo4jAccessControlService(AbstractAccessControlService):

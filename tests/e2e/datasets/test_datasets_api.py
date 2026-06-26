@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 
-from src.breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.domain.model.submissions import SubmissionStatus
 
 from tests.e2e.datasets.post_methods import (
     post_to_submit_records,

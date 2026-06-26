@@ -1,11 +1,11 @@
-from src.breedgraph.service_layer.repositories import BaseRepository
-from src.breedgraph.domain.model.accounts import (
+from breedgraph.service_layer.repositories import BaseRepository
+from breedgraph.domain.model.accounts import (
     UserBase, UserStored,
     AccountInput, AccountStored
 )
 
-from src.breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
-from src.breedgraph.adapters.aiosmtp.notifications import Email
+from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
+from breedgraph.adapters.aiosmtp.notifications import Email
 
 from typing import List, AsyncGenerator
 

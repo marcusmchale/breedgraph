@@ -3,8 +3,8 @@ from abc import abstractmethod, ABC, ABCMeta
 from enum import Enum, EnumMeta
 from functools import lru_cache
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.events.accounts import Event
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.events.accounts import Event
 
 from typing import List, Dict, Any, ClassVar
 

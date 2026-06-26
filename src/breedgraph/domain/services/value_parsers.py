@@ -2,9 +2,9 @@ import re
 
 from numpy import datetime64, float64
 
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError
 
-from src.breedgraph.domain.model.ontology import  ScaleStored, ScaleType, ScaleCategoryStored
+from breedgraph.domain.model.ontology import  ScaleStored, ScaleType, ScaleCategoryStored
 
 from typing import List
 

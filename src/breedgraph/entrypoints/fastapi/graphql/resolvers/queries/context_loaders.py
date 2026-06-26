@@ -1,12 +1,12 @@
 import asyncio
-from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
-from src.breedgraph.custom_exceptions import InconsistentStateError
+from breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
+from breedgraph.custom_exceptions import InconsistentStateError
 
 from typing import List, Set
 
 import logging
 
-from src.breedgraph.service_layer.queries.read_models import OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models import OntologyEntryOutput
 
 logger = logging.getLogger(__name__)
 

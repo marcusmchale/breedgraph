@@ -1,6 +1,6 @@
 
-from src.breedgraph.domain.model.people import PersonInput
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.domain.model.people import PersonInput
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.utilities.inputs import LoremTextGenerator, UserInputGenerator
 

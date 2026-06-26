@@ -4,7 +4,7 @@ import requests
 import quopri
 from email import header
 
-from src.breedgraph.config import MAIL_HOST
+from breedgraph.config import MAIL_HOST
 
 from tests.utilities.retry import retry
 

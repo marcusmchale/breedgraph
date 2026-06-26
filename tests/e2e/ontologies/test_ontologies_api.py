@@ -1,7 +1,7 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
-from src.breedgraph.domain.model.ontology import *
+from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from breedgraph.domain.model.ontology import *
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.ontologies.post_methods import (

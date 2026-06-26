@@ -2,9 +2,9 @@ import re
 from functools import lru_cache
 from typing import Dict, Type, List, Tuple, FrozenSet, Set
 
-from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel, OntologyRelationshipLabel
-from src.breedgraph.domain.model.ontology import OntologyEntryStored
-from src.breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel, OntologyRelationshipLabel
+from breedgraph.domain.model.ontology import OntologyEntryStored
+from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
 
 
 class OntologyMapper:

@@ -1,10 +1,10 @@
 from asyncio import Queue
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
-from src.breedgraph.domain import commands, events
-from src.breedgraph.domain.model.errors import ItemError
-from src.breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.domain import commands, events
+from breedgraph.domain.model.errors import ItemError
+from breedgraph.domain.model.submissions import SubmissionStatus
 
 from ..registry import handlers
 

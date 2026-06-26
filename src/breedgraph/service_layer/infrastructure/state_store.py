@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Self, List, AsyncGenerator
-from src.breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
+from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
-from src.breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
-from src.breedgraph.domain.model.regions import LocationInput, LocationStored
-from src.breedgraph.domain.model.errors import ItemError
+from breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
+from breedgraph.domain.model.regions import LocationInput, LocationStored
+from breedgraph.domain.model.errors import ItemError
 
 
 class AbstractStateStore(ABC):

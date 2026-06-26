@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.breedgraph.service_layer.queries.read_models import DatasetSummary
+from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from typing import List, AsyncGenerator
 

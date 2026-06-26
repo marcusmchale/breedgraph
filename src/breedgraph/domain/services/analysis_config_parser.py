@@ -7,10 +7,10 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
-from src.breedgraph.domain.model.ontology import ScaleType, ScaleBase, FactorStored, VariableStored
-from src.breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
-from src.breedgraph.domain.model.blocks import Block
-from src.breedgraph.domain.model.analysis import (
+from breedgraph.domain.model.ontology import ScaleType, ScaleBase, FactorStored, VariableStored
+from breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
+from breedgraph.domain.model.blocks import Block
+from breedgraph.domain.model.analysis import (
     AnalysisConfig, AnalysisVariable, AnalysisVariableType, AnalysisTreatment
 )
 from typing import List, Set, Dict

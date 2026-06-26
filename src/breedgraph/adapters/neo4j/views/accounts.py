@@ -1,10 +1,10 @@
 from neo4j import AsyncResult, AsyncSession
 from typing import AsyncGenerator
 
-from src.breedgraph.service_layer.queries.views.accounts import AbstractAccountsView
-from src.breedgraph.domain.model.accounts import UserOutput, OntologyRole
+from breedgraph.service_layer.queries.views.accounts import AbstractAccountsView
+from breedgraph.domain.model.accounts import UserOutput, OntologyRole
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher import queries
 
 from typing import List
 

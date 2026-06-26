@@ -1,8 +1,8 @@
 import pytest
 
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.people import PersonStored
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.people import PersonStored
+from breedgraph.custom_exceptions import NoResultFoundError
 
 from tests.scenarios.person_builder import PersonBuilder
 

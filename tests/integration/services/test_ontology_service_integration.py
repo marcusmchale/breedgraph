@@ -1,14 +1,14 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError, IdentityExistsError
-from src.breedgraph.domain.model.accounts import OntologyRole
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.custom_exceptions import UnauthorisedOperationError, IdentityExistsError
+from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.ontology import (
     OntologyEntryLabel,
     SubjectInput,
     VersionChange,
     VariableComponentRelationship,
 )
-from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel
+from breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel
 
 from tests.scenarios.ontology_builder import OntologyBuilder
 

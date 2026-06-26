@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.domain.model import UnitInput
+from breedgraph.domain.model import UnitInput
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create(

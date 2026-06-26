@@ -19,10 +19,10 @@ Note: The "Variable Status" concept from Crop Ontology is to be handled by ontol
 
 """
 from dataclasses import dataclass, field
-from src.breedgraph.domain.model.ontology.entries import (
+from breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
-from src.breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType, OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import ObservationMethodType, ScaleType, OntologyEntryLabel
 from typing import ClassVar, List
 
 

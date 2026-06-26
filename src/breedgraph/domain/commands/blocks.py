@@ -1,7 +1,7 @@
 from .base import Command
 from typing import List
 from pydantic import model_validator
-from src.breedgraph.domain.model.time_descriptors import PyDT64
+from breedgraph.domain.model.time_descriptors import PyDT64
 from ...custom_exceptions import IllegalOperationError
 
 

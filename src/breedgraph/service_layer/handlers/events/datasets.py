@@ -5,15 +5,15 @@ logger = logging.getLogger(__name__)
 
 from ..registry import handlers
 
-from src.breedgraph.service_layer.infrastructure import AbstractStateStore, AbstractUnitOfWorkFactory
-from src.breedgraph.service_layer.application import OntologyApplicationService
+from breedgraph.service_layer.infrastructure import AbstractStateStore, AbstractUnitOfWorkFactory
+from breedgraph.service_layer.application import OntologyApplicationService
 
-from src.breedgraph.domain import events
-from src.breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DataRecordInput
-from src.breedgraph.domain.model.submissions import SubmissionStatus
-from src.breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
+from breedgraph.domain import events
+from breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DataRecordInput
+from breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 
-from src.breedgraph.domain.model.errors import ItemError
+from breedgraph.domain.model.errors import ItemError
 
 async def get_scale_and_categories(concept_id, ontology_service: OntologyApplicationService):
     scale_id = await ontology_service.get_scale_id(entry_id=concept_id)

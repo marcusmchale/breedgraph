@@ -4,10 +4,10 @@ from copy import deepcopy
 from enum import Enum
 import networkx as nx
 
-from src.breedgraph.domain.model.base import StoredModel, LabeledModel
-from src.breedgraph.domain.model.graph import TreeAggregate
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
-from src.breedgraph.domain.events.accounts import AffiliationRequested, AffiliationApproved
+from breedgraph.domain.model.base import StoredModel, LabeledModel
+from breedgraph.domain.model.graph import TreeAggregate
+from breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
+from breedgraph.domain.events.accounts import AffiliationRequested, AffiliationApproved
 
 from typing import List, ClassVar, Tuple, Dict, Any, Self
 

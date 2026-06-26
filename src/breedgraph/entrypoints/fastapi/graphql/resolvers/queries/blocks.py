@@ -1,8 +1,8 @@
 from ariadne import ObjectType
 
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_units_map,
     update_ontology_map,
     update_locations_map,
@@ -10,7 +10,7 @@ from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loader
     update_germplasm_map
 )
 
-from src.breedgraph.domain.model.blocks import UnitOutput, Position
+from breedgraph.domain.model.blocks import UnitOutput, Position
 
 from typing import List
 

@@ -1,8 +1,8 @@
 from dataclasses import dataclass, asdict
 from typing import List
-from src.breedgraph.domain.commands import Command
-from src.breedgraph.domain.model.time_descriptors import PyDT64
-from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmRelationship, Reproduction, GermplasmSourceType
+from breedgraph.domain.commands import Command
+from breedgraph.domain.model.time_descriptors import PyDT64
+from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmRelationship, Reproduction, GermplasmSourceType
 
 from typing import Dict, Any
 

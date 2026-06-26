@@ -1,16 +1,16 @@
 import logging
 
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.custom_exceptions import IllegalOperationError
 
-from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
-from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from breedgraph.service_layer.tracking import TrackableProtocol
+from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
+from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import AsyncGenerator
 
-from src.breedgraph.domain.model.people import PersonInput, PersonStored
-from src.breedgraph.domain.model.controls import DiscoveryMatch
+from breedgraph.domain.model.people import PersonInput, PersonStored
+from breedgraph.domain.model.controls import DiscoveryMatch
 
 logger = logging.getLogger(__name__)
 

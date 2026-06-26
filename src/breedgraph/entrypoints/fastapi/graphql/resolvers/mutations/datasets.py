@@ -1,7 +1,7 @@
 from typing import List
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.datasets import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.datasets import (
     SubmitRecords,
     UpdateRecords,
     RemoveRecords

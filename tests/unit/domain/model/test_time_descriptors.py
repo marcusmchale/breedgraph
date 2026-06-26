@@ -5,7 +5,7 @@ from neo4j.time import DateTime as Neo4jDateTime
 from datetime import datetime
 
 
-from src.breedgraph.domain.model.time_descriptors import PyDT64
+from breedgraph.domain.model.time_descriptors import PyDT64
 
 class TimeBase(BaseModel):
     time: PyDT64

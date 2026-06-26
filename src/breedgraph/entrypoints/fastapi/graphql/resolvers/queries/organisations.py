@@ -2,11 +2,11 @@ from ariadne import ObjectType
 
 from typing import List
 
-from src.breedgraph.domain.model.organisations import TeamOutput
+from breedgraph.domain.model.organisations import TeamOutput
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map,
     update_teams_map
 )

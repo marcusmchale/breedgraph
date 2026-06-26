@@ -2,13 +2,13 @@ import logging
 
 from neo4j import AsyncResult, Record
 
-from src.breedgraph.domain.model.blocks import (
+from breedgraph.domain.model.blocks import (
     UnitInput, UnitStored, Block, Position
 )
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
-from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.service_layer.tracking import TrackableProtocol
+from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
+from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import Set, AsyncGenerator, Tuple, List, Dict, Any
 

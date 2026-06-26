@@ -1,4 +1,4 @@
-from src.breedgraph.config import GQL_API_PATH
+from breedgraph.config import GQL_API_PATH
 from tests.e2e.utils import with_auth
 
 from typing import List

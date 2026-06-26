@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional, AsyncGenerator
-from src.breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship, GermplasmOutput
-from src.breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
+from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship, GermplasmOutput
+from breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 import networkx as nx
 
 

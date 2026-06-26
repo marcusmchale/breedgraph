@@ -1,13 +1,13 @@
 from typing import List, Dict, Any, AsyncGenerator, Optional, Set
 
-from src.breedgraph.domain.model.germplasm import (
+from breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 )
-from src.breedgraph.domain.model.controls import ReadRelease, Access, ControlledModelLabel
-from src.breedgraph.domain.events.base import Event
-from src.breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
-from src.breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
+from breedgraph.domain.model.controls import ReadRelease, Access, ControlledModelLabel
+from breedgraph.domain.events.base import Event
+from breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
 import logging
 

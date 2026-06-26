@@ -1,9 +1,9 @@
 from neo4j import AsyncSession, AsyncResult
 
-from src.breedgraph.service_layer.queries.views import AbstractDatasetsView
-from src.breedgraph.service_layer.queries.read_models import DatasetSummary
+from breedgraph.service_layer.queries.views import AbstractDatasetsView
+from breedgraph.service_layer.queries.read_models import DatasetSummary
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher import queries
 
 from typing import List
 

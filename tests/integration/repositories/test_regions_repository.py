@@ -1,8 +1,8 @@
 import pytest
 
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.regions import LocationInput, LocationStored
-from src.breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.regions import LocationInput, LocationStored
+from breedgraph.custom_exceptions import IdentityExistsError
 
 from tests.scenarios import RegionBuilder
 

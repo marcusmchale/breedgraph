@@ -1,6 +1,6 @@
-from src.breedgraph.domain.commands.setup import LoadReadModel
+from breedgraph.domain.commands.setup import LoadReadModel
 
-from src.breedgraph.adapters.redis.state_store import RedisStateStore
+from breedgraph.adapters.redis.state_store import RedisStateStore
 
 from ..registry import handlers
 

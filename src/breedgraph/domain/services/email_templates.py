@@ -1,10 +1,10 @@
 import json
 import logging
 
-from src.breedgraph.config import SITE_NAME
-from src.breedgraph.domain.model.accounts import UserBase
-from src.breedgraph.domain.model.organisations import Access, TeamBase
-from src.breedgraph.config import get_base_url
+from breedgraph.config import SITE_NAME
+from breedgraph.domain.model.accounts import UserBase
+from breedgraph.domain.model.organisations import Access, TeamBase
+from breedgraph.config import get_base_url
 from email.message import EmailMessage
 
 

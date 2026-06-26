@@ -9,11 +9,11 @@ from functools import lru_cache
 
 from typing import Dict, List, ClassVar, Set, Type
 
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.base import Aggregate, StoredModel, EnumLabeledModel, EnumLabel
-from src.breedgraph.domain.model.graph import RootedAggregate, TreeAggregate
-from src.breedgraph.custom_exceptions import IllegalOperationError
-from src.breedgraph.domain.model.time_descriptors import WriteStamp
+from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.base import Aggregate, StoredModel, EnumLabeledModel, EnumLabel
+from breedgraph.domain.model.graph import RootedAggregate, TreeAggregate
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.time_descriptors import WriteStamp
 
 class ReadRelease(Enum):
     PRIVATE = 'PRIVATE'  # accessible only to users with an authorised affiliation to the controller

@@ -1,13 +1,13 @@
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.programs import (
+from breedgraph.domain import commands
+from breedgraph.domain.model.programs import (
     ProgramInput, ProgramStored,
     TrialInput, TrialStored,
     StudyInput, StudyStored
 )
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.custom_exceptions import (
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
     UnauthorisedOperationError

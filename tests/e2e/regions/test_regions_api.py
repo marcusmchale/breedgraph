@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.regions.post_methods import post_to_countries, post_to_create_location, post_to_regions, post_to_locations

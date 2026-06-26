@@ -1,15 +1,15 @@
 from ariadne import ObjectType
 
-from src.breedgraph.service_layer.queries.read_models.ontology import DesignOutput
-from src.breedgraph.domain.model import LegalReferenceStored
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.service_layer.queries.read_models.ontology import DesignOutput
+from breedgraph.domain.model import LegalReferenceStored
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_reference_map
 )
-from src.breedgraph.domain.model.programs import ProgramOutput, TrialOutput, StudyOutput
+from breedgraph.domain.model.programs import ProgramOutput, TrialOutput, StudyOutput
 
-from src.breedgraph.domain.model.references import ReferenceStoredBase
+from breedgraph.domain.model.references import ReferenceStoredBase
 
 
 from typing import List

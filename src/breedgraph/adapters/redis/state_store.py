@@ -1,13 +1,13 @@
 import json
 import redis.asyncio as redis
 
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
-from src.breedgraph.config import get_redis_host_and_port
+from breedgraph.config import get_redis_host_and_port
 
-from src.breedgraph.domain.model.regions import LocationInput, LocationStored
-from src.breedgraph.domain.model.errors import ItemError
-from src.breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
+from breedgraph.domain.model.regions import LocationInput, LocationStored
+from breedgraph.domain.model.errors import ItemError
+from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 
 import logging
 logger = logging.getLogger(__name__)

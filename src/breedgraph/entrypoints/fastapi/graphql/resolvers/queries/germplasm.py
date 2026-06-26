@@ -1,9 +1,9 @@
 from ariadne import ObjectType
-from src.breedgraph.domain.model.germplasm import (
+from breedgraph.domain.model.germplasm import (
     GermplasmOutput, GermplasmRelationship
 )
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_germplasm_map
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_germplasm_map
 
 from typing import List
 

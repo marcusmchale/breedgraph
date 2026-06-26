@@ -2,15 +2,15 @@ import logging
 
 from neo4j import AsyncResult, Record
 
-from src.breedgraph.custom_exceptions import IdentityExistsError
-from src.breedgraph.domain.model.regions import (
+from breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.domain.model.regions import (
     Region, LocationInput, LocationStored
 )
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.domain.model.controls import DiscoveryMatch
-from src.breedgraph.service_layer.repositories.controlled import ControlledQueryResult
-from src.breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.service_layer.tracking import TrackableProtocol
+from breedgraph.domain.model.controls import DiscoveryMatch
+from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
+from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
 from typing import Set, AsyncGenerator, Tuple, List
 

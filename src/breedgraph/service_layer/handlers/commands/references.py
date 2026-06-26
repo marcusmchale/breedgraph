@@ -1,12 +1,12 @@
 import json
 
-from src.breedgraph.custom_exceptions import IllegalOperationError
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractStateStore
-from src.breedgraph.service_layer.application.extra_aggregate import AbstractExtraAggregateService
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractStateStore
+from breedgraph.service_layer.application.extra_aggregate import AbstractExtraAggregateService
 
-from src.breedgraph.domain import commands, events
+from breedgraph.domain import commands, events
 
-from src.breedgraph.domain.model.references import (
+from breedgraph.domain.model.references import (
     LegalReferenceInput, LegalReferenceStored,
     ExternalReferenceInput, ExternalReferenceStored,
     ExternalDataInput, ExternalDataStored,

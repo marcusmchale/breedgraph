@@ -3,11 +3,11 @@ from pathlib import Path
 from datetime import datetime
 import asyncio
 
-from src.breedgraph.domain.model.references import (
+from breedgraph.domain.model.references import (
     LegalReferenceInput, LegalReferenceStored,
     FileReferenceInput, FileReferenceStored
 )
-from src.breedgraph.config import FILE_STORAGE_PATH, get_base_url
+from breedgraph.config import FILE_STORAGE_PATH, get_base_url
 from tests.e2e.references.post_methods import (
     post_to_create_legal_reference,
     post_to_create_file_reference,

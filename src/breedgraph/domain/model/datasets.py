@@ -3,12 +3,12 @@ from abc import ABC
 from typing import List, ClassVar, Set, Dict, Self, Generator
 from numpy import datetime64
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
+from breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
-from src.breedgraph.domain.services.value_parsers import ValueParser
-from src.breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
+from breedgraph.domain.services.value_parsers import ValueParser
+from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
 
 @dataclass
 class DataRecordBase(ABC):

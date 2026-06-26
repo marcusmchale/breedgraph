@@ -1,7 +1,7 @@
 import logging
 from operator import truediv
 
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
 logger = logging.getLogger(__name__)
 

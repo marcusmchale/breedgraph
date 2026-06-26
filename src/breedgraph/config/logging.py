@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from pathlib import Path
 
 class Environment(Enum):
     PRODUCTION = "production"
@@ -7,13 +8,11 @@ class Environment(Enum):
 
 ENVIRONMENT = Environment(os.environ.get('ENVIRONMENT', "production"))  # or "development
 
-ARIADNE_LOG = os.environ.get('ARIADNE_LOG')
-NEO4J_LOG = os.environ.get('NEO4J_LOG')
-REDIS_LOG = os.environ.get('REDIS_LOG')
-
-BREEDGRAPH_LOG = os.environ.get('BREEDGRAPH_LOG')
-GRAPHQL_LOG = os.environ.get('GRAPHQL_LOG')
-REPOSITORIES_LOG = os.environ.get('REPOSITORIES_LOG')
+BASE_PATH = Path(os.environ.get('LOG_BASE', '.'))
+BREEDGRAPH_LOG = BASE_PATH / os.environ.get('BREEDGRAPH_LOG', 'breedgraph.log')
+ARIADNE_LOG = BASE_PATH / os.environ.get('ARIADNE_LOG', 'ariadne.log')
+NEO4J_LOG = BASE_PATH / os.environ.get('NEO4J_LOG', 'neo4j.log')
+REDIS_LOG = BASE_PATH / os.environ.get('REDIS_LOG', 'redis.log')
 
 LOG_CONFIG = {
     'version': 1,
@@ -50,18 +49,6 @@ LOG_CONFIG = {
             'formatter': 'standard',
             'class': 'logging.FileHandler',
             'filename': REDIS_LOG
-        },
-        'repositories': {
-            'level': 'DEBUG',
-            'formatter': 'standard',
-            'class': 'logging.FileHandler',
-            'filename': REPOSITORIES_LOG
-        },
-        'graphql': {
-            'level': 'DEBUG',
-            'formatter': 'standard',
-            'class': 'logging.FileHandler',
-            'filename': GRAPHQL_LOG
         }
     },
     'loggers': {
@@ -70,23 +57,18 @@ LOG_CONFIG = {
             'level': 'DEBUG',
             'propagate': True
         },
-        'neo4j': {
-            'handlers': ['neo4j'],
-            'level': 'DEBUG',
-            'propagate': False
-        },
         'ariadne': {
             'handlers': ['ariadne'],
             'level': 'DEBUG',
             'propagate': False
         },
-        'src.dbtools.adapters.repositories': {
-            'handlers': ['repositories'],
+        'neo4j': {
+            'handlers': ['neo4j'],
             'level': 'DEBUG',
             'propagate': False
         },
-        'src.dbtools.entrypoints.fastapi.graphql': {
-            'handlers': ['graphql'],
+        'redis': {
+            'handlers': ['redis'],
             'level': 'DEBUG',
             'propagate': False
         }

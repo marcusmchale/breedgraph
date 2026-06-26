@@ -18,10 +18,10 @@ In considering the Planteome ontologies:
 Most Subject descriptions are well detailed in the Plant Ontology, references to this should be encouraged.
 """
 from dataclasses import dataclass, field
-from src.breedgraph.domain.model.ontology.entries import (
+from breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
-from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 from typing import ClassVar
 
 @dataclass

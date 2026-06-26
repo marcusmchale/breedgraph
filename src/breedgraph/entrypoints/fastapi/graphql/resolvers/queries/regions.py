@@ -1,11 +1,11 @@
 from ariadne import ObjectType
 
-from src.breedgraph.service_layer.queries.views import regions, AbstractRegionsView
+from breedgraph.service_layer.queries.views import regions, AbstractRegionsView
 
-from src.breedgraph.domain.model.regions import LocationInput, LocationOutput
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
     update_ontology_map
 )

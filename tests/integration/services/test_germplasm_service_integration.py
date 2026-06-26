@@ -1,11 +1,11 @@
 import pytest
 
-from src.breedgraph.domain.model import ReadRelease, Access
-from src.breedgraph.domain.model.germplasm import (
+from breedgraph.domain.model import ReadRelease, Access
+from breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 )
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 
 from tests.scenarios.germplasm_builder import GermplasmBuilder
 from tests.scenarios.authorisation_manager import AuthorisationManager

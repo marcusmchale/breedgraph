@@ -1,10 +1,12 @@
+from importlib.resources import files
+
 from ariadne import (
     make_executable_schema,
     load_schema_from_path,
     upload_scalar
 )
 
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_resolvers
+from breedgraph.entrypoints.fastapi.graphql.resolvers import graphql_resolvers
 
 import logging
 
@@ -19,8 +21,9 @@ def create_graphql_schema():
     all_resolvers = graphql_resolvers.get_all()
     all_resolvers.append(upload_scalar)   # use the upload_scalar from ariadne
 
+    schema_path = files("breedgraph.entrypoints.fastapi.graphql")
     schema = make_executable_schema(
-        load_schema_from_path("src/breedgraph/entrypoints/fastapi/graphql"),
+        load_schema_from_path(str(schema_path)),
         *all_resolvers,
         convert_names_case=True
     )

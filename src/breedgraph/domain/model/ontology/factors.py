@@ -13,10 +13,10 @@ The Plant Experimental Conditions Ontology should be referenced where possible i
 A typical case would be fixed light intensity for example.
 """
 from dataclasses import dataclass, field
-from src.breedgraph.domain.model.ontology.entries import (
+from breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
-from src.breedgraph.domain.model.ontology.enums import ControlMethodType, OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import ControlMethodType, OntologyEntryLabel
 
 from typing import ClassVar
 

@@ -3,11 +3,11 @@ from abc import abstractmethod
 from pydantic import BaseModel
 from neo4j import AsyncTransaction
 
-from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.service_layer.repositories.controlled import (
+from breedgraph.service_layer.tracking import TrackableProtocol
+from breedgraph.service_layer.repositories.controlled import (
     ControlledRepository, TControlledAggregate, TAggregateInput, ControlledQueryResult
 )
-from src.breedgraph.domain.model.controls import ControlledAggregate
+from breedgraph.domain.model.controls import ControlledAggregate
 
 from typing import AsyncGenerator, Generic
 

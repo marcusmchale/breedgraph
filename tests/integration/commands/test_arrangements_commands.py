@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.domain.commands.arrangements import CreateLayout
+from breedgraph.domain.commands.arrangements import CreateLayout
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_add_layout_command(

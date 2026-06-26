@@ -1,6 +1,6 @@
-from src.breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
-from src.breedgraph.domain.model.accounts import UserBase
-from src.breedgraph.adapters.aiosmtp.notifications import Email
+from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
+from breedgraph.domain.model.accounts import UserBase
+from breedgraph.adapters.aiosmtp.notifications import Email
 
 from typing import List
 

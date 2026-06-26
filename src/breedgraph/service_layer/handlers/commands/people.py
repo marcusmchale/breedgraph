@@ -1,9 +1,9 @@
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.people import (
+from breedgraph.domain import commands
+from breedgraph.domain.model.people import (
     PersonBase, PersonStored
 )
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 

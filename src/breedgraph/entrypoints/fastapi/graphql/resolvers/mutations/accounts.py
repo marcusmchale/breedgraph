@@ -1,8 +1,8 @@
 import bcrypt
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
-from src.breedgraph import config
-from src.breedgraph.domain.commands.accounts import (
+from breedgraph import config
+from breedgraph.domain.commands.accounts import (
     CreateAccount,
     UpdateUser,
     Login,
@@ -12,17 +12,17 @@ from src.breedgraph.domain.commands.accounts import (
     SetOntologyRole,
     RequestOntologyRole
 )
-from src.breedgraph.domain.events.accounts import (
+from breedgraph.domain.events.accounts import (
     PasswordChangeRequested
 )
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.accounts import OntologyRole
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 
-from src.breedgraph.config import LOGIN_EXPIRES
+from breedgraph.config import LOGIN_EXPIRES
 
 import logging
 logger = logging.getLogger(__name__)

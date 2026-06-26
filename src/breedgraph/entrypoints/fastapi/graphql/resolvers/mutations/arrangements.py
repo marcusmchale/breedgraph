@@ -1,5 +1,5 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.arrangements import CreateLayout, UpdateLayout, DeleteLayout
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.arrangements import CreateLayout, UpdateLayout, DeleteLayout
 
 import logging
 logger = logging.getLogger(__name__)

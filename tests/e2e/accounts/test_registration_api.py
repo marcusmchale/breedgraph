@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.config import SITE_NAME
+from breedgraph.config import SITE_NAME
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 from tests.e2e.accounts.post_methods import (
     post_to_create_account,
@@ -21,8 +21,8 @@ import logging
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
 from tests.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
-from src.breedgraph.domain.model.controls import Access
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.controls import Access
+from breedgraph.custom_exceptions import NoResultFoundError
 
 async def check_verify_email(client, mailto: str, name: str):
     #json_content = await get_json_from_gmail(mailto=mailto, subject=f"{SITE_NAME} account email verification for {name}")

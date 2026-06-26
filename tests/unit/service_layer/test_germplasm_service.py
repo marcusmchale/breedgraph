@@ -1,13 +1,13 @@
 import pytest
 from typing import Dict, Any, Set
 
-from src.breedgraph.service_layer.application.germplasm_service import GermplasmApplicationService
-from src.breedgraph.domain.model.germplasm import (
+from breedgraph.service_layer.application.germplasm_service import GermplasmApplicationService
+from breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmSourceType, Reproduction, GermplasmRelationship
 )
-from src.breedgraph.domain.model.controls import ReadRelease, Access
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.controls import ReadRelease, Access
+from breedgraph.domain.model.organisations import Access
+from breedgraph.custom_exceptions import IllegalOperationError
 
 from tests.unit.fixtures.mock_germplasm_persistence import MockGermplasmPersistenceService
 from tests.unit.fixtures.mock_access_control_service import MockAccessControlService

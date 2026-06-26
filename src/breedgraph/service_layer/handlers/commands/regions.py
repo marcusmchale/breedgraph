@@ -1,11 +1,11 @@
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput, GeoCoordinate
+from breedgraph.domain import commands
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput, GeoCoordinate
 
-from src.breedgraph.adapters.redis.state_store import RedisStateStore
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.adapters.redis.state_store import RedisStateStore
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
-from src.breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.custom_exceptions import IdentityExistsError
 
 from ..registry import handlers
 

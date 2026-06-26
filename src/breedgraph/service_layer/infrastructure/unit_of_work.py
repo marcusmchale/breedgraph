@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 
-from src.breedgraph.domain.events import Event
+from breedgraph.domain.events import Event
 
-from src.breedgraph.service_layer.repositories import AbstractRepoHolder
-from src.breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
-from src.breedgraph.service_layer.application import OntologyApplicationService, GermplasmApplicationService
+from breedgraph.service_layer.repositories import AbstractRepoHolder
+from breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.service_layer.application import OntologyApplicationService, GermplasmApplicationService
 
-from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
+from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
 from typing import AsyncGenerator, Callable, Awaitable, Iterable, TYPE_CHECKING
 

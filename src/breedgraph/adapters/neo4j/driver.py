@@ -1,7 +1,7 @@
 from neo4j import AsyncGraphDatabase, AsyncDriver
-from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
+from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
-from src.breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
+from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 
 class Neo4jAsyncDriver(AbstractAsyncDriver):
     def __init__(self):

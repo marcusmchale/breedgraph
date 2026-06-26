@@ -2,8 +2,8 @@ import logging
 
 from neo4j import AsyncTransaction, AsyncResult, Record
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.domain.model.organisations import (
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.domain.model.organisations import (
     TeamInput,
     TeamStored,
     Organisation,
@@ -12,9 +12,9 @@ from src.breedgraph.domain.model.organisations import (
     Affiliations,
     Authorisation
 )
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.service_layer.tracking import TrackableProtocol
-from src.breedgraph.service_layer.repositories.base import BaseRepository
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.service_layer.tracking import TrackableProtocol
+from breedgraph.service_layer.repositories.base import BaseRepository
 
 from typing import AsyncGenerator, Set, List
 

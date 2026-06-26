@@ -1,7 +1,7 @@
 import pytest
 
-from src.breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
+from breedgraph.custom_exceptions import NoResultFoundError
 
 async def create_dataset(uow_factory, user_id, dataset_input):
     async with uow_factory.get_uow(user_id=user_id) as uow:

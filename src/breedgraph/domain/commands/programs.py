@@ -1,6 +1,6 @@
 from typing import List
 from .base import Command
-from src.breedgraph.domain.model.time_descriptors import PyDT64
+from breedgraph.domain.model.time_descriptors import PyDT64
 
 # Program Commands
 class CreateProgram(Command):

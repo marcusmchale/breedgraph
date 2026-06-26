@@ -1,8 +1,8 @@
 import abc
 from typing import List
 
-from src.breedgraph.domain.services.email_templates import Email
-from src.breedgraph.domain.model.accounts import UserBase
+from breedgraph.domain.services.email_templates import Email
+from breedgraph.domain.model.accounts import UserBase
 
 
 class AbstractNotifications(abc.ABC):

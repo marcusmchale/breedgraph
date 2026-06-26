@@ -2,8 +2,8 @@ from numpy import datetime64
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Dict, Any, Self
 
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel
-from src.breedgraph.domain.model.ontology.enums import VersionChange
+from breedgraph.domain.model.base import LabeledModel, StoredModel
+from breedgraph.domain.model.ontology.enums import VersionChange
 
 @dataclass
 class Version:

@@ -1,7 +1,7 @@
 from .base import Command
 from typing import List
 
-from src.breedgraph.domain.model.references import DataFormat
+from breedgraph.domain.model.references import DataFormat
 
 class CreateLegalReference(Command):
     agent_id: int

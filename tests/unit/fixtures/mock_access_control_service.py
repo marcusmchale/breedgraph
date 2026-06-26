@@ -3,10 +3,10 @@ from numpy import datetime64
 from typing import Dict, List, Set
 
 
-from src.breedgraph.domain.model.controls import Control, ReadRelease, Controller
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.time_descriptors import WriteStamp
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.domain.model.controls import Control, ReadRelease, Controller
+from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.time_descriptors import WriteStamp
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 
 class MockAccessControlService(AbstractAccessControlService):

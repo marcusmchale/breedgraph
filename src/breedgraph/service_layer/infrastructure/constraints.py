@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.accounts import OntologyRole
 
 class AbstractConstraintsHandler(ABC):
     user_id: int|None = None

@@ -1,5 +1,5 @@
 from .base import Command
-from src.breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 
 from typing import List
 

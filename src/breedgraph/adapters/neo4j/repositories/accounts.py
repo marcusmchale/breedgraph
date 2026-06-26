@@ -1,14 +1,14 @@
-from src.breedgraph.domain.model.accounts import (
+from breedgraph.domain.model.accounts import (
     UserInput, UserStored,
     AccountInput, AccountStored,
     OntologyRole
 )
-from src.breedgraph.domain.model.organisations import Access, Authorisation
+from breedgraph.domain.model.organisations import Access, Authorisation
 
-from src.breedgraph.adapters.neo4j.cypher import queries
-from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedList
-from src.breedgraph.service_layer.repositories.base import BaseRepository
-from src.breedgraph.domain.events.accounts import AccountCreated
+from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.service_layer.tracking import TrackableProtocol, TrackedList
+from breedgraph.service_layer.repositories.base import BaseRepository
+from breedgraph.domain.events.accounts import AccountCreated
 
 # for typing only
 from typing import AsyncGenerator

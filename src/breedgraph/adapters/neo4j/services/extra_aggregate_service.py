@@ -1,9 +1,9 @@
 from neo4j import AsyncTransaction
 
-from src.breedgraph.service_layer.application.extra_aggregate import AbstractExtraAggregateService
+from breedgraph.service_layer.application.extra_aggregate import AbstractExtraAggregateService
 
-from src.breedgraph.adapters.neo4j.cypher.query_builders.extra import delete_relationship
-from src.breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders.extra import delete_relationship
+from breedgraph.adapters.neo4j.cypher import queries
 
 import logging
 

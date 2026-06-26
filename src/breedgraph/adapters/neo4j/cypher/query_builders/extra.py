@@ -1,4 +1,4 @@
-from src.breedgraph.domain.model.base import EnumLabel
+from breedgraph.domain.model.base import EnumLabel
 
 def delete_relationship(source_label:EnumLabel, sink_label:EnumLabel, relationship_label: str):
     """

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
-from src.breedgraph.config import PROTOCOL, HOST_ADDRESS, VUE_PORT
+from breedgraph.config import PROTOCOL, HOST_ADDRESS, VUE_PORT
 router = APIRouter()
 
 @router.get('/')

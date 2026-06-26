@@ -1,7 +1,7 @@
 import pytest
 
 from dataclasses import dataclass, field
-from src.breedgraph.service_layer.tracking.wrappers import tracked
+from breedgraph.service_layer.tracking.wrappers import tracked
 from typing import List, Set, Dict
 
 @dataclass

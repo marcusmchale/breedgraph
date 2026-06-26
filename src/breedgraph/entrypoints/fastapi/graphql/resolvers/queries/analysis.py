@@ -1,8 +1,8 @@
 from ariadne import ObjectType
 
-from src.breedgraph.adapters.redis.state_store import SubmissionStatus
+from breedgraph.adapters.redis.state_store import SubmissionStatus
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from typing import List
 

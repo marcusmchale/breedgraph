@@ -10,10 +10,10 @@ import redis.asyncio as redis
 # Add src to path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.breedgraph.adapters.redis.load_data import RedisLoader
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.redis.load_data import RedisLoader
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
-from src.breedgraph.config import get_redis_host_and_port
+from breedgraph.config import get_redis_host_and_port
 
 import logging
 logger = logging.getLogger(__name__)

@@ -1,11 +1,11 @@
-from src.breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
 
-from src.breedgraph.domain.model.ontology import *
-from src.breedgraph.domain.model.accounts import OntologyRole
-from src.breedgraph.domain.events import Event
-from src.breedgraph.domain.events.ontology import OntologyVersionCreated
+from breedgraph.domain.model.ontology import *
+from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.events import Event
+from breedgraph.domain.events.ontology import OntologyVersionCreated
 
-from src.breedgraph.service_layer.persistence import OntologyPersistenceService
+from breedgraph.service_layer.persistence import OntologyPersistenceService
 
 from typing import Set, List, Tuple, Dict, Any, AsyncGenerator, overload, Literal, TypeVar
 

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-from src.breedgraph.domain.model.ontology import Version, OntologyEntryLabel
+from breedgraph.domain.model.ontology import Version, OntologyEntryLabel
 
-from src.breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput
 
 from typing import List
 

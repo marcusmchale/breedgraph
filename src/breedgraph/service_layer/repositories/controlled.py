@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from src.breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
-from src.breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
-from src.breedgraph.domain.model.controls import (
+from breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
+from breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.domain.model.organisations import Access
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.domain.model.controls import (
     ReadRelease, ControlledAggregate, ControlledModel, ControlledModelLabel, DiscoveryMatch, Controller
 )
 

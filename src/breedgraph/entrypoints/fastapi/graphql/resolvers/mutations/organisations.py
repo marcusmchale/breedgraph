@@ -1,5 +1,5 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.organisations import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.organisations import (
     CreateTeam, DeleteTeam, UpdateTeam
 )
 

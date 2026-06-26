@@ -1,16 +1,16 @@
 from ariadne import ObjectType
 
-from src.breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
-from src.breedgraph.domain.model.regions import LocationOutput
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
+from breedgraph.domain.model.regions import LocationOutput
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
     update_ontology_map,
     update_locations_map
 )
 
 
-from src.breedgraph.domain.model.arrangements import LayoutOutput
+from breedgraph.domain.model.arrangements import LayoutOutput
 from typing import List
 
 import logging

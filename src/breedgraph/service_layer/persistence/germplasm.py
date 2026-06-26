@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator
 
-from src.breedgraph.domain.model.germplasm import (
+from breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmStored, GermplasmSourceType, Reproduction, GermplasmRelationship
 )
 

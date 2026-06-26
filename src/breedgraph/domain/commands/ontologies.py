@@ -1,8 +1,8 @@
 from typing import List
-from src.breedgraph.domain.commands import Command
+from breedgraph.domain.commands import Command
 from pydantic import BaseModel
 
-from src.breedgraph.domain.model.ontology.enums import ScaleType, ObservationMethodType, AxisType, VersionChange
+from breedgraph.domain.model.ontology.enums import ScaleType, ObservationMethodType, AxisType, VersionChange
 
 class CommitOntologyVersion(Command):
     agent_id: int

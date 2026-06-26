@@ -5,9 +5,9 @@ from ariadne import graphql, combine_multipart_data
 
 from typing import Optional, Dict, Any
 
-from src.breedgraph.domain.model.accounts import AccountStored
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.config import GQL_API_PATH
+from breedgraph.domain.model.accounts import AccountStored
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.config import GQL_API_PATH
 
 # logging
 import logging

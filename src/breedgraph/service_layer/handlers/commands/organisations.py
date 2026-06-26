@@ -1,12 +1,12 @@
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.organisations import (
+from breedgraph.domain import commands
+from breedgraph.domain.model.organisations import (
     TeamInput, TeamStored, Organisation,
     Authorisation, Access, Affiliation,
 )
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, unit_of_work
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, unit_of_work
 
-from src.breedgraph.custom_exceptions import (
+from breedgraph.custom_exceptions import (
     UnauthorisedOperationError,
     ProtectedNodeError
 )

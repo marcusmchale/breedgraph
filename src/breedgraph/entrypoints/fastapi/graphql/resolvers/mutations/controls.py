@@ -1,6 +1,6 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
-from src.breedgraph.domain.commands.controls import SetRelease
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
+from breedgraph.domain.commands.controls import SetRelease
 
 from typing import List
 

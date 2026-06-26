@@ -6,13 +6,13 @@ from neo4j import AsyncResult
 
 from pathlib import Path
 
-from src.breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
-from src.breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
+from breedgraph.domain.model.regions import LocationInput, LocationOutput
 
-from src.breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher import queries
 
 # logging
 import logging

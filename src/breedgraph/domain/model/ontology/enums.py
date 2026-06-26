@@ -1,6 +1,6 @@
 from enum import Enum
 from functools import lru_cache
-from src.breedgraph.domain.model.base import EnumLabel
+from breedgraph.domain.model.base import EnumLabel
 
 class LifecyclePhase(Enum):
     """Enumeration of lifecycle phases for ontology entries and relationships."""

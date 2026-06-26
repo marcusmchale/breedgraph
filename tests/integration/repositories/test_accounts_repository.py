@@ -1,8 +1,8 @@
 import pytest
 
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
-from src.breedgraph.domain.model.accounts import AccountStored
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.domain.model.accounts import AccountStored
+from breedgraph.custom_exceptions import NoResultFoundError
 
 from tests.scenarios.account_builder import AccountBuilder
 

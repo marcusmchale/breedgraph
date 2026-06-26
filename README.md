@@ -394,6 +394,11 @@ enable systemd to start the neo4j service
     sudo systemctl enable neo4j    
     sudo systemctl start neo4j
 
+#### neo4j offline install
+  install java
+
+    
+
 ### redis
     sudo apt install redis-server
 

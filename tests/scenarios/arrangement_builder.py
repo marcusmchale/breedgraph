@@ -1,6 +1,6 @@
-from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput, LayoutStored
+from breedgraph.domain.model.arrangements import Arrangement, LayoutInput, LayoutStored
 
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
 
 from tests.utilities.inputs import LoremTextGenerator
 

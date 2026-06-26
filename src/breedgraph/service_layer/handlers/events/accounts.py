@@ -1,16 +1,16 @@
 from itsdangerous import URLSafeTimedSerializer
-from src.breedgraph import config
+from breedgraph import config
 
-from src.breedgraph.domain import events
-from src.breedgraph.custom_exceptions import (
+from breedgraph.domain import events
+from breedgraph.custom_exceptions import (
     NoResultFoundError
 )
 
-from src.breedgraph.domain.services import email_templates
-from src.breedgraph.domain.model.organisations import Access, Authorisation
-from src.breedgraph.domain.model.accounts import UserOutput
+from breedgraph.domain.services import email_templates
+from breedgraph.domain.model.organisations import Access, Authorisation
+from breedgraph.domain.model.accounts import UserOutput
 
-from src.breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 

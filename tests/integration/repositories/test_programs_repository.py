@@ -1,6 +1,6 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError
 
 from tests.scenarios.program_builder import ProgramBuilder
 

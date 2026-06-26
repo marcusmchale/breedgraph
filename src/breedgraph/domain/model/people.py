@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, replace
 from abc import ABC
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.service_layer.tracking.wrappers import asdict
 
 from .base import EnumLabeledModel
 from .controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel

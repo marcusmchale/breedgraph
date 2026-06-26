@@ -13,18 +13,18 @@ from neo4j import AsyncTransaction, AsyncSession
 # Add src to path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.breedgraph.domain.model.accounts import OntologyRole
-from src.breedgraph.domain.model.ontology.location_type import LocationTypeInput
+from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.ontology.location_type import LocationTypeInput
 
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
-from src.breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
-from src.breedgraph.domain.model.accounts import AccountInput, UserInput, AccountStored
+from breedgraph.domain.model.accounts import AccountInput, UserInput, AccountStored
 
-from src.breedgraph.config import MAIL_USERNAME, MAIL_HOST
+from breedgraph.config import MAIL_USERNAME, MAIL_HOST
 
-from src.breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher import queries
 
 import logging
 logging.basicConfig(level=logging.INFO)

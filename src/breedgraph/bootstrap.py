@@ -1,23 +1,23 @@
 from asyncio import Queue
 
-from src.breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
-from src.breedgraph.service_layer.queries.views.views import AbstractViewsFactory
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
-from src.breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
+from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
+from breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
 
-from src.breedgraph.service_layer.infrastructure.file_management import FileManagementService
+from breedgraph.service_layer.infrastructure.file_management import FileManagementService
 
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-from src.breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
-from src.breedgraph.adapters.neo4j.views import Neo4jViewsFactory
-from src.breedgraph.adapters.redis.state_store import RedisStateStore
-from src.breedgraph.adapters.aiosmtp import EmailNotifications
-from src.breedgraph.adapters.its_dangerous import ItsDangerousAuthService
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
+from breedgraph.adapters.neo4j.views import Neo4jViewsFactory
+from breedgraph.adapters.redis.state_store import RedisStateStore
+from breedgraph.adapters.aiosmtp import EmailNotifications
+from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 
-from src.breedgraph.service_layer.handlers import handlers
-from src.breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.service_layer.handlers import handlers
+from breedgraph.service_layer.messagebus import MessageBus
 
 
 from typing import Type

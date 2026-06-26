@@ -1,5 +1,5 @@
-from src.breedgraph.domain.model.references import LegalReference, FileReferenceInput
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.domain.model.references import LegalReference, FileReferenceInput
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.utilities.inputs import LoremTextGenerator
 import uuid

@@ -1,7 +1,7 @@
 import pytest
 
-from src.breedgraph.domain.model.arrangements import Arrangement, LayoutInput
-from src.breedgraph.domain.model.ontology import AxisType
+from breedgraph.domain.model.arrangements import Arrangement, LayoutInput
+from breedgraph.domain.model.ontology import AxisType
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_row_arrangement(

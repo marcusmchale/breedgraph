@@ -1,10 +1,10 @@
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.controls import Control, Access
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.domain import commands
+from breedgraph.domain.model.controls import Control, Access
 
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 
 from ..registry import handlers

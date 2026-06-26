@@ -1,7 +1,7 @@
 import pytest
 
-from src.breedgraph.domain.model.organisations import Access, Authorisation
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.organisations import Access, Authorisation
+from breedgraph.custom_exceptions import NoResultFoundError
 
 from tests.scenarios.organisation_builder import OrganisationBuilder
 

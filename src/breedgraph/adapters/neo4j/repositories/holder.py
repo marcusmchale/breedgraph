@@ -2,21 +2,21 @@ from typing import Dict, Set, Callable
 
 from neo4j import AsyncTransaction
 
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
-from src.breedgraph.adapters.neo4j.repositories.accounts import Neo4jAccountRepository
-from src.breedgraph.adapters.neo4j.repositories.arrangements import Neo4jArrangementsRepository
-from src.breedgraph.adapters.neo4j.repositories.blocks import Neo4jBlocksRepository
-from src.breedgraph.adapters.neo4j.repositories.datasets import Neo4jDatasetsRepository
-from src.breedgraph.adapters.neo4j.repositories.organisations import Neo4jOrganisationsRepository
-from src.breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
-from src.breedgraph.adapters.neo4j.repositories.programs import Neo4jProgramsRepository
-from src.breedgraph.adapters.neo4j.repositories.references import Neo4jReferencesRepository
-from src.breedgraph.adapters.neo4j.repositories.regions import Neo4jRegionsRepository
+from breedgraph.adapters.neo4j.repositories.accounts import Neo4jAccountRepository
+from breedgraph.adapters.neo4j.repositories.arrangements import Neo4jArrangementsRepository
+from breedgraph.adapters.neo4j.repositories.blocks import Neo4jBlocksRepository
+from breedgraph.adapters.neo4j.repositories.datasets import Neo4jDatasetsRepository
+from breedgraph.adapters.neo4j.repositories.organisations import Neo4jOrganisationsRepository
+from breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
+from breedgraph.adapters.neo4j.repositories.programs import Neo4jProgramsRepository
+from breedgraph.adapters.neo4j.repositories.references import Neo4jReferencesRepository
+from breedgraph.adapters.neo4j.repositories.regions import Neo4jRegionsRepository
 
-from src.breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.controls import ReadRelease
 
-from src.breedgraph.service_layer.repositories.holder import AbstractRepoHolder
+from breedgraph.service_layer.repositories.holder import AbstractRepoHolder
 
 import logging
 logger = logging.getLogger(__name__)

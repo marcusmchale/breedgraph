@@ -1,10 +1,10 @@
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from typing import Optional
 
-from src.breedgraph import config
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph import config
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from src.breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
+from breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
 
 import logging
 

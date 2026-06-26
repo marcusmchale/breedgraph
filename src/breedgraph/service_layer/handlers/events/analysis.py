@@ -1,14 +1,14 @@
-from src.breedgraph.domain import events
-from src.breedgraph.service_layer.infrastructure import AbstractStateStore, AbstractUnitOfWorkFactory
+from breedgraph.domain import events
+from breedgraph.service_layer.infrastructure import AbstractStateStore, AbstractUnitOfWorkFactory
 from ..registry import handlers
 
 import logging
 logger = logging.getLogger(__name__)
-from src.breedgraph.domain.model.analysis import (
+from breedgraph.domain.model.analysis import (
     AnalysisConfig
 )
-from src.breedgraph.domain.services.analysis_config_parser import AnalysisConfigParser
-from src.breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.domain.services.analysis_config_parser import AnalysisConfigParser
+from breedgraph.domain.model.submissions import SubmissionStatus
 
 
 @handlers.event_handler()

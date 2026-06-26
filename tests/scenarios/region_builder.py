@@ -1,9 +1,9 @@
-from src.breedgraph.domain.model.regions import Region, LocationInput, LocationStored
+from breedgraph.domain.model.regions import Region, LocationInput, LocationStored
 
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
 
-from src.breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.custom_exceptions import IdentityExistsError
 
 from tests.utilities.inputs import LoremTextGenerator
 

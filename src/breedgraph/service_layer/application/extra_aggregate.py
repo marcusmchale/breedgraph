@@ -1,9 +1,9 @@
 
 from abc import ABC, abstractmethod
 
-from src.breedgraph.domain.model.blocks import Block
-from src.breedgraph.domain.model.references import ReferenceStoredBase
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.blocks import Block
+from breedgraph.domain.model.references import ReferenceStoredBase
+from breedgraph.custom_exceptions import IllegalOperationError
 
 import logging
 logger = logging.getLogger(__name__)

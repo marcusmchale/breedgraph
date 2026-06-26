@@ -3,8 +3,8 @@ from neo4j.exceptions import ResultNotSingleError
 from collections import defaultdict
 from dataclasses import fields
 
-from src.breedgraph.domain.model import LifecyclePhase
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.domain.model import LifecyclePhase
+from breedgraph.domain.model.ontology import (
     Version,
     OntologyEntryLabel,
     ControlMethodType,
@@ -14,11 +14,11 @@ from src.breedgraph.domain.model.ontology import (
     OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle
 )
 
-from src.breedgraph.service_layer.queries.views import AbstractOntologyView
-from src.breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyRelationshipOutput
+from breedgraph.service_layer.queries.views import AbstractOntologyView
+from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyRelationshipOutput
 
-from src.breedgraph.service_layer.mappers import ontology_mapper
-from src.breedgraph.adapters.neo4j.cypher import queries, query_builders
+from breedgraph.service_layer.mappers import ontology_mapper
+from breedgraph.adapters.neo4j.cypher import queries, query_builders
 
 from typing import List, Tuple, Optional
 

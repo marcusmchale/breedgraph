@@ -1,13 +1,13 @@
 from ariadne import ObjectType
 
-from src.breedgraph.domain.model.time_descriptors import WriteStamp
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.domain.model.time_descriptors import WriteStamp
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_teams_map,
     update_users_map
 )
 
-from src.breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control
+from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control
 
 import logging
 logger = logging.getLogger(__name__)

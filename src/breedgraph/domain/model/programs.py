@@ -1,10 +1,10 @@
 from abc import ABC
 from dataclasses import dataclass, field, replace
-from src.breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
-from src.breedgraph.domain.model.base import StoredModel, EnumLabeledModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+from breedgraph.domain.model.base import StoredModel, EnumLabeledModel
+from breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
 
 
 from typing import List, Set, ClassVar, Dict, Any, Self

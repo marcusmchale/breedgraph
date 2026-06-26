@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.breedgraph.domain.model.base import SerializableMixin
+from breedgraph.domain.model.base import SerializableMixin
 
 @dataclass
 class ItemError(SerializableMixin):

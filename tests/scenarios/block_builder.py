@@ -1,6 +1,6 @@
 
-from src.breedgraph.domain.model.blocks import UnitInput
-from src.breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
+from breedgraph.domain.model.blocks import UnitInput
+from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.utilities.inputs import LoremTextGenerator
 

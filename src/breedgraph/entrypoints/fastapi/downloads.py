@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
-from src.breedgraph.config import (
+from breedgraph.config import (
     FILE_STORAGE_PATH,
     SECRET_KEY,
     FILE_DOWNLOAD_SALT,

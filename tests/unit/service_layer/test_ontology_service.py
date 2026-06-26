@@ -1,20 +1,20 @@
 import pytest
 from typing import List, Dict, Any
 
-from src.breedgraph.custom_exceptions import IdentityExistsError
-from src.breedgraph.service_layer.application.ontology_service import OntologyApplicationService
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.service_layer.application.ontology_service import OntologyApplicationService
+from breedgraph.domain.model.ontology import (
     SubjectInput, TraitInput, VariableInput, ScaleInput, TermInput, ObservationMethodInput, ScaleCategoryInput, OntologyEntryLabel
 )
-from src.breedgraph.domain.model.accounts import OntologyRole
-from src.breedgraph.domain.model.ontology.enums import ScaleType, OntologyRelationshipLabel
-from src.breedgraph.domain.model.ontology.relationships import (
+from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.ontology.enums import ScaleType, OntologyRelationshipLabel
+from breedgraph.domain.model.ontology.relationships import (
     OntologyRelationshipBase,
     ParentRelationship,
     VariableComponentRelationship
 )
-from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
-from src.breedgraph.domain.model.ontology.version import Version
+from breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
+from breedgraph.domain.model.ontology.version import Version
 
 from tests.unit.fixtures.mock_ontology_persistence import MockOntologyPersistenceService
 

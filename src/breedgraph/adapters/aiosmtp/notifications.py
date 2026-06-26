@@ -1,17 +1,17 @@
 import aiosmtplib
 
 from typing import List
-from src.breedgraph.domain.model.accounts import UserBase
-from src.breedgraph.domain.services.email_templates import Email
+from breedgraph.domain.model.accounts import UserBase
+from breedgraph.domain.services.email_templates import Email
 
-from src.breedgraph.config import (
+from breedgraph.config import (
     MAIL_HOST,
     MAIL_PORT,
     MAIL_USERNAME,
     MAIL_PASSWORD,
     MAIL_USE_TLS
 )
-from src.breedgraph.service_layer.infrastructure import AbstractNotifications
+from breedgraph.service_layer.infrastructure import AbstractNotifications
 
 class EmailNotifications(AbstractNotifications):
 

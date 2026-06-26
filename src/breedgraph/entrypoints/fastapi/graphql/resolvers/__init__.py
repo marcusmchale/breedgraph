@@ -3,17 +3,17 @@ from numpy import datetime64
 from datetime import datetime
 
 from .registry import graphql_resolvers
-from src.breedgraph.domain.model.accounts import OntologyRole
-from src.breedgraph.domain.model.organisations import Access
-from src.breedgraph.domain.model.controls import ReadRelease
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.ontology import (
     VersionChange,
     OntologyEntryLabel,
     OntologyRelationshipLabel,
     LifecyclePhase
 )
-from src.breedgraph.domain.model.references import DataFormat
-from src.breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.domain.model.references import DataFormat
+from breedgraph.domain.model.submissions import SubmissionStatus
 
 # Import query and mutation objects (this triggers all resolver registration)
 from .queries import graphql_query

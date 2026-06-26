@@ -1,9 +1,9 @@
 import asyncio
 from fastapi import UploadFile
 
-from src.breedgraph.service_layer.messagebus import MessageBus
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.references import (
+from breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.references import (
     CreateLegalReference,
     CreateExternalReference,
     CreateExternalDataReference,
@@ -16,7 +16,7 @@ from src.breedgraph.domain.commands.references import (
     UpdateDataFileReference,
     DeleteReferences
 )
-from src.breedgraph.domain.events.references import (
+from breedgraph.domain.events.references import (
     UploadFailed,
     UploadCompleted
 )

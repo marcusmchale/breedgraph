@@ -2,7 +2,7 @@ import pytest
 
 from tests.e2e.controls.post_methods import post_to_set_release, post_to_controllers
 
-from src.breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 
 from tests.e2e.utils import get_verified_payload, assert_payload_success
 

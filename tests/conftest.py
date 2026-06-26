@@ -7,17 +7,17 @@ from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 from itsdangerous import URLSafeTimedSerializer
 
-from src.breedgraph.main import app
-from src.breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
-from src.breedgraph.domain.model.ontology import *
+from breedgraph.main import app
+from breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
+from breedgraph.domain.model.ontology import *
 
-from src.breedgraph.adapters.redis import RedisLoader
-from src.breedgraph.adapters.redis import RedisStateStore
-from src.breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
-from src.breedgraph.adapters.neo4j import Neo4jViewsFactory
-from src.breedgraph.adapters.neo4j import queries
+from breedgraph.adapters.redis import RedisLoader
+from breedgraph.adapters.redis import RedisStateStore
+from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
+from breedgraph.adapters.neo4j import Neo4jViewsFactory
+from breedgraph.adapters.neo4j import queries
 
-from src.breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.service_layer.messagebus import MessageBus
 
 from tests.utilities.inputs import UserInputGenerator, LoremTextGenerator
 from tests.scenarios import (
@@ -32,7 +32,7 @@ from tests.scenarios import (
 
 from typing import Dict, cast, AsyncGenerator
 
-from src.breedgraph.config import (
+from breedgraph.config import (
     SECRET_KEY, CSRF_SALT,
     MAIL_USERNAME, MAIL_HOST,
     get_base_url, get_redis_host_and_port

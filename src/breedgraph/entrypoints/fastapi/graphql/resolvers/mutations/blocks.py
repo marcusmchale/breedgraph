@@ -1,5 +1,5 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.blocks import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.blocks import (
     CreateUnit,
     UpdateUnit,
     DeleteUnit,

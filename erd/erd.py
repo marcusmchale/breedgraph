@@ -7,16 +7,16 @@ sys.path.append(breedgraph_src_path)
 
 
 import erdantic as erd
-from src.breedgraph.domain.model.accounts import AccountStored
-from src.breedgraph.domain.model.arrangements import Arrangement, LayoutStored
-from src.breedgraph.domain.model.blocks import Block, UnitBase
-from src.breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
-from src.breedgraph.domain.model.organisations import Organisation, TeamStored
-from src.breedgraph.domain.model.controls import Controller
-from src.breedgraph.domain.model.programs import ProgramStored
-from src.breedgraph.domain.model.regions import Region, LocationStored
-from src.breedgraph.domain.model.references import ReferenceStoredBase
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.domain.model.accounts import AccountStored
+from breedgraph.domain.model.arrangements import Arrangement, LayoutStored
+from breedgraph.domain.model.blocks import Block, UnitBase
+from breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
+from breedgraph.domain.model.organisations import Organisation, TeamStored
+from breedgraph.domain.model.controls import Controller
+from breedgraph.domain.model.programs import ProgramStored
+from breedgraph.domain.model.regions import Region, LocationStored
+from breedgraph.domain.model.references import ReferenceStoredBase
+from breedgraph.domain.model.ontology import (
     OntologyEntryStored, OntologyRelationshipBase,
     TermOutput, 
     SubjectOutput,
@@ -37,7 +37,7 @@ from src.breedgraph.domain.model.ontology import (
 )
 
 
-from src.breedgraph.domain.model.germplasm import GermplasmStored, GermplasmRelationship
+from breedgraph.domain.model.germplasm import GermplasmStored, GermplasmRelationship
 
 erd.draw(ProgramStored, out="./figures/program.svg")
 erd.draw(AccountStored, out="./figures/account.svg")

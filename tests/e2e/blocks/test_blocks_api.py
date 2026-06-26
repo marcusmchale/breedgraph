@@ -1,7 +1,7 @@
 import pytest
 
-from src.breedgraph.custom_exceptions import NoResultFoundError
-from src.breedgraph.domain.model.ontology import OntologyEntryLabel
+from breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 from tests.e2e.blocks.post_methods import post_to_create_unit, post_to_blocks, post_to_units, post_to_add_position
 from tests.e2e.ontologies.post_methods import post_to_get_entries
 from tests.e2e.utils import get_verified_payload, assert_payload_success

@@ -1,6 +1,6 @@
 import pytest, pytest_asyncio
 
-from src.breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
+from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 
 
 from typing import Dict

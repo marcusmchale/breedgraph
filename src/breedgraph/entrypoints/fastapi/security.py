@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import RedirectResponse
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from src.breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, HOST_ADDRESS, PROTOCOL, VUE_PORT
+from breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, HOST_ADDRESS, PROTOCOL, VUE_PORT
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,8 +39,6 @@ class CSRFTokenManager:
         ts = URLSafeTimedSerializer(SECRET_KEY)
         ts.loads(token, salt=CSRF_SALT, max_age=CSRF_EXPIRES)
         return True
-
-
 
 @router.options("/csrf")
 async def csrf_preflight():

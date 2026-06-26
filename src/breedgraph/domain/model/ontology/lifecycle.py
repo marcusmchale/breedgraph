@@ -4,10 +4,10 @@ from typing import List, Optional, Self, Dict, ClassVar
 from neo4j import Record
 from numpy import datetime64
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.time_descriptors import WriteStamp
-from src.breedgraph.domain.model.ontology.version import Version
-from src.breedgraph.domain.model.ontology.enums import LifecyclePhase
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.model.time_descriptors import WriteStamp
+from breedgraph.domain.model.ontology.version import Version
+from breedgraph.domain.model.ontology.enums import LifecyclePhase
 
 @dataclass
 class LifecycleAuditEntry:

@@ -1,17 +1,17 @@
 from ariadne import ObjectType, UnionType, InterfaceType
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.domain.model.ontology import (
     OntologyRelationshipBase,
     OntologyEntryLabel, OntologyRelationshipLabel,
     OntologyCommit,
     Version, LifecyclePhase,
 )
-from src.breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput
 
-from src.breedgraph.domain.model.accounts import UserOutput, OntologyRole
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map
+from breedgraph.domain.model.accounts import UserOutput, OntologyRole
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map
 
 from typing import Dict, List, Tuple
 

@@ -1,6 +1,6 @@
 from asyncio import Queue
 
-from src.breedgraph.domain import commands, events
+from breedgraph.domain import commands, events
 
 from ..registry import handlers
 

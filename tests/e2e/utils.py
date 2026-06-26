@@ -1,4 +1,4 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
+from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 
 def with_auth(csrf_token: str, auth_token: str | None = None) -> dict:

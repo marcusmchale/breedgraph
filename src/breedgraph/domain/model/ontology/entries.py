@@ -2,10 +2,10 @@ from typing import List, ClassVar, Any, Dict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import LabeledModel, StoredModel, EnumLabeledModel
-from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel
+from breedgraph.domain.model.ontology.lifecycle import LifecyclePhase
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.model.base import LabeledModel, StoredModel, EnumLabeledModel
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel
 
 """
 Ontologies are designed to allow flexible annotation and description of complex meta-data

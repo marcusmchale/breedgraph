@@ -3,8 +3,8 @@ from typing import Generic, ClassVar, List, Tuple, Set, Dict, TypeVar
 
 import networkx as nx
 
-from src.breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
-from src.breedgraph.domain.model.base import Aggregate, logger
+from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
+from breedgraph.domain.model.base import Aggregate, logger
 
 TInput = TypeVar('TInput')
 TStored = TypeVar('TStored')

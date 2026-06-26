@@ -1,7 +1,7 @@
 __pycache__
 .pytest_cache
 
-/instance/envars.sh
+/instance/private*
 /instance/file_store/
 
 /src/data/
@@ -15,3 +15,5 @@ __pycache__
 /erd/figures/
 /erd/logs/
 
+/src/breedgraph.egg-info/
+/dist/wheelhouse*

@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass, asdict, field
 
-from src.breedgraph.domain.model.ontology import (
+from breedgraph.domain.model.ontology import (
     Version,
     LifecyclePhase,
     OntologyEntryLabel, OntologyRelationshipLabel,

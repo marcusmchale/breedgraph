@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from src.breedgraph.domain.model.controls import (
+from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
-from src.breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.custom_exceptions import IllegalOperationError
 
 
 from typing import Dict, List, Set, Optional

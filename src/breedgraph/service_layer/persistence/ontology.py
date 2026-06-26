@@ -2,15 +2,15 @@ from abc import ABC, abstractmethod
 
 from typing import List, Dict, AsyncGenerator
 
-from src.breedgraph.domain.model.ontology.version import VersionChange
-from src.breedgraph.domain.model.ontology.entries import (
+from breedgraph.domain.model.ontology.version import VersionChange
+from breedgraph.domain.model.ontology.entries import (
     OntologyEntryInput, OntologyEntryStored
 )
-from src.breedgraph.domain.model.ontology.relationships import OntologyRelationshipBase
-from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
-from src.breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
-from src.breedgraph.domain.model.ontology.version import Version, OntologyCommit
-from src.breedgraph.service_layer.mappers import OntologyMapper, ontology_mapper
+from breedgraph.domain.model.ontology.relationships import OntologyRelationshipBase
+from breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
+from breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
+from breedgraph.domain.model.ontology.version import Version, OntologyCommit
+from breedgraph.service_layer.mappers import OntologyMapper, ontology_mapper
 
 import logging
 logger = logging.getLogger(__name__)

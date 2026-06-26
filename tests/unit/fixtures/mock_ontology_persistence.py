@@ -1,11 +1,11 @@
 from typing import Optional, Dict, List, Set, Tuple, Any, AsyncGenerator
 from collections import defaultdict
 
-from src.breedgraph.service_layer.persistence import OntologyPersistenceService
-from src.breedgraph.domain.model.ontology import *
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.service_layer.persistence import OntologyPersistenceService
+from breedgraph.domain.model.ontology import *
+from breedgraph.domain.model.accounts import OntologyRole
 
-from src.breedgraph.service_layer.queries.read_models import OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models import OntologyEntryOutput
 
 
 class MockOntologyPersistenceService(OntologyPersistenceService):

@@ -1,5 +1,5 @@
-from src.breedgraph.domain import events
-from src.breedgraph.service_layer.infrastructure import AbstractNotifications
+from breedgraph.domain import events
+from breedgraph.service_layer.infrastructure import AbstractNotifications
 
 from ..registry import handlers
 

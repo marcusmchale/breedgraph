@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-from src.breedgraph.domain.model.ontology.entries import (
+from breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
-from src.breedgraph.domain.model.ontology.enums import OntologyEntryLabel, AxisType
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel, AxisType
 
 from typing import ClassVar, List
 

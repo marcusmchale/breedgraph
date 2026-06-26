@@ -4,8 +4,8 @@ from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
 
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.events.accounts import EmailAdded, EmailVerified
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.events.accounts import EmailAdded, EmailVerified
 
 from .base import LabeledModel, StoredModel, Aggregate, SerializableMixin
 

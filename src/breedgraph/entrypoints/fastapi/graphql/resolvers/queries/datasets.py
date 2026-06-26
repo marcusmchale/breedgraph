@@ -1,16 +1,16 @@
 from numpy import datetime64
 from ariadne import ObjectType
 
-from src.breedgraph.adapters.redis.state_store import SubmissionStatus
+from breedgraph.adapters.redis.state_store import SubmissionStatus
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
-from src.breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DatasetOutput, DataRecordStored
-from src.breedgraph.domain.model.errors import ItemError
-from src.breedgraph.service_layer.handlers.commands.regions import update_location
-from src.breedgraph.service_layer.queries.read_models import DatasetSummary
+from breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DatasetOutput, DataRecordStored
+from breedgraph.domain.model.errors import ItemError
+from breedgraph.service_layer.handlers.commands.regions import update_location
+from breedgraph.service_layer.queries.read_models import DatasetSummary
 
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_units_map,
     update_locations_map,

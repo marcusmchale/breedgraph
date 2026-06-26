@@ -1,5 +1,5 @@
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.domain.commands.ontologies import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.domain.commands.ontologies import (
     CommitOntologyVersion,
     ActivateOntologyEntries, DeprecateOntologyEntries, RemoveOntologyEntries,
     ActivateOntologyRelationships, DeprecateOntologyRelationships, RemoveOntologyRelationships,
@@ -13,7 +13,7 @@ from src.breedgraph.domain.commands.ontologies import (
     UpdateLocationType, UpdateDesign, UpdateLayoutType
 
 )
-from src.breedgraph.domain.model.ontology import VersionChange
+from breedgraph.domain.model.ontology import VersionChange
 from typing import List
 
 import logging

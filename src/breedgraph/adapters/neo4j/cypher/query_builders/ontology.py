@@ -1,7 +1,7 @@
 from typing import List
 
-from src.breedgraph.domain.model.ontology import OntologyEntryStored, OntologyRelationshipLabel, OntologyEntryLabel
-from src.breedgraph.domain.model.ontology.enums import LifecyclePhase
+from breedgraph.domain.model.ontology import OntologyEntryStored, OntologyRelationshipLabel, OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import LifecyclePhase
 
 def name_in_use(label: OntologyEntryLabel):
     return f"""

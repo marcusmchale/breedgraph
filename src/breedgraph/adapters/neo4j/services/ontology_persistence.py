@@ -1,15 +1,15 @@
 from neo4j import AsyncTransaction, Record
 from neo4j.exceptions import ResultNotSingleError
 
-from src.breedgraph.custom_exceptions import IllegalOperationError
-from src.breedgraph.domain.model.time_descriptors import deserialize_time
-from src.breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.time_descriptors import deserialize_time
+from breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
 
-from src.breedgraph.adapters.neo4j.cypher import queries, ontology
+from breedgraph.adapters.neo4j.cypher import queries, ontology
 
 # Import all ontology entry types - this ensures all subclasses are registered
-from src.breedgraph.domain.model.ontology import *
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.ontology import *
+from breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List, Set, Optional, Dict, Any, Tuple, AsyncGenerator, Type
 

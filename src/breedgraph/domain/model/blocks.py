@@ -45,11 +45,11 @@ from dataclasses import dataclass, field, replace
 import networkx as nx
 from numpy import datetime64
 
-from src.breedgraph.custom_exceptions import IllegalOperationError
-from src.breedgraph.service_layer.tracking.wrappers import asdict
-from src.breedgraph.domain.model.base import EnumLabeledModel, StoredModel
-from src.breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller, ControlledModelLabel
-from src.breedgraph.domain.model.organisations import Access
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.service_layer.tracking.wrappers import asdict
+from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
+from breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller, ControlledModelLabel
+from breedgraph.domain.model.organisations import Access
 from typing import List, ClassVar, Generator
 
 @dataclass

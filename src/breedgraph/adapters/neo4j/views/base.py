@@ -1,14 +1,14 @@
 from contextlib import asynccontextmanager
 
-from src.breedgraph.adapters.neo4j.views.datasets import Neo4jDatasetsView
-from src.breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
+from breedgraph.adapters.neo4j.views.datasets import Neo4jDatasetsView
+from breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
 
-from src.breedgraph.adapters.neo4j.views.regions import Neo4jRegionsView
-from src.breedgraph.adapters.neo4j.views.accounts import Neo4jAccountsView
+from breedgraph.adapters.neo4j.views.regions import Neo4jRegionsView
+from breedgraph.adapters.neo4j.views.accounts import Neo4jAccountsView
 
-from src.breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
 from typing import AsyncGenerator
 

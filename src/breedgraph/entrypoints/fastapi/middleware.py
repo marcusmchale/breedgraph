@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from .security import CSRFTokenManager
-from src.breedgraph.config import (
+from breedgraph.config import (
     ENVIRONMENT,
     SECRET_KEY,
     CSRF_SALT,

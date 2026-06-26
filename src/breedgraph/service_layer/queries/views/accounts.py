@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator
 
-from src.breedgraph.domain.model.accounts import UserOutput
-from src.breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.accounts import UserOutput
+from breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List
 
-from src.breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
 class AbstractAccountsView(ABC):
     user_id: int | None = None

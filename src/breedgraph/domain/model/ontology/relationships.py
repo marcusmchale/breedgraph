@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Self, cast
 
 
-from src.breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, OntologyEntryLabel
 
 @dataclass
 class OntologyRelationshipBase(ABC):

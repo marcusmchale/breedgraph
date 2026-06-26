@@ -1,12 +1,12 @@
 import pytest
 
-from src.breedgraph.domain.model.blocks import (
+from breedgraph.domain.model.blocks import (
     Position,
     UnitInput,
     UnitStored,
     Block
 )
-from src.breedgraph.domain.model.controls import Controller, Control, ReadRelease
+from breedgraph.domain.model.controls import Controller, Control, ReadRelease
 from tests.conftest import lorem_text_generator
 
 

@@ -2,18 +2,18 @@ from ariadne import ObjectType, UnionType, InterfaceType
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
 
-from src.breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
-from src.breedgraph.adapters.redis.state_store import SubmissionStatus
+from breedgraph.adapters.redis.state_store import SubmissionStatus
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 
-from src.breedgraph.domain.model.controls import (
+from breedgraph.domain.model.controls import (
     Controller, ReadRelease, Access, ControlledModelLabel
 )
 
-from src.breedgraph.domain.model.references import (
+from breedgraph.domain.model.references import (
     ReferenceStoredBase,
     LegalReferenceStored,
     ExternalReferenceStored,
@@ -22,9 +22,9 @@ from src.breedgraph.domain.model.references import (
     DataFileStored
 )
 
-from src.breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
+from breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
 
-from src.breedgraph.config import SECRET_KEY, FILE_DOWNLOAD_EXPIRES, FILE_DOWNLOAD_SALT, get_download_endpoint
+from breedgraph.config import SECRET_KEY, FILE_DOWNLOAD_EXPIRES, FILE_DOWNLOAD_SALT, get_download_endpoint
 
 from typing import List
 

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-from src.breedgraph.domain.model.regions import LocationOutput
-from src.breedgraph.service_layer.infrastructure import AbstractStateStore
+from breedgraph.domain.model.regions import LocationOutput
+from breedgraph.service_layer.infrastructure import AbstractStateStore
 
-from src.breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.regions import LocationInput
 from typing import List, AsyncGenerator
 
 class AbstractRegionsView(ABC):

@@ -1,8 +1,8 @@
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.ontology import *
+from breedgraph.domain import commands
+from breedgraph.domain.model.ontology import *
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
-from src.breedgraph.service_layer.application import OntologyApplicationService
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.application import OntologyApplicationService
 
 from ..registry import handlers
 

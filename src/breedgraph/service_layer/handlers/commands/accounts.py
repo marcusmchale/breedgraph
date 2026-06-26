@@ -1,15 +1,15 @@
-from src.breedgraph.domain import commands, events
-from src.breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
-from src.breedgraph.domain.model.organisations import Authorisation, Access
+from breedgraph.domain import commands, events
+from breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
+from breedgraph.domain.model.organisations import Authorisation, Access
 
 
-from src.breedgraph.service_layer.infrastructure import (
+from breedgraph.service_layer.infrastructure import (
     AbstractUnitOfWorkFactory,
     AbstractAuthService
 )
 
 
-from src.breedgraph.custom_exceptions import (
+from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
     UnauthorisedOperationError, IllegalOperationError

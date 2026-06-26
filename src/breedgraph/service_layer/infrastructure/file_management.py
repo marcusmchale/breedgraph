@@ -6,10 +6,10 @@ import asyncio
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
 
-from src.breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from src.breedgraph.config import FILE_STORAGE_PATH, MAX_CONCURRENT_UPLOADS
-from src.breedgraph.custom_exceptions import IllegalOperationError
-from src.breedgraph.domain.model.submissions import SubmissionStatus
+from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from breedgraph.config import FILE_STORAGE_PATH, MAX_CONCURRENT_UPLOADS
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.submissions import SubmissionStatus
 
 from typing import Callable
 

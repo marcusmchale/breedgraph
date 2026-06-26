@@ -2,15 +2,15 @@ from ariadne import ObjectType
 
 from typing import List
 
-from src.breedgraph.domain.model.accounts import (
+from breedgraph.domain.model.accounts import (
     AccountOutput,
     UserOutput,
     OntologyRole
 )
-from src.breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError
 
-from src.breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from src.breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map,
     update_teams_map
 )

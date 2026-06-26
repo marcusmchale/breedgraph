@@ -1,9 +1,9 @@
 from asyncio import Queue
-from src.breedgraph.domain import commands
-from src.breedgraph.domain.model.arrangements import LayoutInput
-from src.breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
+from breedgraph.domain import commands
+from breedgraph.domain.model.arrangements import LayoutInput
+from breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
 
-from src.breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 
