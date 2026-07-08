@@ -5,3 +5,4 @@ from .unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from .state_store import AbstractStateStore
 from .brute_force_protection import BruteForceProtectionService
 from .file_management import FileManagementService
+from .archival_service import AbstractFileArchivalService

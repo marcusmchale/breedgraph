@@ -1,5 +1,3 @@
-. ./instance/envars.sh
-
 services=(mailhog neo4j redis)
 for service in "${services[@]}"; do
     if ! systemctl is-active --quiet "$service"; then

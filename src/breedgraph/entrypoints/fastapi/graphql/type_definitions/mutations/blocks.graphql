@@ -2,11 +2,11 @@ input PositionInput {
     """
     ID of Location in a Region
     """
-    locationId: Int!
+    locationId: ID!
     """
     ID of Layout in and Arrangement
     """
-    layoutId: Int
+    layoutId: ID
     """
     Coordinates should be a list of values corresponding to the stored layout axes.
     """
@@ -19,35 +19,35 @@ input UnitInput {
     """
     ID of Subject in the ontology
     """
-    subjectId: Int!
-    germplasmId: Int
+    subjectId: ID!
+    germplasmId: ID
 
     name: String
     description: String
     """
     IDs of parent Units, of which this unit forms a component
     """
-    parentIds: [Int]
+    parentIds: [ID]
     """
     IDs of child Units, which represent a component of this unit.
     """
-    childrenIds: [Int]
+    childrenIds: [ID]
 }
 
 input UnitUpdate {
-    unitId: Int!
-    subjectId: Int
-    germplasmId: Int
+    unitId: ID!
+    subjectId: ID
+    germplasmId: ID
     name: String
     description: String
-    parentIds: [Int]
-    childrenIds: [Int]
+    parentIds: [ID!]
+    childrenIds: [ID!]
 }
 
 extend type Mutation {
     blocksCreateUnit(unit: UnitInput!, position: PositionInput): BooleanPayload!
     blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!
-    blocksDeleteUnit(unitId: Int!): BooleanPayload!
-    blocksAddPosition(unitId: Int!, position: PositionInput!): BooleanPayload!
-    blocksRemovePosition(unitId: Int!, position: PositionInput!): BooleanPayload!
+    blocksDeleteUnit(unitId: ID!): BooleanPayload!
+    blocksAddPosition(unitId: ID!, position: PositionInput!): BooleanPayload!
+    blocksRemovePosition(unitId: ID!, position: PositionInput!): BooleanPayload!
 }

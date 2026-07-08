@@ -9,7 +9,7 @@ input AnalysisVariableInput {
   type: VariableType!
 
   """Concept ID (required when type is CONCEPT)"""
-  conceptId: Int
+  conceptId: ID
 
   """Human-readable label for the variable"""
   label: String!
@@ -28,7 +28,7 @@ input AnalysisInput {
   name: String
 
   """Dataset IDs to include in analysis"""
-  datasetIds: [Int!]!
+  datasetIds: [ID!]!
 
   """The dependent (response) variable"""
   dependentVariable: AnalysisVariableInput!

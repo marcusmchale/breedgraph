@@ -15,7 +15,7 @@ type Affiliations {
 }
 
 type Team {
-    id: Int!
+    id: ID!
     name: String!
     fullname: String!
     parent: Team

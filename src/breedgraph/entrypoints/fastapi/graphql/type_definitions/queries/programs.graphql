@@ -1,6 +1,6 @@
 # Main Entity Types
 type Program {
-    id: Int!
+    id: ID!
     name: String!
     fullname: String
     description: String
@@ -10,7 +10,7 @@ type Program {
 }
 
 type Trial {
-    id: Int!
+    id: ID!
     name: String!
     fullname: String
     description: String
@@ -22,7 +22,7 @@ type Trial {
 }
 
 type Study {
-    id: Int!
+    id: ID!
     name: String!
     fullname: String
     description: String

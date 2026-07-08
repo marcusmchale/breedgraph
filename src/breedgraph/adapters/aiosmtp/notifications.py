@@ -1,7 +1,6 @@
 import aiosmtplib
 
 from typing import List
-from breedgraph.domain.model.accounts import UserBase
 from breedgraph.domain.services.email_templates import Email
 
 from breedgraph.config import (
@@ -11,7 +10,7 @@ from breedgraph.config import (
     MAIL_PASSWORD,
     MAIL_USE_TLS
 )
-from breedgraph.service_layer.infrastructure import AbstractNotifications
+from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications, NotificationRecipient
 
 class EmailNotifications(AbstractNotifications):
 
@@ -29,11 +28,11 @@ class EmailNotifications(AbstractNotifications):
         )
 
     @staticmethod
-    async def send(recipients: List[UserBase], message: Email):
+    async def send(recipients: List[NotificationRecipient], message: Email):
         await aiosmtplib.send(
             message.message,
             sender=f"{MAIL_USERNAME}@{MAIL_HOST}",
-            recipients=[user.email for user in recipients],
+            recipients=[recipient.email for recipient in recipients],
             hostname=f"smtp.{MAIL_HOST}",
             port=MAIL_PORT,
             username=MAIL_USERNAME,

@@ -71,7 +71,7 @@ type AnalysisVariable {
   type: VariableType!
 
   """Concept ID (provided when type is CONCEPT)"""
-  conceptId: Int
+  conceptId: ID
 
   """Human-readable label for the variable"""
   label: String!
@@ -87,7 +87,7 @@ type InteractionTerm {
 
 type AnalysisConfig {
   """Dataset IDs included in analysis"""
-  datasetIds: [Int!]!
+  datasetIds: [ID!]!
 
   """The dependent (response) variable"""
   dependentVariable: AnalysisVariable!

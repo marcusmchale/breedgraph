@@ -1,25 +1,25 @@
 input LayoutInput {
     """ Location ID from Region """
-    locationId: Int!
+    locationId: ID!
     """ Ontology LayoutType identifier """
-    typeId: Int!
+    typeId: ID!
     """ Axis labels """
     axes: [String!]
     """ Optional name for the layout """
     name: String
     """ Optional parent layout to construct multiplexed layout arrangements"""
-    parentId: Int
+    parentId: ID
     """ When parent is supplied, position according to parent layout axes must be provided."""
     position: [String]
 }
 
 input LayoutUpdate {
-    layoutId: Int!
-    locationId: Int
-    typeId: Int
+    layoutId: ID!
+    locationId: ID
+    typeId: ID
     axes: [String!]
     name: String
-    parentId: Int
+    parentId: ID
     position: [String]
 }
 
@@ -31,6 +31,6 @@ extend type Mutation {
         layout: LayoutUpdate!
     ): BooleanPayload!
     arrangementsDeleteLayout(
-        layoutId: Int!
+        layoutId: ID!
     ): BooleanPayload!
 }

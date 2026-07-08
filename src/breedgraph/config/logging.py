@@ -64,7 +64,7 @@ LOG_CONFIG = {
         },
         'neo4j': {
             'handlers': ['neo4j'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': False
         },
         'redis': {

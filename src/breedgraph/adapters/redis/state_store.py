@@ -3,11 +3,11 @@ import redis.asyncio as redis
 
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
-from breedgraph.config import get_redis_host_and_port
+from breedgraph.config import get_redis_host_and_port, LOCAL_STORAGE_DURATION
 
 from breedgraph.domain.model.regions import LocationInput, LocationStored
 from breedgraph.domain.model.errors import ItemError
-from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
+from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys, ArchiveKeys
 
 import logging
 logger = logging.getLogger(__name__)
@@ -244,7 +244,6 @@ class RedisStateStore(AbstractStateStore):
     async def _remove_user_file(self, agent_id, file_id) -> None:
         user_files_key = f"user:{agent_id}:files"
         await self.connection.srem(user_files_key, file_id)
-
 
     """ Brute force protection state """
 

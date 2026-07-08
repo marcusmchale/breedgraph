@@ -1,39 +1,39 @@
 input RecordInput {
-    unitId: Int!
+    unitId: ID!
     value: String
     start: DateTime
     end: DateTime
-    referenceIds: [Int]
+    referenceIds: [ID]
 }
 
 input RecordUpdate {
-    recordId: Int!
-    unitId: Int
+    recordId: ID!
+    unitId: ID
     value: String
     start: DateTime
     end: DateTime
-    referenceIds: [Int]
+    referenceIds: [ID]
 }
 
 input DatasetInput {
-    studyId: Int!
+    studyId: ID!
     """ concept is either a Factor or Variable in the ontology """
-    conceptId: Int!
+    conceptId: ID!
     records: [RecordInput!]!
-    contributorIds: [Int!]
-    referenceIds: [Int!]
+    contributorIds: [ID!]
+    referenceIds: [ID!]
 }
 
 input DatasetUpdate {
     """
     Optionally provide a list of records to update
     """
-    datasetId: Int!
-    studyId: Int
-    conceptId: Int
+    datasetId: ID!
+    studyId: ID
+    conceptId: ID
     records: [RecordUpdate!]!
-    contributorIds: [Int!]
-    referenceIds: [Int!]
+    contributorIds: [ID!]
+    referenceIds: [ID!]
 }
 
 extend type Mutation {
@@ -44,5 +44,5 @@ extend type Mutation {
     datasetsSubmitRecords(dataset: DatasetInput!): SubmissionIdPayload!,
     datasetsUpdateRecords(dataset: DatasetUpdate!): SubmissionIdPayload!
     """Delete records from a dataset"""
-    datasetsRemoveRecords(datasetId: Int!, recordIds: [Int!]!): BooleanPayload!
+    datasetsRemoveRecords(datasetId: ID!, recordIds: [ID!]!): BooleanPayload!
 }

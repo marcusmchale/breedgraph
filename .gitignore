@@ -16,4 +16,5 @@ __pycache__
 /erd/logs/
 
 /src/breedgraph.egg-info/
-/dist/wheelhouse*
+/dist
+/instance/test_archive/

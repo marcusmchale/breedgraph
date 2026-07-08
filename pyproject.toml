@@ -10,6 +10,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
 dependencies = [
+
+]
+
+[project.optional-dependencies]
+
+api = [
     "fastapi~=0.138.0",
     "pydantic==2.13.4",
     "ariadne==1.1.0",
@@ -30,11 +36,18 @@ dependencies = [
     "networkx~=3.6.1",
     "numpy~=2.5.0",
     "pandas~=3.0.3",
-    "statsmodels~=0.14.6",
+    "statsmodels~=0.14.6"
 ]
 
-[project.optional-dependencies]
+# Archive worker dependencies
+worker = [
+    "requests~=2.34.2",      # For API calls to web server
+    "click~=8.1.0",          # For CLI interface (recommended for workers)
+]
+
 test = [
+    "breedgraph[api]",
+    "breedgraph[worker]",
     "httpx==0.28.1",
     "pytest~=9.1.1",
     "pytest-env~=1.6.0",
@@ -51,6 +64,7 @@ dev = [
     "breedgraph[server]"
 ]
 
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -59,6 +73,10 @@ breedgraph = [
     "entrypoints/fastapi/graphql/type_definitions/**/*.graphql",
     "adapters/neo4j/cypher/**/*.cypher",
 ]
+archive_worker = []
+
+[project.scripts]
+archive-worker = "archive_worker.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/marcusmchale/breedgraph"

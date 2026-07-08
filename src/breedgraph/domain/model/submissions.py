@@ -17,3 +17,9 @@ class SubmissionKeys(Enum):
     ERRORS = "errors"
     ITEM_ERRORS = "item_errors"
 
+class ArchiveKeys(Enum):
+    ARCHIVE = "archive" # copy from webserver to archive
+    RETRIEVE = "retrieve"  # copy from archive back to webserver
+    STORE = "store" # keep local copy on webserver, has expiry
+    DELETE = "delete"  # delete permanently
+

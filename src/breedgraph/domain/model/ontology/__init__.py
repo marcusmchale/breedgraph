@@ -44,7 +44,6 @@ from .people import (
     RoleBase, RoleInput, RoleStored,
     TitleBase, TitleInput, TitleStored
 )
-from breedgraph.service_layer.mappers import OntologyMapper, ontology_mapper
 
 __all__ = [
     # Enums
@@ -103,6 +102,4 @@ __all__ = [
     'RoleBase', 'RoleInput', 'RoleStored',
     'TitleBase', 'TitleInput', 'TitleStored',
 
-    # Mappers
-    'OntologyMapper', 'ontology_mapper'
 ]

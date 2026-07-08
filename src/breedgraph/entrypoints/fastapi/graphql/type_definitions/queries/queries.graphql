@@ -2,7 +2,7 @@ type Query {
     """Get own account details for administrative tasks"""
     accountsAccount: AccountPayload!
     """Get user details for administrative tasks"""
-    accountsUsers (userId: Int): UsersPayload! # see users for admin
+    accountsUsers (userId: ID): UsersPayload! # see users for admin
     """
     Get the user access map of access type to team
     """
@@ -18,11 +18,11 @@ type Query {
     Get a single team details
     As with organisations, the organisation can be explored from this node.
     """
-    organisationsTeam (teamId: Int!): TeamPayload! # see team
+    organisationsTeam (teamId: ID!): TeamPayload! # see team
     """
     Get a multiple team details
     """
-    organisationsTeams(teamIds: [Int!]): TeamsPayload! # see team
+    organisationsTeams(teamIds: [ID!]): TeamsPayload! # see team
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """
@@ -37,9 +37,9 @@ type Query {
     Relationship attributes (e.g. terms) are determined by active relationships in the given version only.
     """
     ontologyEntries(
-        entryIds: [Int!],
+        entryIds: [ID!],
         labels:[OntologyEntryLabel],
-        versionId: Int,
+        versionId: ID,
         draft: Boolean = false
     ): OntologyEntriesPayload!
     """Get an ontology commit history"""
@@ -66,57 +66,61 @@ type Query {
     """
     regions: LocationsPayload!
     """ Get locations by locationId """
-    regionsLocations (locationIds: [Int!]!): LocationsPayload!
+    regionsLocations (locationIds: [ID!]!): LocationsPayload!
     """ Search for locations by ontology Location type """
-    regionsLocationsByType (locationTypeId: Int!): LocationsPayload!
+    regionsLocationsByType (locationTypeId: ID!): LocationsPayload!
     """
     Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
     """
-    arrangements (locationId: Int): LayoutsPayload!
+    arrangements (locationId: ID): LayoutsPayload!
     """ Get a layout details by ID """
-    arrangementsLayouts (layoutIds: [Int!]): LayoutsPayload! # see team
+    arrangementsLayouts (layoutIds: [ID!]): LayoutsPayload! # see team
     """
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
-    blocks (locationIds: [Int!]): UnitsPayload!
+    blocks (locationIds: [ID!]): UnitsPayload!
     """ Get units by ID. """
-    blocksUnits (unitIds: [Int!]): UnitsPayload!
+    blocksUnits (unitIds: [ID!]): UnitsPayload!
     """ Get a list of all programs """
     programs: ProgramsPayload!
     """Get a program by Id of program, trial or study """
-    programsProgram(programId: Int, trialId: Int, studyId: Int) : ProgramPayload!
+    programsProgram(programId: ID, trialId: ID, studyId: ID) : ProgramPayload!
     """ Get trials by Id of trial or study """
-    programsTrial(trialId: Int, studyId: Int): TrialPayload!
+    programsTrial(trialId: ID, studyId: ID): TrialPayload!
     """ Get study by study Id """
-    programsStudy(studyId: Int!): StudyPayload!
+    programsStudy(studyId: ID!): StudyPayload!
     """ Filter datasets by study and/or concept Id, OR retrieve by array of dataset ids """
-    datasets (studyIds: [Int!], conceptIds: [Int!], datasetIds: [Int!]): DatasetsPayload!
+    datasets (studyIds: [ID!], conceptIds: [ID!], datasetIds: [ID!]): DatasetsPayload!
     """ Get dataset submission by key """
-    datasetsSubmission(submissionId: String!): DatasetSubmissionPayload!
+    datasetsSubmission(submissionId: ID!): DatasetSubmissionPayload!
     """ Get a summary of datasets for a study """
-    datasetsSummaries(studyId: Int!): DatasetSummariesPayload!
+    datasetsSummaries(studyId: ID!): DatasetSummariesPayload!
     """ Get the controller data for access controlled entities """
-    controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [Int]!): ControllersPayload!
+    controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [ID]!): ControllersPayload!
     """Get a list of Germplasm entries"""
-    germplasmEntries (names: [String!], entryIds: [Int!]): GermplasmEntriesPayload!
+    germplasmEntries (names: [String!], entryIds: [ID!]): GermplasmEntriesPayload!
     """
         Get a list of Germplasm entries that have no sources defined,
         these should typically represent the Crop concept
     """
     germplasmCrops: GermplasmEntriesPayload!
     """ Get reference by reference ID """
-    references(referenceIds: [Int!]): ReferencesPayload!
+    references(referenceIds: [ID!]): ReferencesPayload!
     """ Get a users recently created/updated file references """
     referencesRecentFiles: ReferencesPayload!
     """ Search for references by text in description """
     referencesDescription(description: String!): ReferencesPayload!
     """ Get file submission by fileId for progress and status updates """
-    referencesFileSubmission(fileId: String!): FileSubmissionPayload!
+    referencesFileSubmission(fileId: ID!): FileSubmissionPayload!
+
+    """ Check the availability of a file for download"""
+    referencesFileDownloadState(fileId: ID!): FileDownloadStatePayload!
     """ Get a token to download a file """
-    referencesFileDownload(fileId: String!): FileDownloadPayload!
+    referencesFileDownload(fileId: ID!): FileDownloadPayload!
+
     " Get analysis status and results "
-    analysisSubmission(analysisId: String!): AnalysisSubmissionPayload!
+    analysisSubmission(analysisId: ID!): AnalysisSubmissionPayload!
 }

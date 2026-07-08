@@ -3,69 +3,69 @@ input CreateProgramInput {
     name: String!
     fullname: String
     description: String
-    contactIds: [Int!] = []
-    referenceIds: [Int!] = []
+    contactIds: [ID!] = []
+    referenceIds: [ID!] = []
 }
 
 input UpdateProgramInput {
-    programId: Int!
+    programId: ID!
     name: String
     fullname: String
     description: String
-    contactIds: [Int!]
-    referenceIds: [Int!]
+    contactIds: [ID!]
+    referenceIds: [ID!]
 }
 
 # Trial Mutations
 input CreateTrialInput {
-    programId: Int!
+    programId: ID!
     name: String!
     fullname: String
     description: String
     start: DateTime
     end: DateTime
-    contactIds: [Int!] = []
-    referenceIds: [Int!] = []
+    contactIds: [ID!] = []
+    referenceIds: [ID!] = []
 }
 
 input UpdateTrialInput {
-    trialId: Int!
+    trialId: ID!
     name: String
     fullname: String
     description: String
     start: DateTime
     end: DateTime
-    contactIds: [Int!]
-    referenceIds: [Int!]
+    contactIds: [ID!]
+    referenceIds: [ID!]
 }
 
 # Study Mutations
 input CreateStudyInput {
-    trialId: Int!
+    trialId: ID!
     name: String!
     fullname: String
     description: String
     practices: String
     start: DateTime
     end: DateTime
-    datasetIds: [Int!] = []
-    designId: Int
-    licenceId: Int
-    referenceIds: [Int!] = []
+    datasetIds: [ID!] = []
+    designId: ID
+    licenceId: ID
+    referenceIds: [ID!] = []
 }
 
 input UpdateStudyInput {
-    studyId: Int!
+    studyId: ID!
     name: String
     fullname: String
     description: String
     practices: String
     start: DateTime
     end: DateTime
-    datasetIds: [Int!]
-    designId: Int
-    licenceId: Int
-    referenceIds: [Int!]
+    datasetIds: [ID!]
+    designId: ID
+    licenceId: ID
+    referenceIds: [ID!]
 }
 
 # Mutation type extensions for programs
@@ -73,15 +73,15 @@ extend type Mutation {
     # Program mutations
     programsCreateProgram(program: CreateProgramInput!): BooleanPayload
     programsUpdateProgram(program: UpdateProgramInput!): BooleanPayload
-    programsDeleteProgram(programId: Int!): BooleanPayload
+    programsDeleteProgram(programId: ID!): BooleanPayload
 
     # Trial mutations
     programsCreateTrial(trial: CreateTrialInput!): BooleanPayload
     programsUpdateTrial(trial: UpdateTrialInput!): BooleanPayload
-    programsDeleteTrial(trialId: Int!): BooleanPayload
+    programsDeleteTrial(trialId: ID!): BooleanPayload
 
     # Study mutations
     programsCreateStudy(study: CreateStudyInput!): BooleanPayload
     programsUpdateStudy(study: UpdateStudyInput!): BooleanPayload
-    programsDeleteStudy(studyId: Int!): BooleanPayload
+    programsDeleteStudy(studyId: ID!): BooleanPayload
 }

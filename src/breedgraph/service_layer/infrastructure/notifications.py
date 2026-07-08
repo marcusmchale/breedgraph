@@ -2,15 +2,20 @@ import abc
 from typing import List
 
 from breedgraph.domain.services.email_templates import Email
-from breedgraph.domain.model.accounts import UserBase
 
+
+from typing import Protocol
+
+class NotificationRecipient(Protocol):
+    name: str
+    email: str
 
 class AbstractNotifications(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
     async def send(
-            recipients: List[UserBase],
+            recipients: List[NotificationRecipient],
             message: Email
     ):
         raise NotImplementedError

@@ -125,6 +125,10 @@ async def _validate_position(uow: AbstractUnitHolder, position: Position):
     if not position.location_id:
         raise ValueError("Positions require location_id")
 
+    if position.start and position.end:
+        if position.start > position.end:
+            raise ValueError("Start cannot be after end")
+
     if position.layout_id:
         if not position.coordinates:
             raise ValueError("Coordinates required if a layout is specified")

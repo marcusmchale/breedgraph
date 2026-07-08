@@ -1,11 +1,38 @@
 from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
 
-from breedgraph.domain.model.ontology import *
+
+from breedgraph.domain.model.ontology import (
+    OntologyEntryInput, OntologyEntryStored,
+    TermInput, TermStored,
+    SubjectInput, SubjectStored,
+    TraitInput, TraitStored,
+    ObservationMethodInput, ObservationMethodStored,
+    ScaleCategoryBase, ScaleCategoryInput, ScaleCategoryStored,
+    ScaleInput, ScaleStored,
+    VariableInput, VariableStored,
+    ConditionInput, ConditionStored,
+    FactorInput, FactorStored,
+    ControlMethodInput, ControlMethodStored,
+    EventTypeInput, EventTypeStored,
+    LocationTypeInput, LocationTypeStored,
+    DesignInput, DesignStored,
+    LayoutTypeInput, LayoutTypeStored,
+    RoleInput, RoleStored,
+    TitleInput, TitleStored,
+    OntologyEntryLabel, LifecyclePhase, VersionChange, Version, OntologyCommit,
+    OntologyRelationshipBase, ParentRelationship, TermRelationship, SubjectRelationship,
+    CategoryRelationship, FactorComponentRelationship, VariableComponentRelationship,
+    EventTypeComponentRelationship, EntryLifecycle, RelationshipLifecycle,
+    OntologyRelationshipLabel, ScaleType
+)
+
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.events import Event
 from breedgraph.domain.events.ontology import OntologyVersionCreated
 
 from breedgraph.service_layer.persistence import OntologyPersistenceService
+
+from breedgraph.service_layer.mappers import ontology_mapper
 
 from typing import Set, List, Tuple, Dict, Any, AsyncGenerator, overload, Literal, TypeVar
 
@@ -43,13 +70,15 @@ class OntologyApplicationService:
 
     async def commit_version(
             self,
-            version_change: VersionChange|None = VersionChange.PATCH,
-            comment: str = None,
-            licence_reference: int = None,
-            copyright_reference: int = None
+            version_change: VersionChange = VersionChange.PATCH,
+            comment: str|None = None,
+            licence_reference: int|None = None,
+            copyright_reference: int|None = None
     ) -> OntologyCommit:
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
+        elif not self.user_id:
+            raise UnauthorisedOperationError("Only registered users can commit versoins")
         """Create a new ontology version with commit metadata."""
         # Save through persistence service
         commit = await self.persistence.commit_version(

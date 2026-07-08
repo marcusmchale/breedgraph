@@ -1,6 +1,9 @@
 import asyncio
+from datetime import datetime
+
 from fastapi import UploadFile
 
+from breedgraph.domain.model.archive import FileArchivalRecord, LocalState, ArchiveState
 from breedgraph.service_layer.messagebus import MessageBus
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.references import (
@@ -16,10 +19,12 @@ from breedgraph.domain.commands.references import (
     UpdateDataFileReference,
     DeleteReferences
 )
+from breedgraph.domain.commands.archive import RequestFileRestore
 from breedgraph.domain.events.references import (
     UploadFailed,
     UploadCompleted
 )
+
 
 from typing import List
 
@@ -31,16 +36,27 @@ from . import graphql_mutation
 # We don't want to pass the UploadFile to the bus,
 # so just pass in callbacks to raise events and create a new task on the process
 def start_creating_file(user_id:int, bus: MessageBus, key: str, reference_id: int, file: UploadFile):
-    # sets the uuid and notifies user
-    success_event = UploadCompleted(user_id=user_id, uuid=key, reference_id=reference_id)
-    async def on_complete(*args, **kwargs):
+    async def on_complete(file_size: int, file_hash: str, *args, **kwargs):
         logger.debug(f'file saving complete for uuid: {key}')
-        await bus.handle(success_event)
-    # removes the file and notifies user
-    fail_event = UploadFailed(user_id=user_id, uuid=key, reference_id=reference_id)
+        await bus.handle(
+            UploadCompleted(
+                user_id=user_id,
+                uuid=key,
+                reference_id=reference_id,
+                file_size=file_size,
+                file_hash=file_hash
+            )
+        )
+
     async def on_failed(*args, **kwargs):
         logger.error(f'file saving failed for uuid: {key}')
-        await bus.handle(fail_event)
+        await bus.handle(
+            UploadFailed(
+                user_id=user_id,
+                uuid=key,
+                reference_id=reference_id
+            )
+        )
 
     asyncio.create_task(bus.file_management.save_file(
         uuid=key,
@@ -60,13 +76,21 @@ def start_updating_file(
     # if there is a file, then don't perform the update until after the file is saved
     # otherwise the reference may be in an inconsistent state,
     # e.g. filename would be updated but points to the old file
-    success_event = UploadCompleted(user_id=user_id, uuid=key, reference_id=reference_id)
+
     fail_event = UploadFailed(user_id=user_id, uuid=key, reference_id=reference_id)
 
-    async def on_complete(*args, **kwargs):
+    async def on_complete(file_size:int, file_hash:str, *args, **kwargs):
         try:
             await bus.handle(cmd)
-            await bus.handle(success_event)
+            await bus.handle(
+                UploadCompleted(
+                    user_id=user_id,
+                    uuid=key,
+                    reference_id=reference_id,
+                    file_size=file_size,
+                    file_hash=file_hash
+                )
+            )
         except Exception as e:
             logger.error(f"Failed to update file reference: {e}")
             await bus.handle(fail_event)
@@ -92,6 +116,8 @@ async def start_file_ref_update(
         await bus.handle(cmd)
         return None
     else:
+        if not file.filename:
+            raise ValueError("File must have a name")
 
         key = await bus.state_store.store_file(
             agent_id=user_id,
@@ -215,9 +241,13 @@ async def create_data_file_reference(
     bus = info.context.get('bus')
     logger.debug(f'User {user_id} creates data file reference')
 
-    file = reference.get('file')
+    file: UploadFile | None = reference.get('file')
     if not file:
         raise ValueError("File upload is required for creating a data file reference")
+    if not file.filename:
+        raise ValueError("File must have name")
+    if not file.content_type:
+        raise ValueError("File must have content type")
 
     key = await bus.state_store.store_file(
         agent_id=user_id,
@@ -236,6 +266,8 @@ async def create_data_file_reference(
     await bus.handle(cmd)
     bus: MessageBus = info.context.get('bus')
     reference_id = await bus.state_store.get_file_reference_id(key)
+    if not reference_id:
+        raise ValueError("File reference id is invalid")
 
     start_creating_file(
         user_id=user_id,
@@ -359,5 +391,19 @@ async def delete_references(
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} deletes references {reference_ids}')
     cmd = DeleteReferences(agent_id=user_id, reference_ids=reference_ids)
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("referencesRequestFileRetrieval")
+@graphql_payload
+@require_authentication
+async def request_file_retrieval(
+        _,
+        info,
+        file_id: str
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f'User {user_id} requesting retrieval of file {file_id}')
+    cmd = RequestFileRestore(file_id=file_id, agent_id=user_id)
     await info.context['bus'].handle(cmd)
     return True

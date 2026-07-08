@@ -1,5 +1,5 @@
 type Layout {
-    id: Int!
+    id: ID!
     type: OntologyEntryInterface
     name: String
     axes: [String!]

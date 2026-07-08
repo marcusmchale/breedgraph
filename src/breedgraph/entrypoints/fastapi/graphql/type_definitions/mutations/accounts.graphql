@@ -26,30 +26,30 @@ extend type Mutation {
         email: String!
     ): BooleanPayload!
     accountsRequestAffiliation(
-        teamId: Int!
+        teamId: ID!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
     accountsApproveAffiliation(
-        userId: Int!
-        teamId: Int!
+        userId: ID!
+        teamId: ID!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
     accountsRemoveAffiliation(
-        teamId: Int!
+        teamId: ID!
         access: Access!
     ): BooleanPayload!
     accountsRevokeAffiliation(
-        userId: Int!
-        teamId: Int!
+        userId: ID!
+        teamId: ID!
         access: Access!
     ): BooleanPayload!
     accountsRequestOntologyRole(
         ontologyRole: OntologyRole!
     ): BooleanPayload!
     accountsSetOntologyRole(
-        userId: Int!
+        userId: ID!
         ontologyRole: OntologyRole!
     ): BooleanPayload!
 }

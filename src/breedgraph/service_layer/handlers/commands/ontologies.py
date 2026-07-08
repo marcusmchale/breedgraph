@@ -3,14 +3,13 @@ from breedgraph.domain.model.ontology import *
 
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 from breedgraph.service_layer.application import OntologyApplicationService
-
+from breedgraph.service_layer.mappers import ontology_mapper
 from ..registry import handlers
 
 import logging
 
 from typing import List
 
-ontology_mapper = ontology_mapper  # just re-declaring here for clarity as this is imported with import all above
 
 logger = logging.getLogger(__name__)
 

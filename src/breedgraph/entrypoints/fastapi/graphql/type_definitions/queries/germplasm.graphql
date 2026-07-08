@@ -6,7 +6,7 @@ type GermplasmRelationship {
 }
 
 type GermplasmEntry {
-    id: Int!
+    id: ID!
     name: String!
     description: String
     synonyms: [String!]

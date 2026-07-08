@@ -13,5 +13,6 @@ from . import (
     controls,
     germplasm,
     references,
-    analysis
+    analysis,
+    archive
 )

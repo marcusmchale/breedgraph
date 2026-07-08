@@ -30,4 +30,3 @@ class ExistingUniqueRelationship(IllegalOperationError):
 class InconsistentStateError(IllegalOperationError):
     """Raised when the system detects an inconsistent state that prevents safe operation completion."""
     pass
-

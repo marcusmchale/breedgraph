@@ -5,7 +5,7 @@ input GeoCoordinateInput {
     longitude: Float!
     """Meters above WGS84 reference ellipsoid"""
     altitude: Float
-    """Uncertainty in meters associated with these coordinates"""
+    """UncertaIDy in meters associated with these coordinates"""
     uncertainty: Float
     """Additional coordinate description"""
     description: String
@@ -19,13 +19,13 @@ input LocationInput {
     address: String
     coordinates: [GeoCoordinateInput]
     """ Ontology LocationType identifier """
-    typeId: Int!
+    typeId: ID!
     """ A parent location, required unless a country (see countries) """
-    parentId: Int
+    parentId: ID
 }
 
 input LocationUpdate {
-    locationId: Int!
+    locationId: ID!
     name: String
     """ Optional code for location, e.g. zip-code """
     code: String
@@ -33,9 +33,9 @@ input LocationUpdate {
     address: String
     coordinates: [GeoCoordinateInput]
     """ Ontology LocationType identifier """
-    typeId: Int
+    typeId: ID
     """ A parent location, required unless a country (see countries) """
-    parentId: Int
+    parentId: ID
 }
 
 extend type Mutation {
@@ -46,6 +46,6 @@ extend type Mutation {
         location: LocationUpdate!
     ): BooleanPayload!,
     regionsDeleteLocation(
-        locationId: Int!
+        locationId: ID!
     ): BooleanPayload!
 }

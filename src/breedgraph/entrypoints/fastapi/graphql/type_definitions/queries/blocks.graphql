@@ -16,7 +16,7 @@ type Position {
 }
 
 type Unit {
-    id: Int!
+    id: ID!
 
     subject: OntologyEntryInterface
     germplasm: GermplasmEntry

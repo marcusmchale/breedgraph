@@ -15,7 +15,7 @@ type Location {
     """
     Stored Locations
     """
-    id: Int!
+    id: ID!
     name: String!
     type: OntologyEntryInterface
     code: String
@@ -38,5 +38,5 @@ type LocationTemplate {
     address: String
     coordinates: [GeoCoordinate]
     """ Ontology LocationType identifier """
-    typeId: Int!
+    typeId: ID!
 }

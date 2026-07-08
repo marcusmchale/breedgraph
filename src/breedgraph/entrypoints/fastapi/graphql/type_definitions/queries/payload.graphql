@@ -176,12 +176,17 @@ type FileSubmissionPayload {
     errors: [Error]
 }
 
+type FileDownloadStatePayload {
+    status: QueryStatus!
+    result: FileDownloadState
+    errors: [Error]
+}
+
 type FileDownloadPayload {
     status: QueryStatus!
     result: FileDownload
     errors: [Error]
 }
-
 
 type ProgramsPayload {
     status: QueryStatus!

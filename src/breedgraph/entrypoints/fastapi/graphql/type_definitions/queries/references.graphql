@@ -1,17 +1,17 @@
 interface ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 }
 
 type LegalReference implements ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 
     text: String
 }
 
 type ExternalReference implements ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 
     url: String
@@ -19,16 +19,16 @@ type ExternalReference implements ReferenceInterface {
 }
 
 type FileReference implements ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 
     filename: String
-    fileId: String
+    fileId: ID
     contentType: String
 }
 
 type ExternalDataReference implements ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 
     url: String
@@ -39,11 +39,11 @@ type ExternalDataReference implements ReferenceInterface {
 }
 
 type DataFileReference implements ReferenceInterface {
-    id: Int!
+    id: ID!
     description: String
 
     filename: String
-    fileId: String
+    fileId: ID
     contentType: String
 
     format: DataFormat
@@ -57,12 +57,27 @@ type FileSubmission {
     errors: [String]
 }
 
+enum FileStatus {
+    ARCHIVED
+    RETRIEVING
+    AVAILABLE
+    FAILED
+}
+
+type FileRetrieval {
+    startedAt: DateTime
+    progress: Int
+}
+
+type FileDownloadState {
+    status: FileStatus!
+    progress: FileRetrieval
+}
+
 type FileDownload {
-    filename: String!
-    contentType: String!
-    token: String!
     expiresAt: DateTime!
     url: String!
 }
+
 
 union ReferenceUnion = LegalReference | ExternalReference | ExternalDataReference | DataFileReference | FileReference

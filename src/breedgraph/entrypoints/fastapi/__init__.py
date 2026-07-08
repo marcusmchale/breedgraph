@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+from breedgraph.adapters.neo4j.services import Neo4jFileArchivalService
 from breedgraph.entrypoints.fastapi.middleware import setup_middlewares
 
 from breedgraph.entrypoints.fastapi.redirect import router as redirect_router
 from breedgraph.entrypoints.fastapi.security import router as security_router
 from breedgraph.entrypoints.fastapi.downloads import router as download_router
+from breedgraph.entrypoints.fastapi.archive import router as archive_router
+from breedgraph.entrypoints.fastapi.retention import router as retention_router
 
 from breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphql_router
 from breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
@@ -25,7 +28,7 @@ async def lifespan(fast_api_app: FastAPI):
     logger.debug("Application startup")
 
     logger.debug("Load messaging bus")
-    bus: MessageBus = await bootstrap.bootstrap()
+    bus: MessageBus = await bootstrap.bootstrap(archival_service=Neo4jFileArchivalService)
     fast_api_app.bus = bus
 
     logger.info("Starting event processors")
@@ -63,5 +66,11 @@ app.include_router(redirect_router)
 app.include_router(security_router)
 app.include_router(graphql_router)
 app.include_router(download_router)
+
+## Internal services
+# Local network service
+app.include_router(archive_router)
+# Cron job to trigger file cleanup
+app.include_router(retention_router)
 
 logger.debug('Started')

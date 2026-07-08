@@ -1,0 +1,41 @@
+# /etc/systemd/system/archive_worker.service
+[Unit]
+Description=Archive Worker Service - File Archival and Retrieval
+After=network.target
+Wants=network-online.target
+
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=archiveworker
+Group=archiveworker
+
+WorkingDirectory=/opt/archive_worker
+EnvironmentFile=/opt/archive_worker/archive_worker.env
+
+ExecStart=/opt/archive_worker/.venv/bin/python -m archive_worker.main
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Graceful shutdown
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/archive_worker /var/log/archive_worker
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=archive-worker
+
+[Install]
+WantedBy=multi-user.target

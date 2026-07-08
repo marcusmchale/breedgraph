@@ -1,5 +1,5 @@
 type Record {
-    id: Int!
+    id: ID!
     unit: Unit
     value: String
     start: DateTime
@@ -9,7 +9,7 @@ type Record {
 }
 
 type Dataset {
-    id: Int!
+    id: ID!
     # concept is either a Factor or Variable in the ontology
     concept: OntologyEntryInterface
     records: [Record]
@@ -18,7 +18,7 @@ type Dataset {
 }
 
 type SubmittedRecord {
-    id: Int  # may be null if a new record, or provided if an update
+    id: ID  # may be null if a new record, or provided if an update
     unitId: Int!
     value: String
     start: DateTime
@@ -27,7 +27,7 @@ type SubmittedRecord {
 }
 
 type SubmittedData {
-    conceptId: Int!
+    conceptId: ID!
     records: [SubmittedRecord]
     contributors: [Person]
     references: [ReferenceInterface]
@@ -46,15 +46,15 @@ type ItemError {
 }
 
 type DatasetSubmission {
+    datasetId: ID
     data: SubmittedData
-    datasetId: Int
     status: SubmissionStatus
     errors: [String]
     itemErrors: [ItemError]
 }
 
 type DatasetSummary {
-    id: Int!
+    id: ID!
     concept: OntologyEntryInterface,
     subjects: [Subject]
     locations: [Location]

@@ -13,13 +13,13 @@ enum GermplasmSourceType {
 }
 
 input GermplasmSourceRelationship {
-    sourceId: Int!
+    sourceId: ID!
     sourceType: GermplasmSourceType!
     description: String
 }
 
 input GermplasmSinkRelationship {
-    sinkId: Int!
+    sinkId: ID!
     sourceType: GermplasmSourceType!
     description: String
 }
@@ -33,7 +33,7 @@ input GermplasmInput {
     """
     Place of origin, a reference to a Location stored in Regions
     """
-    originId: Int
+    originId: ID
     """
     Time sourced from origin
     """
@@ -45,11 +45,11 @@ input GermplasmInput {
     """
     Control methods (referenced in the ontology) to provide further details about how this germplasm is maintained
     """
-    controlMethodIds: [Int!]
+    controlMethodIds: [ID!]
     """Authors of this germplasm entry (A list of personId)"""
-    authorIds: [Int!] = []
+    authorIds: [ID!] = []
     """References for ths germplasm entry (A list of referenceId)"""
-    referenceIds: [Int!] = []
+    referenceIds: [ID!] = []
     """Source relationships"""
     sources: [GermplasmSourceRelationship!]
     """Sink relationships"""
@@ -57,16 +57,16 @@ input GermplasmInput {
 }
 
 input GermplasmUpdate {
-    id: Int!
+    id: ID!
     name: String
     description: String
     synonyms: [String!]
-    originId: Int
+    originId: ID
     time: DateTime
     reproduction: Reproduction
-    controlMethodIds: [Int!]
-    authorIds: [Int] = []
-    referenceIds: [Int] = []
+    controlMethodIds: [ID!]
+    authorIds: [ID!] = []
+    referenceIds: [ID!] = []
     sources: [GermplasmSourceRelationship!]
     sinks: [GermplasmSinkRelationship!]
 }
@@ -74,5 +74,5 @@ input GermplasmUpdate {
 extend type Mutation {
     germplasmCreateEntry(entry: GermplasmInput!): BooleanPayload
     germplasmUpdateEntry(entry: GermplasmUpdate!): BooleanPayload
-    germplasmDeleteEntry(entryId: Int!): BooleanPayload
+    germplasmDeleteEntry(entryId: ID!): BooleanPayload
 }

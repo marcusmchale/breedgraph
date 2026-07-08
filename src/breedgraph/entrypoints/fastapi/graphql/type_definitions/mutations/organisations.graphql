@@ -4,11 +4,11 @@ input TeamInput {
     """ Optional full name for the team """
     fullname: String
     """ Optional parent team to extend an organisation"""
-    parentId: Int
+    parentId: ID
 }
 
 input TeamUpdate {
-    teamId: Int!
+    teamId: ID!
     name: String
     fullname: String
 }
@@ -18,7 +18,7 @@ extend type Mutation {
         team: TeamInput!
     ): BooleanPayload!
     organisationsDeleteTeam(
-        teamId: Int!
+        teamId: ID!
     ): BooleanPayload!
     organisationsUpdateTeam(
         team: TeamUpdate!

@@ -3,11 +3,13 @@ from asyncio import Queue
 from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
-from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
-from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
-from breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
-
-from breedgraph.service_layer.infrastructure.file_management import FileManagementService
+from breedgraph.service_layer.infrastructure import (
+    AbstractStateStore,
+    AbstractNotifications,
+    AbstractAuthService,
+    FileManagementService,
+    AbstractFileArchivalService
+)
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
@@ -15,6 +17,8 @@ from breedgraph.adapters.neo4j.views import Neo4jViewsFactory
 from breedgraph.adapters.redis.state_store import RedisStateStore
 from breedgraph.adapters.aiosmtp import EmailNotifications
 from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
+
+
 
 from breedgraph.service_layer.handlers import handlers
 from breedgraph.service_layer.messagebus import MessageBus
@@ -32,7 +36,8 @@ async def bootstrap(
         state_store: Type[AbstractStateStore] = RedisStateStore,
         notifications: Type[AbstractNotifications] = EmailNotifications,
         auth_service: Type[AbstractAuthService] = ItsDangerousAuthService,
-        event_queue: Queue = Queue()
+        event_queue: Queue = Queue(),
+        archival_service: Type[AbstractFileArchivalService]|None = None
 ) -> MessageBus:
     logger.debug("Init driver")
     driver = driver()
@@ -55,6 +60,10 @@ async def bootstrap(
     logger.debug("Init file management service")
     file_management: FileManagementService = FileManagementService(state_store)
 
+    if archival_service is not None:
+        logger.debug("Init archival service")
+        archival_service = archival_service(driver=driver, queue=event_queue)
+
     handlers.register_dependencies(
         uow_factory=uow_factory,
         views_factory=views_factory,
@@ -62,6 +71,7 @@ async def bootstrap(
         state_store=state_store,
         auth_service=auth_service,
         file_management=file_management,
+        archival_service=archival_service,
         event_queue=event_queue
     )
 
@@ -73,5 +83,6 @@ async def bootstrap(
         file_management=file_management,
         event_handlers=handlers.event_handlers,
         command_handlers=handlers.command_handlers,
+        archival_service=archival_service,
         event_queue=event_queue
     )

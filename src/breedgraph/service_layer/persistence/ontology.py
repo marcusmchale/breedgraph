@@ -206,9 +206,9 @@ class OntologyPersistenceService(ABC):
             self,
             user_id: int,
             version_change: VersionChange,
-            comment: str = None,
-            licence_reference: int = None,
-            copyright_reference: int = None
+            comment: str = "",
+            licence_reference: int|None = None,
+            copyright_reference: int|None = None
     ) -> OntologyCommit:
         current_version = await self.get_current_version()
         version = current_version.increment(version_change)

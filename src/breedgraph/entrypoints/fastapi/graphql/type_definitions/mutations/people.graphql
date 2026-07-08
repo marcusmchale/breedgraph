@@ -4,7 +4,7 @@ input PersonInput {
 }
 
 input PersonUpdate {
-    id: Int!
+    id: ID!
     name: String
     fullname: String
 }
@@ -17,6 +17,6 @@ extend type Mutation {
         person: PersonUpdate!
     ): BooleanPayload!,
     peopleDeletePerson(
-        personId: Int!
+        personId: ID!
     ): BooleanPayload!
 }

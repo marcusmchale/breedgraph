@@ -248,7 +248,7 @@ enum ScaleType {
 }
 
 interface OntologyEntryInterface {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -275,7 +275,7 @@ Term entries may be used to relate other key terms in the ontology.
 Example: "Metabolism" may be a term.
 """
 type Term implements OntologyEntryInterface {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -314,7 +314,7 @@ These are linked to Unit and Trait.
 Examples: "Leaf", "Tree", "Field", "Rhizosphere"
 """
 type Subject implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -343,7 +343,7 @@ Examples:
 "Height", "Gene expression" linked to a tree subject.
 """
 type Trait implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -371,7 +371,7 @@ These are linked to Factor entries.
 Examples: "Light level", "Controlled Grafting", "Water availability"
 """
 type Condition implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -407,7 +407,7 @@ Examples:
 
 """
 type Scale implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -437,7 +437,7 @@ Category entries describe classes for Scale entries with type Nominal or Ordinal
 These are linked to Scale entries.
 """
 type Category implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -465,7 +465,7 @@ Observation method entries require an ObservationMethodType.
 Examples: "Distance measurement with calibrated reference", "Short-read sequencing", "Rain Gauge".
 """
 type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -501,7 +501,7 @@ Examples:
     Scale = "Counts per million"
 """
 type Variable implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -530,7 +530,7 @@ These are linked to Factor.
 Examples: "Fluorescent Lighting", "Fertilizer application"
 """
 type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -566,7 +566,7 @@ OR
     Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
 """
 type Factor implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -595,7 +595,7 @@ Examples:
 "Harvest" where "harvest method" may be a factor and "yield" may be a variable.
 """
 type Event implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -624,7 +624,7 @@ These are linked to Location (see Regions).
 Examples: "Country", "State", "Field"
 """
 type LocationType implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -649,7 +649,7 @@ These are linked to Layout (see Arrangements).
 Examples: "Grid", "Rows"
 """
 type LayoutType implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -676,7 +676,7 @@ These are linked to Study (see Programs).
 Examples: "Split-plot", "Randomized block"
 """
 type Design implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -701,7 +701,7 @@ These are linked to Person (see People).
 Examples: "Post-doctoral researcher", "Principal Investigator"
 """
 type Role implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -726,7 +726,7 @@ These are linked to Person (see People).
 Examples: "Professor", "Doctor"
 """
 type Title implements OntologyEntryInterface & RelatedToTerms {
-    id: Int!
+    id: ID!
     versionId: ID!
     draft: Boolean!
 
@@ -748,11 +748,11 @@ type Title implements OntologyEntryInterface & RelatedToTerms {
 union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | Role | Title
 
 type OntologyRelationship {
-    id: Int!
+    id: ID!
     versionId: ID!
 
-    sourceId: Int!
-    targetId: Int!
+    sourceId: ID!
+    targetId: ID!
     label: OntologyRelationshipLabel!
     phase: LifecyclePhase
     rank: Int

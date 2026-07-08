@@ -21,10 +21,13 @@ from breedgraph.domain.model.references import (
     FileReferenceStored,
     DataFileStored
 )
+from breedgraph.domain.model.archive import FileArchivalRecord, LocalState, ArchiveState
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFoundError
 
 from breedgraph.config import SECRET_KEY, FILE_DOWNLOAD_EXPIRES, FILE_DOWNLOAD_SALT, get_download_endpoint
+
+from breedgraph.domain.commands.archive import RequestFileRestore
 
 from typing import List
 
@@ -155,6 +158,51 @@ async def get_file_errors(file_id, info) -> List[str]:
     errors = await bus.state_store._get_errors(file_id)
     return errors
 
+@graphql_query.field("referencesFileDownloadState")
+@graphql_payload
+@require_authentication
+async def get_file_download_state(_, info, file_id: str):
+    """
+     Check if the file download request is registered
+     Return a FileDownloadRequest object
+    """
+    user_id = info.context.get('user_id')
+    logger.debug(f'User {user_id} requesting download of file {file_id}')
+    bus = info.context['bus']
+    archival_service = bus.archival_service
+    record: FileArchivalRecord = await archival_service.get(file_id)
+    if record.local_state == LocalState.LOCAL:
+        status = "AVAILABLE"
+        recovery = None
+    else:
+        cmd = RequestFileRestore(file_id=file_id, agent_id=user_id)
+        await bus.handle(cmd)
+
+        if record.archive_state in [ArchiveState.ARCHIVED, ArchiveState.RETRIEVAL_PENDING, ArchiveState.RETRIEVING]:
+            status = "RESTORING"
+            if record.archive_state == ArchiveState.RETRIEVING:
+                recovery = {
+                    "startedAt": record.last_accessed,
+                    "progress": record.local_completion
+                }
+            else:
+                recovery = {
+                    "startedAt": datetime.now(),
+                    "progress": 0
+                }
+        else:
+            status = "FAILED"
+            recovery = {
+                "startedAt": record.last_accessed,
+                "progress": record.local_completion
+            }
+
+    return {
+        "status": status,
+        "recovery": recovery
+    }
+
+
 @graphql_query.field("referencesFileDownload")
 @graphql_payload
 @require_authentication
@@ -176,14 +224,17 @@ async def get_file_download(_, info, file_id: str):
             raise ValueError(f"Reference with file ID {file_id} not found")
 
         if not reference.file_id:
-            # The user has probably requested a file that they do not have access to
+            # The user may have requested a file that they do not have access to
             # The query allows to see that the reference exists and get the reference ID, but not see other details
             # Confirm the user does not have access before returning the error message.
             controls: AbstractAccessControlService = uow.controls
-            controller: Controller = await controls.get_controller(
+            controller = await controls.get_controller(
                 label=ControlledModelLabel.REFERENCE,
                 model_id=reference.id
             )
+            if not controller:
+                raise ValueError("Controller not found for file reference")
+
             has_access = controller.has_access(
                 access=Access.READ,
                 user_id=user_id,
@@ -192,8 +243,7 @@ async def get_file_download(_, info, file_id: str):
             if not has_access:
                 raise UnauthorisedOperationError("The requesting user does not have access to read this reference")
             else:
-                raise ValueError("Unexpected error. The file reference is missing a UUID")
-
+                raise ValueError("Unexpected error. The file reference is missing a file id")
 
         file_details = {
             'uuid': reference.file_id,
@@ -207,9 +257,6 @@ async def get_file_download(_, info, file_id: str):
         )
 
         return {
-            'filename': reference.filename,
-            'content_type': reference.content_type,
-            'token': token,
             'expires_at': datetime.now() + timedelta(minutes=FILE_DOWNLOAD_EXPIRES),
             'url': f'{get_download_endpoint()}{token}'
         }

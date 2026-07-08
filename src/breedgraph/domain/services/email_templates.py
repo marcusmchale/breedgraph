@@ -1,12 +1,16 @@
 import json
-import logging
+from datetime import datetime
 
 from breedgraph.config import SITE_NAME
+from breedgraph.domain.model import FileReferenceBase
 from breedgraph.domain.model.accounts import UserBase
 from breedgraph.domain.model.organisations import Access, TeamBase
+from breedgraph.domain.model.archive import ArchiveRequestor
 from breedgraph.config import get_base_url
 from email.message import EmailMessage
 
+
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -134,3 +138,37 @@ class FileUploadFailed(Email):
 #            'You can now control access to data submitted by users that registered with this key. '
 #            'You can also allow new users to register by adding their email address to those allowed. '
 #        )
+
+
+class FileRetrievalSuccess(Email):
+    """Notification that a file has been successfully retrieved from archive"""
+
+    def __init__(self, requestor: ArchiveRequestor, reference: FileReferenceBase, url:str, expires: datetime):
+        super().__init__()
+        self.message['Subject'] = f"{SITE_NAME} file retrieved from archive"
+        body = f"""
+        Hi {requestor.name},
+        You recently requested recovery of a file from the archive.
+         It has now been retrieved and is available for download.
+         
+         Filename: {reference.filename}
+         Download URL: {url}
+         Expires: {expires.strftime(format="%Y-%m-%d %H:%M:%S")} 
+        """
+        self.message.set_content(body)
+
+
+class FileRetrievalFailed(Email):
+    """Notification that file retrieval from archive failed"""
+
+    def __init__(self, requestor: ArchiveRequestor, file_id: str, error: str = ""):
+        super().__init__()
+        self.message['Subject'] = f"{SITE_NAME} file retrieval from archive failed"
+        body = f"""
+        Hi {requestor.name},
+        Unfortunately, the retrieval of your requested file (ID: {file_id}) from the archive 
+        has failed after multiple attempts.
+        Error: {error}
+        Please contact the system administrator for assistance.
+        """
+        self.message.set_content(body)

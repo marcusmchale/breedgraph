@@ -1,9 +1,11 @@
 from functools import wraps
 from enum import Enum
 from pydantic import BaseModel
-from neo4j.exceptions import ServiceUnavailable
+from inspect import signature
+from typing import get_type_hints, get_args, get_origin, Union
+from types import UnionType
 
-from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 
 import logging
 
@@ -20,11 +22,40 @@ class GQLError(BaseModel):
     name: str
     message: str
 
+def coerce_value(value, annotation):
+    if value is None:
+        return None
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    # Optional[T] / T | None
+    if origin in (Union, UnionType):
+        non_none = [a for a in args if a is not type(None)]
+        if len(non_none) == 1:
+            return coerce_value(value, non_none[0])
+
+    # list[T] / List[T]
+    if origin is list:
+        item_type = args[0]
+        return [coerce_value(item, item_type) for item in value]
+
+    # primitive types
+    if annotation is int:
+        return int(value)
+
+    return value
 
 def graphql_payload(func):
-    @wraps(func)
+    hints = get_type_hints(func)
 
+    @wraps(func)
     async def decorated_function(*args, **kwargs):
+        # type coercion here using the registered converters
+        for name, annotation in hints.items():
+            if name in kwargs:
+                kwargs[name] = coerce_value(kwargs[name], annotation)
+
         errors = []
         try:
             result = await func(*args, **kwargs)
@@ -33,7 +64,7 @@ def graphql_payload(func):
                 "result": result
             }
         #except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
-        # todo handle exceptions more gracefully, we don't want to expose internal exceptions to the user
+        # todo handle exceptions more gracefully, we probably don't want to expose internal exceptions to the user
         except Exception as e:
             logging.exception(e)
             errors.append(GQLError(

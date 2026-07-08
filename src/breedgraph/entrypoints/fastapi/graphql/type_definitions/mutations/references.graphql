@@ -43,20 +43,20 @@ input CreateDataFileReferenceInput {
 
 
 input UpdateLegalReferenceInput {
-    referenceId: Int!
+    referenceId: ID!
     description: String
     text: String!
 }
 
 input UpdateExternalReferenceInput {
-    referenceId: Int!
+    referenceId: ID!
     description: String
     url: String!
     externalId: String
 }
 
 input UpdateExternalDataReferenceInput {
-    referenceId: Int!
+    referenceId: ID!
     description: String
     url: String!
     externalId: String
@@ -66,13 +66,13 @@ input UpdateExternalDataReferenceInput {
 }
 
 input UpdateFileReferenceInput {
-    referenceId: Int!
+    referenceId: ID!
     description: String
     file: Upload
 }
 
 input UpdateDataFileReferenceInput {
-    referenceId: Int!
+    referenceId: ID!
     description: String
     file: Upload
 
@@ -96,5 +96,7 @@ extend type Mutation {
     referencesUpdateFile(reference: UpdateFileReferenceInput): FileIdPayload!
     referencesUpdateDataFile(reference: UpdateDataFileReferenceInput): FileIdPayload!
     
-    referencesDelete(referenceIds: [Int!]!): BooleanPayload!
+    referencesDelete(referenceIds: [ID!]!): BooleanPayload!
+    """ Request to make an archived file available for download """
+    referencesRequestFileRetrieval(fileId: ID!): BooleanPayload!
 }
