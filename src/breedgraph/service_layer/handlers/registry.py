@@ -4,7 +4,6 @@ from functools import wraps
 import logging
 logger = logging.getLogger(__name__)
 
-
 class HandlerRegistry:
     def __init__(self):
         self.command_handlers = {}
@@ -26,6 +25,7 @@ class HandlerRegistry:
                 actual_command_type = detected_type
             else:
                 actual_command_type = command_type
+
 
             # Create dependency-injected wrapper
             injected_handler = self._inject_dependencies(func)

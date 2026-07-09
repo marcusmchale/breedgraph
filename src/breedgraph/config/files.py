@@ -6,7 +6,7 @@ FILE_DOWNLOAD_EXPIRES = int(os.environ.get('FILE_DOWNLOAD_EXPIRES', 1440))  # mi
 MAX_CONCURRENT_UPLOADS = int(os.environ.get('MAX_CONCURRENT_UPLOADS', 5))
 
 # bytes for file size above which local copies of the file will be removed after local storage duration
-LOCAL_SIZE_LIMIT = int(os.environ.get('ARCHIVAL_FILE_SIZE', 1e8))
+LOCAL_SIZE_LIMIT = int(os.environ.get('LOCAL_SIZE_LIMIT', 10000000))
 # days to temporarily keep a file larger than archival file size on the web server
 LOCAL_STORAGE_DURATION = int(os.environ.get('LOCAL_STORAGE_DURATION', 28))
 

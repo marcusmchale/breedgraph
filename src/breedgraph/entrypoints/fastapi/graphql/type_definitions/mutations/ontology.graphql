@@ -56,7 +56,7 @@ input TraitInput {
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
-    subjectIds: [ID!]!
+    subjectIds: [ID!]
 }
 
 input ConditionInput {

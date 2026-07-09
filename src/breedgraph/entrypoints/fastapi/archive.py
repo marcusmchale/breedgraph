@@ -22,7 +22,6 @@ def verify_service_token(authorization: str = Header(None)):
 
 router = APIRouter(prefix='/archive', dependencies=[Depends(verify_service_token)])
 
-
 async def get_by_state(request: Request, state: ArchiveState):
     try:
         bus = request.app.bus

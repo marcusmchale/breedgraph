@@ -4,6 +4,7 @@ from asyncio import Queue
 import hashlib
 import aiofiles
 
+from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 from breedgraph.domain.model.archive import (
     FileArchivalRecord, FileArchivalUpdate, ArchiveState, LocalState,
@@ -146,8 +147,9 @@ class AbstractFileArchivalService(ABC):
         We also create events to eventually notify users that the file was restored or failed to be restored
         """
         file_hash = await self.get_hash(file_id)
-        retrieved = await self._set_retrieved(file_id, file_hash)
-        if retrieved is None:
+        try:
+            retrieved = await self._set_retrieved(file_id, file_hash)
+        except NoResultFoundError:
             record = await self.update_archive_state(file_id, archive_state=ArchiveState.RETRIEVAL_FAILED)
             if record is None:
                 raise ValueError("Record not found to update state after failed retrieval")
@@ -157,8 +159,10 @@ class AbstractFileArchivalService(ABC):
             return retrieved
 
     @abstractmethod
-    async def _set_retrieved(self, file_id: str, file_hash: str) -> FileArchivalRecord | None:
-        """ Set as retrieved but match on file hash as well as file_id, set and return record only if found"""
+    async def _set_retrieved(self, file_id: str, file_hash: str) -> FileArchivalRecord:
+        """ Set as retrieved but match on file hash as well as file_id, set and return record if found
+        If not found raise NoResultFoundError
+        """
         ...
 
     @abstractmethod
@@ -187,7 +191,7 @@ class AbstractFileArchivalService(ABC):
         """
 
     @abstractmethod
-    async def get_requestors(self, file_id: str) -> AsyncGenerator[ArchiveRequestor, None]:
+    def get_requestors(self, file_id: str) -> AsyncGenerator[ArchiveRequestor, None]:
         """
         Get ArchiveRequestors for the given file
         """
@@ -209,7 +213,7 @@ class AbstractFileArchivalService(ABC):
         return hash_obj.hexdigest()
 
     @abstractmethod
-    async def get_expired_local(self) -> AsyncGenerator[FileArchivalRecord, None]:
+    def get_expired_local(self) -> AsyncGenerator[FileArchivalRecord, None]:
         """
         Return file records that have expired locally
         """

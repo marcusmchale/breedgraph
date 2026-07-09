@@ -52,7 +52,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             request.url.path == "/verify" or # to allow user registration, requires a token anyway
             request.url.path == "/reset" or # to allow users to reset password, requires a token anyway
             request.url.path == "/download" or  # to allow users to download files, requires a token anyway
-            request.url.path.startswith("/archive/") # allow all paths for archive to skip csrf token, requires an auth_token
+            request.url.path.startswith("/archive/") or # allow all paths for archive to skip csrf token, requires an auth_token
+            request.url.path.startswith("/retention/")  # allow all paths for retention to skip csrf token, requires an auth_token
         ):
             return await call_next(request)
 

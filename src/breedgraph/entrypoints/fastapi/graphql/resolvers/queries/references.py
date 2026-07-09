@@ -27,7 +27,6 @@ from breedgraph.custom_exceptions import UnauthorisedOperationError, NoResultFou
 
 from breedgraph.config import SECRET_KEY, FILE_DOWNLOAD_EXPIRES, FILE_DOWNLOAD_SALT, get_download_endpoint
 
-from breedgraph.domain.commands.archive import RequestFileRestore
 
 from typing import List
 
@@ -175,25 +174,28 @@ async def get_file_download_state(_, info, file_id: str):
         status = "AVAILABLE"
         recovery = None
     else:
-        cmd = RequestFileRestore(file_id=file_id, agent_id=user_id)
-        await bus.handle(cmd)
-
-        if record.archive_state in [ArchiveState.ARCHIVED, ArchiveState.RETRIEVAL_PENDING, ArchiveState.RETRIEVING]:
-            status = "RESTORING"
-            if record.archive_state == ArchiveState.RETRIEVING:
-                recovery = {
-                    "startedAt": record.last_accessed,
-                    "progress": record.local_completion
-                }
-            else:
-                recovery = {
-                    "startedAt": datetime.now(),
-                    "progress": 0
-                }
+        if record.archive_state == ArchiveState.ARCHIVED:
+            status = "ARCHIVED"
+            recovery = {
+                "startedAt": datetime.now(),
+                "progress": 0
+            }
+        elif record.archive_state == ArchiveState.RETRIEVAL_PENDING:
+            status = "RETRIEVING"
+            recovery = {
+                "startedAt": datetime.now(),
+                "progress": 0
+            }
+        elif record.archive_state == ArchiveState.RETRIEVING:
+            status = "RETRIEVING"
+            recovery = {
+                "startedAt": record.last_attempt_at,
+                "progress": record.local_completion
+            }
         else:
             status = "FAILED"
             recovery = {
-                "startedAt": record.last_accessed,
+                "startedAt": record.last_attempt_at,
                 "progress": record.local_completion
             }
 

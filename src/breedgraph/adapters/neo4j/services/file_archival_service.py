@@ -2,11 +2,16 @@ from neo4j import Record
 from datetime import datetime
 from pathlib import Path
 
+from neo4j.exceptions import ResultNotSingleError
+
+from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.service_layer.infrastructure.archival_service import AbstractFileArchivalService
 from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState, ArchiveRequestor
 from breedgraph.adapters.neo4j.cypher import queries
 
 from breedgraph.config.files import LOCAL_STORAGE_DURATION, LOCAL_SIZE_LIMIT
+
+from breedgraph.domain.model.time_descriptors import deserialize_time
 
 from typing import AsyncGenerator
 
@@ -33,16 +38,18 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
         # Convert string states back to enums
         record['archive_state'] = ArchiveState(record['archive_state'])
         record['local_state'] = LocalState(record['local_state'])
+        if record['local_state'] == LocalState.LOCAL:
+            file_size: int = record['file_size']
+            file_path = Path(self.file_storage_path, record['file_id'])
+            record['local_completion'] = int(100 * file_path.stat().st_size / file_size)
 
         # Convert timestamps
         if record.get('last_attempt_at'):
-            record['last_attempt_at'] = datetime.fromisoformat(record['last_attempt_at'])
+            record['last_attempt_at'] = deserialize_time(record['last_attempt_at'])
         if record.get('last_accessed'):
-            record['last_accessed'] = datetime.fromisoformat(record['last_accessed'])
+            record['last_accessed'] = deserialize_time(record['last_accessed'])
 
-        file_size: int = record['file_size']
-        file_path = Path(self.file_storage_path, record['file_id'])
-        record['local_completion'] = int(100 * file_path.stat().st_size / file_size)
+
         return FileArchivalRecord(**record)
 
     @staticmethod
@@ -70,7 +77,7 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
                 record_data=self.archival_record_to_props(record)
             )
             returned_record = await result.single(strict=True)
-        return self.record_to_archival_record(returned_record)
+            return self.record_to_archival_record(returned_record)
 
     async def get(self, file_id: str) -> FileArchivalRecord:
         async with self.driver.session() as session:
@@ -78,7 +85,8 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
                 queries['archive']['get_record'],
                 file_id = file_id
             )
-            return await result.single(strict=True)
+            returned_record = await result.single(strict=True)
+            return self.record_to_archival_record(returned_record)
 
     async def _set_state_values(
             self,
@@ -105,20 +113,25 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
             record = await result.single(strict=True)
             return self.record_to_archival_record(record)
 
-    async def _set_retrieved(self, file_id, file_hash: str) -> FileArchivalRecord | None:
+    async def _set_retrieved(self, file_id, file_hash: str) -> FileArchivalRecord:
         async with self.driver.session() as session:
             result = await session.run(
-                queries['set_retrieved'],
+                queries['archive']['set_retrieved'],
                 file_id=file_id,
                 file_hash=file_hash
             )
-            record = result.single(strict=True)
-            return record.value()
+            try:
+                record = await result.single(strict=True)
+                return self.record_to_archival_record(record)
+
+            except ResultNotSingleError:
+                raise NoResultFoundError
+
 
     async def _clear_attempts(self, file_id: str) -> None:
         async with self.driver.session() as session:
             await session.run(
-                queries['clear_attempts'],
+                queries['archive']['clear_attempts'],
                 file_id=file_id
             )
 
@@ -136,10 +149,10 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
                     queries['archive']['get_records_by_states'],
                     archive_states=[state.value]
                 )
-                archival_record = await result.single(strict=False)
-                if archival_record is None:
+                record = await result.single(strict=False)
+                if record is None:
                     return None
-
+                archival_record = self.record_to_archival_record(record)
                 archival_record.archive_state = self.COLLECTION_TRANSITIONS[state]
                 archival_record.attempts += 1
                 archival_record.last_attempt_at = datetime.now()

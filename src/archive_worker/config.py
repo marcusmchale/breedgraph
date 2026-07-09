@@ -11,7 +11,7 @@ if not ARCHIVE_DESTINATION:
     raise ValueError("ARCHIVE_DESTINATION environment variable is required")
 
 API_URL=os.environ.get('API_URL', 'http://localhost:8000')
-ARCHIVE_POLL_INTERVAL=os.environ.get('ARCHIVE_POLL_INTERVAL', 5)
+ARCHIVE_POLL_INTERVAL=int(os.environ.get('ARCHIVE_POLL_INTERVAL', 5))
 LOG_LEVEL=os.environ.get('LOG_LEVEL', 'INFO')
 
 LOG_BASE_PATH=Path(os.environ.get('LOG_BASE', '.'))
@@ -35,7 +35,7 @@ LOG_CONFIG = {
     },
     'handlers': {
         'archive': {
-            'level': LOG_LEVEL,
+            'level': "DEBUG",
             'formatter': 'named',
             'class': 'logging.FileHandler',
             'filename': ARCHIVE_LOG
@@ -46,6 +46,11 @@ LOG_CONFIG = {
             'handlers': ['archive'],
             'level': LOG_LEVEL,
             'propagate': True
+        },
+        'httpx': {
+            'handlers': ['archive'],
+            'level': "WARN",
+            'propagate': False
         }
     }
 }

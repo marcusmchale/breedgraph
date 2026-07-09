@@ -21,11 +21,12 @@ def verify_service_token(authorization: str = Header(None)):
 
 router = APIRouter(prefix='/retention', dependencies=[Depends(verify_service_token)])
 
-@router.get("/run")
-async def run_file_cleanup(request: Request):
+@router.post("/run")
+async def run_file_cleanup(request: Request, reason:str):
     """
     Add the event file cleanup requested and return
     """
+    logger.debug(f"Triggering cleanup for reason: {reason}")
     try:
         bus = request.app.bus
         await bus.handle(TriggerFileRetentionPolicy())

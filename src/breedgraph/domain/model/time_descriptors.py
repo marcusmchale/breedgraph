@@ -43,7 +43,8 @@ def deserialize_time(time: Neo4jDateTime | str | None, unit:str = None, step:str
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
                 return np.datetime64(time.isoformat(), (unit, step))
-
+    elif isinstance(time, str):
+        return datetime.fromisoformat(time)
     else:
         raise NotImplementedError(f"Cannot deserialize time from type {type(time)}")
 

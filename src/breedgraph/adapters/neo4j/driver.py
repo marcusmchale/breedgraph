@@ -1,4 +1,4 @@
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncGraphDatabase, AsyncDriver, NotificationClassification
 from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
 from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
@@ -11,7 +11,10 @@ class Neo4jAsyncDriver(AbstractAsyncDriver):
             database=DATABASE_NAME,
             connection_timeout=5,
             connection_acquisition_timeout=5,
-            max_transaction_retry_time=5
+            max_transaction_retry_time=5,
+            notifications_disabled_classifications=[
+                NotificationClassification.UNRECOGNIZED,
+            ],
         )
 
     def session(self):

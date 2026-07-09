@@ -10,5 +10,6 @@ from . import (
     programs,
     germplasm,
     references,
-    analysis
+    analysis,
+    archive
 )

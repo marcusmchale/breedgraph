@@ -33,6 +33,7 @@ class ArchiveWorker:
         """Start the worker loop"""
         logger.info("Archive worker started")
         if self.resume:
+            logger.debug("Resume interrupted processes")
             try:
                 await self._process_archival(resume=True)
                 await self._process_retrieval(resume=True)
@@ -42,6 +43,7 @@ class ArchiveWorker:
                 logger.exception(f"Error in resuming: {e}")
 
         # Main polling loop
+        logger.debug("Collect new processes")
         while not self._shutdown_event.is_set():
             try:
                 await self._process_archival()
@@ -50,6 +52,7 @@ class ArchiveWorker:
 
                 # Wait for poll interval or shutdown signal
                 try:
+                    logger.debug("Wait for shutdown")
                     await asyncio.wait_for(
                         self._shutdown_event.wait(),
                         timeout=self.poll_interval
@@ -57,6 +60,7 @@ class ArchiveWorker:
                     # If we get here, shutdown was requested
                     break
                 except asyncio.TimeoutError:
+                    logger.debug("Shutdown not requested, continue")
                     # Normal timeout, continue loop
                     continue
 

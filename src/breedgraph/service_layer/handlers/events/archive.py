@@ -40,13 +40,12 @@ async def retrieval_succeeded(
 ):
     """Handle successful retrieval by notifying requesting users"""
     logger.info(f"Retrieval succeeded for file {event.file_id}")
-
-    async for requestor in await archival_service.get_requestors(event.file_id):
+    async for requestor in archival_service.get_requestors(event.file_id):
         try:
             # get reference associated with the file to include file name etc.
             # this is per request as the user may now only have restricted read access to the record
             async with uow_factory.get_uow(user_id=requestor.id) as uow:
-                reference = await uow.repositories.references.get(file_id=event.file_id)
+                reference: FileReferenceBase = await uow.repositories.references.get(file_id=event.file_id)
                 if reference is None:
                     logger.info(
                         f" File {event.file_id} was retrieved for user {requestor.id},"
@@ -83,7 +82,7 @@ async def retrieval_failed(
 ):
     """Handle retrieval failure - notify requesting users"""
     logger.error(f"Retrieval failed for file {event.file_id}: {event.error_message}")
-    async for requestor in await archival_service.get_requestors(event.file_id):
+    async for requestor in archival_service.get_requestors(event.file_id):
         try:
             message = email_templates.FileRetrievalFailed(
                 requestor=requestor,
