@@ -1,9 +1,13 @@
 from .base import Event
 
-class RecordsSubmitted(Event):
+class DatasetSubmitted(Event):
     agent_id: int
     submission_id: str
 
-class RecordUpdatesSubmitted(Event):
+class DatasetRecordsSubmitted(Event):
+    agent_id: int
+    submission_id: str
+
+class DatasetUpdateSubmitted(Event):
     agent_id: int
     submission_id: str

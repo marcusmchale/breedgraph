@@ -11,7 +11,7 @@ ENVIRONMENT = Environment(os.environ.get('ENVIRONMENT', 'production'))  # or "de
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')
 BASE_PATH = Path(os.environ.get('LOG_BASE', '.'))
 BREEDGRAPH_LOG = BASE_PATH / os.environ.get('BREEDGRAPH_LOG', 'breedgraph.log')
-ARIADNE_LOG = BASE_PATH / os.environ.get('ARIADNE_LOG', 'ariadne.log')
+GRAPHQL_LOG = BASE_PATH / os.environ.get('GRAPHQL_LOG', 'graphql.log')
 NEO4J_LOG = BASE_PATH / os.environ.get('NEO4J_LOG', 'neo4j.log')
 REDIS_LOG = BASE_PATH / os.environ.get('REDIS_LOG', 'redis.log')
 ACCESS_LOG = BASE_PATH / os.environ.get('ACCESS_LOG', 'access.log')
@@ -56,11 +56,11 @@ LOG_CONFIG = {
             'class': 'logging.FileHandler',
             'filename': BREEDGRAPH_LOG
         },
-        'ariadne': {
+        'graphql': {
             'level': 'DEBUG',
             'formatter': 'standard',
             'class': 'logging.FileHandler',
-            'filename': ARIADNE_LOG
+            'filename': GRAPHQL_LOG
         },
         'neo4j': {
             'level': 'DEBUG',
@@ -82,14 +82,14 @@ LOG_CONFIG = {
             'filters': ['ignore_polling']
         },
     },
+    'root': {
+        'handlers': ['breedgraph'],
+        'level': LOG_LEVEL,
+        'propagate': True
+    },
     'loggers': {
-        'root': {
-            'handlers': ['breedgraph'],
-            'level': LOG_LEVEL,
-            'propagate': True
-        },
-        'ariadne': {
-            'handlers': ['ariadne'],
+        'breedgraph.entrypoints.fastapi.graphql': {
+            'handlers': ['graphql'],
             'level': LOG_LEVEL,
             'propagate': False
         },
@@ -98,7 +98,7 @@ LOG_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': False
         },
-        'redis': {
+        'breedgraph.adapters.redis': {
             'handlers': ['redis'],
             'level': LOG_LEVEL,
             'propagate': False

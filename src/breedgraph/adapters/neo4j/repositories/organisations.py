@@ -136,11 +136,7 @@ class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
         async for record in result:
             edges = [edge for team in record['organisation'] for edge in team.pop('includes')]
             teams = [self.team_record_to_team(team) for team in record['organisation']]
-            try:
-                org = Organisation(nodes=teams, edges=edges)
-            except ValueError:
-                import pdb; pdb.set_trace()
-
+            org = Organisation(nodes=teams, edges=edges)
             if self.redacted:
                 yield org.redacted(self.user_id)
             else:

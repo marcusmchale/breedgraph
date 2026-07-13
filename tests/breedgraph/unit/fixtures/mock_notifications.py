@@ -1,4 +1,4 @@
-from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications, NotificationRecipient
+from breedgraph.service_layer.infrastructure.notifications.notifications import AbstractNotifications, NotificationRecipient
 from breedgraph.adapters.aiosmtp.notifications import Email
 
 from typing import List

@@ -1,6 +1,6 @@
 from .driver import AbstractAsyncDriver
 from .auth_service import AbstractAuthService
-from .notifications import AbstractNotifications
+from breedgraph.service_layer.infrastructure.notifications.notifications import AbstractNotifications
 from .unit_of_work import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from .state_store import AbstractStateStore
 from .brute_force_protection import BruteForceProtectionService

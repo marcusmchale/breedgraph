@@ -40,6 +40,9 @@ def coerce_value(value, annotation):
         item_type = args[0]
         return [coerce_value(item, item_type) for item in value]
 
+    if origin is dict:
+        raise NotImplementedError
+
     # primitive types
     if annotation is int:
         return int(value)

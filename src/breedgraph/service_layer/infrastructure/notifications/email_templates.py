@@ -9,7 +9,6 @@ from breedgraph.domain.model.archive import ArchiveRequestor
 from breedgraph.config import get_base_url
 from email.message import EmailMessage
 
-
 import logging
 
 logger = logging.getLogger(__name__)

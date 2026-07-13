@@ -1,5 +1,3 @@
-from abc import abstractmethod
-
 import pandas as pd
 import numpy as np
 import re
@@ -7,29 +5,31 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
-from breedgraph.domain.model.ontology import ScaleType, ScaleBase, FactorStored, VariableStored
+from breedgraph.domain.model import OntologyEntryStored
+from breedgraph.domain.model.ontology import ScaleType, ScaleBase, ScaleStored, FactorStored, VariableStored
 from breedgraph.domain.model.datasets import DatasetStored, DataRecordStored
 from breedgraph.domain.model.blocks import Block
 from breedgraph.domain.model.analysis import (
     AnalysisConfig, AnalysisVariable, AnalysisVariableType, AnalysisTreatment
 )
+
+from breedgraph.domain.importers import AnalysisImport, AnalysisVariableImport, InteractionTermImport
+
 from typing import List, Set, Dict
 from collections import defaultdict
 import logging
 logger = logging.getLogger(__name__)
 
-class AnalysisConfigParser:
+class AnalysisService:
     def __init__(
             self,
             datasets: List[DatasetStored],
             blocks: List[Block],
-            unit_ids: Set[int],
-            timepoint_boundaries: List[str | np.datetime64] | None = None
+            unit_ids: Set[int]
     ):
         self.datasets = datasets
         self.blocks = blocks
         self.unit_ids = unit_ids
-        self.timepoint_boundaries = timepoint_boundaries
 
         self.config: AnalysisConfig | None = None
         self.concept_to_records = defaultdict(list)
@@ -47,43 +47,42 @@ class AnalysisConfigParser:
 
     def parse_variable(
             self,
-            variable_input: dict,
-            entry: FactorStored|VariableStored|None = None,
-            scale = None,
+            variable_input: AnalysisVariableImport,
+            entry: OntologyEntryStored|None = None,
+            scale: ScaleStored | None = None,
             is_dependent = False
     ) -> AnalysisVariable:
-        if not variable_input:
-            raise ValueError("No variable defined")
-        variable_type = AnalysisVariableType[variable_input.get('type')]
-
-        if variable_type == AnalysisVariableType.GERMPLASM:
+        if variable_input.type is AnalysisVariableType.GERMPLASM:
             scale = ScaleBase(
-                name=variable_input.get('label'),
+                name=variable_input.label,
                 scale_type=ScaleType.NOMINAL
             )
-            self.concept_to_label['germplasm'] = variable_input.get('label')
+            self.concept_to_label['germplasm'] = variable_input.label
             self.concept_to_scale['germplasm'] = scale
-            self.germplasm_variable_label = variable_input.get('label')
-        elif variable_type == AnalysisVariableType.TIMEPOINT:
+            self.germplasm_variable_label = variable_input.label
+        elif variable_input.type is AnalysisVariableType.TIMEPOINT:
             scale = ScaleBase(
-                name=variable_input.get('label'),
+                name=variable_input.label,
                 scale_type=ScaleType.ORDINAL
             )
-            self.concept_to_label['timepoint'] = variable_input.get('label')
+            self.concept_to_label['timepoint'] = variable_input.label
             self.concept_to_scale['timepoint'] = scale
-            self.timepoint_variable_label = variable_input.get('label')
-            self.parse_timepoints()
-            if not self.timepoint_boundaries:
-                raise ValueError("timepoint_boundaries is required for AnalysisVariableType timepoint")
+            self.timepoint_variable_label = variable_input.label
+
         else:
-            concept_id = variable_input.get('concept_id')
+            concept_id = variable_input.concept_id
             if not concept_id:
                 raise ValueError("concept_id is required for AnalysisVariableType concept")
-            self.concept_to_label[concept_id] = variable_input.get('label')
+            self.concept_to_label[concept_id] = variable_input.label
             self.concept_to_scale[concept_id] = scale
+            if not isinstance(entry, (FactorStored, VariableStored)):
+                raise ValueError("Concept must be factor or variable")
             self.concept_to_entry[concept_id] = entry
             if not is_dependent:
-                self.concept_independent_variable_labels.append(variable_input.get('label'))
+                self.concept_independent_variable_labels.append(variable_input.label)
+            if scale is None:
+                raise ValueError("Scale is required to parse concept variables")
+
         if scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
             if is_dependent:
                 raise ValueError("Unsupported scale type for dependent variable")
@@ -91,37 +90,25 @@ class AnalysisConfigParser:
         elif scale.scale_type == ScaleType.NUMERICAL:
             treatment = AnalysisTreatment.CONTINUOUS
         else:
-            raise ValueError(f"Unsupported scale type for variable: {variable_input.get('label')}")
+            raise ValueError(f"Unsupported scale type for variable: {variable_input.label}")
 
         return AnalysisVariable(
-            type=variable_type,
+            type=variable_input.type,
             treatment=treatment,
             scale=scale,
-            label=variable_input.get('label'),
-            concept_id=variable_input.get('concept_id')
+            label=variable_input.label,
+            concept_id=variable_input.concept_id
         )
 
-    def parse_timepoints(self):
-        timepoints = self.timepoint_boundaries
-        for i, t in enumerate(timepoints):
-            if isinstance(t, np.datetime64):
-                continue
-            else:
-                timepoints[i] = np.datetime64(t)
-        return timepoints
-
     @staticmethod
-    def parse_interaction_terms(terms: List[Dict[str, int]], independent_variables: List[AnalysisVariable]):
+    def parse_interaction_terms(terms: List[InteractionTermImport], independent_variables: List[AnalysisVariable]):
         parsed_terms = []
         for i, term in enumerate(terms):
-            if not 'var_1_index' in term or not 'var_2_index' in term:
-                raise ValueError("Interaction term input must contain 'var_1_index' and 'var_2_index'")
-            iv1, iv2 = term['var_1_index'], term['var_2_index']
-            if iv1 > len(independent_variables) or iv2 > len(independent_variables):
-                raise ValueError("Interaction term indices should be within the range of independent variables")
-            if iv1 == iv2:
+            if term.var_1_index == term.var_2_index:
                 raise ValueError("Interaction term indices should not be the same")
-            parsed_terms.append((iv1, iv2))
+            if term.var_1_index > len(independent_variables) or term.var_2_index > len(independent_variables):
+                raise ValueError("Interaction term indices should be within the range of independent variables")
+            parsed_terms.append((term.var_1_index, term.var_2_index))
         return parsed_terms
 
     def validate_germplasm(self):
@@ -177,6 +164,10 @@ class AnalysisConfigParser:
                 self.validate_germplasm()
 
     def get_timepoint_labels(self):
+        if not self.config:
+            raise ValueError("Cannot get timepoint labels without config defined")
+        if not self.config.timepoint_boundaries:
+            raise ValueError("Timepoint boundaries are required to examine timepoint as a variable")
         boundaries = self.config.timepoint_boundaries
         labels = []
         # left open-ended bin
@@ -188,13 +179,37 @@ class AnalysisConfigParser:
         labels.append(f">{boundaries[-1]}")
         return labels
 
+    @staticmethod
+    def get_timepoints(df: pd.DataFrame) -> pd.Series:
+        """
+        Return the midpoint if both start and end are defined,
+        or return whichever one is defined if only one exists.
+        Raises ValueError if neither is defined.
+        """
+        start = pd.to_datetime(df['start'])
+        end = pd.to_datetime(df['end'])
+
+        both_missing = start.isna() & end.isna()
+        if both_missing.any():
+            raise ValueError("Cannot determine timepoint: both start and end are undefined")
+
+        # Use fillna to substitute missing values, then compute midpoint
+        filled_start = start.fillna(end)
+        filled_end = end.fillna(start)
+
+        return filled_start + (filled_end - filled_start) / 2
+
     def assign_timepoints(self, df):
+        if not self.config:
+            raise ValueError("Cannot get timepoint labels without config defined")
+        if not self.config.timepoint_boundaries:
+            raise ValueError("Timepoint boundaries are required to examine timepoint as a variable")
         boundaries = [pd.Timestamp(b) for b in self.config.timepoint_boundaries]
         if boundaries:
             # use pd.cut on the midpoint of start-end
-            midpoints = df['start'] + (df['end'] - df['start']) / 2
-            start = midpoints.min()
-            end = midpoints.max()
+            timepoints = self.get_timepoints(df)
+            start = timepoints.min()
+            end = timepoints.max()
             bins = list(boundaries)
             if start < min(bins):
                 bins.insert(0, start)
@@ -205,7 +220,7 @@ class AnalysisConfigParser:
                 [f"{l}–{r}" for l, r in zip(self.config.timepoint_boundaries[:-1], self.config.timepoint_boundaries[1:])] +
                 [f">{self.config.timepoint_boundaries[-1]}"]
             )
-            df[self.timepoint_variable_label] = pd.cut(midpoints, bins=bins, labels=labels, include_lowest=True, right=False)
+            df[self.timepoint_variable_label] = pd.cut(timepoints, bins=bins, labels=labels, include_lowest=True, right=False)
         return df
 
     def assign_germplasm(self, df):
@@ -265,7 +280,6 @@ class AnalysisConfigParser:
             else:
                 df_all = df_all.merge(df, on=merge_keys, how='outer')
         df_all['unit'] = df_all['unit'].astype(str)
-
         self.df_all = df_all
 
     def fit_model(self):

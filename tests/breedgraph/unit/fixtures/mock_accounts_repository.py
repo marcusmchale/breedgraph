@@ -1,13 +1,8 @@
 from breedgraph.service_layer.repositories import BaseRepository
 from breedgraph.domain.model.accounts import (
-    UserBase, UserStored,
+    UserStored,
     AccountInput, AccountStored
 )
-
-from breedgraph.service_layer.infrastructure.notifications import AbstractNotifications
-from breedgraph.adapters.aiosmtp.notifications import Email
-
-from typing import List, AsyncGenerator
 
 TAggregateInput = AccountInput
 TAggregate = AccountStored

@@ -13,10 +13,10 @@ class ValueParser:
 
     def parse(
             self,
-            value: str|int,
+            value: str|int|None,
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored]
-    ) -> str|int|None:
+            categories: List[ScaleCategoryStored] | None
+    ) -> str|None:
         if scale.scale_type == ScaleType.COMPLEX:
             return None
 
@@ -30,12 +30,16 @@ class ValueParser:
             elif scale.scale_type == ScaleType.TEXT:
                 return self._parse_text(value)
             elif scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
+                if not categories:
+                    raise ValueError("Parsing of categories requires categories input to this call")
                 return self._parse_category_text(value, categories)
             else:
                 raise ValueError("String value provided for the wrong scale type")
 
         elif isinstance(value, int):
             if scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
+                if not categories:
+                    raise ValueError("Parsing of categories requires categories input to this call")
                 return self._parse_category_int(value, categories)
             else:
                 raise ValueError("Integer values are only supported for nominal and ordinal scales")
@@ -107,9 +111,9 @@ class ValueParser:
 
 
     @staticmethod
-    def _parse_category_int(value: int, categories: List[ScaleCategoryStored]):
+    def _parse_category_int(value: int, categories: List[ScaleCategoryStored]) -> str | None:
         for c in categories:
             if c.id == value:
-                return value
+                return c.name
         else:
             raise NoResultFoundError(f"Matching category not found for scale: {value}")

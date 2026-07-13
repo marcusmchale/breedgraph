@@ -8,11 +8,12 @@ input AnalysisVariableInput {
   """Type of variable: concept from dataset, germplasm, or timepoint"""
   type: VariableType!
 
+  """Human-readable label for the variable"""
+  label: String!
+
   """Concept ID (required when type is CONCEPT)"""
   conceptId: ID
 
-  """Human-readable label for the variable"""
-  label: String!
 }
 
 input InteractionTermInput {

@@ -9,11 +9,10 @@ class AnalysisTreatment(Enum):
     CATEGORICAL = 'categorical'
 
 class AnalysisVariableType(Enum):
-    CONCEPT = 'concept'
-    GERMPLASM = 'germplasm'
-    TIMEPOINT = 'timepoint'
+    CONCEPT = 'CONCEPT'
+    GERMPLASM = 'GERMPLASM'
+    TIMEPOINT = 'TIMEPOINT'
 
-from typing import List, Tuple
 
 @dataclass
 class AnalysisVariable:
@@ -32,11 +31,11 @@ class AnalysisVariable:
 @dataclass
 class AnalysisConfig:
     name: str
-    dataset_ids: List[int]
+    dataset_ids: list[int]
     dependent_variable: AnalysisVariable
-    independent_variables: List[AnalysisVariable]
-    interaction_terms: List[Tuple[int, int]]  # indices in independent variables list
-    timepoint_boundaries: List[datetime64]
+    independent_variables: list[AnalysisVariable]
+    interaction_terms: list[tuple[int, int]]  # indices in independent variables list
+    timepoint_boundaries: list[datetime64] | None
 
     def __post_init__(self):
         if not self.dependent_variable.type == AnalysisVariableType.CONCEPT:
@@ -44,12 +43,12 @@ class AnalysisConfig:
         for t in self.interaction_terms:
             if not t[0] in self.independent_variables and t[1] in self.independent_variables:
                 raise ValueError('Interaction terms include variables that are not in independent variables')
-        if self.timepoint_boundaries:
-            for iv in self.independent_variables:
-                if iv.type == AnalysisVariableType.TIMEPOINT:
-                    break
-            else:
-                ValueError('Timepoint boundaries should only be set if timepoint variable is being estimated')
+
+        for iv in self.independent_variables:
+            if iv.type == AnalysisVariableType.TIMEPOINT:
+                if not self.timepoint_boundaries:
+                    raise ValueError("Timepoint are required to assess timepoint as a variable")
+                break
 
     def model_dump(self):
         return asdict(self)

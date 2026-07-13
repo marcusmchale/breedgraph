@@ -1,10 +1,14 @@
 from .base import Command
 
-class SubmitRecords(Command):
+class CreateDataset(Command):
     agent_id: int
     submission_id: str
 
-class UpdateRecords(Command):
+class AddRecords(Command):
+    agent_id: int
+    submission_id: str
+
+class UpdateDataset(Command):
     agent_id: int
     submission_id: str
 

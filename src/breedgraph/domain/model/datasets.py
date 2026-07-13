@@ -10,12 +10,14 @@ from breedgraph.domain.model.controls import ControlledModel, ControlledAggregat
 from breedgraph.domain.services.value_parsers import ValueParser
 from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
 
+
 @dataclass
 class DataRecordBase(ABC):
     label: ClassVar[str] = "Record"
     plural: ClassVar[str] = "Records"
 
     unit: int = None
+
     value: str|None = None
 
     start: datetime64|None = None
@@ -30,6 +32,7 @@ class DataRecordBase(ABC):
 class DataRecordInput(DataRecordBase, LabeledModel):
     unit_id: InitVar[int|None] = None
     reference_ids: InitVar[List[int] | None] = None
+    value: str|int|None = None  # integer values supported for categories, must be parsed to name for stored type though
 
     def __post_init__(self, unit_id, reference_ids):
         if unit_id is not None:
@@ -65,6 +68,7 @@ class DatasetBase(ABC):
         "Records" is a list of DataRecord
         """
     label: ClassVar[str] = ControlledModelLabel.DATASET
+    value_parser: ClassVar[ValueParser] = ValueParser()
 
     study: int = None
     concept: int = None
@@ -73,6 +77,7 @@ class DatasetBase(ABC):
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
+
 
     def add_records(
             self,
@@ -105,7 +110,7 @@ class DatasetBase(ABC):
                     if 'reference_ids' in record:
                         record['references'] = record.pop('reference_ids')
                     record = DataRecordStored(**record)
-                record.value = self.parse_value(record.value, scale, categories)
+                record.value = self.value_parser.parse(record.value, scale, categories)
                 record_index = record_index_map[record.id]
                 stored_record = self.records[record_index]
                 if record.value is not None and stored_record.value != record.value:
@@ -141,19 +146,11 @@ class DatasetBase(ABC):
         dump['records'] = [record.model_dump() for record in self.records]
         return dump
 
-    @staticmethod
-    def parse_value(value: str|int, scale: ScaleStored, categories: List[ScaleCategoryStored]):
-        return ValueParser().parse(
-            value=value,
-            scale=scale,
-            categories=categories
-        )
-
-    def parse_record(self, record: DataRecordInput, scale: ScaleStored, categories: List[ScaleCategoryStored]):
+    def parse_record(self, record: DataRecordInput, scale: ScaleStored, categories: List[ScaleCategoryStored] | None):
         if scale.scale_type == ScaleType.COMPLEX:
             if not record.references:
                 raise ValueError("Complex scale records require at least one reference")
-        record.value = self.parse_value(record.value, scale, categories)
+        record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
         return record
 
 
@@ -211,8 +208,8 @@ class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
     def redacted(
             self,
             controllers: Dict[str, Dict[int, Controller]],
-            user_id: int = None,
-            read_teams: Set[int] = None
+            user_id: int|None = None,
+            read_teams: Set[int]|None = None
     ) -> 'ControlledAggregate|None':
         controller = controllers[self.label].get(self.id)
         if controller is None:

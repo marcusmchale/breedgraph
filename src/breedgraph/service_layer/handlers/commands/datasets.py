@@ -13,18 +13,26 @@ logger = logging.getLogger(__name__)
 
 @handlers.command_handler()
 async def submit_records(
-        cmd: commands.datasets.SubmitRecords,
+        cmd: commands.datasets.CreateDataset,
         event_queue: Queue
 ):
-    event = events.datasets.RecordsSubmitted(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
+    event = events.datasets.DatasetSubmitted(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
     await event_queue.put(event)
 
 @handlers.command_handler()
-async def update_records(
-        cmd: commands.datasets.UpdateRecords,
+async def update_dataset(
+        cmd: commands.datasets.UpdateDataset,
         event_queue: Queue
 ):
-    event = events.datasets.RecordUpdatesSubmitted(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
+    event = events.datasets.DatasetUpdateSubmitted(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
+    await event_queue.put(event)
+
+@handlers.command_handler()
+async def add_records(
+        cmd: commands.datasets.AddRecords,
+        event_queue: Queue
+):
+    event = events.datasets.DatasetRecordsSubmitted(agent_id=cmd.agent_id, submission_id=cmd.submission_id)
     await event_queue.put(event)
 
 @handlers.command_handler()

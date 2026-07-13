@@ -6,7 +6,7 @@ from breedgraph.custom_exceptions import (
     NoResultFoundError
 )
 
-from breedgraph.domain.services import email_templates
+from ...infrastructure.notifications import email_templates
 from breedgraph.domain.model.organisations import Access, Authorisation
 from breedgraph.domain.model.accounts import UserOutput
 

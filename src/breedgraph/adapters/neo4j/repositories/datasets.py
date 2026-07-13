@@ -68,7 +68,6 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                     queries['datasets']['delete_records'],
                     record_ids=[r.id for r in dataset.records.removed]
                 )
-
             if dataset.records.added:
                 ordered_added = list(dataset.records.added)
                 added_records = [self.serialize_dt64(dataset.records[i].model_dump(), to_neo4j=True) for i in ordered_added]

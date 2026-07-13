@@ -1,17 +1,10 @@
-from itsdangerous import URLSafeTimedSerializer
-from breedgraph import config
-from asyncio import Queue
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from breedgraph.domain import events
-from breedgraph.custom_exceptions import (
-    NoResultFoundError
-)
 
-from breedgraph.domain.services import email_templates
+from ...infrastructure.notifications import email_templates
 from breedgraph.domain.model.references import FileReferenceStored
-from breedgraph.domain.model.accounts import UserOutput
-from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState, FileArchivalUpdate
+from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
 
 from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory, \
     FileManagementService, AbstractFileArchivalService

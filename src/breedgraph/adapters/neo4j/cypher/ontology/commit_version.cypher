@@ -1,6 +1,6 @@
 OPTIONAL MATCH (latest_commit:OntologyCommit)
 WITH latest_commit
-ORDER BY latest_commit.id DESC
+ORDER BY latest_commit.version DESC
 LIMIT 1
 CREATE (commit: OntologyCommit {
   version: $version,

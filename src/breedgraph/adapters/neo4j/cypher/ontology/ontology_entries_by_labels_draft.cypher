@@ -1,5 +1,6 @@
 MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)
 WHERE [label IN labels(entry) WHERE label <> "OntologyEntry"][0] in $labels
+AND lifecycle.activated <= $version AND lifecycle.deprecated IS NULL OR lifecycle.deprecated > $version
 WITH
   entry,
   lifecycle

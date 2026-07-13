@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject
+from breedgraph.service_layer.tracking import TrackedObject
 from breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain.model.organisations import Access

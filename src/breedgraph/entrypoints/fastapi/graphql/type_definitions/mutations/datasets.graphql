@@ -38,11 +38,14 @@ input DatasetUpdate {
 
 extend type Mutation {
     """
-    Submission Payloads include a key, the dataset is processed asynchronously
+    Submission Payloads include a key, the data is processed asynchronously
     Poll the datasetsSubmission using the returned submission ID for status reports.
     """
-    datasetsSubmitRecords(dataset: DatasetInput!): SubmissionIdPayload!,
-    datasetsUpdateRecords(dataset: DatasetUpdate!): SubmissionIdPayload!
+    datasetsCreate(dataset: DatasetInput!): SubmissionIdPayload!
+    datasetsUpdate(dataset: DatasetUpdate!): SubmissionIdPayload!
+    
+    datasetsAddRecords(datasetId: ID!, records: [RecordInput!]): SubmissionIdPayload!
+
     """Delete records from a dataset"""
     datasetsRemoveRecords(datasetId: ID!, recordIds: [ID!]!): BooleanPayload!
 }

@@ -1,8 +1,7 @@
 import abc
 from typing import List
 
-from breedgraph.domain.services.email_templates import Email
-
+from .email_templates import Email
 
 from typing import Protocol
 

@@ -7,9 +7,9 @@ from breedgraph.domain.model import FileReferenceBase
 from breedgraph.service_layer.infrastructure import (
     AbstractNotifications,
     AbstractUnitOfWorkFactory,
-    FileManagementService, AbstractFileArchivalService
+    AbstractFileArchivalService
 )
-from breedgraph.domain.services import email_templates
+from ...infrastructure.notifications import email_templates
 
 from breedgraph.config import FILE_DOWNLOAD_SALT, SECRET_KEY, get_download_endpoint, FILE_DOWNLOAD_EXPIRES
 
