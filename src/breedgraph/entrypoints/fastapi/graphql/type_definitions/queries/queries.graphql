@@ -27,20 +27,27 @@ type Query {
     ontologyVersion: VersionPayload!
     """
     Get the complete ontology at a given version for editing.
-    Defaults to latest version.
-    Relationship attributes on entries (e.g. terms) are determined by draft and active relationships.
+    Defaults to latest version with view PUBLISHED.
     """
-    ontology(versionId: ID): OntologyPayload!
+    ontology(
+        versionId: ID
+        view: OntologyView = PUBLISHED
+    ): OntologyPayload!
     """
     Get a list of ontology entries.
-    Defaults to latest version.
-    Relationship attributes (e.g. terms) are determined by active relationships in the given version only.
+    Defaults to latest version with view PUBLISHED
     """
     ontologyEntries(
-        entryIds: [ID!],
-        labels:[OntologyEntryLabel],
-        versionId: ID,
-        draft: Boolean = false
+        """
+        Snapshot
+        """
+        versionId: ID
+        view: OntologyView = PUBLISHED
+        """
+        Filters
+        """
+        entryIds: [ID!]
+        labels:[OntologyNodeLabel!]
     ): OntologyEntriesPayload!
     """Get an ontology commit history"""
     ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
@@ -87,21 +94,38 @@ type Query {
     """ Get a list of all programs """
     programs: ProgramsPayload!
     """Get a program by Id of program, trial or study """
-    programsProgram(programId: ID, trialId: ID, studyId: ID) : ProgramPayload!
+    programsProgram(
+        programId: ID
+        trialId: ID
+        studyId: ID
+    ) : ProgramPayload!
     """ Get trials by Id of trial or study """
-    programsTrial(trialId: ID, studyId: ID): TrialPayload!
+    programsTrial(
+        trialId: ID
+        studyId: ID
+    ): TrialPayload!
     """ Get study by study Id """
     programsStudy(studyId: ID!): StudyPayload!
     """ Filter datasets by study and/or concept Id, OR retrieve by array of dataset ids """
-    datasets (studyIds: [ID!], conceptIds: [ID!], datasetIds: [ID!]): DatasetsPayload!
+    datasets (
+        studyIds: [ID!]
+        conceptIds: [ID!]
+        datasetIds: [ID!]
+    ): DatasetsPayload!
     """ Get dataset submission by key """
     datasetsSubmission(submissionId: ID!): DatasetSubmissionPayload!
     """ Get a summary of datasets for a study """
     datasetsSummaries(studyId: ID!): DatasetSummariesPayload!
     """ Get the controller data for access controlled entities """
-    controlsControllers (entityLabel: ControlledModelLabel!, entityIds: [ID]!): ControllersPayload!
+    controlsControllers (
+        entityLabel: ControlledModelLabel!
+        entityIds: [ID!]!
+    ): ControllersPayload!
     """Get a list of Germplasm entries"""
-    germplasmEntries (names: [String!], entryIds: [ID!]): GermplasmEntriesPayload!
+    germplasmEntries(
+        names: [String!]
+        entryIds: [ID!]
+    ): GermplasmEntriesPayload!
     """
         Get a list of Germplasm entries that have no sources defined,
         these should typically represent the Crop concept
@@ -115,12 +139,10 @@ type Query {
     referencesDescription(description: String!): ReferencesPayload!
     """ Get file submission by fileId for progress and status updates """
     referencesFileSubmission(fileId: ID!): FileSubmissionPayload!
-
     """ Check the availability of a file for download"""
     referencesFileDownloadState(fileId: ID!): FileDownloadStatePayload!
     """ Get a token to download a file """
     referencesFileDownload(fileId: ID!): FileDownloadPayload!
-
     " Get analysis status and results "
     analysisSubmission(analysisId: ID!): AnalysisSubmissionPayload!
 }

@@ -207,9 +207,12 @@ async def isolated_state(
     await flush_redis(state_store)
 
 
-async def build_account_with_affiliations(uow_factory: Neo4jUnitOfWorkFactory) -> int:
+async def build_account_with_affiliations(
+        uow_factory: Neo4jUnitOfWorkFactory,
+        ontology_role:OntologyRole=OntologyRole.ADMIN
+) -> int:
     account_builder = AccountBuilder(uow_factory=uow_factory)
-    account_ids = await account_builder.account_with_affiliations()
+    account_ids = await account_builder.account_with_affiliations(ontology_role=ontology_role)
     return account_ids['user_id']
 
 async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int) -> int:
@@ -341,7 +344,7 @@ async def reference_build_context(isolated_state, uow_factory) -> Dict[str, int]
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def region_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
-    account_ids = await account_builder.account_with_affiliations()
+    account_ids = await account_builder.account_with_affiliations(ontology_role=OntologyRole.ADMIN)
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
     user_id_2 = await build_account_with_affiliations(uow_factory)

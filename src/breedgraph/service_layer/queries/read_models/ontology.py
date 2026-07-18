@@ -1,5 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, asdict, field
+from enum import Enum
 
 from breedgraph.domain.model.ontology import (
     Version,
@@ -12,16 +13,22 @@ from breedgraph.domain.model.ontology import (
 
 from typing import ClassVar, Tuple, Dict, Any, List
 
+class OntologyViewMode(Enum):
+    PUBLISHED = "PUBLISHED"
+    EDITORIAL = "EDITORIAL"
+
 @dataclass(frozen=True)
 class OntologyRelationshipOutput:
     label: OntologyRelationshipLabel
 
     id: int
     version: Version
+    view: OntologyViewMode
+
+    phase: LifecyclePhase
 
     source_id: int
     target_id: int
-    phase: LifecyclePhase
     rank: int | None = None
 
     def model_dump(self):
@@ -29,13 +36,16 @@ class OntologyRelationshipOutput:
         dump['label'] = self.label.value
         return dump
 
+
 @dataclass(frozen=True)
 class OntologyEntryOutput(ABC):
     label: ClassVar[OntologyEntryLabel]
 
     id: int
     version: Version
-    draft: bool  # flag for whether draft attributes are included
+    view: OntologyViewMode
+
+    phase: LifecyclePhase
 
     name: str = ''
     abbreviation: str | None = None
@@ -48,7 +58,6 @@ class OntologyEntryOutput(ABC):
     parents: Tuple[int, ...] = ()
     children: Tuple[int, ...] = ()
 
-    phase: LifecyclePhase = None
 
     @property
     def names(self) -> Tuple[str, ...]:
@@ -67,6 +76,8 @@ class OntologyEntryOutput(ABC):
             dump['scale_type'] = dump['scale_type'].value
         if 'observation_type' in dump:
             dump['observation_type'] = dump['observation_type'].value
+        if 'control_type' in dump:
+            dump['control_type'] = dump['control_type'].value
         if 'axes' in dump:
             dump['axes'] = [a.value for a in dump['axes']]
         return dump
@@ -114,7 +125,7 @@ class SubjectOutput(OntologyEntryOutput):
     conditions: Tuple[int, ...] = ()
 
 @dataclass(frozen=True)
-class ScaleCategoryOutput(OntologyEntryOutput):
+class CategoryOutput(OntologyEntryOutput):
     label: ClassVar[str] = OntologyEntryLabel.CATEGORY
     terms: Tuple[int, ...] = ()
 
@@ -187,7 +198,7 @@ class DesignOutput(OntologyEntryOutput):
     terms: Tuple[int, ...] = ()
 
 @dataclass(frozen=True)
-class EventTypeOutput(OntologyEntryOutput):
+class EventOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.EVENT
     terms: Tuple[int, ...] = ()
 
@@ -208,5 +219,7 @@ class TitleOutput(OntologyEntryOutput):
 @dataclass(frozen=True)
 class Ontology:
     version: Version
+    view: OntologyViewMode
+
     entries: Tuple[OntologyEntryOutput, ...]
     relationships: Tuple[OntologyRelationshipOutput, ...]

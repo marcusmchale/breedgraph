@@ -220,12 +220,15 @@ class OntologyApplicationService:
     async def _create_entry(
             self,
             entry: OntologyEntryInput,
-            parents: list[int] = None,
-            children: list[int] = None
+            parents: list[int]|None = None,
+            children: list[int]|None = None
     ) -> OntologyEntryStored:
+        if self.user_id is None:
+            raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         """Create a new ontology entry with validation and persistence."""
         await self._validate_entry_uniqueness(entry)
         # Create and persist entry
+
         created_entry = await self.persistence.create_entry(entry, self.user_id)
         await self._create_entry_lifecycle(created_entry.id)
         await self._save_entry_lifecycles()
@@ -554,7 +557,8 @@ class OntologyApplicationService:
         """Update an existing ontology entry with validation."""
         if not entry.id:
             raise ValueError("Entry must have an ID for updates")
-
+        if not self.user_id:
+            raise UnauthorisedOperationError("Only registered users can update entries")
         # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
 
@@ -562,9 +566,6 @@ class OntologyApplicationService:
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
                 raise UnauthorisedOperationError("Only Editors and Admins may alter entries that have progressed beyond Draft")
-            # any edit reverts the entry to draft
-            current_version = await self.get_current_version()
-            await self.revert_entry_to_draft(entry.id, current_version)
 
         # Update entry
         await self.persistence.update_entry(entry, user_id=self.user_id)
@@ -645,28 +646,17 @@ class OntologyApplicationService:
 
     async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
         """Create a new relationship """
+        if self.user_id is None:
+            raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         logger.debug(f"Creating relationship: {relationship}")
-        # Fetch entry types once for all validators that need them
-        # entry type relationship specific validation
         await self._validate_entry_types_for_relationship(relationship)
         await self._validate_no_circular_dependency(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
-        # Create relationship if it doesn't exist, else revert it to draft'
-        relationship_id = None
-        async for rel in self.persistence.get_relationships(
-                source_ids = [relationship.source_id],
-                target_ids = [relationship.target_id],
-                labels=[relationship.label]
-        ):
-            relationship_id = rel.id
-        if relationship_id is None:
-            relationship = await self.persistence.create_relationship(relationship)
-            # Create and save lifecycle
-            await self._create_relationship_lifecycle(relationship.id)
-            await self._save_relationship_lifecycles()
-        else:
-            relationship.id = relationship_id
-            await self.update_relationship(relationship)
+        await self._validate_relationship_does_not_exist(relationship)
+        relationship = await self.persistence.create_relationship(relationship, user_id=self.user_id)
+        # Create and save lifecycle
+        await self._create_relationship_lifecycle(relationship.id)
+        await self._save_relationship_lifecycles()
         return relationship
 
     async def link_to_term(self, source_id, source_label, term_id):
@@ -679,27 +669,12 @@ class OntologyApplicationService:
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update the properties of a relationship"""
-        # Update reverts any relationship to draft phase
         lifecycle = await self._get_relationship_lifecycle(relationship.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
                 raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
-            # any edit reverts the relationship to draft
-            current_version = await self.get_current_version()
-            await self.revert_relationship_to_draft(relationship.id, current_version)
 
         await self.persistence.update_relationship(relationship)
-
-    # Lifecycle management
-    async def revert_entry_to_draft(
-            self,
-            entry_id: int,
-            version: Version
-    ) -> None:
-        """Commit a draft entry."""
-        lifecycle = await self._get_entry_lifecycle(entry_id)
-        lifecycle.set_version_drafted(version)
-        await self._save_entry_lifecycles()
 
     # Lifecycle management
     async def activate_entry(
@@ -711,16 +686,6 @@ class OntologyApplicationService:
         lifecycle = await self._get_entry_lifecycle(entry_id)
         lifecycle.set_version_activated(version)
         await self._save_entry_lifecycles()
-
-    async def revert_relationship_to_draft(
-            self,
-            relationship_id: int,
-            version: Version
-    ) -> None:
-        """Commit a draft entry."""
-        lifecycle = await self._get_relationship_lifecycle(relationship_id)
-        lifecycle.set_version_drafted(version)
-        await self._save_relationship_lifecycles()
 
     async def activate_relationship(
             self,
@@ -942,6 +907,7 @@ class OntologyApplicationService:
                 raise ValueError(f"Entries do not exist: {missing}")
 
     #todo consider a domain service to implement these sorts of checks, we now have a few of them and the application service is getting busy.
+    # also consider the need to include versioning in these checks!
     async def _validate_no_circular_dependency(self, relationship: OntologyRelationshipBase) -> None:
         """Validate that relationship won't create circular dependencies with the same label"""
         if await self.persistence.has_path_between_entries(
@@ -960,5 +926,10 @@ class OntologyApplicationService:
                 target_ids = [relationship.target_id],
                 labels=[relationship.label]
         ):
-            raise RelationshipExistsError(f"Relationship already exists: {str(rel)}")
+            # get lifecycle and check if removed, if removed we can create a new one, this preserves history
+            lifecycle = await self._get_relationship_lifecycle(relationship_id=rel.id)
+            if lifecycle.current_phase ==LifecyclePhase.REMOVED:
+                continue
+            else:
+                raise RelationshipExistsError(f"Relationship already exists: {str(rel)}")
 

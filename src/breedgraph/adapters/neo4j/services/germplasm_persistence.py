@@ -1,12 +1,11 @@
-from typing import Dict, List, Any, Optional, AsyncGenerator, Tuple
+from typing import Dict, List, Optional, AsyncGenerator
 from neo4j import AsyncTransaction, Record
-from neo4j.time import DateTime as Neo4jDateTime
 
 from breedgraph.domain.model.germplasm import (
-    GermplasmInput, GermplasmStored, GermplasmOutput,
-    Reproduction, GermplasmSourceType, GermplasmRelationship
+    GermplasmInput, GermplasmStored,
+    Reproduction, GermplasmRelationship
 )
-from breedgraph.domain.model.time_descriptors import serialize_npdt64, deserialize_time, npdt64_to_neo4j
+from breedgraph.domain.model.time_descriptors import serialize_npdt64, deserialize_time
 from breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries
@@ -14,7 +13,6 @@ from breedgraph.adapters.neo4j.cypher import queries
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 
 class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):

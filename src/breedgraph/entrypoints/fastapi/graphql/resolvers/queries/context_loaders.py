@@ -1,12 +1,11 @@
 import asyncio
-from breedgraph.domain.model.ontology import Version, OntologyEntryLabel, LifecyclePhase
-from breedgraph.custom_exceptions import InconsistentStateError
 
 from typing import List, Set
 
 import logging
 
-from breedgraph.service_layer.queries.read_models import OntologyEntryOutput
+from breedgraph.domain.model import Version
+from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
 logger = logging.getLogger(__name__)
 
@@ -18,25 +17,78 @@ def _get_lock(context, lock_name: str):
         context[lock_name] = asyncio.Lock()
     return context[lock_name]
 
+
+async def load_entries_to_ontology_map(
+        context,
+        entries: List[OntologyEntryOutput],
+        version_id: int,
+        view: OntologyViewMode
+):
+    if version_id is None:
+        for entry in entries:
+            version_id = entry.version.packed_version
+            break
+        else:
+            raise ValueError("No entries provided")
+
+    async with _get_lock(context, '_ontology_lock'):
+        if not 'ontology_map' in context:
+            context['ontology_map'] = dict()
+
+        if not 'ontology_view' in context:
+            context['ontology_view'] = {
+                'version_id': version_id,
+                'view': view
+            }
+        else:
+            if context['ontology_view']['version_id'] != version_id:
+                raise ValueError("Context version changed")
+            if context['ontology_view']['view'] != view:
+                raise ValueError("Context view changed")
+
+        ontology_map = context.get('ontology_map')
+        ontology_map.update({entry.id: entry for entry in entries})
+
 async def update_ontology_map(
         context,
-        entries: List[OntologyEntryOutput] | None = None,
-        entry_ids: List[int] | None = None
+        entry_ids: List[int],
+        version_id: int|None = None,
+        view: OntologyViewMode | None = None
 ):
     async with _get_lock(context, '_ontology_lock'):
         if not 'ontology_map' in context:
             context['ontology_map'] = dict()
         ontology_map = context.get('ontology_map')
-        if entries:
-            ontology_map.update({entry.id: entry for entry in entries})
-        elif entry_ids:
-            bus = context.get('bus')
-            entry_ids = set(entry_ids or [])
-            entries_to_update = [i for i in entry_ids - ontology_map.keys()]
-            if entries_to_update:
-                async with bus.views_factory.get_views() as views:
-                    entries = await views.ontology.get_entries(entry_ids=entries_to_update)
-                    ontology_map.update({entry.id: entry for entry in entries})
+
+        bus = context.get('bus')
+        entry_ids = set(entry_ids or [])
+        entries_to_update = [i for i in entry_ids - ontology_map.keys()]
+        if entries_to_update:
+            async with bus.views_factory.get_views() as views:
+                if not 'ontology_view' in context:
+                    version = Version.from_packed(version_id) if version_id else await views.ontology.get_current_version()
+                    context['ontology_view'] = {
+                        'version_id': version.packed_version,
+                        'view': view or OntologyViewMode.PUBLISHED
+                    }
+                else:
+                    context_version_id = context['ontology_view']['version_id']
+                    if version_id is not None and context_version_id != version_id:
+                        raise ValueError("Ontology context version changed in the middle of resolving a query")
+
+                    version = Version.from_packed(context_version_id)
+
+                    context_view = context['ontology_view']['view']
+                    if view is not None and view != context_view:
+                        raise ValueError("Ontology context view changed in the middle of resolving a query")
+                    view = context_view
+
+                entries = await views.ontology.get_entries(
+                    entry_ids=entries_to_update,
+                    version=version,
+                    view=view
+                )
+                ontology_map.update({entry.id: entry for entry in entries})
 
 async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None):
     async with _get_lock(context, '_teams_lock'):

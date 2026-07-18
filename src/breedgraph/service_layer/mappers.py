@@ -2,10 +2,12 @@ import re
 from functools import lru_cache
 from typing import Dict, Type, List, Tuple, FrozenSet, Set
 
-from breedgraph.domain.model.ontology import *
-#from breedgraph.domain.model.ontology.enums import OntologyEntryLabel, OntologyRelationshipLabel
-#from breedgraph.domain.model.ontology import OntologyEntryStored
-from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel, OntologyRelationshipLabel
+from breedgraph.domain.model.ontology import OntologyEntryStored
+
+from breedgraph.service_layer.queries.read_models.ontology import (
+    OntologyEntryOutput
+)
 
 
 class OntologyMapper:
@@ -20,11 +22,12 @@ class OntologyMapper:
         }
 
     @lru_cache(maxsize=1)
-    def get_output_class_mapping(self) -> Dict[OntologyEntryLabel, Type[OntologyEntryOutput]]:
+    def get_entry_output_class_mapping(self) -> Dict[OntologyEntryLabel, Type[OntologyEntryOutput]]:
         return {
             subclass.label: subclass
             for subclass in OntologyEntryOutput.__subclasses__()
         }
+
 
     @lru_cache(maxsize=1)
     def relationship_to_valid_source_and_target(self) -> Dict[
@@ -110,7 +113,7 @@ class OntologyMapper:
             target_label: OntologyEntryLabel,
             attr_for_source: bool = True  # returns either the attribute name for the source or target entity
     ) -> str:
-        output_class_mapping = self.get_output_class_mapping()
+        output_class_mapping = self.get_entry_output_class_mapping()
         source_cls = output_class_mapping[source_label]
         target_cls = output_class_mapping[target_label]
 

@@ -28,27 +28,30 @@ def create_ontology_entry(label: OntologyEntryLabel):
     SET entry += $params
     WITH entry
     // Link contributor
-    CALL {{
-      WITH entry
+    CALL (entry) {{
       MATCH (user: User {{id: $user_id}})
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
       CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(entry)
     }}
     // Link authors
-    CALL {{
-      WITH entry
+    CALL (entry) {{
       UNWIND $authors as author_id
       MATCH (author: Person {{id: author_id}})
-      CREATE (author)-[authored:AUTHORED {{time:datetime.transaction()}}]->(entry)
+      CREATE (author)-[authored:AUTHORED {{
+            time:datetime.transaction(),
+            added: $version
+        }}]->(entry)
       RETURN
         collect(author.id) as authors
     }}
     // Link references 
-    CALL {{
-      WITH entry
+    CALL (entry) {{
       UNWIND $references as ref_id
       MATCH (reference: Reference {{id: ref_id}})
-      CREATE (reference)-[ref_for:REFERENCE_FOR {{time:datetime.transaction()}}]->(entry)
+      CREATE (reference)-[ref_for:REFERENCE_FOR {{
+            time:datetime.transaction(),
+            added: $version
+        }}]->(entry)
       RETURN
         collect(reference.id) as references
     }}
@@ -61,58 +64,43 @@ def create_ontology_entry(label: OntologyEntryLabel):
   """
   return query
 
-def update_ontology_entry(label: OntologyEntryLabel):
+def patch_ontology_entry(label: OntologyEntryLabel):
   query = f"""
     MATCH (entry: {label.value}: OntologyEntry {{id: $entry_id}})
-    SET entry += $params
-    WITH entry
+    CREATE (patch: OntologyEntryPatch)-[:FOR_ENTRY {{version: $version, time:  datetime.transaction()}}]->(entry)
+    SET patch += $params
+    WITH entry, patch
     // Link user as contributor
-    CALL {{
-      WITH entry
+    CALL (entry) {{
       MATCH (user: User {{id: $user_id}})
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(entry)
+      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch)
     }}
     // Update authors
-    CALL {{
-      WITH entry
-      MATCH (entry)-[authored:AUTHORED]->(author: Person)
-      WHERE NOT author.id IN $authors
-      DELETE authored
+    CALL (entry) {{
+      MATCH (author: Person)
+      WHERE author.id IN $authors_added
+      CREATE (author)-[:AUTHORED {{added: $version}}]->(entry)
     }}
-    CALL {{
-      WITH entry      
-      UNWIND $authors as author_id
-      MATCH (author: Person {{id: author_id}})
-      MERGE (author)-[authored:AUTHORED]->(entry)
-      ON CREATE SET authored.time = datetime.transaction()
-      RETURN
-        collect(author.id) as authors
+    CALL (entry) {{
+      MATCH (author: Person)-[authored:AUTHORED]->(entry)
+      WHERE author.id IN $authors_removed
+      SET authored.removed = $version
     }}
     // Update references
-    CALL {{
-      WITH entry
-      MATCH (entry)<-[ref_for:REFERENCE_FOR]->(reference: Reference)
-      WHERE NOT reference.id IN $references
-      DELETE ref_for
+    CALL (entry) {{
+      MATCH (reference: Reference)
+      WHERE reference.id IN $references_added
+      CREATE (reference)-[:REFERENCE_FOR {{added: $version}}]->(entry)
     }}
-    CALL {{
-      WITH entry      
-      UNWIND $references as ref_id
-      MATCH (reference: Reference {{id: ref_id}})
-      MERGE (reference)-[ref_for:REFERENCE_FOR]->(entry)
-      ON CREATE SET ref_for.time = datetime.transaction()
-      RETURN
-        collect(reference.id) as references
-    }}
-    RETURN entry {{
-      .*,
-      label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-      authors: authors,
-      references: references
+    CALL (entry) {{
+      MATCH (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
+      WHERE reference.id IN $references_removed
+      SET ref_for.removed = $version
     }}
   """
   return query
+
 
 def create_ontology_relationship(
         label: OntologyRelationshipLabel,
@@ -145,8 +133,15 @@ def create_ontology_relationship(
         -[:RELATES_TO]->(target)
     SET relationship.id = c.count
     SET relationship += $attributes
+    WITH relationship, source, target
+    // Link contributor
+    CALL (relationship) {{
+      MATCH (user: User {{id: $user_id}})
+      MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
+      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(relationship)
+    }}    
     RETURN relationship {{
-        relationship_id: relationship.id,
+        .*,
         label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
         source_id: source.id,
         target_id: target.id,
@@ -273,14 +268,34 @@ def get_entries(
         where_clause = "WHERE " + " AND ".join(where_conditions)
 
     return_clause = """
+        OPTIONAL MATCH (patch: OntologyEntryPatch)-[for_entry:FOR_ENTRY]->(entry)
+        WHERE for_entry.version <= $version
+        WITH entry, patch, for_entry
+        ORDER BY for_entry.time 
+        WITH entry, collect(patch {.*}) as patches
         RETURN
         entry {
             .*,
             label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-            authors: [(author: Person)-[authored:AUTHORED]->(entry) | author.id ],
-            references: [(reference: Reference)-[ref_for:REFERENCE_FOR]->(entry) | reference.id ]
+            authors: [
+                (author: Person)-[authored:AUTHORED]->(entry)
+                WHERE
+                    authored.added <= $version
+                AND 
+                    (authored.removed IS NULL OR authored.removed > $version)
+                | author.id
+            ],
+            references: [
+                (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
+                WHERE
+                    ref_for.added <= $version
+                AND 
+                    (ref_for.removed IS NULL or ref_for.removed > $version)
+                | reference.id 
+            ]
         } as entry,
-        lifecycle { .* } as lifecycle
+        patches
+        
     """
 
     query_parts = [match_clause]
@@ -369,16 +384,22 @@ def get_relationships(
 
     return_clause = """
         WITH relationship
+        OPTIONAL MATCH (patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
+        WHERE for_rel.version <= $version
+        WITH relationship, patch, for_rel
+        ORDER BY for_rel.time 
+        WITH relationship, collect(patch {.*}) as patches            
         MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry)
         RETURN
             relationship {
-                relationship_id: relationship.id,
+                .*,
                 label: [label IN labels(relationship) WHERE label <> "OntologyRelationship"][0],
                 source_id: source.id,
                 target_id: target.id,
                 source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
                 target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
-            } as relationship
+            } as relationship,
+            patches
     """
     query_parts = [match_clause]
     if where_clause:

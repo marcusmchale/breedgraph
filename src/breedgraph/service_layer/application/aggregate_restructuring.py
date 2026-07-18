@@ -2,13 +2,13 @@
 from abc import ABC, abstractmethod
 
 from breedgraph.domain.model.blocks import Block
-from breedgraph.domain.model.references import ReferenceStoredBase
+
 from breedgraph.custom_exceptions import IllegalOperationError
 
 import logging
 logger = logging.getLogger(__name__)
 
-class AbstractExtraAggregateService(ABC):
+class AbstractAggregateRestructuringService(ABC):
     """
     Service for operations that span outside the aggregate boundaries.
     In theory, these operate under different bounded contexts,
@@ -38,16 +38,5 @@ class AbstractExtraAggregateService(ABC):
     @abstractmethod
     async def _delete_relationship(self, source_id, source_label, sink_id, sink_label, relationship_label) -> None:
         ...
-
-    async def reference_in_use(self, reference: ReferenceStoredBase) -> bool:
-        return await self._reference_in_use(reference.id)
-
-    @abstractmethod
-    async def _reference_in_use(self, reference_id) -> bool:
-        ...
-
-
-
-
 
 

@@ -45,6 +45,8 @@ class OntologyEntryBase(EnumLabeledModel, ABC):
             dump['scale_type'] = dump['scale_type'].value
         if 'observation_type' in dump:
             dump['observation_type'] = dump['observation_type'].value
+        if 'control_type' in dump:
+            dump['control_type'] = dump['control_type'].value
         if 'axes' in dump:
             dump['axes'] = [a.value for a in dump['axes']]
         return dump

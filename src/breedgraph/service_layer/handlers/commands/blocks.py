@@ -80,7 +80,7 @@ async def update_unit(
             if len(cmd.parents) == 0:
                 if block.get_parent_ids(cmd.unit_id):
                     # this node is a child of this block, so removing its parents will make it the root of a new block
-                    await uow.extra.split_block(block, cmd.unit_id)
+                    await uow.restructuring.split_block(block, cmd.unit_id)
                 else:
                     logger.debug('Updating a block root unit to empty parents, doing nothing')
             elif block.get_parent_ids(cmd.unit_id):

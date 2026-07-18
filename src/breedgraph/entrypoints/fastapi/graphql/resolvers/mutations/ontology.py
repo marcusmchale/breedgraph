@@ -78,24 +78,6 @@ async def deprecate_entries(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("ontologyRemoveEntries")
-@graphql_payload
-@require_authentication
-async def remove_entries(
-        _,
-        info,
-        entry_ids: List[int]
-) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks entries {entry_ids} as removed")
-    cmd = RemoveOntologyEntries(
-        agent_id=user_id,
-        entry_ids=entry_ids
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
-
 @graphql_mutation.field("ontologyActivateRelationships")
 @graphql_payload
 @require_authentication
@@ -129,24 +111,6 @@ async def deprecate_relationships(
     )
     await info.context['bus'].handle(cmd)
     return True
-
-@graphql_mutation.field("ontologyRemoveRelationships")
-@graphql_payload
-@require_authentication
-async def remove_relationships(
-        _,
-        info,
-        relationship_ids: List[int]
-) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks relationships {relationship_ids} as removed")
-    cmd = RemoveOntologyRelationships(
-        agent_id=user_id,
-        relationship_ids=relationship_ids
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
 
 @graphql_mutation.field("ontologyCreateTerm")
 @graphql_payload

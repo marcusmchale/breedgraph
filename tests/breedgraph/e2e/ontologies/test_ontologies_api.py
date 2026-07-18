@@ -2,6 +2,7 @@ import pytest
 
 from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.domain.model.ontology import *
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
 
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 from tests.breedgraph.e2e.ontologies.post_methods import (
@@ -42,6 +43,12 @@ async def test_create_term(
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
 
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM], view=OntologyViewMode.EDITORIAL)
+    term_payload = get_verified_payload(response, "ontologyEntries")
+    result = term_payload.get('result')
+    assert result[0].get('name') == term_input.get('name')
+
+
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_subject_relates_to_term(
         ontology_build_context,
@@ -51,8 +58,7 @@ async def test_create_subject_relates_to_term(
 ):
     user_id = ontology_build_context['user_id']
     login_token = login_token_factory(user_id)
-    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
-
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM], view=OntologyViewMode.EDITORIAL)
     term_payload = get_verified_payload(response, "ontologyEntries")
     term_id = term_payload.get('result')[0].get('id')
     subject_input = {
@@ -69,7 +75,7 @@ async def test_create_subject_relates_to_term(
     assert_payload_success(get_verified_payload(response, "ontologyCreateSubject"))
 
     # Verify the linked term is in the draft
-    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT], draft=True)
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT], view=OntologyViewMode.EDITORIAL)
     subject_payload = get_verified_payload(response, "ontologyEntries")
     if not any(
             term.get("id") == str(term_id)
@@ -90,7 +96,8 @@ async def test_create_trait_relates_to_subject(
     response = await post_to_get_entries(
         client,
         token=login_token,
-        labels=[OntologyEntryLabel.SUBJECT]
+        labels=[OntologyEntryLabel.SUBJECT],
+        view = OntologyViewMode.EDITORIAL
     )
 
     subject_payload = get_verified_payload(response, "ontologyEntries")
@@ -112,7 +119,7 @@ async def test_create_trait_relates_to_subject(
         client,
         token=login_token,
         labels=[OntologyEntryLabel.TRAIT],
-        draft=True
+        view=OntologyViewMode.EDITORIAL
     )
     trait_payload = get_verified_payload(response, "ontologyEntries")
     if not any(
@@ -148,7 +155,8 @@ async def test_create_observation_method(
     response = await post_to_get_entries(
         client,
         token=login_token,
-        labels=[OntologyEntryLabel.OBSERVATION_METHOD]
+        labels=[OntologyEntryLabel.OBSERVATION_METHOD],
+        view = OntologyViewMode.EDITORIAL
     )
     method_payload = get_verified_payload(response, "ontologyEntries")
     assert method_payload.get('result')[0].get('id')
@@ -175,7 +183,8 @@ async def test_create_scale(
     response = await post_to_get_entries(
         client,
         token=login_token,
-        labels=[OntologyEntryLabel.SCALE]
+        labels=[OntologyEntryLabel.SCALE],
+        view = OntologyViewMode.EDITORIAL
     )
     method_payload = get_verified_payload(response, "ontologyEntries")
     assert method_payload.get('result')[0].get('id')
@@ -189,15 +198,15 @@ async def test_create_variable(
 ):
     user_id = ontology_build_context['user_id']
     login_token = login_token_factory(user_id)
-    trait_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TRAIT])
+    trait_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TRAIT], view=OntologyViewMode.EDITORIAL)
     trait_payload = get_verified_payload(trait_response, "ontologyEntries")
     trait_id = trait_payload.get('result')[0].get('id')
 
-    method_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.OBSERVATION_METHOD])
+    method_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.OBSERVATION_METHOD], view=OntologyViewMode.EDITORIAL)
     method_payload = get_verified_payload(method_response, "ontologyEntries")
     method_id = method_payload.get('result')[0].get('id')
 
-    scale_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SCALE])
+    scale_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SCALE], view=OntologyViewMode.EDITORIAL)
     scale_payload = get_verified_payload(scale_response, "ontologyEntries")
     scale_id = scale_payload.get('result')[0].get('id')
 
@@ -218,7 +227,7 @@ async def test_create_variable(
         client,
         token=login_token,
         labels=[OntologyEntryLabel.VARIABLE],
-        draft=True
+        view = OntologyViewMode.EDITORIAL
     )
     variable_payload = get_verified_payload(variable_response, "ontologyEntries")
     assert variable_payload.get('result')[0].get('id')
@@ -246,7 +255,7 @@ async def test_create_layout_type(
         layout_type_input=layout_type_input
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateLayoutType"))
-    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.LAYOUT_TYPE])
+    response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.LAYOUT_TYPE], view=OntologyViewMode.EDITORIAL)
     layout_payload = get_verified_payload(response, "ontologyEntries")
     assert layout_payload.get('result')[0].get('id')
     assert layout_payload.get('result')[0].get('axes') == layout_type_input['axes']
@@ -313,11 +322,11 @@ async def test_update_create_relationships(
 ):
     user_id = ontology_build_context['user_id']
     login_token = login_token_factory(user_id)
-    term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
+    term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM], view=OntologyViewMode.EDITORIAL)
     term_payload = get_verified_payload(term_response, "ontologyEntries")
     parent_term_id = term_payload.get('result')[0].get('id')
 
-    subject_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT])
+    subject_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.SUBJECT], view=OntologyViewMode.EDITORIAL)
     subject_payload = get_verified_payload(subject_response, "ontologyEntries")
     subject_id = subject_payload.get('result')[0].get('id')
 
@@ -331,7 +340,7 @@ async def test_update_create_relationships(
     )
     assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
 
-    child_term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM])
+    child_term_response = await post_to_get_entries(client, token=login_token, labels=[OntologyEntryLabel.TERM], view=OntologyViewMode.EDITORIAL)
     child_term_payload = get_verified_payload(child_term_response, "ontologyEntries")
     child_term_id = child_term_payload.get('result')[0].get('id')
     child_term_update = {

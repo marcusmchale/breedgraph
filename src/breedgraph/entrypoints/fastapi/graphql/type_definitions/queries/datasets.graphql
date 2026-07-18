@@ -11,7 +11,7 @@ type Record {
 type Dataset {
     id: ID!
     # concept is either a Factor or Variable in the ontology
-    concept: OntologyEntryInterface
+    concept: OntologyNodeInterface!
     records: [Record]
     contributors: [Person]
     references: [ReferenceInterface]
@@ -55,7 +55,7 @@ type DatasetSubmission {
 
 type DatasetSummary {
     id: ID!
-    concept: OntologyEntryInterface,
+    concept: OntologyNodeInterface!,
     subjects: [Subject]
     locations: [Location]
     blocks: [Unit]

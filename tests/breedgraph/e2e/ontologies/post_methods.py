@@ -2,6 +2,8 @@ from breedgraph.config import GQL_API_PATH
 from breedgraph.domain.model.ontology import *
 
 from typing import List
+
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
 from tests.breedgraph.e2e.utils import with_auth
 
 async def post_to_create_term(
@@ -15,9 +17,9 @@ async def post_to_create_term(
             "  ontologyCreateTerm( "
             "   term: $term  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -43,9 +45,9 @@ async def post_to_create_subject(
             "  ontologyCreateSubject( "
             "   subject: $subject  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -71,9 +73,9 @@ async def post_to_create_trait(
             "  ontologyCreateTrait( "
             "   trait: $trait  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -127,8 +129,8 @@ async def post_to_create_scale(
             "  ontologyCreateScale( "
             "   scale: $scale  "
             "  ) { "
-            "    status, "
-            "    result, "
+            "    status "
+            "    result "
             "    errors { name, message } "
             "  } "
             " } "
@@ -155,9 +157,9 @@ async def post_to_create_variable(
             "  ontologyCreateVariable( "
             "   variable: $variable  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -183,9 +185,9 @@ async def post_to_create_layout_type(
             "  ontologyCreateLayoutType( "
             "   layoutType: $layoutType  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -206,47 +208,46 @@ async def post_to_get_entries(
         token: str,
         labels: List[OntologyEntryLabel] |None = None,
         entry_ids: List[int] | None = None,
-        draft: bool = False
+        view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ):
     json={
         "query": (
             " query ( "
-            "  $labels: [OntologyEntryLabel]"
+            "  $labels: [OntologyNodeLabel!]"
             "  $entryIds: [ID!]"
-            "  $draft: Boolean "
+            "  $view: OntologyView "
             " ) { "
             "  ontologyEntries( "
             "    labels: $labels "
             "    entryIds: $entryIds "
-            "    draft: $draft "
+            "    view: $view "
             "  ) { "
-            "    status, "
+            "    status "
             "    result { "
-            "       id, "
-            "       name,"
-            "       parents { id, name }, "
-            "       children { id, name } "
-            "       ... on RelatedToTerms { terms { id, name } }"
-            "       ... on Subject { traits { id, name } , conditions { id, name } } "
-            "       ... on Trait { subjects { id, name }, variables { id, name } } "
-            "       ... on Condition { subjects { id, name } , factors { id, name } } "
-            "       ... on Scale { scaleType, categories  { id, name } , variables { id, name } , factors { id, name } }"
-            "       ... on Category { scales  { id, name } }"
-            "       ... on ObservationMethod { observationType, variables  { id, name } } " 
-            "       ... on Variable { trait { id, name } , observationMethod { id, name }, scale  { id, name } } "
-            "       ... on ControlMethod { controlType, factors { id, name } } "
-            "       ... on Factor { condition { id, name }, controlMethod { id, name }, scale { id, name } } "
-            "       ... on Event { variables { id, name }, factors { id, name } } "
+            "       ... on OntologyNodeInterface { id name description } "
+            "       ... on OntologyRelationships { parents { id name } } "
+            "       ... on OntologyRelationships { children { id name } } "
+            "       ... on RelatedToTerms { terms { id name } }"
+            "       ... on Subject { traits { id name }  conditions { id name } } "
+            "       ... on Trait { subjects { id name } variables { id name } } "
+            "       ... on Condition { subjects { id name } factors { id name } } "
+            "       ... on Scale { scaleType categories  { id name } variables { id name }  factors { id name } }"
+            "       ... on Category { scales  { id name } }"
+            "       ... on ObservationMethod { observationType variables  { id name } } " 
+            "       ... on Variable { trait { id name }  observationMethod { id name } scale  { id name } } "
+            "       ... on ControlMethod { controlType factors { id name } } "
+            "       ... on Factor { condition { id name } controlMethod { id name } scale { id name } } "
+            "       ... on Event { variables { id name } factors { id name } } "
             "       ... on LayoutType { axes } "
-            "   }, "
-            "    errors { name, message } "
+            "   } "
+            "    errors { name message } "
             "  } "
             " } "
         ),
         "variables": {
             "labels": [label.name for label in labels],
             "entryIds": entry_ids,
-            "draft": draft
+            "view": view.value
         }
     }
     headers = with_auth(
@@ -261,27 +262,31 @@ async def post_to_get_ontology(
         client,
         token: str,
         version_id: str|None = None,
+        view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ):
     json={
         "query": (
             " query ( "
             "  $versionId: ID"
+            "  $view: OntologyView "
             " ) { "
             "  ontology( "
             "    versionId: $versionId "
+            "    view: $view "
             "  ) { "
             "    status, "
             "    result { "
-            "       version { major, minor, patch } , "
-            "       entries { id, name },"
-            "       relationships {id, label, sourceId, targetId} "
+            "       version { major minor patch } , "
+            "       entries { ... on OntologyNodeInterface { id name description } } "
+            "       relationships { id label sourceId targetId } "
             "   }, "
             "    errors { name, message } "
             "  } "
             " } "
         ),
         "variables": {
-            "versionId": version_id
+            "versionId": version_id,
+            "view": view.value
         }
     }
     headers = with_auth(
@@ -307,9 +312,9 @@ async def post_to_commit_version(
             "   versionChange: $versionChange  "
             "   comment: $comment "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -339,8 +344,8 @@ async def post_to_commit_history(
             "   limit: $limit "
             "  ) { "
             "    status, "
-            "    result { version {major, minor, patch} , comment, time, user {id, name } }, "
-            "    errors { name, message } "
+            "    result { version {major minor patch} comment time user {id name } }, "
+            "    errors { name message } "
             "  } "
             " } "
         ),
@@ -366,9 +371,9 @@ async def post_to_update_term(
             "  ontologyUpdateTerm( "
             "   term: $term  "
             "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
+            "    status "
+            "    result "
+            "    errors { name message } "
             "  } "
             " } "
         ),

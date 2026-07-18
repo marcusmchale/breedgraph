@@ -4,7 +4,7 @@ import asyncio
 from breedgraph.domain.model.submissions import SubmissionStatus
 
 from tests.breedgraph.e2e.datasets.post_methods import (
-    post_to_submit_records,
+    post_to_create_dataset,
     post_to_get_dataset_submission
 )
 
@@ -22,7 +22,7 @@ async def test_create_dataset_with_records(
     concept_id = dataset_build_context['concept_id']
     study_id = dataset_build_context['study_id']
     unit_id = dataset_build_context['unit_id']
-    response = await post_to_submit_records(
+    response = await post_to_create_dataset(
         client,
         login_token,
         dataset = {
@@ -37,7 +37,7 @@ async def test_create_dataset_with_records(
             ]
         }
     )
-    payload = get_verified_payload(response, "datasetsSubmitRecords")
+    payload = get_verified_payload(response, "datasetsCreate")
     submission_id = payload['result']
     assert submission_id
     limit = 10
@@ -58,7 +58,7 @@ async def test_create_dataset_with_records(
         if status == SubmissionStatus.COMPLETED:
             break
         elif status == SubmissionStatus.FAILED:
-            pytest.fail(f"Dataset submission failed with status: {status}")
+            pytest.fail(f"Dataset submission failed")
         elif status in [SubmissionStatus.PENDING, SubmissionStatus.PROCESSING]:
             continue
         else:

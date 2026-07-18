@@ -4,13 +4,20 @@ from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from breedgraph.domain.events import Event
 
 from breedgraph.service_layer.repositories import AbstractRepoHolder
-from breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
-from breedgraph.service_layer.application.access_control import AbstractAccessControlService
-from breedgraph.service_layer.application import OntologyApplicationService, GermplasmApplicationService
 
-from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
+from breedgraph.service_layer.application import (
+    OntologyApplicationService,
+    GermplasmApplicationService,
+    AbstractAggregateRestructuringService,
+    AbstractAccessControlService
+)
 
-from typing import AsyncGenerator, Callable, Awaitable, Iterable, TYPE_CHECKING
+from .constraints import AbstractConstraintsHandler
+from .dependency_guards import AbstractDependencyGuards
+from .driver import AbstractAsyncDriver
+
+
+from typing import AsyncGenerator, Callable, Awaitable, Iterable
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,6 +31,8 @@ class AbstractUnitHolder(ABC):
     ontology: OntologyApplicationService
     germplasm: GermplasmApplicationService
     repositories: AbstractRepoHolder
+    restructuring: AbstractAggregateRestructuringService
+    guards: AbstractDependencyGuards
     committed: bool = False
 
     def collect_events(self) -> Iterable[Event]:

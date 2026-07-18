@@ -1,6 +1,6 @@
 import pytest
 
-from breedgraph.custom_exceptions import IdentityExistsError
+from breedgraph.custom_exceptions import IdentityExistsError, RelationshipExistsError
 from breedgraph.service_layer.application.ontology_service import OntologyApplicationService
 from breedgraph.domain.model.ontology import (
     SubjectInput, TraitInput, VariableInput, ScaleInput, ObservationMethodInput, ScaleCategoryInput, OntologyEntryLabel
@@ -145,8 +145,7 @@ class TestOntologyApplicationServiceRelationships:
             )
 
     @pytest.mark.asyncio
-    async def test_revert_to_draft_on_duplicate_relationship(self, service, version):
-        # Arrange
+    async def test_duplicate_relationship_fails(self, service, version):
         trait = await service.create_trait(TraitInput(name="Height"))
         observation_method = await service.create_entry(ObservationMethodInput(name="Tape Measure"))
         scale = await service.create_entry(ScaleInput(name="cm"))
@@ -172,15 +171,8 @@ class TestOntologyApplicationServiceRelationships:
         current_lifecycle = lifecycles[rel.id]
         assert current_lifecycle.current_phase == LifecyclePhase.ACTIVE
 
-        await service.create_relationship(relationship)
-        updated_rel = None
-        async for relationship in service.persistence.get_relationships(
-                source_ids=[variable.id], target_ids=[trait.id], labels = [OntologyRelationshipLabel.DESCRIBES_TRAIT]
-        ):
-            updated_rel = relationship
-        updated_lifecycles = await service.persistence.get_relationship_lifecycles([rel.id])
-        updated_lifecycle = updated_lifecycles[rel.id]
-        assert updated_lifecycle.current_phase == LifecyclePhase.DRAFT
+        with pytest.raises(RelationshipExistsError):
+            await service.create_relationship(relationship)
 
 
 

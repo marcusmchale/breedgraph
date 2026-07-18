@@ -17,7 +17,7 @@ type Location {
     """
     id: ID!
     name: String!
-    type: OntologyEntryInterface
+    type: LocationType!
     code: String
     synonyms: [String]
     description: String

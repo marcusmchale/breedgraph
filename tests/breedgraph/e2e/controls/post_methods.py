@@ -46,7 +46,7 @@ async def post_to_controllers(
 ):
     json={
         "query": (
-            " query ( $entityLabel: ControlledModelLabel!, $entityIds: [ID]!) { "
+            " query ( $entityLabel: ControlledModelLabel!, $entityIds: [ID!]!) { "
             "  controlsControllers( "
             "   entityLabel: $entityLabel  "
             "   entityIds: $entityIds "

@@ -73,7 +73,7 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
+    async def create_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         ...
 
@@ -206,7 +206,7 @@ class OntologyPersistenceService(ABC):
             self,
             user_id: int,
             version_change: VersionChange,
-            comment: str = "",
+            comment: str|None = None,
             licence_reference: int|None = None,
             copyright_reference: int|None = None
     ) -> OntologyCommit:

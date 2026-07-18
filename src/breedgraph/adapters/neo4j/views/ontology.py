@@ -15,10 +15,15 @@ from breedgraph.domain.model.ontology import (
 )
 
 from breedgraph.service_layer.queries.views import AbstractOntologyView
-from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyRelationshipOutput
+from breedgraph.service_layer.queries.read_models import (
+    Ontology,
+    OntologyEntryOutput,
+    OntologyViewMode,
+    OntologyRelationshipOutput
+)
 
 from breedgraph.service_layer.mappers import ontology_mapper
-from breedgraph.adapters.neo4j.cypher import queries, query_builders
+from breedgraph.adapters.neo4j.cypher import queries
 
 from typing import List, Tuple, Optional
 
@@ -31,6 +36,7 @@ class Neo4jOntologyView(AbstractOntologyView):
     def __init__(self, session: AsyncSession):
         super().__init__()
         self.session = session
+        #todo ontology mapper might be class attribute
         self.ontology_mapper = ontology_mapper
 
     async def _get_current_version(self) -> Version:
@@ -49,26 +55,28 @@ class Neo4jOntologyView(AbstractOntologyView):
                 patch=0
             )
 
-    def record_to_entry(self, record: Record, version: Version, draft: bool) -> OntologyEntryOutput:
-        entry_dict = record.get('entry')
-        entry_dict.pop('name_lower')
-
-        lifecycle = EntryLifecycle(**entry_dict.pop('lifecycle'))
-        entry_dict['phase'] = lifecycle.current_phase
-
-        label_str: str | None = entry_dict.pop('label')
-
+    @staticmethod
+    def get_label_from_record(record: Record|dict):
+        entry = record.get('entry', record)  # Fallback to record if no 'entry' key
         try:
-            label = OntologyEntryLabel(label_str)
+            return OntologyEntryLabel(entry.get('label'))
         except TypeError:
             raise ValueError("Record does not contain a label field")
         except ValueError:
-            raise ValueError(f"Label is not recognized as a valid ontology entry label: {label_str}")
+            raise ValueError(f"Label is not recognized as a valid ontology entry label: {entry.get('label')}")
 
-        entry_class = self.ontology_mapper.get_output_class_mapping().get(label)
+    def get_entry_class_from_record(self, record: Record|dict):
+        label = self.get_label_from_record(record)
+        entry_class = self.ontology_mapper.get_entry_output_class_mapping().get(label)
+        if not entry_class:
+            raise ValueError(f"No entry output class found for label: {label}")
+        return entry_class
 
+    @staticmethod
+    def coerce_intrinsic_attributes(entry_dict: dict):
+        lifecycle = EntryLifecycle(**entry_dict.pop('lifecycle'))
+        entry_dict['phase'] = lifecycle.current_phase
 
-        # coerce enums from str
         if 'scale_type' in entry_dict:
             entry_dict['scale_type'] = ScaleType(entry_dict['scale_type'])
         if 'observation_type' in entry_dict:
@@ -76,24 +84,46 @@ class Neo4jOntologyView(AbstractOntologyView):
         if 'control_type' in entry_dict:
             entry_dict['control_type'] = ControlMethodType(entry_dict['control_type'])
         if 'axes' in entry_dict:
-            entry_dict['axes'] = [AxisType(a) for a in entry_dict['axes']]
+            entry_dict['axes'] = tuple(AxisType(a) for a in entry_dict['axes'])
 
-        relationship_dicts = record.get('relationships')
+    @staticmethod
+    def filter_dict(entry_dict: dict, node_class):
+        # Filter entry_dict to only include fields that exist on the node class
+        node_fields = {f.name for f in fields(node_class)}
+        return {k: v for k, v in entry_dict.items() if k in node_fields}
+
+    def record_to_entry(
+            self,
+            record: Record|dict,
+            version: Version,
+            view: OntologyViewMode
+    ) -> OntologyEntryOutput:
+        entry_class = self.get_entry_class_from_record(record)
+        entry_dict = record.get('entry', {})
+        entry_dict.pop('label', None)
+
+        self.coerce_intrinsic_attributes(entry_dict)
+
+        entry_patches = entry_dict.get('patches', [])
+        for patch in entry_patches:
+            entry_dict.update(patch)
+
+        #entry_dict.pop('name_lower', None) # I think this is handled by filter_dict, i think?
+        entry_dict = self.filter_dict(entry_dict, entry_class)
+
+        relationship_dicts = record.get('relationships', [])
         attr_rels = defaultdict(list)
         for relationship_dict in relationship_dicts:
-            relationship_lifecycle = RelationshipLifecycle(**relationship_dict.get('lifecycle'))
-            relationship_phase = relationship_lifecycle.current_phase
-            if relationship_phase == LifecyclePhase.ACTIVE or (draft and relationship_phase == LifecyclePhase.DRAFT):
-                # To return fully hydrated views of the entries as nodes that incorporate relationship details.
-                # This helps in preselecting values in forms
-                # start by building a map from attr to rel
-                is_source = relationship_dict['source_id'] == entry_dict['id']
-                attr = self.ontology_mapper.get_attribute_name(
-                    source_label=OntologyEntryLabel(relationship_dict['source_label']),
-                    target_label=OntologyEntryLabel(relationship_dict['target_label']),
-                    attr_for_source=is_source
-                )
-                attr_rels[attr].append(relationship_dict)
+            # To return fully hydrated views of the entries as nodes that incorporate relationship details.
+            # This helps in preselecting values in forms and simplifying other interfaces
+            # start by building a map from attr to rel
+            is_source = relationship_dict['source_id'] == entry_dict['id']
+            attr = self.ontology_mapper.get_attribute_name(
+                source_label=OntologyEntryLabel(relationship_dict['source_label']),
+                target_label=OntologyEntryLabel(relationship_dict['target_label']),
+                attr_for_source=is_source
+            )
+            attr_rels[attr].append(relationship_dict)
 
         attr_types = {f.name: f.type for f in fields(entry_class)}
         # now sort the values and set lists to tuples/ints to complete the entry
@@ -101,7 +131,7 @@ class Neo4jOntologyView(AbstractOntologyView):
             if attr == 'categories':
                 rels.sort(key=ontology_mapper.get_rank)
             else:
-                rels.sort(key=lambda x: x.get('relationship_id'))
+                rels.sort(key=lambda x: x.get('id'))
 
             attr_type = attr_types.get(attr)
             if not attr_type:
@@ -118,11 +148,12 @@ class Neo4jOntologyView(AbstractOntologyView):
                     )
             else:
                 raise ValueError(f"Unexpected attribute type: {attr_type} for relationship")
-        entry = entry_class(**entry_dict, version=version, draft=draft)
+
+        entry = entry_class(**entry_dict, version=version, view=view)
         return entry
 
     @staticmethod
-    def record_to_relationships(record: Record, version: Version) -> List[OntologyRelationshipOutput]:
+    def record_to_relationships(record: Record, version: Version, view: OntologyViewMode) -> List[OntologyRelationshipOutput]:
         relationships = list()
         relationship_dicts = record.get('relationships')
         for relationship_dict in relationship_dicts:
@@ -133,30 +164,33 @@ class Neo4jOntologyView(AbstractOntologyView):
             relationships.append(
                 OntologyRelationshipOutput(
                     label=OntologyRelationshipLabel(relationship_dict['relationship_type']),
-                    id=relationship_dict['relationship_id'],
+                    id=relationship_dict['id'],
                     version=version,
                     source_id=relationship_dict['source_id'],
                     target_id=relationship_dict['target_id'],
                     phase=RelationshipLifecycle(**relationship_dict['lifecycle']).current_phase,
-                    rank=rank
+                    rank=rank,
+                    view=view
                 )
             )
         return relationships
 
-    async def _get_ontology(self, version: Version) -> Ontology:
-
+    async def _get_ontology(self, version: Version, view: OntologyViewMode) -> Ontology:
         entries: List[OntologyEntryOutput] = []
         relationships: List[OntologyRelationshipOutput] = []
-
         async with await self.session.begin_transaction() as tx:
-            query = queries['ontology']['ontology']
+            if view == OntologyViewMode.EDITORIAL:
+                query = queries['ontology']['ontology_editorial']
+            else:
+                query = queries['ontology']['ontology_published']
             params = {'version': version.packed_version}
             result: AsyncResult = await tx.run(query, **params)
             async for record in result:
-                entries.append(self.record_to_entry(record, version, draft=True))
-                relationships.extend(self.record_to_relationships(record, version))
+                entries.append(self.record_to_entry(record, version, view))
+                relationships.extend(self.record_to_relationships(record, version, view))
             return Ontology(
                 version=version,
+                view=view,
                 entries=tuple(entries),
                 relationships=tuple(relationships)
             )
@@ -164,27 +198,27 @@ class Neo4jOntologyView(AbstractOntologyView):
     async def _get_entries(
         self,
         version: Version,
-        entry_ids: List[int] | None = None,
-        labels: List[OntologyEntryLabel] | None = None,
-        draft: bool = False
+        view: OntologyViewMode,
+        entry_ids: list[int] | None = None,
+        labels: list[OntologyEntryLabel] | None = None
     ) -> List[OntologyEntryOutput]:
         entries: List[OntologyEntryOutput] = []
-
+        
         async with await self.session.begin_transaction() as tx:
             if entry_ids:
-                if draft:
-                    query = queries['ontology']['ontology_entries_draft']
+                if view == OntologyViewMode.EDITORIAL:
+                    query = queries['ontology']['ontology_entries_editorial']
                 else:
-                    query = queries['ontology']['ontology_entries']
+                    query = queries['ontology']['ontology_entries_published']
                 params = {
                     'entry_ids': entry_ids,
                     'version': version.packed_version
                 }
             elif labels:
-                if draft:
-                    query = queries['ontology']['ontology_entries_by_labels_draft']
+                if view == OntologyViewMode.EDITORIAL:
+                    query = queries['ontology']['ontology_entries_by_label_editorial']
                 else:
-                    query = queries['ontology']['ontology_entries_by_labels']
+                    query = queries['ontology']['ontology_entries_by_label_published']
                 params = {
                     'labels': labels,
                     'version': version.packed_version
@@ -194,5 +228,5 @@ class Neo4jOntologyView(AbstractOntologyView):
 
             result: AsyncResult = await tx.run(query, **params)
             async for record in result:
-                entries.append(self.record_to_entry(record, version, draft=draft))
+                entries.append(self.record_to_entry(record, version, view))
         return entries

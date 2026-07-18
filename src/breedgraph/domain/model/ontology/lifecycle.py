@@ -117,10 +117,11 @@ class BaseLifecycle(ABC):
         """Create lifecycle from database record."""
         if isinstance(record, Record):
             record = dict(record)
-        record['drafted'] = Version.from_packed(record.get('drafted'))
-        record['activated'] = Version.from_packed(record.get('activated'))
-        record['deprecated'] = Version.from_packed(record.get('deprecated'))
-        record['removed'] = Version.from_packed(record.get('removed'))
+
+        record['drafted'] = Version.from_packed(record.get('drafted')) if record.get('drafted') else None
+        record['activated'] = Version.from_packed(record.get('activated')) if record.get('activated') else None
+        record['deprecated'] = Version.from_packed(record.get('deprecated')) if record.get('deprecated') else None
+        record['removed'] = Version.from_packed(record.get('removed')) if record.get('removed') else None
         return cls(**record)
 
 @dataclass

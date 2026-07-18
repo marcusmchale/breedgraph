@@ -1,10 +1,3 @@
-"""
-Ontology entries with a given label should form directed acyclic graphs with source and sink
-relationships described for each label type as parents and children.
-Relationships across labels may be formed through the term type,
-or through type specific links for other types,
-such as the subject type which is associated with traits and conditions.
-"""
 type Version {
     id: ID!
     major: Int!
@@ -23,7 +16,7 @@ type OntologyCommit {
     copyright: LegalReference
 }
 """
-Ontology entries are created in draft phase.
+Ontology nodes and relationships are created in draft phase.
 When a commit is submitted, drafts become active,
 and deprecated become removed.
 """
@@ -35,12 +28,12 @@ enum LifecyclePhase {
 }
 
 """
-Ontology entries form a graph
-Each label is represented by directed acyclic graphs with source and sink
-relationships described for each node as parents and children.
+Ontology nodes form a graph with ontology relationships as edges.
+Each collection of nodes with a common label forms a directed acyclic sub-graph
 Each entry has an OntologyEntryLabel to distinguish various classes of entry.
 """
-enum OntologyEntryLabel {
+
+enum OntologyNodeLabel {
     """
     Term entries may be used to relate other key terms in the ontology.
     Example: "Metabolism" may be a term.
@@ -64,7 +57,8 @@ enum OntologyEntryLabel {
     """
     Category entries describe classes for Scale entries with type Nominal or Ordinal.
     These are linked to Scale entries.
-    Ordinal scales require a "rank" parameter for each category.
+    Ordinal scales require a "rank" parameter on relationships to categories
+    that determine their order in the attribute.
     Examples: "High", "Medium", "Low" with ranks 2, 1 and 0, respectively.
     """
     CATEGORY
@@ -247,65 +241,130 @@ enum ScaleType {
     COMPLEX
 }
 
-interface OntologyEntryInterface {
+
+"""
+Controls how the ontology is materialized for a given version.
+"""
+enum OntologyView {
+    """
+    The ontology as seen by editors working on the specified version.
+
+    Includes draft changes that are part of the version under edit.
+    """
+    EDITORIAL
+
+    """
+    The ontology as published to consumers.
+
+    Includes only approved content.
+    """
+    PUBLISHED
+}
+
+
+interface OntologyNodeInterface {
+    """
+    Entries are keyed by id, versionId and the view context for caching
+    """
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    """
+    The current lifecycle phase
+    """
+    phase: LifecyclePhase!
+
+    """
+    Intrinsic attributes
+    """
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String!]
+
+    """
+    External relationships attributes are also handled with versioned change tracking like intrinsic attributes.
+    """
+    authors: [Person!]
+    references: [ReferenceInterface!]
+}
+
+"""
+All nodes also have projected attributes that are dependent on their relationships
+Parents and children describe connected nodes with the same label,
+with inbound edges being parents, and outbound edges being children.
+"""
+
+interface OntologyRelationships {
+    parents: [OntologyNodeInterface!]
+    children: [OntologyNodeInterface!]
+}
+
+"""
+Term entries may be used to relate other nodes in the ontology.
+Example: "Metabolism" may be a term used to relate trait "Glycine" with ObservationMethod "GCMS"
+"""
+interface TermRelationships {
+        subjects: [Subject!]
+        scales: [Scale!]
+        categories: [Category!]
+        observationMethods: [ObservationMethod!]
+        traits: [Trait!]
+        variables: [Variable!]
+        controlMethods: [ControlMethod!]
+        conditions: [Condition!]
+        factors: [Factor!]
+        events: [Event!]
+        locationTypes: [LocationType!]
+        layoutTypes: [LayoutType!]
+        designs: [Design!]
+        roles: [Role!]
+        titles: [Title!]
+}
+
+type Term implements OntologyNodeInterface & OntologyRelationships & TermRelationships {
+    id: ID!
+    versionId: ID!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [OntologyEntryInterface]
-    children: [OntologyEntryInterface]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
+
+    parents: [Term!]
+    children: [Term!]
+
+    subjects: [Subject!]
+    scales: [Scale!]
+    categories: [Category!]
+    observationMethods: [ObservationMethod!]
+    traits: [Trait!]
+    variables: [Variable!]
+    controlMethods: [ControlMethod!]
+    conditions: [Condition!]
+    factors: [Factor!]
+    events: [Event!]
+    locationTypes: [LocationType!]
+    layoutTypes: [LayoutType!]
+    designs: [Design!]
+    roles: [Role!]
+    titles: [Title!]
 }
+
+"""
+Other nodes may all have a relationship to terms
+"""
 
 interface RelatedToTerms {
-    terms: [Term]
-}
-
-
-"""
-Term entries may be used to relate other key terms in the ontology.
-Example: "Metabolism" may be a term.
-"""
-type Term implements OntologyEntryInterface {
-    id: ID!
-    versionId: ID!
-    draft: Boolean!
-
-    name: String!
-
-    description: String
-    abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
-
-    parents: [Term]
-    children: [Term]
-    phase: LifecyclePhase
-
-    subjects: [Subject]
-    scales: [Scale]
-    categories: [Category]
-    observationMethods: [ObservationMethod]
-    traits: [Trait]
-    variables: [Variable]
-    controlMethods: [ControlMethod]
-    conditions: [Condition]
-    factors: [Factor]
-    events: [Event]
-    locationTypes: [LocationType]
-    layoutTypes: [LayoutType]
-    designs: [Design]
-    roles: [Role]
-    titles: [Title]
+    terms: [Term!]
 }
 
 """
@@ -313,27 +372,34 @@ Subject entries describe Units (see Blocks) being observed in a study.
 These are linked to Unit and Trait.
 Examples: "Leaf", "Tree", "Field", "Rhizosphere"
 """
-type Subject implements OntologyEntryInterface & RelatedToTerms {
+interface SubjectRelationships {
+    traits: [Trait!]
+    conditions: [Condition!]
+}
+
+type Subject implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & SubjectRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Subject]
-    children: [Subject]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Subject!]
+    children: [Subject!]
 
-    traits: [Trait]
-    conditions: [Condition]
+    terms: [Term!]
+
+    traits: [Trait!]
+    conditions: [Condition!]
 }
 
 """
@@ -342,27 +408,34 @@ These are linked to Variable and Subject.
 Examples:
 "Height", "Gene expression" linked to a tree subject.
 """
-type Trait implements OntologyEntryInterface & RelatedToTerms {
+interface TraitRelationships {
+    subjects: [Subject!]
+    variables: [Variable!]
+}
+
+type Trait implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & TraitRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Trait]
-    children: [Trait]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Trait!]
+    children: [Trait!]
 
-    subjects: [Subject]
-    variables: [Variable]
+    terms: [Term!]
+
+    subjects: [Subject!]
+    variables: [Variable!]
 }
 
 """
@@ -370,27 +443,34 @@ Condition entries describe the quantities/qualities that are fixed/controlled th
 These are linked to Factor entries.
 Examples: "Light level", "Controlled Grafting", "Water availability"
 """
-type Condition implements OntologyEntryInterface & RelatedToTerms {
+interface ConditionRelationships {
+    subjects: [Subject!]
+    factors: [Factor!]
+}
+
+type Condition implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & ConditionRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Condition]
-    children: [Condition]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Condition!]
+    children: [Condition!]
 
-    subjects: [Subject]
-    factors: [Factor]
+    terms: [Term!]
+
+    subjects: [Subject!]
+    factors: [Factor!]
 }
 
 """
@@ -406,56 +486,76 @@ Examples:
 "MAG abundance" would be ScaleType complex, with associated datasets or records each providing references to stored files, e.g. in HDF5 format.
 
 """
-type Scale implements OntologyEntryInterface & RelatedToTerms {
+interface ScaleInterface {
+    scaleType: ScaleType!
+}
+
+interface ScaleRelationships {
+    categories: [Category!]
+
+    variables: [Variable!]
+    factors: [Factor!]
+}
+
+type Scale implements OntologyNodeInterface & ScaleInterface & OntologyRelationships & RelatedToTerms & ScaleRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Scale]
-    children: [Scale]
-    phase: LifecyclePhase
-
-    terms: [Term]
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
     scaleType: ScaleType!
-    categories: [Category]
 
-    variables: [Variable]
-    factors: [Factor]
+    parents: [Scale!]
+    children: [Scale!]
+
+    terms: [Term!]
+
+    categories: [Category!]
+
+    variables: [Variable!]
+    factors: [Factor!]
 }
 
 """
 Category entries describe classes for Scale entries with type Nominal or Ordinal.
 These are linked to Scale entries.
 """
-type Category implements OntologyEntryInterface & RelatedToTerms {
+interface CategoryRelationships {
+    scales: [Scale!]
+}
+
+type Category implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & CategoryRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Category]
-    children: [Category]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Category!]
+    children: [Category!]
 
-    scales: [Scale]
+    terms: [Term!]
+
+    scales: [Scale!]
 }
 
 """
@@ -464,27 +564,38 @@ These are linked to Variable.
 Observation method entries require an ObservationMethodType.
 Examples: "Distance measurement with calibrated reference", "Short-read sequencing", "Rain Gauge".
 """
-type ObservationMethod implements OntologyEntryInterface & RelatedToTerms {
+interface ObservationMethodInterface {
+    observationType: ObservationMethodType!
+}
+
+interface ObservationMethodRelationships {
+    observationType: ObservationMethodType!
+    variables: [Variable!]
+}
+
+type ObservationMethod implements OntologyNodeInterface & ObservationMethodInterface & OntologyRelationships & RelatedToTerms & ObservationMethodRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [ObservationMethod]
-    children: [ObservationMethod]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [ObservationMethod!]
+    children: [ObservationMethod!]
+
+    terms: [Term!]
 
     observationType: ObservationMethodType!
-    variables: [Variable]
+    variables: [Variable!]
 }
 
 """
@@ -500,24 +611,33 @@ Examples:
     Method = "Short read sequencing",
     Scale = "Counts per million"
 """
-type Variable implements OntologyEntryInterface & RelatedToTerms {
+interface VariableRelationships {
+    trait: Trait!
+    observationMethod: ObservationMethod!
+    scale: Scale!
+}
+
+
+type Variable implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & VariableRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Variable]
-    children: [Variable]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Variable!]
+    children: [Variable!]
+
+    terms: [Term!]
 
     trait: Trait!
     observationMethod: ObservationMethod!
@@ -529,27 +649,38 @@ Control method entries describe the way a value is maintained for an experiment.
 These are linked to Factor.
 Examples: "Fluorescent Lighting", "Fertilizer application"
 """
-type ControlMethod implements OntologyEntryInterface & RelatedToTerms {
+interface ControlMethodInterface {
+    controlType: ControlMethodType!
+}
+
+interface ControlMethodRelationships {
+    controlType: ControlMethodType!
+    factors: [Factor!]
+}
+
+type ControlMethod implements OntologyNodeInterface & ControlMethodInterface & OntologyRelationships & RelatedToTerms & ControlMethodRelationships{
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [ControlMethod]
-    children: [ControlMethod]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [ControlMethod!]
+    children: [ControlMethod!]
+
+    terms: [Term!]
 
     controlType: ControlMethodType!
-    factors: [Factor]
+    factors: [Factor!]
 }
 
 """
@@ -565,24 +696,32 @@ OR
 "Grafted Material" where:
     Condition = "Genetic material", ControlMethod = "Controlled Grafting", Scale = "Plant Genetic Material"
 """
-type Factor implements OntologyEntryInterface & RelatedToTerms {
+interface FactorRelationships  {
+    condition: Condition!
+    controlMethod: ControlMethod!
+    scale: Scale!
+}
+
+type Factor implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & FactorRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Factor]
-    children: [Factor]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Factor!]
+    children: [Factor!]
+
+    terms: [Term!]
 
     condition: Condition!
     controlMethod: ControlMethod!
@@ -594,28 +733,34 @@ Event entries link multiple Variables and Factors
 Examples:
 "Harvest" where "harvest method" may be a factor and "yield" may be a variable.
 """
-type Event implements OntologyEntryInterface & RelatedToTerms {
+interface EventRelationships {
+    variables: [Variable!]
+    factors: [Factor!]
+}
+
+type Event implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms & EventRelationships {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
+    synonyms: [String!]
 
-    authors: [Person]
-    references: [ReferenceInterface]
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    parents: [Event]
-    children: [Event]
-    phase: LifecyclePhase
+    parents: [Event!]
+    children: [Event!]
 
-    terms: [Term]
+    terms: [Term!]
 
-    variables: [Variable]
-    factors: [Factor]
+    variables: [Variable!]
+    factors: [Factor!]
 }
 
 """
@@ -623,24 +768,27 @@ LocationType entries describe types of locations.
 These are linked to Location (see Regions).
 Examples: "Country", "State", "Field"
 """
-type LocationType implements OntologyEntryInterface & RelatedToTerms {
+
+type LocationType implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [LocationType]
-    children: [LocationType]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [LocationType!]
+    children: [LocationType!]
+
+    terms: [Term!]
 }
 
 """
@@ -648,26 +796,32 @@ LayoutType entries describe types of arrangements.
 These are linked to Layout (see Arrangements).
 Examples: "Grid", "Rows"
 """
-type LayoutType implements OntologyEntryInterface & RelatedToTerms {
+interface LayoutTypeInterface {
+    axes: [AxisType!]
+}
+
+type LayoutType implements OntologyNodeInterface & LayoutTypeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [LayoutType]
-    children: [LayoutType]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    axes: [AxisType!]
 
-    axes: [String]
+    parents: [LayoutType!]
+    children: [LayoutType!]
+
+    terms: [Term!]
 }
 
 """
@@ -675,24 +829,27 @@ Design entries describe statistical designs for a study.
 These are linked to Study (see Programs).
 Examples: "Split-plot", "Randomized block"
 """
-type Design implements OntologyEntryInterface & RelatedToTerms {
+
+type Design implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Design]
-    children: [Design]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Design!]
+    children: [Design!]
+
+    terms: [Term!]
 }
 
 """
@@ -700,24 +857,27 @@ Role entries describe roles for people.
 These are linked to Person (see People).
 Examples: "Post-doctoral researcher", "Principal Investigator"
 """
-type Role implements OntologyEntryInterface & RelatedToTerms {
+
+type Role implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Role]
-    children: [Role]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Role!]
+    children: [Role!]
+
+    terms: [Term!]
 }
 
 """
@@ -725,24 +885,27 @@ Title entries describe titles for people.
 These are linked to Person (see People).
 Examples: "Professor", "Doctor"
 """
-type Title implements OntologyEntryInterface & RelatedToTerms {
+
+type Title implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!
     versionId: ID!
-    draft: Boolean!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     name: String!
 
     description: String
     abbreviation: String
-    synonyms: [String]
-    authors: [Person]
-    references: [ReferenceInterface]
+    synonyms: [String!]
 
-    parents: [Title]
-    children: [Title]
-    phase: LifecyclePhase
+    authors: [Person!]
+    references: [ReferenceInterface!]
 
-    terms: [Term]
+    parents: [Title!]
+    children: [Title!]
+
+    terms: [Term!]
 }
 
 union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | Role | Title
@@ -750,16 +913,31 @@ union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category
 type OntologyRelationship {
     id: ID!
     versionId: ID!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
 
     sourceId: ID!
     targetId: ID!
     label: OntologyRelationshipLabel!
-    phase: LifecyclePhase
-    rank: Int
 }
 
+"""
+An ontology snapshot for a specific version and view.
+"""
 type Ontology {
     version: Version!
-    entries: [OntologyEntryInterface!]
-    relationships: [OntologyRelationship!]
+    view: OntologyView!
+
+    """
+    The ontology entities materialized for this snapshot.
+    """
+    entries: [OntologyEntryUnion!]!
+
+    """
+    A graph representation of the relationships between entries in this
+    snapshot. This is provided as a convenience for graph-oriented clients
+    such as visualizations.
+    """
+    relationships: [OntologyRelationship!]!
 }

@@ -1,4 +1,4 @@
-from ariadne import ObjectType
+from ariadne import ObjectType, EnumType
 
 from breedgraph.domain.model.time_descriptors import WriteStamp
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -21,7 +21,7 @@ controller = ObjectType("Controller")
 control = ObjectType("Control")
 write_stamp = ObjectType("WriteStamp")
 graphql_resolvers.register_type_resolvers(controller, control, write_stamp)
-graphql_resolvers.register_enums(ControlledModelLabel)
+graphql_resolvers.register_enums(EnumType("ControlledModelLabel", ControlledModelLabel))
 
 @graphql_query.field("controlsControllers")
 @graphql_payload

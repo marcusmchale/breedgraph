@@ -1,12 +1,14 @@
 from .ontology import (
     Ontology,
     OntologyRelationshipOutput,
+    OntologyViewMode,
+
     OntologyEntryOutput,
     TermOutput,
     LocationTypeOutput,
     LayoutTypeOutput,
     SubjectOutput,
-    ScaleCategoryOutput,
+    CategoryOutput,
     ScaleOutput,
     ControlMethodOutput,
     ConditionOutput,
@@ -15,7 +17,7 @@ from .ontology import (
     TraitOutput,
     VariableOutput,
     DesignOutput,
-    EventTypeOutput,
+    EventOutput,
     RoleOutput,
     TitleOutput
 )

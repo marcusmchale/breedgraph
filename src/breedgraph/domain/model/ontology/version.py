@@ -35,11 +35,8 @@ class Version:
         return f"{self.major}.{self.minor}.{self.patch}"
 
     @classmethod
-    def from_packed(cls, packed_version: int) -> Self:
+    def from_packed(cls, packed_version: int ) -> Self:
         """Unpack 64-bit integer into version components"""
-        if packed_version is None:
-            return None
-
         major = (packed_version >> 48) & 0xFFFF
         minor = (packed_version >> 32) & 0xFFFF
         patch = packed_version & 0xFFFFFFFF
@@ -78,19 +75,22 @@ class Version:
 
     def increment(self, change: VersionChange) -> Self:
         if change is VersionChange.MAJOR:
-            return Version(
+            return replace(
+                self,
                 major=self.major + 1,
                 minor=0,
                 patch=0
             )
         elif change is VersionChange.MINOR:
-            return Version(
+            return replace(
+                self,
                 major=self.major,
                 minor=self.minor + 1,
                 patch=0
             )
         else:
-            return Version(
+            return replace(
+                self,
                 major=self.major,
                 minor=self.minor,
                 patch=self.patch + 1
@@ -102,7 +102,7 @@ class OntologyCommit(LabeledModel):
     plural: ClassVar[str] = "OntologyCommits"
 
     version: Version
-    comment: str
+    comment: str | None = None
 
     licence: int | None = None
     copyright: int | None = None

@@ -93,6 +93,11 @@ LOG_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': False
         },
+        'ariadne': {
+            'handlers': ['graphql'],
+            'level': LOG_LEVEL,
+            'propagate': False
+        },
         'neo4j': {
             'handlers': ['neo4j'],
             'level': LOG_LEVEL,

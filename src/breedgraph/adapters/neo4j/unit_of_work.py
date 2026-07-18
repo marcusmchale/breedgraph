@@ -4,32 +4,37 @@ from typing import AsyncGenerator
 
 from neo4j import AsyncTransaction, AsyncSession
 
-from breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
 from breedgraph.domain.events import Event
 
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.service_layer.infrastructure.constraints import AbstractConstraintsHandler
-
-from breedgraph.service_layer.repositories.holder import AbstractRepoHolder
-from breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
+from breedgraph.domain.model.accounts import OntologyRole
 
 from breedgraph.service_layer.application import (
     AbstractAccessControlService,
     OntologyApplicationService,
     GermplasmApplicationService,
-    AbstractExtraAggregateService
+    AbstractAggregateRestructuringService
 )
+
+from breedgraph.service_layer.infrastructure import (
+    AbstractDependencyGuards,
+    AbstractConstraintsHandler,
+    AbstractUnitHolder,
+    AbstractUnitOfWorkFactory
+)
+
+from breedgraph.service_layer.repositories import AbstractRepoHolder
+
 from breedgraph.adapters.neo4j.services import (
-    Neo4jAccessControlService, Neo4jOntologyPersistenceService, Neo4jGermplasmPersistenceService, Neo4jExtraAggregateService
+    Neo4jAccessControlService,
+    Neo4jOntologyPersistenceService,
+    Neo4jGermplasmPersistenceService,
+    Neo4jAggregateRestructuringService,
+    Neo4jDependencyGuards
 )
-from breedgraph.service_layer.persistence import (
-    OntologyPersistenceService, GermplasmPersistenceService
-)
+from breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
+from breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
 
-
-from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder, AbstractUnitOfWorkFactory
-
-from breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List, Generator
 
@@ -44,23 +49,66 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             controls: AbstractAccessControlService,
             ontology: OntologyApplicationService,
             germplasm: GermplasmApplicationService,
-            extra: AbstractExtraAggregateService,
-            redacted: bool = True
+            restructuring: AbstractAggregateRestructuringService,
+            guards: AbstractDependencyGuards,
+            constraints: AbstractConstraintsHandler,
+            repositories: AbstractRepoHolder
     ):
         self.tx = tx
         self.committed = False
-
         self.controls = controls
         self.ontology = ontology
         self.germplasm = germplasm
-        self.extra = extra
+        self.restructuring = restructuring
+        self.guards = guards
+        self.constraints = constraints
+        self.repositories = repositories
 
-        logger.debug("Initialize repositories holder")
-        self.repositories = Neo4jRepoHolder(tx, controls, redacted=redacted)
+    @classmethod
+    async def create(
+            cls,
+            tx: AsyncTransaction,
+            user_id: int | None = None,
+            redacted: bool = True,
+            release: ReadRelease = ReadRelease.PRIVATE
+    ) -> "Neo4jUnitHolder":
+        """Async factory that handles service initialization"""
 
-        logger.debug("Initialize constraints handler")
-        self.constraints = Neo4jConstraintsHandler(tx, self.controls.user_id)
+        access_control_service = await Neo4jAccessControlService.create(tx, user_id=user_id)
 
+        ontology_persistence = Neo4jOntologyPersistenceService(tx)
+        ontology_role = (
+            await ontology_persistence.get_user_ontology_role(user_id=user_id)
+            if user_id else OntologyRole.VIEWER
+        )
+        ontology_service = OntologyApplicationService(
+            persistence_service=ontology_persistence,
+            user_id=user_id,
+            role=ontology_role
+        )
+
+        germplasm_persistence = Neo4jGermplasmPersistenceService(tx)
+        germplasm_service = GermplasmApplicationService(
+            persistence_service=germplasm_persistence,
+            access_control_service=access_control_service,
+            release=release
+        )
+
+        restructuring = Neo4jAggregateRestructuringService(tx)
+        guards = Neo4jDependencyGuards(tx)
+        constraints = Neo4jConstraintsHandler(tx, user_id)
+        repositories = Neo4jRepoHolder(tx, access_control_service, release=release, redacted=redacted)
+
+        return cls(
+            tx=tx,
+            controls=access_control_service,
+            ontology=ontology_service,
+            germplasm=germplasm_service,
+            restructuring=restructuring,
+            guards=guards,
+            constraints=constraints,
+            repositories=repositories
+        )
 
     def collect_events(self) -> Generator[Event, None, None]:
         yield from self.repositories.collect_events()
@@ -96,67 +144,28 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
     @asynccontextmanager
     async def _get_uow(
             self,
-            user_id: int|None = None,
+            user_id: int | None = None,
             redacted: bool = True,
             release: ReadRelease = ReadRelease.PRIVATE
     ) -> AsyncGenerator[Neo4jUnitHolder, None]:
-        #todo set up parameters for uow creation
-        # so we can get just what we need for uow
-        # rather than loading everything every time
 
-        logger.debug("Start neo4j session")
         session: AsyncSession = self.driver.session()
-
-        logger.debug("Begin neo4j transaction")
         tx: AsyncTransaction = await session.begin_transaction()
 
-        logger.debug("Initialize user context and access control")
-        access_control_service = await Neo4jAccessControlService.create(tx, user_id=user_id)
-
-        logger.debug("Initialize ontology service")
-        ontology_persistence_service: OntologyPersistenceService = Neo4jOntologyPersistenceService(tx)
-        if user_id:
-            ontology_role = await ontology_persistence_service.get_user_ontology_role(user_id=user_id)
-        else:
-            ontology_role = OntologyRole.VIEWER
-
-        ontology_service = OntologyApplicationService(
-            persistence_service=ontology_persistence_service,
+        unit_holder = await Neo4jUnitHolder.create(
+            tx=tx,
             user_id=user_id,
-            role = ontology_role
-        )
-
-        logger.debug("Initialize germplasm service")
-        germplasm_persistence_service: GermplasmPersistenceService = Neo4jGermplasmPersistenceService(tx)
-        germplasm_service = GermplasmApplicationService(
-            persistence_service=germplasm_persistence_service,
-            access_control_service=access_control_service,
+            redacted=redacted,
             release=release
         )
 
-        logger.debug("initialize extra aggregate service")
-        extra_aggregate_service: AbstractExtraAggregateService = Neo4jExtraAggregateService(tx)
-
-        logger.debug("Build unit of work holder")
-        unit_holder = Neo4jUnitHolder(
-            tx=tx,
-            controls=access_control_service,
-            ontology=ontology_service,
-            germplasm=germplasm_service,
-            extra=extra_aggregate_service,
-            redacted=redacted
-        )
         try:
             yield unit_holder
-
         finally:
             try:
-                logger.debug("Transaction close (triggers roll back if not already closed)")
                 await tx.close()
             except CancelledError:
-                logger.debug("Operation cancelled, cancel session and raise")
                 session.cancel()
                 raise
             finally:
-                logger.debug("Session close")
                 await session.close()

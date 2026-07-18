@@ -32,11 +32,14 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             raise ValueError(f"User with id {user_id} not found")
         return OntologyRole(record.value() or 'viewer')
 
-    def record_to_entry(self, entry: Record) -> OntologyEntryStored:
-        entry_dict = dict(entry)
+    def record_to_entry(self, record: Record) -> OntologyEntryStored:
+        entry_dict = record['entry']
+        patches = record.get('patches', [])
+        for patch in patches:
+            entry_dict.update(patch)
+
         # remove lowercase name from record
         entry_dict.pop('name_lower')
-
         # replace strings with enums
         if 'scale_type' in entry_dict:
             entry_dict['scale_type'] = ScaleType(entry_dict['scale_type'])
@@ -64,17 +67,23 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         return entry_class(**entry_dict)
 
     @staticmethod
-    def record_to_relationship(record: Record|Dict) -> OntologyRelationshipBase:
-        record_dict = record.get('relationship') or dict(record)
-        if not record_dict.get('relationship_id'):
-            raise ValueError("Relationship id not created - this typically means a source or target node was not found")
+    def record_to_relationship(record: Record) -> OntologyRelationshipBase:
+        relationship_dict = record.get('relationship', {})
+        if not relationship_dict.get('id'):
+            raise ValueError("Relationship id not created/found")
+        relationship_dict['relationship_id'] = relationship_dict.pop('id')
+        for patch in record.get('patches', []):
+            relationship_dict.update(patch)
 
-        return OntologyRelationshipBase.relationship_from_label(**record_dict)
+        return OntologyRelationshipBase.relationship_from_label(**relationship_dict)
 
     async def get_current_version(self) -> Version:
         if self._current_version_cache is None:
-            self._current_version_cache = await self._get_latest_version()
-        return self._current_version_cache
+            latest_version = await self._get_latest_version()
+            self._current_version_cache = latest_version
+            return latest_version
+        else:
+            return self._current_version_cache
 
     async def entries_exist(self, entry_ids: List[int]) -> Dict[int, bool]:
         query = queries['ontology']['entries_exist']
@@ -87,6 +96,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         return {record.get('id'): record.get('exists') async for record in result}
 
     async def _create_entry(self, entry: OntologyEntryInput, user_id: int) -> OntologyEntryStored:
+        version = await self.get_current_version()
         params = entry.model_dump()
         params['name_lower'] = params['name'].casefold()
         authors = params.pop('authors')
@@ -97,28 +107,52 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params=params,
             authors=authors,
             references=references,
-            user_id=user_id
+            user_id=user_id,
+            version=version.packed_version
         )
-        record = await result.single()
-        return self.record_to_entry(record['entry'])
+        record = await result.single(strict=True)
+        return self.record_to_entry(record)
+
+    @staticmethod
+    def dict_diff(old, new):
+        return {
+            key: new[key]
+            for key in new
+            if old.get(key) != new[key]
+        }
 
     async def update_entry(self, entry: OntologyEntryStored, user_id: int) -> None:
-        params = entry.model_dump()
-        entry_id = params.pop('id')
-        params['name_lower'] = params['name'].casefold()
-        authors = params.pop('authors')
-        references = params.pop('references')
-        query = ontology.update_ontology_entry(entry.label)
+        version = await self.get_current_version()
+
+        stored_entry = await self.get_entry(entry_id=entry.id)
+        if not stored_entry:
+            raise ValueError("Could not find existing entry to update it")
+        # get existing record to compare for patch params
+        diff = self.dict_diff(stored_entry.model_dump(), entry.model_dump())
+
+        if 'name' in diff:
+            diff['name_lower'] = diff['name'].casefold()
+
+        diff.pop('authors', None)
+        authors_added = list(set(entry.authors) - set(stored_entry.authors))
+        authors_removed = list(set(stored_entry.authors) - set(entry.authors))
+        diff.pop('references', None)
+        references_added = list(set(entry.references) - set(stored_entry.references))
+        references_removed = list(set(stored_entry.references) - set(entry.references))
+        query = ontology.patch_ontology_entry(entry.label)
         await self.tx.run(
             query=query,
-            entry_id=entry_id,
-            params=params,
-            authors=authors,
-            references=references,
-            user_id=user_id
+            entry_id=entry.id,
+            params=diff,
+            authors_added=authors_added,
+            references_added=references_added,
+            authors_removed=authors_removed,
+            references_removed=references_removed,
+            user_id=user_id,
+            version=version.packed_version
         )
 
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
+    async def create_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         logger.debug(
             f"Creating relationship: {str(relationship)})"
@@ -136,24 +170,33 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             query,
             source_id=dump.pop('source_id'),
             target_id=dump.pop('target_id'),
-            attributes = dump
+            attributes = dump,
+            user_id=user_id
         )
-        record = await result.single()
+        record = await result.single(strict=True)
         return self.record_to_relationship(record)
 
-    async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def update_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> None:
         """Update relationship attributes, e.g. rank"""
         logger.debug(
             f"Updating relationship: {str(relationship)})"
         )
+        version = await self.get_current_version()
         dump = relationship.model_dump()
-        generic_fields = ['label', 'source_label', 'target_label', 'id', 'source_id', 'target_id']
-        attributes = {key: value for key, value in dump.items() if key not in generic_fields}
-        query = queries['ontology']['update_relationship_attributes']
+        fixed_fields = ['label', 'source_label', 'target_label', 'id', 'source_id', 'target_id']
+        attributes = {key: value for key, value in dump.items() if key not in fixed_fields}
+
+        stored_relationship = await self.get_relationship(relationship_id=relationship.id)
+        stored_dump = stored_relationship.model_dump()
+        stored_attributes = {key: stored_dump[key] for key, in attributes.keys()}
+        diff = self.dict_diff(stored_attributes, attributes)
+        query = queries['ontology']['patch_relationship_attributes']
         await self.tx.run(
             query,
             relationship_id=relationship.id,
-            attributes=attributes
+            attributes=diff,
+            user_id=user_id,
+            version=version.packed_version
         )
 
     async def get_entries(
@@ -183,15 +226,15 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params["names_lower"] = [name.casefold() for name in names]
         result = await self.tx.run(query, **params)
         async for record in result:
-            yield self.record_to_entry(record['entry'])
+            yield self.record_to_entry(record)
 
     async def get_entry(
             self,
-            entry_id: int = None,
-            name: str = None,
-            label: OntologyEntryLabel = None,
+            entry_id: int | None = None,
+            name: str | None = None,
+            label: OntologyEntryLabel | None = None,
             version: Version | None = None,
-            phases: List[LifecyclePhase] = None
+            phases: List[LifecyclePhase] | None = None
     ) -> OntologyEntryStored | None:
         matched_entry = None
         count = 0
@@ -209,11 +252,21 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 raise ValueError("The filters provided match multiple entries")
         return matched_entry
 
+    async def get_relationship(self, relationship_id: int) -> OntologyRelationshipBase | None:
+        query = queries['ontology']['get_relationship']
+        result = await self.tx.run(query, relationship_id=relationship_id)
+        record = await result.single()
+        if record is None:
+            return None
+        else:
+            return self.record_to_relationship(record)
+
+
     async def _get_relationships(
             self,
             version: Version,
             phases: List[LifecyclePhase],
-            labels: List[OntologyEntryLabel] | None = None,
+            labels: List[OntologyRelationshipLabel] | None = None,
             entry_ids: List[int] | None = None,
             source_ids: List[int] | None = None,
             target_ids: List[int] |None = None
@@ -235,19 +288,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             params["target_ids"] = target_ids
         result = await self.tx.run(query, **params)
         async for record in result:
-            yield self.record_to_relationship(
-                record['relationship']
-            )
-
-    async def get_relationships_by_sources_and_labels(
-            self,
-            source_ids: List[int],
-            labels: List[OntologyRelationshipLabel]
-    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
-        query = ontology.get_relationships_by_sources_and_labels(source_ids=source_ids, labels=labels)
-        result = self.tx.run(query)
-        async for record in result:
-            yield self.record_to_relationship(record['relationship'])
+            yield self.record_to_relationship(record)
 
     async def set_scale_categories_ranks(
             self,
@@ -382,25 +423,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         result = await self.tx.run(query, entry_id=entry_id)
         record = await result.single()
         return record["dependencies"] if record else []
-
-    async def get_scale_categories_with_ranks(self, scale_id: int) -> List[Tuple[int, Optional[int]]]:
-        """Get categories for a scale with their ranks."""
-        logger.debug(f"Getting scale categories with ranks for: {scale_id}")
-
-        query = """
-        MATCH (s:OntologyEntry {id: $scale_id})-[r:ONTOLOGY_RELATIONSHIP]->(c:OntologyEntry)
-        WHERE r.label = 'HAS_CATEGORY'
-        RETURN c.id as category_id, r.rank as rank
-        ORDER BY r.rank NULLS LAST
-        """
-
-        result = await self.tx.run(query, scale_id=scale_id)
-        categories = []
-
-        async for record in result:
-            categories.append((record["category_id"], record["rank"]))
-
-        return categories
 
     async def _get_latest_version(self) -> Version:
         query = queries['ontology']['get_latest_version']

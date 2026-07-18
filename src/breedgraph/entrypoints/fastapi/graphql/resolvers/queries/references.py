@@ -1,4 +1,4 @@
-from ariadne import ObjectType, UnionType, InterfaceType
+from ariadne import ObjectType, UnionType, InterfaceType, EnumType
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
 
@@ -53,7 +53,7 @@ graphql_resolvers.register_type_resolvers(
     reference_union, reference_interface,
     file_submission, file_download
 )
-graphql_resolvers.register_enums(SubmissionStatus)
+graphql_resolvers.register_enums(EnumType("SubmissionStatus", SubmissionStatus))
 
 def resolve_type(obj) -> str:
     if hasattr(obj, 'text'):

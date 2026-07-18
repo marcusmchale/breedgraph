@@ -1,4 +1,4 @@
-from ariadne import ObjectType, UnionType, InterfaceType
+from ariadne import ObjectType, UnionType, InterfaceType, EnumType
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain.model.ontology import (
@@ -7,17 +7,21 @@ from breedgraph.domain.model.ontology import (
     OntologyCommit,
     Version, LifecyclePhase,
 )
-from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyViewMode
 
 from breedgraph.domain.model.accounts import UserOutput, OntologyRole
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_ontology_map, update_users_map
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+    update_ontology_map,
+    update_users_map,
+    load_entries_to_ontology_map
+)
+
+
 
 from typing import Dict, List, Tuple
 
 import logging
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +45,8 @@ event = ObjectType("Event")
 
 # Union and interface types
 ontology_entry_union = UnionType("OntologyEntryUnion")
-ontology_entry_interface = InterfaceType("OntologyEntryInterface")
+ontology_node_interface = InterfaceType("OntologyNodeInterface")
+ontology_relationships_interface = InterfaceType("OntologyRelationships")
 related_to_terms = InterfaceType("RelatedToTerms")
 
 ontology_relationship = ObjectType("OntologyRelationship")
@@ -49,7 +54,7 @@ ontology_relationship = ObjectType("OntologyRelationship")
 graphql_resolvers.register_type_resolvers(
     ontology,
     ontology_commit,
-    ontology_entry_union, ontology_entry_interface, related_to_terms,
+    ontology_entry_union, ontology_node_interface, ontology_relationships_interface, related_to_terms,
     ontology_relationship,
     subject, trait, condition,
     scale, category,
@@ -57,6 +62,7 @@ graphql_resolvers.register_type_resolvers(
     control_method, factor,
     event
 )
+graphql_resolvers.register_enums(EnumType("OntologyView", OntologyViewMode))
 
 # Type resolver for union
 @ontology_entry_union.type_resolver
@@ -68,8 +74,8 @@ def resolve_ontology_entry_type(obj, *_):
         raise ValueError(f"Could not determine type for object: {obj}")
 
 # Type resolver for interface
-@ontology_entry_interface.type_resolver
-def resolve_ontology_entry_interface_type(obj, *_):
+@ontology_node_interface.type_resolver
+def resolve_ontology_node_interface_type(obj, *_):
     """Resolve the concrete type for interface members"""
     if hasattr(obj, 'label'):
         return obj.label
@@ -94,7 +100,8 @@ async def get_ontology_version(
 async def get_ontology(
     _,
     info,
-    version_id: str|None = None
+    version_id: str|None = None,
+    view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> Ontology:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views() as views:
@@ -106,22 +113,16 @@ async def get_ontology(
             except ValueError:
                 raise ValueError("Could not recognize version ID")
             version = Version.from_packed(version_id)
-        ontology_version = await views.ontology.get_ontology(version=version)
-        await update_ontology_map(
+        ontology_version = await views.ontology.get_ontology(version=version, view=view)
+        await load_entries_to_ontology_map(
             context=info.context,
-            entries=ontology_version.entries
+            entries=ontology_version.entries,
+            version_id = version.packed_version,
+            view=view
         )
         return ontology_version
 
-#
-#@ontology.field('entries')
-#async def resolve_ontology_entries(obj, info):
-#    return list(obj.entries)
-#
-#@ontology.field('relationships')
-#async def resolve_ontology_entries(obj, info):
-#    return obj.relationships
-#
+
 @graphql_query.field("ontologyEntries")
 @graphql_payload
 @require_authentication
@@ -131,7 +132,7 @@ async def get_ontology_entries(
         entry_ids: List[int] | None = None,
         labels: List[OntologyEntryLabel] | None = None,
         version_id: int|None = None,
-        draft: bool = False
+        view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> List[OntologyEntryOutput]:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views() as views:
@@ -139,10 +140,12 @@ async def get_ontology_entries(
             version = await views.ontology.get_current_version()
         else:
             version = Version.from_packed(version_id)
-        entries = await views.ontology.get_entries(version=version, entry_ids=entry_ids, labels=labels, draft=draft)
-        await update_ontology_map(
+        entries = await views.ontology.get_entries(version=version, view=view, entry_ids=entry_ids, labels=labels)
+        await load_entries_to_ontology_map(
             context=info.context,
-            entries=entries
+            entries=entries,
+            version_id = version.packed_version,
+            view=view
         )
         return entries
 
@@ -157,35 +160,35 @@ async def resolve_ontology_entries(context, entry_ids):
     await update_ontology_map(context, entry_ids=to_update)
     return [ontology_map[entry_id] for entry_id in entry_ids if entry_id in ontology_map]
 
-# Interface resolvers - common to all ontology entries
-@ontology_entry_interface.field("versionId")
+# Node interface resolvers
+@ontology_node_interface.field("versionId")
 async def resolve_version_id(obj, _):
     return obj.version.packed_version
 
-# Interface resolvers - common to all ontology entries
-@ontology_entry_interface.field("parents")
-async def resolve_parents(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.parents)
-
-@ontology_entry_interface.field("children")
-async def resolve_children(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.children)
-
-@ontology_entry_interface.field("authors")
+@ontology_node_interface.field("authors")
 async def resolve_authors(obj, info):
     return []
     #raise NotImplementedError
 
-@ontology_entry_interface.field("references")
+@ontology_node_interface.field("references")
 def resolve_references(obj, info):
     return []
     #raise NotImplementedError
 
-@ontology_entry_interface.field("phase")
+@ontology_node_interface.field("phase")
 async def resolve_phase(obj, info):
     return LifecyclePhase(obj.phase)
 
-# Interface resolvers - common to all ontology entries
+@ontology_relationships_interface.field("parents")
+async def resolve_parents(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.parents)
+
+@ontology_relationships_interface.field("children")
+async def resolve_children(obj, info):
+    children = await resolve_ontology_entries(info.context, entry_ids=obj.children)
+    return children
+
+# Relationship interface resolvers
 @ontology_relationship.field("versionId")
 async def resolve_version_id(obj, _):
     return obj.version.packed_version

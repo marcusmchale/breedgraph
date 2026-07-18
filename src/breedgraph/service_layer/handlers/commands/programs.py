@@ -10,7 +10,7 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
-    UnauthorisedOperationError
+    UnauthorisedOperationError, ProtectedNodeError
 )
 
 from ..registry import handlers
@@ -224,6 +224,11 @@ async def delete_study(
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
             raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
+
         study = program.get_study(cmd.study_id)
+
+        if await uow.guards.study_has_datasets(study.id):
+            raise ProtectedNodeError("Cannot delete a study that has associated datasets")
+
         program.remove_study(study)
         await uow.commit()

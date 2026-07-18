@@ -63,7 +63,7 @@ class OntologyBuilder:
             scale = await ontology_service.create_scale(
                 self.scale_input(name=self.lorem_generator.new_text(10))
             )
-
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added basic variable components")
             await uow.commit()
 
             return {
@@ -84,6 +84,7 @@ class OntologyBuilder:
                 observation_method_id=components["ontology_observation_method"],
                 scale_id=components["ontology_scale"]
             )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added variable")
             await uow.commit()
 
             return {
@@ -113,6 +114,7 @@ class OntologyBuilder:
                 LocationTypeInput(name="Laboratory", synonyms=["Lab"]),
                 parents=[research_centre_type.id]
             )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added location types")
             await uow.commit()
             return {
                 'ontology_location_country': country_type.id,
@@ -206,6 +208,7 @@ class OntologyBuilder:
                 ),
                 parents=[row_type.id]
             )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added layout types")
             await uow.commit()
             return {
                 'ontology_layout_named': named_type.id,
@@ -226,6 +229,7 @@ class OntologyBuilder:
             tree_subject = await ontology_service.create_entry(SubjectInput(name="Tree"), parents=[field_subject.id])
             leaf_subject = await ontology_service.create_entry(SubjectInput(name="Leaf"), parents=[tree_subject.id])
             rhizosphere_subject = await ontology_service.create_entry(SubjectInput(name="Rhizosphere"), parents=[tree_subject.id])
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added subject types")
             await uow.commit()
             return {
                 'ontology_subject_field': field_subject.id,
@@ -260,6 +264,7 @@ class OntologyBuilder:
                 observation_method_id=method.id,
                 scale_id=scale.id
             )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added variable tree height")
             await uow.commit()
             return {
                 'ontology_trait_height': trait.id,
@@ -302,6 +307,7 @@ class OntologyBuilder:
                 control_method_id=method.id,
                 scale_id=scale.id
             )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added factor light intensity")
             await uow.commit()
             return {
                 'ontology_scale_einsteins': scale.id,

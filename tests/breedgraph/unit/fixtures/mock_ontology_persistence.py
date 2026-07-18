@@ -92,9 +92,9 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
     async def get_entry(
             self,
-            entry_id: int = None,
-            name:str = None,
-            label:str = None
+            entry_id: int|None = None,
+            name:str|None = None,
+            label:str|None = None
     ) -> OntologyEntryStored|None:
         """Retrieve an ontology entry by ID."""
         if entry_id is not None:
@@ -107,7 +107,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
                 entry = None
         return entry
 
-    async def update_entry(self, entry: OntologyEntryStored) -> None:
+    async def update_entry(self, entry: OntologyEntryStored, user_id: int) -> None:
         """Update an existing ontology entry."""
         if entry.id not in self.entries:
             raise ValueError(f"Entry {entry.id} does not exist")
@@ -127,7 +127,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
 
         self.entries[entry.id] = entry
 
-    async def create_relationship(self, relationship: OntologyRelationshipBase) -> OntologyRelationshipBase:
+    async def create_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         rel_id = self.next_relationship_id
         self.next_relationship_id += 1
@@ -164,11 +164,11 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             version: Version,
             phases: List[LifecyclePhase],
             labels: List[OntologyRelationshipLabel] | None = None,
-            entry_ids: List[int] = None,
-            source_ids: List[int] = None,
-            target_ids: List[int] = None
+            entry_ids: List[int]|None = None,
+            source_ids: List[int]|None = None,
+            target_ids: List[int]|None = None
 
-    ) -> AsyncGenerator[OntologyEntryStored | OntologyEntryOutput, None]:
+    ) -> AsyncGenerator[OntologyRelationshipBase, None]:
         """Retrieve ontology relationships with filtering."""
         for rel in self.relationships.values():
             # Apply filters

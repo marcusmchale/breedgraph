@@ -82,13 +82,13 @@ type OntologyCommitsPayload {
 
 type OntologyEntryPayload {
     status: QueryStatus!
-    result: OntologyEntryInterface
+    result: OntologyNodeInterface
     errors: [Error]
 }
 
 type OntologyEntriesPayload {
     status: QueryStatus!
-    result: [OntologyEntryInterface!]
+    result: [OntologyNodeInterface!]
     errors: [Error]
 }
 

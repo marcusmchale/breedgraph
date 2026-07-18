@@ -2,7 +2,7 @@ import json
 
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractStateStore
-from breedgraph.service_layer.application.extra_aggregate import AbstractExtraAggregateService
+from breedgraph.service_layer.application.aggregate_restructuring import AbstractAggregateRestructuringService
 
 from breedgraph.domain import commands, events
 
@@ -197,17 +197,16 @@ async def update_data_file_reference(
 @handlers.command_handler(commands.references.DeleteReferences)
 async def delete_reference(
     cmd: commands.references.DeleteReferences,
-    uow_factory: AbstractUnitOfWorkFactory,
-    extra: AbstractExtraAggregateService
+    uow_factory: AbstractUnitOfWorkFactory
 ) -> None:
     logger.debug(f'f"Deleting references {cmd.reference_ids}')
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         repo = uow.repositories.references
         async for reference in repo.get_all(reference_ids=cmd.reference_ids):
-            if await extra.reference_in_use(reference):
+            if await uow.guards.reference_in_use(reference.id):
                 raise IllegalOperationError(f"Reference {reference.id} is in use")
 
-            if isinstance(reference, FileReferenceStored):
+            if isinstance(reference, FileReferenceStored) and reference.file_id is not None:
                 event = events.references.FileReferenceDeleted(
                     uuid=reference.file_id
                 )
