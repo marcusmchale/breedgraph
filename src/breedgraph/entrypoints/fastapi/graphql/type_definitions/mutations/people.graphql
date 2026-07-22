@@ -12,6 +12,7 @@ input PersonUpdate {
 extend type Mutation {
     peopleCreatePerson(
         person: PersonInput!
+        controlTeamId: ID!
     ): BooleanPayload!,
     peopleUpdatePerson(
         person: PersonUpdate!

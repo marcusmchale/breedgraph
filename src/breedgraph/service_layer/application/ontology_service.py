@@ -1,5 +1,5 @@
-from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
-
+from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError, \
+    ProtectedNodeError
 
 from breedgraph.domain.model.ontology import (
     OntologyEntryInput, OntologyEntryStored,
@@ -116,11 +116,15 @@ class OntologyApplicationService:
     async def deprecate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can deprecate entries")
+
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
             if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
+                if lifecycle.drafted is None:
+                    # protect ontology entries constructed during initialization
+                    raise ProtectedNodeError(f"This ontology entry is protected")
                 lifecycle.set_version_deprecated(current_version)
         await self._save_entry_lifecycles()
 
@@ -906,8 +910,6 @@ class OntologyApplicationService:
             if missing:
                 raise ValueError(f"Entries do not exist: {missing}")
 
-    #todo consider a domain service to implement these sorts of checks, we now have a few of them and the application service is getting busy.
-    # also consider the need to include versioning in these checks!
     async def _validate_no_circular_dependency(self, relationship: OntologyRelationshipBase) -> None:
         """Validate that relationship won't create circular dependencies with the same label"""
         if await self.persistence.has_path_between_entries(

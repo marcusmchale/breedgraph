@@ -18,7 +18,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
     async def _create_controlled(self, program: ProgramInput) -> ProgramStored:
         async for existing_program in self._get_all_controlled():
-            if program.name.casefold() == existing_program.name.casefold():
+            if program.name.casefold() == existing_program.aggregate.name.casefold():
                 raise ValueError("A program with this name is already registered")
 
         stored_program = await self._create_program(program)

@@ -81,13 +81,28 @@ input UpdateDataFileReferenceInput {
 }
 
 extend type Mutation {
-    referencesCreateLegal(reference: CreateLegalReferenceInput!): CreatedIdPayload!
-    referencesCreateExternal(reference: CreateExternalReferenceInput!): CreatedIdPayload!
-    referencesCreateExternalData(reference: CreateExternalDataReferenceInput!): CreatedIdPayload!
+    referencesCreateLegal(
+        reference: CreateLegalReferenceInput!
+        controlTeamId: ID!
+    ): CreatedIdPayload!
+    referencesCreateExternal(
+        reference: CreateExternalReferenceInput!
+        controlTeamId: ID!
+    ): CreatedIdPayload!
+    referencesCreateExternalData(
+        reference: CreateExternalDataReferenceInput!
+        controlTeamId: ID!
+    ): CreatedIdPayload!
 
     """As for dataset submissions, creating a file is asynchronous and we are returned a key """
-    referencesCreateFile(reference: CreateFileReferenceInput): FileIdPayload!
-    referencesCreateDataFile(reference: CreateDataFileReferenceInput): FileIdPayload!
+    referencesCreateFile(
+        reference: CreateFileReferenceInput
+        controlTeamId: ID!
+    ): FileIdPayload!
+    referencesCreateDataFile(
+        reference: CreateDataFileReferenceInput
+        controlTeamId: ID!
+    ): FileIdPayload!
     
     referencesUpdateLegal(reference: UpdateLegalReferenceInput!): BooleanPayload!
     referencesUpdateExternal(reference: UpdateExternalReferenceInput!): BooleanPayload!

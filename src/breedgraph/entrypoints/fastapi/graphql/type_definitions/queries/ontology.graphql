@@ -10,7 +10,7 @@ type OntologyCommit {
     comment: String
     # Set by the server
     time: DateTime
-    user: User
+    user: UserDisplay
     # References not handled
     licence: LegalReference
     copyright: LegalReference
@@ -30,7 +30,7 @@ enum LifecyclePhase {
 """
 Ontology nodes form a graph with ontology relationships as edges.
 Each collection of nodes with a common label forms a directed acyclic sub-graph
-Each entry has an OntologyEntryLabel to distinguish various classes of entry.
+Each entry has an OntologyNodeLabel to distinguish various classes of entry.
 """
 
 enum OntologyNodeLabel {

@@ -10,10 +10,10 @@ from . import graphql_mutation
 @graphql_mutation.field("germplasmCreateEntry")
 @graphql_payload
 @require_authentication
-async def create_entry(_, info, entry: dict) -> bool:
+async def create_entry(_, info, entry: dict, control_team_id: int | None = None) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} creates germplasm entry: {entry}")
-    cmd = CreateGermplasm(agent_id=user_id, **entry)
+    cmd = CreateGermplasm(agent_id=user_id, write_team=control_team_id, **entry)
     await info.context['bus'].handle(cmd)
     return True
 

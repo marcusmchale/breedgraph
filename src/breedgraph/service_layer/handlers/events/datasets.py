@@ -36,7 +36,7 @@ async def dataset_submitted(
         state_store: AbstractStateStore,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=event.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=event.agent_id, write_team=event.write_team) as uow:
         try:
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)

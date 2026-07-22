@@ -13,7 +13,7 @@ async def create_germplasm_entry(
         cmd: commands.germplasm.CreateGermplasm,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         germplasm_service = uow.germplasm
         entry = GermplasmInput(
             name=cmd.name,

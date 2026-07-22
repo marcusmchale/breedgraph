@@ -19,12 +19,14 @@ async def create_unit(
         _,
         info,
         unit: dict,
-        position: dict = None
+        position: dict|None = None,
+        control_team_id: int | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds unit: {unit}")
     cmd = CreateUnit(
         agent_id=user_id,
+        write_team=control_team_id,
         name=unit.get('name'),
         description=unit.get('description'),
         subject_id=unit.get('subject_id'),

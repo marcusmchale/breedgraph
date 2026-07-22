@@ -3,16 +3,18 @@ from tests.breedgraph.e2e.utils import with_auth
 
 from typing import List
 
-async def post_to_create_unit(client, token:str, unit: dict, position: dict|None = None):
+async def post_to_create_unit(client, token:str, unit: dict, control_team_id: int, position: dict|None = None):
     json={
         "query": (
             " mutation ( "
             "  $unit: UnitInput! "
             "  $position: PositionInput "
+            "  $controlTeamId: ID! "
             " ) { "
             "  blocksCreateUnit( "
             "    unit: $unit "
             "    position: $position "
+            "    controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -22,7 +24,8 @@ async def post_to_create_unit(client, token:str, unit: dict, position: dict|None
         ),
         "variables": {
             "unit": unit,
-            "position": position
+            "position": position,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(

@@ -6,16 +6,18 @@ from breedgraph.domain.model.ontology.enums import LifecyclePhase
 def name_in_use(label: OntologyEntryLabel):
     return f"""
     RETURN exists {{ 
-        MATCH (entry:{label.value}:OntologyEntry {{name_lower:$name_lower}})
-        WHERE $exclude_id IS NULL OR entry.id <> $exclude_id
+        MATCH (entry:{label.value}:OntologyEntry {{name_lower:$name_lower}})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)
+        WHERE lifecycle.removed is NULL
+        AND ($exclude_id IS NULL OR entry.id <> $exclude_id)
     }} AS exists
     """
 
 def abbreviation_in_use(label: OntologyEntryLabel):
     return f"""
     RETURN exists {{ 
-        MATCH (entry:{label.value}:OntologyEntry {{abbreviation_lower:$abbreviation_lower}})
-        WHERE $exclude_id IS NULL OR entry.id <> $exclude_id
+        MATCH (entry:{label.value}:OntologyEntry {{abbreviation_lower:$abbreviation_lower}})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)
+        WHERE lifecycle.removed is NULL
+        AND ($exclude_id IS NULL OR entry.id <> $exclude_id)
     }} AS exists
     """
 
@@ -126,8 +128,8 @@ def create_ontology_relationship(
     WITH c
     SET c.count = c.count + 1
     WITH c
-    MATCH (source:  {source_label.value} : OntologyEntry {{id:$source_id}}), 
-        (target:  {target_label.value} : OntologyEntry {{id:$target_id}})
+    MATCH (source:  {source_label.value} : OntologyEntry {{id:$source_id}}) 
+    MATCH (target:  {target_label.value} : OntologyEntry {{id:$target_id}})
     CREATE (source)
         -[:HAS_RELATIONSHIP]->(relationship:{label.value}:OntologyRelationship)
         -[:RELATES_TO]->(target)
@@ -153,15 +155,20 @@ def create_ontology_relationship(
 
 def has_path_between_entries(label: OntologyRelationshipLabel):
     query = f"""
-        MATCH (source:OntologyEntry {{id: $source_id}})
+        RETURN EXISTS {{
+          MATCH
+            (source:OntologyEntry {{id: $source_id}})
             (
-                (:OntologyEntry)
-                -[:HAS_RELATIONSHIP]->(:{label.value}:OntologyRelationship)
-                -[:RELATES_TO]->(:OntologyEntry)
+              (:OntologyEntry)
+              -[:HAS_RELATIONSHIP]->(rel:OntologyRelationship)
+              -[:RELATES_TO]->(:OntologyEntry)
             ){{1,}}
             (target:OntologyEntry {{id: $target_id}})
-        RETURN count(*) >0 as has_path
-        LIMIT 1
+          WHERE NONE(r IN rel WHERE EXISTS {{
+              MATCH (r)-[:HAS_LIFECYCLE]->(l:OntologyLifecycle)
+              WHERE l.removed IS NOT NULL
+          }})
+        }} AS has_path
     """
     return query
 
@@ -181,13 +188,13 @@ def entries_exist_by_label(labels: List[OntologyEntryLabel] | None = None) -> st
         # get values of label enums as string
         labels = [label.value for label in labels]
         if len(labels) == 1:
-            match_clause = f"OPTIONAL MATCH (entry:OntologyEntry:{labels[0]} {{id: entry_id}})"
+            match_clause = f"OPTIONAL MATCH (entry:OntologyEntry:{labels[0]} {{id: entry_id}})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle) WHERE lifecycle.removed IS NULL"
         else:
             # For multiple labels, create a label condition
             label_conditions = " OR ".join([f"entry:{label}" for label in labels])
-            match_clause = f"OPTIONAL MATCH (entry:OntologyEntry {{id: entry_id}}) WHERE {label_conditions}"
+            match_clause = f"OPTIONAL MATCH (entry:OntologyEntry {{id: entry_id}})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle) WHERE lifecycle.removed IS NULL AND ({label_conditions})"
     else:
-        match_clause = "OPTIONAL MATCH (entry:OntologyEntry {id: entry_id})"
+        match_clause = "OPTIONAL MATCH (entry:OntologyEntry {id: entry_id})-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle) WHERE lifecycle.removed IS NULL"
 
     query = f"""
     UNWIND $entry_ids AS entry_id

@@ -66,10 +66,11 @@ async def update_ontology_map(
         if entries_to_update:
             async with bus.views_factory.get_views() as views:
                 if not 'ontology_view' in context:
+                    view = view or OntologyViewMode.PUBLISHED
                     version = Version.from_packed(version_id) if version_id else await views.ontology.get_current_version()
                     context['ontology_view'] = {
                         'version_id': version.packed_version,
-                        'view': view or OntologyViewMode.PUBLISHED
+                        'view': view
                     }
                 else:
                     context_version_id = context['ontology_view']['version_id']

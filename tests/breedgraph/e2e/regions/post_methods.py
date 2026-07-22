@@ -28,15 +28,18 @@ async def post_to_countries(client, token:str):
 async def post_to_create_location(
     client,
     token:str,
-    location: dict
+    location: dict,
+    control_team_id: int
 ):
     json = {
         "query": (
             " mutation ( "
-            "  $location: LocationInput!"
+            "  $location: LocationInput! "
+            "  $controlTeamId: ID! "
             " ) { "
             "  regionsCreateLocation( "
-            "    location: $location, "
+            "    location: $location "
+            "    controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -45,7 +48,8 @@ async def post_to_create_location(
             " } "
         ),
         "variables": {
-            "location": location
+            "location": location,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(

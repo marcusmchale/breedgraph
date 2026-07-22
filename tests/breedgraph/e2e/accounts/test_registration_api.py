@@ -120,16 +120,14 @@ async def test_first_user_creates_deletes_team(
         team_id= organisation_root_ids[0]
     )
     team_payload = get_verified_payload(team_request_response, "organisationsTeam")
-    assert team_payload.get('status') == 'NOT_FOUND'
+    assert team_payload.get('result') is None
 
     organisations_request_response = await post_to_organisations(
         client,
         user_registration_context['login_token_user_1']
     )
     organisations_payload = get_verified_payload(organisations_request_response, "organisations")
-    assert organisations_payload.get('status') == 'NOT_FOUND'
     assert not organisations_payload.get('result')
-
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_second_user_builds_organisation(

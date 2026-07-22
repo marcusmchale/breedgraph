@@ -17,7 +17,7 @@ async def set_release(
         info,
         entity_ids: List[int],
         entity_label: ControlledModelLabel,
-        release: ReadRelease
+        release: ReadRelease,
 ) -> bool:
 
     user_id = info.context.get('user_id')

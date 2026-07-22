@@ -6,13 +6,18 @@ from tests.breedgraph.e2e.utils import with_auth
 async def post_to_create_germplasm_entry(
         client,
         token: str,
-        germplasm_input: dict
+        germplasm_input: dict,
+        control_team_id: int
 ):
     json={
         "query": (
-            " mutation ( $entry: GermplasmInput! ) { "
+            " mutation ( "
+            "  $entry: GermplasmInput! "
+            "  $controlTeamId: ID! "
+            " ) { "
             "  germplasmCreateEntry( "
             "   entry: $entry  "
+            "   controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -21,7 +26,8 @@ async def post_to_create_germplasm_entry(
             " } "
         ),
         "variables": {
-            "entry" : germplasm_input
+            "entry" : germplasm_input,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(

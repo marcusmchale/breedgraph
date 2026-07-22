@@ -11,13 +11,14 @@ from .base import LabeledModel, StoredModel, Aggregate, SerializableMixin
 
 from typing import List, ClassVar, Dict, Any, Self
 
+
 logger = logging.getLogger(__name__)
 
 class OntologyRole(Enum):
-    VIEWER = "viewer"  # read only
-    CONTRIBUTOR = "contributor"  # Can propose changes
-    EDITOR = "editor"           # Can commit versions
-    ADMIN = "admin"             # Can manage roles
+    VIEWER = "VIEWER"  # read only
+    CONTRIBUTOR = "CONTRIBUTOR"  # Can propose changes
+    EDITOR = "EDITOR"           # Can commit versions
+    ADMIN = "ADMIN"             # Can manage roles
 
 @dataclass
 class UserBase(ABC):
@@ -26,7 +27,6 @@ class UserBase(ABC):
 
     name: str = ''
     fullname: str = ''
-    email: str = ''
     ontology_role: OntologyRole = OntologyRole.CONTRIBUTOR
     ontology_role_requested: OntologyRole|None = None
 
@@ -45,17 +45,21 @@ class UserBase(ABC):
 @dataclass
 class UserInput(UserBase, LabeledModel):
     password_hash: str = ''
+    email: str = ''
     email_verified: bool = False
+
 
 @dataclass(unsafe_hash=True)
 class UserStored(UserBase, StoredModel):
     password_hash: str = ''
+    email: str = ''
     email_verified: bool = False
     person: None|int = None  #ID for the corresponding Person
 
 @dataclass
 class UserOutput(UserBase, LabeledModel):
     id : int|None = None
+    email: str = ''
     email_verified: bool = False
 
     @classmethod
@@ -68,6 +72,25 @@ class UserOutput(UserBase, LabeledModel):
             ontology_role = stored.ontology_role,
             email_verified = stored.email_verified
         )
+
+@dataclass
+class UserDisplay(UserBase):
+    id: int|None = None
+    name: str
+    fullname: str
+    ontology_role: OntologyRole
+    ontology_role_requested: OntologyRole | None = None
+
+    @classmethod
+    def from_stored_or_output(cls, user_class: UserStored|UserOutput) -> Self:
+        return cls(
+            id = user_class.id,
+            name = user_class.name,
+            fullname = user_class.fullname,
+            ontology_role = user_class.ontology_role,
+            ontology_role_requested = user_class.ontology_role_requested
+        )
+
 
 @dataclass
 class AccountBase(SerializableMixin, ABC):

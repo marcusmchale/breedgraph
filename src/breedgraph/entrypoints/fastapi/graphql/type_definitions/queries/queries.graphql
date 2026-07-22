@@ -1,8 +1,6 @@
 type Query {
     """Get own account details for administrative tasks"""
     accountsAccount: AccountPayload!
-    """Get user details for administrative tasks"""
-    accountsUsers (userId: ID): UsersPayload! # see users for admin
     """
     Get the user access map of access type to team
     """

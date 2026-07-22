@@ -9,7 +9,7 @@ from breedgraph.domain.model.ontology import (
 )
 from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyViewMode
 
-from breedgraph.domain.model.accounts import UserOutput, OntologyRole
+from breedgraph.domain.model.accounts import UserOutput, UserDisplay, OntologyRole
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
@@ -327,14 +327,14 @@ async def resolve_commit_user(obj, info):
 async def get_ontology_role_requests(
         _,
         info
-) -> List[UserOutput]:
+) -> List[UserDisplay]:
     # Return only users with outstanding role change requests
     context = info.context
     bus = context.get('bus')
     user_id = context.get('user_id')
     async with bus.views_factory.get_views(user_id=user_id) as views:
-        requesting_users = [a async for a in views.accounts.get_users_with_ontology_role_requests()]
-        return requesting_users
+        users = await views.accounts.get_users_with_ontology_role_requests()
+        return users
 
 @graphql_query.field("ontologyEditors")
 @graphql_payload
@@ -342,14 +342,13 @@ async def get_ontology_role_requests(
 async def get_ontology_editors(
         _,
         info
-) -> List[UserOutput]:
+) -> List[UserDisplay]:
     # Return only users with ontology role as editor
     context = info.context
     bus = context.get('bus')
     user_id = context.get('user_id')
     async with bus.views_factory.get_views(user_id=user_id) as views:
-        editor_users = [a async for a in views.accounts.get_editors_for_ontology_admin()]
-        return editor_users
+        return await views.accounts.get_editors_for_ontology_admin()
 
 @graphql_query.field("ontologyAdmins")
 @graphql_payload
@@ -357,14 +356,10 @@ async def get_ontology_editors(
 async def get_ontology_admins(
         _,
         info
-) -> List[UserOutput]:
+) -> List[UserDisplay]:
     # Return only users with ontology role as admin
     context = info.context
     bus = context.get('bus')
     user_id = context.get('user_id')
     async with bus.views_factory.get_views(user_id=user_id) as views:
-        ontology_role = views.ontology.role
-        if ontology_role != OntologyRole.ADMIN:
-            raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
-        admin_users = [a async for a in views.accounts.get_admins_for_ontology_admin()]
-        return admin_users
+        return await views.accounts.get_admins_for_ontology_admin()

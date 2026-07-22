@@ -7,6 +7,7 @@ from ...custom_exceptions import IllegalOperationError
 
 class CreateUnit(Command):
     agent_id: int
+    write_team: int | None = None
 
     name: str | None = None
     description: str | None = None
@@ -60,6 +61,7 @@ class DeleteUnit(Command):
 
 class AddPosition(Command):
     agent_id: int
+
     unit_id: int
 
     location_id: int

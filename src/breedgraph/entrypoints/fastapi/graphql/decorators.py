@@ -63,11 +63,11 @@ def graphql_payload(func):
         try:
             result = await func(*args, **kwargs)
             return {
-                "status": GQLStatus.SUCCESS.name if result else GQLStatus.NOT_FOUND.name,
+                "status": GQLStatus.SUCCESS.name,
                 "result": result
             }
         #except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
-        # todo handle exceptions more gracefully, we probably don't want to expose internal exceptions to the user
+        # todo handle exceptions more gracefully, we probably don't want to expose internal exceptions
         except Exception as e:
             logging.exception(e)
             errors.append(GQLError(

@@ -7,7 +7,7 @@ enum OntologyRole {
 
 type User {
     id: ID!
-    name: String!,
+    name: String!
     fullname: String!
     email: String!
     ontologyRole: OntologyRole!
@@ -16,7 +16,14 @@ type User {
 
 type Account {
     user: User!
-    allowedEmails: [String]
-    allowedUsers: [User]
+    allowedEmails: [String!]
+}
+
+type UserDisplay {
+    id: ID!
+    name: String!
+    fullname: String!
+    ontologyRole: OntologyRole!
+    ontologyRoleRequested: OntologyRole
 }
 

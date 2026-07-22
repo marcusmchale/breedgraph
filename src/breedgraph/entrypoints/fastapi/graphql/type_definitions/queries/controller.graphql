@@ -20,7 +20,7 @@ type Control {
 }
 
 type WriteStamp {
-    user: User!
+    user: UserDisplay
     time: DateTime!
 }
 

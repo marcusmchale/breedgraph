@@ -28,10 +28,12 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             tx: AsyncTransaction,
             controls: AbstractAccessControlService,
             release: ReadRelease = ReadRelease.PRIVATE,
-            redacted: bool = True
+            redacted: bool = True,
+            write_team: int | None = None
     ):
         self.tx = tx
         self.access_teams = controls.access_teams
+        self.write_team = write_team
 
         # Access control for account security
         self.accounts = Neo4jAccountRepository(self.tx)
@@ -58,7 +60,8 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         repo_params = {
             'tx': self.tx,
             'controls': controls,
-            'release': release
+            'release': release,
+            'write_team': write_team
         }
         self.arrangements = Neo4jArrangementsRepository(**repo_params)
         self.datasets = Neo4jDatasetsRepository(**repo_params)

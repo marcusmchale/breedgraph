@@ -153,35 +153,6 @@ async def post_to_account(client, token:str):
     return response
 
 
-async def post_to_users(client, token:str, user_id: None|int = None):
-    json = {
-        "query": (
-            " query ( "
-            "   $userId : ID "
-            " ) { "
-            "  accountsUsers ( "
-            "  userId: $userId"
-            "  ) { "
-            "    status, "
-            "    result {"
-            "       id, fullname, email,"
-            "   },"
-            "    errors { name, message } "
-            "   } "
-            " } "
-        ),
-        "variables": {
-            "userId": user_id,
-        }
-    }
-    headers = with_auth(
-        csrf_token=client.headers["X-CSRF-Token"],
-        auth_token=token
-    )
-    response = await client.post(GQL_API_PATH, json=json, headers=headers)
-    return response
-
-
 async def post_to_request_affiliation(client, token:str, team_id: int, access: Access):
     json = {
         "query": (

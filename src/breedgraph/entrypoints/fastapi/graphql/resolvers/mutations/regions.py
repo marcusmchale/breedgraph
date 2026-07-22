@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 async def create_location(
         _,
         info,
-        location: dict
+        location: dict,
+        control_team_id: int | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adding location: {location}")
     cmd = CreateLocation(
-        agent_id=user_id, **location
+        agent_id=user_id, write_team=control_team_id, **location
     )
     await info.context['bus'].handle(cmd)
     return True

@@ -5,6 +5,7 @@ from breedgraph.domain.model.time_descriptors import PyDT64
 # Program Commands
 class CreateProgram(Command):
     agent_id: int
+    write_team: int | None = None
 
     name: str
     fullname: str | None = None
@@ -32,6 +33,8 @@ class DeleteProgram(Command):
 # Trial Commands
 class CreateTrial(Command):
     agent_id: int
+    write_team: int | None = None
+
     program_id: int
 
     name: str
@@ -63,6 +66,8 @@ class DeleteTrial(Command):
 # Study Commands
 class CreateStudy(Command):
     agent_id: int
+    write_team: int | None = None
+
     trial_id: int
 
     name: str

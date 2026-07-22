@@ -25,19 +25,6 @@ user = ObjectType("User")
 user_access = ObjectType("UserAccess")
 graphql_resolvers.register_type_resolvers(account, user, user_access)
 
-
-@graphql_query.field("accountsUsers")
-@graphql_payload
-@require_authentication
-async def get_users(_, info, user: None|int = None) -> List[UserOutput]:
-    await update_users_map(info.context, user_ids=[user] if user else None)
-    users_map = info.context.get('users_map')
-    # then return the list of values
-    if user:
-        return [users_map[user]]
-    else:
-        return list(users_map.values())
-
 @graphql_query.field("accountsAccount")
 @graphql_payload
 @require_authentication
@@ -45,11 +32,12 @@ async def get_account(_, info) -> AccountOutput:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.uow_factory.get_uow() as uow:
-        account_ = await uow.repositories.accounts.get(user_id=user_id)
-        if account_ is None:
+        account_stored = await uow.repositories.accounts.get(user_id=user_id)
+        if account_stored is None:
             raise NoResultFoundError
         else:
-            return AccountOutput(user=account_.user, allowed_emails=account_.allowed_emails)
+            user_output = UserOutput.from_stored(account_stored.user)
+            return AccountOutput(user=user_output, allowed_emails=account_stored.allowed_emails)
 
 @graphql_query.field("accountsUserAccess")
 @graphql_payload

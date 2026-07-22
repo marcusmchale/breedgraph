@@ -4,6 +4,7 @@ from typing import List
 
 class CreatePerson(Command):
     agent_id: int
+    write_team: int | None = None
 
     name: str
     fullname: None|str = None
@@ -12,7 +13,6 @@ class CreatePerson(Command):
     email: None|str = None
     mail: None|str = None
     phone: None|str = None
-    orcid: None|str = None
     orcid: None|str = None
 
     description: None | str = None

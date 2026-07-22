@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator
 
-from breedgraph.domain.model.accounts import UserOutput
+from breedgraph.domain.model.accounts import UserOutput, UserDisplay
 from breedgraph.domain.model.accounts import OntologyRole
 
 from typing import List
@@ -23,7 +23,7 @@ class AbstractAccountsView(ABC):
     async def check_allowed_email(self, email: str) -> bool:
         ...
 
-    async def get_user(self) -> UserOutput|None:
+    async def get_user(self) -> UserOutput | None:
         if not self.user_id:
             return None
         return await self._get_user()
@@ -68,25 +68,25 @@ class AbstractAccountsView(ABC):
     async def get_users_for_admin(
             self,
             user_ids: List[int]
-    ) ->List[UserOutput]:
+    ) ->List[UserDisplay]:
         admin_teams = await self.get_admin_teams()
         return [user async for user in self._get_users_for_admin(user_ids, admin_teams)]
 
     @abstractmethod
-    def _get_users_for_admin(self, user_ids: List[int], admin_teams: List[int]) -> AsyncGenerator[UserOutput, None]:
+    def _get_users_for_admin(self, user_ids: List[int], admin_teams: List[int]) -> AsyncGenerator[UserDisplay, None]:
         ...
 
-    async def get_users_with_ontology_role_requests(self) -> List[UserOutput]:
+    async def get_users_with_ontology_role_requests(self) -> List[UserDisplay]:
         ontology_role = await self.get_ontology_role()
         if ontology_role != OntologyRole.ADMIN:
             raise UnauthorisedOperationError("Only ontology admins can see users with ontology role requests")
         return [ user async for user in self._get_users_with_ontology_role_requests()]
 
     @abstractmethod
-    def _get_users_with_ontology_role_requests(self) -> AsyncGenerator[UserOutput, None]:
+    def _get_users_with_ontology_role_requests(self) -> AsyncGenerator[UserDisplay, None]:
         ...
 
-    async def get_editors_for_ontology_admin(self) -> List[UserOutput]:
+    async def get_editors_for_ontology_admin(self) -> List[UserDisplay]:
         ontology_role = await self.get_ontology_role()
         if ontology_role != OntologyRole.ADMIN:
             raise UnauthorisedOperationError("Only ontology admins can see ontology editors")
@@ -94,10 +94,10 @@ class AbstractAccountsView(ABC):
 
 
     @abstractmethod
-    def _get_editors_for_ontology_admin(self) -> AsyncGenerator[UserOutput, None]:
+    def _get_editors_for_ontology_admin(self) -> AsyncGenerator[UserDisplay, None]:
         ...
 
-    async def get_admins_for_ontology_admin(self) -> List[UserOutput]:
+    async def get_admins_for_ontology_admin(self) -> List[UserDisplay]:
         ontology_role = await self.get_ontology_role()
         if ontology_role != OntologyRole.ADMIN:
             raise UnauthorisedOperationError("Only ontology admins can see ontology admins")
@@ -105,5 +105,5 @@ class AbstractAccountsView(ABC):
         return [user async for user in self._get_admins_for_ontology_admin()]
 
     @abstractmethod
-    def _get_admins_for_ontology_admin(self) -> AsyncGenerator[UserOutput, None]:
+    def _get_admins_for_ontology_admin(self) -> AsyncGenerator[UserDisplay, None]:
         ...

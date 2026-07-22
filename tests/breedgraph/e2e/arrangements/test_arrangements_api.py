@@ -24,7 +24,8 @@ async def test_create_layout(
     create_layout_response = await post_to_create_layout(
         client,
         token=login_token,
-        layout=layout
+        layout=layout,
+        control_team_id=layout_build_context['team_id']
     )
     create_layout_payload = get_verified_payload(create_layout_response, "arrangementsCreateLayout")
 
@@ -70,7 +71,8 @@ async def test_extended_layout(
     create_facility_response = await post_to_create_layout(
         client,
         token=login_token,
-        layout=facility_layout
+        layout=facility_layout,
+        control_team_id=layout_build_context['team_id']
     )
     create_facility_payload = get_verified_payload(create_facility_response, "arrangementsCreateLayout")
     assert_payload_success(create_facility_payload)
@@ -95,7 +97,8 @@ async def test_extended_layout(
     create_chamber_response = await post_to_create_layout(
         client,
         token=login_token,
-        layout=chamber_layout
+        layout=chamber_layout,
+        control_team_id=layout_build_context['team_id']
     )
     create_chamber_payload = get_verified_payload(create_chamber_response, "arrangementsCreateLayout")
     assert_payload_success(create_chamber_payload)
@@ -119,7 +122,8 @@ async def test_extended_layout(
     create_shelf_response = await post_to_create_layout(
         client,
         token=login_token,
-        layout=shelf_layout
+        layout=shelf_layout,
+        control_team_id=layout_build_context['team_id']
     )
     create_shelf_payload = get_verified_payload(create_shelf_response, "arrangementsCreateLayout")
     assert_payload_success(create_shelf_payload)

@@ -12,12 +12,14 @@ from . import graphql_mutation
 async def create_layout(
         _,
         info,
-        layout: dict
+        layout: dict,
+        control_team_id: int | None = None
 ) -> bool:
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} adding layout: {layout}")
     cmd = CreateLayout(
         agent_id = user_id,
+        write_team= control_team_id,
         name = layout.get('name'),
         type_id = layout.get('type_id'),
         location_id= layout.get('location_id'),

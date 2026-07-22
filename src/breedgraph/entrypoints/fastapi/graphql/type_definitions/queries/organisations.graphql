@@ -2,16 +2,16 @@ enum Access {READ, WRITE, ADMIN, CURATE}
 enum Authorisation {REQUESTED, AUTHORISED, REVOKED}
 
 type Affiliation {
-    user: User
-    authorisation: Authorisation
+    user: UserDisplay!
+    authorisation: Authorisation!
     heritable: Boolean!
 }
 
 type Affiliations {
-    read: [Affiliation]
-    write: [Affiliation]
-    admin: [Affiliation]
-    curate: [Affiliation]
+    read: [Affiliation!]
+    write: [Affiliation!]
+    admin: [Affiliation!]
+    curate: [Affiliation!]
 }
 
 type Team {
@@ -19,15 +19,15 @@ type Team {
     name: String!
     fullname: String!
     parent: Team
-    children: [Team]
+    children: [Team!]
     affiliations: Affiliations
     directAffiliations: Affiliations
     inheritedAffiliations: Affiliations
 }
 
 type UserAccess {
-  read: [Team]
-  write: [Team]
-  admin: [Team]
-  curate: [Team]
+  read: [Team!]
+  write: [Team!]
+  admin: [Team!]
+  curate: [Team!]
 }

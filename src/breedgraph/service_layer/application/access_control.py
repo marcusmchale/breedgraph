@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+from breedgraph.domain.model import Access
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
-from breedgraph.custom_exceptions import IllegalOperationError
-
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
 from typing import Dict, List, Set, Optional
 
@@ -59,22 +59,42 @@ class AbstractAccessControlService(ABC):
         if not models:
             return
 
+        models_by_label = await self._parse_input_to_models_by_label(models)
+
+        # Create/Set controllers using batch operations
+        for label, models in models_by_label.items():
+            model_ids = [model.id for model in models]
+            await self._verify_and_set_controls(
+                label=label,
+                model_ids=model_ids,
+                control_teams=control_teams,
+                release=release
+            )
+
+    async def _verify_and_set_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: List[int],
+            control_teams: Set[int],
+            release: ReadRelease
+    ):
         if not self.user_id:
             raise IllegalOperationError("User ID required to set controls")
         if not control_teams:
             raise IllegalOperationError("Control teams required to set controls")
 
-        models_by_label = await self._parse_input_to_models_by_label(models)
-        # Create/Set controllers using batch operations
-        for label, models in models_by_label.items():
-            model_ids = [model.id for model in models]
-            await self._set_controls(
-                label=label,
-                model_ids=model_ids,
-                team_ids=control_teams,
-                release=release,
-                user_id=self.user_id
-            )
+        controllers = await self.get_controllers(label, model_ids)
+        for model_id, controller in controllers.items():
+            if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
+                raise UnauthorisedOperationError("Admin access is required to set controls")
+
+        await self._set_controls(
+            label=label,
+            model_ids=model_ids,
+            team_ids=control_teams,
+            release=release,
+            user_id=self.user_id
+        )
 
     async def set_controls_by_id_and_label(
             self,
@@ -83,21 +103,7 @@ class AbstractAccessControlService(ABC):
             control_teams: Set[int],
             release: ReadRelease
     ):
-        if not ids:
-            return
-
-        if not self.user_id:
-            raise IllegalOperationError("User ID required to set controls")
-        if not control_teams:
-            raise IllegalOperationError("Control teams required to set controls")
-
-        await self._set_controls(
-            label=label,
-            model_ids=ids,
-            team_ids=control_teams,
-            release=release,
-            user_id=self.user_id
-        )
+        await self._verify_and_set_controls(label=label, model_ids=ids, control_teams=control_teams, release=release)
 
     @abstractmethod
     async def _set_controls(
@@ -109,7 +115,7 @@ class AbstractAccessControlService(ABC):
             user_id: int
     ) -> None:
         """Set controls for multiple entities - batch operation"""
-        raise NotImplementedError
+        ...
 
     async def record_writes(
             self,
@@ -141,7 +147,7 @@ class AbstractAccessControlService(ABC):
             user_id: int
     ) -> None:
         """Record write stamps for multiple entities - batch operation"""
-        raise NotImplementedError
+        ...
 
     async def get_controller(self, label: ControlledModelLabel, model_id: int) -> Optional[Controller]:
         """Get controller by label and model_id"""

@@ -2,6 +2,8 @@ from .base import Command
 
 class CreateDataset(Command):
     agent_id: int
+    write_team: int | None = None
+
     submission_id: str
 
 class AddRecords(Command):

@@ -31,11 +31,12 @@ class ControlledRepository(
             self,
             controls: AbstractAccessControlService,
             release: ReadRelease = ReadRelease.PRIVATE,
+            write_team: int | None = None
     ):
         super().__init__()
         self.controls = controls
-
         self.release = release
+        self.write_team = write_team
 
     @property
     def user_id(self):
@@ -97,7 +98,7 @@ class ControlledRepository(
         aggregate = await self._create_controlled(aggregate_input)
         await self.controls.set_controls(
             aggregate,
-            control_teams=self.access_teams[Access.WRITE],
+            control_teams=self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team },
             release=self.release
         )
         controllers = await self.controls.get_controllers_for_aggregate(aggregate)
@@ -207,7 +208,7 @@ class ControlledRepository(
         controlled_added = [i for i in aggregate.added_models if isinstance(i, ControlledModel)]
         await self.controls.set_controls(
             controlled_added,
-            control_teams=self.access_teams[Access.WRITE],
+            control_teams=self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team },
             release=self.release
         )
         controlled_updates = [i for i in aggregate.changed_models if isinstance(i, ControlledModel)]
@@ -216,31 +217,3 @@ class ControlledRepository(
     @abstractmethod
     async def _update_controlled(self, aggregate: TControlledAggregate | TrackedObject):
         raise NotImplementedError
-
-    async def set_entity_access_controls(
-            self,
-            entity: ControlledModel,
-            control_teams: Set[int],
-            release: ReadRelease
-    ) -> None:
-        """Set access controls for a specific entity within the aggregate"""
-        if not self.controls.user_id:
-            raise UnauthorisedOperationError("Changes to access controls require a user_id")
-        # Get the current controller for this specific entity
-        controller = await self.controls.get_controller(
-            entity.label,
-            entity.id
-        )
-        if controller is None:
-            raise UnauthorisedOperationError("Controller not found for controlled entity")
-
-        # Check authorization for this specific entity
-        if not controller.has_access(Access.ADMIN, access_teams=self.access_teams[Access.ADMIN]):
-            raise UnauthorisedOperationError(
-                f"Changing access controls requires admin permission")
-        # Set controls for this specific entity
-        await self.controls.set_controls(
-            entity,  # Single entity, not aggregate
-            control_teams=control_teams,
-            release=release
-        )

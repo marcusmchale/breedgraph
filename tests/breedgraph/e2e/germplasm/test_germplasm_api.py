@@ -23,7 +23,8 @@ async def test_create_crop(
     response = await post_to_create_germplasm_entry(
         client,
         token=login_token,
-        germplasm_input=germplasm_input
+        germplasm_input=germplasm_input,
+        control_team_id=germplasm_build_context['team_id']
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
@@ -76,7 +77,8 @@ async def test_create_crop_same_name_fails(
     response = await post_to_create_germplasm_entry(
         client,
         token=login_token,
-        germplasm_input=germplasm_input
+        germplasm_input=germplasm_input,
+        control_team_id=germplasm_build_context['team_id']
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert germplasm_payload.get('errors')
@@ -112,7 +114,8 @@ async def test_create_variety(
     response = await post_to_create_germplasm_entry(
         client,
         token=login_token,
-        germplasm_input=germplasm_input
+        germplasm_input=germplasm_input,
+        control_team_id=germplasm_build_context['team_id']
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
@@ -133,7 +136,8 @@ async def test_create_second_variety(
     response = await post_to_create_germplasm_entry(
         client,
         token=login_token,
-        germplasm_input=germplasm_input
+        germplasm_input=germplasm_input,
+        control_team_id=germplasm_build_context['team_id']
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)
@@ -163,7 +167,8 @@ async def test_create_hybrid(
     response = await post_to_create_germplasm_entry(
         client,
         token=login_token,
-        germplasm_input=germplasm_input
+        germplasm_input=germplasm_input,
+        control_team_id=germplasm_build_context['team_id']
     )
     germplasm_payload = get_verified_payload(response, "germplasmCreateEntry")
     assert_payload_success(germplasm_payload)

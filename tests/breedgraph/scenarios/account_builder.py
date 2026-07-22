@@ -34,7 +34,7 @@ class AccountBuilder:
             await uow.commit()
             return account.user.id
 
-    async def account_with_affiliations(self, ontology_role: OntologyRole = OntologyRole.CONTRIBUTOR) -> Dict[str, int]:
+    async def account_with_affiliations(self, ontology_role: OntologyRole = OntologyRole.EDITOR) -> Dict[str, int]:
         user_id = await self.account(ontology_role=ontology_role)
         organisation_builder = OrganisationBuilder(uow_factory=self.uow_factory)
         team_id = await organisation_builder.organisation(user_id=user_id)

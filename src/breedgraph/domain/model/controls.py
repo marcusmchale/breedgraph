@@ -117,6 +117,10 @@ class Controller:
         self.controls[team_id].release = release
 
     def has_access(self, access: Access, user_id: int|None = None, access_teams: Set[int]|None = None) -> bool:
+        if not self.controls:
+            # During controlled model creation the controller has no controls
+            return True
+
         if access_teams is None:
             access_teams = set()
         if access is Access.READ:

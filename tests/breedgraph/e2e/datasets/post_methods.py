@@ -2,14 +2,16 @@ from breedgraph.config import GQL_API_PATH
 from tests.breedgraph.e2e.utils import with_auth
 
 
-async def post_to_create_dataset(client, token:str, dataset: dict):
+async def post_to_create_dataset(client, token:str, dataset: dict, control_team_id: int):
     json={
         "query": (
             " mutation ( "
             "  $dataset: DatasetInput!"
+            "  $controlTeamId: ID! "
             " ) { "
             "  datasetsCreate( "
             "    dataset: $dataset "
+            "    controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -18,7 +20,8 @@ async def post_to_create_dataset(client, token:str, dataset: dict):
             " } "
         ),
         "variables": {
-            "dataset": dataset
+            "dataset": dataset,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(

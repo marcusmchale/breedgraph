@@ -100,7 +100,7 @@ async def init_neo4j(uow_factory) -> None:
                     fullname='system user',
                     email=f'{MAIL_USERNAME}@{MAIL_HOST}',
                     password_hash="",
-                    ontology_role=OntologyRole('admin')
+                    ontology_role=OntologyRole.ADMIN
                 )
             )
         )
@@ -207,14 +207,6 @@ async def isolated_state(
     await flush_redis(state_store)
 
 
-async def build_account_with_affiliations(
-        uow_factory: Neo4jUnitOfWorkFactory,
-        ontology_role:OntologyRole=OntologyRole.ADMIN
-) -> int:
-    account_builder = AccountBuilder(uow_factory=uow_factory)
-    account_ids = await account_builder.account_with_affiliations(ontology_role=ontology_role)
-    return account_ids['user_id']
-
 async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int) -> int:
     ontology_location_ids = await OntologyBuilder(uow_factory).location_types(user_id=user_id)
     region_builder = RegionBuilder(uow_factory=uow_factory, state_store=state_store)
@@ -236,28 +228,34 @@ async def user_registration_context(isolated_state, login_token_factory):
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def control_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
-    location_id = await build_location(uow_factory, state_store, user_id)
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
     return {
-        'user_id': user_id,
+        **account_ids,
         'location_id': location_id
     }
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def layout_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
-    location_id = await build_location(uow_factory, state_store, user_id)
-    layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=user_id)
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
+    layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=account_ids['user_id'])
     return {
-        'user_id': user_id,
+        **account_ids,
         'location_id': location_id,
         **layout_types
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    user_id = account_ids['user_id']
+
+
     location_types = await OntologyBuilder(uow_factory=uow_factory).location_types(user_id=user_id)
     layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=user_id)
     subject_types = await OntologyBuilder(uow_factory=uow_factory).subject_types(user_id=user_id)
@@ -278,7 +276,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     )
     layout_id = layout_ids['layout_shelf_id']
     return {
-        'user_id': user_id,
+        **account_ids,
         'location_id': location_id,
         'layout_id': layout_id,
         **location_ids,
@@ -288,7 +286,9 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    user_id = account_ids['user_id']
 
     program_builder = ProgramBuilder(uow_factory=uow_factory)
     program_ids = await program_builder.program_trial_study(user_id)
@@ -298,7 +298,7 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
     person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id)
     return {
-        'user_id': user_id,
+        **account_ids,
         'study_id': study_id,
         'concept_id': variable_ids['ontology_variable_height'],
         'unit_id': unit_id,
@@ -329,17 +329,15 @@ async def person_build_context(isolated_state, uow_factory) -> Dict[str, int]:
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def program_build_context(isolated_state, uow_factory) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
-    return {
-        'user_id': user_id
-    }
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    return account_ids
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def reference_build_context(isolated_state, uow_factory) -> Dict[str, int]:
-    user_id = await build_account_with_affiliations(uow_factory)
-    return {
-        'user_id': user_id
-    }
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_ids = await account_builder.account_with_affiliations()
+    return account_ids
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def region_build_context(isolated_state, uow_factory) -> Dict[str, int]:
@@ -347,7 +345,10 @@ async def region_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     account_ids = await account_builder.account_with_affiliations(ontology_role=OntologyRole.ADMIN)
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
-    user_id_2 = await build_account_with_affiliations(uow_factory)
+
+    account_ids2 = await account_builder.account_with_affiliations()
+    user_id_2 = account_ids2['user_id']
+
     location_types = await OntologyBuilder(uow_factory=uow_factory).location_types(user_id=user_id)
     return {
         'user_id': user_id,
@@ -363,7 +364,10 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
-    user_id_2 = await build_account_with_affiliations(uow_factory)
+
+    account_ids2 = await account_builder.account_with_affiliations()
+    user_id_2 = account_ids2['user_id']
+
     return {
         'user_id': user_id,
         'team_id': team_id,

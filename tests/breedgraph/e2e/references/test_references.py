@@ -27,7 +27,7 @@ async def test_create_legal(
         description="This is a test legal reference",
         text="This is the actual text of the legal reference"
     ).model_dump()
-    create_legal_response = await post_to_create_legal_reference(client, token=login_token, reference=legal_ref)
+    create_legal_response = await post_to_create_legal_reference(client, token=login_token, reference=legal_ref, control_team_id=reference_build_context['team_id'])
     legal_payload = get_verified_payload(create_legal_response, "referencesCreateLegal")
     assert_payload_success(legal_payload)
 
@@ -53,7 +53,8 @@ async def test_create_file(
         create_file_response = await post_to_create_file_reference(
             client,
             token=login_token,
-            reference=file_reference
+            reference=file_reference,
+            control_team_id=reference_build_context['team_id']
         )
 
     file_payload = get_verified_payload(create_file_response, "referencesCreateFile")
@@ -97,7 +98,8 @@ async def test_create_monitor_progress_and_get_file(
         create_file_response = await post_to_create_file_reference(
             client,
             token=login_token,
-            reference=file_reference
+            reference=file_reference,
+            control_team_id=reference_build_context['team_id']
         )
 
     file_payload = get_verified_payload(create_file_response, "referencesCreateFile")

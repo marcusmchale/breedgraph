@@ -14,7 +14,8 @@ from neo4j import AsyncTransaction, AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.ontology.location_type import LocationTypeInput
+from breedgraph.domain.model.ontology import LocationTypeInput, VersionChange
+
 
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
@@ -61,7 +62,7 @@ async def create_system_account(uow: AbstractUnitOfWorkFactory) -> AccountStored
                     fullname='system user',
                     email=f'{MAIL_USERNAME}@{MAIL_HOST}',
                     password_hash="",
-                    ontology_role=OntologyRole('admin')
+                    ontology_role=OntologyRole.ADMIN
                 )
             )
         )
@@ -74,11 +75,6 @@ async def create_initial_ontology_entries(
 ):
     """Create essential ontology entries needed for the application."""
     async with uow.get_uow(user_id=system_account.user.id) as uow_holder:
-        # Create initial Ontology version
-        await uow_holder.ontology.commit_version(
-            version_change=None,
-            comment="Initial version"
-        )
         logger.info("Creating Country LocationType...")
         country_type_input = LocationTypeInput(
             name='Country',
@@ -87,6 +83,7 @@ async def create_initial_ontology_entries(
         await uow_holder.ontology.create_entry(
             entry=country_type_input
         )
+        await uow_holder.ontology.commit_version(version_change=None, comment="Initial system commit")
         await uow_holder.commit()
         logger.info("Initial ontology setup completed successfully")
 

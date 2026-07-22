@@ -35,7 +35,8 @@ async def test_create_dataset_with_records(
                     'start': "2022-10-10"
                 }
             ]
-        }
+        },
+        control_team_id=dataset_build_context['team_id']
     )
     payload = get_verified_payload(response, "datasetsCreate")
     submission_id = payload['result']

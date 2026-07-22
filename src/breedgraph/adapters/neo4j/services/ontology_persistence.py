@@ -30,7 +30,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         record = await result.single()
         if record is None:
             raise ValueError(f"User with id {user_id} not found")
-        return OntologyRole(record.value() or 'viewer')
+        return OntologyRole(record.value()) if record.value() else OntologyRole.VIEWER
 
     def record_to_entry(self, record: Record) -> OntologyEntryStored:
         entry_dict = record['entry']

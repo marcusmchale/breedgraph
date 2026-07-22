@@ -9,5 +9,3 @@ class SetRelease(Command):
     entity_ids: List[int]
     entity_label: ControlledModelLabel
     release: ReadRelease
-
-

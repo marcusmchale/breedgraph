@@ -5,15 +5,18 @@ from typing import List
 async def post_to_create_layout(
     client,
     token:str,
-    layout: dict
+    layout: dict,
+    control_team_id: int
 ):
     json = {
         "query": (
             " mutation ( "
             "  $layout: LayoutInput!"
+            "  $controlTeamId: ID! "
             " ) { "
             "  arrangementsCreateLayout( "
-            "    layout: $layout, "
+            "    layout: $layout "
+            "    controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -22,7 +25,8 @@ async def post_to_create_layout(
             " } "
         ),
         "variables": {
-            "layout": layout
+            "layout": layout,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(

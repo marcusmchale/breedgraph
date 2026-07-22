@@ -24,7 +24,7 @@ async def create_program(
         cmd: commands.programs.CreateProgram,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         # Check if a program with the same name already exists
         existing_program = await uow.repositories.programs.get(name=cmd.name)
         if existing_program is not None:
@@ -90,7 +90,7 @@ async def create_trial(
         cmd: commands.programs.CreateTrial,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
@@ -162,7 +162,7 @@ async def create_study(
         cmd: commands.programs.CreateStudy,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         program = await uow.repositories.programs.get(trial_id=cmd.trial_id)
         if program is None:
             raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")

@@ -4,8 +4,10 @@ from typing import AsyncGenerator
 
 from neo4j import AsyncTransaction, AsyncSession
 
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain.events import Event
 
+from breedgraph.domain.model.organisations import Access
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.accounts import OntologyRole
 
@@ -36,7 +38,7 @@ from breedgraph.adapters.neo4j.repositories.holder import Neo4jRepoHolder
 from breedgraph.adapters.neo4j.constraints.constraints import Neo4jConstraintsHandler
 
 
-from typing import List, Generator
+from typing import Generator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -52,7 +54,8 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             restructuring: AbstractAggregateRestructuringService,
             guards: AbstractDependencyGuards,
             constraints: AbstractConstraintsHandler,
-            repositories: AbstractRepoHolder
+            repositories: AbstractRepoHolder,
+            write_team: int | None
     ):
         self.tx = tx
         self.committed = False
@@ -63,6 +66,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         self.guards = guards
         self.constraints = constraints
         self.repositories = repositories
+        self.write_team: int | None = write_team
 
     @classmethod
     async def create(
@@ -70,11 +74,15 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             tx: AsyncTransaction,
             user_id: int | None = None,
             redacted: bool = True,
-            release: ReadRelease = ReadRelease.PRIVATE
+            release: ReadRelease = ReadRelease.PRIVATE,
+            write_team: int | None = None
     ) -> "Neo4jUnitHolder":
         """Async factory that handles service initialization"""
 
         access_control_service = await Neo4jAccessControlService.create(tx, user_id=user_id)
+        if write_team is not None:
+            if not write_team in access_control_service.access_teams.get(Access.WRITE):
+                raise UnauthorisedOperationError("The requested write team is not among approved write affiliations")
 
         ontology_persistence = Neo4jOntologyPersistenceService(tx)
         ontology_role = (
@@ -91,13 +99,14 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         germplasm_service = GermplasmApplicationService(
             persistence_service=germplasm_persistence,
             access_control_service=access_control_service,
-            release=release
+            release=release,
+            write_team=write_team
         )
 
         restructuring = Neo4jAggregateRestructuringService(tx)
         guards = Neo4jDependencyGuards(tx)
         constraints = Neo4jConstraintsHandler(tx, user_id)
-        repositories = Neo4jRepoHolder(tx, access_control_service, release=release, redacted=redacted)
+        repositories = Neo4jRepoHolder(tx, access_control_service, release=release, redacted=redacted, write_team=write_team)
 
         return cls(
             tx=tx,
@@ -107,7 +116,8 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             restructuring=restructuring,
             guards=guards,
             constraints=constraints,
-            repositories=repositories
+            repositories=repositories,
+            write_team=write_team
         )
 
     def collect_events(self) -> Generator[Event, None, None]:
@@ -146,7 +156,8 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
             self,
             user_id: int | None = None,
             redacted: bool = True,
-            release: ReadRelease = ReadRelease.PRIVATE
+            release: ReadRelease = ReadRelease.PRIVATE,
+            write_team: int | None = None
     ) -> AsyncGenerator[Neo4jUnitHolder, None]:
 
         session: AsyncSession = self.driver.session()
@@ -156,7 +167,8 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
             tx=tx,
             user_id=user_id,
             redacted=redacted,
-            release=release
+            release=release,
+            write_team=write_team
         )
 
         try:

@@ -2,7 +2,7 @@ from neo4j import AsyncResult, AsyncSession
 from typing import AsyncGenerator
 
 from breedgraph.service_layer.queries.views.accounts import AbstractAccountsView
-from breedgraph.domain.model.accounts import UserOutput, OntologyRole
+from breedgraph.domain.model.accounts import UserOutput, UserDisplay, OntologyRole
 
 from breedgraph.adapters.neo4j.cypher import queries
 
@@ -49,7 +49,10 @@ class Neo4jAccountsView(AbstractAccountsView):
             async with await self.session.begin_transaction() as tx:
                 result: AsyncResult = await tx.run(queries['controls']['get_ontology_role'], user_id=self.user_id)
                 record = await result.single()
-                self.ontology_role = OntologyRole(record.value() or 'viewer')
+                if record and record.value():
+                    self.ontology_role = OntologyRole(record.value())
+                else:
+                    self.ontology_role = OntologyRole.VIEWER
         return self.ontology_role
 
     async def _get_admin_teams(self) -> List[int]:
@@ -72,7 +75,7 @@ class Neo4jAccountsView(AbstractAccountsView):
             else:
                 return []
 
-    async def _get_users_for_admin(self, user_ids: List[int], admin_teams: List[int]) -> AsyncGenerator[UserOutput, None]:
+    async def _get_users_for_admin(self, user_ids: List[int], admin_teams: List[int]) -> AsyncGenerator[UserDisplay, None]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
                 queries['accounts']['get_users_for_admin'],
@@ -80,29 +83,25 @@ class Neo4jAccountsView(AbstractAccountsView):
                 user_ids=user_ids
             )
             async for record in result:
-                user_output: UserOutput = UserOutput(**record['user'])
-                yield user_output
+                yield UserDisplay(**record['user'])
 
-    async def _get_users_with_ontology_role_requests(self) -> AsyncGenerator[UserOutput, None]:
+    async def _get_users_with_ontology_role_requests(self) -> AsyncGenerator[UserDisplay, None]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(queries['accounts']['get_users_with_ontology_role_requests'])
             async for record in result:
-                user_output: UserOutput = UserOutput(**record['user'])
-                yield user_output
+                yield UserDisplay(**record['user'])
 
-    async def _get_editors_for_ontology_admin(self) -> AsyncGenerator[UserOutput, None]:
+    async def _get_editors_for_ontology_admin(self) -> AsyncGenerator[UserDisplay, None]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(queries['accounts']['get_editors_for_ontology_admin'])
             async for record in result:
-                user_output: UserOutput = UserOutput(**record['user'])
-                yield user_output
+                yield UserDisplay(**record['user'])
 
-    async def _get_admins_for_ontology_admin(self) -> AsyncGenerator[UserOutput, None]:
+    async def _get_admins_for_ontology_admin(self) -> AsyncGenerator[UserDisplay, None]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(queries['accounts']['get_admins_for_ontology_admin'])
             async for record in result:
-                user_output: UserOutput = UserOutput(**record['user'])
-                yield user_output
+                yield UserDisplay(**record['user'])
 
 
 

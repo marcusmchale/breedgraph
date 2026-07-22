@@ -8,7 +8,5 @@ RETURN
     id: user.id,
     name: user.name,
     fullname: user.fullname,
-    email: user.email,
-    ontology_role: user.ontology_role,
-    email_verified: user.email_verified
+    ontology_role: user.ontology_role
   }

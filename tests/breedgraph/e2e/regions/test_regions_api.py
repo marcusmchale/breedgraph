@@ -25,7 +25,8 @@ async def test_create_location(
         create_location_response = await post_to_create_location(
             client,
             token=login_token,
-            location=country
+            location=country,
+            control_team_id=region_build_context['team_id']
         )
         create_location_payload = get_verified_payload(create_location_response, "regionsCreateLocation")
         try:
@@ -70,7 +71,8 @@ async def test_extend_region(
     create_response = await post_to_create_location(
         client,
         token=login_token,
-        location=location
+        location=location,
+        control_team_id=region_build_context['team_id']
     )
     create_payload = get_verified_payload(create_response, "regionsCreateLocation")
     assert_payload_success(create_payload)

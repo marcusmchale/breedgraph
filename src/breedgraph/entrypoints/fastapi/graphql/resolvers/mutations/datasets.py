@@ -21,13 +21,14 @@ from . import graphql_mutation
 async def create_dataset(
         _,
         info,
-        dataset: dict
+        dataset: dict,
+        control_team_id: int | None = None
 ) -> str:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds dataset for concept: {dataset.get('concept_id')}")
     bus = info.context.get('bus')
     key = await bus.state_store.store_submission(agent_id=user_id, submission=dataset)
-    cmd = CreateDataset(agent_id=user_id, submission_id=key)
+    cmd = CreateDataset(agent_id=user_id, write_team=control_team_id, submission_id=key)
     await bus.handle(cmd)
     return key
 

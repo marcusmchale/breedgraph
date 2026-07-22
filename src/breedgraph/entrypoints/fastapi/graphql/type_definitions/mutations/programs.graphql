@@ -71,17 +71,26 @@ input UpdateStudyInput {
 # Mutation type extensions for programs
 extend type Mutation {
     # Program mutations
-    programsCreateProgram(program: CreateProgramInput!): BooleanPayload
+    programsCreateProgram(
+        program: CreateProgramInput!
+        controlTeamId: ID!
+    ): BooleanPayload
     programsUpdateProgram(program: UpdateProgramInput!): BooleanPayload
     programsDeleteProgram(programId: ID!): BooleanPayload
 
     # Trial mutations
-    programsCreateTrial(trial: CreateTrialInput!): BooleanPayload
+    programsCreateTrial(
+        trial: CreateTrialInput!
+        controlTeamId: ID!
+    ): BooleanPayload
     programsUpdateTrial(trial: UpdateTrialInput!): BooleanPayload
     programsDeleteTrial(trialId: ID!): BooleanPayload
 
     # Study mutations
-    programsCreateStudy(study: CreateStudyInput!): BooleanPayload
+    programsCreateStudy(
+        study: CreateStudyInput!
+        controlTeamId: ID!
+    ): BooleanPayload
     programsUpdateStudy(study: UpdateStudyInput!): BooleanPayload
     programsDeleteStudy(studyId: ID!): BooleanPayload
 }

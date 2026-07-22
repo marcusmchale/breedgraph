@@ -36,7 +36,7 @@ async def create_legal_reference(
     uow_factory: AbstractUnitOfWorkFactory
 ) -> int:
     logger.debug(f'f"Creating legal reference for user {cmd.agent_id}')
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         reference = LegalReferenceInput(
             description=cmd.description,
             text=cmd.text
@@ -51,7 +51,7 @@ async def create_external_reference(
     uow_factory: AbstractUnitOfWorkFactory
 ) -> int:
     logger.debug(f'f"Creating external reference for user {cmd.agent_id}')
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         reference = ExternalReferenceInput(
             description=cmd.description,
             url=cmd.url,
@@ -68,7 +68,7 @@ async def create_external_data(
 ) -> int:
     logger.debug(f'f"Creating external data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         reference = ExternalDataInput(
             description=cmd.description,
             url=cmd.url,
@@ -87,7 +87,7 @@ async def create_file_reference(
     state_store: AbstractStateStore
 ) -> int:
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         reference_input = FileReferenceInput(
             description=cmd.description,
             filename=cmd.filename,
@@ -108,7 +108,7 @@ async def create_data_file_reference(
 ) -> int:
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
         reference_input = DataFileInput(
             description=cmd.description,
             filename=cmd.filename,

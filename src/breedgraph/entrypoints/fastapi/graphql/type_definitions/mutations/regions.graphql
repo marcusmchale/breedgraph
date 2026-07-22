@@ -41,6 +41,7 @@ input LocationUpdate {
 extend type Mutation {
     regionsCreateLocation(
         location: LocationInput!
+        controlTeamId: ID!
     ): BooleanPayload!,
     regionsUpdateLocation(
         location: LocationUpdate!

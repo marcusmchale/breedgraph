@@ -5,233 +5,233 @@ enum QueryStatus {
 }
 
 type Error {
-    name: String!
-    message: String!
+    name: String
+    message: String
 }
 
 type StatusPayload {
-    status: QueryStatus
-    errors: [Error]
+    status: QueryStatus!
+    errors: [Error!]
 }
 
 type BooleanPayload {
     status: QueryStatus!
     result: Boolean
-    errors: [Error]
+    errors: [Error!]
 }
 
 type LoginPayload {
     status: QueryStatus!
     result: Token
-    errors: [Error]
+    errors: [Error!]
 }
 
 type TeamsPayload {
     status: QueryStatus!
-    result: [Team]
-    errors: [Error]
+    result: [Team!]
+    errors: [Error!]
 }
 
 type AffiliationsPayload {
     status: QueryStatus!
     result: Affiliations
-    errors: [Error]
+    errors: [Error!]
 }
 
 type UserAccessPayload {
     status: QueryStatus!
     result: UserAccess
-    errors: [Error]
+    errors: [Error!]
 }
 
 type TeamPayload {
     status: QueryStatus!
     result: Team
-    errors: [Error]
+    errors: [Error!]
 }
 
 type AccountPayload {
     status: QueryStatus!
     result: Account
-    errors: [Error]
+    errors: [Error!]
 }
 
 type UsersPayload {
     status: QueryStatus!
-    result: [User!]
-    errors: [Error]
+    result: [UserDisplay!]
+    errors: [Error!]
 }
 
 type VersionPayload {
     status: QueryStatus!
     result: Version
-    errors: [Error]
+    errors: [Error!]
 }
 
 type OntologyPayload {
     status: QueryStatus!
     result: Ontology
-    errors: [Error]
+    errors: [Error!]
 }
 
 type OntologyCommitsPayload {
     status: QueryStatus!
     result: [OntologyCommit!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type OntologyEntryPayload {
     status: QueryStatus!
     result: OntologyNodeInterface
-    errors: [Error]
+    errors: [Error!]
 }
 
 type OntologyEntriesPayload {
     status: QueryStatus!
     result: [OntologyNodeInterface!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type OntologyRelationshipsPayload {
     status: QueryStatus!
-    result: [OntologyRelationship]
-    errors: [Error]
+    result: [OntologyRelationship!]
+    errors: [Error!]
 }
 
 type LocationsPayload {
     status: QueryStatus!
     result: [Location!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type LocationTemplatesPayload {
     status: QueryStatus!
     result: [LocationTemplate!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type LayoutsPayload {
     status: QueryStatus!
     result: [Layout!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type UnitsPayload {
     status: QueryStatus!
     result: [Unit!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type UnitPayload {
     status: QueryStatus!
     result: Unit
-    errors: [Error]
+    errors: [Error!]
 }
 
 type DatasetsPayload {
     status: QueryStatus!
-    result: [Dataset]
-    errors: [Error]
+    result: [Dataset!]
+    errors: [Error!]
 }
 
 type SubmissionIdPayload {
     status: QueryStatus!
     result: String
-    errors: [Error]
+    errors: [Error!]
 }
 
 type DatasetSubmissionPayload {
     status: QueryStatus!
     result: DatasetSubmission
-    errors: [Error]
+    errors: [Error!]
 }
 
 type DatasetSummariesPayload {
     status: QueryStatus!
     result: [DatasetSummary]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type ReferencesPayload {
     status: QueryStatus!
     result: [ReferenceInterface!]
-    errors: [Error]
+    errors: [Error!]
 }
 
 type CreatedIdPayload {
     status: QueryStatus!
     result: Int
-    errors: [Error]
+    errors: [Error!]
 }
 
 type FileIdPayload {
     status: QueryStatus!,
     result: String
-    errors: [Error]
+    errors: [Error!]
 }
 
 type FileSubmissionPayload {
     status: QueryStatus!
     result: FileSubmission
-    errors: [Error]
+    errors: [Error!]
 }
 
 type FileDownloadStatePayload {
     status: QueryStatus!
     result: FileDownloadState
-    errors: [Error]
+    errors: [Error!]
 }
 
 type FileDownloadPayload {
     status: QueryStatus!
     result: FileDownload
-    errors: [Error]
+    errors: [Error!]
 }
 
 type ProgramsPayload {
     status: QueryStatus!
-    result: [Program]
-    errors: [Error]
+    result: [Program!]
+    errors: [Error!]
 }
 
 type ProgramPayload {
     status: QueryStatus!
     result: Program
-    errors: [Error]
+    errors: [Error!]
 }
 
 type TrialPayload {
     status: QueryStatus!
     result: Trial
-    errors: [Error]
+    errors: [Error!]
 }
 
 type StudyPayload {
     status: QueryStatus!
     result: Study
-    errors: [Error]
+    errors: [Error!]
 }
 
 type ControllersPayload {
     status: QueryStatus!
-    result: [Controller]
-    errors: [Error]
+    result: [Controller!]
+    errors: [Error!]
 }
 
 type GermplasmEntriesPayload {
     status: QueryStatus!
-    result: [GermplasmEntry]
-    errors: [Error]
+    result: [GermplasmEntry!]
+    errors: [Error!]
 }
 
 type AnalysisSubmissionIdPayload {
   status: QueryStatus!
   result: String
-  errors: [Error]
+  errors: [Error!]
 }
 
 type AnalysisSubmissionPayload {
   status: QueryStatus!
-  result: AnalysisSubmission
-  errors: [Error]
+  result: AnalysisSubmission!
+  errors: [Error!]
 }

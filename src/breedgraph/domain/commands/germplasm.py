@@ -29,6 +29,7 @@ class GermplasmSinkRelationship(GermplasmRelationshipBase):
 
 class CreateGermplasm(Command):
     agent_id: int
+    write_team: int | None = None
 
     name: str = ''
     description: str | None = None

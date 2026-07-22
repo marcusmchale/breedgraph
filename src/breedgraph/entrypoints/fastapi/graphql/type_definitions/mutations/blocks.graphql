@@ -45,9 +45,19 @@ input UnitUpdate {
 }
 
 extend type Mutation {
-    blocksCreateUnit(unit: UnitInput!, position: PositionInput): BooleanPayload!
+    blocksCreateUnit(
+        unit: UnitInput!
+        controlTeamId: ID!
+        position: PositionInput
+    ): BooleanPayload!
     blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!
     blocksDeleteUnit(unitId: ID!): BooleanPayload!
-    blocksAddPosition(unitId: ID!, position: PositionInput!): BooleanPayload!
-    blocksRemovePosition(unitId: ID!, position: PositionInput!): BooleanPayload!
+    blocksAddPosition(
+        unitId: ID!
+        position: PositionInput!
+    ): BooleanPayload!
+    blocksRemovePosition(
+        unitId: ID!
+        position: PositionInput!
+    ): BooleanPayload!
 }

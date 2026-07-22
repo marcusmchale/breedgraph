@@ -4,14 +4,16 @@ from breedgraph.config import GQL_API_PATH
 from tests.breedgraph.e2e.utils import with_auth
 
 
-async def post_to_create_legal_reference(client, token:str, reference):
+async def post_to_create_legal_reference(client, token:str, reference, control_team_id: int):
     json_str = {
         "query": (
             " mutation ( "
-            "  $reference: CreateLegalReferenceInput!"
+            "  $reference: CreateLegalReferenceInput! "
+            "  $controlTeamId: ID! "
             " ) { "
             "  referencesCreateLegal ( "
             "    reference: $reference "
+            "    controlTeamId: $controlTeamId "
             "  ) { "
             "    status, "
             "    result, "
@@ -20,7 +22,8 @@ async def post_to_create_legal_reference(client, token:str, reference):
             " } "
         ),
         "variables": {
-            "reference": reference
+            "reference": reference,
+            "controlTeamId": control_team_id
         }
     }
     headers = with_auth(
@@ -31,13 +34,19 @@ async def post_to_create_legal_reference(client, token:str, reference):
     return response
 
 
-async def post_to_create_file_reference(client, token:str, reference):
+async def post_to_create_file_reference(client, token:str, reference, control_team_id: int):
     test_file = reference.pop('file')
     filepath = Path(test_file.name)
     operations = {
         "query": """
-            mutation StoreFile($reference: CreateFileReferenceInput!) {
-                referencesCreateFile(reference: $reference) {
+            mutation StoreFile(
+                $reference: CreateFileReferenceInput!
+                $controlTeamId: ID! 
+            ) {
+                referencesCreateFile(
+                  reference: $reference
+                  controlTeamId: $controlTeamId
+                ) {
                     status
                     result
                     errors { message }
@@ -48,7 +57,8 @@ async def post_to_create_file_reference(client, token:str, reference):
             "reference": {
                 **reference,
                 "file": None  # Must be null here
-            }
+            },
+            "controlTeamId": control_team_id
         }
     }
 

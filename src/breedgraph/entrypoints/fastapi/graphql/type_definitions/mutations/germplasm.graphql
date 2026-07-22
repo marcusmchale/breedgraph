@@ -72,7 +72,10 @@ input GermplasmUpdate {
 }
 
 extend type Mutation {
-    germplasmCreateEntry(entry: GermplasmInput!): BooleanPayload
+    germplasmCreateEntry(
+        entry: GermplasmInput!
+        controlTeamId: ID!
+    ): BooleanPayload
     germplasmUpdateEntry(entry: GermplasmUpdate!): BooleanPayload
     germplasmDeleteEntry(entryId: ID!): BooleanPayload
 }

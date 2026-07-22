@@ -41,7 +41,10 @@ extend type Mutation {
     Submission Payloads include a key, the data is processed asynchronously
     Poll the datasetsSubmission using the returned submission ID for status reports.
     """
-    datasetsCreate(dataset: DatasetInput!): SubmissionIdPayload!
+    datasetsCreate(
+        dataset: DatasetInput!
+        controlTeamId: ID!
+    ): SubmissionIdPayload!
     datasetsUpdate(dataset: DatasetUpdate!): SubmissionIdPayload!
     
     datasetsAddRecords(datasetId: ID!, records: [RecordInput!]): SubmissionIdPayload!

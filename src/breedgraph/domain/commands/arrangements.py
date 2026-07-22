@@ -4,6 +4,7 @@ from typing import List
 
 class CreateLayout(Command):
     agent_id: int
+    write_team: int | None = None
 
     location_id: int
     type_id: int

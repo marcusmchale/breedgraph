@@ -22,7 +22,7 @@ async def test_create_and_get(
     initial_position = {
         'locationId': location_id
     }
-    response = await post_to_create_unit(client, login_token, unit=unit_input, position=initial_position)
+    response = await post_to_create_unit(client, login_token, unit=unit_input, control_team_id=block_build_context['team_id'], position=initial_position)
     payload = get_verified_payload(response, "blocksCreateUnit")
     assert_payload_success(payload)
 
@@ -64,7 +64,12 @@ async def test_extend_block(
         'name': rhizosphere_unit_name ,
         'parentIds':[tree_unit_id]
     }
-    add_rhizosphere_response = await post_to_create_unit(client, login_token, unit=rhizosphere_unit_input)
+    add_rhizosphere_response = await post_to_create_unit(
+        client,
+        login_token,
+        unit=rhizosphere_unit_input,
+        control_team_id=block_build_context['team_id']
+    )
     add_rhizosphere_payload = get_verified_payload(add_rhizosphere_response, "blocksCreateUnit")
     assert_payload_success(add_rhizosphere_payload)
 
@@ -77,7 +82,12 @@ async def test_extend_block(
     position = {
         'locationId': location_id
     }
-    add_field_response = await post_to_create_unit(client, login_token, unit=field_unit_input, position=position)
+    add_field_response = await post_to_create_unit(
+        client, login_token,
+        unit=field_unit_input,
+        position=position,
+        control_team_id=block_build_context['team_id']
+    )
     add_field_payload = get_verified_payload(add_field_response, "blocksCreateUnit")
     assert_payload_success(add_field_payload)
 

@@ -61,9 +61,10 @@ class AbstractUnitOfWorkFactory(ABC):
     async def get_uow(
             self,
             user_id: int|None = None,
-            redacted: bool = True
+            redacted: bool = True,
+            write_team: int | None = None
     ) -> AsyncGenerator[AbstractUnitHolder, None]:
-        async with self._get_uow(user_id=user_id, redacted=redacted) as uow:
+        async with self._get_uow(user_id=user_id, redacted=redacted, write_team=write_team) as uow:
             try:
                 yield uow
             except Exception as e:
@@ -78,7 +79,8 @@ class AbstractUnitOfWorkFactory(ABC):
     def _get_uow(
             self,
             user_id: int|None = None,
-            redacted: bool = True
+            redacted: bool = True,
+            write_team: int | None = None
     ) -> AbstractAsyncContextManager[AbstractUnitHolder]:
         ...
 

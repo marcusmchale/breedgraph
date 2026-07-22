@@ -141,11 +141,12 @@ async def start_file_ref_update(
 async def create_legal_reference(
         _,
         info,
-        reference: dict
+        reference: dict,
+        control_team_id: int | None = None
 ) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates legal reference')
-    cmd = CreateLegalReference(agent_id=user_id, **reference)
+    cmd = CreateLegalReference(agent_id=user_id, write_team=control_team_id, **reference)
     reference_id: int = await info.context['bus'].handle(cmd)
     return reference_id
 
@@ -156,11 +157,12 @@ async def create_legal_reference(
 async def create_external_reference(
         _,
         info,
-        reference: dict
+        reference: dict,
+        control_team_id: int | None = None
 ) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates external reference')
-    cmd = CreateExternalReference(agent_id=user_id, **reference)
+    cmd = CreateExternalReference(agent_id=user_id, write_team=control_team_id, **reference)
     reference_id: int = await info.context['bus'].handle(cmd)
     return reference_id
 
@@ -170,12 +172,13 @@ async def create_external_reference(
 async def create_external_data_reference(
         _,
         info,
-        reference: dict
+        reference: dict,
+        control_team_id: int | None = None
 ) -> int:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} creates external data reference')
     json_schema = reference.pop('schema')
-    cmd = CreateExternalDataReference(agent_id=user_id, **reference, json_schema=json_schema)
+    cmd = CreateExternalDataReference(agent_id=user_id, write_team=control_team_id, **reference, json_schema=json_schema)
     await info.context['bus'].handle(cmd)
     reference_id: int = await info.context['bus'].handle(cmd)
     return reference_id
@@ -187,7 +190,8 @@ async def create_external_data_reference(
 async def create_file_reference(
         _,
         info,
-        reference: dict
+        reference: dict,
+        control_team_id: int | None = None
 ) -> str:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
@@ -208,6 +212,7 @@ async def create_file_reference(
 
     cmd = CreateFileReference(
         agent_id=user_id,
+        write_team=control_team_id,
         description=reference.get('description'),
         filename=file.filename,
         content_type=file.content_type,
@@ -235,7 +240,8 @@ async def create_file_reference(
 async def create_data_file_reference(
         _,
         info,
-        reference: dict
+        reference: dict,
+        control_team_id: int | None = None
 ) -> str:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
@@ -255,6 +261,7 @@ async def create_data_file_reference(
     )
     cmd = CreateDataFileReference(
         agent_id=user_id,
+        write_team=control_team_id,
         description=reference.get('description'),
         filename=file.filename,
         content_type=file.content_type,
@@ -350,6 +357,7 @@ async def update_file_reference(
     )
     return key
 
+
 @graphql_mutation.field("referencesUpdateDataFile")
 @graphql_payload
 @require_authentication
@@ -379,6 +387,7 @@ async def update_file_data_reference(
         cmd=cmd
     )
     return key
+
 
 @graphql_mutation.field("referencesDelete")
 @graphql_payload

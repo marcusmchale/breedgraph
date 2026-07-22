@@ -18,12 +18,13 @@ from . import graphql_mutation
 async def create_program(
         _,
         info,
-        program: dict
+        program: dict,
+        control_team_id: int | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create program: {program} by user {user_id}")
 
-    cmd = CreateProgram(agent_id=user_id, **program)
+    cmd = CreateProgram(agent_id=user_id, write_team=control_team_id, **program)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -69,13 +70,15 @@ async def delete_program(
 async def create_trial(
         _,
         info,
-        trial: dict
+        trial: dict,
+        control_team_id: int | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
 
     logger.debug(f"Create trial: {trial.get('name')} in program {trial.get('program_id')} by user {user_id}")
     cmd = CreateTrial(
         agent_id=user_id,
+        write_team=control_team_id,
         **trial
     )
     await info.context['bus'].handle(cmd)
@@ -133,13 +136,15 @@ async def delete_trial(
 async def create_study(
         _,
         info,
-        study: dict
+        study: dict,
+        control_team_id: int | None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create study: {study.get('name')} in trial {study.get('trial_id')} by user {user_id}")
 
     cmd = CreateStudy(
         agent_id=user_id,
+        write_team=control_team_id,
         trial_id=study.get('trial_id'),
         name=study.get('name'),
         fullname=study.get('fullname'),

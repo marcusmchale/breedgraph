@@ -3,7 +3,6 @@ from neo4j.exceptions import ResultNotSingleError
 from collections import defaultdict
 from dataclasses import fields
 
-from breedgraph.domain.model import LifecyclePhase
 from breedgraph.domain.model.ontology import (
     Version,
     OntologyEntryLabel,

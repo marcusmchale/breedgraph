@@ -5,12 +5,16 @@ from breedgraph.domain.model.references import DataFormat
 
 class CreateLegalReference(Command):
     agent_id: int
+    write_team: int | None = None
+
     description: str | None = None
     
     text: str
 
 class CreateExternalReference(Command):
     agent_id: int
+    write_team: int | None = None
+
     description: str | None = None
     
     url: str
@@ -18,6 +22,8 @@ class CreateExternalReference(Command):
 
 class CreateExternalDataReference(Command):
     agent_id: int
+    write_team: int | None = None
+
     description: str | None = None
     
     url: str
@@ -28,6 +34,8 @@ class CreateExternalDataReference(Command):
 
 class CreateFileReference(Command):
     agent_id: int
+    write_team: int | None = None
+
     description: str | None = None
 
     filename: str
@@ -36,6 +44,8 @@ class CreateFileReference(Command):
     
 class CreateDataFileReference(Command):
     agent_id: int
+    write_team: int | None = None
+
     description: str | None = None
 
     filename: str

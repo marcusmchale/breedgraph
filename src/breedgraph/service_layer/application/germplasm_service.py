@@ -50,12 +50,14 @@ class GermplasmApplicationService:
             self,
             persistence_service: GermplasmPersistenceService,
             access_control_service: AbstractAccessControlService,
-            release: ReadRelease = ReadRelease.PRIVATE
+            release: ReadRelease = ReadRelease.PRIVATE,
+            write_team: int|None = None
     ):
         self.persistence = persistence_service
         self.access_control = access_control_service
         self.release = release
         self.events: List[Event] = []
+        self.write_team = write_team
 
     @property
     def user_id(self):
@@ -89,10 +91,11 @@ class GermplasmApplicationService:
         # Create and persist entry
         stored_entry = await self.persistence.create_entry(entry)
 
-        # Set up access controls for the new entry using stored teams
+        # Set up access controls for the new entry
+        control_teams = self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team }
         await self.access_control.set_controls(
             models=stored_entry,
-            control_teams=self.access_teams[Access.WRITE],
+            control_teams=control_teams,
             release=self.release
         )
         # Record write stamp
@@ -344,7 +347,7 @@ class GermplasmApplicationService:
 
         logger.debug(f"Adding source relationship: {source_id} -[{source_type}]> {sink_id}")
 
-        # Check that user has WRITE access to sink and READ access to source using stored context
+        # Check that user has WRITE or CURATE access to sink and READ access to source using stored context
         controllers = await self.access_control.get_controllers(
             label=ControlledModelLabel.GERMPLASM,
             model_ids=[sink_id, source_id]
@@ -353,11 +356,12 @@ class GermplasmApplicationService:
         sink_controller = controllers.get(sink_id)
         source_controller = controllers.get(source_id)
 
-        if sink_controller and not sink_controller.has_access(
-                Access.WRITE, self.user_id, self.access_teams[Access.WRITE]
-        ):
+        if sink_controller and not any([
+            sink_controller.has_access(Access.WRITE, self.user_id, self.access_teams[Access.WRITE]),
+            sink_controller.has_access(Access.CURATE, self.user_id, self.access_teams[Access.CURATE]),
+        ]):
             raise IllegalOperationError(
-                f"User {self.user_id} does not have permission to write source relationships to sink germplasm entry {sink_id}"
+                f"User {self.user_id} does not have permission to write or curate source relationships to sink germplasm entry {sink_id}"
             )
 
         if source_controller and not source_controller.has_access(
