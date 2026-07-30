@@ -46,12 +46,12 @@ async def post_to_get_germplasm_entries(
     json={
         "query": (
             " query ( "
+            "  $ids: [ID!]"
             "  $names: [String!]"
-            "  $entryIds: [ID!]"
             " ) { "
             "  germplasmEntries( "
             "    names: $names "
-            "    entryIds: $entryIds "
+            "    ids: $ids "
             "  ) { "
             "    status, "
             "    result { "
@@ -66,7 +66,7 @@ async def post_to_get_germplasm_entries(
         ),
         "variables": {
             "names": names,
-            "entryIds": entry_ids
+            "ids": entry_ids
         }
     }
     headers = with_auth(

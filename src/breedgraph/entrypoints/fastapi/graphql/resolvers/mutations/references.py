@@ -295,6 +295,7 @@ async def update_legal_reference(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} updates legal reference')
+    reference['reference_id'] = reference.pop('id')
     cmd = UpdateLegalReference(agent_id=user_id, **reference)
     await info.context['bus'].handle(cmd)
     return True
@@ -310,6 +311,7 @@ async def update_external_reference(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} updates external reference')
+    reference['reference_id'] = reference.pop('id')
     cmd = UpdateExternalReference(agent_id=user_id, **reference)
     await info.context['bus'].handle(cmd)
     return True
@@ -325,6 +327,7 @@ async def update_external_data_reference(
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} updates external data reference')
     json_schema = reference.pop('schema')
+    reference['reference_id'] = reference.pop('id')
     cmd = UpdateExternalDataReference(agent_id=user_id, **reference, json_schema=json_schema)
     await info.context['bus'].handle(cmd)
     return True
@@ -343,7 +346,7 @@ async def update_file_reference(
     file = reference.get('file')
     cmd = UpdateFileReference(
         agent_id=user_id,
-        reference_id=reference.get('reference_id'),
+        reference_id=reference.get('id'),
         description=reference.get('description'),
         filename=file.filename if file else None,
         content_type = file.content_type if file else None,
@@ -351,7 +354,7 @@ async def update_file_reference(
     key = await start_file_ref_update(
         user_id=user_id,
         bus=bus,
-        reference_id=reference.get('reference_id'),
+        reference_id=reference.get('id'),
         file=file,
         cmd=cmd
     )
@@ -372,7 +375,7 @@ async def update_file_data_reference(
     file = reference.get('file')
     cmd = UpdateDataFileReference(
         agent_id=user_id,
-        reference_id=reference.get('reference_id'),
+        reference_id=reference.get('id'),
         description=reference.get('description'),
         filename=file.filename if file else None,
         content_type=file.content_type if file else None,
@@ -382,7 +385,7 @@ async def update_file_data_reference(
     key = await start_file_ref_update(
         user_id=user_id,
         bus=bus,
-        reference_id=reference.get('reference_id'),
+        reference_id=reference.get('id'),
         file=file,
         cmd=cmd
     )
@@ -395,11 +398,11 @@ async def update_file_data_reference(
 async def delete_references(
         _,
         info,
-        reference_ids: List[int]
+        ids: List[int]
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f'User {user_id} deletes references {reference_ids}')
-    cmd = DeleteReferences(agent_id=user_id, reference_ids=reference_ids)
+    logger.debug(f'User {user_id} deletes references {ids}')
+    cmd = DeleteReferences(agent_id=user_id, reference_ids=ids)
     await info.context['bus'].handle(cmd)
     return True
 

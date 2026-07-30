@@ -1,6 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass, asdict, field
 from enum import Enum
+from numpy import datetime64
 
 from breedgraph.domain.model.ontology import (
     Version,
@@ -10,6 +11,7 @@ from breedgraph.domain.model.ontology import (
     ScaleType,
     AxisType
 )
+
 
 from typing import ClassVar, Tuple, Dict, Any, List
 
@@ -215,7 +217,6 @@ class TitleOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TITLE
     terms: Tuple[int, ...] = ()
 
-
 @dataclass(frozen=True)
 class Ontology:
     version: Version
@@ -223,3 +224,24 @@ class Ontology:
 
     entries: Tuple[OntologyEntryOutput, ...]
     relationships: Tuple[OntologyRelationshipOutput, ...]
+
+@dataclass(frozen=True)
+class OntologyEntryPatch:
+    contributor: int
+    time: datetime64
+    entryId: int
+
+    attributes: dict|None = None
+
+    references_added: list[int]|None = None
+    references_removed: list[int]|None = None
+    authors_added: list[int] | None = None
+    authors_removed: list[int] | None = None
+
+@dataclass(frozen=True)
+class OntologyRelationshipPatch:
+    contributor: int
+    time: datetime64
+    relationshipId: int
+
+    attributes: dict|None = None

@@ -6,10 +6,10 @@ type Version {
 }
 
 type OntologyCommit {
-    version: Version
+    version: Version!
     comment: String
     # Set by the server
-    time: DateTime
+    time: DateTime!
     user: UserDisplay
     # References not handled
     licence: LegalReference
@@ -569,7 +569,6 @@ interface ObservationMethodInterface {
 }
 
 interface ObservationMethodRelationships {
-    observationType: ObservationMethodType!
     variables: [Variable!]
 }
 
@@ -654,7 +653,6 @@ interface ControlMethodInterface {
 }
 
 interface ControlMethodRelationships {
-    controlType: ControlMethodType!
     factors: [Factor!]
 }
 

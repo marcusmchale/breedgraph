@@ -25,7 +25,6 @@ class ControlledRepository(
     Generic[TAggregateInput, TControlledAggregate],
     BaseRepository[TAggregateInput, TControlledAggregate]
 ):
-    discovery_sensitive_filters: frozenset[str] = frozenset()
 
     def __init__(
             self,

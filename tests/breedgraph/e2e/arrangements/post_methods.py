@@ -36,7 +36,7 @@ async def post_to_create_layout(
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_arrangements(client, location_id: int=None, token:str = None):
+async def post_to_arrangements(client, location_id: int|None=None, token:str|None=None):
     json = {
         "query": (
             " query ( "
@@ -71,31 +71,31 @@ async def post_to_arrangements(client, location_id: int=None, token:str = None):
     return response
 
 
-async def post_to_layouts(client, layout_ids: List[int], token:str = None):
+async def post_to_layouts(client, layout_ids: List[int], token:str|None = None):
     json = {
         "query": (
             " query ("
-            "   $layoutIds : [ID!]!"
+            "   $ids : [ID!]!"
             " ) { "
             "  arrangementsLayouts ( "
-            "  layoutIds: $layoutIds,"
+            "  ids: $ids,"
             "  ) {"
             "    status, "
             "    result { "
             "       id, "
             "       name, "
             "       axes "     
-            "       type {id, name} "
-            "       parent {id, name, axes, type {id, name} } "
+            "       type { id, name } "
+            "       parent { id, name, axes, type {id, name} } "
             "       position, "
-            "       children {id, name, axes, type {id, name} } "
+            "       children { id, name, axes, type { id, name } } "
             "    }, "
             "    errors { name, message } "
             "   } "
             " } "
         ),
         "variables": {
-            "layoutIds": layout_ids,
+            "ids": layout_ids,
         }
     }
     headers = with_auth(

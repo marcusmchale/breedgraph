@@ -23,6 +23,7 @@ async def create_entry(_, info, entry: dict, control_team_id: int | None = None)
 async def update_entry(_, info, entry: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates germplasm entry: {entry}")
+    entry['germplasm_id'] = entry.pop('id')
     cmd = UpdateGermplasm(agent_id=user_id, **entry)
     await info.context['bus'].handle(cmd)
     return True
@@ -30,9 +31,9 @@ async def update_entry(_, info, entry: dict) -> bool:
 @graphql_mutation.field("germplasmDeleteEntry")
 @graphql_payload
 @require_authentication
-async def delete_entry(_, info, entry_id: int) -> bool:
+async def delete_entry(_, info, id: int) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} deletes germplasm entry: {entry_id}")
-    cmd = DeleteGermplasm(agent_id=user_id, id=entry_id)
+    logger.debug(f"User {user_id} deletes germplasm entry: {id}")
+    cmd = DeleteGermplasm(agent_id=user_id, germplasm_id=id)
     await info.context['bus'].handle(cmd)
     return True

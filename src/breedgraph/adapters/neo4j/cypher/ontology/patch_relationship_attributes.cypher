@@ -4,8 +4,8 @@ CREATE (patch: OntologyRelationshipPatch)
 SET patch += $attributes
 WITH patch
 // Link contributor
-CALL (patch) {{
-  MATCH (user: User {{id: $user_id}})
+CALL (patch) {
+  MATCH (user: User { id: $user_id })
   MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-  CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch)
-}}
+  CREATE (contributions)-[contributed:CONTRIBUTED {time:datetime.transaction()}]->(patch)
+}

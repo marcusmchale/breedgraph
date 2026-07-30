@@ -353,13 +353,13 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             query = queries['ontology']['save_relationship_lifecycles']
             await self.tx.run(query, lifecycles=lifecycles, user_id=user_id)
 
-    async def activate_drafts(self, version: Version):
+    async def activate_drafts(self, version: Version, user_id: int):
         query = queries['ontology']['activate_drafts']
-        await self.tx.run(query, version=version.packed_version)
+        await self.tx.run(query, version=version.packed_version, user_id=user_id)
 
-    async def remove_deprecated(self, version: Version):
+    async def remove_deprecated(self, version: Version, user_id: int):
         query = queries['ontology']['remove_deprecated']
-        await self.tx.run(query, version=version.packed_version)
+        await self.tx.run(query, version=version.packed_version, user_id=user_id)
 
     async def name_in_use(
             self,

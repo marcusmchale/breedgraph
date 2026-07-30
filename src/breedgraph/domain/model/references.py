@@ -9,6 +9,13 @@ from breedgraph.domain.model.controls import ControlledModel, ControlledAggregat
 
 from typing import ClassVar, Set, List, Dict, Any
 
+class ReferenceType(str, Enum):
+    LEGAL="LEGAL"
+    EXTERNAL = "EXTERNAL"
+    FILE = "FILE"
+    EXTERNAL_DATA = "EXTERNAL_DATA"
+    DATA_FILE = "DATA_FILE"
+
 class DataFormat(str, Enum):  # For complex types, this describes the format
     # todo implement handlers and json schema templates for these types
     FASTA = "FASTA"
@@ -29,6 +36,8 @@ class ReferenceBase(ABC):
             d['format'] = d['format'].value
         if 'schema' in d and d['schema'] is not None:
             d['schema'] = json.dumps(d['schema'])
+        if isinstance(d['type'], ReferenceType):
+            d['type'] = d['type'].value
         return d
 
     def to_output(self) -> Dict[str, Any]:
@@ -73,6 +82,7 @@ Legal reference
 """
 @dataclass(eq=False)
 class LegalReference(ReferenceBase):
+    type: ReferenceType = ReferenceType.LEGAL
     text: str = None
 
 @dataclass
@@ -95,6 +105,7 @@ External reference
 """
 @dataclass(eq=False)
 class ExternalReferenceBase(ReferenceBase):
+    type: ReferenceType = ReferenceType.EXTERNAL
     url: str = None
     external_id: str | None = None
 
@@ -117,6 +128,7 @@ File reference
 """
 @dataclass(eq=False)
 class FileReferenceBase(ReferenceBase):
+    type: ReferenceType = ReferenceType.FILE
     filename: str = None  # filename
     file_id: str | None = None # name in file datastore.
     content_type: str | None = None
@@ -157,12 +169,12 @@ class DataReferenceBase(ReferenceBase):
       "units": "columns"
     }
     """
-    schema: Dict[str, Any] = None
+    schema: Dict[str, Any] | None = None
 
 
 @dataclass(eq=False)
 class ExternalDataBase(DataReferenceBase, ExternalReferenceBase):
-    pass
+    type: ReferenceType = ReferenceType.EXTERNAL_DATA
 
 @dataclass
 class ExternalDataInput(ExternalDataBase, EnumLabeledModel):
@@ -174,7 +186,7 @@ class ExternalDataStored(ExternalDataBase, ExternalReferenceStored):
 
 @dataclass(eq=False)
 class DataFileBase(DataReferenceBase, FileReferenceBase):
-    pass
+    type: ReferenceType = ReferenceType.DATA_FILE
 
 @dataclass
 class DataFileInput(DataFileBase, EnumLabeledModel):

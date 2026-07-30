@@ -25,7 +25,7 @@ input LocationInput {
 }
 
 input LocationUpdate {
-    locationId: ID!
+    id: ID!
     name: String
     """ Optional code for location, e.g. zip-code """
     code: String
@@ -47,6 +47,6 @@ extend type Mutation {
         location: LocationUpdate!
     ): BooleanPayload!,
     regionsDeleteLocation(
-        locationId: ID!
+        id: ID!
     ): BooleanPayload!
 }

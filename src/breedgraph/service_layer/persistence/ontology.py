@@ -144,11 +144,11 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def activate_drafts(self, version: Version):
+    async def activate_drafts(self, version: Version, user_id: int):
         ...
 
     @abstractmethod
-    async def remove_deprecated(self, version: Version):
+    async def remove_deprecated(self, version: Version, user_id: int):
         ...
 
     @abstractmethod

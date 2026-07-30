@@ -3,6 +3,14 @@ interface ReferenceInterface {
     description: String
 }
 
+enum ReferenceType {
+    LEGAL
+    EXTERNAL
+    FILE
+    EXTERNAL_DATA
+    DATA_FILE
+}
+
 type LegalReference implements ReferenceInterface {
     id: ID!
     description: String

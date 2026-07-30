@@ -1,5 +1,5 @@
 # Program Mutations
-input CreateProgramInput {
+input ProgramInput {
     name: String!
     fullname: String
     description: String
@@ -7,8 +7,8 @@ input CreateProgramInput {
     referenceIds: [ID!] = []
 }
 
-input UpdateProgramInput {
-    programId: ID!
+input ProgramUpdate {
+    id: ID!
     name: String
     fullname: String
     description: String
@@ -17,7 +17,7 @@ input UpdateProgramInput {
 }
 
 # Trial Mutations
-input CreateTrialInput {
+input TrialInput {
     programId: ID!
     name: String!
     fullname: String
@@ -28,8 +28,8 @@ input CreateTrialInput {
     referenceIds: [ID!] = []
 }
 
-input UpdateTrialInput {
-    trialId: ID!
+input TrialUpdate {
+    id: ID!
     name: String
     fullname: String
     description: String
@@ -40,7 +40,7 @@ input UpdateTrialInput {
 }
 
 # Study Mutations
-input CreateStudyInput {
+input StudyInput {
     trialId: ID!
     name: String!
     fullname: String
@@ -54,8 +54,8 @@ input CreateStudyInput {
     referenceIds: [ID!] = []
 }
 
-input UpdateStudyInput {
-    studyId: ID!
+input StudyUpdate {
+    id: ID!
     name: String
     fullname: String
     description: String
@@ -72,25 +72,25 @@ input UpdateStudyInput {
 extend type Mutation {
     # Program mutations
     programsCreateProgram(
-        program: CreateProgramInput!
+        program: ProgramInput!
         controlTeamId: ID!
     ): BooleanPayload
-    programsUpdateProgram(program: UpdateProgramInput!): BooleanPayload
-    programsDeleteProgram(programId: ID!): BooleanPayload
+    programsUpdateProgram(program: ProgramUpdate!): BooleanPayload
+    programsDeleteProgram(id: ID!): BooleanPayload
 
     # Trial mutations
     programsCreateTrial(
-        trial: CreateTrialInput!
+        trial: TrialInput!
         controlTeamId: ID!
     ): BooleanPayload
-    programsUpdateTrial(trial: UpdateTrialInput!): BooleanPayload
-    programsDeleteTrial(trialId: ID!): BooleanPayload
+    programsUpdateTrial(trial: TrialUpdate!): BooleanPayload
+    programsDeleteTrial(id: ID!): BooleanPayload
 
     # Study mutations
     programsCreateStudy(
-        study: CreateStudyInput!
+        study: StudyInput!
         controlTeamId: ID!
     ): BooleanPayload
-    programsUpdateStudy(study: UpdateStudyInput!): BooleanPayload
-    programsDeleteStudy(studyId: ID!): BooleanPayload
+    programsUpdateStudy(study: StudyUpdate!): BooleanPayload
+    programsDeleteStudy(id: ID!): BooleanPayload
 }

@@ -7,7 +7,7 @@ input RecordInput {
 }
 
 input RecordUpdate {
-    recordId: ID!
+    id: ID!
     unitId: ID
     value: String
     start: DateTime
@@ -28,7 +28,7 @@ input DatasetUpdate {
     """
     Optionally provide a list of records to update
     """
-    datasetId: ID!
+    id: ID!
     studyId: ID
     conceptId: ID
     records: [RecordUpdate!]!
@@ -46,9 +46,7 @@ extend type Mutation {
         controlTeamId: ID!
     ): SubmissionIdPayload!
     datasetsUpdate(dataset: DatasetUpdate!): SubmissionIdPayload!
-    
-    datasetsAddRecords(datasetId: ID!, records: [RecordInput!]): SubmissionIdPayload!
-
+    datasetsAddRecords(id: ID!, records: [RecordInput!]): SubmissionIdPayload!
     """Delete records from a dataset"""
-    datasetsRemoveRecords(datasetId: ID!, recordIds: [ID!]!): BooleanPayload!
+    datasetsRemoveRecords(id: ID!, recordIds: [ID!]!): BooleanPayload!
 }

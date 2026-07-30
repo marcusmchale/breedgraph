@@ -25,10 +25,10 @@ graphql_resolvers.register_type_resolvers(germplasm_entry, germplasm_relationshi
 async def get_germplasm_entries(
         _,
         info,
-        entry_ids: List[int] = None,
-        names: List[str] = None,
+        ids: List[int]|None = None,
+        names: List[str]|None = None,
 ) -> List[GermplasmOutput]:
-    await update_germplasm_map(info.context, entry_ids=entry_ids, names=names)
+    await update_germplasm_map(info.context, entry_ids=ids, names=names)
     return [value for key, value in info.context.get('germplasm_map').items()]
 
 @graphql_query.field("germplasmCrops")

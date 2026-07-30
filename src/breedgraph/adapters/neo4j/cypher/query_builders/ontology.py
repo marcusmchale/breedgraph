@@ -73,7 +73,7 @@ def patch_ontology_entry(label: OntologyEntryLabel):
     SET patch += $params
     WITH entry, patch
     // Link user as contributor
-    CALL (entry) {{
+    CALL (patch) {{
       MATCH (user: User {{id: $user_id}})
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
       CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch)

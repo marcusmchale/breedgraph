@@ -55,7 +55,7 @@ async def update_unit(
     logger.debug(f"User {user_id} updates unit: {unit}")
     cmd = UpdateUnit(
         agent_id=user_id,
-        unit_id=unit.get('unit_id'),
+        unit_id=unit.get('id'),
         name=unit.get('name'),
         description=unit.get('description'),
         subject_id=unit.get('subject_id'),
@@ -72,11 +72,11 @@ async def update_unit(
 async def delete_unit(
         _,
         info,
-        unit_id: int
+        id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} deletes unit: {unit_id}")
-    cmd = DeleteUnit(agent_id=user_id, unit_id=unit_id)
+    logger.debug(f"User {user_id} deletes unit: {id}")
+    cmd = DeleteUnit(agent_id=user_id, unit_id=id)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -87,14 +87,14 @@ async def delete_unit(
 async def add_position(
         _,
         info,
-        unit_id: int,
+        id: int,
         position: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} adds position: {unit_id}: {position}")
+    logger.debug(f"User {user_id} adds position: {id}: {position}")
     cmd = AddPosition(
         agent_id=user_id,
-        unit_id=unit_id,
+        unit_id=id,
         **position
     )
     await info.context['bus'].handle(cmd)
@@ -106,14 +106,14 @@ async def add_position(
 async def remove_position(
         _,
         info,
-        unit_id: int,
+        id: int,
         position: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} removes position: {unit_id}: {position}")
+    logger.debug(f"User {user_id} removes position: {id}: {position}")
     cmd = RemovePosition(
         agent_id=user_id,
-        unit_id=unit_id,
+        unit_id=id,
         **position
     )
     await info.context['bus'].handle(cmd)

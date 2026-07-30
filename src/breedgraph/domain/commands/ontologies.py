@@ -12,29 +12,15 @@ class CommitOntologyVersion(Command):
     licence: int|None = None
     copyright: int|None = None
 
-class ActivateOntologyEntries(Command):
-    agent_id: int
-    entry_ids: List[int]
 
 class DeprecateOntologyEntries(Command):
     agent_id: int
     entry_ids: List[int]
 
-class RemoveOntologyEntries(Command):
+class CancelDeprecateOntologyEntries(Command):
     agent_id: int
     entry_ids: List[int]
 
-class ActivateOntologyRelationships(Command):
-    agent_id: int
-    relationship_ids: List[int]
-
-class DeprecateOntologyRelationships(Command):
-    agent_id: int
-    relationship_ids: List[int]
-
-class RemoveOntologyRelationships(Command):
-    agent_id: int
-    relationship_ids: List[int]
 
 class CreateEntryBase(BaseModel):
     agent_id: int
@@ -123,7 +109,7 @@ class CreateLayoutType(Command, CreateEntryBase):
     term_ids: List[int] | None = None
 
 class UpdateEntryBase(BaseModel):
-    id: int
+    ontology_entry_id: int
     name: str | None = None
 
 class UpdateTerm(UpdateEntryBase, CreateTerm):

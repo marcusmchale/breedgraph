@@ -41,14 +41,13 @@ api = [
 
 # Archive worker dependencies
 worker = [
-    "requests~=2.34.2",      # For API calls to web server
-    "click~=8.1.0",          # For CLI interface (recommended for workers)
+    "httpx==0.28.1",
+    "aiofiles~=25.1.0"
 ]
 
 test = [
     "breedgraph[api]",
     "breedgraph[worker]",
-    "httpx==0.28.1",
     "pytest~=9.1.1",
     "pytest-env~=1.6.0",
     "requests~=2.34.2",
@@ -57,13 +56,15 @@ test = [
     "asgi-lifespan~=2.1.0",
 ]
 
-server = [ "uvicorn~=0.49.0" ]
+server = [
+    "breedgraph[api]",
+    "uvicorn~=0.49.0"
+]
 
 dev = [
     "breedgraph[test]",
     "breedgraph[server]"
 ]
-
 
 [tool.setuptools.packages.find]
 where = ["src"]

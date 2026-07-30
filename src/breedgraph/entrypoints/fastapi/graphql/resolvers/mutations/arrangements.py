@@ -42,7 +42,7 @@ async def update_layout(
     logger.debug(f"User {user_id} updating layout: {layout}")
     cmd = UpdateLayout(
         agent_id=user_id,
-        layout_id=layout.get('layout_id'),
+        layout_id=layout.get('id'),
         name=layout.get('name'),
         type_id=layout.get('type_id'),
         location_id=layout.get('location_id'),
@@ -59,13 +59,13 @@ async def update_layout(
 async def delete_layout(
         _,
         info,
-        layout_id: int
+        id: int
 ) -> bool:
     user_id: int = info.context.get('user_id')
-    logger.debug(f"User {user_id} deleting layout: {layout_id}")
+    logger.debug(f"User {user_id} deleting layout: {id}")
     cmd = DeleteLayout(
         agent_id=user_id,
-        layout_id=layout_id
+        layout_id=id
     )
     await info.context['bus'].handle(cmd)
     return True

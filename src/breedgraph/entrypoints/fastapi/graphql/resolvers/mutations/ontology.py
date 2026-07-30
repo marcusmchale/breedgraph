@@ -1,8 +1,8 @@
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.ontologies import (
     CommitOntologyVersion,
-    ActivateOntologyEntries, DeprecateOntologyEntries, RemoveOntologyEntries,
-    ActivateOntologyRelationships, DeprecateOntologyRelationships, RemoveOntologyRelationships,
+    DeprecateOntologyEntries, CancelDeprecateOntologyEntries,
+
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
     CreateScale, CreateScaleCategory, CreateObservationMethod, CreateVariable,
     CreateControlMethod, CreateFactor, CreateEventType,
@@ -29,8 +29,8 @@ async def commit_version(
         info,
         version_change: VersionChange = VersionChange.PATCH,
         comment: str = '',
-        licence_id: int = None,
-        copyright_id: int = None
+        licence_id: int|None = None,
+        copyright_id: int|None = None
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} commits {version_change} change to ontology ")
@@ -44,73 +44,40 @@ async def commit_version(
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("ontologyActivateEntries")
-@graphql_payload
-@require_authentication
-async def activate_entries(
-        _,
-        info,
-        entry_ids: List[int]
-) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks entries {entry_ids} as active")
-    cmd = ActivateOntologyEntries(
-        agent_id=user_id,
-        entry_ids=entry_ids
-    )
-    await info.context['bus'].handle(cmd)
-    return True
-
 @graphql_mutation.field("ontologyDeprecateEntries")
 @graphql_payload
 @require_authentication
 async def deprecate_entries(
         _,
         info,
-        entry_ids: List[int] | None = None
+        ids: List[int]
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks entries {entry_ids} as deprecated")
+    logger.debug(f"User {user_id} marks entries {ids} as deprecated")
     cmd = DeprecateOntologyEntries(
         agent_id=user_id,
-        entry_ids=entry_ids
+        entry_ids=ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("ontologyActivateRelationships")
+@graphql_mutation.field("ontologyCancelDeprecateEntries")
 @graphql_payload
 @require_authentication
-async def activate_relationships(
+async def cancel_deprecate_entries(
         _,
         info,
-        relationship_ids: List[int]
+        ids: List[int]
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks relationships {relationship_ids} as active")
-    cmd = ActivateOntologyRelationships(
+    logger.debug(f"User {user_id} cancels deprecation of entries {ids}")
+    cmd = CancelDeprecateOntologyEntries(
         agent_id=user_id,
-        relationship_ids=relationship_ids
+        entry_ids=ids
     )
     await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("ontologyDeprecateRelationships")
-@graphql_payload
-@require_authentication
-async def deprecate_relationships(
-        _,
-        info,
-        relationship_ids: List[int]
-) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} marks relationships {relationship_ids} as deprecated")
-    cmd = DeprecateOntologyRelationships(
-        agent_id=user_id,
-        relationship_ids=relationship_ids
-    )
-    await info.context['bus'].handle(cmd)
-    return True
 
 @graphql_mutation.field("ontologyCreateTerm")
 @graphql_payload
@@ -258,6 +225,7 @@ async def create_layout_type(_, info, layout_type: dict) -> bool:
 async def update_term(_, info, term: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates term: {term}")
+    term['ontology_entry_id'] = term.pop('id')
     cmd = UpdateTerm(agent_id=user_id, **term)
     await info.context['bus'].handle(cmd)
     return True
@@ -268,6 +236,7 @@ async def update_term(_, info, term: dict) -> bool:
 async def update_subject(_, info, subject: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates subject: {subject}")
+    subject['ontology_entry_id'] = subject.pop('id')
     cmd = UpdateSubject(agent_id=user_id, **subject)
     await info.context['bus'].handle(cmd)
     return True
@@ -278,6 +247,7 @@ async def update_subject(_, info, subject: dict) -> bool:
 async def update_trait(_, info, trait: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates trait: {trait}")
+    trait['ontology_entry_id'] = trait.pop('id')
     cmd = UpdateTrait(agent_id=user_id, **trait)
     await info.context['bus'].handle(cmd)
     return True
@@ -288,6 +258,7 @@ async def update_trait(_, info, trait: dict) -> bool:
 async def update_condition(_, info, condition: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates condition: {condition}")
+    condition['ontology_entry_id'] = condition.pop('id')
     cmd = UpdateCondition(agent_id=user_id, **condition)
     await info.context['bus'].handle(cmd)
     return True
@@ -298,6 +269,7 @@ async def update_condition(_, info, condition: dict) -> bool:
 async def update_scale(_, info, scale: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates scale: {scale}")
+    scale['ontology_entry_id'] = scale.pop('id')
     cmd = UpdateScale(agent_id=user_id, **scale)
     await info.context['bus'].handle(cmd)
     return True
@@ -308,6 +280,7 @@ async def update_scale(_, info, scale: dict) -> bool:
 async def update_category(_, info, category: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates scale category: {category}")
+    category['ontology_entry_id'] = category.pop('id')
     cmd = UpdateCategory(agent_id=user_id, **category)
     await info.context['bus'].handle(cmd)
     return True
@@ -318,6 +291,7 @@ async def update_category(_, info, category: dict) -> bool:
 async def update_observation_method(_, info, observation_method: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates observation method: {observation_method}")
+    observation_method['ontology_entry_id'] = observation_method.pop('id')
     cmd = UpdateObservationMethod(agent_id=user_id, **observation_method)
     await info.context['bus'].handle(cmd)
     return True
@@ -328,6 +302,7 @@ async def update_observation_method(_, info, observation_method: dict) -> bool:
 async def update_variable(_, info, variable: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates variable: {variable}")
+    variable['ontology_entry_id'] = variable.pop('id')
     cmd = UpdateVariable(agent_id=user_id, **variable)
     await info.context['bus'].handle(cmd)
     return True
@@ -338,6 +313,7 @@ async def update_variable(_, info, variable: dict) -> bool:
 async def update_control_method(_, info, control_method: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates control method: {control_method}")
+    control_method['ontology_entry_id'] = control_method.pop('id')
     cmd = UpdateControlMethod(agent_id=user_id, **control_method)
     await info.context['bus'].handle(cmd)
     return True
@@ -348,6 +324,7 @@ async def update_control_method(_, info, control_method: dict) -> bool:
 async def update_factor(_, info, factor: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates factor: {factor}")
+    factor['ontology_entry_id'] = factor.pop('id')
     cmd = UpdateFactor(agent_id=user_id, **factor)
     await info.context['bus'].handle(cmd)
     return True
@@ -358,6 +335,7 @@ async def update_factor(_, info, factor: dict) -> bool:
 async def update_event(_, info, event: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates event: {event}")
+    event['ontology_entry_id'] = event.pop('id')
     cmd = UpdateEventType(agent_id=user_id, **event)
     await info.context['bus'].handle(cmd)
     return True
@@ -368,6 +346,7 @@ async def update_event(_, info, event: dict) -> bool:
 async def update_location_type(_, info, location_type: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates location type: {location_type}")
+    location_type['ontology_entry_id'] = location_type.pop('id')
     cmd = UpdateLocationType(agent_id=user_id, **location_type)
     await info.context['bus'].handle(cmd)
     return True
@@ -378,6 +357,7 @@ async def update_location_type(_, info, location_type: dict) -> bool:
 async def update_design(_, info, design: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates design: {design}")
+    design['ontology_entry_id'] = design.pop('id')
     cmd = UpdateDesign(agent_id=user_id, **design)
     await info.context['bus'].handle(cmd)
     return True
@@ -388,6 +368,7 @@ async def update_design(_, info, design: dict) -> bool:
 async def update_layout_type(_, info, layout_type: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updates layout type: {layout_type}")
+    layout_type['ontology_entry_id'] = layout_type.pop('id')
     cmd = UpdateLayoutType(agent_id=user_id, **layout_type)
     await info.context['bus'].handle(cmd)
     return True

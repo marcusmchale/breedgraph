@@ -466,13 +466,10 @@ extend type Mutation {
     ontologyUpdateLocationType(locationType: LocationTypeUpdate!): BooleanPayload!
     ontologyUpdateDesign(design: DesignUpdate!): BooleanPayload!
     ontologyUpdateLayoutType(layoutType: LayoutTypeUpdate!): BooleanPayload!
-    
-    ontologyActivateEntries(entryIds: [ID!]!): BooleanPayload!
-    ontologyDeprecateEntries(entryIds: [ID!]!): BooleanPayload!
-    ontologyRemoveEntries(entryIds: [ID!]!): BooleanPayload!
-    ontologyActivateRelationships(relationshipIds: [ID!]!): BooleanPayload!
-    ontologyDeprecateRelationships(relationshipIds: [ID!]!): BooleanPayload!
-    ontologyRemoveRelationships(relationshipIds: [ID!]!): BooleanPayload!
+
+    ontologyDeprecateEntries(ids: [ID!]!): BooleanPayload!
+    ontologyCancelDeprecateEntries(ids: [ID!]!): BooleanPayload!
+
     ontologyCommitVersion(
         versionChange: VersionChange!,
         comment: String,

@@ -39,11 +39,11 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
     json={
         "query": (
             " mutation ( "
-            "  $unitId: ID! "
+            "  $id: ID! "
             "  $position: PositionInput! "
             " ) { "
             "  blocksAddPosition( "
-            "    unitId: $unitId "
+            "    id: $id "
             "    position: $position "
             "  ) { "
             "    status, "
@@ -53,7 +53,7 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
             " } "
         ),
         "variables": {
-            "unitId": unit_id,
+            "id": unit_id,
             "position": position
         }
     }
@@ -65,7 +65,7 @@ async def post_to_add_position(client, token:str, unit_id: int, position: dict):
     return response
 
 
-async def post_to_blocks(client, token:str, location_ids: List[int] = None):
+async def post_to_blocks(client, token:str, location_ids: List[int]|None = None):
     json={
         "query": (
             " query ( "
@@ -103,10 +103,10 @@ async def post_to_units(client, unit_ids: List[int], token:str = None):
     json = {
         "query": (
             " query ("
-            "   $unitIds : [ID!]"
+            "   $ids : [ID!]"
             " ) { "
             "  blocksUnits ( "
-            "  unitIds: $unitIds,"
+            "  ids: $ids,"
             "  ) {"
             "    status, "
             "    result { "
@@ -120,7 +120,7 @@ async def post_to_units(client, unit_ids: List[int], token:str = None):
             " } "
         ),
         "variables": {
-            "unitIds": unit_ids,
+            "ids": unit_ids,
         }
     }
     headers = with_auth(

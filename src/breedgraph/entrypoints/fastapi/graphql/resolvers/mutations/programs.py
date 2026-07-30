@@ -39,7 +39,7 @@ async def update_program(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update program: {program} by user {user_id}")
-
+    program['program_id'] = program.pop('id')
     cmd = UpdateProgram(agent_id=user_id, **program)
     await info.context['bus'].handle(cmd)
     return True
@@ -51,14 +51,14 @@ async def update_program(
 async def delete_program(
         _,
         info,
-        program_id: int
+        id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete program: {program_id} by user {user_id}")
+    logger.debug(f"Delete program: {id} by user {user_id}")
 
     cmd = DeleteProgram(
         agent_id=user_id,
-        program_id=program_id
+        program_id=id
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -97,7 +97,7 @@ async def update_trial(
     logger.debug(f"Update trial: {trial.get('id')} by user {user_id}")
     cmd = UpdateTrial(
         agent_id=user_id,
-        trial_id=trial.get('trial_id'),
+        trial_id=trial.get('id'),
         name=trial.get('name'),
         fullname=trial.get('fullname'),
         description=trial.get('description'),
@@ -116,14 +116,14 @@ async def update_trial(
 async def delete_trial(
         _,
         info,
-        trial_id: int
+        id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete trial: {trial_id} by user {user_id}")
+    logger.debug(f"Delete trial: {id} by user {user_id}")
 
     cmd = DeleteTrial(
         agent_id=user_id,
-        trial_id=trial_id
+        trial_id=id
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -173,7 +173,7 @@ async def update_study(
 
     cmd = UpdateStudy(
         agent_id=user_id,
-        study_id=study.get('study_id'),
+        study_id=study.get('id'),
         name=study.get('name'),
         fullname=study.get('fullname'),
         description=study.get('description'),
@@ -194,14 +194,14 @@ async def update_study(
 async def delete_study(
         _,
         info,
-        study_id: int
+        id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete study: {study_id} by user {user_id}")
+    logger.debug(f"Delete study: {id} by user {user_id}")
 
     cmd = DeleteStudy(
         agent_id=user_id,
-        study_id=study_id
+        study_id=id
     )
     await info.context['bus'].handle(cmd)
     return True

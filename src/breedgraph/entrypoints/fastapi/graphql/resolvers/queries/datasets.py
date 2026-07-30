@@ -38,17 +38,17 @@ graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, d
 async def get_datasets(
         _,
         info,
+        ids: List[int]|None = None,
         study_ids: List[int]|None = None,
-        concept_ids: List[int]|None = None,
-        dataset_ids: List[int]|None = None
+        concept_ids: List[int]|None = None
 ) -> List[DatasetOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         datasets = [d.to_output() async for d in uow.repositories.datasets.get_all(
+            dataset_ids=ids,
             study_ids=study_ids,
-            concept_ids=concept_ids,
-            dataset_ids=dataset_ids
+            concept_ids=concept_ids
         )]
         return datasets
 
@@ -77,8 +77,8 @@ async def resolve_references(obj: dict, info):
 @graphql_query.field("datasetsSubmission")
 @graphql_payload
 @require_authentication
-async def get_submission(_, info, submission_id: str) :
-    return submission_id
+async def get_submission(_, info, id: str) :
+    return id
 
 @dataset_submission.field("data")
 async def resolve_submission_data(submission_id: str, info):

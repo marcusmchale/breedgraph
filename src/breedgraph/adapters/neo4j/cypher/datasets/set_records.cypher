@@ -12,25 +12,24 @@ ORDER BY cnt
     record.end_step = record_data['end_step']
   WITH record_data, record
   //Update Unit
-  CALL {
+  CALL (record_data, record)  {
     WITH record_data, record
     MATCH (record)-[for_unit:FOR_UNIT]->(unit:Unit)
     WHERE NOT unit.id = record_data['unit']
     DELETE for_unit
   }
-  CALL {
+  CALL (record_data, record)  {
     WITH record_data, record
     MATCH (unit:Unit {id: record_data['unit']})
     MERGE (record)-[:FOR_UNIT]->(unit)
   }
   // Update references
-  CALL {
-    WITH record_data, record
+  CALL (record_data, record) {
     MATCH (record)<-[reference_for:REFERENCE_FOR]-(reference:Reference)
     WHERE NOT reference.id in record_data['references']
     DELETE reference_for
   }
-  CALL {
+  CALL (record_data, record)  {
     WITH record_data, record
     MATCH (reference: Reference)
     WHERE reference.id in record_data['references']

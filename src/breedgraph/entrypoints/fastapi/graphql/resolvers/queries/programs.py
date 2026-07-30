@@ -43,16 +43,16 @@ async def get_programs(
 async def get_program(
         _,
         info,
-        program_id: int | None = None,
+        id: int | None = None,
         trial_id: int | None = None,
         study_id: int | None = None
 ) -> ProgramOutput:
-    if not program_id or trial_id or study_id:
+    if not id or trial_id or study_id:
         raise ValueError("Program, Trial or Study ID required to fetch a program")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(program_id=program_id, trial_id=trial_id, study_id=study_id)
+        program_stored = await uow.repositories.programs.get(program_id=id, trial_id=trial_id, study_id=study_id)
         return program_stored.to_output()
 
 @graphql_query.field("programsTrial")
@@ -61,16 +61,16 @@ async def get_program(
 async def get_trial(
         _,
         info,
-        trial_id: int | None = None,
+        id: int | None = None,
         study_id: int | None = None
 ) -> TrialOutput:
-    if not trial_id or study_id:
+    if not id or study_id:
         raise ValueError("Trial or Study ID required to fetch a trial")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(trial_id=trial_id, study_id=study_id)
-        trial_stored = program_stored.get_trial(trial_id=trial_id, study_id=study_id)
+        program_stored = await uow.repositories.programs.get(trial_id=id, study_id=study_id)
+        trial_stored = program_stored.get_trial(trial_id=id, study_id=study_id)
         return trial_stored.to_output()
 
 @graphql_query.field("programsStudy")
@@ -79,13 +79,13 @@ async def get_trial(
 async def get_study(
         _,
         info,
-        study_id: int
+        id: int
 ) -> StudyOutput:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(study_id=study_id)
-        study_stored = program_stored.get_study(study_id=study_id)
+        program_stored = await uow.repositories.programs.get(study_id=id)
+        study_stored = program_stored.get_study(study_id=id)
         return study_stored.to_output()
 
 

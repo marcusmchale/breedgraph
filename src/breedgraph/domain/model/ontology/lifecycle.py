@@ -87,6 +87,12 @@ class BaseLifecycle(ABC):
         self.deprecated = version
         self.removed = None
 
+    def cancel_deprecation(self) -> None:
+        """Set the deprecated version."""
+        if self.current_phase != LifecyclePhase.DEPRECATED:
+            raise ValueError(f"Cannot cancel deprecation from {self.current_phase.value}")
+        self.deprecated = None
+
     def set_version_removed(self, version: Version) -> None:
         """Set the removed version."""
         if self.current_phase != LifecyclePhase.DEPRECATED:

@@ -14,7 +14,7 @@ input LayoutInput {
 }
 
 input LayoutUpdate {
-    layoutId: ID!
+    id: ID!
     locationId: ID
     typeId: ID
     axes: [String!]
@@ -32,6 +32,6 @@ extend type Mutation {
         layout: LayoutUpdate!
     ): BooleanPayload!
     arrangementsDeleteLayout(
-        layoutId: ID!
+        id: ID!
     ): BooleanPayload!
 }

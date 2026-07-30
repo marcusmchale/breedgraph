@@ -214,12 +214,12 @@ async def post_to_get_entries(
         "query": (
             " query ( "
             "  $labels: [OntologyNodeLabel!]"
-            "  $entryIds: [ID!]"
+            "  $ids: [ID!]"
             "  $view: OntologyView "
             " ) { "
             "  ontologyEntries( "
             "    labels: $labels "
-            "    entryIds: $entryIds "
+            "    ids: $ids "
             "    view: $view "
             "  ) { "
             "    status "
@@ -246,7 +246,7 @@ async def post_to_get_entries(
         ),
         "variables": {
             "labels": [label.name for label in labels],
-            "entryIds": entry_ids,
+            "ids": entry_ids,
             "view": view.value
         }
     }

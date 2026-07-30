@@ -41,8 +41,9 @@ async def update_dataset(
         dataset: dict
 ) -> str:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} updates dataset ID: {dataset.get("dataset_id")}")
+    logger.debug(f"User {user_id} updates dataset ID: {dataset.get("id")}")
     bus = info.context.get('bus')
+    dataset['dataset_id'] = dataset.pop('id')
     key = await bus.state_store.store_submission(agent_id=user_id, submission=dataset)
     cmd = UpdateDataset(agent_id=user_id, submission_id=key)
     await bus.handle(cmd)
@@ -55,15 +56,15 @@ async def update_dataset(
 async def add_records(
         _,
         info,
-        dataset_id: int,
+        id: int,
         records: list[dict]
 ) -> str:
     user_id = info.context.get('user_id')
 
-    logger.debug(f"User {user_id} adds records to dataset {dataset_id}")
+    logger.debug(f"User {user_id} adds records to dataset {id}")
     bus = info.context.get('bus')
     key = await bus.state_store.store_submission(agent_id=user_id, submission={
-        "dataset_id": dataset_id,
+        "dataset_id": id,
         "records": records
     })
     cmd = AddRecords(agent_id=user_id, submission_id=key)
@@ -77,12 +78,12 @@ async def add_records(
 async def remove_records(
         _,
         info,
-        dataset_id: int,
+        id: int,
         record_ids: List[int]
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} removes records from dataset ID: {dataset_id}")
+    logger.debug(f"User {user_id} removes records from dataset ID: {id}")
     bus = info.context.get('bus')
-    cmd = RemoveRecords(agent_id=user_id, dataset_id=dataset_id, record_ids=record_ids)
+    cmd = RemoveRecords(agent_id=user_id, dataset_id=id, record_ids=record_ids)
     await bus.handle(cmd)
     return True

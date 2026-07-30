@@ -50,10 +50,10 @@ class CreateGermplasm(Command):
 class UpdateGermplasm(CreateGermplasm):
     agent_id: int
 
-    id: int
+    germplasm_id: int
     name: str | None = None
 
 class DeleteGermplasm(Command):
     agent_id: int
 
-    id: int
+    germplasm_id: int

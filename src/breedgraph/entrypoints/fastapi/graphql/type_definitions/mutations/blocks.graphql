@@ -35,7 +35,7 @@ input UnitInput {
 }
 
 input UnitUpdate {
-    unitId: ID!
+    id: ID!
     subjectId: ID
     germplasmId: ID
     name: String
@@ -51,13 +51,13 @@ extend type Mutation {
         position: PositionInput
     ): BooleanPayload!
     blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!
-    blocksDeleteUnit(unitId: ID!): BooleanPayload!
+    blocksDeleteUnit(id: ID!): BooleanPayload!
     blocksAddPosition(
-        unitId: ID!
+        id: ID!
         position: PositionInput!
     ): BooleanPayload!
     blocksRemovePosition(
-        unitId: ID!
+        id: ID!
         position: PositionInput!
     ): BooleanPayload!
 }

@@ -33,6 +33,7 @@ async def update_location(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} updating location: {location}")
+    location['location_id'] = location.pop('id')
     cmd = UpdateLocation(
         agent_id=user_id, **location
     )
@@ -46,12 +47,12 @@ async def update_location(
 async def delete_location(
         _,
         info,
-        location_id: int
+        id: int
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} deleting location: {location_id}")
+    logger.debug(f"User {user_id} deleting location: {id}")
     cmd = DeleteLocation(
-        agent_id=user_id, location_id=location_id
+        agent_id=user_id, location_id=id
     )
     await info.context['bus'].handle(cmd)
     return True

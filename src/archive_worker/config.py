@@ -11,6 +11,7 @@ if not ARCHIVE_DESTINATION:
     raise ValueError("ARCHIVE_DESTINATION environment variable is required")
 
 API_URL=os.environ.get('API_URL', 'http://localhost:8000')
+
 ARCHIVE_POLL_INTERVAL=int(os.environ.get('ARCHIVE_POLL_INTERVAL', 5))
 LOG_LEVEL=os.environ.get('LOG_LEVEL', 'INFO')
 

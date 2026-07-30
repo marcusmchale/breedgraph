@@ -89,10 +89,10 @@ async def post_to_locations(client, location_ids: List[int],  token:str = None):
     json = {
         "query": (
             " query ("
-            "   $locationIds : [ID!]!"
+            "   $ids : [ID!]!"
             " ) { "
             "  regionsLocations ( "
-            "    locationIds: $locationIds"
+            "    ids: $ids"
             "  ) {"
             "    status, "
             "    result { "
@@ -108,7 +108,7 @@ async def post_to_locations(client, location_ids: List[int],  token:str = None):
             " } "
         ),
         "variables": {
-            "locationIds": location_ids
+            "ids": location_ids
         }
     }
     headers = with_auth(

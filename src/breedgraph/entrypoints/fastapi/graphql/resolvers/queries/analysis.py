@@ -24,8 +24,8 @@ graphql_resolvers.register_type_resolvers(group_summary, analysis_submission, an
 @graphql_query.field("analysisSubmission")
 @graphql_payload
 @require_authentication
-async def get_submission(_, info, analysis_id: str):
-    return analysis_id
+async def get_submission(_, info, id: str):
+    return id
 
 @analysis_submission.field('status')
 async def resolve_status(analysis_id: str, info):

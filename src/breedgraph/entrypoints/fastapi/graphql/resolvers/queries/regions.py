@@ -41,10 +41,10 @@ async def get_regions(_, info) -> List[LocationOutput]:
 @graphql_query.field("regionsLocations")
 @graphql_payload
 @require_authentication
-async def get_locations(_, info, location_ids: List[int]|None = None) -> List[LocationOutput]:
-    await update_locations_map(info.context, location_ids=location_ids)
+async def get_locations(_, info, ids: List[int]|None = None) -> List[LocationOutput]:
+    await update_locations_map(info.context, location_ids=ids)
     locations_map = info.context.get('locations_map')
-    return [locations_map.get(i) for i in location_ids if i in locations_map]
+    return [locations_map.get(i) for i in ids if i in locations_map]
 
 @graphql_query.field("regionsLocationsByType")
 @graphql_payload

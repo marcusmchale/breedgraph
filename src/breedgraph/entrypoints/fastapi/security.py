@@ -23,6 +23,7 @@ class CSRFTokenManager:
     @staticmethod
     def set_token_cookie(response: Response, token: str) -> None:
         """Set CSRF token cookie on response"""
+        
         response.set_cookie(
             key="csrf_token",
             value=token,

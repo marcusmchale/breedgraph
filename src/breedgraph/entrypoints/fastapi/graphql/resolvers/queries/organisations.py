@@ -35,18 +35,18 @@ async def get_organisations(_, info) -> List[TeamOutput]:
 @graphql_query.field("organisationsTeam")
 @graphql_payload
 @require_authentication
-async def get_team(_, info, team_id: int) -> TeamOutput:
-    await update_teams_map(info.context, team_ids=[team_id])
+async def get_team(_, info, id: int) -> TeamOutput:
+    await update_teams_map(info.context, team_ids=[id])
     teams_map = info.context.get('teams_map')
-    return teams_map.get(team_id, None)
+    return teams_map.get(id, None)
 
 @graphql_query.field("organisationsTeams")
 @graphql_payload
 @require_authentication
-async def get_teams(_, info, team_ids: List[int]) -> List[TeamOutput]:
-    await update_teams_map(info.context, team_ids=team_ids)
+async def get_teams(_, info, ids: List[int]) -> List[TeamOutput]:
+    await update_teams_map(info.context, team_ids=ids)
     teams_map = info.context.get('teams_map')
-    return [teams_map.get(team_id) for team_id in team_ids if team_id in teams_map]
+    return [teams_map.get(team_id) for team_id in ids if team_id in teams_map]
 
 @team.field("parent")
 def resolve_parent(obj, info):
@@ -59,16 +59,6 @@ def resolve_children(obj, info):
 @team.field("affiliations")
 async def resolve_affiliations(obj, info):
     return obj.affiliations
-#    """Resolve affiliations for a team"""
-#    #user_id = info.context.get('user_id')
-    #bus = info.context.get('bus')
-    #async with bus.uow.get_uow(user_id=user_id) as uow:
-    #    organisation = await uow.repositories.organisations.get(team_id=obj.id)
-    #    if organisation is not None:
-    #        team_stored = organisation.get_team(obj.id)
-    #        if team_stored:
-    #            return team_stored.affiliations
-    #    return Affiliations()
 
 @affiliations.field("read")
 def resolve_read(obj, info):

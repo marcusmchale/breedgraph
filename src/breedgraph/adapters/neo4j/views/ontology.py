@@ -156,10 +156,6 @@ class Neo4jOntologyView(AbstractOntologyView):
         relationships = list()
         relationship_dicts = record.get('relationships')
         for relationship_dict in relationship_dicts:
-            if 'properties' in relationship_dict:
-                rank = relationship_dict.get('properties').get('rank')
-            else:
-                rank = None
             relationships.append(
                 OntologyRelationshipOutput(
                     label=OntologyRelationshipLabel(relationship_dict['relationship_type']),
@@ -168,7 +164,7 @@ class Neo4jOntologyView(AbstractOntologyView):
                     source_id=relationship_dict['source_id'],
                     target_id=relationship_dict['target_id'],
                     phase=RelationshipLifecycle(**relationship_dict['lifecycle']).current_phase,
-                    rank=rank,
+                    rank=relationship_dict.get('rank'),
                     view=view
                 )
             )
@@ -201,8 +197,6 @@ class Neo4jOntologyView(AbstractOntologyView):
         entry_ids: list[int] | None = None,
         labels: list[OntologyEntryLabel] | None = None
     ) -> List[OntologyEntryOutput]:
-        entries: List[OntologyEntryOutput] = []
-        
         async with await self.session.begin_transaction() as tx:
             if entry_ids:
                 if view == OntologyViewMode.EDITORIAL:
@@ -223,9 +217,26 @@ class Neo4jOntologyView(AbstractOntologyView):
                     'version': version.packed_version
                 }
             else:
-                raise ValueError("Must specify entry_ids or labels")
+                raise ValueError("Must specify entry_ids or labels to filter, otherwise just get the ontology")
 
             result: AsyncResult = await tx.run(query, **params)
-            async for record in result:
-                entries.append(self.record_to_entry(record, version, view))
-        return entries
+            return [self.record_to_entry(record, version, view) async for record in result]
+
+    async def _get_relationships(
+        self,
+        entry_ids: list[int],
+        version: Version,
+        view: OntologyViewMode
+    ) -> List[OntologyRelationshipOutput]:
+        async with await self.session.begin_transaction() as tx:
+            if view == OntologyViewMode.EDITORIAL:
+                query = queries['ontology']['ontology_relationships_editorial']
+            else:
+                query = queries['ontology']['ontology_relationships_published']
+            params = {
+                'entry_ids': entry_ids,
+                'version': version.packed_version
+            }
+            result: AsyncResult = await tx.run(query, **params)
+            record = await result.single(strict=True)
+            return self.record_to_relationships(record, version=version, view=view)

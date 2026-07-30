@@ -5,34 +5,34 @@ import os
 #DEV = os.environ.get('ENVIRONMENT', 'production') == 'development'
 DEV=False
 
-PROTOCOL = "http"
-SITE_NAME = 'BreedGraph'
-HOST_ADDRESS = 'localhost'
-HOST_PORT = 8000
-GQL_API_PATH = 'graphql'
-VUE_PORT = 8080
+PROTOCOL = os.environ.get("PROTOCOL", "http")
+SITE_NAME = os.environ.get("SITE_NAME", 'BreedGraph')
+HOST_ADDRESS = os.environ.get("HOST_ADDRESS", 'localhost')
+HOST_PORT = os.environ.get("HOST_PORT", 8000)
+GQL_API_PATH = os.environ.get("GRAPHQL_API_PATH", 'graphql')
+VUE_PORT = os.environ.get("VUE_PORT", 8080)
 
 MAIL_HOST = os.environ.get('MAIL_HOST')
 MAIL_PORT = os.environ.get('MAIL_PORT')
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-MAIL_USE_TLS = bool(int(os.environ.get('MAIL_USE_TLS')))
-
+MAIL_USE_TLS = bool(int(os.environ.get('MAIL_USE_TLS', 1)))
+MAIL_AUTHENTICATED = bool(int(os.environ.get('MAIL_AUTHENTICATED', 1)))
 
 def get_base_url():
-    if HOST_PORT != 80:
+    if not HOST_PORT in [80, 443]:
         return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/'
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 def get_vue_url():
-    if VUE_PORT != 80:
+    if not VUE_PORT in [80, 443]:
         return f'{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}/'
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 def get_download_endpoint():
-    if HOST_PORT != 80:
+    if not HOST_PORT in [80, 443]:
         return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/download?token='
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/download?token='

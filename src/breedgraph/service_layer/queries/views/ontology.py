@@ -3,7 +3,9 @@ from abc import ABC, abstractmethod
 from breedgraph.domain.model import LifecyclePhase
 from breedgraph.domain.model.ontology import Version, OntologyEntryLabel
 
-from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyViewMode
+from breedgraph.service_layer.queries.read_models import (
+    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
+)
 
 class AbstractOntologyView(ABC):
     DEFAULT_PHASES = [LifecyclePhase.ACTIVE]
@@ -61,3 +63,26 @@ class AbstractOntologyView(ABC):
     ) -> list[OntologyEntryOutput]:
         ...
 
+
+    """
+    Get relationships for updating the ontology,
+     typically just used to update the cache without refetching the whole ontology
+    """
+    async def get_relationships(
+            self,
+            entry_ids: list[int],
+            version: Version | None = None,
+            view: OntologyViewMode = OntologyViewMode.PUBLISHED
+    ) -> list[OntologyRelationshipOutput]:
+        if version is None:
+            version = await self._get_current_version()
+        return await self._get_relationships(entry_ids, version, view)
+
+    @abstractmethod
+    async def _get_relationships(
+            self,
+            entry_ids: list[int],
+            version: Version,
+            view: OntologyViewMode,
+    ) -> list[OntologyRelationshipOutput]:
+        ...

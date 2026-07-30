@@ -423,3 +423,27 @@ to include the required values for neo4j connection, mail hosting and log file c
   - change the /etc/neo4j/neo4j.conf line to specify which to run, e.g.
     - initial.dbms.default_database=test
 
+## deploy :
+
+### Build a wheelhouse and install from that 
+
+    cd path/to/breedgraph
+    python -m build
+    python -m pip download --only-binary=:all: --dest dist/wheelhouse_server dist/breedgraph-0.1.0-py3-none-any.whl[server]
+    scp -r dist/wheelhouse_server user@server:~/breedgraph_deployment
+
+then on the server, su to the user controlling breedgraph
+
+    cd /opt/breedgraph
+    python3 -m venv venv
+    . ./venv/bin/activate
+    python -m pip install --no-index --find-links wheelhouse_server/ breedgraph[server]
+  
+to run the scripts
+
+    /opt/breedgraph/venv/bin/activate
+    set -a
+    . /opt/breedgraph/breedgraph.env
+    set +a
+    ./setup_initial_data.py
+

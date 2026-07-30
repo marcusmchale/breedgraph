@@ -2,9 +2,10 @@ import csv
 import redis.asyncio as redis
 import json
 
+from pathlib import Path
 from neo4j import AsyncResult
 
-from pathlib import Path
+from breedgraph.config import COUNTRY_CODES_PATH
 
 from breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
 from breedgraph.domain.model.regions import LocationInput, LocationOutput
@@ -72,7 +73,7 @@ class RedisLoader:
                     )
 
         # e.g. https://unstats.un.org/unsd/methodology/m49/overview/
-        country_codes_path = Path('src/data/country_codes.csv')
+        country_codes_path = Path(COUNTRY_CODES_PATH)
         if country_codes_path.is_file():
             with open(country_codes_path) as country_codes_csv:
                 for row in csv.DictReader(country_codes_csv, delimiter=";"):

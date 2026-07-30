@@ -19,6 +19,8 @@ from .ontology import (
     DesignOutput,
     EventOutput,
     RoleOutput,
-    TitleOutput
+    TitleOutput,
+
+    OntologyEntryPatch
 )
 from .datasets import DatasetSummary

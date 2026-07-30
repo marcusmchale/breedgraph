@@ -107,15 +107,12 @@ async def init_neo4j(uow_factory) -> None:
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=system_account.user.id) as uow:
-        await uow.ontology.commit_version(
-            version_change=None,
-            comment="Initial version"
-        )
         country_type_input = LocationTypeInput(
             name='Country',
             description='Country and three digit code according to ISO 3166-1 alpha-3'
         )
         await uow.ontology.create_entry(entry=country_type_input)
+        await uow.ontology.commit_version(version_change=None, comment='Initial version')
         await uow.commit()
 
 async def init_redis(uow_factory) -> None:

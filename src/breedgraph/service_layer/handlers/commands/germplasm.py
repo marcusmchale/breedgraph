@@ -54,7 +54,9 @@ async def update_germplasm_entry(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
-        entry = await germplasm_service.get_entry(cmd.id)
+        entry = await germplasm_service.get_entry(cmd.germplasm_id)
+        if entry is None:
+            raise ValueError("Entry not found")
 
         if cmd.name and not cmd.name == entry.name:
             entry.name = cmd.name
@@ -63,7 +65,7 @@ async def update_germplasm_entry(
         if cmd.synonyms and not set(cmd.synonyms) == set(entry.synonyms):
             entry.synonyms = cmd.synonyms
         if cmd.author_ids and not set(cmd.author_ids) == set(entry.authors):
-            entry.authors = cmd.authors
+            entry.authors = cmd.author_ids
         if cmd.reference_ids and not set(cmd.reference_ids) == set(entry.references):
             entry.references = cmd.reference_ids
         if cmd.origin_id and not cmd.origin_id == entry.origin:
@@ -73,13 +75,13 @@ async def update_germplasm_entry(
         if cmd.reproduction and not cmd.reproduction == entry.reproduction:
             entry.reproduction = cmd.reproduction
         if cmd.control_method_ids and not set(cmd.control_method_ids) == set(entry.control_method_ids):
-            entry.control_methods = cmd.control_method_ds
+            entry.control_methods = cmd.control_method_ids
 
         await germplasm_service.update_entry(entry)
         await germplasm_service.update_entry_relationships(
-            entry_id= cmd.id,
-            sources=[GermplasmRelationship(**source_rel.model_dump(), sink_id=cmd.id) for source_rel in cmd.sources] if cmd.sources else None,
-            sinks=[GermplasmRelationship(**sink_rel.model_dump(), source_id=cmd.id) for sink_rel in cmd.sinks] if cmd.sinks else None
+            entry_id= cmd.germplasm_id,
+            sources=[GermplasmRelationship(**source_rel.model_dump(), sink_id=cmd.germplasm_id) for source_rel in cmd.sources] if cmd.sources else None,
+            sinks=[GermplasmRelationship(**sink_rel.model_dump(), source_id=cmd.germplasm_id) for sink_rel in cmd.sinks] if cmd.sinks else None
         )
         await uow.commit()
 
@@ -92,5 +94,5 @@ async def delete_germplasm_entry(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         germplasm_service = uow.germplasm
-        await germplasm_service.delete_entry(cmd.id)
+        await germplasm_service.delete_entry(cmd.germplasm_id)
         await uow.commit()

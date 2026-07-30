@@ -14,6 +14,7 @@ from breedgraph.domain.model.controls import (
 )
 
 from breedgraph.domain.model.references import (
+    ReferenceType,
     ReferenceStoredBase,
     LegalReferenceStored,
     ExternalReferenceStored,
@@ -53,7 +54,10 @@ graphql_resolvers.register_type_resolvers(
     reference_union, reference_interface,
     file_submission, file_download
 )
-graphql_resolvers.register_enums(EnumType("SubmissionStatus", SubmissionStatus))
+graphql_resolvers.register_enums(
+    EnumType("SubmissionStatus", SubmissionStatus),
+    EnumType("ReferenceType", ReferenceType)
+)
 
 def resolve_type(obj) -> str:
     if hasattr(obj, 'text'):
@@ -83,23 +87,31 @@ def resolve_reference_interface_type(obj, *_):
 @graphql_query.field("references")
 @graphql_payload
 @require_authentication
-async def get_references(_, info, reference_ids: List[int]) -> List[ReferenceStoredBase]:
+async def get_references(_, info, ids: List[int]) -> List[ReferenceStoredBase]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=reference_ids)]
+        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=ids)]
         return references
 
 
 """References resolver by query string"""
-@graphql_query.field("referencesDescription")
+@graphql_query.field("referencesSearch")
 @graphql_payload
 @require_authentication
-async def get_references_by_description(_, info, description: str) -> List[ReferenceStoredBase]:
+async def find_references(
+        _,
+        info,
+        description: str,
+        reference_types: list[ReferenceType]|None = None
+) -> List[ReferenceStoredBase]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(description=description)]
+        references = [reference async for reference in uow.repositories.references.get_all(
+            description=description,
+            reference_types=reference_types
+        )]
         return references
 
 
@@ -115,13 +127,20 @@ async def resolve_data_format(obj, *_):
 @graphql_query.field("referencesRecentFiles")
 @graphql_payload
 @require_authentication
-async def get_recent_file_references(_, info) -> List[ReferenceStoredBase]:
+async def get_recent_file_references(
+        _,
+        info,
+        reference_types: list[ReferenceType]|None = None
+) -> List[ReferenceStoredBase]:
     bus = info.context['bus']
     reference_ids = await bus.state_store.get_user_file_reference_ids(user_id=info.context['user_id'])
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=reference_ids)]
+        references = [reference async for reference in uow.repositories.references.get_all(
+            reference_ids=reference_ids,
+            reference_types=reference_types
+        )]
         return references
 
 @graphql_query.field("referencesFileSubmission")

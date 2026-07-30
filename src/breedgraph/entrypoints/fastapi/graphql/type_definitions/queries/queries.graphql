@@ -16,11 +16,11 @@ type Query {
     Get a single team details
     As with organisations, the organisation can be explored from this node.
     """
-    organisationsTeam (teamId: ID!): TeamPayload! # see team
+    organisationsTeam(id: ID!): TeamPayload! # see team
     """
     Get a multiple team details
     """
-    organisationsTeams(teamIds: [ID!]): TeamsPayload! # see team
+    organisationsTeams(ids: [ID!]): TeamsPayload! # see team
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """
@@ -36,17 +36,28 @@ type Query {
     Defaults to latest version with view PUBLISHED
     """
     ontologyEntries(
-        """
-        Snapshot
-        """
+    """
+    Snapshot
+    """
         versionId: ID
         view: OntologyView = PUBLISHED
-        """
-        Filters
-        """
-        entryIds: [ID!]
+    """
+    Filters (at least one is required)
+    """
+        ids: [ID!]
         labels:[OntologyNodeLabel!]
     ): OntologyEntriesPayload!
+    ontologyRelationships(
+    """
+    Snapshot
+    """
+        versionId: ID
+        view: OntologyView = PUBLISHED
+    """
+    Filters
+    """
+        entryIds: [ID!]!
+    ): OntologyRelationshipsPayload!
     """Get an ontology commit history"""
     ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
     """
@@ -71,7 +82,7 @@ type Query {
     """
     regions: LocationsPayload!
     """ Get locations by locationId """
-    regionsLocations (locationIds: [ID!]!): LocationsPayload!
+    regionsLocations (ids: [ID!]!): LocationsPayload!
     """ Search for locations by ontology Location type """
     regionsLocationsByType (locationTypeId: ID!): LocationsPayload!
     """
@@ -79,39 +90,39 @@ type Query {
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
     """
-    arrangements (locationId: ID): LayoutsPayload!
+    arrangements(locationId: ID): LayoutsPayload!
     """ Get a layout details by ID """
-    arrangementsLayouts (layoutIds: [ID!]): LayoutsPayload! # see team
+    arrangementsLayouts(ids: [ID!]): LayoutsPayload! # see team
     """
     Get a list of block "root" units.
     These are top-level unit in the block hierarchy.
     """
-    blocks (locationIds: [ID!]): UnitsPayload!
+    blocks(locationIds: [ID!]): UnitsPayload!
     """ Get units by ID. """
-    blocksUnits (unitIds: [ID!]): UnitsPayload!
+    blocksUnits(ids: [ID!]): UnitsPayload!
     """ Get a list of all programs """
     programs: ProgramsPayload!
     """Get a program by Id of program, trial or study """
     programsProgram(
-        programId: ID
+        id: ID
         trialId: ID
         studyId: ID
     ) : ProgramPayload!
     """ Get trials by Id of trial or study """
     programsTrial(
-        trialId: ID
+        id: ID
         studyId: ID
     ): TrialPayload!
     """ Get study by study Id """
-    programsStudy(studyId: ID!): StudyPayload!
+    programsStudy(id: ID!): StudyPayload!
     """ Filter datasets by study and/or concept Id, OR retrieve by array of dataset ids """
     datasets (
+        ids: [ID!]
         studyIds: [ID!]
         conceptIds: [ID!]
-        datasetIds: [ID!]
     ): DatasetsPayload!
     """ Get dataset submission by key """
-    datasetsSubmission(submissionId: ID!): DatasetSubmissionPayload!
+    datasetsSubmission(id: ID!): DatasetSubmissionPayload!
     """ Get a summary of datasets for a study """
     datasetsSummaries(studyId: ID!): DatasetSummariesPayload!
     """ Get the controller data for access controlled entities """
@@ -122,7 +133,7 @@ type Query {
     """Get a list of Germplasm entries"""
     germplasmEntries(
         names: [String!]
-        entryIds: [ID!]
+        ids: [ID!]
     ): GermplasmEntriesPayload!
     """
         Get a list of Germplasm entries that have no sources defined,
@@ -130,11 +141,14 @@ type Query {
     """
     germplasmCrops: GermplasmEntriesPayload!
     """ Get reference by reference ID """
-    references(referenceIds: [ID!]): ReferencesPayload!
+    references(ids: [ID!]): ReferencesPayload!
     """ Get a users recently created/updated file references """
-    referencesRecentFiles: ReferencesPayload!
-    """ Search for references by text in description """
-    referencesDescription(description: String!): ReferencesPayload!
+    referencesRecentFiles(referenceTypes:[ReferenceType!]): ReferencesPayload!
+    """ Search for references by text in description. Also searches for filename, url and externalId where relevant. """
+    referencesSearch(
+        description: String!
+        referenceTypes: [ReferenceType!]
+    ): ReferencesPayload!
     """ Get file submission by fileId for progress and status updates """
     referencesFileSubmission(fileId: ID!): FileSubmissionPayload!
     """ Check the availability of a file for download"""
@@ -142,5 +156,5 @@ type Query {
     """ Get a token to download a file """
     referencesFileDownload(fileId: ID!): FileDownloadPayload!
     " Get analysis status and results "
-    analysisSubmission(analysisId: ID!): AnalysisSubmissionPayload!
+    analysisSubmission(id: ID!): AnalysisSubmissionPayload!
 }

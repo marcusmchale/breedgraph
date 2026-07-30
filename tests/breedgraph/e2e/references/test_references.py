@@ -23,10 +23,10 @@ async def test_create_legal(
 ):
     user_id = reference_build_context['user_id']
     login_token = login_token_factory(user_id)
-    legal_ref = LegalReferenceInput(
-        description="This is a test legal reference",
-        text="This is the actual text of the legal reference"
-    ).model_dump()
+    legal_ref = {
+        "description": "This is a test legal reference",
+        "text": "This is the actual text of the legal reference"
+    }
     create_legal_response = await post_to_create_legal_reference(client, token=login_token, reference=legal_ref, control_team_id=reference_build_context['team_id'])
     legal_payload = get_verified_payload(create_legal_response, "referencesCreateLegal")
     assert_payload_success(legal_payload)

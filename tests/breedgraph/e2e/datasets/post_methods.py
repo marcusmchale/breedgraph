@@ -62,17 +62,17 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, c
     json={
         "query": (
             " query ( "
-            "  $datasetId: ID"
+            "  $id: ID"
             "  $conceptId: ID"
             " ) { "
             "  datasets( "
-            "    datasetId: $datasetId "
+            "    id: $id "
             "    conceptId: $conceptId "
             "  ) { "
             "    status, "
             "    result { "
             "       id, "
-            "       concept {id, name, description},"
+            "       concept { id, name, description },"
             "       records { unit {id} } "
             "   } "
             "   errors { name, message } "
@@ -80,7 +80,7 @@ async def post_to_get_datasets(client, token:str, dataset_id: int|None = None, c
             " } "
         ),
         "variables": {
-            "datasetId": dataset_id,
+            "id": dataset_id,
             "conceptId": concept_id
 
         }
@@ -97,10 +97,10 @@ async def post_to_get_dataset_submission(client, token:str, submission_id: str):
     json={
         "query": (
             " query ( "
-            "  $submissionId: ID!"
+            "  $id: ID!"
             " ) { "
             "  datasetsSubmission( "
-            "    submissionId: $submissionId "
+            "    id: $id "
             "  ) { "
             "    status, "
             "    result { "
@@ -113,7 +113,7 @@ async def post_to_get_dataset_submission(client, token:str, submission_id: str):
             " } "
         ),
         "variables": {
-            "submissionId": submission_id
+            "id": submission_id
 
         }
     }

@@ -7,18 +7,18 @@ enum DataFormat {
     TSV
 }
 
-input CreateLegalReferenceInput {
+input LegalReferenceInput {
     description: String
     text: String!
 }
 
-input CreateExternalReferenceInput {
+input ExternalReferenceInput {
     description: String
     url: String!
     externalId: String
 }
 
-input CreateExternalDataReferenceInput {
+input ExternalDataReferenceInput {
     description: String
     url: String!
     externalId: String
@@ -27,12 +27,12 @@ input CreateExternalDataReferenceInput {
     schema: String
 }
 
-input CreateFileReferenceInput {
+input FileReferenceInput {
     description: String
     file: Upload!
 }
 
-input CreateDataFileReferenceInput {
+input DataFileReferenceInput {
     description: String
     file: Upload!
 
@@ -42,21 +42,21 @@ input CreateDataFileReferenceInput {
 
 
 
-input UpdateLegalReferenceInput {
-    referenceId: ID!
+input LegalReferenceUpdate {
+    id: ID!
     description: String
     text: String!
 }
 
-input UpdateExternalReferenceInput {
-    referenceId: ID!
+input ExternalReferenceUpdate {
+    id: ID!
     description: String
     url: String!
     externalId: String
 }
 
-input UpdateExternalDataReferenceInput {
-    referenceId: ID!
+input ExternalDataReferenceUpdate {
+    id: ID!
     description: String
     url: String!
     externalId: String
@@ -65,14 +65,14 @@ input UpdateExternalDataReferenceInput {
     schema: String
 }
 
-input UpdateFileReferenceInput {
-    referenceId: ID!
+input FileReferenceUpdate {
+    id: ID!
     description: String
     file: Upload
 }
 
-input UpdateDataFileReferenceInput {
-    referenceId: ID!
+input DataFileReferenceUpdate {
+    id: ID!
     description: String
     file: Upload
 
@@ -82,36 +82,36 @@ input UpdateDataFileReferenceInput {
 
 extend type Mutation {
     referencesCreateLegal(
-        reference: CreateLegalReferenceInput!
+        reference: LegalReferenceInput!
         controlTeamId: ID!
     ): CreatedIdPayload!
     referencesCreateExternal(
-        reference: CreateExternalReferenceInput!
+        reference: ExternalReferenceInput!
         controlTeamId: ID!
     ): CreatedIdPayload!
     referencesCreateExternalData(
-        reference: CreateExternalDataReferenceInput!
+        reference: ExternalDataReferenceInput!
         controlTeamId: ID!
     ): CreatedIdPayload!
 
     """As for dataset submissions, creating a file is asynchronous and we are returned a key """
     referencesCreateFile(
-        reference: CreateFileReferenceInput
+        reference: FileReferenceInput
         controlTeamId: ID!
     ): FileIdPayload!
     referencesCreateDataFile(
-        reference: CreateDataFileReferenceInput
+        reference: DataFileReferenceInput
         controlTeamId: ID!
     ): FileIdPayload!
     
-    referencesUpdateLegal(reference: UpdateLegalReferenceInput!): BooleanPayload!
-    referencesUpdateExternal(reference: UpdateExternalReferenceInput!): BooleanPayload!
-    referencesUpdateExternalData(reference: UpdateExternalDataReferenceInput!): BooleanPayload!
+    referencesUpdateLegal(reference: LegalReferenceUpdate!): BooleanPayload!
+    referencesUpdateExternal(reference: ExternalReferenceUpdate!): BooleanPayload!
+    referencesUpdateExternalData(reference: ExternalDataReferenceUpdate!): BooleanPayload!
 
-    referencesUpdateFile(reference: UpdateFileReferenceInput): FileIdPayload!
-    referencesUpdateDataFile(reference: UpdateDataFileReferenceInput): FileIdPayload!
+    referencesUpdateFile(reference: FileReferenceUpdate): FileIdPayload!
+    referencesUpdateDataFile(reference: DataFileReferenceUpdate): FileIdPayload!
     
-    referencesDelete(referenceIds: [ID!]!): BooleanPayload!
+    referencesDelete(ids: [ID!]!): BooleanPayload!
     """ Request to make an archived file available for download """
     referencesRequestFileRetrieval(fileId: ID!): BooleanPayload!
 }

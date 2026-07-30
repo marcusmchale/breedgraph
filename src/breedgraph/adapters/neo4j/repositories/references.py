@@ -10,6 +10,7 @@ from breedgraph.service_layer.repositories.controlled import ControlledQueryResu
 from typing import AsyncGenerator, List
 
 from breedgraph.domain.model.references import (
+    ReferenceType,
     ReferenceBase,
     ReferenceStoredBase,
     FileReferenceStored,
@@ -23,6 +24,17 @@ from breedgraph.domain.model.references import (
 import logging
 logger = logging.getLogger(__name__)
 
+
+REFERENCE_TYPE_MAP: dict[
+    ReferenceType,
+    type[ReferenceStoredBase]
+] = {
+    ReferenceType.LEGAL: LegalReferenceStored,
+    ReferenceType.EXTERNAL: ExternalReferenceStored,
+    ReferenceType.FILE: FileReferenceStored,
+    ReferenceType.EXTERNAL_DATA: ExternalDataStored,
+    ReferenceType.DATA_FILE: DataFileStored
+}
 
 class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, ReferenceStoredBase]):
 
@@ -41,24 +53,22 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             record = record.data()
         if 'reference' in record:
             record = record.get('reference')
+        if not record:
+            raise ValueError("No reference record provided")
+
 
         if 'format' in record:
             record['format'] = DataFormat(record['format'])
         if 'schema' in record:
             record['schema'] = json.loads(record['schema'])
 
-        if record.get('text') is not None:
-            return LegalReferenceStored(**record)
-
-        elif record.get('url') is not None:
-            if record.get('format') is not None:
-                return ExternalDataStored(**record)
-            else:
-                return ExternalReferenceStored(**record)
-        elif record.get('format') is not None:
-            return DataFileStored(**record)
+        reference_type = ReferenceType(record['type'])
+        if not reference_type in REFERENCE_TYPE_MAP:
+            raise ValueError("Reference type not found")
         else:
-            return FileReferenceStored(**record)
+            reference_class = REFERENCE_TYPE_MAP.get(reference_type)
+            return reference_class(**record)
+
 
     async def _get_controlled(
             self,
@@ -88,7 +98,8 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             self,
             reference_ids: List[int]|None = None,
             file_ids: List[str]|None = None,
-            description: str|None = None
+            description: str|None = None,
+            reference_types: list[ReferenceType]|None = None
     ) -> AsyncGenerator[ControlledQueryResult[ReferenceStoredBase], None]:
         match_field = None
         if reference_ids:
@@ -97,13 +108,28 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             result = await self.tx.run(queries['references']['get_references_by_file_ids'], file_ids=file_ids)
             match_field = "file_id"
         elif description:
-            result = await self.tx.run(queries['references']['get_references_by_description'], description=description)
-            match_field = "description"
+            if reference_types:
+                result = await self.tx.run(
+                    queries['references']['get_references_by_description_and_types'],
+                    description=description,
+                    types=reference_types
+                )
+                match_field = "description"
+            else:
+                result = await self.tx.run(
+                    queries['references']['get_references_by_description'],
+                    description=description
+                )
+                match_field = "description"
         else:
             result = await self.tx.run(queries['references']['get_references'])
 
         async for record in result:
             reference = self.record_to_reference(record)
+            if hasattr(reference, 'type') and reference_types:
+                if not reference.type in reference_types:
+                    continue
+
             if match_field is None:
                 yield ControlledQueryResult(reference)
             else:

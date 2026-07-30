@@ -8,7 +8,7 @@ async def post_to_create_legal_reference(client, token:str, reference, control_t
     json_str = {
         "query": (
             " mutation ( "
-            "  $reference: CreateLegalReferenceInput! "
+            "  $reference: LegalReferenceInput! "
             "  $controlTeamId: ID! "
             " ) { "
             "  referencesCreateLegal ( "
@@ -40,7 +40,7 @@ async def post_to_create_file_reference(client, token:str, reference, control_te
     operations = {
         "query": """
             mutation StoreFile(
-                $reference: CreateFileReferenceInput!
+                $reference: FileReferenceInput!
                 $controlTeamId: ID! 
             ) {
                 referencesCreateFile(

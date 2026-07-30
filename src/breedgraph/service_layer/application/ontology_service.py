@@ -78,7 +78,7 @@ class OntologyApplicationService:
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
         elif not self.user_id:
-            raise UnauthorisedOperationError("Only registered users can commit versoins")
+            raise UnauthorisedOperationError("Only registered users can commit versions")
         """Create a new ontology version with commit metadata."""
         # Save through persistence service
         commit = await self.persistence.commit_version(
@@ -96,11 +96,15 @@ class OntologyApplicationService:
 
     async def activate_drafts(self, version: Version):
         """Set all drafts to activated at the corresponding version."""
-        await self.persistence.activate_drafts(version)
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required")
+        await self.persistence.activate_drafts(version, self.user_id)
 
     async def remove_deprecated(self, version: Version):
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required")
         """Remove all deprecated entries at the corresponding version."""
-        await self.persistence.remove_deprecated(version)
+        await self.persistence.remove_deprecated(version, self.user_id)
 
     async def activate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
@@ -126,6 +130,16 @@ class OntologyApplicationService:
                     # protect ontology entries constructed during initialization
                     raise ProtectedNodeError(f"This ontology entry is protected")
                 lifecycle.set_version_deprecated(current_version)
+        await self._save_entry_lifecycles()
+
+    async def cancel_deprecate_entries(self, entry_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise UnauthorisedOperationError("Only admins and editors can cancel deprecate entries")
+
+        await self._load_entry_lifecycles(entry_ids)
+        for entry_id in entry_ids:
+            lifecycle = await self._get_entry_lifecycle(entry_id)
+            lifecycle.cancel_deprecation()
         await self._save_entry_lifecycles()
 
     async def remove_entries(self, entry_ids):
@@ -159,6 +173,16 @@ class OntologyApplicationService:
             lifecycle = await self._get_relationship_lifecycle(relationship_id)
             if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
                 lifecycle.set_version_deprecated(current_version)
+        await self._save_relationship_lifecycles()
+
+    async def cancel_deprecate_relationships(self, relationship_ids):
+        if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
+            raise UnauthorisedOperationError("Only admins and editors can cancel deprecate relationships")
+
+        await self._load_relationship_lifecycles(relationship_ids)
+        for relationship_id in relationship_ids:
+            lifecycle = await self._get_relationship_lifecycle(relationship_id)
+            lifecycle.cancel_deprecation()
         await self._save_relationship_lifecycles()
 
     async def remove_relationships(self, relationship_ids):
@@ -656,9 +680,22 @@ class OntologyApplicationService:
         await self._validate_entry_types_for_relationship(relationship)
         await self._validate_no_circular_dependency(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
-        await self._validate_relationship_does_not_exist(relationship)
+
+        async for rel in self._get_existing_relationship(relationship):
+            # if removed we can create a new one, this preserves history for snapshots
+            lifecycle = await self._get_relationship_lifecycle(relationship_id=rel.id)
+            if lifecycle.current_phase == LifecyclePhase.REMOVED:
+                continue
+            elif lifecycle.current_phase == LifecyclePhase.ACTIVE:
+                raise RelationshipExistsError("Relationship is already active")
+            elif lifecycle.current_phase == LifecyclePhase.DRAFT:
+                raise RelationshipExistsError("Relationship is already drafted")
+            elif lifecycle.current_phase == LifecyclePhase.DEPRECATED:
+                # for deprecated we allow reverting to former phase
+                await self.cancel_deprecate_relationships(relationship_ids=[rel.id])
+                return rel
+            
         relationship = await self.persistence.create_relationship(relationship, user_id=self.user_id)
-        # Create and save lifecycle
         await self._create_relationship_lifecycle(relationship.id)
         await self._save_relationship_lifecycles()
         return relationship
@@ -922,16 +959,11 @@ class OntologyApplicationService:
                 f"{relationship.source_id} -[{relationship.label}]-> {relationship.target_id}"
             )
 
-    async def _validate_relationship_does_not_exist(self, relationship: OntologyRelationshipBase):
+    async def _get_existing_relationship(self, relationship: OntologyRelationshipBase) -> AsyncGenerator[OntologyRelationshipBase,None]:
         async for rel in self.persistence.get_relationships(
                 source_ids = [relationship.source_id],
                 target_ids = [relationship.target_id],
                 labels=[relationship.label]
         ):
-            # get lifecycle and check if removed, if removed we can create a new one, this preserves history
-            lifecycle = await self._get_relationship_lifecycle(relationship_id=rel.id)
-            if lifecycle.current_phase ==LifecyclePhase.REMOVED:
-                continue
-            else:
-                raise RelationshipExistsError(f"Relationship already exists: {str(rel)}")
+            yield rel
 

@@ -8,7 +8,7 @@ input TeamInput {
 }
 
 input TeamUpdate {
-    teamId: ID!
+    id: ID!
     name: String
     fullname: String
 }
@@ -18,7 +18,7 @@ extend type Mutation {
         team: TeamInput!
     ): BooleanPayload!
     organisationsDeleteTeam(
-        teamId: ID!
+        id: ID!
     ): BooleanPayload!
     organisationsUpdateTeam(
         team: TeamUpdate!

@@ -7,7 +7,9 @@ from breedgraph.domain.model.ontology import (
     OntologyCommit,
     Version, LifecyclePhase,
 )
-from breedgraph.service_layer.queries.read_models import Ontology, OntologyEntryOutput, OntologyViewMode
+from breedgraph.service_layer.queries.read_models import (
+    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
+)
 
 from breedgraph.domain.model.accounts import UserOutput, UserDisplay, OntologyRole
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -129,7 +131,7 @@ async def get_ontology(
 async def get_ontology_entries(
         _,
         info,
-        entry_ids: List[int] | None = None,
+        ids: List[int] | None = None,
         labels: List[OntologyEntryLabel] | None = None,
         version_id: int|None = None,
         view: OntologyViewMode = OntologyViewMode.PUBLISHED
@@ -140,7 +142,7 @@ async def get_ontology_entries(
             version = await views.ontology.get_current_version()
         else:
             version = Version.from_packed(version_id)
-        entries = await views.ontology.get_entries(version=version, view=view, entry_ids=entry_ids, labels=labels)
+        entries = await views.ontology.get_entries(version=version, view=view, entry_ids=ids, labels=labels)
         await load_entries_to_ontology_map(
             context=info.context,
             entries=entries,
@@ -148,6 +150,26 @@ async def get_ontology_entries(
             view=view
         )
         return entries
+
+
+@graphql_query.field("ontologyRelationships")
+@graphql_payload
+@require_authentication
+async def get_ontology_relationships(
+        _,
+        info,
+        entry_ids: List[int] | None = None,
+        version_id: int|None = None,
+        view: OntologyViewMode = OntologyViewMode.PUBLISHED
+) -> List[OntologyRelationshipOutput]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views() as views:
+        if version_id is None:
+            version = await views.ontology.get_current_version()
+        else:
+            version = Version.from_packed(version_id)
+        relationships = await views.ontology.get_relationships(entry_ids=entry_ids, version=version, view=view)
+        return relationships
 
 async def resolve_ontology_entries(context, entry_ids):
     if not entry_ids:

@@ -35,13 +35,13 @@ async def create_team(
 async def delete_team(
         _,
         info,
-        team_id: int
+        id: int
 ) -> bool:
     user_id: int = info.context.get('user_id')
-    logger.debug(f"User {user_id} deletes team: {team_id}")
+    logger.debug(f"User {user_id} deletes team: {id}")
     cmd = DeleteTeam(
         agent_id=user_id,
-        team_id=team_id
+        team_id=id
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -55,10 +55,10 @@ async def update_team(
         team: dict
 ) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} updates team: {team.get('team_id')}")
+    logger.debug(f"User {user_id} updates team: {team.get('id')}")
     cmd = UpdateTeam(
         agent_id=user_id,
-        team_id=team.get('team_id'),
+        team_id=team.get('id'),
         name=team.get('name'),
         fullname=team.get('fullname')
     )

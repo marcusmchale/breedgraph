@@ -27,15 +27,6 @@ async def commit_ontology(cmd: commands.ontologies.CommitOntologyVersion, uow_fa
         await uow.commit()
 
 @handlers.command_handler()
-async def activate_ontology_entries(cmd: commands.ontologies.ActivateOntologyEntries, uow_factory: AbstractUnitOfWorkFactory):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        ontology_service = uow.ontology
-        await ontology_service.activate_entries(
-            entry_ids = cmd.entry_ids
-        )
-        await uow.commit()
-
-@handlers.command_handler()
 async def deprecate_ontology_entries(cmd: commands.ontologies.DeprecateOntologyEntries, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
@@ -45,37 +36,10 @@ async def deprecate_ontology_entries(cmd: commands.ontologies.DeprecateOntologyE
         await uow.commit()
 
 @handlers.command_handler()
-async def remove_ontology_entries(cmd: commands.ontologies.RemoveOntologyEntries, uow_factory: AbstractUnitOfWorkFactory):
+async def cancel_deprecate_ontology_entries(cmd: commands.ontologies.CancelDeprecateOntologyEntries, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
-        await ontology_service.remove_entries(
-            entry_ids = cmd.entry_ids
-        )
-        await uow.commit()
-
-@handlers.command_handler()
-async def activate_ontology_relationships(cmd: commands.ontologies.ActivateOntologyRelationships, uow_factory: AbstractUnitOfWorkFactory):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        ontology_service = uow.ontology
-        await ontology_service.activate_relationships(
-            entry_ids = cmd.entry_ids
-        )
-        await uow.commit()
-
-@handlers.command_handler()
-async def deprecate_ontology_relationships(cmd: commands.ontologies.DeprecateOntologyRelationships, uow_factory: AbstractUnitOfWorkFactory):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        ontology_service = uow.ontology
-        await ontology_service.deprecate_relationships(
-            entry_ids = cmd.entry_ids
-        )
-        await uow.commit()
-
-@handlers.command_handler()
-async def remove_ontology_relationships(cmd: commands.ontologies.RemoveOntologyRelationships, uow_factory: AbstractUnitOfWorkFactory):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        ontology_service = uow.ontology
-        await ontology_service.remove_relationships(
+        await ontology_service.cancel_deprecate_entries(
             entry_ids = cmd.entry_ids
         )
         await uow.commit()
@@ -318,8 +282,8 @@ async def create_event_type(cmd: commands.ontologies.CreateEventType, uow_factor
             entry_input,
             parents = cmd.parent_ids,
             children = cmd.child_ids,
-            variables = cmd.variables,
-            factors = cmd.factors
+            variables = cmd.variable_ids,
+            factors = cmd.factor_ids
         )
         for term_id in cmd.term_ids or []:
             await ontology_service.link_to_term(source_id=entry.id, source_label=entry.label, term_id=term_id)
@@ -506,7 +470,7 @@ async def update_relationships(
 
                 if relationships is None:
                     relationships = [rel async for rel in ontology_service.get_relationships(
-                        entry_ids=[command.id],
+                        entry_ids=[entry.id],
                         phases=[LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE]
                     )]
                 prepare_attr_relationship_updates(
@@ -551,7 +515,7 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
 async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
-        entry = await ontology_service.get_entry(cmd.id)
+        entry = await ontology_service.get_entry(cmd.ontology_entry_id)
         update_attributes(entry, cmd)
         await ontology_service.update_entry(entry)
         await update_relationships(ontology_service, cmd, entry)

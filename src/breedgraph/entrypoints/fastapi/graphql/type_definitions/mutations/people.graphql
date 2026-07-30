@@ -18,6 +18,6 @@ extend type Mutation {
         person: PersonUpdate!
     ): BooleanPayload!,
     peopleDeletePerson(
-        personId: ID!
+        id: ID!
     ): BooleanPayload!
 }
