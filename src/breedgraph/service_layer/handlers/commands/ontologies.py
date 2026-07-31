@@ -416,6 +416,7 @@ def prepare_attr_relationship_updates(
                 )
             )
     for submitted in submitted_relationships:
+
         # check if already exists
         exists = False
         for existing in relevant_relationships:
@@ -426,7 +427,8 @@ def prepare_attr_relationship_updates(
                 exists = True
                 if submitted.label == OntologyRelationshipLabel.HAS_CATEGORY:
                     if not submitted.rank == existing.rank:
-                        relationships_to_update.append(submitted)
+                        existing.rank = submitted.rank
+                        relationships_to_update.append(existing)
         if not exists:
             relationships_to_draft.append(submitted)
 
@@ -458,6 +460,7 @@ async def update_relationships(
         'design_ids',
         'role_ids',
         'title_ids',
+        'term_ids'
     ]
     relationships = None
     relationships_to_draft: List[OntologyRelationshipBase] = []
@@ -473,6 +476,7 @@ async def update_relationships(
                         entry_ids=[entry.id],
                         phases=[LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE]
                     )]
+
                 prepare_attr_relationship_updates(
                     entry_id=entry.id,
                     entry_label=entry.label,
@@ -516,6 +520,8 @@ async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWo
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
         entry = await ontology_service.get_entry(cmd.ontology_entry_id)
+        if not entry:
+            raise ValueError("Entry not found")
         update_attributes(entry, cmd)
         await ontology_service.update_entry(entry)
         await update_relationships(ontology_service, cmd, entry)

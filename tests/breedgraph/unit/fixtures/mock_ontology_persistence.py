@@ -139,26 +139,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         """Update attributes of an existing relationship."""
         self.relationships[relationship.id] = relationship
 
-    async def get_entries(
-            self,
-            version: Version|None = None,
-            phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
-            labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None
-    ) -> AsyncGenerator[OntologyEntryStored, None]:
-        """Retrieve ontology entries with filtering."""
-        for entry in self.entries.values():
-            # Apply filters
-            if labels and entry.label not in labels:
-                continue
-            if names and entry.name not in names:
-                continue
-            # Note: version and phases filtering would require more complex logic
-            # in a real implementation, but for tests we can keep it simple
-
-            yield entry
-
     async def _get_relationships(
             self,
             version: Version,

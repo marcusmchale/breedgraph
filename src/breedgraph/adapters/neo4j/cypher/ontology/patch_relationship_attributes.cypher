@@ -1,6 +1,5 @@
 MATCH (relationship: OntologyRelationship {id: $relationship_id})
-CREATE (patch: OntologyRelationshipPatch)
-         -[:FOR_RELATIONSHIP {version: $version, time: datetime.transaction()}]->(relationship)
+CREATE (patch: OntologyRelationshipPatch)-[:FOR_RELATIONSHIP {version: $version, time: datetime.transaction()}]->(relationship)
 SET patch += $attributes
 WITH patch
 // Link contributor

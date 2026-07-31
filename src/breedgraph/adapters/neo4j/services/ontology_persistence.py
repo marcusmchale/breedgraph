@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from neo4j import AsyncTransaction, Record
 from neo4j.exceptions import ResultNotSingleError
 
@@ -139,7 +141,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         diff.pop('references', None)
         references_added = list(set(entry.references) - set(stored_entry.references))
         references_removed = list(set(stored_entry.references) - set(entry.references))
-        query = ontology.patch_ontology_entry(entry.label)
+
+        query = queries['ontology']['patch_entry_attributes']
+
         await self.tx.run(
             query=query,
             entry_id=entry.id,
@@ -157,8 +161,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         logger.debug(
             f"Creating relationship: {str(relationship)})"
         )
-        dump = relationship.model_dump()
+        version = await self.get_current_version()
 
+        dump = relationship.model_dump()
         query = ontology.create_ontology_relationship(
             label=dump.pop('label'),
             source_label=dump.pop('source_label'),
@@ -171,7 +176,8 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             source_id=dump.pop('source_id'),
             target_id=dump.pop('target_id'),
             attributes = dump,
-            user_id=user_id
+            user_id=user_id,
+            version=version.packed_version
         )
         record = await result.single(strict=True)
         return self.record_to_relationship(record)
@@ -188,60 +194,28 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
         stored_relationship = await self.get_relationship(relationship_id=relationship.id)
         stored_dump = stored_relationship.model_dump()
-        stored_attributes = {key: stored_dump[key] for key, in attributes.keys()}
+        stored_attributes = {key: stored_dump[key] for key in attributes.keys()}
         diff = self.dict_diff(stored_attributes, attributes)
-        query = queries['ontology']['patch_relationship_attributes']
-        await self.tx.run(
-            query,
-            relationship_id=relationship.id,
-            attributes=diff,
-            user_id=user_id,
-            version=version.packed_version
-        )
-
-    async def get_entries(
-            self,
-            version: Version | None = None,
-            phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
-            labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None
-    ) -> AsyncGenerator[OntologyEntryStored, None]:
-        if version is None:
-            version = await self.get_current_version()
-        if phases is None:
-            phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
-        query = ontology.get_entries(
-            entry_ids = entry_ids,
-            phases=phases,
-            labels=labels,
-            names=names
-        )
-        params = { "version": version.packed_version }
-        # Entry IDs parameter (if specified)
-        if entry_ids:
-            params["entry_ids"] = entry_ids
-        # Names parameter (if specified) - convert to lowercase for matching
-        if names:
-            params["names_lower"] = [name.casefold() for name in names]
-        result = await self.tx.run(query, **params)
-        async for record in result:
-            yield self.record_to_entry(record)
+        if diff:
+            query = queries['ontology']['patch_relationship_attributes']
+            await self.tx.run(
+                query,
+                relationship_id=relationship.id,
+                attributes=diff,
+                user_id=user_id,
+                version=version.packed_version
+            )
 
     async def get_entry(
             self,
             entry_id: int | None = None,
             name: str | None = None,
-            label: OntologyEntryLabel | None = None,
-            version: Version | None = None,
-            phases: List[LifecyclePhase] | None = None
+            label: OntologyEntryLabel | None = None
     ) -> OntologyEntryStored | None:
         matched_entry = None
         count = 0
         async for entry in self.get_entries(
             entry_ids=[entry_id] if entry_id is not None else [],
-            version=version,
-            phases=phases,
             labels=[label] if label is not None else [],
             names=[name] if name is not None else []
         ):
@@ -252,9 +226,43 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
                 raise ValueError("The filters provided match multiple entries")
         return matched_entry
 
-    async def get_relationship(self, relationship_id: int) -> OntologyRelationshipBase | None:
+
+    async def get_entries(
+            self,
+            version: Version | None = None,
+            phases: List[LifecyclePhase] | None = None,
+            entry_ids: List[int]|None = None,
+            labels: List[OntologyEntryLabel]|None = None,
+            names: List[str]|None = None
+    ) -> AsyncGenerator[OntologyEntryStored, None]:
+        if version is None:
+            version = await self.get_current_version()
+        if phases is None:
+            phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
+        query = ontology.get_entries(
+            entry_ids=entry_ids,
+            phases=phases,
+            labels=labels,
+            names=names
+        )
+        params = dict()
+        params["version"] =version.packed_version
+        # Entry IDs parameter (if specified)
+        if entry_ids:
+            params["entry_ids"] = entry_ids
+        # Names parameter (if specified) - convert to lowercase for matching
+        if names:
+            params["names_lower"] = [name.casefold() for name in names]
+        result = await self.tx.run(query, **params)
+        async for record in result:
+            yield self.record_to_entry(record)
+
+    async def get_relationship(self, relationship_id: int, version:Version|None = None) -> OntologyRelationshipBase | None:
+        if version is None:
+            version = await self.get_current_version()
+
         query = queries['ontology']['get_relationship']
-        result = await self.tx.run(query, relationship_id=relationship_id)
+        result = await self.tx.run(query, relationship_id=relationship_id, version=version.packed_version)
         record = await result.single()
         if record is None:
             return None
@@ -289,19 +297,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         result = await self.tx.run(query, **params)
         async for record in result:
             yield self.record_to_relationship(record)
-
-    async def set_scale_categories_ranks(
-            self,
-            scale_id: int,
-            categories: List[int],
-            ranks: List[int]
-    ) -> None:
-        """Set the ranks for categories of a scale"""
-        if not len(categories) == len(ranks):
-            raise ValueError("A rank must be provided for all categories")
-        logger.debug(f"Setting ranks for {len(categories)} categories of scale {scale_id}")
-        query = queries['ontology']['set_scale_categories_ranks']
-        await self.tx.run(query, scale_id=scale_id, categories=categories, ranks=ranks)
 
     async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
         query = queries['ontology']['get_entry_lifecycles']
@@ -482,3 +477,50 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
         async for record in result:
             yield self.record_to_commit(record)
+
+    async def _apply_entry_patches(self, version: Version):
+        get_patches_query = queries['ontology']['get_entry_patches']
+        patches_result = await self.tx.run(
+            get_patches_query,
+            version=version.packed_version
+        )
+
+        collated_patches = defaultdict(dict)
+        async for record in patches_result:
+            entry_id = record['entry_id']
+            patches = record['patches']
+
+            for patch in patches:
+                collated_patches[entry_id].update(patch)
+
+        apply_patches_query = queries['ontology']['apply_entry_patches']
+        await self.tx.run(
+            apply_patches_query,
+            patches=[{'entry_id': entry_id, 'patch': patch} for entry_id, patch in collated_patches.items()]
+        )
+
+    async def _apply_relationship_patches(self, version: Version):
+        get_patches_query = queries['ontology']['get_relationship_patches']
+        patches_result = await self.tx.run(
+            get_patches_query,
+            version=version.packed_version
+        )
+
+        collated_patches = defaultdict(dict)
+        async for record in patches_result:
+            relationship_id = record['relationship_id']
+            patches = record['patches']
+
+            for patch in patches:
+                collated_patches[relationship_id].update(patch)
+
+        apply_patches_query = queries['ontology']['apply_relationship_patches']
+        await self.tx.run(
+            apply_patches_query,
+            patches=[{'relationship_id': relationship_id, 'patch': patch} for relationship_id, patch in collated_patches.items()]
+        )
+
+    async def apply_patches(self):
+        version: Version = await self.get_current_version()
+        await self._apply_entry_patches(version)
+        await self._apply_relationship_patches(version)

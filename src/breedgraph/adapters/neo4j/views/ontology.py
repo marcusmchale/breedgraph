@@ -1,7 +1,8 @@
-from neo4j import AsyncSession, AsyncResult, Record
+from neo4j import AsyncSession, AsyncResult, Record, AsyncTransaction
 from neo4j.exceptions import ResultNotSingleError
 from collections import defaultdict
 from dataclasses import fields
+
 
 from breedgraph.domain.model.ontology import (
     Version,
@@ -10,7 +11,7 @@ from breedgraph.domain.model.ontology import (
     ObservationMethodType,
     ScaleType,
     AxisType,
-    OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle
+    OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle, LifecyclePhase
 )
 
 from breedgraph.service_layer.queries.views import AbstractOntologyView
@@ -32,27 +33,73 @@ logger = logging.getLogger(__name__)
 
 class Neo4jOntologyView(AbstractOntologyView):
 
+    QUERY_MAP = {
+        'ontology': {
+            OntologyViewMode.EDITORIAL: {
+                'current': queries['ontology']['ontology_editorial']
+            },
+            OntologyViewMode.PUBLISHED: {
+                'current': queries['ontology']['ontology_published'],
+                'historic': queries['ontology']['ontology_published_historic']
+            }
+        },
+        'entries': {
+            OntologyViewMode.EDITORIAL: {
+                'current': {
+                    'id': queries['ontology']['ontology_entries_editorial'],
+                    'label': queries['ontology']['ontology_entries_by_label_editorial']
+                }
+            },
+            OntologyViewMode.PUBLISHED: {
+                'current': {
+                    'id': queries['ontology']['ontology_entries_published'],
+                    'label': queries['ontology']['ontology_entries_by_label_published']
+                },
+                'historic': {
+                    'id': queries['ontology']['ontology_entries_published_historic'],
+                    'label': queries['ontology']['ontology_entries_by_label_published_historic']
+                }
+            },
+        },
+        'relationships': {
+            OntologyViewMode.EDITORIAL: {
+                'current': queries['ontology']['ontology_relationships_editorial']
+            },
+            OntologyViewMode.PUBLISHED: {
+                'current': queries['ontology']['ontology_relationships_published'],
+                'historic': queries['ontology']['ontology_relationships_published_historic']
+            }
+        }
+    }
+
     def __init__(self, session: AsyncSession):
         super().__init__()
         self.session = session
         #todo ontology mapper might be class attribute
         self.ontology_mapper = ontology_mapper
 
-    async def _get_current_version(self) -> Version:
-        async with await self.session.begin_transaction() as tx:
-            query = queries['ontology']['get_latest_version']
-            result = await tx.run(query)
-            try:
-                record = await result.single(strict=True)
-                return Version.from_packed(record["commit.version"])
-            except ResultNotSingleError:
-                logger.debug("No version found, returning initial version")
+    async def _get_current_version(self, tx: AsyncTransaction|None = None) -> Version:
+        if tx is not None:
+            return await self._get_current_version_tx(tx)
 
-            return Version(
-                major=0,
-                minor=0,
-                patch=0
-            )
+        async with await self.session.begin_transaction() as tx:
+            return await self._get_current_version_tx(tx)
+
+    @staticmethod
+    async def _get_current_version_tx(tx: AsyncTransaction):
+        query = queries['ontology']['get_latest_version']
+        result = await tx.run(query)
+        try:
+            record = await result.single(strict=True)
+            return Version.from_packed(record["commit.version"])
+        except ResultNotSingleError:
+            logger.debug("No version found, returning initial version")
+        return Version(
+            major=0,
+            minor=0,
+            patch=0
+        )
+
 
     @staticmethod
     def get_label_from_record(record: Record|dict):
@@ -107,7 +154,6 @@ class Neo4jOntologyView(AbstractOntologyView):
         for patch in entry_patches:
             entry_dict.update(patch)
 
-        #entry_dict.pop('name_lower', None) # I think this is handled by filter_dict, i think?
         entry_dict = self.filter_dict(entry_dict, entry_class)
 
         relationship_dicts = record.get('relationships', [])
@@ -115,7 +161,13 @@ class Neo4jOntologyView(AbstractOntologyView):
         for relationship_dict in relationship_dicts:
             # To return fully hydrated views of the entries as nodes that incorporate relationship details.
             # This helps in preselecting values in forms and simplifying other interfaces
-            # start by building a map from attr to rel
+            # filter by lifecycles first
+            lifecycle = RelationshipLifecycle(**relationship_dict.get('lifecycle'))
+            if lifecycle.current_phase in [LifecyclePhase.DEPRECATED, LifecyclePhase.REMOVED]:
+                continue
+            elif lifecycle.current_phase is LifecyclePhase.DRAFT and view is OntologyViewMode.PUBLISHED:
+                continue
+            # then add to map from attr to rel if not filtered out
             is_source = relationship_dict['source_id'] == entry_dict['id']
             attr = self.ontology_mapper.get_attribute_name(
                 source_label=OntologyEntryLabel(relationship_dict['source_label']),
@@ -156,6 +208,10 @@ class Neo4jOntologyView(AbstractOntologyView):
         relationships = list()
         relationship_dicts = record.get('relationships')
         for relationship_dict in relationship_dicts:
+            patches = relationship_dict.get('patches', [])
+            for patch in patches:
+                relationship_dict.update(patch)
+
             relationships.append(
                 OntologyRelationshipOutput(
                     label=OntologyRelationshipLabel(relationship_dict['relationship_type']),
@@ -174,10 +230,12 @@ class Neo4jOntologyView(AbstractOntologyView):
         entries: List[OntologyEntryOutput] = []
         relationships: List[OntologyRelationshipOutput] = []
         async with await self.session.begin_transaction() as tx:
-            if view == OntologyViewMode.EDITORIAL:
-                query = queries['ontology']['ontology_editorial']
-            else:
-                query = queries['ontology']['ontology_published']
+            current_version = await self._get_current_version_tx(tx)
+            version_type = 'current' if current_version == version else 'historic'
+            if view == OntologyViewMode.EDITORIAL and version_type == 'historic':
+                raise ValueError("Editorial view is only supported for the current version")
+            query = self.QUERY_MAP['ontology'][view][version_type]
+
             params = {'version': version.packed_version}
             result: AsyncResult = await tx.run(query, **params)
             async for record in result:
@@ -197,27 +255,30 @@ class Neo4jOntologyView(AbstractOntologyView):
         entry_ids: list[int] | None = None,
         labels: list[OntologyEntryLabel] | None = None
     ) -> List[OntologyEntryOutput]:
+        if not entry_ids and not labels:
+            return []
+        if entry_ids and labels:
+            raise ValueError("Specify either entry_ids or labels, not both.")
+
         async with await self.session.begin_transaction() as tx:
+            current_version = await self._get_current_version_tx(tx)
+            version_type = 'current' if current_version == version else 'historic'
+            if view == OntologyViewMode.EDITORIAL and version_type == 'historic':
+                raise ValueError("Editorial view is only supported for the current version")
+
+            filter_type = 'id' if entry_ids else 'label'
+            query = self.QUERY_MAP['entries'][view][version_type][filter_type]
+
             if entry_ids:
-                if view == OntologyViewMode.EDITORIAL:
-                    query = queries['ontology']['ontology_entries_editorial']
-                else:
-                    query = queries['ontology']['ontology_entries_published']
                 params = {
                     'entry_ids': entry_ids,
                     'version': version.packed_version
                 }
             elif labels:
-                if view == OntologyViewMode.EDITORIAL:
-                    query = queries['ontology']['ontology_entries_by_label_editorial']
-                else:
-                    query = queries['ontology']['ontology_entries_by_label_published']
                 params = {
-                    'labels': labels,
+                    'labels': [l.value for l in labels],
                     'version': version.packed_version
                 }
-            else:
-                raise ValueError("Must specify entry_ids or labels to filter, otherwise just get the ontology")
 
             result: AsyncResult = await tx.run(query, **params)
             return [self.record_to_entry(record, version, view) async for record in result]
@@ -229,10 +290,12 @@ class Neo4jOntologyView(AbstractOntologyView):
         view: OntologyViewMode
     ) -> List[OntologyRelationshipOutput]:
         async with await self.session.begin_transaction() as tx:
-            if view == OntologyViewMode.EDITORIAL:
-                query = queries['ontology']['ontology_relationships_editorial']
-            else:
-                query = queries['ontology']['ontology_relationships_published']
+            current_version = await self._get_current_version_tx(tx)
+            version_type = 'current' if current_version == version else 'historic'
+            if view == OntologyViewMode.EDITORIAL and version_type == 'historic':
+                raise ValueError("Editorial view is only supported for the current version")
+
+            query = self.QUERY_MAP['relationships'][view][version_type]
             params = {
                 'entry_ids': entry_ids,
                 'version': version.packed_version

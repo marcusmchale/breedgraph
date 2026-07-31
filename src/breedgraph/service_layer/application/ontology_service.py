@@ -44,8 +44,11 @@ T = TypeVar("T", SubjectStored, TraitStored, ScaleStored)  # expand as needed
 
 class OntologyApplicationService:
     """
-    Unified application service for all ontology operations.
+    Unified application service for all ontology mutation operations.
     Handles validation, state management, persistence, and event publishing.
+
+    Projections that depend on version and view should be provided in views
+    Constraints should be enforced only for the current version.
     """
     def __init__(
             self,
@@ -75,12 +78,14 @@ class OntologyApplicationService:
             licence_reference: int|None = None,
             copyright_reference: int|None = None
     ) -> OntologyCommit:
+        """Create a new ontology version with commit metadata. """
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
         elif not self.user_id:
             raise UnauthorisedOperationError("Only registered users can commit versions")
-        """Create a new ontology version with commit metadata."""
+
         # Save through persistence service
+        await self.persistence.apply_patches()
         commit = await self.persistence.commit_version(
             user_id = self.user_id,
             version_change=version_change,
@@ -195,10 +200,6 @@ class OntologyApplicationService:
             if not lifecycle.current_phase==LifecyclePhase.REMOVED:
                 lifecycle.set_version_removed(current_version)
         await self._save_relationship_lifecycles()
-
-    #async def get_version_commit_info(self, version_id: Version) -> OntologyCommit:
-    #    """Retrieve commit information for a specific version."""
-    #    return await self.persistence.get_commit(version_id)
 
     async def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
         """Get version history with commit metadata, ordered by commit time."""
@@ -542,23 +543,6 @@ class OntologyApplicationService:
             return relationship.target_id
         return None
 
-    async def get_entries(
-            self,
-            version: Version | None = None,
-            phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] | None = None,
-            labels: List[OntologyEntryLabel] | None = None,
-            names: List[str] | None = None
-    ) -> AsyncGenerator[OntologyEntryStored, None]:
-        async for entry in self.persistence.get_entries(
-            version=version,
-            entry_ids=entry_ids,
-            phases=phases,
-            labels=labels,
-            names=names
-        ):
-            yield entry
-
     async def get_relationships(
             self,
             version: Version | None = None,
@@ -694,7 +678,7 @@ class OntologyApplicationService:
                 # for deprecated we allow reverting to former phase
                 await self.cancel_deprecate_relationships(relationship_ids=[rel.id])
                 return rel
-            
+
         relationship = await self.persistence.create_relationship(relationship, user_id=self.user_id)
         await self._create_relationship_lifecycle(relationship.id)
         await self._save_relationship_lifecycles()
@@ -710,12 +694,15 @@ class OntologyApplicationService:
 
     async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
         """Update the properties of a relationship"""
+        if self.user_id is None:
+            raise UnauthorisedOperationError("Updates are only available to registered users")
+
         lifecycle = await self._get_relationship_lifecycle(relationship.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
                 raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
 
-        await self.persistence.update_relationship(relationship)
+        await self.persistence.update_relationship(relationship, user_id=self.user_id)
 
     # Lifecycle management
     async def activate_entry(
@@ -909,10 +896,14 @@ class OntologyApplicationService:
 
     async def _save_entry_lifecycles(self) -> None:
         """Save entry lifecycles to persistence."""
-        await self.persistence.save_entry_lifecycles(self._entry_lifecycles, user_id = self.user_id)
+        if not self.user_id:
+            raise UnauthorisedOperationError("Only registered users can affect changes")
+        await self.persistence.save_entry_lifecycles(self._entry_lifecycles, user_id=self.user_id)
 
     async def _save_relationship_lifecycles(self) -> None:
         """Save relationship lifecycles to persistence."""
+        if not self.user_id:
+            raise UnauthorisedOperationError("Only registered users can affect changes")
         await self.persistence.save_relationship_lifecycles(self._relationship_lifecycles, user_id=self.user_id)
 
     # Persistence-dependent validation methods

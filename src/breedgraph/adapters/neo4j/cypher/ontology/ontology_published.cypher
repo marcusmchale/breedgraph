@@ -6,13 +6,6 @@ WITH
   entry,
   entry_lifecycle
 
-OPTIONAL MATCH (entry_patch: OntologyEntryPatch)-[for_entry:FOR_ENTRY]->(entry)
-  WHERE for_entry.version < $version
-
-WITH entry, entry_lifecycle, entry_patch, for_entry
-ORDER BY for_entry.time
-WITH entry, entry_lifecycle, collect(entry_patch {.*}) as entry_patches
-
 OPTIONAL MATCH
   (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship: OntologyRelationship)-[:RELATES_TO]->(target: OntologyEntry),
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
@@ -21,23 +14,15 @@ OPTIONAL MATCH
     relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated >= $version
   )
 
-WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target
+WITH entry, entry_lifecycle, relationship, relationship_lifecycle, source, target
 
-OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
-  WHERE for_rel.version < $version
-
-WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target, relationship_patch, for_rel
-ORDER BY for_rel.time
-WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target, collect(relationship_patch {.*}) as relationship_patches
-
-WITH entry, entry_lifecycle, entry_patches, collect(relationship {
+WITH entry, entry_lifecycle, collect(relationship {
     .*,
     source_id: source.id,
     source_label: [label IN labels(source) WHERE label <> 'OntologyEntry'][0],
     target_id: target.id,
     target_label: [label IN labels(target) WHERE label <> 'OntologyEntry'][0],
     relationship_type: [label IN labels(relationship) WHERE label <> 'OntologyRelationship'][0],
-    patches: relationship_patches,
     lifecycle: relationship_lifecycle {.*}
 }) AS relationships
 RETURN
@@ -60,7 +45,6 @@ entry {
           (ref_for.removed IS NULL or ref_for.removed > $version)
       | reference.id
   ],
-  patches: entry_patches,
   lifecycle: entry_lifecycle {.*}
 } AS entry,
 [rel IN relationships WHERE rel.id IS NOT NULL] AS relationships

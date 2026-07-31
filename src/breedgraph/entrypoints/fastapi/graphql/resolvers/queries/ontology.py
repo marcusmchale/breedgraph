@@ -34,6 +34,7 @@ from ..registry import graphql_resolvers
 ontology = ObjectType("Ontology")
 
 ontology_commit = ObjectType("OntologyCommit")
+term = ObjectType("Term")
 subject = ObjectType("Subject")
 trait = ObjectType("Trait")
 condition = ObjectType("Condition")
@@ -58,6 +59,7 @@ graphql_resolvers.register_type_resolvers(
     ontology_commit,
     ontology_entry_union, ontology_node_interface, ontology_relationships_interface, related_to_terms,
     ontology_relationship,
+    term,
     subject, trait, condition,
     scale, category,
     observation_method, variable,
@@ -224,6 +226,68 @@ async def resolve_phase(obj, info):
 async def resolve_terms(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.terms)
 
+# Term-specific resolvers
+@term.field("subjects")
+async def resolve_term_subjects(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.subjects)
+
+@term.field("scales")
+async def resolve_term_scales(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.scales)
+
+@term.field("categories")
+async def resolve_term_categories(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.categories)
+
+@term.field("observationMethods")
+async def resolve_term_observation_methods(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.observation_methods)
+
+@term.field("traits")
+async def resolve_term_traits(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.traits)
+
+@term.field("variables")
+async def resolve_term_variables(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.variables)
+
+@term.field("controlMethods")
+async def resolve_term_control_methods(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.control_methods)
+
+@term.field("conditions")
+async def resolve_term_conditions(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.conditions)
+
+@term.field("factors")
+async def resolve_term_factors(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
+
+@term.field("events")
+async def resolve_term_events(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.events)
+
+@term.field("locationTypes")
+async def resolve_term_location_types(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.location_types)
+
+@term.field("layoutTypes")
+async def resolve_term_layout_types(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.layout_types)
+
+@term.field("designs")
+async def resolve_term_designs(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.designs)
+
+@term.field("roles")
+async def resolve_term_roles(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.roles)
+
+@term.field("titles")
+async def resolve_term_titles(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.titles)
+
+
 # Subject-specific resolvers
 @subject.field("traits")
 async def resolve_subject_traits(obj, info):
@@ -331,7 +395,7 @@ async def get_commit_history(
     context = info.context
     bus = context.get('bus')
     user_id = context.get('user_id')
-    # todo consider making the commit history a view rather than relying on the full service
+    # todo consider making the commit history a view rather than relying on the service
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         history = [commit async for commit in uow.ontology.get_commit_history(limit=limit)]
         return history

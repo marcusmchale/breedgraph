@@ -50,7 +50,7 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def get_current_version(self):
+    async def get_current_version(self) -> Version:
         ...
 
     @abstractmethod
@@ -60,9 +60,9 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     async def get_entry(
             self,
-            entry_id: int = None,
-            name: str = None,
-            label: OntologyEntryLabel = None
+            entry_id: int|None = None,
+            name: str|None = None,
+            label: OntologyEntryLabel|None = None
     )-> OntologyEntryStored|None:
         """Retrieve an ontology entry"""
         ...
@@ -78,23 +78,8 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
-    async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
+    async def update_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> None:
         """Update attributes of an existing relationship."""
-        ...
-
-    @abstractmethod
-    def get_entries(
-            self,
-            version: Version|None = None,
-            phases: List[LifecyclePhase] | None = None,
-            entry_ids: List[int] = None,
-            labels: List[OntologyEntryLabel]|None = None,
-            names: List[str]|None = None
-    ) -> AsyncGenerator[OntologyEntryStored, None]:
-        """
-        Retrieve ontology entries
-          optionally filter by version/phase/label/name
-         """
         ...
 
     async def get_relationships(
@@ -234,4 +219,9 @@ class OntologyPersistenceService(ABC):
     @abstractmethod
     def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
         """Get version history ordered by commit time."""
+        ...
+
+    @abstractmethod
+    async def apply_patches(self):
+        """Apply attributes on patches for the current version to the Entry nodes and Relationships """
         ...

@@ -2,12 +2,13 @@ MATCH
   (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship: OntologyRelationship)-[:RELATES_TO]->(target: OntologyEntry),
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
   WHERE (source.id in $entry_ids OR target.id = $entry_ids) AND
-  relationship_lifecycle.drafted <= $version AND (
-    relationship_lifecycle.removed IS NULL OR relationship_lifecycle.removed >= $version
+  relationship_lifecycle.activated <= $version AND (
+    relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version
   )
 
 WITH relationship, relationship_lifecycle, source, target
-OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP {version: $version}]->(relationship)
+OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
+  WHERE for_rel.version < $version
 
 WITH relationship, relationship_lifecycle, source, target, relationship_patch, for_rel
 ORDER BY for_rel.time

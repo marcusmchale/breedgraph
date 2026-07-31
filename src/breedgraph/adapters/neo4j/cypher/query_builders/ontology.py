@@ -29,11 +29,14 @@ def create_ontology_entry(label: OntologyEntryLabel):
     CREATE (entry: {label.value}: OntologyEntry {{id: c.count}})
     SET entry += $params
     WITH entry
-    // Link contributor
+    // Link contributor and create initial patch
     CALL (entry) {{
       MATCH (user: User {{id: $user_id}})
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(entry)
+      CREATE (contributions)
+        -[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch:OntologyEntryPatch)
+        -[:FOR_ENTRY {{version: $version, time:  datetime.transaction()}}]->(entry)
+      SET patch += $params
     }}
     // Link authors
     CALL (entry) {{
@@ -65,44 +68,6 @@ def create_ontology_entry(label: OntologyEntryLabel):
     }}
   """
   return query
-
-def patch_ontology_entry(label: OntologyEntryLabel):
-  query = f"""
-    MATCH (entry: {label.value}: OntologyEntry {{id: $entry_id}})
-    CREATE (patch: OntologyEntryPatch)-[:FOR_ENTRY {{version: $version, time:  datetime.transaction()}}]->(entry)
-    SET patch += $params
-    WITH entry, patch
-    // Link user as contributor
-    CALL (patch) {{
-      MATCH (user: User {{id: $user_id}})
-      MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch)
-    }}
-    // Update authors
-    CALL (entry) {{
-      MATCH (author: Person)
-      WHERE author.id IN $authors_added
-      CREATE (author)-[:AUTHORED {{added: $version}}]->(entry)
-    }}
-    CALL (entry) {{
-      MATCH (author: Person)-[authored:AUTHORED]->(entry)
-      WHERE author.id IN $authors_removed
-      SET authored.removed = $version
-    }}
-    // Update references
-    CALL (entry) {{
-      MATCH (reference: Reference)
-      WHERE reference.id IN $references_added
-      CREATE (reference)-[:REFERENCE_FOR {{added: $version}}]->(entry)
-    }}
-    CALL (entry) {{
-      MATCH (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
-      WHERE reference.id IN $references_removed
-      SET ref_for.removed = $version
-    }}
-  """
-  return query
-
 
 def create_ontology_relationship(
         label: OntologyRelationshipLabel,
@@ -136,11 +101,13 @@ def create_ontology_relationship(
     SET relationship.id = c.count
     SET relationship += $attributes
     WITH relationship, source, target
-    // Link contributor
+    // Link contributor and create initial patch
     CALL (relationship) {{
       MATCH (user: User {{id: $user_id}})
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
-      CREATE (contributions)-[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(relationship)
+      CREATE (contributions)
+        -[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch:OntologyRelationshipPatch)
+        -[:FOR_RELATIONSHIP {{version: $version,, time:datetime.transaction()}}->(relationship)
     }}    
     RETURN relationship {{
         .*,
@@ -219,8 +186,7 @@ def get_entries(
         phases: Lifecycle phases to include (evaluated at the given version)
         labels: Neo4j labels (subtypes) to filter by - these go in the MATCH clause
         names: Entry names to filter by - these should be parameterized as a list of lower-case names, $names_lower
-        entry_ids: Entry IDs to filter by
-        with_relationships: Whether to include ontology relationships in output
+        entry_ids: Entry IDs to filter for
 
     Returns:
         Complete Cypher query string

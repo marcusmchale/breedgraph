@@ -6,8 +6,7 @@ WITH
   entry,
   entry_lifecycle
 
-OPTIONAL MATCH (entry_patch: OntologyEntryPatch)-[for_entry:FOR_ENTRY]->(entry)
-  WHERE for_entry.version <= $version
+OPTIONAL MATCH (entry_patch: OntologyEntryPatch)-[for_entry:FOR_ENTRY {version: $version}]->(entry)
 
 WITH entry, entry_lifecycle, entry_patch, for_entry
 ORDER BY for_entry.time
@@ -18,13 +17,12 @@ OPTIONAL MATCH
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
   WHERE (source = entry OR target = entry) AND
   relationship_lifecycle.drafted <= $version AND (
-    relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version
+    relationship_lifecycle.removed IS NULL OR relationship_lifecycle.removed >= $version
   )
 
 WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target
 
-OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
-  WHERE for_rel.version <= $version
+OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP {version: $version}]->(relationship)
 
 WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target, relationship_patch, for_rel
 ORDER BY for_rel.time
