@@ -181,11 +181,6 @@ class OntologyPersistenceService(ABC):
         """Check if there's a path between two entries (for cycle detection)."""
         ...
 
-    @abstractmethod
-    async def get_entry_dependencies(self, entry_id: int) -> List[int]:
-        """Get all entries that depend on this entry (incoming relationships)."""
-        ...
-
     async def commit_version(
             self,
             user_id: int,
