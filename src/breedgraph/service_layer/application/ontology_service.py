@@ -732,14 +732,6 @@ class OntologyApplicationService:
             entry_id: int,
             version: Version
     ) -> None:
-        """Remove an entry after validating no guards exist."""
-        # Check for guards
-        dependencies = await self.persistence.get_entry_dependencies(entry_id)
-        if dependencies:
-            raise ValueError(
-                f"Cannot remove entry {entry_id}, it has guards: {dependencies}"
-            )
-
         lifecycle = await self._get_entry_lifecycle(entry_id)
         lifecycle.set_version_removed(version)
         await self._save_entry_lifecycles()

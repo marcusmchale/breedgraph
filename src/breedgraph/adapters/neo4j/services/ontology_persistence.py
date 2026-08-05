@@ -411,18 +411,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         record = await result.single(strict=True)
         return record['has_path']
 
-    async def get_entry_dependencies(self, entry_id: int) -> List[int]:
-        """Get all entries that depend on this entry (incoming relationships)."""
-        logger.debug(f"Getting guards for entry: {entry_id}")
-
-        query = """
-        MATCH (source:OntologyEntry)-[r:ONTOLOGY_RELATIONSHIP]->(target:OntologyEntry {id: $entry_id})
-        RETURN collect(DISTINCT source.id) as guards
-        """
-        result = await self.tx.run(query, entry_id=entry_id)
-        record = await result.single()
-        return record["guards"] if record else []
-
     async def _get_latest_version(self) -> Version:
         query = queries['ontology']['get_latest_version']
         result = await self.tx.run(query)
