@@ -186,7 +186,6 @@ class OntologyPersistenceService(ABC):
         """Get all entries that depend on this entry (incoming relationships)."""
         ...
 
-
     async def commit_version(
             self,
             user_id: int,
@@ -209,19 +208,4 @@ class OntologyPersistenceService(ABC):
 
     @abstractmethod
     async def _commit_version(self, user_id: int, commit: OntologyCommit):
-        ...
-
-    @abstractmethod
-    def get_commits(self, version_min: Version = None, version_max: Version = None) -> AsyncGenerator[OntologyCommit,None]:
-        """Get version by ID."""
-        ...
-
-    @abstractmethod
-    def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
-        """Get version history ordered by commit time."""
-        ...
-
-    @abstractmethod
-    async def apply_patches(self):
-        """Apply attributes on patches for the current version to the Entry nodes and Relationships """
         ...

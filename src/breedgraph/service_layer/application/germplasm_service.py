@@ -378,7 +378,7 @@ class GermplasmApplicationService:
         if not entries_exist.get(source_id):
             raise ValueError(f"Source entry {source_id} does not exist")
 
-        # Check for circular dependencies
+        # Check for circular guards
         if await self.persistence.has_path(sink_id, source_id):
             raise ValueError(
                 f"Adding relationship from {source_id} to {sink_id} would create a circular dependency"

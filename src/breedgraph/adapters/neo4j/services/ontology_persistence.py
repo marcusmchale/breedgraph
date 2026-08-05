@@ -4,7 +4,6 @@ from neo4j import AsyncTransaction, Record
 from neo4j.exceptions import ResultNotSingleError
 
 from breedgraph.custom_exceptions import IllegalOperationError
-from breedgraph.domain.model.time_descriptors import deserialize_time
 from breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries, ontology
@@ -235,8 +234,13 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             labels: List[OntologyEntryLabel]|None = None,
             names: List[str]|None = None
     ) -> AsyncGenerator[OntologyEntryStored, None]:
+        current_version = await self.get_current_version()
         if version is None:
-            version = await self.get_current_version()
+            version = current_version
+        else:
+            if names and version != current_version:
+                raise ValueError("Name queries are only supported for the current version")
+
         if phases is None:
             phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
         query = ontology.get_entries(
@@ -409,15 +413,15 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
     async def get_entry_dependencies(self, entry_id: int) -> List[int]:
         """Get all entries that depend on this entry (incoming relationships)."""
-        logger.debug(f"Getting dependencies for entry: {entry_id}")
+        logger.debug(f"Getting guards for entry: {entry_id}")
 
         query = """
         MATCH (source:OntologyEntry)-[r:ONTOLOGY_RELATIONSHIP]->(target:OntologyEntry {id: $entry_id})
-        RETURN collect(DISTINCT source.id) as dependencies
+        RETURN collect(DISTINCT source.id) as guards
         """
         result = await self.tx.run(query, entry_id=entry_id)
         record = await result.single()
-        return record["dependencies"] if record else []
+        return record["guards"] if record else []
 
     async def _get_latest_version(self) -> Version:
         query = queries['ontology']['get_latest_version']
@@ -435,6 +439,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         )
 
     async def _commit_version(self, user_id: int,  commit: OntologyCommit):
+        # before commit, update source nodes with patches
+        await self.apply_patches()
+
         await self.tx.run(
             queries['ontology']['commit_version'],
             user_id=user_id,
@@ -444,39 +451,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             copyright=commit.copyright
         )
         self._current_version_cache = commit.version
-
-    @staticmethod
-    def record_to_commit(record) -> OntologyCommit:
-        commit_data = record['commit']
-        commit_data['time'] = deserialize_time(commit_data['time'])
-        commit_data['version'] = Version.from_packed(commit_data['version'])
-        return OntologyCommit(**commit_data)
-
-    async def get_commits(self, version_min: Version|None = None, version_max: Version|None = None) -> AsyncGenerator[OntologyCommit, None]:
-        query = queries['ontology']['get_commit_by_version_min_max']
-        if version_min is None:
-            version_min = 0
-        else:
-            version_min = version_min.packed_version
-
-        if version_max is None:
-            version_max = await self.get_current_version()
-        version_max = version_max.packed_version
-
-        result = await self.tx.run(query, version_min = version_min, version_max = version_max)
-        async for record in result:
-            yield self.record_to_commit(record)
-
-    async def get_commit_history(self, limit: int|None = None) -> AsyncGenerator[OntologyCommit, None]:
-        if limit is None:
-            query = queries['ontology']['get_commit_history']
-            result = await self.tx.run(query)
-        else:
-            query =queries['ontology']['get_commit_history_with_limit']
-            result = await self.tx.run(query,limit = limit)
-
-        async for record in result:
-            yield self.record_to_commit(record)
 
     async def _apply_entry_patches(self, version: Version):
         get_patches_query = queries['ontology']['get_entry_patches']

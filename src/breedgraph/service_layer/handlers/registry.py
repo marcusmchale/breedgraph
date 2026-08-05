@@ -11,7 +11,7 @@ class HandlerRegistry:
         self.dependencies = {}
 
     def register_dependencies(self, **deps):
-        """Register global dependencies"""
+        """Register global guards"""
         self.dependencies.update(deps)
 
     def command_handler(self, command_type: Type = None):
@@ -79,7 +79,7 @@ class HandlerRegistry:
                 if param_name == message_param:
                     continue  # Skip the message parameter
 
-                # Only inject dependencies that the handler expects
+                # Only inject guards that the handler expects
                 if param_name in self.dependencies:
                     kwargs[param_name] = self.dependencies[param_name]
                 elif param.default is not param.empty:

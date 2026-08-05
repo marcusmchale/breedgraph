@@ -3,6 +3,8 @@ from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 from breedgraph.domain import commands
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 
+from breedgraph.custom_exceptions import ProtectedNodeError
+
 from ..registry import handlers
 
 import logging
@@ -93,6 +95,8 @@ async def delete_germplasm_entry(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        if await uow.guards.germplasm_has_units(cmd.germplasm_id):
+            raise ProtectedNodeError("Germplasm is referenced by a unit and may not be deleted.")
         germplasm_service = uow.germplasm
         await germplasm_service.delete_entry(cmd.germplasm_id)
         await uow.commit()

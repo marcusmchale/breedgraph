@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from breedgraph.domain.model import LifecyclePhase
-from breedgraph.domain.model.ontology import Version, OntologyEntryLabel
+from breedgraph.domain.model.ontology import Version, OntologyEntryLabel, OntologyCommit
 
 from breedgraph.service_layer.queries.read_models import (
     Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
@@ -85,4 +85,15 @@ class AbstractOntologyView(ABC):
             version: Version,
             view: OntologyViewMode,
     ) -> list[OntologyRelationshipOutput]:
+        ...
+
+    async def get_commits(self, limit:int|None = None, last_version_id:int|None = None):
+        return await self._get_commits(limit, last_version_id)
+
+    @abstractmethod
+    async def _get_commits(
+            self,
+            limit: int|None = None,
+            last_version_id: int|None = None,
+    ) -> list[OntologyCommit]:
         ...

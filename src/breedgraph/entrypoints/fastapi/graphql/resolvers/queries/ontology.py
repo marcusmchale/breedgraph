@@ -173,6 +173,9 @@ async def get_ontology_relationships(
         relationships = await views.ontology.get_relationships(entry_ids=entry_ids, version=version, view=view)
         return relationships
 
+
+
+
 async def resolve_ontology_entries(context, entry_ids):
     if not entry_ids:
         return []
@@ -390,15 +393,15 @@ async def resolve_event_factors(obj, info):
 async def get_commit_history(
         _,
         info,
-        limit = 10
+        limit: int|None = 10,
+        last_version_id: int|None = None
 ) -> List[OntologyCommit]:
     context = info.context
     bus = context.get('bus')
     user_id = context.get('user_id')
-    # todo consider making the commit history a view rather than relying on the service
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        history = [commit async for commit in uow.ontology.get_commit_history(limit=limit)]
-        return history
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        commits = await views.ontology.get_commits(limit=limit, last_version_id=last_version_id)
+        return commits
 
 @ontology_commit.field("user")
 async def resolve_commit_user(obj, info):

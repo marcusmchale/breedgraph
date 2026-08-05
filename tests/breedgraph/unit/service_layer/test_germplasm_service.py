@@ -119,7 +119,7 @@ class TestGermplasmApplicationService:
 
     @pytest.mark.asyncio
     async def test_circular_dependency_prevention(self, germplasm_service):
-        """Test that circular dependencies are prevented in source relationships."""
+        """Test that circular guards are prevented in source relationships."""
         await germplasm_service.access_control._change_user_context(user_id=1)
 
         # Arrange - create a chain of entries: A -> B -> C

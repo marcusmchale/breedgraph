@@ -107,7 +107,8 @@ def create_ontology_relationship(
       MERGE (user)-[c:CONTRIBUTED]->(contributions: UserOntologyContributions)
       CREATE (contributions)
         -[contributed:CONTRIBUTED {{time:datetime.transaction()}}]->(patch:OntologyRelationshipPatch)
-        -[:FOR_RELATIONSHIP {{version: $version,, time:datetime.transaction()}}->(relationship)
+        -[:FOR_RELATIONSHIP {{version: $version, time:datetime.transaction()}}]->(relationship)
+      SET patch += $attributes
     }}    
     RETURN relationship {{
         .*,
@@ -127,13 +128,13 @@ def has_path_between_entries(label: OntologyRelationshipLabel):
             (source:OntologyEntry {{id: $source_id}})
             (
               (:OntologyEntry)
-              -[:HAS_RELATIONSHIP]->(rel:OntologyRelationship)
+              -[:HAS_RELATIONSHIP]->(rel:OntologyRelationship:{label.value} )
               -[:RELATES_TO]->(:OntologyEntry)
             ){{1,}}
             (target:OntologyEntry {{id: $target_id}})
           WHERE NONE(r IN rel WHERE EXISTS {{
               MATCH (r)-[:HAS_LIFECYCLE]->(l:OntologyLifecycle)
-              WHERE l.removed IS NOT NULL
+              WHERE l.deprecated IS NOT NULL
           }})
         }} AS has_path
     """

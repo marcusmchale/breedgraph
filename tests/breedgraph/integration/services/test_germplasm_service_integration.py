@@ -1,11 +1,12 @@
 import pytest
 
+from breedgraph.domain.commands.germplasm import DeleteGermplasm
 from breedgraph.domain.model import ReadRelease, Access
 from breedgraph.domain.model.germplasm import (
     GermplasmStored, GermplasmRelationship
 )
 
-from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError, ProtectedNodeError
 
 from tests.breedgraph.scenarios.germplasm_builder import GermplasmBuilder
 from tests.breedgraph.scenarios.authorisation_manager import AuthorisationManager
@@ -276,3 +277,24 @@ async def test_get_descendants_and_ancestors(
 
 
 
+@pytest.mark.asyncio(loop_scope="session")
+async def test_referenced_germplasm_is_protected(
+        uow_factory,
+        germplasm_build_context,
+        bus
+):
+    user_id = germplasm_build_context['user_id']
+    unit_id = germplasm_build_context['unit_id']
+
+    crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        block = await uow.repositories.blocks.get(unit_id=unit_id)
+        if not block:
+            raise ValueError("Block not found")
+        unit = block.get_unit(unit_id=unit_id)
+        unit.germplasm = crop_id
+        await uow.commit()
+
+    with pytest.raises(ProtectedNodeError):
+        await bus.handle(DeleteGermplasm(agent_id=user_id, germplasm_id=crop_id))

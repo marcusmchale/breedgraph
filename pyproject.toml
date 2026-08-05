@@ -39,7 +39,7 @@ api = [
     "statsmodels~=0.14.6"
 ]
 
-# Archive worker dependencies
+# Archive worker guards
 worker = [
     "httpx==0.28.1",
     "aiofiles~=25.1.0"

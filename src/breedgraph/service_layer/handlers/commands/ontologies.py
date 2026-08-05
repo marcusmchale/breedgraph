@@ -375,7 +375,7 @@ def prepare_attr_relationship_updates(
     else:
         other_label = ontology_mapper.get_other_label_from_attribute(attr)
         relationship_label = ontology_mapper.get_relationship_label(entry_label, other_label)
-        relevant_relationships = [rel for rel in existing_relationships if rel.label == relationship_label]
+
         valid_sources, valid_targets = ontology_mapper.relationship_to_valid_source_and_target().get(relationship_label)
         if entry_label in valid_sources and other_label in valid_targets:
             source_label = entry_label
@@ -389,6 +389,14 @@ def prepare_attr_relationship_updates(
             target_ids = [entry_id]
         else:
             raise ValueError(f'Relationship between {entry_label} and {other_label} is not valid.')
+
+        relevant_relationships = [
+            rel for rel in existing_relationships if all([
+                rel.label == relationship_label,
+                rel.source_label == source_label,
+                rel.target_label == target_label
+            ])
+        ]
 
     for relationship in relevant_relationships:
 
@@ -476,7 +484,6 @@ async def update_relationships(
                         entry_ids=[entry.id],
                         phases=[LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE]
                     )]
-
                 prepare_attr_relationship_updates(
                     entry_id=entry.id,
                     entry_label=entry.label,

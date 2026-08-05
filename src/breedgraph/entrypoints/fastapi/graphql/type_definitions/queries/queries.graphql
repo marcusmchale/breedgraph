@@ -58,8 +58,8 @@ type Query {
     """
         entryIds: [ID!]!
     ): OntologyRelationshipsPayload!
-    """Get an ontology commit history"""
-    ontologyCommitHistory(limit: Int): OntologyCommitsPayload!
+    """Get ontology commit history, use lastVersionId to paginate"""
+    ontologyCommitHistory(limit: Int, lastVersionId: ID): OntologyCommitsPayload!
     """
     Get a list of users requesting new ontology roles.
     Only available to Users with the admin ontology role.

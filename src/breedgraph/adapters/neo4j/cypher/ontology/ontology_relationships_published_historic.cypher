@@ -1,7 +1,7 @@
 MATCH
   (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship: OntologyRelationship)-[:RELATES_TO]->(target: OntologyEntry),
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
-  WHERE (source.id in $entry_ids OR target.id = $entry_ids) AND
+  WHERE (source.id in $entry_ids OR target.id in $entry_ids) AND
   relationship_lifecycle.activated <= $version AND (
     relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version
   )

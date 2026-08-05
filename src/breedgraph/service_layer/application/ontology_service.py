@@ -84,8 +84,6 @@ class OntologyApplicationService:
         elif not self.user_id:
             raise UnauthorisedOperationError("Only registered users can commit versions")
 
-        # Save through persistence service
-        await self.persistence.apply_patches()
         commit = await self.persistence.commit_version(
             user_id = self.user_id,
             version_change=version_change,
@@ -200,11 +198,6 @@ class OntologyApplicationService:
             if not lifecycle.current_phase==LifecyclePhase.REMOVED:
                 lifecycle.set_version_removed(current_version)
         await self._save_relationship_lifecycles()
-
-    async def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
-        """Get version history with commit metadata, ordered by commit time."""
-        async for commit in self.persistence.get_commit_history(limit=limit):
-            yield commit
 
     # Type overloads for _create_entry
     @overload
@@ -701,7 +694,6 @@ class OntologyApplicationService:
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
                 raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
-
         await self.persistence.update_relationship(relationship, user_id=self.user_id)
 
     # Lifecycle management
@@ -740,12 +732,12 @@ class OntologyApplicationService:
             entry_id: int,
             version: Version
     ) -> None:
-        """Remove an entry after validating no dependencies exist."""
-        # Check for dependencies
+        """Remove an entry after validating no guards exist."""
+        # Check for guards
         dependencies = await self.persistence.get_entry_dependencies(entry_id)
         if dependencies:
             raise ValueError(
-                f"Cannot remove entry {entry_id}, it has dependencies: {dependencies}"
+                f"Cannot remove entry {entry_id}, it has guards: {dependencies}"
             )
 
         lifecycle = await self._get_entry_lifecycle(entry_id)
@@ -939,15 +931,19 @@ class OntologyApplicationService:
                 raise ValueError(f"Entries do not exist: {missing}")
 
     async def _validate_no_circular_dependency(self, relationship: OntologyRelationshipBase) -> None:
-        """Validate that relationship won't create circular dependencies with the same label"""
+        """Validate that relationship won't create circular guards with the same label"""
         if await self.persistence.has_path_between_entries(
                 relationship.target_id,
                 relationship.source_id,
                 relationship.label
         ):
+            source_node = await self.get_entry(relationship.source_id)
+            target_node = await self.get_entry(relationship.target_id)
+            if source_node is None or target_node is None:
+                raise ValueError("Unrecognized nodes in relationship")
             raise ValueError(
                 f"Adding relationship would create circular dependency : "
-                f"{relationship.source_id} -[{relationship.label}]-> {relationship.target_id}"
+                f"({source_node.name}) -[{relationship.label}]-> ({target_node.name})"
             )
 
     async def _get_existing_relationship(self, relationship: OntologyRelationshipBase) -> AsyncGenerator[OntologyRelationshipBase,None]:

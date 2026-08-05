@@ -252,7 +252,6 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
 
-
     location_types = await OntologyBuilder(uow_factory=uow_factory).location_types(user_id=user_id)
     layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=user_id)
     subject_types = await OntologyBuilder(uow_factory=uow_factory).subject_types(user_id=user_id)
@@ -361,6 +360,7 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
 
     account_ids2 = await account_builder.account_with_affiliations()
     user_id_2 = account_ids2['user_id']
@@ -369,7 +369,8 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
         'user_id': user_id,
         'team_id': team_id,
         'user_id_1': user_id,
-        'user_id_2': user_id_2
+        'user_id_2': user_id_2,
+        'unit_id': unit_id
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")

@@ -1,5 +1,6 @@
-MATCH (commit:OntologyCommit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User)
-WHERE commit.version >= $version_min AND commit.version <= $version_max
+MATCH (commit:OntologyCommit)
+WHERE commit.version < $last_version
+MATCH (commit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User)
 RETURN commit {
        . *,
          time:committed.time,
@@ -7,4 +8,5 @@ RETURN commit {
          licence: [(ontology_commit)-[:USES_LICENCE]->(licence:Reference) | licence.id][0],
          copyright: [(ontology_commit)-[:USES_COPYRIGHT]->(copyright:Reference) | copyright.id][0]
        }
-ORDER BY commit.version
+ORDER BY commit.version DESC
+LIMIT $limit

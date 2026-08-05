@@ -136,26 +136,6 @@ async def test_validation_across_persistence_layer(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_get_version_history_integration(
-        uow_factory,
-        ontology_build_context
-):
-    user_id = ontology_build_context["user_id"]
-
-    async with uow_factory.get_uow(user_id=user_id) as uow:
-        history = [
-            commit async for commit in uow.ontology.get_commit_history(limit=5)
-        ]
-
-    assert isinstance(history, list)
-
-    for commit in history:
-        assert hasattr(commit, "version")
-        assert hasattr(commit, "user")
-        assert hasattr(commit, "time")
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_create_complete_variable_with_relationships(
         uow_factory,
         ontology_build_context

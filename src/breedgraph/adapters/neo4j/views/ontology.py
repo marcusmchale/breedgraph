@@ -3,8 +3,10 @@ from neo4j.exceptions import ResultNotSingleError
 from collections import defaultdict
 from dataclasses import fields
 
+from breedgraph.domain.model.time_descriptors import deserialize_time
 
 from breedgraph.domain.model.ontology import (
+    OntologyCommit,
     Version,
     OntologyEntryLabel,
     ControlMethodType,
@@ -99,7 +101,6 @@ class Neo4jOntologyView(AbstractOntologyView):
             minor=0,
             patch=0
         )
-
 
     @staticmethod
     def get_label_from_record(record: Record|dict):
@@ -303,3 +304,30 @@ class Neo4jOntologyView(AbstractOntologyView):
             result: AsyncResult = await tx.run(query, **params)
             record = await result.single(strict=True)
             return self.record_to_relationships(record, version=version, view=view)
+
+
+    @staticmethod
+    def record_to_commit(record) -> OntologyCommit:
+        commit_data = record['commit']
+        commit_data['time'] = deserialize_time(commit_data['time'])
+        commit_data['version'] = Version.from_packed(commit_data['version'])
+        return OntologyCommit(**commit_data)
+
+    async def _get_commits(self, limit: int|None = None, last_version_id: int|None = None) -> List[OntologyCommit]:
+        async with await self.session.begin_transaction() as tx:
+            if limit is None and last_version_id is None:
+                query = queries['ontology']['get_commit_history']
+                result = await tx.run(query)
+            elif limit is None and last_version_id is not None:
+                query = queries['ontology']['get_commit_history_with_last_version']
+                result = await tx.run(query, last_version=last_version_id)
+
+            elif limit is not None and last_version_id is None:
+                query = queries['ontology']['get_commit_history_with_limit']
+                result = await tx.run(query, limit=limit)
+
+            else:
+                query = queries['ontology']['get_commit_history_pagination']
+                result = await tx.run(query, limit=limit, last_version=last_version_id)
+
+            return [self.record_to_commit(record) async for record in result]

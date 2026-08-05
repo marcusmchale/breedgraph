@@ -348,17 +348,3 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         self.commit_history.append(commit)
         # Sort history by version for consistency
         self.commit_history.sort(key=lambda c: (c.version.major, c.version.minor, c.version.patch))
-
-    async def get_commits(self, version_min: Version = None, version_max: Version = None) -> AsyncGenerator[OntologyCommit, None]:
-        if version_min is None:
-            version_min = Version.from_packed(0)
-        if version_max is None:
-            version_max = self.get_current_version()
-        for version, commit in self.commits.items():
-            if version_min <= version <= version_max:
-                yield commit
-
-    async def get_commit_history(self, limit: int = 10) -> AsyncGenerator[OntologyCommit, None]:
-        """Get version history ordered by commit time."""
-        for commit in self.commit_history[-limit:] if limit > 0 else self.commit_history:
-            yield commit
