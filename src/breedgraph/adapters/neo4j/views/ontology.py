@@ -62,6 +62,11 @@ class Neo4jOntologyView(AbstractOntologyView):
                     'label': queries['ontology']['ontology_entries_by_label_published_historic']
                 }
             },
+            OntologyViewMode.REFERENTIAL: {
+                'current': {
+                    'id': queries['ontology']['ontology_entries_referential']
+                }
+            }
         },
         'relationships': {
             OntologyViewMode.EDITORIAL: {
@@ -264,8 +269,8 @@ class Neo4jOntologyView(AbstractOntologyView):
         async with await self.session.begin_transaction() as tx:
             current_version = await self._get_current_version_tx(tx)
             version_type = 'current' if current_version == version else 'historic'
-            if view == OntologyViewMode.EDITORIAL and version_type == 'historic':
-                raise ValueError("Editorial view is only supported for the current version")
+            if view in [OntologyViewMode.REFERENTIAL, OntologyViewMode.EDITORIAL] and version_type == 'historic':
+                raise ValueError("Only published view is supported for historic versions")
 
             filter_type = 'id' if entry_ids else 'label'
             query = self.QUERY_MAP['entries'][view][version_type][filter_type]
@@ -276,11 +281,12 @@ class Neo4jOntologyView(AbstractOntologyView):
                     'version': version.packed_version
                 }
             elif labels:
+                if view == OntologyViewMode.REFERENTIAL:
+                    raise ValueError("Referential view is only supported for entries by ID, not by labels")
                 params = {
                     'labels': [l.value for l in labels],
                     'version': version.packed_version
                 }
-
             result: AsyncResult = await tx.run(query, **params)
             return [self.record_to_entry(record, version, view) async for record in result]
 

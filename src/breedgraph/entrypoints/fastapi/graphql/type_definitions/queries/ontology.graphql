@@ -247,20 +247,26 @@ Controls how the ontology is materialized for a given version.
 """
 enum OntologyView {
     """
-    The ontology as seen by editors working on the specified version.
+    The ontology as seen by editors working on the latest version.
 
-    Includes draft changes that are part of the version under edit.
+    Includes draft changes that are part of the given version.
     """
     EDITORIAL
-
     """
-    The ontology as published to consumers.
+    The ontology as published for entity creation.
 
-    Includes only approved content.
+    Includes only approved content in the given version.
     """
     PUBLISHED
-}
+    """
+    Ontology entries resolved for existing entity references.
 
+    Includes referenced ontology entries even if they have been removed,
+    allowing existing references to remain resolvable.
+    Relationship attributes are resolved as for published.
+    """
+    REFERENTIAL
+}
 
 interface OntologyNodeInterface {
     """

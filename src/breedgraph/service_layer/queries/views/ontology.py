@@ -28,6 +28,9 @@ class AbstractOntologyView(ABC):
             view: OntologyViewMode = OntologyViewMode.PUBLISHED
 
     ) -> Ontology:
+        if view == OntologyViewMode.REFERENTIAL:
+            raise ValueError("Referential view is only supported for resolved entries, not for the whole ontology")
+
         if version is None:
             version = await self._get_current_version()
         return await self._get_ontology(
@@ -74,6 +77,9 @@ class AbstractOntologyView(ABC):
             version: Version | None = None,
             view: OntologyViewMode = OntologyViewMode.PUBLISHED
     ) -> list[OntologyRelationshipOutput]:
+        if view == OntologyViewMode.REFERENTIAL:
+            raise ValueError("Referential view is only supported for resolved entries, not for relationships")
+
         if version is None:
             version = await self._get_current_version()
         return await self._get_relationships(entry_ids, version, view)

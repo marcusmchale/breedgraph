@@ -26,6 +26,7 @@ type Query {
     """
     Get the complete ontology at a given version for editing.
     Defaults to latest version with view PUBLISHED.
+    Supports PUBLISHED and EDITORIAL views.
     """
     ontology(
         versionId: ID
@@ -33,11 +34,12 @@ type Query {
     ): OntologyPayload!
     """
     Get a list of ontology entries.
-    Defaults to latest version with view PUBLISHED
+    Supports all views.
+    Defaults to latest version with view PUBLISHED.
     """
     ontologyEntries(
     """
-    Snapshot
+    Snapshot:
     """
         versionId: ID
         view: OntologyView = PUBLISHED
@@ -47,6 +49,11 @@ type Query {
         ids: [ID!]
         labels:[OntologyNodeLabel!]
     ): OntologyEntriesPayload!
+    """
+    Get relationships for entries to update a retrieved ontology without refetching the whole ontology.
+    Supports PUBLISHED and EDITORIAL views.
+    Defaults to latest version with view PUBLISHED.
+    """
     ontologyRelationships(
     """
     Snapshot

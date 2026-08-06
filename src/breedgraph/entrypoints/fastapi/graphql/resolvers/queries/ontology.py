@@ -107,6 +107,9 @@ async def get_ontology(
     version_id: str|None = None,
     view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> Ontology:
+    if view == OntologyViewMode.REFERENTIAL:
+        raise ValueError("Referential view is not supported for the whole ontology, only for resolved entries")
+
     bus = info.context.get('bus')
     async with bus.views_factory.get_views() as views:
         if version_id is None:
@@ -164,6 +167,9 @@ async def get_ontology_relationships(
         version_id: int|None = None,
         view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> List[OntologyRelationshipOutput]:
+    if view == OntologyViewMode.REFERENTIAL:
+        raise ValueError("Referential view is not supported for relationships, only for resolved entries")
+
     bus = info.context.get('bus')
     async with bus.views_factory.get_views() as views:
         if version_id is None:

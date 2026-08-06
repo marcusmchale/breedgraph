@@ -12,12 +12,12 @@ from breedgraph.domain.model.ontology import (
     AxisType
 )
 
-
-from typing import ClassVar, Tuple, Dict, Any, List
+from typing import ClassVar, Tuple, Dict, Any
 
 class OntologyViewMode(Enum):
     PUBLISHED = "PUBLISHED"
     EDITORIAL = "EDITORIAL"
+    REFERENTIAL = "REFERENTIAL"
 
 @dataclass(frozen=True)
 class OntologyRelationshipOutput:
