@@ -1,3 +1,4 @@
+from breedgraph.domain.model import ReadRelease
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.arrangements import CreateLayout, UpdateLayout, DeleteLayout
 
@@ -13,13 +14,15 @@ async def create_layout(
         _,
         info,
         layout: dict,
-        control_team_id: int | None = None
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
 ) -> bool:
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} adding layout: {layout}")
     cmd = CreateLayout(
         agent_id = user_id,
-        write_team= control_team_id,
+        write_team = control_team_id,
+        release = release,
         name = layout.get('name'),
         type_id = layout.get('type_id'),
         location_id= layout.get('location_id'),

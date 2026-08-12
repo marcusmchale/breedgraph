@@ -10,7 +10,7 @@ class RecordImport(BaseModel):
     reference_ids: list[int] = Field(default_factory=list)
 
 class RecordUpdateImport(BaseModel):
-    record_id: int
+    id: int
     start: str | None = None
     end: str | None = None
     value: str | int | None = None

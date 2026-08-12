@@ -15,7 +15,7 @@ async def add_person(
         cmd: commands.people.CreatePerson,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         person = PersonBase(**cmd.model_dump())
         await uow.repositories.people.create(person)
         await uow.commit()

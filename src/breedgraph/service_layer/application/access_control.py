@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-
+from collections.abc import Iterable
+from breedgraph.service_layer.tracking.wrappers import is_tracked_object
 from breedgraph.domain.model import Access
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
@@ -22,10 +23,13 @@ class AbstractAccessControlService(ABC):
 
     @staticmethod
     async def _parse_input_to_models_by_label(
-            input_: List[ControlledModel] | List[ControlledAggregate] | ControlledModel | ControlledAggregate
-    ) -> Dict[ControlledModelLabel, List[ControlledModel]]:
+            input_: Iterable[ControlledModel] | Iterable[ControlledAggregate] | ControlledModel | ControlledAggregate
+    ) -> Dict[ControlledModelLabel, Iterable[ControlledModel]]:
         controlled_models = []
-        if isinstance(input_, list):
+
+        if isinstance(input_, Iterable) and not is_tracked_object(input_):
+            # if is tracked object can still pass as an iterable then fail because it doesn't have an iter method
+            # this is just because of object proxy so check is_tracked_object and revert to single element processing.
             for i in input_:
                 if isinstance(i, ControlledAggregate):
                     controlled_models.extend(i.controlled_models)
@@ -37,7 +41,7 @@ class AbstractAccessControlService(ABC):
             elif isinstance(input_, ControlledModel):
                 controlled_models = [input_]
 
-        models_by_label: Dict[ControlledModelLabel, List[ControlledModel]] = {}
+        models_by_label: Dict[ControlledModelLabel, list[ControlledModel]] = {}
         for model in controlled_models:
             # exclude input models
             if not hasattr(model, 'id') or not model.id:
@@ -46,16 +50,16 @@ class AbstractAccessControlService(ABC):
             if model.label not in models_by_label:
                 models_by_label[model.label] = []
             models_by_label[model.label].append(model)
-
         return models_by_label
 
     async def set_controls(
             self,
-            models: List[ControlledModel] | List[ControlledAggregate] | ControlledModel | ControlledAggregate,
+            models: Iterable[ControlledModel] | Iterable[ControlledAggregate] | ControlledModel | ControlledAggregate,
             control_teams: Set[int],
             release: ReadRelease
     ) -> None:
         """Set controls for all controlled models either supplied as a singleton, as a list or in an aggregate or list of aggregates"""
+
         if not models:
             return
 
@@ -74,8 +78,8 @@ class AbstractAccessControlService(ABC):
     async def _verify_and_set_controls(
             self,
             label: ControlledModelLabel,
-            model_ids: List[int],
-            control_teams: Set[int],
+            model_ids: Iterable[int],
+            control_teams: set[int],
             release: ReadRelease
     ):
         if not self.user_id:
@@ -84,10 +88,10 @@ class AbstractAccessControlService(ABC):
             raise IllegalOperationError("Control teams required to set controls")
 
         controllers = await self.get_controllers(label, model_ids)
+
         for model_id, controller in controllers.items():
             if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
-
         await self._set_controls(
             label=label,
             model_ids=model_ids,
@@ -95,10 +99,9 @@ class AbstractAccessControlService(ABC):
             release=release,
             user_id=self.user_id
         )
-
     async def set_controls_by_id_and_label(
             self,
-            ids: List[int],
+            ids: Iterable[int],
             label: ControlledModelLabel,
             control_teams: Set[int],
             release: ReadRelease
@@ -109,8 +112,8 @@ class AbstractAccessControlService(ABC):
     async def _set_controls(
             self,
             label: ControlledModelLabel,
-            model_ids: Set[int]|List[int],
-            team_ids: Set[int]|List[int],
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
             release: ReadRelease,
             user_id: int
     ) -> None:
@@ -119,7 +122,7 @@ class AbstractAccessControlService(ABC):
 
     async def record_writes(
             self,
-            models: List[ControlledModel] | List[ControlledAggregate] | ControlledModel | ControlledAggregate
+            models: Iterable[ControlledModel] | Iterable[ControlledAggregate] | ControlledModel | ControlledAggregate
     ) -> None:
         """Record write stamp on all controlled models either supplied as a singleton, as a list or in an aggregate or list of aggregates"""
         if not models:
@@ -143,7 +146,7 @@ class AbstractAccessControlService(ABC):
     async def _record_writes(
             self,
             label: ControlledModelLabel,
-            model_ids: Set[int]|List[int],
+            model_ids: Iterable[int],
             user_id: int
     ) -> None:
         """Record write stamps for multiple entities - batch operation"""
@@ -154,7 +157,7 @@ class AbstractAccessControlService(ABC):
         controllers = await self._get_controllers(label, [model_id])
         return controllers.get(model_id)
 
-    async def get_controllers(self, label: ControlledModelLabel, model_ids: List[int]) -> Dict[int, Controller]:
+    async def get_controllers(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> Dict[int, Controller]:
         """
         Get multiple controllers by label and model_ids
         """
@@ -176,12 +179,12 @@ class AbstractAccessControlService(ABC):
 
     # Abstract methods for concrete implementations
     @abstractmethod
-    async def _get_controllers(self, label: ControlledModelLabel, model_ids: List[int]) -> Dict[int, Controller]:
+    async def _get_controllers(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> Dict[int, Controller]:
         """Get controllers for multiple model instances - key batch operation"""
         ...
 
     @abstractmethod
-    async def remove_controls(self, label: ControlledModelLabel, model_ids: List[int], team_id: int) -> None:
+    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_id: int) -> None:
         """Remove a specific team's control from multiple models - batch operation"""
         ...
 

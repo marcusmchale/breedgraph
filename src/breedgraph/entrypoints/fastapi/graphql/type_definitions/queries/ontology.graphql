@@ -229,6 +229,8 @@ enum ControlMethodType{
     BIOLOGICAL
     """ Management controls, e.g. cropping density, pruning """
     MANAGEMENT
+    """ Genetic controls, e.g. controlled crossing """
+    GENETIC
 }
 
 enum ScaleType {

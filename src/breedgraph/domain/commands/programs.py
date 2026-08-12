@@ -1,11 +1,15 @@
 from typing import List
-from .base import Command
 from breedgraph.domain.model.time_descriptors import PyDT64
+from breedgraph.domain.model.controls import ReadRelease
+
+from .base import Command
+
 
 # Program Commands
 class CreateProgram(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     name: str
     fullname: str | None = None
@@ -34,6 +38,7 @@ class DeleteProgram(Command):
 class CreateTrial(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     program_id: int
 
@@ -67,6 +72,7 @@ class DeleteTrial(Command):
 class CreateStudy(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     trial_id: int
 

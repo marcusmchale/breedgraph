@@ -96,19 +96,19 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
 
     async def _get_all_controlled(
             self,
-            reference_ids: List[int]|None = None,
-            file_ids: List[str]|None = None,
+            reference_ids: list[int]|None = None,
+            file_ids: list[str]|None = None,
             description: str|None = None,
             reference_types: list[ReferenceType]|None = None
     ) -> AsyncGenerator[ControlledQueryResult[ReferenceStoredBase], None]:
         match_field = None
-        if reference_ids:
+        if reference_ids is not None:
             result = await self.tx.run(queries['references']['get_references_by_ids'], reference_ids=reference_ids)
-        elif file_ids:
+        elif file_ids is not None:
             result = await self.tx.run(queries['references']['get_references_by_file_ids'], file_ids=file_ids)
             match_field = "file_id"
-        elif description:
-            if reference_types:
+        elif description is not None:
+            if reference_types is not None:
                 result = await self.tx.run(
                     queries['references']['get_references_by_description_and_types'],
                     description=description,

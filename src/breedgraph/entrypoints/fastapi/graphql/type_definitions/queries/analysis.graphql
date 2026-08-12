@@ -11,6 +11,9 @@ type AnovaRow {
   """F statistic"""
   fValue: Float
 
+  """Wald statistic"""
+  wald: Float
+
   """p-value"""
   pValue: Float
 }

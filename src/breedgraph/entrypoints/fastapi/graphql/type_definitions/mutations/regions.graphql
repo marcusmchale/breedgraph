@@ -42,6 +42,7 @@ extend type Mutation {
     regionsCreateLocation(
         location: LocationInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): BooleanPayload!,
     regionsUpdateLocation(
         location: LocationUpdate!

@@ -27,6 +27,7 @@ extend type Mutation {
     arrangementsCreateLayout(
         layout: LayoutInput!
         controlTeamId: ID!
+        release:ReadRelease
     ): BooleanPayload!
     arrangementsUpdateLayout(
         layout: LayoutUpdate!

@@ -1,3 +1,4 @@
+from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
@@ -19,12 +20,13 @@ async def create_program(
         _,
         info,
         program: dict,
-        control_team_id: int | None = None
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create program: {program} by user {user_id}")
 
-    cmd = CreateProgram(agent_id=user_id, write_team=control_team_id, **program)
+    cmd = CreateProgram(agent_id=user_id, write_team=control_team_id, release=release, **program)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -71,7 +73,8 @@ async def create_trial(
         _,
         info,
         trial: dict,
-        control_team_id: int | None = None
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
 ) -> bool:
     user_id = info.context.get('user_id')
 
@@ -79,6 +82,7 @@ async def create_trial(
     cmd = CreateTrial(
         agent_id=user_id,
         write_team=control_team_id,
+        release=release,
         **trial
     )
     await info.context['bus'].handle(cmd)
@@ -137,7 +141,8 @@ async def create_study(
         _,
         info,
         study: dict,
-        control_team_id: int | None = None
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Create study: {study.get('name')} in trial {study.get('trial_id')} by user {user_id}")
@@ -145,6 +150,7 @@ async def create_study(
     cmd = CreateStudy(
         agent_id=user_id,
         write_team=control_team_id,
+        release=release,
         trial_id=study.get('trial_id'),
         name=study.get('name'),
         fullname=study.get('fullname'),

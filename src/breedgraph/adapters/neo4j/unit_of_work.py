@@ -74,8 +74,8 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             tx: AsyncTransaction,
             user_id: int | None = None,
             redacted: bool = True,
-            release: ReadRelease = ReadRelease.PRIVATE,
-            write_team: int | None = None
+            write_team: int | None = None,
+            release: ReadRelease = ReadRelease.PRIVATE
     ) -> "Neo4jUnitHolder":
         """Async factory that handles service initialization"""
 
@@ -94,6 +94,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             user_id=user_id,
             role=ontology_role
         )
+
 
         germplasm_persistence = Neo4jGermplasmPersistenceService(tx)
         germplasm_service = GermplasmApplicationService(
@@ -156,8 +157,8 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
             self,
             user_id: int | None = None,
             redacted: bool = True,
-            release: ReadRelease = ReadRelease.PRIVATE,
-            write_team: int | None = None
+            write_team: int | None = None,
+            release: ReadRelease = ReadRelease.PRIVATE
     ) -> AsyncGenerator[Neo4jUnitHolder, None]:
 
         session: AsyncSession = self.driver.session()

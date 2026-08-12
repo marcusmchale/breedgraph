@@ -74,6 +74,7 @@ extend type Mutation {
     programsCreateProgram(
         program: ProgramInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): BooleanPayload
     programsUpdateProgram(program: ProgramUpdate!): BooleanPayload
     programsDeleteProgram(id: ID!): BooleanPayload
@@ -82,6 +83,7 @@ extend type Mutation {
     programsCreateTrial(
         trial: TrialInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): BooleanPayload
     programsUpdateTrial(trial: TrialUpdate!): BooleanPayload
     programsDeleteTrial(id: ID!): BooleanPayload
@@ -90,6 +92,7 @@ extend type Mutation {
     programsCreateStudy(
         study: StudyInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): BooleanPayload
     programsUpdateStudy(study: StudyUpdate!): BooleanPayload
     programsDeleteStudy(id: ID!): BooleanPayload

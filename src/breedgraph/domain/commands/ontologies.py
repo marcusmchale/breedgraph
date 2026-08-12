@@ -1,8 +1,11 @@
 from typing import List
 from breedgraph.domain.commands import Command
+
 from pydantic import BaseModel
 
-from breedgraph.domain.model.ontology.enums import ScaleType, ObservationMethodType, AxisType, VersionChange
+from breedgraph.domain.model.ontology.enums import ScaleType, ObservationMethodType, AxisType, VersionChange, \
+    ControlMethodType
+
 
 class CommitOntologyVersion(Command):
     agent_id: int
@@ -85,6 +88,7 @@ class CreateVariable(Command, CreateEntryBase):
     term_ids: List[int] | None = None
 
 class CreateControlMethod(Command, CreateEntryBase):
+    control_type: ControlMethodType
     term_ids: List[int] | None = None
 
 class CreateFactor(Command, CreateEntryBase):

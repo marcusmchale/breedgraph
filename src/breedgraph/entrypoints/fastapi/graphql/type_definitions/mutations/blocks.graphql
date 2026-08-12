@@ -48,6 +48,7 @@ extend type Mutation {
     blocksCreateUnit(
         unit: UnitInput!
         controlTeamId: ID!
+        release:ReadRelease
         position: PositionInput
     ): BooleanPayload!
     blocksUpdateUnit(unit: UnitUpdate!): BooleanPayload!

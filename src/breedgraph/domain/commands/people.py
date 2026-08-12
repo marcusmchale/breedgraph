@@ -1,10 +1,14 @@
+from breedgraph.domain.model.controls import ReadRelease
+
 from .base import Command
+
 
 from typing import List
 
 class CreatePerson(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     name: str
     fullname: None|str = None

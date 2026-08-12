@@ -17,8 +17,9 @@ group_summary = ObjectType("GroupSummary")
 analysis_submission = ObjectType("AnalysisSubmission")
 analysis_result = ObjectType("AnalysisResult")
 analysis_config = ObjectType("AnalysisConfig")
+anova_row = ObjectType("AnovaRow")
 
-graphql_resolvers.register_type_resolvers(group_summary, analysis_submission, analysis_result)
+graphql_resolvers.register_type_resolvers(group_summary, analysis_submission, analysis_result, anova_row)
 
 """Submission resolver"""
 @graphql_query.field("analysisSubmission")

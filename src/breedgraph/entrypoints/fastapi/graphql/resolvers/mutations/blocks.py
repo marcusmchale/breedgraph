@@ -6,6 +6,8 @@ from breedgraph.domain.commands.blocks import (
     AddPosition,
     RemovePosition
 )
+from breedgraph.domain.model.controls import ReadRelease
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -20,13 +22,15 @@ async def create_unit(
         info,
         unit: dict,
         position: dict|None = None,
-        control_team_id: int | None = None
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} adds unit: {unit}")
     cmd = CreateUnit(
         agent_id=user_id,
         write_team=control_team_id,
+        release=release,
         name=unit.get('name'),
         description=unit.get('description'),
         subject_id=unit.get('subject_id'),

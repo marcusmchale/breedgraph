@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import re
+import warnings
+
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
@@ -199,9 +201,24 @@ class AnalysisService:
 
         return filled_start + (filled_end - filled_start) / 2
 
+    def considering_time(self) -> bool:
+        for iv in self.config.independent_variables:
+            if iv.type == AnalysisVariableType.TIMEPOINT:
+                return True
+        return False
+
+    def considering_germplasm(self) -> bool:
+        for iv in self.config.independent_variables:
+            if iv.type == AnalysisVariableType.GERMPLASM:
+                return True
+        return False
+
     def assign_timepoints(self, df):
         if not self.config:
             raise ValueError("Cannot get timepoint labels without config defined")
+        if not self.considering_time():
+            return df
+
         if not self.config.timepoint_boundaries:
             raise ValueError("Timepoint boundaries are required to examine timepoint as a variable")
         boundaries = [pd.Timestamp(b) for b in self.config.timepoint_boundaries]
@@ -224,6 +241,9 @@ class AnalysisService:
         return df
 
     def assign_germplasm(self, df):
+        if not self.considering_germplasm():
+            return df
+
         if self.unit_to_germplasm:
             df[self.germplasm_variable_label] = df['unit'].map(self.unit_to_germplasm)
             df[self.germplasm_variable_label] = df[self.germplasm_variable_label].astype('category')
@@ -294,21 +314,115 @@ class AnalysisService:
 
     @staticmethod
     def serialize_anova_row(row):
-        return {
+        serialized_row = {
             'term': row['Term'],
             'sum_sq': row['sum_sq'],
-            'df': row['df'],
-            'f_value': row['F'] if not pd.isna(row['F']) else None,
-            'p_value': row['PR(>F)'] if not pd.isna(row['PR(>F)']) else None
+            'df': row['df']
         }
+        if 'F' in row:
+            serialized_row.update({
+                'f_value': row['F'] if not pd.isna(row['F']) else None,
+                'p_value': row['PR(>F)'] if not pd.isna(row['PR(>F)']) else None
+            })
+        elif 'Wald' in row:
+            serialized_row.update({
+                'wald': row['Wald'] if not pd.isna(row['Wald']) else None,
+                'p_value': row['PR(>Wald)'] if not pd.isna(row['PR(>Wald)']) else None
+            })
+        else:
+            serialized_row.update({
+                'wald': None,
+                'p_value': None
+            })
+        return serialized_row
+
+    def is_full_rank(self):
+        X = self.fit.model.exog
+        return np.linalg.matrix_rank(X) == X.shape[1]
+
+    @staticmethod
+    def robust_anova_with_ss(fit_obj):
+        """
+        Computes ANOVA table safely across all edge cases by catching
+        RuntimeWarnings locally without changing global pandas/numpy settings.
+        """
+        # Pre-extract residual metrics for backup SS calculations
+        try:
+            ssr = fit_obj.ssr
+            sst = fit_obj.ess + fit_obj.ssr if hasattr(fit_obj, 'ess') else np.nan
+        except AttributeError:
+            ssr, sst = np.nan, np.nan
+
+        # --- Tier 1: Try Standard Type-II F-Test ---
+        # We wrap this in a warnings filter to catch the divide-by-zero or NaN warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error', category=RuntimeWarning)
+            try:
+                anova_df = sm.stats.anova_lm(fit_obj, typ=2)
+
+                # Catch the numerical edge cases where it didn't warn but returned zeros
+                if not (anova_df.iloc[:, 0] == 0).any():
+                    return anova_df
+            except (RuntimeWarning, Exception):
+                pass  # Fall through to Tier 2 if a warning or exception occurs
+
+        # --- Tier 2: Try Explicit Type-II Wald Test ---
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error', category=RuntimeWarning)
+            try:
+                anova_df = sm.stats.anova_lm(fit_obj, typ=2, test="Wald")
+
+                if not (anova_df.iloc[:, 0] == 0).any():
+                    if 'sum_sq' not in anova_df.columns:
+                        anova_df.insert(0, 'sum_sq', np.nan)
+                        anova_df.insert(1, 'mean_sq', np.nan)
+                    return anova_df
+            except (RuntimeWarning, Exception):
+                pass  # Fall through to Tier 3 if it fails or warns
+
+        # --- Tier 3: Fallback to Pseudo-Inverse Wald Terms ---
+        try:
+            wald_terms = fit_obj.wald_test_terms(skip_single=False)
+            anova_df = wald_terms.summary_frame()
+
+            processed_df = pd.DataFrame(index=anova_df.index)
+            mse = fit_obj.scale if hasattr(fit_obj, 'scale') else 1.0
+
+            # Calculate Sum of Squares using the Wald statistic
+            processed_df['sum_sq'] = (anova_df['statistic'] / anova_df['df_constraint']) * mse * anova_df[
+                'df_constraint']
+            processed_df['mean_sq'] = processed_df['sum_sq'] / anova_df['df_constraint']
+            processed_df['df'] = anova_df['df_constraint']
+            processed_df['F'] = anova_df['statistic'] / anova_df['df_constraint']
+            processed_df['PR(>F)'] = wald_terms.pvalues if hasattr(wald_terms, 'pvalues') else anova_df['pvalue']
+
+            # Manually append the Residual row to match standard ANOVA shapes
+            if not np.isnan(ssr):
+                df_resid = fit_obj.df_resid
+                residuals_row = pd.DataFrame({
+                    'sum_sq': [ssr],
+                    'mean_sq': [ssr / df_resid if df_resid > 0 else np.nan],
+                    'df': [df_resid],
+                    'F': [np.nan],
+                    'PR(>F)': [np.nan]
+                }, index=['Residual'])
+                processed_df = pd.concat([processed_df, residuals_row])
+
+            return processed_df
+        except Exception:
+            pass
+
+        # --- Tier 4: Safe Empty DataFrame ---
+        terms = fit_obj.model.xnames if hasattr(fit_obj.model, 'xnames') else ['Intercept']
+        terms_with_res = terms + ['Residual']
+        return pd.DataFrame(np.nan, index=terms_with_res, columns=['sum_sq', 'mean_sq', 'df', 'F', 'PR(>F)'])
 
     def get_anova(self):
-        logger.debug('get anova')
-        anova = sm.stats.anova_lm(self.fit, typ=2)
-        anova.reset_index(inplace=True)
-        anova.rename(columns={'index': 'Term'}, inplace=True)
-        anova['Term'] = anova['Term'].apply(self.clean_term)
-        return anova.apply(self.serialize_anova_row, axis=1).tolist()
+        anova_df = self.robust_anova_with_ss(self.fit)
+        anova_df.reset_index(inplace=True)
+        anova_df.rename(columns={'index': 'Term'}, inplace=True)
+        anova_df['Term'] = anova_df['Term'].apply(self.clean_term)
+        return anova_df.apply(self.serialize_anova_row, axis=1).tolist()
 
     def serialize_group_row(self, row):
         group_array = [{'label': col, 'level': row[col]} for col in self.group_cols]
@@ -325,7 +439,8 @@ class AnalysisService:
         group_cols = []
         value_col = self.config.dependent_variable.label
         for concept_id, entry in self.concept_to_entry.items():
-            if isinstance(entry, FactorStored):
+            scale = self.concept_to_scale[concept_id]
+            if scale.scale_type in [ScaleType.ORDINAL, ScaleType.NOMINAL]:
                 group_cols.append(self.concept_to_label[concept_id])
         if self.timepoint_variable_label:
             group_cols.append(self.timepoint_variable_label)

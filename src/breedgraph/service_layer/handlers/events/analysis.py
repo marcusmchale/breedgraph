@@ -71,7 +71,6 @@ async def analysis_requested(
 
             # Parse the interaction terms
             interaction_terms = analysis_service.parse_interaction_terms(analysis_import.interaction_terms, independent_variables)
-
             # Build a config object
             parsed_config = AnalysisConfig(
                 name=analysis_import.name,
@@ -85,10 +84,14 @@ async def analysis_requested(
             analysis_service.config = parsed_config
             analysis_service.validate_config()
             analysis_service.build_df()
+            group_stats = analysis_service.get_group_stats()
             analysis_service.fit_model()
             anova = analysis_service.get_anova()
-            group_stats = analysis_service.get_group_stats()
-            tukey = analysis_service.get_tukey_hsd()
+
+            try:
+                tukey = analysis_service.get_tukey_hsd()
+            except ValueError:
+                tukey = None
             result = {
                 'anova': anova,
                 'group': group_stats,

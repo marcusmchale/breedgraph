@@ -78,7 +78,6 @@ class DatasetBase(ABC):
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
-
     def add_records(
             self,
             records: List[DataRecordInput|dict],

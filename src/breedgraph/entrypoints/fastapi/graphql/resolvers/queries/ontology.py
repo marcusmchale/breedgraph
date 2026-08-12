@@ -180,8 +180,6 @@ async def get_ontology_relationships(
         return relationships
 
 
-
-
 async def resolve_ontology_entries(context, entry_ids):
     if not entry_ids:
         return []
@@ -204,9 +202,12 @@ async def resolve_authors(obj, info):
     #raise NotImplementedError
 
 @ontology_node_interface.field("references")
-def resolve_references(obj, info):
-    return []
-    #raise NotImplementedError
+async def resolve_references(obj, info):
+    bus = info.context.get('bus')
+    user_id = info.context.get('user_id')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=obj.references)]
+        return references
 
 @ontology_node_interface.field("phase")
 async def resolve_phase(obj, info):

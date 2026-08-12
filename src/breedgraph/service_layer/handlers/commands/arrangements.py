@@ -26,7 +26,7 @@ async def create_layout(
         cmd: commands.arrangements.CreateLayout,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         ontology_service = uow.ontology
         layout_type = await ontology_service.get_entry(entry_id=cmd.type_id, label=LayoutTypeStored.label)
         if layout_type is None:

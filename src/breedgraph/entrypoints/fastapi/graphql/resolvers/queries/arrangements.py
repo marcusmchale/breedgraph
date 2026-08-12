@@ -1,6 +1,6 @@
 from ariadne import ObjectType
 
-from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput
+from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput, OntologyViewMode
 from breedgraph.domain.model.regions import LocationOutput
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -55,7 +55,7 @@ async def resolve_children(obj, info) -> list[LayoutOutput]:
 
 @layout.field("type")
 async def resolve_type(obj, info) -> OntologyEntryOutput:
-    await update_ontology_map(info.context, entry_ids=[obj.type])
+    await update_ontology_map(info.context, entry_ids=[obj.type], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.type)
 

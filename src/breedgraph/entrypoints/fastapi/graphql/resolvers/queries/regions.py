@@ -1,5 +1,6 @@
 from ariadne import ObjectType
 
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
 from breedgraph.service_layer.queries.views import regions, AbstractRegionsView
 
 from breedgraph.domain.model.regions import LocationInput, LocationOutput
@@ -76,7 +77,7 @@ async def resolve_children(obj, info):
 
 @location.field("type")
 async def resolve_type(obj, info):
-    await update_ontology_map(info.context, entry_ids=[obj.type])
+    await update_ontology_map(info.context, entry_ids=[obj.type], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.type)
 

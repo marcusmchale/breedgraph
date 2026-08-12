@@ -13,6 +13,7 @@ extend type Mutation {
     peopleCreatePerson(
         person: PersonInput!
         controlTeamId: ID!
+        release:ReadRelease
     ): BooleanPayload!,
     peopleUpdatePerson(
         person: PersonUpdate!

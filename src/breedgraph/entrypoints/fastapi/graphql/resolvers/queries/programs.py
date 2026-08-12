@@ -1,6 +1,6 @@
 from ariadne import ObjectType
 
-from breedgraph.service_layer.queries.read_models.ontology import DesignOutput
+from breedgraph.service_layer.queries.read_models.ontology import DesignOutput, OntologyViewMode
 from breedgraph.domain.model import LegalReferenceStored
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -127,6 +127,6 @@ async def resolve_licence(obj, info) -> LegalReferenceStored | None:
 async def resolve_design(obj, info) -> DesignOutput | None:
     if not obj.design_id:
         return None
-    await update_ontology_map(context = info.context, entry_ids=[obj.design_id])
+    await update_ontology_map(context = info.context, entry_ids=[obj.design_id], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.design_id)

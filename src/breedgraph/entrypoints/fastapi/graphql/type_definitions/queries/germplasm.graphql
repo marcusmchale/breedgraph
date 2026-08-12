@@ -10,9 +10,9 @@ type GermplasmEntry {
     name: String!
     description: String
     synonyms: [String!]
-    originId: Location
     time: DateTime
     reproduction: Reproduction
+    origin: Location
     controlMethods: [ControlMethod!]
     authors: [Person!]
     references: [ReferenceInterface!]

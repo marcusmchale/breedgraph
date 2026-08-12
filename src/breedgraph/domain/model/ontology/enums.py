@@ -52,6 +52,7 @@ class ControlMethodType(str, Enum):
     CHEMICAL = "CHEMICAL" # herbicides, hormones etc.
     BIOLOGICAL = "BIOLOGICAL" # microbial treatments etc.
     MANAGEMENT = "MANAGEMENT" # management of planting, pruning etc
+    GENETIC = "GENETIC" # management of genetic material, e.g. crossing, clonal propagation via tissue culture
 
 class ScaleType(str, Enum):
     DATETIME = "DATE"

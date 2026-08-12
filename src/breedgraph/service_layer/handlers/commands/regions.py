@@ -26,9 +26,9 @@ async def create_location(
         address = cmd.address
     )
 
-    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         if cmd.parent_id is None:
-            # Ensure that root locations have public read-access
+            # Ensure that root locations (countries) have public read-access
             uow.repositories.regions.release = ReadRelease.PUBLIC
 
         if cmd.parent_id is None:

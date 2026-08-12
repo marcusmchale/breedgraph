@@ -1,8 +1,12 @@
+from breedgraph.domain.model.controls import ReadRelease
+
 from .base import Command
+
 
 class CreateDataset(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     submission_id: str
 

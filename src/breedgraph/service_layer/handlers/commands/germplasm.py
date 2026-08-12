@@ -15,7 +15,7 @@ async def create_germplasm_entry(
         cmd: commands.germplasm.CreateGermplasm,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         germplasm_service = uow.germplasm
         entry = GermplasmInput(
             name=cmd.name,
@@ -26,7 +26,7 @@ async def create_germplasm_entry(
             origin=cmd.origin_id,
             time=cmd.time,
             reproduction=cmd.reproduction,
-            control_methods=cmd.control_method_ids
+            control_methods=cmd.control_method_ids or []
         )
         entry = await germplasm_service.create_entry(entry)
         if cmd.sources or cmd.sinks:
@@ -60,23 +60,23 @@ async def update_germplasm_entry(
         if entry is None:
             raise ValueError("Entry not found")
 
-        if cmd.name and not cmd.name == entry.name:
+        if cmd.name is not None and not cmd.name == entry.name:
             entry.name = cmd.name
-        if cmd.description and not cmd.description == entry.description:
+        if cmd.description is not None and not cmd.description == entry.description:
             entry.description = cmd.description
-        if cmd.synonyms and not set(cmd.synonyms) == set(entry.synonyms):
+        if cmd.synonyms is not None and not set(cmd.synonyms) == set(entry.synonyms):
             entry.synonyms = cmd.synonyms
-        if cmd.author_ids and not set(cmd.author_ids) == set(entry.authors):
+        if cmd.author_ids is not None and not set(cmd.author_ids) == set(entry.authors):
             entry.authors = cmd.author_ids
-        if cmd.reference_ids and not set(cmd.reference_ids) == set(entry.references):
+        if cmd.reference_ids is not None and not set(cmd.reference_ids) == set(entry.references):
             entry.references = cmd.reference_ids
-        if cmd.origin_id and not cmd.origin_id == entry.origin:
+        if cmd.origin_id is not None and not cmd.origin_id == entry.origin:
             entry.origin = cmd.origin_id
-        if cmd.time and not cmd.time == entry.time:
+        if cmd.time is not None and not cmd.time == entry.time:
             entry.time = cmd.time
-        if cmd.reproduction and not cmd.reproduction == entry.reproduction:
+        if cmd.reproduction is not None and not cmd.reproduction == entry.reproduction:
             entry.reproduction = cmd.reproduction
-        if cmd.control_method_ids and not set(cmd.control_method_ids) == set(entry.control_method_ids):
+        if cmd.control_method_ids is not None and not set(cmd.control_method_ids) == set(entry.control_methods):
             entry.control_methods = cmd.control_method_ids
 
         await germplasm_service.update_entry(entry)

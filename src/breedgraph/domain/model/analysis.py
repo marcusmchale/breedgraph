@@ -38,6 +38,7 @@ class AnalysisConfig:
     timepoint_boundaries: list[datetime64] | None
 
     def __post_init__(self):
+
         if not self.dependent_variable.type == AnalysisVariableType.CONCEPT:
             raise ValueError('Dependent variable must be concept')
         for t in self.interaction_terms:

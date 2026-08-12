@@ -84,24 +84,29 @@ extend type Mutation {
     referencesCreateLegal(
         reference: LegalReferenceInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): CreatedIdPayload!
     referencesCreateExternal(
         reference: ExternalReferenceInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): CreatedIdPayload!
     referencesCreateExternalData(
         reference: ExternalDataReferenceInput!
         controlTeamId: ID!
+        release: ReadRelease
     ): CreatedIdPayload!
 
     """As for dataset submissions, creating a file is asynchronous and we are returned a key """
     referencesCreateFile(
         reference: FileReferenceInput
         controlTeamId: ID!
+        release: ReadRelease
     ): FileIdPayload!
     referencesCreateDataFile(
         reference: DataFileReferenceInput
         controlTeamId: ID!
+        release: ReadRelease
     ): FileIdPayload!
     
     referencesUpdateLegal(reference: LegalReferenceUpdate!): BooleanPayload!

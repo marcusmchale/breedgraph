@@ -1,11 +1,12 @@
-from .base import Command
-from typing import List
-
 from breedgraph.domain.model.references import DataFormat
+from breedgraph.domain.model.controls import ReadRelease
+
+from .base import Command
 
 class CreateLegalReference(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
     
@@ -14,6 +15,7 @@ class CreateLegalReference(Command):
 class CreateExternalReference(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
     
@@ -23,6 +25,7 @@ class CreateExternalReference(Command):
 class CreateExternalDataReference(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
     
@@ -35,6 +38,7 @@ class CreateExternalDataReference(Command):
 class CreateFileReference(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
 
@@ -45,6 +49,7 @@ class CreateFileReference(Command):
 class CreateDataFileReference(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
 
@@ -114,4 +119,4 @@ class UpdateDataFileReference(Command):
 
 class DeleteReferences(Command):
     agent_id: int
-    reference_ids: List[int]
+    reference_ids: list[int]

@@ -44,6 +44,7 @@ extend type Mutation {
     datasetsCreate(
         dataset: DatasetInput!
         controlTeamId: ID!
+        release:ReadRelease
     ): SubmissionIdPayload!
     datasetsUpdate(dataset: DatasetUpdate!): SubmissionIdPayload!
     datasetsAddRecords(id: ID!, records: [RecordInput!]): SubmissionIdPayload!

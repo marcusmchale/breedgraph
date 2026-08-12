@@ -20,6 +20,9 @@ from .driver import AbstractAsyncDriver
 from typing import AsyncGenerator, Callable, Awaitable, Iterable
 
 import logging
+
+from ...domain.model import ReadRelease
+
 logger = logging.getLogger(__name__)
 
 EventPublisher = Callable[[Event], Awaitable[None]]
@@ -52,35 +55,37 @@ class AbstractUnitOfWorkFactory(ABC):
     def __init__(self, driver: AbstractAsyncDriver):
         super().__init__()
         self.driver = driver
-        self.event_publisher: EventPublisher|None = None
+        self.publish_event: EventPublisher | None = None
 
     def set_event_publisher(self, event_publisher: EventPublisher|None):
-        self.event_publisher = event_publisher
+        self.publish_event = event_publisher
 
     @asynccontextmanager
     async def get_uow(
             self,
             user_id: int|None = None,
             redacted: bool = True,
-            write_team: int | None = None
+            write_team: int | None = None,
+            release: ReadRelease = ReadRelease.PRIVATE
     ) -> AsyncGenerator[AbstractUnitHolder, None]:
-        async with self._get_uow(user_id=user_id, redacted=redacted, write_team=write_team) as uow:
+        async with self._get_uow(user_id=user_id, redacted=redacted, write_team=write_team, release=release) as uow:
             try:
                 yield uow
             except Exception as e:
-                logger.error(f"Error in unit of work: {e}")
+                logger.exception(f"Error in unit of work: {e}")
                 raise e
             else:
-                if self.event_publisher is not None and uow.committed:
+                if self.publish_event is not None and uow.committed:
                     for event in uow.collect_events():
-                        await self.event_publisher(event)
+                        await self.publish_event(event)
 
     @abstractmethod
     def _get_uow(
             self,
             user_id: int|None = None,
             redacted: bool = True,
-            write_team: int | None = None
+            write_team: int | None = None,
+            release: ReadRelease = ReadRelease.PRIVATE
     ) -> AbstractAsyncContextManager[AbstractUnitHolder]:
         ...
 

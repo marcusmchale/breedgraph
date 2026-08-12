@@ -4,9 +4,11 @@ from enum import Enum, EnumMeta
 from functools import lru_cache
 
 from breedgraph.service_layer.tracking.wrappers import asdict
-from breedgraph.domain.events.accounts import Event
 
-from typing import List, Dict, Any, ClassVar
+from typing import List, Dict, Any, ClassVar, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..events.base import Event
 
 import logging
 
@@ -84,7 +86,7 @@ class StoredModel(LabeledModel, ABC):
 @dataclass(eq=False)
 class Aggregate(ABC):
     """Base aggregate class"""
-    events: List[Event] = field(default_factory=list)
+    events: List["Event"] = field(default_factory=list)
 
     @property
     @abstractmethod

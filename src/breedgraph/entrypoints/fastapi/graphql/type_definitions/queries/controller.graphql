@@ -1,4 +1,4 @@
-enum ReadRelease {PRIVATE, REGISTERED, PUBLIC}
+enum ReadRelease { PRIVATE, REGISTERED, PUBLIC }
 
 enum ControlledModelLabel{
     GERMPLASM,

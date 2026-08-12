@@ -8,7 +8,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DatasetOutput, DataRecordStored
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.service_layer.handlers.commands.regions import update_location
-from breedgraph.service_layer.queries.read_models import DatasetSummary
+from breedgraph.service_layer.queries.read_models import DatasetSummary, OntologyViewMode
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
@@ -54,7 +54,7 @@ async def get_datasets(
 
 @dataset.field('concept')
 async def resolve_concept(obj, info):
-    await update_ontology_map(info.context, entry_ids=[obj.concept])
+    await update_ontology_map(info.context, entry_ids=[obj.concept], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.concept)
 
@@ -134,13 +134,13 @@ async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[Data
 
 @dataset_summary.field("concept")
 async def resolve_summary_concept(obj, info):
-    await update_ontology_map(info.context, entry_ids=[obj.concept_id])
+    await update_ontology_map(info.context, entry_ids=[obj.concept_id], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.concept_id)
 
 @dataset_summary.field("subjects")
 async def resolve_summary_subjects(obj, info):
-    await update_ontology_map(info.context, entry_ids=obj.subject_ids)
+    await update_ontology_map(info.context, entry_ids=obj.subject_ids, view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return [ontology_map.get(subject_id) for subject_id in obj.subject_ids]
 

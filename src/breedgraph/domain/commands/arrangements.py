@@ -2,9 +2,13 @@ from .base import Command
 
 from typing import List
 
+from breedgraph.domain.model.controls import ReadRelease
+
+
 class CreateLayout(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     location_id: int
     type_id: int

@@ -1,8 +1,10 @@
 from dataclasses import dataclass, asdict
 from typing import List
-from breedgraph.domain.commands import Command
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmRelationship, Reproduction, GermplasmSourceType
+from breedgraph.domain.model.controls import ReadRelease
+
+from .base import Command
 
 from typing import Dict, Any
 
@@ -30,6 +32,7 @@ class GermplasmSinkRelationship(GermplasmRelationshipBase):
 class CreateGermplasm(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     name: str = ''
     description: str | None = None
@@ -52,6 +55,21 @@ class UpdateGermplasm(CreateGermplasm):
 
     germplasm_id: int
     name: str | None = None
+    description: str | None = None
+    synonyms: List[str] | None = None
+
+    author_ids: List[int] | None = None # internal person ID
+    reference_ids: List[int] | None = None  # internal reference ID
+
+    origin_id: int | None = None  # internal location
+    time: PyDT64|None = None
+
+    reproduction: Reproduction | None = None
+    control_method_ids: List[int] | None = None
+
+    sources: List[GermplasmSourceRelationship] | None = None
+    sinks: List[GermplasmSinkRelationship] | None = None
+
 
 class DeleteGermplasm(Command):
     agent_id: int

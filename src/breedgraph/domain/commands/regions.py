@@ -1,6 +1,9 @@
-from .base import Command
 from pydantic import BaseModel
-from typing import List
+
+from breedgraph.domain.model.controls import ReadRelease
+
+from .base import Command
+
 
 class GeoCoordinate(BaseModel):  #ISO 6709
     latitude: float
@@ -12,6 +15,7 @@ class GeoCoordinate(BaseModel):  #ISO 6709
 class CreateLocation(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     type_id: int
     name: str
@@ -20,7 +24,7 @@ class CreateLocation(Command):
     description: str = None
     code: str = None
     address: str = None
-    coordinates: List[GeoCoordinate] = None
+    coordinates: list[GeoCoordinate] = None
 
     parent_id: int|None = None
 
@@ -35,7 +39,7 @@ class UpdateLocation(Command):
     description: str|None = None
     code: str|None = None
     address: str|None = None
-    coordinates: List[GeoCoordinate]|None = None
+    coordinates: list[GeoCoordinate]|None = None
 
     parent_id: int|None = None
 

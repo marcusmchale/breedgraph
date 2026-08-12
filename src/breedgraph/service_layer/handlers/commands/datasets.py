@@ -16,7 +16,12 @@ async def submit_records(
         cmd: commands.datasets.CreateDataset,
         event_queue: Queue
 ):
-    event = events.datasets.DatasetSubmitted(agent_id=cmd.agent_id, write_team=cmd.write_team, submission_id=cmd.submission_id)
+    event = events.datasets.DatasetSubmitted(
+        agent_id=cmd.agent_id,
+        write_team=cmd.write_team,
+        release=cmd.release,
+        submission_id=cmd.submission_id
+    )
     await event_queue.put(event)
 
 @handlers.command_handler()

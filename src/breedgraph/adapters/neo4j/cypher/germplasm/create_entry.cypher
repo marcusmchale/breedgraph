@@ -8,17 +8,15 @@ SET entry += $params
 
 WITH entry
 // Link methods
-CALL {
-  WITH entry
+CALL (entry) {
   UNWIND $control_methods AS method_id
-  MATCH (control_method: ControlMethod {id: method_id})
+  MATCH (method: ControlMethod {id: method_id})
   CREATE (entry)-[uses_method:USES_CONTROL_METHOD {time:datetime.transaction()}]->(method)
   RETURN
     collect(method.id) AS control_methods
 }
 // Link references
-CALL {
-  WITH entry
+CALL (entry) {
   UNWIND $references AS ref_id
   MATCH (reference: Reference {id: ref_id})
   CREATE (reference)-[ref_for:REFERENCE_FOR {time:datetime.transaction()}]->(entry)

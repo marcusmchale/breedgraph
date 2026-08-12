@@ -75,6 +75,7 @@ extend type Mutation {
     germplasmCreateEntry(
         entry: GermplasmInput!
         controlTeamId: ID!
+        release:ReadRelease
     ): BooleanPayload
     germplasmUpdateEntry(entry: GermplasmUpdate!): BooleanPayload
     germplasmDeleteEntry(id: ID!): BooleanPayload

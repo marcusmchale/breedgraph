@@ -47,10 +47,7 @@ class GermplasmRelationship:
 
 @dataclass
 class GermplasmBase(ABC):
-    # For germplasm entries we subclass ontology base
-    # so we can return them as categories for a scale.
     label: ClassVar[ControlledModelLabel] = ControlledModelLabel.GERMPLASM
-    protected_characters: ClassVar[List[str]] = ['/', '*', ';']
 
     name: str = ''
     description: str | None = None
@@ -80,22 +77,12 @@ class GermplasmBase(ABC):
         
     Time should be the time of sourcing/creation at origin.
 
-    Methods should be references to ControlMethods in the Ontology that define protocols, e.g.
+    Control Methods should be references to ControlMethods in the Ontology that define protocols, e.g.
       - crossing
       - clonal propagation via tissue culture
       - controlled self-fertilisation
       - uncontrolled pollination
       
-    When used as categories in a scale, special characters may be used for values:
-      - '/' describes a graft, starting from the scion tissue down to rootstock material, i.e. scion/intergraft/rootstock
-      - '*' describes F1 material from a cross between the described germplasms.
-        - Multiple F1 materials described in this way are assumed to be from independent events.
-        - To describe repeated use of a single hybridization event, e.g. clonal F1 material, an entry should be created.
-      - ';' is used to separate a list of germplasm entries, i.e. when multiple germplasm values are being reported as the value.
-
-    The "protected" characters may not be used in names. 
-    Similarly, a name may not be a simple integer alone. 
-    This is to avoid confounding entries when describing such.
     """
     @property
     def names(self):
@@ -103,16 +90,8 @@ class GermplasmBase(ABC):
         return names
 
     def __post_init__(self):
-        """Validate that name doesn't contain protected characters or is numeric"""
-        if re.search('|'.join(re.escape(x) for x in self.protected_characters), self.name):
-            raise ValueError(f"Name {self.name} contains a protected character {self.protected_characters}")
-
-        try:
-            float(self.name)
-        except ValueError:
-            pass
-        else:
-            raise ValueError("Names for germplasm entries cannot be purely numeric")
+        if not self.name:
+            raise ValueError("Names for germplasm entries cannot be empty")
 
     def model_dump(self) -> Dict[str, Any]:
         dump = asdict(self)

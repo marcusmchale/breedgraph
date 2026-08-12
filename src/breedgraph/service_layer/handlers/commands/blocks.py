@@ -15,7 +15,7 @@ async def create_unit(
         cmd: commands.blocks.CreateUnit,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team) as uow:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         unit_input = UnitInput(
             subject = cmd.subject_id,
             germplasm = cmd.germplasm_id,

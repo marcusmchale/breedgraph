@@ -4,7 +4,7 @@ from typing import List, Set
 
 import logging
 
-from breedgraph.domain.model import Version
+from breedgraph.domain.model import Version, GermplasmOutput
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def _get_lock(context, lock_name: str):
 async def load_entries_to_ontology_map(
         context,
         entries: List[OntologyEntryOutput],
-        version_id: int,
+        version_id: int|None,
         view: OntologyViewMode
 ):
     if version_id is None:
@@ -83,7 +83,6 @@ async def update_ontology_map(
                     if view is not None and view != context_view:
                         raise ValueError("Ontology context view changed in the middle of resolving a query")
                     view = context_view
-
                 entries = await views.ontology.get_entries(
                     entry_ids=entries_to_update,
                     version=version,
@@ -241,24 +240,29 @@ async def update_units_map(context, location_ids: List[int] | None = None, unit_
             context['units_map'] = units_map
             context['block_roots'] = block_roots
 
-
 async def update_germplasm_map(
         context,
         entry_ids: List[int]|None = None,
         names: List[str]|None = None
 ):
     async with _get_lock(context, '_germplasm_lock'):
+        if not 'germplasm_map' in context:
+            context['germplasm_map'] = dict()
+        # filter out existing entries in germplasm_map
+        if entry_ids:
+            entry_ids = [
+                entry_id for entry_id in entry_ids if entry_id not in context['germplasm_map']
+            ]
+        # return if no entry_ids or names provided and we already have a germplasm_map
+        if context['germplasm_map'] and not (entry_ids or names) :
+            return
+
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
         entry_ids = entry_ids or []
         async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            if not 'germplasm_map' in context:
-                context['germplasm_map'] = dict()
-            entries_to_update = [
-                entry_id for entry_id in entry_ids if entry_id not in context['germplasm_map']
-            ]
             async for entry in uow.germplasm.get_entries(
-                entry_ids=entries_to_update or None,
+                entry_ids=entry_ids or None,
                 names=names or None,
                 as_output=True
             ):

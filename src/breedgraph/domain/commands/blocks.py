@@ -2,12 +2,14 @@ from .base import Command
 from typing import List
 from pydantic import model_validator
 from breedgraph.domain.model.time_descriptors import PyDT64
-from ...custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.controls import ReadRelease
 
+from breedgraph.custom_exceptions import IllegalOperationError
 
 class CreateUnit(Command):
     agent_id: int
     write_team: int | None = None
+    release: ReadRelease = ReadRelease.PRIVATE
 
     name: str | None = None
     description: str | None = None

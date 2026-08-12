@@ -1,6 +1,5 @@
 from ariadne import ObjectType
 
-
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_units_map,
@@ -11,6 +10,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
 )
 
 from breedgraph.domain.model.blocks import UnitOutput, Position
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
 
 from typing import List
 
@@ -42,7 +42,7 @@ async def get_units(_, info, ids: List[int]) -> List[UnitOutput]:
 
 @unit.field("subject")
 async def resolve_subject(obj, info):
-    await update_ontology_map(info.context, entry_ids=[obj.subject])
+    await update_ontology_map(info.context, entry_ids=[obj.subject], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.subject)
 

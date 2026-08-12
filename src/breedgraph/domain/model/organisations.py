@@ -2,7 +2,6 @@ from abc import ABC
 from dataclasses import dataclass, field, replace
 from copy import deepcopy
 from enum import Enum
-import networkx as nx
 
 from breedgraph.domain.model.base import StoredModel, LabeledModel
 from breedgraph.domain.model.graph import TreeAggregate

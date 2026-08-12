@@ -25,20 +25,20 @@ class Neo4jControlledRepository(
 
     @abstractmethod
     async def _create_controlled(self, aggregate_input: BaseModel) -> ControlledAggregate:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def _get_controlled(self, **kwargs) -> ControlledQueryResult[TControlledAggregate]|None:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def _get_all_controlled(self, **kwargs) -> AsyncGenerator[ControlledQueryResult[TControlledAggregate], None]:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def _remove_controlled(self, aggregate: ControlledAggregate):
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def _update_controlled(self, aggregate: ControlledAggregate | TrackableProtocol):
-        raise NotImplementedError
+        ...
