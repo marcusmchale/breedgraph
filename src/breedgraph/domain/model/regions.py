@@ -64,7 +64,7 @@ class LocationStored(LocationBase, ControlledModel):
 
 @dataclass
 class LocationOutput(LocationBase, StoredModel, EnumLabeledModel):
-    region: int = None
+    region: int | None = None
     parent: int | None = None
     children: list[int] = field(default_factory=list)
 

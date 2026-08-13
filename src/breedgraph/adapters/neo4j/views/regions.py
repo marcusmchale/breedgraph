@@ -4,8 +4,6 @@ from breedgraph.service_layer.queries.views.regions import AbstractRegionsView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
 from breedgraph.adapters.neo4j.cypher import queries
-from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-
 
 from breedgraph.domain.model.regions import LocationOutput
 

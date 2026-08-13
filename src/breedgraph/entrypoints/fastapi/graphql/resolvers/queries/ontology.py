@@ -16,7 +16,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_users_map,
-    load_entries_to_ontology_map
+    load_entries_to_ontology_map, update_reference_map
 )
 
 
@@ -416,6 +416,22 @@ async def resolve_commit_user(obj, info):
     await update_users_map(context, user_ids=[obj.user])
     users_map = context.get('users_map')
     return users_map.get(obj.user)
+
+@ontology_commit.field("licence")
+async def resolve_commit_licence(obj:OntologyCommit, info):
+    bus = info.context.get('bus')
+    user_id = info.context.get('user_id')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        reference = await uow.repositories.references.get(reference_id=obj.licence)
+        return reference
+
+@ontology_commit.field("copyright")
+async def resolve_commit_copyright(obj:OntologyCommit, info):
+    bus = info.context.get('bus')
+    user_id = info.context.get('user_id')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        reference = await uow.repositories.references.get(reference_id=obj.copyright)
+        return reference
 
 @graphql_query.field("ontologyRoleRequests")
 @graphql_payload
