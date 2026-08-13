@@ -419,6 +419,8 @@ async def resolve_commit_user(obj, info):
 
 @ontology_commit.field("licence")
 async def resolve_commit_licence(obj:OntologyCommit, info):
+    if not obj.licence:
+        return None
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
@@ -427,6 +429,8 @@ async def resolve_commit_licence(obj:OntologyCommit, info):
 
 @ontology_commit.field("copyright")
 async def resolve_commit_copyright(obj:OntologyCommit, info):
+    if not obj.copyright:
+        return None
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:

@@ -68,7 +68,6 @@ class LocationOutput(LocationBase, StoredModel, EnumLabeledModel):
     parent: int | None = None
     children: list[int] = field(default_factory=list)
 
-
 TInput=LocationInput
 TStored=LocationStored
 class Region(ControlledTreeAggregate):

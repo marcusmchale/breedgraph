@@ -4,7 +4,7 @@ RETURN commit {
        . *,
          time:committed.time,
          user:user.id,
-         licence: [(ontology_commit)-[:USES_LICENCE]->(licence:Reference) | licence.id][0],
-         copyright: [(ontology_commit)-[:USES_COPYRIGHT]->(copyright:Reference) | copyright.id][0]
+         licence: [(commit)-[:USES_LICENCE]->(licence:Reference) | licence.id][0],
+         copyright: [(commit)-[:USES_COPYRIGHT]->(copyright:Reference) | copyright.id][0]
        }
 ORDER BY commit.version DESC
