@@ -3,9 +3,7 @@ from dataclasses import dataclass, field, replace
 from typing import List, ClassVar, Self
 
 from breedgraph.domain.model.base import StoredModel, EnumLabeledModel
-from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledTreeAggregate, Access, \
-    ControlledModelLabel
-
+from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledTreeAggregate, ControlledModelLabel, Access
 
 @dataclass
 class LayoutBase(ABC):

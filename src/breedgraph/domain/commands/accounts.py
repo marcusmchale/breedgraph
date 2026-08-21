@@ -1,5 +1,6 @@
-from .base import Command
 from breedgraph.domain.model.controls import Access
+
+from .base import Command
 
 class CreateAccount(Command):
     name: str

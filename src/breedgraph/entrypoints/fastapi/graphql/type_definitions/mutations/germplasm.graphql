@@ -18,12 +18,6 @@ input GermplasmSourceRelationship {
     description: String
 }
 
-input GermplasmSinkRelationship {
-    sinkId: ID!
-    sourceType: GermplasmSourceType!
-    description: String
-}
-
 # Program Mutations
 input GermplasmInput {
     name: String!
@@ -52,8 +46,6 @@ input GermplasmInput {
     referenceIds: [ID!] = []
     """Source relationships"""
     sources: [GermplasmSourceRelationship!]
-    """Sink relationships"""
-    sinks: [GermplasmSinkRelationship!]
 }
 
 input GermplasmUpdate {
@@ -68,7 +60,6 @@ input GermplasmUpdate {
     authorIds: [ID!] = []
     referenceIds: [ID!] = []
     sources: [GermplasmSourceRelationship!]
-    sinks: [GermplasmSinkRelationship!]
 }
 
 extend type Mutation {

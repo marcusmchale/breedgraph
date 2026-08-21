@@ -97,7 +97,7 @@ type Query {
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
     """
-    arrangements(locationId: ID): LayoutsPayload!
+    arrangements(locationId: ID!): LayoutsPayload!
     """ Get a layout details by ID """
     arrangementsLayouts(ids: [ID!]): LayoutsPayload! # see team
     """
@@ -139,7 +139,6 @@ type Query {
     ): ControllersPayload!
     """Get a list of Germplasm entries"""
     germplasmEntries(
-        names: [String!]
         ids: [ID!]
     ): GermplasmEntriesPayload!
     """

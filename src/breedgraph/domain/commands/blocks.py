@@ -28,19 +28,6 @@ class CreateUnit(Command):
     start: PyDT64|None = None
     end: PyDT64|None = None
 
-    """
-    Units are retrieved either from their ID, their block, or their location.
-    As such, we must ensure that where a unit has no parents (new block), it must have a position.
-    The minimal requirement for a position is the location_id.
-    """
-    @model_validator(mode='after')
-    def _has_location_if_not_parent(self):
-        has_parents = bool(self.parents)
-        if not has_parents:
-            has_location = self.location_id is not None
-            if not has_location:
-                raise IllegalOperationError("New blocks must have a position")
-        return self
 
 
 class UpdateUnit(Command):

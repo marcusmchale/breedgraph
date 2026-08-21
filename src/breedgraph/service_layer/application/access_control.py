@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Iterable
 from breedgraph.service_layer.tracking.wrappers import is_tracked_object
-from breedgraph.domain.model import Access
+
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
@@ -64,8 +64,6 @@ class AbstractAccessControlService(ABC):
             return
 
         models_by_label = await self._parse_input_to_models_by_label(models)
-
-        # Create/Set controllers using batch operations
         for label, models in models_by_label.items():
             model_ids = [model.id for model in models]
             await self._verify_and_set_controls(
@@ -92,6 +90,9 @@ class AbstractAccessControlService(ABC):
         for model_id, controller in controllers.items():
             if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
+
+        # for models with existing controllers we need to filter out control teams provided that are not already in the controller.
+        # this is per model so if we want to batch process we need to either split or do it in the query.
         await self._set_controls(
             label=label,
             model_ids=model_ids,
@@ -99,6 +100,7 @@ class AbstractAccessControlService(ABC):
             release=release,
             user_id=self.user_id
         )
+
     async def set_controls_by_id_and_label(
             self,
             ids: Iterable[int],
@@ -184,7 +186,7 @@ class AbstractAccessControlService(ABC):
         ...
 
     @abstractmethod
-    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_id: int) -> None:
+    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_ids: Iterable[int]) -> None:
         """Remove a specific team's control from multiple models - batch operation"""
         ...
 

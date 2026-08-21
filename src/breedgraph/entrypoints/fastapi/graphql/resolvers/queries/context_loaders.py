@@ -1,10 +1,10 @@
 import asyncio
 
-from typing import List, Set
+from typing import Iterable
 
 import logging
 
-from breedgraph.domain.model import Version, GermplasmOutput
+from breedgraph.domain.model import Version
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def _get_lock(context, lock_name: str):
 
 async def load_entries_to_ontology_map(
         context,
-        entries: List[OntologyEntryOutput],
+        entries: Iterable[OntologyEntryOutput],
         version_id: int|None,
         view: OntologyViewMode
 ):
@@ -51,7 +51,7 @@ async def load_entries_to_ontology_map(
 
 async def update_ontology_map(
         context,
-        entry_ids: List[int],
+        entry_ids: Iterable[int],
         version_id: int|None = None,
         view: OntologyViewMode | None = None
 ):
@@ -90,7 +90,7 @@ async def update_ontology_map(
                 )
                 ontology_map.update({entry.id: entry for entry in entries})
 
-async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None):
+async def update_teams_map(context, team_ids: Iterable[int] | None = None):
     async with _get_lock(context, '_teams_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
@@ -104,8 +104,7 @@ async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None
                     teams_map.update(org.to_output_map())
                     organisation_roots.append(org.root.id)
             else:
-                if isinstance(team_ids, list):
-                    team_ids = set(team_ids)
+                team_ids = set(team_ids)
                 unmapped = team_ids - set(teams_map.keys())
                 if unmapped:
                     n = 0
@@ -123,7 +122,7 @@ async def update_teams_map(context, team_ids: List[int] | Set[int] | None = None
             context['teams_map'] = teams_map
             context['organisation_roots'] = organisation_roots
 
-async def update_users_map(context, user_ids: List[int] | None = None):
+async def update_users_map(context, user_ids: Iterable[int] | None = None):
     async with (_get_lock(context, '_users_lock')):
 
         bus = context.get('bus')
@@ -148,7 +147,7 @@ async def update_users_map(context, user_ids: List[int] | None = None):
 
         context['users_map'] = users_map
 
-async def update_locations_map(context, location_ids: List[int] | None = None):
+async def update_locations_map(context, location_ids: Iterable[int] | None = None):
     async with _get_lock(context, '_locations_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
@@ -177,7 +176,7 @@ async def update_locations_map(context, location_ids: List[int] | None = None):
             context['locations_map'] = locations_map
             context['region_roots'] = region_roots
 
-async def update_layouts_map(context, location_id: int | None = None, layout_ids: List[int] | None = None):
+async def update_layouts_map(context, location_id: int | None = None, layout_ids: Iterable[int] | None = None):
     async with _get_lock(context, '_layouts_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
@@ -209,7 +208,7 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
             context['layouts_map'] = layouts_map
             context['arrangement_roots'] = arrangement_roots
 
-async def update_units_map(context, location_ids: List[int] | None = None, unit_ids: List[int] | None = None):
+async def update_units_map(context, location_ids: Iterable[int] | None = None, unit_ids: Iterable[int] | None = None):
     async with _get_lock(context, '_units_lock'):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
@@ -242,8 +241,7 @@ async def update_units_map(context, location_ids: List[int] | None = None, unit_
 
 async def update_germplasm_map(
         context,
-        entry_ids: List[int]|None = None,
-        names: List[str]|None = None
+        entry_ids: Iterable[int]|None = None
 ):
     async with _get_lock(context, '_germplasm_lock'):
         if not 'germplasm_map' in context:
@@ -253,24 +251,20 @@ async def update_germplasm_map(
             entry_ids = [
                 entry_id for entry_id in entry_ids if entry_id not in context['germplasm_map']
             ]
-        # return if no entry_ids or names provided and we already have a germplasm_map
-        if context['germplasm_map'] and not (entry_ids or names) :
+        # return if no entry_ids provided and we already have a germplasm_map
+        if context['germplasm_map'] and not entry_ids:
             return
 
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
         entry_ids = entry_ids or []
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            async for entry in uow.germplasm.get_entries(
-                entry_ids=entry_ids or None,
-                names=names or None,
-                as_output=True
-            ):
+        async with bus.views_factory.get_views(user_id=user_id) as views:
+            for entry in await views.germplasm.get_entries(entry_ids=entry_ids):
                 context['germplasm_map'][entry.id] = entry
 
 async def update_reference_map(
         context,
-        reference_ids: List[int]|None = None
+        reference_ids: Iterable[int]|None = None
 ):
     if not 'reference_map' in context:
         context['reference_map'] = dict()

@@ -48,8 +48,8 @@ from numpy import datetime64
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
-from breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, ReadRelease, Controller, ControlledModelLabel
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, Controller, ControlledModelLabel, Access
+
 from typing import List, ClassVar, Generator
 
 @dataclass
@@ -107,6 +107,7 @@ class UnitOutput(UnitBase, EnumLabeledModel, StoredModel):
     parents: list[int] = field(default_factory=list)
     children: list[int] = field(default_factory=list)
 
+
 TInput = UnitInput
 TStored = UnitStored
 class Block(ControlledRootedAggregate):
@@ -132,6 +133,20 @@ class Block(ControlledRootedAggregate):
 
     def get_unit(self, unit_id: int):
         return self._graph.nodes[unit_id].get('model')
+
+    def add_position(self, unit_id: int, position: Position):
+        self._validate_position(position)
+        unit = self.get_unit(unit_id)
+        unit.positions.append(position)
+
+    def remove_position(self, unit_id: int, position: Position):
+        unit = self.get_unit(unit_id)
+        try:
+            if self.root == unit and len(unit.positions) == 1:
+                raise IllegalOperationError("Block root units must have at least one position defined to support discovery")
+            unit.positions.remove(position)
+        except ValueError:
+            raise ValueError("A position matching the provided details was not found, nothing changed")
 
     def set_child(self, source_id: int, sink_id: int):
         self._add_edge(source_id, sink_id)
@@ -176,3 +191,12 @@ class Block(ControlledRootedAggregate):
         for unit_id, unit in self.entries.items():
             if unit.subject_id == subject_id:
                 yield unit_id
+
+    @staticmethod
+    def _validate_position(position: Position):
+        if not position.location_id:
+            raise ValueError("Positions require location_id")
+
+        if position.start and position.end:
+            if position.start > position.end:
+                raise ValueError("Start cannot be after end")

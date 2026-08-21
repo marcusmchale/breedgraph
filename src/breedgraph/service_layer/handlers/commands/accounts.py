@@ -1,6 +1,6 @@
 from breedgraph.domain import commands, events
 from breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
-from breedgraph.domain.model.organisations import Authorisation, Access
+from breedgraph.domain.model.organisations import Authorisation
 
 
 from breedgraph.service_layer.infrastructure import (
@@ -221,6 +221,7 @@ async def approve_affiliation(
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         if organisation is None:
             raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
+
         organisation.authorise_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,

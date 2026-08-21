@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional, AsyncGenerator
-from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship, GermplasmOutput
+from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmRelationship
 from breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 import networkx as nx
 
@@ -55,9 +55,8 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
     async def get_entries(
             self,
             entry_ids: List[int] | None = None,
-            names: List[str] | None = None,
-            as_output: bool = False
-    ) -> AsyncGenerator[GermplasmStored|GermplasmOutput, None]:
+            names: List[str] | None = None
+    ) -> AsyncGenerator[GermplasmStored, None]:
         if entry_ids:
             for entry_id in entry_ids:
                 if entry_id in self.entries:

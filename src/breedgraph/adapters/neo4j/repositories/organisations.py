@@ -7,11 +7,11 @@ from breedgraph.domain.model.organisations import (
     TeamInput,
     TeamStored,
     Organisation,
-    Access,
     Affiliation,
     Affiliations,
     Authorisation
 )
+from breedgraph.domain.model.controls import Access
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.service_layer.repositories.base import BaseRepository

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from breedgraph.adapters.neo4j.views.datasets import Neo4jDatasetsView
+from breedgraph.adapters.neo4j.views.germplasm import Neo4jGermplasmView
 from breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
@@ -17,6 +18,7 @@ class Neo4jViewsHolder(AbstractViewsHolder):
     def __init__(
             self,
             accounts: Neo4jAccountsView,
+            germplasm: Neo4jGermplasmView,
             regions: Neo4jRegionsView,
             datasets: Neo4jDatasetsView,
             ontology: Neo4jOntologyView
@@ -25,6 +27,7 @@ class Neo4jViewsHolder(AbstractViewsHolder):
         self.accounts = accounts
         self.regions = regions
         self.datasets = datasets
+        self.germplasm = germplasm
 
 
 class Neo4jViewsFactory(AbstractViewsFactory):
@@ -37,13 +40,15 @@ class Neo4jViewsFactory(AbstractViewsFactory):
         self.driver = driver
 
     @asynccontextmanager
-    async def _get_views(self, user_id: int = None) -> AsyncGenerator[Neo4jViewsHolder, None]:
+    async def _get_views(self, user_id: int|None = None) -> AsyncGenerator[Neo4jViewsHolder, None]:
         async with self.driver.session() as session:
             accounts_view = Neo4jAccountsView(session=session, user_id=user_id)
             read_teams = await accounts_view.get_read_teams()
             yield Neo4jViewsHolder(
                 ontology = Neo4jOntologyView(session=session),
                 accounts = accounts_view,
-                regions = Neo4jRegionsView(state_store=self.state_store, read_teams=read_teams, session=session),
-                datasets = Neo4jDatasetsView(read_teams=read_teams, session=session)
+                germplasm = Neo4jGermplasmView(session=session, user_id=user_id, read_teams=read_teams),
+                regions = Neo4jRegionsView(state_store=self.state_store, user_id = user_id, read_teams=read_teams, session=session),
+                datasets = Neo4jDatasetsView(user_id=user_id, read_teams=read_teams, session=session),
+
             )

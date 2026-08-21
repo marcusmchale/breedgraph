@@ -3,22 +3,27 @@ import copy
 
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field, asdict
-from enum import Enum
+from enum import IntEnum, Enum
 from numpy import datetime64
 from functools import lru_cache
 
 from typing import Dict, List, ClassVar, Set, Type
 
-from breedgraph.domain.model.organisations import Access
 from breedgraph.domain.model.base import Aggregate, StoredModel, EnumLabeledModel, EnumLabel
 from breedgraph.domain.model.graph import RootedAggregate, TreeAggregate
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.time_descriptors import WriteStamp
 
-class ReadRelease(Enum):
-    PRIVATE = 'PRIVATE'  # accessible only to users with an authorised affiliation to the controller
-    REGISTERED = 'REGISTERED' # accessible to any registered user
-    PUBLIC = 'PUBLIC'  # accessible to non-registered users  #  todo, currently this is not fully implemented
+class Access(str, Enum):
+    READ = 'READ'
+    WRITE = 'WRITE'
+    ADMIN = 'ADMIN'
+    CURATE = 'CURATE'
+
+class ReadRelease(IntEnum):
+    PRIVATE = 0  # accessible only to users with an authorised read affiliation to a controlling team
+    REGISTERED = 1 # accessible to any registered user
+    PUBLIC = 2  # accessible to non-registered users
 
 class ControlledModelLabel(EnumLabel):
     GERMPLASM = "Germplasm"
@@ -58,22 +63,11 @@ class ControlledModelLabel(EnumLabel):
 
 
 @dataclass
-class ControlAuditEntry:
-    user_id: int
-    release: ReadRelease
-    time: datetime64
-
-@dataclass
 class Control:
+    user_id: int
     team_id: int
     release: ReadRelease
-    # we are not using the time now, but keep the control object and time in case of future behaviour requirements
-    # For example,
-    # currently the release is just set by the "minimum" current release level,
-    # but we could alternatively set the release behaviour according to the most recent release set
-    #
-    time: datetime64 = datetime64('now')
-    audit: List[ControlAuditEntry] = field(default_factory=list)
+    time: datetime64
 
     def model_dump(self):
         return asdict(self)
@@ -97,13 +91,7 @@ class Controller:
     def release(self) -> ReadRelease:
         if not self.controls:
             return ReadRelease.PUBLIC
-        releases = set([c.release for c in self.controls.values()])
-        if ReadRelease.PRIVATE in releases:
-            return ReadRelease.PRIVATE
-        elif ReadRelease.REGISTERED in releases:
-            return ReadRelease.REGISTERED
-        else:
-            return ReadRelease.PUBLIC
+        return min([c.release for c in self.controls.values()])
 
     @property
     def created(self) -> datetime64:
@@ -254,3 +242,4 @@ class ControlledRootedAggregate(RootedAggregate, ControlledAggregate, ABC):
 
 class ControlledTreeAggregate(ControlledRootedAggregate, TreeAggregate, ABC):
     pass
+

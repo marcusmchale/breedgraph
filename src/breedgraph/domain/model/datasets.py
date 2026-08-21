@@ -5,7 +5,9 @@ from numpy import datetime64
 
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
-from breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+from breedgraph.domain.model.controls import (
+    ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
+)
 
 from breedgraph.domain.services.value_parsers import ValueParser
 from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType

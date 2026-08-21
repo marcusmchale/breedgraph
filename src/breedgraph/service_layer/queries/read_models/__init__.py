@@ -24,3 +24,5 @@ from .ontology import (
     OntologyEntryPatch
 )
 from .datasets import DatasetSummary
+
+from .germplasm import GermplasmEntryOutput, GermplasmRelationshipOutput

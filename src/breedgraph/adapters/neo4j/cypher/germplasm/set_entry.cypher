@@ -17,14 +17,14 @@ CALL {
 // Link references
 CALL {
   WITH entry
-  MATCH (entry)<-[ref_for:REFERENCE_FOR]->(reference:Reference)
+  MATCH (entry)<-[ref_for:REFERENCE_FOR]-(reference:Reference)
     WHERE NOT reference.id IN $references
   DELETE ref_for
 }
 CALL {
   WITH entry
   MATCH (reference:Reference) WHERE reference.id IN $references
-  MERGE (entry)<-[ref_for:REFERENCE_FOR]->(reference)
+  MERGE (entry)<-[ref_for:REFERENCE_FOR]-(reference)
   ON CREATE SET ref_for.time = datetime.transaction()
 }
 RETURN NULL

@@ -7,7 +7,8 @@ from breedgraph.custom_exceptions import (
 )
 
 from ...infrastructure.notifications import email_templates
-from breedgraph.domain.model.organisations import Access, Authorisation
+from breedgraph.domain.model.organisations import Authorisation, TeamInput, Affiliation
+from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
 from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
@@ -122,12 +123,26 @@ async def process_affiliation_request(
 ):
     async with uow_factory.get_uow(redacted=False) as uow:
         organisation = await uow.repositories.organisations.get(team_id = event.team_id)
+        if organisation is None:
+            return
+
         team = organisation.get_team(event.team_id)
-        request = team.affiliations.get_by_access(Access(event.access)).get(event.user_id)
+        if team is None or isinstance(team, TeamInput):
+            return
+
+        request = team.affiliations.get_by_access(event.access).get(event.user_id)
+        if request is None:
+            raise ValueError(f"Affiliation request for user {event.user_id} not found")
+
         admins = organisation.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
         if event.user_id in admins:
             # Automatically approve if user is an admin, don't need to email
             request.authorisation = Authorisation.AUTHORISED
+            # Always authorise read access to the same extent that we authorise curate access
+            if event.access is Access.CURATE:
+                affiliations_dict = team.affiliations.get_by_access(Access.READ)
+                affiliations_dict[event.user_id] = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=request.heritable)
+
             await uow.commit()
         else:
             account = await uow.repositories.accounts.get(user_id=event.user_id)
@@ -135,7 +150,7 @@ async def process_affiliation_request(
             message = email_templates.AffiliationRequestedMessage(
                 requesting_user = user,
                 team = team,
-                access = Access(event.access)
+                access = event.access
             )
             admin_accounts = [await uow.repositories.accounts.get(user_id=a) for a in admins]
             admin_users = [a.user for a in admin_accounts]
@@ -153,12 +168,18 @@ async def notify_user_approved(
     async with uow_factory.get_uow(redacted=False) as uow:
         organisation = await uow.repositories.organisations.get(team_id = event.team_id)
         team = organisation.get_team(event.team_id)
+        if team is None or isinstance(team, TeamInput):
+            return
+
         account = await uow.repositories.accounts.get(user_id=event.user_id)
+        if account is None:
+            return
+
         user = UserOutput.from_stored(account.user)
         message = email_templates.AffiliationApprovedMessage(
             user = user,
             team = team,
-            access = Access(event.access)
+            access = event.access
         )
         await notifications.send(
             [account.user],

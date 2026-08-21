@@ -1,8 +1,9 @@
 from breedgraph.domain import commands
 from breedgraph.domain.model.organisations import (
     TeamInput, TeamStored, Organisation,
-    Authorisation, Access, Affiliation,
+    Authorisation, Affiliation,
 )
+from breedgraph.domain.model.controls import Access
 
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, unit_of_work
 

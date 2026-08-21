@@ -193,7 +193,7 @@ class Neo4jOntologyView(AbstractOntologyView):
             attr_type = attr_types.get(attr)
             if not attr_type:
                 raise ValueError(f"Unexpected attribute: {attr} for class {entry_class}")
-            if attr_type in [Tuple[int, ...], Optional[Tuple[int, ...]]]:
+            if attr_type in [tuple[int, ...], Optional[tuple[int, ...]], Tuple[int, ...], Optional[Tuple[int, ...]]]:
                 value = [rel.get('target_id' if rel.get('source_id') == entry_dict['id'] else 'source_id') for rel in
                          rels]
                 entry_dict[attr] = tuple(value)

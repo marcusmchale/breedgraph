@@ -25,10 +25,6 @@ class GermplasmRelationshipBase:
 class GermplasmSourceRelationship(GermplasmRelationshipBase):
     source_id: int = None
 
-@dataclass
-class GermplasmSinkRelationship(GermplasmRelationshipBase):
-    sink_id: int = None
-
 class CreateGermplasm(Command):
     agent_id: int
     write_team: int | None = None
@@ -48,7 +44,6 @@ class CreateGermplasm(Command):
     control_method_ids: List[int] | None = None
 
     sources: List[GermplasmSourceRelationship] | None = None
-    sinks: List[GermplasmSinkRelationship] | None = None
 
 class UpdateGermplasm(CreateGermplasm):
     agent_id: int
@@ -68,7 +63,6 @@ class UpdateGermplasm(CreateGermplasm):
     control_method_ids: List[int] | None = None
 
     sources: List[GermplasmSourceRelationship] | None = None
-    sinks: List[GermplasmSinkRelationship] | None = None
 
 
 class DeleteGermplasm(Command):

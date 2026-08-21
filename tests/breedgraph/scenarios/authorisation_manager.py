@@ -1,6 +1,7 @@
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model import Access
+
 
 class AuthorisationManager:
 

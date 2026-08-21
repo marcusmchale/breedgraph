@@ -8,6 +8,7 @@ from .ontology import AbstractOntologyView
 from .accounts import AbstractAccountsView
 from .regions import AbstractRegionsView
 from .datasets import AbstractDatasetsView
+from .germplasm import AbstractGermplasmView
 
 
 from typing import AsyncGenerator
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractViewsHolder(ABC):
     ontology: AbstractOntologyView
+    germplasm: AbstractGermplasmView
     accounts: AbstractAccountsView
     regions: AbstractRegionsView
     datasets: AbstractDatasetsView
@@ -31,7 +33,7 @@ class AbstractViewsFactory(ABC):
     @asynccontextmanager
     async def get_views(
             self,
-            user_id: int = None
+            user_id: int|None = None
     ) -> AsyncGenerator[AbstractViewsHolder, None]:
         async with self._get_views(user_id=user_id) as views:
             try:
@@ -41,5 +43,5 @@ class AbstractViewsFactory(ABC):
                 raise e
 
     @abstractmethod
-    def _get_views(self, user_id: int = None) -> AbstractAsyncContextManager[AbstractViewsHolder, None]:
+    def _get_views(self, user_id: int|None = None) -> AbstractAsyncContextManager[AbstractViewsHolder, None]:
         ...

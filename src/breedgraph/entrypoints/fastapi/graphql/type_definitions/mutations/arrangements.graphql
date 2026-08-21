@@ -1,6 +1,6 @@
 input LayoutInput {
-    """ Location ID from Region """
-    locationId: ID!
+    """ Location ID from Region, provide this only for the root layout in an arrangement """
+    locationId: ID
     """ Ontology LayoutType identifier """
     typeId: ID!
     """ Axis labels """
@@ -14,7 +14,8 @@ input LayoutInput {
 }
 
 input LayoutUpdate {
-    id: ID!
+    id: ID
+    """ Location ID from Region, provide this only for the root layout in an arrangement """
     locationId: ID
     typeId: ID
     axes: [String!]

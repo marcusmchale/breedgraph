@@ -3,21 +3,16 @@ from dataclasses import dataclass, field, replace
 from copy import deepcopy
 from enum import Enum
 
+from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.base import StoredModel, LabeledModel
 from breedgraph.domain.model.graph import TreeAggregate
 from breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
 from breedgraph.domain.events.accounts import AffiliationRequested, AffiliationApproved
 
-from typing import List, ClassVar, Tuple, Dict, Any, Self
+from typing import List, ClassVar, Tuple, Self
 
 import logging
 logger = logging.getLogger(__name__)
-
-class Access(str, Enum):
-    READ = 'READ'
-    WRITE = 'WRITE'
-    ADMIN = 'ADMIN'
-    CURATE = 'CURATE'
 
 class Authorisation(str, Enum):
     # authorisation may be removed by admin or user at any level
@@ -212,7 +207,7 @@ class Organisation(TreeAggregate):
         return list(self.entries.values())
 
     @staticmethod
-    def get_access_levels(access: Access|List[Access] = None):
+    def get_access_levels(access: Access | List[Access] = None):
         if access is None:
             return [a for a in Access]
         elif isinstance(access, Access):
@@ -232,7 +227,7 @@ class Organisation(TreeAggregate):
     def get_affiliates(
             self,
             team_id: int,
-            access: Access|List[Access]|None = None,
+            access: Access | List[Access] | None = None,
             authorisation: Authorisation|List[Authorisation]|None = Authorisation.AUTHORISED,
             inheritance: bool = True
     ) -> set[int]:
@@ -376,6 +371,10 @@ class Organisation(TreeAggregate):
             raise IllegalOperationError(f"No affiliation found to team: {team_id} for user: {user_id}")
 
         team = self.get_team(team_id)
+
+        if team is None or isinstance(team, TeamInput):
+            raise IllegalOperationError(f"No team found with id: {team_id}")
+
         team.affiliations.set_by_access(
             access,
             user_id,
@@ -383,15 +382,32 @@ class Organisation(TreeAggregate):
         )
         self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
 
+        # Always authorise read access to the same extent that we authorise curate access
+        # we aren't raising a separate event to notify
+        if access is Access.CURATE:
+            affiliations_dict = team.affiliations.get_by_access(Access.READ)
+            affiliations_dict[user_id] = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
+
     def revoke_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):
             raise UnauthorisedOperationError("Only admins for the given team may revoke affiliations")
 
         team = self.get_team(team_id)
+
+        if team is None or isinstance(team, TeamInput):
+            raise IllegalOperationError(f"No team found with id: {team_id}")
+
         affiliation = team.affiliations.get_by_access(access)[user_id]
         affiliation.authorisation = Authorisation.REVOKED
 
-    def redacted(self, user_id: int = None) -> 'Organisation':
+        # Always revoke curate access (if found) if revoking read access
+        if access is Access.READ:
+            affiliations_dict = team.affiliations.get_by_access(Access.CURATE)
+            curate_affiliation = affiliations_dict.get(user_id)
+            if curate_affiliation is not None and curate_affiliation.authorisation is Authorisation.AUTHORISED:
+                curate_affiliation.authorisation = Authorisation.REVOKED
+
+    def redacted(self, user_id: int|None = None) -> 'Organisation':
         g = deepcopy(self._graph)
         root_id = self.get_root_id()
 

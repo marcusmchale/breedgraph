@@ -4,8 +4,7 @@ from datetime import datetime
 
 from .registry import graphql_resolvers
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.organisations import Access
-from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.controls import ReadRelease, Access
 from breedgraph.domain.model.ontology import (
     VersionChange,
     OntologyEntryLabel,

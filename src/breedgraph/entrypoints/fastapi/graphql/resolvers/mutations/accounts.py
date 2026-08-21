@@ -15,7 +15,7 @@ from breedgraph.domain.commands.accounts import (
 from breedgraph.domain.events.accounts import (
     PasswordChangeRequested
 )
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import OntologyRole
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError

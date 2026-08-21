@@ -3,8 +3,9 @@ from tests.breedgraph.utilities.inputs import UserInputGenerator
 
 from breedgraph.domain.model.organisations import (
     TeamInput, TeamStored,
-    Access, Affiliation, Authorisation
+    Affiliation, Authorisation
 )
+from breedgraph.domain.model import Access
 
 
 class OrganisationBuilder:

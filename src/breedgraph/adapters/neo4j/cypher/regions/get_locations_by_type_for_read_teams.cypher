@@ -1,8 +1,19 @@
 MATCH
 (location: Location)-[:OF_LOCATION_TYPE]->(type:LocationType {id: $location_type}),
-(location)<-[controls: CONTROLS]-(:TeamLocations)<-[:CONTROLS]-(team:Team)
-WITH location, type, team, last(controls.releases) as release
-WITH location, type WHERE team.id in $read_teams OR release = "PUBLIC"
+(location)<-[:CONTROLS]-(control:Control)
+  <-[:CONTROLS]-(:TeamLocations)
+  <-[:CONTROLS]-(team:Team)
+
+WITH location, type, team, control
+ORDER by location.id, team.id, control.sequence DESC
+
+WITH location, type, team, collect(control)[0] as control
+WITH location, type, collect(team.id) as team_ids, collect(control.release) as releases
+
+WITH location, type, team_ids, min(releases) as effective_release
+WHERE any(team_id in team_ids WHERE team_id in $read_teams)
+OR effective_release >= $minimum_release
+
 WITH DISTINCT location, type
 
 OPTIONAL MATCH (parent:Location)-[:INCLUDES_LOCATION]->(location)

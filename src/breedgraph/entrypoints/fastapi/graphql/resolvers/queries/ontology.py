@@ -120,14 +120,14 @@ async def get_ontology(
             except ValueError:
                 raise ValueError("Could not recognize version ID")
             version = Version.from_packed(version_id)
-        ontology_version = await views.ontology.get_ontology(version=version, view=view)
+        ontology_ = await views.ontology.get_ontology(version=version, view=view)
         await load_entries_to_ontology_map(
             context=info.context,
-            entries=ontology_version.entries,
+            entries=ontology_.entries,
             version_id = version.packed_version,
             view=view
         )
-        return ontology_version
+        return ontology_
 
 
 @graphql_query.field("ontologyEntries")

@@ -1,10 +1,20 @@
 MATCH (study: Study {id: $study_id})
         <-[:FOR_STUDY]-(dataset:Dataset)
         -[:FOR_CONCEPT]->(concept:Variable|Factor),
-      (dataset)<-[controls:CONTROLS]-(:TeamDatasets)<-[:CONTROLS]-(team:Team)
+      (dataset)<-[:CONTROLS]-(control:Control)
+        <-[:CONTROLS]-(:TeamDatasets)
+        <-[:CONTROLS]-(team:Team)
 
-WITH concept, dataset, team, last(controls.releases) as release
-WITH concept, dataset where team.id in $read_teams OR release = "PUBLIC"
+WITH concept, dataset, team, control
+ORDER BY dataset.id, team.id, control.sequence DESC
+
+WITH concept, dataset, team, collect(control)[0] as control
+WITH concept, dataset, collect(team.id) as team_ids, collect(control.release) as releases
+
+WITH concept, dataset, team_ids, min(releases) as effective_release
+WHERE any(team_id in team_ids WHERE team_id in $read_teams)
+OR effective_release >= $minimum_release
+
 WITH DISTINCT concept, dataset
 
 MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record),

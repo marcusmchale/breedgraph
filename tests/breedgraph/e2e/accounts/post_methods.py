@@ -1,5 +1,5 @@
 from breedgraph.config import GQL_API_PATH
-from breedgraph.domain.model.controls import Access
+from breedgraph.domain.model import Access
 from tests.breedgraph.e2e.utils import with_auth
 
 async def post_to_create_account(client, name: str, email: str, password: str):

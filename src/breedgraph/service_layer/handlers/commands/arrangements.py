@@ -43,6 +43,8 @@ async def create_layout(
 
         if cmd.parent:
             arrangement = await uow.repositories.arrangements.get(layout_id=cmd.parent)
+            if layout_input.location:
+                raise ValueError("Cannot set location on layout that is not the root of the arrangement")
             parent_layout = arrangement.get_entry(cmd.parent)
             parent_type = await ontology_service.get_entry(entry_id=parent_layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
             position = cmd.position or []
@@ -54,7 +56,6 @@ async def create_layout(
 
 
 
-
 @handlers.command_handler()
 async def update_layout(
         cmd: commands.arrangements.UpdateLayout,
@@ -62,11 +63,16 @@ async def update_layout(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         arrangement = await uow.repositories.arrangements.get(layout_id=cmd.layout_id)
+        if not arrangement:
+            raise ValueError("Layout not found")
+
         layout = arrangement.get_entry(cmd.layout_id)
 
         if cmd.name and not cmd.name == layout.name:
             layout.name = cmd.name
         if cmd.location_id and not cmd.location_id == layout.location:
+            if not arrangement.root.location == cmd.location_id:
+                raise ValueError("Cannot set location of layout that is not the root of the arrangement")
             layout.location = cmd.location_id
 
         # Other changes to layout are validated against the ontology

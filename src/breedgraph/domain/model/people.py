@@ -4,7 +4,7 @@ from abc import ABC
 from breedgraph.service_layer.tracking.wrappers import asdict
 
 from .base import EnumLabeledModel
-from .controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+from .controls import ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 
 from typing import List, Set, ClassVar, Dict, Any
 

@@ -29,7 +29,7 @@ async def create_germplasm_entry(
             control_methods=cmd.control_method_ids or []
         )
         entry = await germplasm_service.create_entry(entry)
-        if cmd.sources or cmd.sinks:
+        if cmd.sources:
             relationships = []
             if cmd.sources:
                 relationships += [
@@ -37,13 +37,6 @@ async def create_germplasm_entry(
                         **source.model_dump(),
                         sink_id=entry.id
                     ) for source in cmd.sources
-                ]
-            if cmd.sinks:
-                relationships += [
-                    GermplasmRelationship(
-                        **sink.model_dump(),
-                        source_id=entry.id
-                    ) for sink in cmd.sinks
                 ]
             await germplasm_service.create_relationships(relationships)
         await uow.commit()
@@ -82,8 +75,7 @@ async def update_germplasm_entry(
         await germplasm_service.update_entry(entry)
         await germplasm_service.update_entry_relationships(
             entry_id= cmd.germplasm_id,
-            sources=[GermplasmRelationship(**source_rel.model_dump(), sink_id=cmd.germplasm_id) for source_rel in cmd.sources] if cmd.sources else None,
-            sinks=[GermplasmRelationship(**sink_rel.model_dump(), source_id=cmd.germplasm_id) for sink_rel in cmd.sinks] if cmd.sinks else None
+            sources=[GermplasmRelationship(**source_rel.model_dump(), sink_id=cmd.germplasm_id) for source_rel in cmd.sources] if cmd.sources else None
         )
         await uow.commit()
 

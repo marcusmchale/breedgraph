@@ -1,7 +1,6 @@
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain import commands
-from breedgraph.domain.model.controls import Control, Access
-
+from breedgraph.domain.model.controls import Access
 
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
@@ -22,6 +21,8 @@ async def set_release(
         admin_teams = control_service.access_teams.get(Access.ADMIN)
         if not admin_teams:
             raise UnauthorisedOperationError("Admin affiliation required to set controls")
+
+
         await uow.controls.set_controls_by_id_and_label(
             ids=cmd.entity_ids,
             label=cmd.entity_label,

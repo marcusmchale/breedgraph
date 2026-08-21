@@ -26,7 +26,7 @@ graphql_resolvers.register_type_resolvers(unit, position)
 @graphql_query.field("blocks")
 @graphql_payload
 @require_authentication
-async def get_blocks(_, info, location_ids: List[int] = None) -> List[UnitOutput]:
+async def get_blocks(_, info, location_ids: List[int]|None = None) -> List[UnitOutput]:
     await update_units_map(info.context, location_ids=location_ids)
     units_map = info.context.get('units_map')
     block_roots = info.context.get('block_roots')

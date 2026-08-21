@@ -5,6 +5,7 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary
 from typing import List, AsyncGenerator
 
 class AbstractDatasetsView(ABC):
+    user_id: int|None
     read_teams: List[int]
 
     async def get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:

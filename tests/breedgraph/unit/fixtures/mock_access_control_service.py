@@ -4,7 +4,7 @@ from typing import Dict, List, Set
 
 
 from breedgraph.domain.model.controls import Control, ReadRelease, Controller
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model import Access
 from breedgraph.domain.model.time_descriptors import WriteStamp
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
@@ -53,7 +53,8 @@ class MockAccessControlService(AbstractAccessControlService):
                 self._controls[label][model_id][team_id] = Control(
                     team_id=team_id,
                     release=release,
-                    time=datetime64('now')
+                    time=datetime64('now'),
+                    user_id=user_id
                 )
 
     async def _record_writes(

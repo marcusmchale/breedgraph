@@ -1,11 +1,12 @@
-from typing import Dict, Set, List
+from typing import Iterable
 
 from neo4j import AsyncTransaction, AsyncResult
 
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.adapters.neo4j.cypher.query_builders import controls
-from breedgraph.domain.model.controls import ReadRelease, Controller, Control, ControlAuditEntry, ControlledModelLabel
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.controls import (
+    ReadRelease, Controller, Control, ControlledModelLabel, Access
+)
 from breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
@@ -16,7 +17,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             self,
             tx: AsyncTransaction,
             user_id: int|None,
-            access_teams: Dict[Access, Set[int]]
+            access_teams: dict[Access, set[int]]
     ):
         super().__init__()
         self.tx = tx
@@ -33,7 +34,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
         return cls(tx, user_id, access_teams)
 
     @classmethod
-    async def _load_access_teams(cls, tx: AsyncTransaction, user_id: int | None = None) -> Dict[Access, Set[int]]:
+    async def _load_access_teams(cls, tx: AsyncTransaction, user_id: int | None = None) -> dict[Access, set[int]]:
         """Get access teams for a user"""
         result: AsyncResult = await tx.run(queries['controls']['get_access_teams'], user_id=user_id)
         record = await result.single()
@@ -46,10 +47,10 @@ class Neo4jAccessControlService(AbstractAccessControlService):
     async def _set_controls(
             self,
             label: ControlledModelLabel,
-            model_ids: Set[int]|List[int],
-            team_ids: Set[int]|List[int],
-            user_id: int,
-            release: ReadRelease
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
+            release: ReadRelease,
+            user_id: int
     ) -> None:
         if not model_ids:
             return
@@ -65,7 +66,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
     async def _record_writes(
             self,
             label: ControlledModelLabel,
-            model_ids: Set[int]|List[int],
+            model_ids: Iterable[int],
             user_id: int
     ) -> None:
         if not model_ids:
@@ -77,7 +78,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             user_id=user_id,
         )
 
-    async def _get_controllers(self, label: ControlledModelLabel, model_ids: Set[int]|List[int]) -> Dict[int, Controller]:
+    async def _get_controllers(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> dict[int, Controller]:
         if not model_ids:
             return {}
 
@@ -90,16 +91,10 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             entity_id = record['entity_id']
             control_map = {
                 control['team']: Control(
+                    user_id=control['user'],
                     team_id=control['team'],
-                    release=ReadRelease(control['releases'][-1]),
-                    time=deserialize_time(control['times'][-1]),
-                    audit=[
-                        ControlAuditEntry(
-                            user_id = user_id,
-                            release = ReadRelease(control['releases'][i]),
-                            time = deserialize_time(control['times'][i])
-                        ) for i, user_id in enumerate(control['users'])
-                    ]
+                    release=ReadRelease(control['release']),
+                    time=deserialize_time(control['time'])
                 )
                 for control in record['controls']
             }
@@ -110,7 +105,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             controllers[entity_id] = Controller(controls=control_map, writes=writes)
         return controllers
 
-    async def remove_controls(self, label: ControlledModelLabel, model_ids: Set[int]|List[int], team_ids: Set[int]|List[int]) -> None:
+    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_ids: Iterable[int]) -> None:
         if not model_ids:
             return
 

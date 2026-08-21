@@ -5,7 +5,7 @@ from breedgraph.domain.model.germplasm import (
     GermplasmInput, GermplasmRelationship
 )
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model import Access
 from breedgraph.custom_exceptions import IllegalOperationError
 
 from tests.breedgraph.unit.fixtures.mock_germplasm_persistence import MockGermplasmPersistenceService

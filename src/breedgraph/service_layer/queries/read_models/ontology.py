@@ -12,7 +12,7 @@ from breedgraph.domain.model.ontology import (
     AxisType
 )
 
-from typing import ClassVar, Tuple, Dict, Any
+from typing import ClassVar, Dict, Any
 
 class OntologyViewMode(Enum):
     PUBLISHED = "PUBLISHED"
@@ -53,16 +53,16 @@ class OntologyEntryOutput(ABC):
     abbreviation: str | None = None
     description: str | None = None
     
-    synonyms: Tuple[str, ...] = ()
-    authors: Tuple[int, ...] = ()
-    references: Tuple[int, ...] = ()
+    synonyms: tuple[str, ...] = ()
+    authors: tuple[int, ...] = ()
+    references: tuple[int, ...] = ()
 
-    parents: Tuple[int, ...] = ()
-    children: Tuple[int, ...] = ()
+    parents: tuple[int, ...] = ()
+    children: tuple[int, ...] = ()
 
 
     @property
-    def names(self) -> Tuple[str, ...]:
+    def names(self) -> tuple[str, ...]:
         """Convenience accessor including synonyms and optional abbreviation."""
         return tuple(
             x for x in (self.name, *self.synonyms, self.abbreviation) if x is not None
@@ -89,81 +89,81 @@ class OntologyEntryOutput(ABC):
 class TermOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TERM
 
-    subjects: Tuple[int, ...] = ()
-    scales: Tuple[int, ...] = ()
-    categories: Tuple[int, ...] = ()
-    observation_methods: Tuple[int, ...] = ()
-    traits: Tuple[int, ...] = ()
-    variables: Tuple[int, ...] = ()
-    control_methods: Tuple[int, ...] = ()
-    conditions: Tuple[int, ...] = ()
-    factors: Tuple[int, ...] = ()
-    events: Tuple[int, ...] = ()
-    location_types: Tuple[int, ...] = ()
-    layout_types: Tuple[int, ...] = ()
-    designs: Tuple[int, ...] = ()
-    roles: Tuple[int, ...] = ()
-    titles: Tuple[int, ...] = ()
+    subjects: tuple[int, ...] = ()
+    scales: tuple[int, ...] = ()
+    categories: tuple[int, ...] = ()
+    observation_methods: tuple[int, ...] = ()
+    traits: tuple[int, ...] = ()
+    variables: tuple[int, ...] = ()
+    control_methods: tuple[int, ...] = ()
+    conditions: tuple[int, ...] = ()
+    factors: tuple[int, ...] = ()
+    events: tuple[int, ...] = ()
+    location_types: tuple[int, ...] = ()
+    layout_types: tuple[int, ...] = ()
+    designs: tuple[int, ...] = ()
+    roles: tuple[int, ...] = ()
+    titles: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class LocationTypeOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.LOCATION_TYPE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
 class LayoutTypeOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.LAYOUT_TYPE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    axes: Tuple[AxisType, ...] = ()
+    axes: tuple[AxisType, ...] = ()
 
 @dataclass(frozen=True)
 class SubjectOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.SUBJECT
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    traits: Tuple[int, ...] = ()
-    conditions: Tuple[int, ...] = ()
+    traits: tuple[int, ...] = ()
+    conditions: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class CategoryOutput(OntologyEntryOutput):
     label: ClassVar[str] = OntologyEntryLabel.CATEGORY
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    scales: Tuple[int, ...] = ()
+    scales: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class ScaleOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.SCALE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
     scale_type: ScaleType = ScaleType.TEXT
-    categories: Tuple[int, ...]|None = None
+    categories: tuple[int, ...]|None = None
 
-    variables: Tuple[int, ...] = ()
-    factors: Tuple[int, ...] = ()
+    variables: tuple[int, ...] = ()
+    factors: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class ControlMethodOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.CONTROL_METHOD
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
     control_type: ControlMethodType = ControlMethodType.ENVIRONMENTAL
-    factors: Tuple[int, ...] = ()
+    factors: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class ConditionOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.CONDITION
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    subjects: Tuple[int, ...] = ()
-    factors: Tuple[int, ...] = ()
+    subjects: tuple[int, ...] = ()
+    factors: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class FactorOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.FACTOR
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
     condition: int = None
     control_method: int = None
@@ -172,23 +172,23 @@ class FactorOutput(OntologyEntryOutput):
 @dataclass(frozen=True)
 class ObservationMethodOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.OBSERVATION_METHOD
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
     observation_type: ObservationMethodType = ObservationMethodType.MEASUREMENT
-    variables: Tuple[int, ...] = ()
+    variables: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class TraitOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TRAIT
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    subjects: Tuple[int, ...] = ()
-    variables: Tuple[int, ...] = ()
+    subjects: tuple[int, ...] = ()
+    variables: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class VariableOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.VARIABLE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
     trait: int = None
     observation_method: int = None
@@ -197,33 +197,33 @@ class VariableOutput(OntologyEntryOutput):
 @dataclass(frozen=True)
 class DesignOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.DESIGN
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class EventOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.EVENT
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
-    factors: Tuple[int, ...] = ()
-    variables: Tuple[int, ...] = ()
+    factors: tuple[int, ...] = ()
+    variables: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class RoleOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.ROLE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class TitleOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TITLE
-    terms: Tuple[int, ...] = ()
+    terms: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class Ontology:
     version: Version
     view: OntologyViewMode
 
-    entries: Tuple[OntologyEntryOutput, ...]
-    relationships: Tuple[OntologyRelationshipOutput, ...]
+    entries: tuple[OntologyEntryOutput, ...]
+    relationships: tuple[OntologyRelationshipOutput, ...]
 
 @dataclass(frozen=True)
 class OntologyEntryPatch:

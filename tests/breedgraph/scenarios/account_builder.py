@@ -1,9 +1,8 @@
-from breedgraph.domain.model import OntologyRole
+from breedgraph.domain.model import OntologyRole, Access
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 from tests.breedgraph.utilities.inputs import UserInputGenerator
 
 from breedgraph.domain.model.accounts import UserInput, AccountInput
-from breedgraph.domain.model.organisations import Access
 
 from .organisation_builder import OrganisationBuilder
 

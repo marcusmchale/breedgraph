@@ -8,6 +8,7 @@ from typing import List, AsyncGenerator
 
 class AbstractRegionsView(ABC):
     state_store: AbstractStateStore
+    user_id: int | None
     read_teams: List[int]
 
     async def countries(self) -> List[LocationInput]:

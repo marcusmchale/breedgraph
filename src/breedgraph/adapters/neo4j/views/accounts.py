@@ -41,7 +41,7 @@ class Neo4jAccountsView(AbstractAccountsView):
             result: AsyncResult = await tx.run(queries['accounts']['get_user'], user_id=self.user_id)
             record = await result.single(strict=True)
             user = UserOutput(**record['user'])
-            self.ontology_role = record['ontology_role']
+            self.ontology_role = user.ontology_role
             return user
 
     async def _get_ontology_role(self) -> OntologyRole:

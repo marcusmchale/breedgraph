@@ -20,7 +20,7 @@ from tests.breedgraph.e2e.organisations.post_methods import (
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
 from tests.breedgraph.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
-from breedgraph.domain.model.controls import Access
+from breedgraph.domain.model import Access
 from breedgraph.custom_exceptions import NoResultFoundError
 
 async def check_verify_email(client, mailto: str, name: str):

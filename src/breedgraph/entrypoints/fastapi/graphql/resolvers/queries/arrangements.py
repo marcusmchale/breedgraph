@@ -24,7 +24,7 @@ graphql_resolvers.register_type_resolvers(layout)
 @graphql_query.field("arrangements")
 @graphql_payload
 @require_authentication
-async def get_arrangements(_, info, location_id: int|None = None) -> list[LayoutOutput]:
+async def get_arrangements(_, info, location_id: int) -> list[LayoutOutput]:
     await update_layouts_map(info.context, location_id=location_id)
     layouts_map = info.context.get('layouts_map')
     arrangement_roots = info.context.get('arrangement_roots')
@@ -60,7 +60,12 @@ async def resolve_type(obj, info) -> OntologyEntryOutput:
     return ontology_map.get(obj.type)
 
 @layout.field("location")
-async def resolve_location(obj, info) -> LocationOutput:
+async def resolve_location(obj: LayoutOutput, info):
+    if obj.location is None:
+        return None
     await update_locations_map(info.context, location_ids=[obj.location])
-    location_map = info.context.get('locations_map')
-    return location_map.get(obj.location)
+    locations_map = info.context.get('locations_map')
+    location = locations_map.get(obj.location)
+    if location is None:
+        return LocationOutput(id=obj.location, name='REDACTED')
+    return location

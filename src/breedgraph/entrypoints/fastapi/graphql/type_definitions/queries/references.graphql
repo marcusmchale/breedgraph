@@ -59,7 +59,7 @@ type DataFileReference implements ReferenceInterface {
 }
 
 type FileSubmission {
-    referenceId: Int
+    referenceId: ID
     status: SubmissionStatus
     progress: Int
     errors: [String]

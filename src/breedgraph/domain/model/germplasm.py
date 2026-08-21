@@ -1,4 +1,3 @@
-import re
 from enum import Enum
 from abc import ABC
 from dataclasses import dataclass, field, replace
@@ -6,9 +5,8 @@ from numpy import datetime64
 
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.service_layer.tracking.wrappers import asdict
-from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
-from breedgraph.domain.model.organisations import Access
-from breedgraph.domain.model.controls import ControlledModel, Controller
+from breedgraph.domain.model.base import EnumLabeledModel
+from breedgraph.domain.model.controls import ControlledModel, Controller, Access
 
 from typing import List, ClassVar, Self, Dict, Any
 
@@ -125,14 +123,4 @@ class GermplasmStored(GermplasmBase, ControlledModel):
                 control_methods = list(),
                 references = list()
             )
-
-    def to_output(self, sources: List[GermplasmRelationship], sinks: List[GermplasmRelationship]):
-        return GermplasmOutput(**self.model_dump(), sources=sources, sinks=sinks)
-
-
-@dataclass
-class GermplasmOutput(GermplasmStored):
-    sources: List[GermplasmRelationship] = field(default_factory=list)
-    sinks:  List[GermplasmRelationship] = field(default_factory=list)
-
 

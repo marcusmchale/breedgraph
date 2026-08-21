@@ -10,7 +10,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 
 
 from breedgraph.domain.model.controls import (
-    Controller, ReadRelease, Access, ControlledModelLabel
+    Controller, ReadRelease, ControlledModelLabel, Access
 )
 
 from breedgraph.domain.model.references import (

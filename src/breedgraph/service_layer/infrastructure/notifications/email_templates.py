@@ -2,9 +2,9 @@ import json
 from datetime import datetime
 
 from breedgraph.config import SITE_NAME
-from breedgraph.domain.model import FileReferenceBase
+from breedgraph.domain.model import FileReferenceBase, Access
 from breedgraph.domain.model.accounts import UserBase
-from breedgraph.domain.model.organisations import Access, TeamBase
+from breedgraph.domain.model.organisations import TeamBase
 from breedgraph.domain.model.archive import ArchiveRequestor
 from breedgraph.config import get_base_url
 from email.message import EmailMessage

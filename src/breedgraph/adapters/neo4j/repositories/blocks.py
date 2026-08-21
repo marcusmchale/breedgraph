@@ -1,5 +1,5 @@
 import logging
-
+from numpy import datetime64
 from neo4j import AsyncResult, Record
 
 from breedgraph.domain.model.blocks import (
@@ -15,6 +15,17 @@ from typing import Set, AsyncGenerator, Tuple, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 class Neo4jBlocksRepository(Neo4jControlledRepository[UnitInput, Block]):
+
+    @staticmethod
+    def position_sort_key(position: Position):
+        start = position.start
+        end = position.end
+
+        if start is None and end is None:
+            return (0, datetime64("NaT"))
+
+        return (1, start if start is not None else end)
+
 
     async def _create_controlled(self, unit: UnitInput) -> Block:
         stored_unit = await self._create_unit(unit)
@@ -33,6 +44,8 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitInput, Block]):
         for position in record.get('positions', []):
             self.deserialize_dt64(position)
         record['positions'] = [Position(**position) for position in record.get('positions', [])]
+        record['positions'].sort(key=self.position_sort_key)
+
         return UnitStored(**record)
 
     async def _update_unit(self, unit: UnitStored):

@@ -67,13 +67,13 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
         self.seen[tracked_aggregate]=tracked_aggregate
         return cast(TAggregate, tracked_aggregate)
 
-    async def create(self, aggregate_input: TAggregateInput|None = None) -> TAggregate:
+    async def create(self, aggregate_input: TAggregateInput) -> TAggregate:
         aggregate = await self._create(aggregate_input)
         tracked_aggregate = self._track(aggregate)
         return cast(TAggregate, tracked_aggregate)
 
     @abstractmethod
-    async def _create(self, aggregate_input: TAggregateInput|None) -> TAggregate:
+    async def _create(self, aggregate_input: TAggregateInput) -> TAggregate:
         ...
 
     async def get(self, **kwargs) -> TAggregate|None:

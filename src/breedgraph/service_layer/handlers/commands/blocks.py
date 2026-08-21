@@ -1,4 +1,6 @@
-from breedgraph.custom_exceptions import NoResultFoundError
+from multiprocessing.managers import rebuild_as_list
+
+from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
 from breedgraph.domain.model.blocks import UnitInput, Position
@@ -24,8 +26,12 @@ async def create_unit(
         )
         if cmd.parents:
             block = await uow.repositories.blocks.get(unit_id=cmd.parents[0])
+            if not block:
+                raise ValueError("Block not found")
             unit_id = block.add_unit(unit_input, parents=cmd.parents)
         else:
+            if not cmd.location_id:
+                raise ValueError("New blocks must have a location specified")
             block = await uow.repositories.blocks.create(unit_input)
             unit_id = block.get_root_id()
 
@@ -34,6 +40,8 @@ async def create_unit(
                 block.set_child(source_id=unit_id, sink_id=child)
             else:
                 child_block = await uow.repositories.blocks.get(unit_id=child)
+                if not child_block:
+                    raise ValueError("Child block not found")
                 if not child_block.get_root_id() == child:
                     raise ValueError("Merging blocks requires all children to be the root of their respective block")
                 block.merge_block(block=child_block, parents=[unit_id])
@@ -46,9 +54,9 @@ async def create_unit(
                 start=cmd.start,
                 end=cmd.end
             )
-            await _validate_position(uow, position)
-            unit = block.get_unit(unit_id)
-            unit.positions.append(position)
+
+            await _validate_position_layout(uow, position)
+            block.add_position(unit_id, position)
 
         await uow.commit()
 
@@ -109,6 +117,9 @@ async def add_position(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
+        if not block:
+            raise ValueError("Block not found")
+
         position = Position(
             location_id=cmd.location_id,
             layout_id=cmd.layout_id,
@@ -116,18 +127,11 @@ async def add_position(
             start=cmd.start,
             end=cmd.end
         )
-        await _validate_position(uow, position)
-        unit = block.get_unit(cmd.unit_id)
-        unit.positions.append(position)
+        await _validate_position_layout(uow, position)
+        block.add_position(cmd.unit_id, position)
         await uow.commit()
 
-async def _validate_position(uow: AbstractUnitHolder, position: Position):
-    if not position.location_id:
-        raise ValueError("Positions require location_id")
-
-    if position.start and position.end:
-        if position.start > position.end:
-            raise ValueError("Start cannot be after end")
+async def _validate_position_layout(uow: AbstractUnitHolder, position: Position):
 
     if position.layout_id:
         if not position.coordinates:
@@ -160,6 +164,8 @@ async def remove_position(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=cmd.unit_id)
+        if not block:
+            raise ValueError("Block not found")
         position = Position(
             location_id=cmd.location_id,
             layout_id=cmd.layout_id,
@@ -167,9 +173,5 @@ async def remove_position(
             start=cmd.start,
             end=cmd.end
         )
-        unit = block.get_unit(cmd.unit_id)
-        try:
-            unit.positions.remove(position)
-        except ValueError:
-            raise ValueError("A position matching the provided details was not found, nothing changed")
+        block.remove_position(unit_id=cmd.unit_id, position=position)
         await uow.commit()

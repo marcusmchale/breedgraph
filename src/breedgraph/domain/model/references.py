@@ -5,7 +5,9 @@ import json
 
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import StoredModel, EnumLabeledModel, LabeledModel
-from breedgraph.domain.model.controls import ControlledModel, ControlledAggregate, Access, Controller, ControlledModelLabel
+from breedgraph.domain.model.controls import (
+    ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
+)
 
 from typing import ClassVar, Set, List, Dict, Any
 

@@ -160,7 +160,7 @@ type ReferencesPayload {
 
 type CreatedIdPayload {
     status: QueryStatus!
-    result: Int
+    result: ID
     errors: [Error!]
 }
 

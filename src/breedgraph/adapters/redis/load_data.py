@@ -9,6 +9,7 @@ from breedgraph.config import COUNTRY_CODES_PATH
 
 from breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
 from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.controls import ReadRelease
 
 from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
@@ -62,7 +63,8 @@ class RedisLoader:
                 result: AsyncResult = await tx.run(
                     queries['regions']['get_locations_by_type_for_read_teams'],
                     location_type=country_type_id,
-                    read_teams=[]
+                    read_teams=[],
+                    minimum_release=ReadRelease.PUBLIC
                 )
                 async for record in result:
                     country = LocationOutput(**record['location'])

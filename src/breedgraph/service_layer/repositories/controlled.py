@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from breedgraph.service_layer.tracking import TrackedObject
 from breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
 from breedgraph.custom_exceptions import UnauthorisedOperationError
-from breedgraph.domain.model.organisations import Access
+from breedgraph.domain.model.controls import Access
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from breedgraph.domain.model.controls import (
     ReadRelease, ControlledAggregate, ControlledModel, ControlledModelLabel, DiscoveryMatch, Controller
@@ -87,6 +87,16 @@ class ControlledRepository(
             for match in matches
         )
 
+    def _any_read_access(
+            self,
+            controllers: Dict
+    ):
+        for label in controllers.keys():
+            for model_id, controller in controllers[label].items():
+                if controller.has_access(Access.READ, user_id=self.controls.user_id, access_teams=self.access_teams[Access.READ]):
+                    return True
+        return False
+
     async def _create(
             self,
             aggregate_input: BaseModel
@@ -136,7 +146,6 @@ class ControlledRepository(
                 user_id=self.user_id,
                 read_teams=self.access_teams[Access.READ]
             )
-        return None
 
     @abstractmethod
     async def _get_controlled(self, **kwargs) -> ControlledQueryResult[TControlledAggregate]|None:
@@ -149,19 +158,29 @@ class ControlledRepository(
             if aggregate is not None:
                 controllers = await self.controls.get_controllers_for_aggregate(aggregate)
 
-                if not self._matches_allow_discovery(
-                        aggregate=aggregate,
-                        controllers=controllers,
-                        matches=matches
-                ):
-                    continue
-
+                if kwargs:
+                    # If no filters are provided
+                    if not self._any_read_access(controllers=controllers):
+                        # and the user has no read access return nothing
+                        continue
+                else:
+                    # If filters were provided
+                    if not self._matches_allow_discovery(
+                            aggregate=aggregate,
+                            controllers=controllers,
+                            matches=matches
+                    ):
+                        # and the filters were not by ID or an allowed discovery filter then return nothing
+                        continue
+                # Returned objects may still need to be redacted
                 aggregate = aggregate.redacted(
                     controllers=controllers,
                     user_id=self.user_id,
                     read_teams=self.access_teams[Access.READ]
                 )
+                # If on redaction there is no object then return nothing
                 if aggregate is not None:
+                    # otherwise yield the redacted object
                     yield aggregate
 
     @abstractmethod

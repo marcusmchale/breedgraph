@@ -6,6 +6,7 @@ from breedgraph.service_layer.infrastructure.state_store import AbstractStateSto
 from breedgraph.adapters.neo4j.cypher import queries
 
 from breedgraph.domain.model.regions import LocationOutput
+from breedgraph.domain.model.controls import ReadRelease
 
 from typing import List, AsyncGenerator
 
@@ -13,10 +14,12 @@ class Neo4jRegionsView(AbstractRegionsView):
     def __init__(
             self,
             state_store: AbstractStateStore,
+            user_id: int | None,
             read_teams: List[int],
             session: AsyncSession
     ):
         self.state_store = state_store
+        self.user_id = user_id
         self.read_teams: List[int] = read_teams
         self.session = session
 
@@ -25,7 +28,8 @@ class Neo4jRegionsView(AbstractRegionsView):
             result: AsyncResult = await tx.run(
                 queries['regions']['get_locations_by_type_for_read_teams'],
                 location_type=location_type_id,
-                read_teams=self.read_teams
+                read_teams=self.read_teams,
+                minimum_release=ReadRelease.REGISTERED if self.user_id is not None else ReadRelease.PUBLIC
             )
             async for record in result:
                 yield LocationOutput(**record['location'])

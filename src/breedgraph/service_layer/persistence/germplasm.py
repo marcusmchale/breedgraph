@@ -101,7 +101,7 @@ class GermplasmPersistenceService(ABC):
         """
         Update a source relationship between germplasm entries.
         """
-        pass
+        ...
 
     async def delete_relationship(self, relationship: GermplasmRelationship) -> None:
         await self.delete_relationships([relationship])
