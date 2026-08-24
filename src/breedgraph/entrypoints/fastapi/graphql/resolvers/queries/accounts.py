@@ -62,7 +62,9 @@ async def get_user_access(_, info) -> dict:
             access.value.casefold(): list(teams)
             for access, teams in access_teams.items()
         }
-        access_teams['write'] = sorted(access_teams['write'], key=lambda team_id: team_id != default_write_team_id)
+        if default_write_team_id in access_teams['write']:
+            access_teams['write'].remove(default_write_team_id)
+            access_teams['write'].insert(0, default_write_team_id)
         return access_teams
 
 # Field resolvers for UserAccess type
