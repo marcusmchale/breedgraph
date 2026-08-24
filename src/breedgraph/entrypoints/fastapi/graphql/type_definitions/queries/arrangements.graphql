@@ -1,9 +1,9 @@
 type Layout {
     id: ID!
-    type: LayoutType!
+    type: LayoutType
     name: String
     axes: [String!]
-    arrangement: Layout!
+    arrangement: Layout
     parent: Layout
     """Position within parent layout"""
     position: [String!]

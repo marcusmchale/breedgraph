@@ -163,8 +163,6 @@ async def resolve_germplasm_origin(obj: GermplasmEntryOutput|GermplasmEntryRef, 
     await update_locations_map(info.context, location_ids=[obj.origin])
     locations_map = info.context.get('locations_map')
     location = locations_map.get(obj.origin)
-    if location is None:
-        return LocationOutput(id=obj.origin, name='REDACTED')
     return location
 
 @germplasm_entry.field("references")

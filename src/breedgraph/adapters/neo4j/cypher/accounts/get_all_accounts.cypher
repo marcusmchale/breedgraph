@@ -1,8 +1,7 @@
 MATCH
   (user:User)
 
-RETURN
-  user {.*},
+RETURN user {.*},
   [
     (user)-[affiliation:READ|WRITE|ADMIN]->(team:Team) |
     {

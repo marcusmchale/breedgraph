@@ -39,6 +39,10 @@ class SetOntologyRole(Command):
     user_id: int
     ontology_role: str
 
+class SetWriteTeam(Command):
+    user_id: int
+    team_id: int
+
 class RequestAffiliation(Command):
     user_id: int
     team_id: int

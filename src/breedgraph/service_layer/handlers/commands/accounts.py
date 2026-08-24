@@ -195,6 +195,19 @@ async def set_ontology_role(
         await uow.commit()
 
 @handlers.command_handler()
+async def set_write_team(
+        cmd: commands.accounts.SetWriteTeam,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
+
+        account.user.default_write_team = cmd.team_id
+        await uow.commit()
+
+@handlers.command_handler()
 async def request_affiliation(
         cmd: commands.accounts.RequestAffiliation,
         uow_factory: AbstractUnitOfWorkFactory

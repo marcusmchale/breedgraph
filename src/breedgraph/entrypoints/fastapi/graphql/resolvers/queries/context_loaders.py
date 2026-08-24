@@ -5,7 +5,11 @@ from typing import Iterable
 import logging
 
 from breedgraph.domain.model import Version
+
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
+from breedgraph.domain.model.regions import LocationOutput
+from breedgraph.domain.model.arrangements import LayoutOutput
+from breedgraph.domain.model.blocks import UnitOutput
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +176,10 @@ async def update_locations_map(context, location_ids: Iterable[int] | None = Non
                             region_root = region.root
                             if not region_root in region_roots:
                                 region_roots.append(region_root)
+                            # placeholder for location_ids that fetched a region but are not in the output map
+                            # these are redacted so the user can know they exist but shouldn't be aware of details other than
+                            if location_id not in locations_map:
+                                locations_map[location_id] = LocationOutput(id=location_id, name='REDACTED')
 
             context['locations_map'] = locations_map
             context['region_roots'] = region_roots
@@ -204,6 +212,11 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
                             arrangement_root = arrangement.root
                             if not arrangement_root in arrangement_roots:
                                 arrangement_roots.append(arrangement_root)
+                            # placeholder for arrangement_ids that fetched an arrangement but are not in the output map
+                            # these are redacted so the user can know they exist but shouldn't be aware of details other than the ID
+                            if layout_id not in layouts_map:
+                                layouts_map[layout_id] = LayoutOutput(id=layout_id, name='REDACTED')
+
 
             context['layouts_map'] = layouts_map
             context['arrangement_roots'] = arrangement_roots
@@ -235,6 +248,10 @@ async def update_units_map(context, location_ids: Iterable[int] | None = None, u
                             block_root = block.root
                             if not block_root in block_roots:
                                 block_roots.append(block_root)
+                            # placeholder for unit_ids that fetched a block but are not in the output map
+                            # these are redacted so the user can know they exist but shouldn't be aware of details other than the ID
+                            if unit_id not in units_map:
+                                units_map[unit_id] = UnitOutput(id=unit_id, name='REDACTED')
 
             context['units_map'] = units_map
             context['block_roots'] = block_roots

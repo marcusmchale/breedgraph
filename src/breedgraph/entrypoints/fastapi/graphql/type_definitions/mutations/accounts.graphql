@@ -52,4 +52,8 @@ extend type Mutation {
         userId: ID!
         ontologyRole: OntologyRole!
     ): BooleanPayload!
+    accountsSetWriteTeam(
+        """ Set the default write team to ensure this team comes first in the write teams list """
+        teamId: ID!
+    ): BooleanPayload!
 }

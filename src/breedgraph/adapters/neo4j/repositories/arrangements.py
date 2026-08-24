@@ -2,6 +2,7 @@ import logging
 
 from neo4j import AsyncResult, Record
 
+from breedgraph.domain.model.controls import ControlledModelLabel, DiscoveryMatch
 from breedgraph.domain.model.arrangements import (
     LayoutInput, LayoutStored, Arrangement
 )
@@ -78,13 +79,16 @@ class Neo4jArrangementsRepository(
         async for record in result:
             layouts = []
             edges = []
+            matches = []
             for layout_data in record.get('arrangement'):
                 if 'parent_position' in layout_data:
                     edge_data = layout_data.pop('parent_position')
                     if edge_data is not None:
                         edges.append((edge_data[0], layout_data.get('id'), {'position':edge_data[1]}))
-                layouts.append(self.record_to_layout(layout_data))
-            yield ControlledQueryResult(Arrangement(nodes=layouts, edges=edges))
+                layout = self.record_to_layout(layout_data)
+                layouts.append(layout)
+                matches.append(DiscoveryMatch(label=ControlledModelLabel.LAYOUT, model_id=layout.id, key='location_id'))
+            yield ControlledQueryResult(Arrangement(nodes=layouts, edges=edges), matches=tuple(matches))
 
     async def _remove_controlled(self, arrangement: Arrangement) -> None:
         await self._delete_layouts(list(arrangement._graph.nodes.keys()))

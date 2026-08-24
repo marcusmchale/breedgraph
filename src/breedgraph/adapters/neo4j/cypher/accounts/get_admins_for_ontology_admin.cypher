@@ -6,5 +6,6 @@ RETURN
     name: user.name,
     fullname: user.fullname,
     ontology_role: user.ontology_role,
-    ontology_role_requested: user.ontology_role_requested
+    ontology_role_requested: user.ontology_role_requested,
+    default_write_team: user.default_write_team
   }

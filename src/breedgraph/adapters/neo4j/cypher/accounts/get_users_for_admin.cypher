@@ -8,5 +8,6 @@ RETURN
     id: user.id,
     name: user.name,
     fullname: user.fullname,
-    ontology_role: user.ontology_role
+    ontology_role: user.ontology_role,
+    default_write_team: user.default_write_team
   }

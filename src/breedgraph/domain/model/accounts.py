@@ -55,12 +55,14 @@ class UserStored(UserBase, StoredModel):
     email: str = ''
     email_verified: bool = False
     person: None|int = None  #ID for the corresponding Person
+    default_write_team: int | None = None
 
 @dataclass
 class UserOutput(UserBase, LabeledModel):
     id : int|None = None
     email: str = ''
     email_verified: bool = False
+    default_write_team: int | None = None
 
     @classmethod
     def from_stored(cls, stored: UserStored) -> Self:
@@ -70,7 +72,8 @@ class UserOutput(UserBase, LabeledModel):
             fullname = stored.fullname,
             email = stored.email,
             ontology_role = stored.ontology_role,
-            email_verified = stored.email_verified
+            email_verified = stored.email_verified,
+            default_write_team = stored.default_write_team
         )
 
 @dataclass
@@ -80,6 +83,7 @@ class UserDisplay(UserBase):
     fullname: str
     ontology_role: OntologyRole
     ontology_role_requested: OntologyRole | None = None
+    default_write_team: int | None = None
 
     @classmethod
     def from_stored_or_output(cls, user_class: UserStored|UserOutput) -> Self:
@@ -88,7 +92,8 @@ class UserDisplay(UserBase):
             name = user_class.name,
             fullname = user_class.fullname,
             ontology_role = user_class.ontology_role,
-            ontology_role_requested = user_class.ontology_role_requested
+            ontology_role_requested = user_class.ontology_role_requested,
+            default_write_team = user_class.default_write_team
         )
 
 

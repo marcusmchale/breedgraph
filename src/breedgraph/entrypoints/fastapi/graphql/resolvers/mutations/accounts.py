@@ -9,7 +9,7 @@ from breedgraph.domain.commands.accounts import (
     VerifyEmail,
     AddEmail, RemoveEmail,
     RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation,
-    SetOntologyRole,
+    SetOntologyRole, SetWriteTeam,
     RequestOntologyRole
 )
 from breedgraph.domain.events.accounts import (
@@ -372,4 +372,16 @@ async def set_ontology_role(
     agent_id = info.context.get('user_id')
     logger.debug(f"Agent {agent_id} changes ontology role for user: {user_id, ontology_role}")
     await info.context['bus'].handle(SetOntologyRole(agent_id=agent_id, user_id=user_id, ontology_role=ontology_role.value))
+    return True
+
+@graphql_mutation.field("accountsSetWriteTeam")
+@graphql_payload
+async def set_write_team(
+        _,
+        info,
+        team_id: int
+) -> bool:
+    agent_id = info.context.get('user_id')
+    logger.debug(f"User {agent_id} changes default write team: { team_id }")
+    await info.context['bus'].handle(SetWriteTeam(user_id=agent_id, team_id=team_id))
     return True

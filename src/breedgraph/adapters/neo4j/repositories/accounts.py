@@ -161,7 +161,8 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             id=record['id'],
             password_hash=record['password_hash'],
             ontology_role=OntologyRole(record['ontology_role']),
-            ontology_role_requested=OntologyRole(record['ontology_role_requested']) if 'ontology_role_requested' in record else None
+            ontology_role_requested=OntologyRole(record['ontology_role_requested']) if 'ontology_role_requested' in record else None,
+            default_write_team=record['default_write_team'] if 'default_write_team' in record else None
         ) if record else None
 
     def record_to_account(self, record: Record) -> AccountStored | None:

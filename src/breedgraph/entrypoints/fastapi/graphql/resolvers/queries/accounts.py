@@ -7,6 +7,7 @@ from breedgraph.domain.model.accounts import (
     UserOutput,
     OntologyRole
 )
+from breedgraph.domain.model.controls import Access
 from breedgraph.custom_exceptions import NoResultFoundError
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -47,13 +48,22 @@ async def get_user_access(_, info) -> dict:
     # Use current user if no user provided
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        user_ = await views.accounts.get_user()
+        if user_ is None:
+            raise NoResultFoundError
+        else:
+            default_write_team_id = user_.default_write_team
+
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         access_teams = uow.controls.access_teams
-        # Convert Access enum keys to strings and sets to lists for GraphQL
-        return {
+        # Convert Access enum keys to strings and sets to lists for GraphQL and to ensure order of write teams
+        access_teams = {
             access.value.casefold(): list(teams)
             for access, teams in access_teams.items()
         }
+        access_teams['write'] = sorted(access_teams['write'], key=lambda team_id: team_id != default_write_team_id)
+        return access_teams
 
 # Field resolvers for UserAccess type
 @user_access.field("read")
