@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-NEO4J_ARCHIVE_PATH="/home/marcus/PycharmProjects/breedgraph/instance/neo4j_archive"
-DATABASE_NAME="neo4j"
-
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <backup-filename>"
     exit 1

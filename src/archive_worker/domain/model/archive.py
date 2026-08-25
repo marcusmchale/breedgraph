@@ -30,9 +30,6 @@ class LocalState(Enum):
 @dataclass
 class FileArchivalRecord:
     """Tracks archival state for large files
-
-    This is a service-layer concern separate from the domain model.
-    It tracks infrastructure state for file archival operations.
     """
     file_id: str  # UUID used as filename in file storage, unique identifier
     file_size: int  # size in bytes

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 """
-These endpoints should only be accessed by the archival server
+These endpoints should only be accessed by the file archival server
 """
 
 def verify_service_token(authorization: str = Header(None)):

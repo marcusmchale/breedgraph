@@ -1,7 +1,8 @@
 # sample file for /etc/systemd/system/breedgraph.service
 [Unit]
 Description=BreedGraph Application
-After=network.target
+After=network.target neo4j.service redis.service
+Requires=network.target neo4j.service redis.service
 
 [Service]
 User=breedgraph

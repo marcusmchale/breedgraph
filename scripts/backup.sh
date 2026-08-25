@@ -2,9 +2,6 @@
 set -e
 
 DATE=$(date +%Y%m%d-%H%M%S)
-NEO4J_ARCHIVE_PATH="/home/marcus/PycharmProjects/breedgraph/instance/neo4j_archive"
-DATABASE_NAME="neo4j"
-
 NEO4J_STOPPED=0
 
 cleanup() {

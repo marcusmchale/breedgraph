@@ -28,7 +28,7 @@ from breedgraph.config import MAIL_USERNAME, MAIL_HOST
 from breedgraph.adapters.neo4j.cypher import queries
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 async def ensure_empty_db(session: AsyncSession) -> None:

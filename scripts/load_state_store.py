@@ -12,6 +12,7 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.config import get_redis_host_and_port
 
 import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 async def is_redis_empty(connection):
@@ -37,7 +38,8 @@ async def main():
         connection = await redis.Redis(host=host, port=port, db=0)
         logger.info(f"Ping redis successful: {await connection.ping()}")
 
-        assert await is_redis_empty(connection), "Redis is not empty, aborting!"
+        if not await is_redis_empty(connection):
+            raise RuntimeError("Redis is not empty, aborting!")
 
         logger.info("Build neo4j driver")
         driver = Neo4jAsyncDriver()
