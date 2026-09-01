@@ -1,0 +1,80 @@
+
+
+type MDSConfig {
+  """
+  Terms used to calculate distances between analytical observations.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Distance metric used to calculate dissimilarity.
+  """
+  distance: DistanceMetric!
+
+  """
+  Number of dimensions in the MDS representation.
+  """
+  dimensions: Int!
+
+  """
+  Optional clustering of the analytical observations.
+  """
+  clustering: MDSClusteringConfig
+}
+
+
+
+type MDSClusteringConfig {
+  """
+  Clustering method.
+  """
+  method: ClusteringMethod!
+
+  """
+  Number of clusters when required by the selected method.
+  """
+  clusters: Int
+}
+
+
+type MDSResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Analytical observations represented in MDS space.
+  """
+  observations: [MDSObservation!]!
+
+}
+
+
+type MDSObservation {
+
+  """
+  Group represented by the analytical observation.
+  """
+  group: AnalysisGroup!
+
+  """
+  Record IDs contributing to the observation.
+  """
+  recordIds: [ID!]!
+
+  """
+  Coordinates in MDS space.
+  """
+  coordinates: [Float!]!
+
+  """
+  Cluster assigned to this observation when clustering was requested.
+  """
+  clusterId: ID
+}

@@ -1,0 +1,126 @@
+"""
+Defines how record start/end time is used to construct a time
+grouping dimension.
+
+This configuration concerns the temporal metadata associated
+with records. It does not describe concepts whose values happen
+to represent dates, times or durations.
+"""
+input TimeSpecificationInput {
+  """
+  Determines how records are assigned to time bins.
+
+  If time assignment is provided and a record has no applicable
+  time information, the record is excluded from the analysis.
+  """
+  assignment: TimeAssignment!
+
+  """
+  Defines the time bins used to construct the grouping dimension.
+  """
+  binning: BinningInput!
+}
+
+
+"""
+Defines how germplasm is resolved into analytical groups.
+
+The server navigates the germplasm hierarchy from the germplasm
+assigned to each unit to find the applicable selected ancestor.
+"""
+input GermplasmGroupingInput {
+  """
+  Germplasm IDs defining the grouping level.
+
+  Descendant germplasm is assigned to the corresponding selected
+  ancestor while preserving the hierarchy of the grouping.
+  """
+  germplasmIds: [ID!]!
+}
+
+
+"""
+Defines how units are resolved into analytical groups.
+
+The server navigates the unit hierarchy from each record's unit
+to find the applicable selected parent unit.
+"""
+input UnitGroupingInput {
+  """
+  Parent unit IDs defining the grouping level.
+
+  Descendant units are assigned to the corresponding selected
+  parent unit.
+  """
+  unitIds: [ID!]!
+}
+
+
+"""
+Defines how positions are resolved into analytical groups.
+
+Positions may represent geographic locations, layout coordinates,
+or both.
+"""
+input PositionGroupingInput {
+  """
+  ID of the Location in the Region hierarchy.
+  """
+  locationId: ID!
+
+  """
+  Optional ID of the Layout in the Arrangement hierarchy.
+  """
+  layoutId: ID
+
+  """
+  Layout axes used to define position groups.
+
+  Positions having equal values for all selected axes belong
+  to the same group.
+  """
+  axisIndexes: [Int!]
+
+  """
+  Optional explicit positions defining groups. This overrides axisIndexes where the position match is found.
+  """
+  positions: [PositionInput!]
+
+  """
+  Time at which the position is evaluated.
+
+  When null, a unit is considered to match the defined position
+  if it occupied that position at any time.
+  """
+  time: DateTime
+}
+
+
+"""
+Defines the dimensions used to construct analytical observations.
+
+Each configured dimension contributes to the identity of an
+analytical observation. Records sharing the same values across
+all configured dimensions belong to the same analytical unit.
+"""
+input AnalysisGroupingInput {
+  """
+  Groups records according to their record start/end time.
+  """
+  time: TimeSpecificationInput
+
+  """
+  Groups units according to germplasm hierarchy.
+  """
+  germplasm: GermplasmGroupingInput
+
+  """
+  Groups records according to unit hierarchy.
+  """
+  unit: UnitGroupingInput
+
+  """
+  Groups records according to geographic or layout position.
+  """
+  position: PositionGroupingInput
+}

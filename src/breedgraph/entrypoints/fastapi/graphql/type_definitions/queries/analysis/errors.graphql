@@ -1,0 +1,36 @@
+type AnalysisError {
+  """
+  Machine-readable error code.
+  """
+  code: String!
+
+  """
+  Human-readable error message.
+  """
+  message: String!
+
+  """
+  Path to the affected configuration value,
+  when applicable.
+  """
+  path: [String!]
+}
+
+
+type AnalysisWarning {
+  """
+  Machine-readable warning code.
+  """
+  code: String!
+
+  """
+  Human-readable warning message.
+  """
+  message: String!
+
+  """
+  Path to the affected configuration value,
+  when applicable.
+  """
+  path: [String!]
+}

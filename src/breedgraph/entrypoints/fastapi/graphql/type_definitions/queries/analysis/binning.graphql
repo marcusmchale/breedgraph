@@ -1,0 +1,16 @@
+type Binning {
+  """
+  Boundary values separating bins.
+  """
+  boundaries: [String!]!
+
+  """
+  Determines which adjacent bin receives a boundary value.
+  """
+  boundary: BinningBoundary!
+
+  """
+  Labels assigned to the resulting bins.
+  """
+  labels: [String!]
+}

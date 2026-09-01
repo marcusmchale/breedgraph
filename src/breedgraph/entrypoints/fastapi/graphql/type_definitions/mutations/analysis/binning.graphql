@@ -1,0 +1,29 @@
+"""
+Defines how values are divided into bins.
+
+The same binning configuration can be applied to supported numeric,
+temporal, and duration values.
+"""
+input BinningInput {
+  """
+  Boundary values separating the bins.
+
+  With N boundaries, N + 1 bins are created.
+
+  Boundary values are interpreted according to the type of the
+  value being binned.
+  """
+  boundaries: [String!]!
+
+  """
+  Labels assigned to the resulting bins.
+
+  There must be exactly one more label than there are boundaries.
+  """
+  labels: [String!]!
+
+  """
+  Determines which bin receives a value exactly equal to a boundary.
+  """
+  boundary: BinningBoundary!
+}

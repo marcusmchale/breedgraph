@@ -1,0 +1,74 @@
+"""
+Defines an analysis to be submitted for execution.
+
+Analysis configurations are validated by the server according
+to analysisType.
+"""
+input AnalysisInput {
+  """
+  Type of analysis to perform.
+  """
+  analysisType: AnalysisType!
+
+  """
+  Optional name for the analysis.
+  """
+  name: String
+
+  """
+  Datasets whose records are included in the analysis.
+  """
+  datasetIds: [ID!]!
+
+  """
+  Records or units excluded from the analysis.
+
+  Unit exclusions apply across all datasets included in the analysis.
+  """
+  exclusions: AnalysisExclusionInput
+
+  """
+  ANOVA configuration.
+  """
+  anova: AnovaInput
+
+  """
+  MDS configuration.
+  """
+  mds: MDSInput
+
+  """
+  Correlation configuration.
+  """
+  correlation: CorrelationInput
+
+  """
+  Descriptive statistics configuration.
+  """
+  descriptiveStatistics: DescriptiveStatisticsInput
+
+  """
+  Outlier detection configuration.
+  """
+  outlierDetection: OutlierDetectionInput
+}
+
+"""
+Defines records or units to exclude from an analysis.
+
+A unit exclusion applies to records from that unit across
+all datasets included in the analysis.
+"""
+input AnalysisExclusionInput {
+  """
+  IDs of records to exclude.
+  """
+  recordIds: [ID!]
+
+  """
+  IDs of units to exclude.
+
+  All records associated with an excluded unit are excluded.
+  """
+  unitIds: [ID!]
+}

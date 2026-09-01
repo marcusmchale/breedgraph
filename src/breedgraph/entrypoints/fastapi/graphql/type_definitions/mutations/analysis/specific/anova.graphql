@@ -1,0 +1,54 @@
+"""
+Configuration for analysis of variance.
+
+The supplied terms define the variables available to the analysis.
+Grouping defines the analytical observations on which the model operates.
+"""
+input AnovaInput {
+  """
+  Terms used by the analysis.
+
+  The dependent term is not structurally distinguished in the schema;
+  the server validates that the supplied terms satisfy the requirements
+  of the ANOVA implementation.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGroupingInput
+
+  """
+  Interactions between analysis terms.
+  """
+  interactions: [InteractionTermInput!]
+
+  """
+  Significance level used for hypothesis testing.
+  """
+  alpha: Float = 0.05
+
+  """
+  Optional post-hoc comparisons.
+
+  Each specification identifies a model term whose groups should
+  be compared using Tukey's HSD procedure.
+  """
+  tukey: TukeyInput
+}
+
+"""
+Defines Tukey HSD post-hoc comparisons for an ANOVA.
+
+Tukey HSD compares the levels of a categorical or ordinal term.
+A term is eligible when its AnalysisTermInput representation is
+CATEGORICAL or ORDINAL. The server validates that the requested
+term is suitable for post-hoc comparison.
+"""
+input TukeyInput {
+  """
+  Terms whose levels should be compared pairwise.
+  """
+  terms: [AnalysisTermReferenceInput!]!
+}

@@ -226,7 +226,7 @@ type GermplasmEntriesPayload {
 
 type AnalysisSubmissionIdPayload {
   status: QueryStatus!
-  result: String
+  result: ID!
   errors: [Error!]
 }
 

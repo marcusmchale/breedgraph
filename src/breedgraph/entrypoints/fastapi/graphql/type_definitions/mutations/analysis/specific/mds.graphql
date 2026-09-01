@@ -1,0 +1,47 @@
+"""
+Configuration for multidimensional scaling.
+"""
+input MDSInput {
+  """
+  Data used to construct analytical observations.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """ Dimensions used to construct analytical observations. """
+  grouping: AnalysisGroupingInput
+
+  """
+  Distance metric used to calculate dissimilarity.
+  """
+  distance: DistanceMetric!
+
+  """
+  Number of dimensions to produce.
+  """
+  dimensions: Int = 2
+
+  """
+  Optional clustering performed using the same analytical
+  observations represented by the MDS analysis.
+  """
+  clustering: MDSClusteringInput
+}
+
+"""
+Optional clustering of the analytical observations represented
+by an MDS analysis.
+
+Clustering operates on the same analytical observations used
+to calculate the MDS representation.
+"""
+input MDSClusteringInput {
+  """
+  Clustering method.
+  """
+  method: ClusteringMethod!
+
+  """
+  Number of clusters when required by the selected method.
+  """
+  clusters: Int
+}

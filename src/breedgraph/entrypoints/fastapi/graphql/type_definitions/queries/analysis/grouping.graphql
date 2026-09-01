@@ -1,0 +1,81 @@
+"""
+Grouping configuration used to construct analytical observations.
+
+Grouping defines the statistical unit represented by each observation.
+"""
+type AnalysisGrouping {
+  """
+  Time grouping used to construct analytical observations.
+  """
+  time: TimeGrouping
+
+  """
+  Germplasm grouping used to construct analytical observations.
+  """
+  germplasm: GermplasmGrouping
+
+  """
+  Unit grouping used to construct analytical observations.
+  """
+  unit: UnitGrouping
+
+  """
+  Position grouping used to construct analytical observations.
+  """
+  position: PositionGrouping
+}
+
+type TimeGrouping {
+  """
+  Binning configuration applied to record start/end times.
+  """
+  binning: Binning!
+
+  """
+  Determines how records are assigned to time bins.
+  """
+  assignment: TimeAssignment!
+}
+
+
+type GermplasmGrouping {
+  """
+  Germplasm IDs defining the grouping levels.
+
+  Germplasm hierarchy is traversed to assign each unit to
+  the appropriate grouping level.
+  """
+  germplasmIds: [ID!]!
+}
+
+
+type UnitGrouping {
+  """
+  Parent unit IDs defining the grouping levels.
+
+  Unit hierarchy is traversed to assign each unit to the
+  appropriate grouping level.
+  """
+  unitIds: [ID!]!
+}
+
+
+type PositionGrouping {
+  """
+  Positions defining the grouping levels.
+  """
+  positions: [Position!]!
+
+  """
+  Layout axes whose values are used to distinguish groups.
+  """
+  axes: [String!]
+
+  """
+  Time at which positions are evaluated.
+
+  When null, a unit is grouped according to whether it occupies
+  the specified position at any time.
+  """
+  time: DateTime
+}

@@ -173,7 +173,6 @@ class AbstractStateStore(ABC):
         ...
 
     """ Analysis submissions """
-
     async def store_analysis(self, agent_id: int, analysis: dict) -> str:
         analysis_id = uuid4().hex
         await self._set_agent(agent_id, analysis_id)

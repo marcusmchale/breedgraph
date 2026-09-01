@@ -1,0 +1,6 @@
+union AnalysisConfig =
+    AnovaConfig
+  | MDSConfig
+  | CorrelationConfig
+  | DescriptiveStatisticsConfig
+  | OutlierDetectionConfig

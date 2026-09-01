@@ -1,10 +1,6 @@
 from ariadne import ObjectType
 
-from breedgraph.adapters.redis.state_store import SubmissionStatus
-
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-
-from typing import List
 
 import logging
 logger = logging.getLogger(__name__)
@@ -13,20 +9,19 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 
 factor_level = ObjectType("FactorLevel")
-group_summary = ObjectType("GroupSummary")
 analysis_submission = ObjectType("AnalysisSubmission")
 analysis_result = ObjectType("AnalysisResult")
 analysis_config = ObjectType("AnalysisConfig")
-anova_row = ObjectType("AnovaRow")
 
-graphql_resolvers.register_type_resolvers(group_summary, analysis_submission, analysis_result, anova_row)
+
+graphql_resolvers.register_type_resolvers(analysis_submission, analysis_result)
 
 """Submission resolver"""
 @graphql_query.field("analysisSubmission")
 @graphql_payload
 @require_authentication
-async def get_submission(_, info, id: str):
-    return id
+async def get_submission(_, info, id_: str):
+    return id_
 
 @analysis_submission.field('status')
 async def resolve_status(analysis_id: str, info):
@@ -34,7 +29,6 @@ async def resolve_status(analysis_id: str, info):
     user_id = info.context.get('user_id')
     status = await bus.state_store.get_status(agent_id=user_id, key=analysis_id)
     return status
-
 
 @analysis_submission.field('errors')
 async def resolve_errors(analysis_id: str, info):
@@ -83,25 +77,3 @@ async def resolve_analysis_name(config: dict, info):
     if not name:
         name = config.get('dependent_variable').get('label')
     return name
-
-@analysis_result.field('anova')
-async def resolve_anova(result: dict, info):
-    result = result.get('result')
-    if result:
-        anova_data = result.get('anova')
-        return anova_data
-    return None
-
-@analysis_result.field('group')
-async def resolve_group(result:dict, info):
-    result = result.get('result')
-    if result:
-        return result.get('group')
-    return None
-
-@analysis_result.field('tukey')
-async def resolve_tukey(result:dict, info):
-    result = result.get('result')
-    if result:
-        return result.get('tukey')
-    return None

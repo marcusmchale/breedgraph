@@ -1,0 +1,88 @@
+"""
+Identifies a term used by an analysis.
+"""
+input AnalysisTermReferenceInput {
+  """
+  Type of term.
+  """
+  type: AnalysisTermType!
+
+  """
+  Stable concept ID when type is CONCEPT.
+  """
+  conceptId: ID
+}
+
+
+"""
+Defines a term used by an analysis.
+
+A term may represent a concept or a domain dimension such as
+time, germplasm, unit grouping or position grouping.
+"""
+input AnalysisTermInput {
+  """
+  Identifies the type and identity of the term.
+  """
+  reference: AnalysisTermReferenceInput!
+
+  """
+  Defines how concept values are represented.
+
+  Not applicable to domain dimensions.
+  """
+  representation: TermRepresentationType
+
+  """
+  Optional binning applied to the term.
+
+  Supported for numeric, temporal and duration values where
+  applicable.
+  """
+  binning: BinningInput
+
+  """
+  Explicit ordering of categorical levels.
+
+  Used when a categorical concept is represented as ORDINAL.
+  """
+  levelOrder: [String!]
+
+  """
+  Transformations applied to the term values, in order.
+  """
+  transformations: [TermTransformation!]
+
+  """
+  Defines how multiple records contributing to an analytical
+  observation are aggregated.
+  """
+  aggregation: TermAggregation
+
+  """
+  Statistical effect of the term when a statistical model is used.
+  """
+  effect: TermEffect
+
+  """
+  Terms whose effects may vary as random slopes for this term.
+  """
+  randomSlopeTerms: [AnalysisTermReferenceInput!]
+}
+
+"""
+Defines an interaction between two or more analysis terms.
+
+Each term may represent a concept or a domain dimension such as
+time, germplasm, unit or position.
+"""
+input InteractionTermInput {
+  """
+  Terms participating in the interaction.
+
+  The server validates that the referenced terms exist in the
+  analysis terms and that the requested interaction is supported
+  by the selected analysis.
+  """
+  terms: [AnalysisTermReferenceInput!]!
+}

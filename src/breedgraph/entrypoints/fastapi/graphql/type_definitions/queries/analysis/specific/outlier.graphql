@@ -1,0 +1,71 @@
+type OutlierDetectionConfig {
+  """
+  Terms used to identify potential outliers.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Method used to identify potential outliers.
+  """
+  method: OutlierDetectionMethod!
+}
+
+
+type OutlierDetectionResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Records identified as potential outliers.
+
+  These IDs can be supplied as exclusions to a subsequent analysis.
+  """
+  recordIds: [ID!]!
+
+  """
+  Units identified as potential outliers.
+
+  Excluding a unit excludes its records from subsequent analyses.
+  """
+  unitIds: [ID!]!
+
+  """
+  Detailed information about detected outliers.
+  """
+  outliers: [OutlierResult!]!
+}
+
+
+type OutlierResult {
+  """
+  Record associated with the potential outlier, when applicable.
+  """
+  recordId: ID
+
+  """
+  Unit associated with the potential outlier.
+  """
+  unitId: ID
+
+  """
+  Term for which the observation was identified as an outlier.
+  """
+  term: AnalysisTermReference
+
+  """
+  Value associated with the observation.
+  """
+  value: Float
+
+  """
+  Score or statistic used to identify the outlier.
+  """
+  score: Float
+}

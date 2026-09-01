@@ -1,0 +1,12 @@
+extend type Mutation {
+  """
+  Submit an analysis request.
+
+  The returned ID can be used with the analysisSubmission query
+  to retrieve the processing status and result.
+  """
+  analysisSubmit(
+    analysis: AnalysisInput!
+  ): AnalysisSubmissionIdPayload!
+}
+

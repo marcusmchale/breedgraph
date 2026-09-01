@@ -1,0 +1,134 @@
+type DescriptiveStatisticsConfig {
+  """
+  Terms for which descriptive statistics are calculated.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Interactions between terms used when calculating
+  model-dependent statistics such as least-squares means.
+  """
+  interactions: [InteractionTerm!]!
+}
+
+
+type DescriptiveStatisticsResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Descriptive statistics calculated for the requested terms.
+  """
+  terms: [DescriptiveTermResult!]!
+
+  """
+  Least-squares means when a suitable model was specified.
+  """
+  lsMeans: [LSMeanResult!]!
+}
+
+
+type DescriptiveTermResult {
+  """
+  Term for which statistics were calculated.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Analytical group represented by this result.
+  """
+  group: AnalysisGroup
+
+  """
+  Number of observations.
+  """
+  count: Int!
+
+  """
+  Number of missing observations.
+  """
+  missingCount: Int!
+
+  mean: Float
+
+  standardDeviation: Float
+
+  standardError: Float
+
+  median: Float
+
+  minimum: Float
+
+  maximum: Float
+
+  lowerQuartile: Float
+
+  upperQuartile: Float
+}
+
+
+type LSMeanResult {
+  """
+  Term for which the least-squares mean was calculated.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Analytical group for which the adjusted mean was estimated.
+  """
+  group: AnalysisGroup
+
+  """
+  Estimated least-squares mean.
+  """
+  mean: Float!
+
+  """
+  Standard error.
+  """
+  standardError: Float
+
+  """
+  Degrees of freedom.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Lower confidence limit.
+  """
+  lowerConfidenceLimit: Float
+
+  """
+  Upper confidence limit.
+  """
+  upperConfidenceLimit: Float
+}
+
+type AnalysisGroup {
+  """
+  Time grouping represented by this group.
+  """
+  time: String
+
+  """
+  Germplasm grouping represented by this group.
+  """
+  germplasmId: ID
+
+  """
+  Unit grouping represented by this group.
+  """
+  unitId: ID
+
+  """
+  Position represented by this group.
+  """
+  position: Position
+}

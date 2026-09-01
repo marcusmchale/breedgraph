@@ -1,0 +1,287 @@
+"""
+Type of analysis to perform.
+"""
+enum AnalysisType {
+  """
+  Analysis of variance using a statistical model.
+  """
+  ANOVA
+
+  """
+  Multidimensional scaling.
+  """
+  MDS
+
+  """
+  Pairwise correlation analysis.
+  """
+  CORRELATION
+
+  """
+  Descriptive statistics.
+  """
+  DESCRIPTIVE_STATISTICS
+
+  """
+  Detection of observations that may be statistical outliers.
+  """
+  OUTLIER_DETECTION
+}
+
+
+"""
+Defines how a term is represented for an analysis.
+"""
+enum TermRepresentationType {
+  """
+  Treat values as continuous numeric measurements.
+  """
+  CONTINUOUS
+
+  """
+  Treat values as nominal categorical values.
+  """
+  CATEGORICAL
+
+  """
+  Treat values as ordered categorical values.
+  """
+  ORDINAL
+}
+
+
+"""
+Defines whether a model term is estimated as a fixed or random
+effect.
+"""
+enum TermEffect {
+  """
+  Estimate the effect directly as a fixed effect.
+  """
+  FIXED
+
+  """
+  Estimate the effect as a random effect.
+  """
+  RANDOM
+}
+
+
+"""
+Transformations that may be applied to term values before analysis.
+
+Transformations are applied in the order in which they are provided.
+"""
+enum TermTransformation {
+  """
+  Centre values by subtracting their mean.
+  """
+  CENTER
+
+  """
+  Standardise values using their mean and standard deviation.
+  """
+  STANDARDIZE
+
+  """
+  Apply the natural logarithm.
+  """
+  LOG
+
+  """
+  Apply log(1 + x).
+  """
+  LOG1P
+
+  """
+  Apply the square-root transformation.
+  """
+  SQRT
+
+  """
+  Apply the reciprocal transformation.
+  """
+  RECIPROCAL
+}
+
+
+"""
+Defines how multiple records contributing to an analytical
+observation are aggregated.
+"""
+enum TermAggregation {
+  """
+  Do not aggregate values.
+
+  The analysis requires at most one applicable value for
+  each analytical observation.
+  """
+  NONE
+
+  """
+  Arithmetic mean.
+  """
+  MEAN
+
+  """
+  Median.
+  """
+  MEDIAN
+
+  """
+  Minimum value.
+  """
+  MIN
+
+  """
+  Maximum value.
+  """
+  MAX
+
+  """
+  Sum of values.
+  """
+  SUM
+
+  """
+  Number of applicable values.
+  """
+  COUNT
+
+  """
+  Most frequently occurring value.
+  """
+  MODE
+}
+
+enum AnalysisTermType {
+  """
+  A dataset concept.
+  """
+  CONCEPT
+
+  """
+  The analysis time grouping dimension.
+  """
+  TIME
+
+  """
+  The germplasm grouping dimension.
+  """
+  GERMPLASM
+
+  """
+  The unit grouping dimension.
+  """
+  UNIT_GROUP
+
+  """
+  The position grouping dimension.
+  """
+  POSITION_GROUP
+}
+
+"""
+Determines how records are assigned to time bins.
+"""
+enum TimeAssignment {
+  """
+  Assign a record according to its start time.
+
+  If no start is found for the record, use its end time.
+  """
+  START
+
+  """
+  Assign a record according to its end time.
+
+  If no end is found for the record, use its start time.
+  """
+  END
+
+  """
+  Assign the observation to the bin containing the midpoint
+  between its start and end times.
+
+  If both start and end are not provided, use whichever is
+  provided.
+  """
+  MIDPOINT
+}
+
+
+"""
+Determines which side of a bin boundary receives a value equal
+to the boundary.
+"""
+enum BinningBoundary {
+  """
+  A value equal to the boundary is assigned to the bin on the
+  lower-value side of the boundary.
+  """
+  LEFT
+
+  """
+  A value equal to the boundary is assigned to the bin on the
+  higher-value side of the boundary.
+  """
+  RIGHT
+}
+
+
+"""
+Distance metric used to calculate dissimilarities for MDS.
+"""
+enum DistanceMetric {
+  EUCLIDEAN
+
+  MANHATTAN
+
+  MINKOWSKI
+}
+
+
+"""
+Correlation method used to calculate a correlation matrix.
+"""
+enum CorrelationMethod {
+  PEARSON
+
+  SPEARMAN
+
+  KENDALL
+}
+
+
+"""
+Method used to detect potential outliers.
+"""
+enum OutlierDetectionMethod {
+  Z_SCORE
+
+  IQR
+
+  MAHALANOBIS
+}
+
+"""
+Clustering methods supported for MDS observations.
+"""
+enum ClusteringMethod {
+  KMEANS
+  HIERARCHICAL
+}
+
+
+"""
+Type of grouping used to construct analytical observations.
+"""
+enum AnalysisGroupingType {
+  TIME
+
+  GERMPLASM
+
+  UNIT
+
+  POSITION
+}

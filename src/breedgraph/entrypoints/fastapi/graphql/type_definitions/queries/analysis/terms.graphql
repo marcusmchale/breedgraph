@@ -1,0 +1,74 @@
+"""
+A resolved analysis term.
+
+A term may represent a concept or a domain dimension such as
+time, germplasm, unit grouping or position grouping.
+"""
+type AnalysisTerm {
+  """
+  Identifies the term.
+  """
+  reference: AnalysisTermReference!
+
+  """
+  Representation used for the term, where applicable.
+  """
+  representation: TermRepresentationType
+
+  """
+  Binning applied to the term.
+  """
+  binning: Binning
+
+  """
+  Explicit ordering of categorical or ordinal levels.
+  """
+  levelOrder: [String!]
+
+  """
+  Transformations applied to the term.
+  """
+  transformations: [TermTransformation!]!
+
+  """
+  Aggregation applied when multiple records contribute
+  to an analytical observation.
+  """
+  aggregation: TermAggregation
+
+  """
+  Statistical effect of the term when a statistical model is used.
+  """
+  effect: TermEffect
+  """
+  Terms whose effects may vary as random slopes for this term.
+  """
+  randomSlopeTerms: [AnalysisTermReference!]
+}
+
+
+"""
+Identifies a term used by an analysis.
+
+Concept terms are identified by conceptId. Domain dimensions
+are identified by their AnalysisTermType.
+"""
+type AnalysisTermReference {
+  """
+  Type of term.
+  """
+  type: AnalysisTermType!
+
+  """
+  Stable concept ID when the term represents a concept.
+  """
+  conceptId: ID
+}
+
+
+type InteractionTerm {
+  """
+  Terms participating in the interaction.
+  """
+  terms: [AnalysisTermReference!]!
+}

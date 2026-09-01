@@ -1,0 +1,47 @@
+type CorrelationConfig {
+  """
+  Terms included in the correlation matrix.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Correlation method.
+  """
+  method: CorrelationMethod!
+}
+
+
+type CorrelationResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Terms included in the correlation matrix.
+  """
+  terms: [AnalysisTermReference!]!
+
+  """
+  Correlation matrix.
+  """
+  matrix: [CorrelationMatrixRow!]!
+}
+
+
+type CorrelationMatrixRow {
+  """
+  Term represented by this row.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Correlation values corresponding to the ordered term list.
+  """
+  values: [Float!]!
+}

@@ -1,0 +1,6 @@
+union AnalysisResult =
+    AnovaResult
+  | MDSResult
+  | CorrelationResult
+  | DescriptiveStatisticsResult
+  | OutlierDetectionResult

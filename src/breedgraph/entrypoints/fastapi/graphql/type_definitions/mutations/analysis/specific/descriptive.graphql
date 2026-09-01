@@ -1,0 +1,20 @@
+"""
+Configuration for descriptive statistics.
+"""
+input DescriptiveStatisticsInput {
+  """
+  Terms for which descriptive statistics are calculated.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGroupingInput
+
+  """
+  Optional interactions between analysis terms when model-dependent
+  statistics are requested.
+  """
+  interactions: [InteractionTermInput!]
+}

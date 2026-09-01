@@ -1,0 +1,29 @@
+type AnalysisSubmission {
+  """
+  Current processing status of the analysis.
+  """
+  status: SubmissionStatus!
+
+  """
+  Configuration used to execute the analysis.
+  """
+  config: AnalysisConfig!
+
+  """
+  Result produced by the analysis.
+
+  Available when the analysis has completed successfully.
+  """
+  result: AnalysisResult
+
+  """
+  Errors encountered while processing the analysis.
+  """
+  errors: [AnalysisError!]!
+
+  """
+  Warnings encountered while processing the analysis.
+  """
+  warnings: [AnalysisWarning!]!
+
+}

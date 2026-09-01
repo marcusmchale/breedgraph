@@ -1,0 +1,207 @@
+
+
+type AnovaConfig {
+  """
+  Terms used by the analysis.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Interactions between analysis terms.
+  """
+  interactions: [InteractionTerm!]!
+
+  """
+  Significance level used for hypothesis testing.
+  """
+  alpha: Float!
+
+  """
+  Optional Tukey HSD post-hoc comparisons.
+  """
+  tukey: TukeyConfig
+}
+
+
+
+"""
+Defines Tukey HSD post-hoc comparisons for an ANOVA.
+
+Tukey HSD compares the levels of a categorical or ordinal term.
+A term is eligible when its AnalysisTermInput representation is
+CATEGORICAL or ORDINAL. The server validates that each requested
+term is suitable for post-hoc comparison.
+"""
+type TukeyConfig {
+  """
+  Terms whose levels should be compared pairwise.
+  """
+  terms: [AnalysisTermReference!]!
+}
+
+
+type AnovaResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Results for individual model terms.
+  """
+  terms: [AnovaTermResult!]!
+
+  """
+  Results for model interactions.
+  """
+  interactions: [AnovaInteractionResult!]!
+
+  """
+  Tukey HSD results when requested.
+  """
+  tukey: [TukeyResult!]!
+
+  """
+  Residual/error statistics for the fitted model.
+  """
+  residual: AnovaResidualResult
+
+}
+
+type AnovaResidualResult {
+  """
+  Degrees of freedom for the residual error.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Residual sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Residual mean square.
+  """
+  meanSquare: Float
+}
+
+
+type AnovaTermResult {
+  """
+  Term represented by this result.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Degrees of freedom.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Mean square.
+  """
+  meanSquare: Float
+
+  """
+  F statistic.
+  """
+  fStatistic: Float
+
+  """
+  P value.
+  """
+  pValue: Float
+}
+
+
+type AnovaInteractionResult {
+  """
+  Terms participating in the interaction.
+  """
+  terms: [AnalysisTermReference!]!
+
+  """
+  Degrees of freedom.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Mean square.
+  """
+  meanSquare: Float
+
+  """
+  F statistic.
+  """
+  fStatistic: Float
+
+  """
+  P value.
+  """
+  pValue: Float
+}
+
+type TukeyResult {
+  """
+  Term whose levels were compared.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Pairwise comparisons between levels.
+  """
+  comparisons: [TukeyComparison!]!
+}
+
+
+type TukeyComparison {
+  """
+  First level in the comparison.
+  """
+  levelA: String!
+
+  """
+  Second level in the comparison.
+  """
+  levelB: String!
+
+  """
+  Difference between estimated means.
+  """
+  difference: Float
+
+  """
+  Adjusted p value.
+  """
+  pValue: Float
+
+  """
+  Lower confidence limit.
+  """
+  lowerConfidenceLimit: Float
+
+  """
+  Upper confidence limit.
+  """
+  upperConfidenceLimit: Float
+
+  """
+  Whether the comparison is statistically significant.
+  """
+  significant: Boolean!
+}
