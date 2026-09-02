@@ -48,7 +48,11 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def set_errors(self, key: str, errors: List[str]):
+    async def set_errors(self, key: str, errors: List[str|dict]):
+        ...
+
+    @abstractmethod
+    async def set_warnings(self, key: str, warnings: List[str|dict]):
         ...
 
     @abstractmethod
@@ -90,13 +94,7 @@ class AbstractStateStore(ABC):
         await self.verify_agent(agent_id, submission_id)
         return await self._get_submission_dataset_id(submission_id)
 
-    async def add_submission_errors(self, submission_id, errors: List[str]):
-        stored_errors = await self._get_errors(submission_id)
-        if stored_errors:
-            errors = stored_errors + errors
-        await self.set_errors(submission_id, errors)
-
-    async def get_errors(self, agent_id: int, key: str):
+    async def get_errors(self, agent_id: int, key: str) -> list[str|dict]:
         await self.verify_agent(agent_id, key)
         return await self._get_errors(key)
 
@@ -157,7 +155,11 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def _get_errors(self, submission_id: str) -> List[str]:
+    async def _get_errors(self, submission_id: str) -> List[str|dict]:
+        ...
+
+    @abstractmethod
+    async def _get_warnings(self, submission_id: str) -> List[str|dict]:
         ...
 
     @abstractmethod
@@ -240,10 +242,6 @@ class AbstractStateStore(ABC):
         await self.verify_agent(agent_id, file_id)
         return await self._get_file_progress(file_id)
 
-    async def get_errors(self, agent_id: int, key: str):
-        await self.verify_agent(agent_id, key)
-        return await self._get_errors(key)
-
     async def get_user_file_ids(self, agent_id: int) -> List[str]:
         """ Return a list of submission ID """
         file_ids = await self._get_user_files(agent_id)
@@ -281,10 +279,6 @@ class AbstractStateStore(ABC):
 
     @abstractmethod
     async def _get_file_progress(self, file_id: str):
-        ...
-
-    @abstractmethod
-    async def _get_errors(self, key: str):
         ...
 
     @abstractmethod

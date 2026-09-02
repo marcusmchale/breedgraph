@@ -116,6 +116,7 @@ class RedisStateStore(AbstractStateStore):
             return None
         return json.loads(result_json)
 
+
     async def _set_filename(self, file_id: str, filename: str):
         await self.connection.hset(
             name=file_id,
@@ -154,12 +155,22 @@ class RedisStateStore(AbstractStateStore):
             value=status.value
         )
 
-    async def set_errors(self, key: str, errors: List[str]):
+    async def _append_to_array(self, name:str, key:SubmissionKeys, values:List[str|dict]):
+        existing_values_json = await self.connection.hget(name, key=key.value)
+        existing_values = json.loads(existing_values_json) if existing_values_json else None
+        if existing_values:
+            values = existing_values + values
         await self.connection.hset(
-            name=key,
-            key=SubmissionKeys.ERRORS.value,
-            value=json.dumps(errors)
+            name=name,
+            key=key.value,
+            value=json.dumps(values)
         )
+
+    async def set_errors(self, key: str, errors: List[str|dict]):
+        await self._append_to_array(name=key, key=SubmissionKeys.ERRORS, values=errors)
+
+    async def set_warnings(self, key: str, warnings: List[str|dict]):
+        await self._append_to_array(name=key, key=SubmissionKeys.WARNINGS, values=warnings)
 
     async def _set_submission_item_errors(self, submission_id: str, item_errors: List[ItemError]):
         serialized_item_errors = [e.model_dump() for e in item_errors]
@@ -201,6 +212,10 @@ class RedisStateStore(AbstractStateStore):
     async def _get_errors(self, submission_id):
         errors = await self.connection.hget(submission_id, key=SubmissionKeys.ERRORS.value)
         return json.loads(errors) if errors else []
+
+    async def _get_warnings(self, submission_id):
+        warnings = await self.connection.hget(submission_id, key=SubmissionKeys.WARNINGS.value)
+        return json.loads(warnings) if warnings else []
 
     async def _get_submission_item_errors(self, submission_id):
         errors = await self.connection.hget(submission_id, key=SubmissionKeys.ITEM_ERRORS.value)

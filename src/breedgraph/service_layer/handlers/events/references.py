@@ -17,24 +17,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def mark_file_for_archival(
-        self,
-        file_id: str,
-        file_size: int,
-        file_hash: str
-) -> None:
-    """Create an archival record for a large file"""
-    if not self.archival_service:
-        logger.warning(f"Archival service not configured, cannot archive file {file_id}")
-        return
-
-    try:
-
-        logger.info(f"File {file_id} marked for archival")
-    except Exception as e:
-        logger.exception(f"Failed to mark file {file_id} for archival: {e}")
-
-
 @handlers.event_handler()
 async def upload_completed(
         event: events.references.UploadCompleted,
@@ -49,6 +31,7 @@ async def upload_completed(
             # delete any old referenced file if it exists
             await file_management.delete_file(uuid=reference.file_id)
             # mark for deletion from the archive also
+            logger.debug(f"File {reference.file_id} marked for deletion")
             await archival_service.update_archive_state(
                 file_id=event.uuid,
                 archive_state=ArchiveState.DELETION_PENDING
@@ -62,10 +45,14 @@ async def upload_completed(
             filename=reference.filename,
             reference_id=reference.id
         )
-        await notifications.send(
-            [account.user],
-            message
-        )
+        try:
+            await notifications.send(
+                [account.user],
+                message
+            )
+        except Exception as e:
+            logger.exception(f"Failed to send email notification for file upload success: {e}")
+
         await uow.commit()
 
     # Prepare for archival
@@ -77,6 +64,7 @@ async def upload_completed(
         archive_state=ArchiveState.ARCHIVAL_PENDING,
         local_state=LocalState.LOCAL
     )
+    logger.debug(f"File {event.uuid} marked for archival")
     await archival_service.create(record)
 
 

@@ -15,6 +15,7 @@ class SubmissionKeys(Enum):
     FILE_ID = "file_id"
     STATUS = "status"
     ERRORS = "errors"
+    WARNINGS = "warnings"
     ITEM_ERRORS = "item_errors"
 
 class ArchiveKeys(Enum):

@@ -109,9 +109,8 @@ async def resolve_submission_errors(submission_id: str, info) -> List[str]:
     bus = info.context.get('bus')
     logger.debug(f"Resolving submission errors for submission_id: {submission_id}")
     errors = await bus.state_store.get_errors(agent_id=user_id, key=submission_id)
-    logger.debug(f'errors resolved: {errors}')
+    logger.debug(f'errors raised during dataset submission: {errors}')
     return errors
-
 
 @dataset_submission.field("itemErrors")
 async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemError]:

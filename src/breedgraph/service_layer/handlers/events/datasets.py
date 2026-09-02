@@ -61,7 +61,7 @@ async def dataset_submitted(
             await uow.commit()
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.COMPLETED)
         except Exception as e:
-            await state_store.add_submission_errors(event.submission_id, [f"Failed to create dataset: {type(e).__name__, e}"])
+            await state_store.set_errors(event.submission_id, [f"Failed to create dataset: {type(e).__name__, e}"])
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.FAILED)
 
 
@@ -104,7 +104,7 @@ async def dataset_update_submitted(
             await uow.commit()
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.COMPLETED)
         except Exception as e:
-            await state_store.add_submission_errors(event.submission_id, [f"Failed to update dataset: {e}"])
+            await state_store.set_errors(event.submission_id, [f"Failed to update dataset: {e}"])
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.FAILED)
 
 
@@ -143,6 +143,6 @@ async def dataset_records_submitted(
             await uow.commit()
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.COMPLETED)
         except Exception as e:
-            await state_store.add_submission_errors(event.submission_id, [f"Failed to add records to dataset: {type(e).__name__, e}"])
+            await state_store.set_errors(event.submission_id, [f"Failed to add records to dataset: {type(e).__name__, e}"])
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.FAILED)
 
