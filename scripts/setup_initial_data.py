@@ -23,8 +23,6 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
 from breedgraph.domain.model.accounts import AccountInput, UserInput, AccountStored
 
-from breedgraph.config import MAIL_USERNAME, MAIL_HOST
-
 from breedgraph.adapters.neo4j.cypher import queries
 
 import logging
@@ -60,8 +58,8 @@ async def create_system_account(uow: AbstractUnitOfWorkFactory) -> AccountStored
                 user=UserInput(
                     name='system',
                     fullname='system user',
-                    email=f'{MAIL_USERNAME}@{MAIL_HOST}',
-                    password_hash="",
+                    email='',
+                    password_hash='',
                     ontology_role=OntologyRole.ADMIN
                 )
             )
