@@ -24,6 +24,10 @@ class LayoutBase(ABC):
     def __hash__(self):
         return hash(self.name)
 
+    def __post_init__(self):
+        if any(name in self.axes for name in self.axes):
+            raise ValueError("Axis names should be unique within a layout")
+
 @dataclass
 class LayoutInput(LayoutBase, EnumLabeledModel):
     pass
@@ -61,21 +65,60 @@ TInput = LayoutInput
 TStored = LayoutStored
 
 class Arrangement(ControlledTreeAggregate):
+    """A hierarchical collection of layouts defining a coordinate context.
+
+    An arrangement provides the root context for a hierarchy of layouts.
+    Parent-child relationships establish scope and context, but do not
+    necessarily imply that a child layout refines its parent.
+
+    Layouts in different branches may define independent coordinate spaces
+    and may reuse axis names. An axis name must not occur more than once
+    along any root-to-leaf path within the arrangement.
+
+    Relationships between coordinate spaces, including composition and
+    projection through shared axes, are derived when resolving positions
+    rather than explicitly represented by the arrangement.
+    """
+
     default_edge_label: ClassVar['str'] = "INCLUDES_LAYOUT"
 
     @property
     def layouts(self) -> list[LayoutInput | LayoutStored]:
         return list(self.entries.values())
 
+    def _validate_names(
+            self,
+            layout: LayoutInput | LayoutStored,
+            parent_id: int | None,
+    ):
+        if parent_id is None:
+            layouts = self.layouts
+        else:
+            parent_layout = self.get_layout(parent_id)
+            if parent_layout is None:
+                raise ValueError(f"Parent layout {parent_id} does not exist")
+
+            layouts = self.get_ancestors(parent_id) + [parent_layout]
+
+        if any(name in existing for existing in layouts for name in layout.axes):
+            raise ValueError("Axis names should be unique within a branch")
+
     def add_layout(self, layout: LayoutInput, parent_id: int|None, position: List[str]|None):
+        self._validate_names(layout, parent_id)
+
         if parent_id is None:
             # insert layout as new root for the arrangement
             sources = None
+
         else:
-            parent_layout: LayoutBase = self.get_layout(parent_id)
+            parent_layout = self.get_layout(parent_id)
+
             if layout.location is not None:
                 if not parent_layout.location == layout.location:
                     raise ValueError("All layouts in an arrangement should have the same location")
+
+            if position is None:
+                raise ValueError("Position is required for child layouts")
 
             if not len(position) == len(parent_layout.axes):
                 raise ValueError("Position should have same length as the parent layout axes")
@@ -85,6 +128,16 @@ class Arrangement(ControlledTreeAggregate):
         return super().add_entry(layout, sources)
 
     def change_parent(self, layout_id: int, parent_id: int, position: List[str]|None = None):
+        layout = self.get_layout(layout_id)
+        self._validate_names(layout, parent_id)
+
+        if position is None:
+            raise ValueError("Position is required within parent layout")
+
+        parent_layout = self.get_layout(parent_id)
+        if not len(position) == len(parent_layout.axes):
+            raise ValueError("Position should have same length as the parent layout axes")
+
         super().change_source(layout_id, parent_id, attributes= {'position': position})
 
 
