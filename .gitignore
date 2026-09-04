@@ -18,3 +18,4 @@ __pycache__
 /src/breedgraph.egg-info/
 /dist
 /instance/test_archive/
+/src/breedcafs_migration/private_notes.md

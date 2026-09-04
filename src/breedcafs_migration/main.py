@@ -34,7 +34,7 @@ async def main():
         logger.info("Setup BreedCAFS migration account")
         user_id = await setup_breedcafs_migration_account(uow_factory=breedgraph_uow_factory)
         logger.info("Prepare Ontology")
-        await prepare_breedcafs_ontology(uow_factory=breedgraph_uow_factory, user_id=user_id)
+        ontology_ids = await prepare_breedcafs_ontology(uow_factory=breedgraph_uow_factory, user_id=user_id)
 
 
 

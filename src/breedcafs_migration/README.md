@@ -2,31 +2,49 @@
 
 ## Guiding Principles
 
-1. **Migration is performed by a dedicated BreedCAFS Migration User**, belonging to a dedicated **BreedCAFS Migration Organisation/Team**.
+**Migration is performed by a dedicated BreedCAFS Migration User**, belonging to a dedicated **BreedCAFS Migration Organisation/Team**.
 
    * The migration identity is not a human account and does not need login capability.
    * Migration commands and events therefore go through the normal BreedGraph application/domain machinery.
    * The personal account of the migration administrator remains separate from the historical provenance of migrated data.
 
-2. **The migration team temporarily controls all migrated data.**
+**The migration team temporarily controls all migrated data.**
 
    * Migrated records are initially `PRIVATE`.
    * The migration team provides the required read/write/curation authority during migration.
    * Control is subsequently transferred to the appropriate BreedGraph Organisation/team.
 
-3. **Do not migrate BreedCAFS submission identity.**
+**Do not migrate BreedCAFS submission identity.**
 
    * `submitted_by` and `submitted_at` are not carried over as BreedGraph authorship/provenance.
    * BreedCAFS users are not migrated into BreedGraph Persons.
    * Personal data is not imported unless there is an explicit requirement and appropriate GDPR basis for doing so.
 
-4. Each migration stage follows:
+Broadly we will follow the follow phases:
+  
+1. Extract and dump all data required for the migration to csv.
+2. Create the migration user account and context
+2. Prepare ontology entries
+3. Create germplasm
+4. Create locations
+5. Create layouts
+6. Create units
+7. Create datasets
+ 
 
-   **extract → map → validate → commit**
-
-5. Each stage produces a CSV mapping from BreedCAFS identifiers to BreedGraph identifiers where subsequent stages require those mappings.
 
 ---
+# 1. Extract
+
+To get an overview of the schema, a useful command is:
+```cypher
+CALL db.schema.nodeTypeProperties()
+```
+
+## [1.1 Extract Locations](1_1_Extract_Locations.md)
+
+## [1.2 Extract Layouts](1_2_Extract_Layouts.md)
+
 
 # 1. Migration Bootstrap
 
@@ -274,18 +292,12 @@ Create records for each from values in the corresponding Records.
 
 Collect BreedCAFS Traits that have associated data.
 
-For branch "Stratum". This is better encoded as a layout.
-  1. Create a "Stratum" LayoutType in the ontology, as a child of "Row and Tree"
-  2. For Fields with stratum data, create an arrangement for the Field with Row and Tree, then nested stratum.
-     This highlights an issue, Should a layout definition require a layout for each coordinate in the parent?
-     We would be better to have a single layout, with 3 dimensions; row, tree, and stratum 
-     to be used for defining branch positions.
-               
-     This does lose the fact that the stratum layout is a child of the row and tree layout.
-     However, the alternative is a lot of redundant layouts. To consider this!
-   
-Consider other traits that may also have better encodings in BreedGraph.
+match (:RecordType {name:'Trait'})<-[:OF_TYPE]-(i:Input)<-[:FOR_INPUT*..2]-()<-[:RECORD_FOR]-(:Record) return distinct i
 
+For branch "Stratum". This is better encoded as a layout.
+  1. Create a "Row, Tree and Stratum" LayoutType in the ontology, as a child of "Row and Tree"
+  2. For Fields with stratum data, create a new layout within the Field as "Row Tree and Stratum" and define coordinates accordingly.
+   
 For each remaining:
 
 1. Create the corresponding BreedGraph Variable.
@@ -298,6 +310,8 @@ Unused BreedCAFS Trait definitions do not need to be migrated.
 ## 7.4 Conditions
 
 Collect BreedCAFS Conditions that have associated data.
+
+match (:RecordType {name:'Condition'})<-[:OF_TYPE]-(i:Input)<-[:FOR_INPUT*..2]-()<-[:RECORD_FOR]-(:Record) return count(distinct i)
 
 For each:
 
