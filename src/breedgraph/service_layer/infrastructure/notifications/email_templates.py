@@ -6,7 +6,7 @@ from breedgraph.domain.model import FileReferenceBase, Access
 from breedgraph.domain.model.accounts import UserBase
 from breedgraph.domain.model.organisations import TeamBase
 from breedgraph.domain.model.archive import ArchiveRequestor
-from breedgraph.config import get_base_url
+from breedgraph.config import PROTOCOL, HOST_ADDRESS
 from email.message import EmailMessage
 
 import logging
@@ -27,7 +27,7 @@ class EmailAddedMessage(Email):
         self.message.set_content(
             f'Welcome to {SITE_NAME}\n'
             f'You are now able to register with this email address.'
-            f'Visit the following address to get started: {get_base_url()}'
+            f'Visit the {PROTOCOL}://{HOST_ADDRESS} to get started'
         )
 
 class VerifyEmailMessage(Email):
@@ -35,7 +35,7 @@ class VerifyEmailMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} account email verification'
-        verify_url = f'{get_base_url()}verify'
+        verify_url = f'{PROTOCOL}://{HOST_ADDRESS}/verify'
         body = (
             f'Hi {user.fullname}, \n'
             f'Please visit the following link to verify your email address: \n'
@@ -54,7 +54,7 @@ class ResetPasswordMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} account reset password'
-        reset_url = f'{get_base_url()}reset'
+        reset_url = f'{PROTOCOL}://{HOST_ADDRESS}/reset'
         body = (
             f'Hi {user.fullname}, \n'
             f'Please visit the following link to reset your password address: \n'

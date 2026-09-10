@@ -17,9 +17,9 @@ class AbstractNotifications(abc.ABC):
             recipients: List[NotificationRecipient],
             message: Email
     ):
-        raise NotImplementedError
+        ...
 
     @staticmethod
     @abc.abstractmethod
     async def send_to_unregistered(recipients: List[str], message: Email):
-        raise NotImplementedError
+        ...

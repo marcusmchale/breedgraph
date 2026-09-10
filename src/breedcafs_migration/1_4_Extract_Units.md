@@ -1,24 +1,52 @@
-## 1.4. Units
+## 1.4. Extract Units
 
 In BreedCAFS, the unit of study was termed an "Item". 
-To encode this in Breedgraph we need to determine for each item:
+To encode this in BreedGraph we need to determine for each item:
   - The name - to be copied to breedgraph name
   - The Subject
-    - The "subject" was determined firstly by label.
-    - When the labels included was field/block/tree that was the subject.
-    - When the labels included "sample", the Item had another attribute the "unit" which indicates the subject.
+    - The "subject" is determined firstly by label (Field/Block/Tree)
+    - When the labels included "sample", the Item has another attribute the "unit" which indicates the subject.
   - Parent/child Item UIDs
-  - Varieties (to later map into the created germplasm)
-  - If the parent UID is a block (for trees/samples), we map this to a layout, it may have coordinates
-    - this raises a question, how do we define a block that does not have coordinates?
-    - AS A BLOCK, i.e. the root unit.
-    - I think we may need a field unit for all fields, to form thhe root of the block. 
-      - This unit "Subject" can be "Field"
-    - Then we create "Block" "Subject" entries within the block for all blocks.
-    - The coordinates from each unit need to be preserved to assign positions within layouts.
-    - We might as well aggregate the stratum data at the same time as this needs to go into layouts.
 
-- We extracted position data while extracting layouts, saved this as unit_positions.csv
+Other details stored on these nodes can be ignored as it was extracted in other phases:
+  - Varieties were extracted while extracting germplasm. 
+  - Positions were extracted along with layouts.
+   
 
-- We also need to extract the varieties, do this in extract germplasm stage
-- So here we 
+```cypher
+MATCH (item:Item)
+
+OPTIONAL MATCH (item)-[:IS_IN|FROM]->(source:Item)
+
+WITH item, collect(DISTINCT source.uid) AS direct_sources
+
+OPTIONAL MATCH (item)-[:IS_IN|FROM]->(middle)-[:IS_IN|FROM]->(source2:Item)
+WHERE NOT middle:Item
+
+WITH item,
+     direct_sources + collect(DISTINCT source2.uid) AS source_items
+
+OPTIONAL MATCH (item)<-[:IS_IN|FROM]-(sink:Item)
+
+WITH item, source_items, collect(DISTINCT sink.uid) AS direct_sinks
+
+OPTIONAL MATCH (item)<-[:IS_IN|FROM]-(middle)-[:IS_IN|FROM]-(sink2:Item)
+WHERE NOT middle:Item
+
+WITH item,
+     source_items,
+     direct_sinks + collect(DISTINCT sink2.uid) AS sink_items
+
+RETURN
+    item.uid as item_uid, 
+    CASE 
+        WHEN "Sample" in labels(item) 
+        THEN item.unit 
+        ELSE [l in labels(item) where l <> "Item"][0]
+        END
+    as subject, 
+    [x IN source_items WHERE x IS NOT NULL] AS source_items,
+    [x IN sink_items WHERE x IS NOT NULL] AS sink_items
+```
+
+saved this as item_name_subject_sources_sinks.csv

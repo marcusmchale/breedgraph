@@ -12,6 +12,7 @@ from .routing import (
     GQL_API_PATH,
     MAIL_HOST,
     MAIL_PORT,
+    MAIL_FROM,
     MAIL_USERNAME,
     MAIL_PASSWORD,
     MAIL_USE_TLS,

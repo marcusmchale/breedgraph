@@ -73,8 +73,7 @@ RETURN field, blocks, row, column, input_name, time, replicate, tree_values
 ```
 
 There are two fields where we have distinct value. 
-One field (29) this appears to be a true case of distinct coordinates per block. 
-So here we do actually want to create a layout for each block.
+One field (29) this appears to be a true case of distinct coordinates per block.
 
 Another field (5) appears to be using a different coordinate system entirely,
 We will need to discuss this with the project partner ([private notes](private_notes.md#layouts)).
@@ -116,7 +115,7 @@ RETURN f.uid as field_uid, row_and_tree, f.uid = 29 as row_and_tree_per_block, s
 
 Saved this table as 'field_layout_types.csv'
 
-### 1.2.2 Layout positions
+### 1.2.2 Positions
 
 Since we have defined the semantics of layouts, we can extract positions mapped to unit UID here.
 Don't try to associate times to positions I think.
@@ -144,4 +143,12 @@ stratum_record.value as stratum
 
 saved this as unit_positions.csv
 
+There was also an input that specified locations for samples (Location (text)).
+Only one location was ever used, will need to create this one.
 
+```cypher
+match (s)-[sub:SUBMITTED]->(r:Record)-[:RECORD_FOR]->(ii:ItemInput)-[:FOR_INPUT*]->(input:Input {name: "Location (text)"}),
+      (ii)-[:FOR_ITEM]->(item:Item)
+return item.uid as item_uid, r.value as location, date(datetime({epochMillis: r.start})) as date
+```
+These should also be set as positions and have been saved as sample_positions.csv

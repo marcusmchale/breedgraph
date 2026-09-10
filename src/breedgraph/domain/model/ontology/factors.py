@@ -1,12 +1,14 @@
 """
-Here we are seeking to describe experimental conditions/settings.
+A Factor is a property whose value is established through a control or management action,
+or is deliberately specified as part of the experimental design.
+
 These can benefit from a similar structure to the T/M/C crop ontology specification for variables.
 
 This is not quite the same as the MIAPPE definition of a factor, which is restricted to such that differentiate experimental units.
 We consider this revision appropriate as we may be contrasting different experimental units in different analyses,
 and as such the definition of factor would change.
 
-Conditions describe experimental setting.
+Conditions describe experimental setting (e.g. light intensity) and experimental unit management, e.g. planting date.
 Factors require details about the control and measurement of this context.
 The Plant Experimental Conditions Ontology should be referenced where possible in defining factors
 
@@ -22,7 +24,6 @@ from typing import ClassVar
 
 @dataclass
 class ControlMethodBase(OntologyEntryBase):
-    # Unlike observation methods, control methods do not have a method_type
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.CONTROL_METHOD
 
     control_type: ControlMethodType = ControlMethodType.ENVIRONMENTAL

@@ -38,28 +38,76 @@ class AxisType(str, Enum):
     CARTESIAN = "CARTESIAN"
 
 class ObservationMethodType(str, Enum):
+    """Broad category describing how the value of a Variable is obtained."""
+
     MEASUREMENT = "MEASUREMENT"
+    """Value obtained by direct measurement using an instrument or defined procedure."""
+
     COUNTING = "COUNTING"
+    """Value obtained by enumerating discrete entities, occurrences, or features."""
+
     ESTIMATION = "ESTIMATION"
+    """Value obtained by estimating a characteristic, typically when direct measurement
+    is impractical or when a defined visual or expert assessment is used."""
+
     COMPUTATION = "COMPUTATION"
+    """Value derived by applying a defined calculation or algorithm to observed or
+    otherwise available data."""
+
     PREDICTION = "PREDICTION"
+    """Value inferred or predicted using a model, statistical method, or other
+    predictive approach."""
+
     DESCRIPTION = "DESCRIPTION"
+    """Value recorded as a descriptive observation, typically using free text or
+    a defined descriptive vocabulary."""
+
     CLASSIFICATION = "CLASSIFICATION"
+    """Value assigned by categorising an observation according to a defined
+    classification scheme or set of classes."""
+
 
 class ControlMethodType(str, Enum):
-    ENVIRONMENTAL = "ENVIRONMENTAL"  # light,  temperature, humididty etc.
-    NUTRITIONAL = "NUTRITIONAL"  # fertilizer etc
-    CHEMICAL = "CHEMICAL" # herbicides, hormones etc.
-    BIOLOGICAL = "BIOLOGICAL" # microbial treatments etc.
-    MANAGEMENT = "MANAGEMENT" # management of planting, pruning etc
-    GENETIC = "GENETIC" # management of genetic material, e.g. crossing, clonal propagation via tissue culture
+    """Broad category describing the domain of a ControlMethod.
+
+    This is a general classification label for organising and filtering control
+    methods. It is not intended to provide an exhaustive or mutually exclusive
+    taxonomy of control methods.
+    """
+
+    ENVIRONMENTAL = "ENVIRONMENTAL"
+    """Control or manipulation of environmental conditions or exposures, such as
+    light, temperature, humidity, or atmospheric conditions."""
+
+    NUTRITIONAL = "NUTRITIONAL"
+    """Control or manipulation of nutritional conditions, including the supply,
+    composition, or availability of nutrients."""
+
+    CHEMICAL = "CHEMICAL"
+    """Control involving the application or manipulation of chemical agents,
+    substances, or treatments, including herbicides, hormones, and growth
+    regulators."""
+
+    BIOLOGICAL = "BIOLOGICAL"
+    """Control involving biological agents, organisms, or biological interactions,
+    including microbial or other biological treatments."""
+
+    MANAGEMENT = "MANAGEMENT"
+    """Control through agricultural, horticultural, experimental, or other
+    management practices, such as planting, sowing, pruning, irrigation,
+    or harvesting."""
+
+    GENETIC = "GENETIC"
+    """Control or manipulation of genetic material or genetic relationships,
+    including crossing, selection, propagation, and other germplasm-management
+    operations."""
 
 class ScaleType(str, Enum):
-    DATETIME = "DATE"
+    DATE = "DATE"
     DURATION = "DURATION"
     NUMERICAL = "NUMERICAL"
     TEXT = "TEXT"
-    NOMINAL = "NOMINAL"  # should have categories
+    NOMINAL = "NOMINAL"  # should have categories, Boolean values are represented as nominal scales (e.g. Yes/No, Present/Absent)
     ORDINAL = "ORDINAL"  # should have categories
     COMPLEX = "COMPLEX" # Allows for hdf5, json, sparse matrixes, tables, trees etc. should define a schema
 

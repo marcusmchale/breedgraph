@@ -16,8 +16,10 @@ MAIL_HOST = os.environ.get('MAIL_HOST')
 MAIL_PORT = os.environ.get('MAIL_PORT')
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+MAIL_FROM = os.environ.get('MAIL_FROM')
 MAIL_USE_TLS = bool(int(os.environ.get('MAIL_USE_TLS', 1)))
 MAIL_AUTHENTICATED = bool(int(os.environ.get('MAIL_AUTHENTICATED', 1)))
+
 
 def get_base_url():
     if not HOST_PORT in [80, 443]:

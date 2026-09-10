@@ -21,7 +21,7 @@ class ValueParser:
             return None
 
         if isinstance(value, str):
-            if scale.scale_type == ScaleType.DATETIME:
+            if scale.scale_type == ScaleType.DATE:
                 return self._parse_datetime(value)
             elif scale.scale_type == ScaleType.DURATION:
                 return self._parse_duration(value)

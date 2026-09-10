@@ -20,19 +20,17 @@ saved this as varieties.csv
 
 ### 1.3.2 Extract varieties per unit
 The latest variety definition is stored on the unit itself
+We only need to store the individual variety, as varieties on parent units is always composed from these anyway.
 
 ```cypher
-MATCH (u:Unit) where u.varieties is not null return u.uid, u.varieties
+MATCH (i:Item) where i.variety is not null return i.uid as item_uid, i.variety as variety
 ```
 
-However we only need to store the individual variety, as varieties is always composed rather than set.
+Saved this as item_variety.csv
 
-There is one interesting case of pooling across multiple varieties, not sure why this was done but just to note.
-This may be an important consideration. In BreedGraph, a unit can only have one germplasm definition.
-Though it can have multiple source units within the sme block. 
-We are ok in this instance, but it is worth considering, will we ever want to pool across fields/blocks etc.
-This would be poorly supported in breedgraph, you would have to merge the blocks, 
-which is only allowed within one location (at least in the ui i believe).
+#### Noteworthy case for later validation
+
+There is one case of pooling across multiple varieties, not sure why this was done but just to note.
 
 ```cypher
 MATCH (i:Item) 
@@ -56,3 +54,4 @@ MATCH (s)<-[:IS_IN|FROM*]-(i)<-[:IS_IN|FROM*]-(ii)
 
 RETURN s, i, ii
 ```
+

@@ -1,6 +1,5 @@
 """
-Variable ontology entries for measurement and trait variables.
-Defines types of variables that can be measured in breeding experiments.
+A Variable is a property whose value is established by observation or measurement.
 
 I considered the following reference in designing this model:
 

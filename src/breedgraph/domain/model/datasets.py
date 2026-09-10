@@ -72,8 +72,8 @@ class DatasetBase(ABC):
     label: ClassVar[str] = ControlledModelLabel.DATASET
     value_parser: ClassVar[ValueParser] = ValueParser()
 
-    study: int = None
-    concept: int = None
+    study: int|None = None
+    concept: int|None = None
     records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
 
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
