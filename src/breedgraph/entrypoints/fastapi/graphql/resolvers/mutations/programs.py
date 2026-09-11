@@ -160,7 +160,8 @@ async def create_study(
         end=study.get('end'),
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
-        reference_ids=study.get('reference_ids')
+        reference_ids=study.get('reference_ids'),
+        groupings=study.get('groupings')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -189,6 +190,7 @@ async def update_study(
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
         reference_ids=study.get('reference_ids'),
+        groupings=study.get('groupings')
     )
     await info.context['bus'].handle(cmd)
     return True

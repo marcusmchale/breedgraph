@@ -117,7 +117,7 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
 
         return [self._graph.nodes[node_id] for node_id in node_ids]
 
-    def get_descendants(self, node_id):
+    def get_descendants(self, node_id) -> list[int]:
         """Returns descendants sorted by distance (closest first)"""
         if node_id not in self._graph:
             return []
@@ -141,7 +141,7 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
 
         return [descendant_id for _, descendant_id in sorted(descendant_distances)]
 
-    def get_ancestors(self, node_id):
+    def get_ancestors(self, node_id) -> list[int]:
         """Returns ancestors sorted by distance (closest first)"""
         if node_id not in self._graph:
             return []

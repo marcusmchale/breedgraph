@@ -2,8 +2,9 @@ import logging
 
 from neo4j import AsyncResult, Record
 
+from breedgraph.domain.model import GroupScope
 from breedgraph.domain.model.programs import (
-    StudyInput, StudyStored, TrialInput, TrialStored, ProgramInput, ProgramStored
+    StudyInput, StudyStored, TrialInput, TrialStored, ProgramInput, ProgramStored, RecordGrouping
 )
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.service_layer.tracking import TrackableProtocol
@@ -35,7 +36,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             contact_ids = contact_ids,
             reference_ids = reference_ids
         )
-        record: Record = await result.single()
+        record: Record = await result.single(strict=True)
         return self.record_to_program(record)
 
     async def _create_trial(self, trial: TrialInput, program_id: int) -> TrialStored:
@@ -51,7 +52,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             reference_ids = reference_ids,
             program_id=program_id
         )
-        record: Record = await result.single()
+        record: Record = await result.single(strict=True)
         return self.record_to_trial(record)
 
     async def _create_study(self, study: StudyInput, trial_id: int) -> StudyStored:
@@ -61,15 +62,17 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         reference_ids = study_data.pop('reference_ids')
         licence_id = study_data.pop('licence_id')
         design_id = study_data.pop('design_id')
+        groupings = study_data.pop('groupings', [])
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_study'],
             study_data=study_data,
             reference_ids = reference_ids,
             licence_id = licence_id,
             design_id = design_id,
-            trial_id=trial_id
+            trial_id=trial_id,
+            groupings=groupings
         )
-        record: Record = await result.single()
+        record: Record = await result.single(strict=True)
         return self.record_to_study(record)
 
     async def _update_program(self, program: ProgramStored):
@@ -111,14 +114,15 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         reference_ids = study_data.pop('reference_ids')
         licence_id = study_data.pop('licence_id')
         design_id = study_data.pop('design_id')
-
+        groupings = study_data.pop('groupings', [])
         await self.tx.run(
             queries['programs']['set_study'],
             study_id = study_id,
             study_data=study_data,
             reference_ids=reference_ids,
             licence_id=licence_id,
-            design_id=design_id
+            design_id=design_id,
+            groupings=groupings
         )
 
     async def _delete_trials(self, trial_ids: List[int]) -> None:
@@ -135,6 +139,15 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         if 'study' in record:
             record = record.get('study')
         record = self.deserialize_dt64(record)
+        record['groupings'] = [
+            RecordGrouping(
+                name=grouping['name'],
+                scopes= [
+                    GroupScope(dataset_ids=scope['dataset_ids'])
+                    for scope in grouping['scopes'] or []
+                ]
+            ) for grouping in record['groupings'] or []
+        ]
         return StudyStored(**record)
 
     def record_to_trial(self, record: Record | dict) -> TrialStored:

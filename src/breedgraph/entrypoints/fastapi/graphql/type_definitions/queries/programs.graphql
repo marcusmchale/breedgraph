@@ -1,4 +1,12 @@
-# Main Entity Types
+type GroupScope {
+    datasetIds: [ID!]!
+}
+
+type RecordGrouping {
+    name: String!
+    scopes: [GroupScope!]
+}
+
 type Program {
     id: ID!
     name: String!
@@ -29,6 +37,7 @@ type Study {
     practices: String
     start: DateTime
     end: DateTime
+    groupings: [RecordGrouping!]
     design: Design
     licence: LegalReference
     references: [ReferenceInterface]

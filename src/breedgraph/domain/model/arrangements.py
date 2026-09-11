@@ -25,7 +25,7 @@ class LayoutBase(ABC):
         return hash(self.name)
 
     def __post_init__(self):
-        if any(name in self.axes for name in self.axes):
+        if len(set(self.axes)) != len(self.axes):
             raise ValueError("Axis names should be unique within a layout")
 
 @dataclass
@@ -98,10 +98,12 @@ class Arrangement(ControlledTreeAggregate):
             if parent_layout is None:
                 raise ValueError(f"Parent layout {parent_id} does not exist")
 
-            layouts = self.get_ancestors(parent_id) + [parent_layout]
+            layouts = [self.get_entry(i) for i in self.get_ancestors(parent_id)] + [parent_layout]
 
-        if any(name in existing for existing in layouts for name in layout.axes):
-            raise ValueError("Axis names should be unique within a branch")
+        existing_axis_names = [name for l in layouts for name in l.axes ]
+        overlap = set(existing_axis_names).intersection(set(layout.axes))
+        if overlap:
+            raise ValueError(f"Axis names { overlap } already in use within this branch of the arrangement")
 
     def add_layout(self, layout: LayoutInput, parent_id: int|None, position: List[str]|None):
         self._validate_names(layout, parent_id)

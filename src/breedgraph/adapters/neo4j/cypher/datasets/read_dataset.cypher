@@ -8,6 +8,18 @@ RETURN
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],
     records: apoc.coll.sortMaps([
       (dataset)-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit) |
-      record {.*, .submitted, unit: unit.id, references: [(record)<-[:REFERENCE_FOR]-(ref:Reference)| ref.id]}
+      record {
+        .*,
+        .submitted,
+        unit: unit.id,
+        references: [(record)<-[:REFERENCE_FOR]-(ref:Reference)| ref.id],
+        groups: [
+          (record)-[:IN_GROUP]->(group:RecordGroup)<-[:HAS_GROUP]-(grouping:RecordGrouping) |
+          {
+            name: grouping.name,
+            code: group.code
+          }
+        ]
+      }
     ],'submitted')
   }

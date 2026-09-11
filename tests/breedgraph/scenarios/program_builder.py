@@ -1,4 +1,5 @@
-from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
+
+from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGrouping
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.breedgraph.utilities.inputs import LoremTextGenerator
@@ -21,15 +22,19 @@ class ProgramBuilder:
 
     @classmethod
     def study_input(cls):
-        return StudyInput(name=cls.text_generator.new_text(10))
+        return StudyInput(
+            name=cls.text_generator.new_text(10),
+            groupings=[RecordGrouping(name='Replicate')]
+        )
 
-    async def program_trial_study(self, user_id: int) -> Dict[str, int]:
+    async def program_trial_study(self, user_id: int) -> Dict[str, int|list[str]]:
         async with (self.uow_factory.get_uow(user_id=user_id) as uow):
             program = await uow.repositories.programs.create(self.program_input())
             program.add_trial(self.trial_input())
             await uow.repositories.programs.update_seen()
             trial_id = list(program.trials.keys())[0]
-            program.add_study(trial_id=trial_id, study=self.study_input())
+            study_input = self.study_input()
+            program.add_study(trial_id=trial_id, study=study_input)
             await uow.commit()
 
         study_id = list(program.get_trial(trial_id).studies.keys())[0]
@@ -37,7 +42,8 @@ class ProgramBuilder:
         return {
             'program_id': program.id,
             'trial_id': trial_id,
-            'study_id': study_id
+            'study_id': study_id,
+            'groupings': [grouping.name for grouping in study_input.groupings]
         }
 
 

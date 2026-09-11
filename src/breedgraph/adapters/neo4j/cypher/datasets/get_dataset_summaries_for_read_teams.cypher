@@ -1,9 +1,9 @@
 MATCH (study: Study {id: $study_id})
-        <-[:FOR_STUDY]-(dataset:Dataset)
-        -[:FOR_CONCEPT]->(concept:Variable|Factor),
-      (dataset)<-[:CONTROLS]-(control:Control)
+        <-[:FOR_STUDY]-(dataset: Dataset)
+        -[:FOR_CONCEPT]->(concept: Variable | Factor),
+      (dataset)<-[:CONTROLS]-(control: Control)
         <-[:CONTROLS]-(:TeamDatasets)
-        <-[:CONTROLS]-(team:Team)
+        <-[:CONTROLS]-(team: Team)
 
 WITH concept, dataset, team, control
 ORDER BY dataset.id, team.id, control.sequence DESC
@@ -15,29 +15,33 @@ WITH concept, dataset, team_ids, min(releases) as effective_release
 WHERE any(team_id in team_ids WHERE team_id in $read_teams)
 OR effective_release >= $minimum_release
 
-WITH DISTINCT concept, dataset
+WITH concept, dataset
 
 MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record),
       (record)-[:FOR_UNIT]->(unit:Unit)
-OPTIONAL MATCH
-      (unit)-[:OF_SUBJECT]->(subject:Subject)
 
-OPTIONAL MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
-    WHERE (record.start IS NULL OR position.start IS NULL OR position.start < record.start)
-    AND (record.end IS NULL OR position.end IS NULL OR position.end < record.end)
+OPTIONAL MATCH (block:Unit)-[:INCLUDES_UNIT*]->(unit) WHERE NOT (:Unit)-[:INCLUDES_UNIT]->(block)
+WITH concept, dataset, record, unit, coalesce(block, unit) as block
 
-OPTIONAL MATCH (block)-[:INCLUDES_UNIT*]->(unit)
+OPTIONAL MATCH (unit)-[:OF_SUBJECT]->(subject:Subject)
+
+CALL (unit, record) {
+  OPTIONAL MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
+  WHERE (record.start IS NULL OR position.start IS NULL OR position.start < record.start)
+  AND (record.end IS NULL OR position.end IS NULL OR position.end < record.end)
+  RETURN collect(location.id) as location_ids
+}
 
 WITH
-    dataset.id as id,
     concept.id as concept_id,
+    dataset.id as id,
     collect(distinct subject.id) as subject_ids,
-    collect(distinct location.id) as location_ids,
-    collect(distinct coalesce(block.id, unit.id)) as block_ids,
-    count(unit) as unit_count,
-    count(record) as record_count,
-    min(record.start) as start,
-    max(record.end) as end
+    location_ids,
+    collect(distinct block.id) as block_ids,
+    count(distinct unit) as unit_count,
+    count(distinct record) as record_count,
+    min(coalesce(record.start, record.end)) as start,
+    max(coalesce(record.start, record.end)) as end
 
 RETURN {
   id: id,

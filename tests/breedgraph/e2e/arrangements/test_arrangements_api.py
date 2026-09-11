@@ -31,7 +31,7 @@ async def test_create_layout(
 
     assert_payload_success(create_layout_payload)
 
-    arrangements_request_response = await post_to_arrangements(client, token=login_token)
+    arrangements_request_response = await post_to_arrangements(client, location_id=location_id, token=login_token)
     arrangements_payload = get_verified_payload(arrangements_request_response, "arrangements")
     assert arrangements_payload.get('result')[0].get('name') == layout_name
 
@@ -88,7 +88,6 @@ async def test_extended_layout(
     facility_position = "1"
     chamber_layout = {
         'name': chamber_layout_name,
-        'locationId': location_id,
         'typeId': adjacency_3d_type_id,
         'axes': ["Depth","Vertical", "Horizontal"],
         'parentId': facility_layout_id,
@@ -113,7 +112,6 @@ async def test_extended_layout(
     shelf_layout_name = "Rear-Top-Right Shelf"
     shelf_layout = {
         'name': shelf_layout_name,
-        'locationId': location_id,
         'typeId': grid_type_id,
         'axes': ["column","row"],
         'parentId': chamber_layout_id,

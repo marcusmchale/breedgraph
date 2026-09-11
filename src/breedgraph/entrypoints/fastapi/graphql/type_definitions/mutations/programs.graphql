@@ -39,6 +39,16 @@ input TrialUpdate {
     referenceIds: [ID!]
 }
 
+input GroupScopeInput {
+    datasetIds: [ID!]!
+}
+
+input RecordGroupingInput {
+    name: String!
+    """ If no scopes are defined, then study-wide scope is implied for this grouping name"""
+    scopes: [GroupScopeInput!] = []
+}
+
 # Study Mutations
 input StudyInput {
     trialId: ID!
@@ -52,6 +62,7 @@ input StudyInput {
     designId: ID
     licenceId: ID
     referenceIds: [ID!] = []
+    groupings: [RecordGroupingInput!] = []
 }
 
 input StudyUpdate {
@@ -66,6 +77,7 @@ input StudyUpdate {
     designId: ID
     licenceId: ID
     referenceIds: [ID!]
+    groupings: [RecordGroupingInput!]
 }
 
 # Mutation type extensions for programs

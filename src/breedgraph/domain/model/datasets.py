@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field, replace, InitVar
 from abc import ABC
-from typing import List, ClassVar, Set, Dict, Self, Generator
+from typing import List, ClassVar, Set, Dict, Self, Generator, overload
 from numpy import datetime64
+
 
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
@@ -13,17 +14,28 @@ from breedgraph.domain.services.value_parsers import ValueParser
 from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
 
 
+@dataclass(frozen=True)
+class RecordGroup:
+    name: str
+    code: str
+
+
 @dataclass
 class DataRecordBase(ABC):
     label: ClassVar[str] = "Record"
     plural: ClassVar[str] = "Records"
 
-    unit: int = None
+    unit: int|None = None
 
     value: str|None = None
 
     start: datetime64|None = None
     end: datetime64|None = None
+
+    # grouping specifications that may be optionally used to establish replication/batch details
+    # these need to match names established within the study context
+    # and can be interpreted to define e.g. replication/batch effects during analysis.
+    groups: List[RecordGroup] = field(default_factory=list)
 
     references: List[int]|None = field(default_factory=list)
     # to link supporting data in references repository
@@ -57,6 +69,8 @@ class DataRecordInput(DataRecordBase, LabeledModel):
 class DataRecordStored(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
 
+
+
 @dataclass
 class DataRecordOutput(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
@@ -72,8 +86,8 @@ class DatasetBase(ABC):
     label: ClassVar[str] = ControlledModelLabel.DATASET
     value_parser: ClassVar[ValueParser] = ValueParser()
 
-    study: int = None
-    concept: int = None
+    study: int|None = None
+    concept: int|None = None
     records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
 
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
@@ -82,15 +96,14 @@ class DatasetBase(ABC):
 
     def add_records(
             self,
-            records: List[DataRecordInput|dict],
+            records: List[DataRecordInput],
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored]|None
+            categories: List[ScaleCategoryStored]|None,
+            valid_group_names: List[str]|None
     ) -> Generator[None|str, None, None]:
         for record in records:
             try:
-                if isinstance(record, dict):
-                    record = DataRecordInput(**record)
-                parsed_record = self.parse_record(record, scale, categories)
+                parsed_record = self.parse_record(record, scale, categories, valid_group_names)
                 self.records.append(parsed_record)
                 yield None
             except Exception as e:
@@ -100,7 +113,8 @@ class DatasetBase(ABC):
             self,
             records: List[DataRecordStored|dict],
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored]|None
+            categories: List[ScaleCategoryStored]|None,
+            valid_group_names: List[str] | None
     ) -> Generator[None|str, None, None]:
         record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
         for record in records:
@@ -111,7 +125,8 @@ class DatasetBase(ABC):
                     if 'reference_ids' in record:
                         record['references'] = record.pop('reference_ids')
                     record = DataRecordStored(**record)
-                record.value = self.value_parser.parse(record.value, scale, categories)
+                record = self.parse_record(record, scale, categories, valid_group_names)
+
                 record_index = record_index_map[record.id]
                 stored_record = self.records[record_index]
                 if record.value is not None and stored_record.value != record.value:
@@ -124,6 +139,7 @@ class DatasetBase(ABC):
                     stored_record.unit = record.unit
                 if record.references is not None and stored_record.references != record.references:
                     stored_record.references = record.references
+
                 yield None
             except Exception as e:
                 yield str(e)
@@ -147,12 +163,44 @@ class DatasetBase(ABC):
         dump['records'] = [record.model_dump() for record in self.records]
         return dump
 
-    def parse_record(self, record: DataRecordInput, scale: ScaleStored, categories: List[ScaleCategoryStored] | None):
+    @overload
+    def parse_record(
+            self,
+            record: DataRecordInput,
+            scale: ScaleStored,
+            categories: List[ScaleCategoryStored] | None,
+            valid_group_names: List[str]|None
+    ) -> DataRecordInput:
+        ...
+
+    @overload
+    def parse_record(
+            self,
+            record: DataRecordStored,
+            scale: ScaleStored,
+            categories: List[ScaleCategoryStored] | None,
+            valid_group_names: List[str]|None
+    ) -> DataRecordStored:
+        ...
+
+    def parse_record(
+            self,
+            record: DataRecordInput|DataRecordStored,
+            scale: ScaleStored,
+            categories: List[ScaleCategoryStored] | None,
+            valid_group_names: List[str]|None
+    ) -> DataRecordInput|DataRecordStored:
         if scale.scale_type == ScaleType.COMPLEX:
             if not record.references:
                 raise ValueError("Complex scale records require at least one reference")
+
+        for group in record.groups or []:
+            if group.name not in valid_group_names:
+                raise ValueError(f"{group.name } is not valid for records in this dataset")
+
         record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
         return record
+
 
 
 @dataclass
@@ -181,6 +229,8 @@ class DatasetInput(DatasetBase, EnumLabeledModel):
 
 @dataclass(eq=False)
 class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
+    study: int
+    concept: int
 
     @property
     def controlled_models(self) -> List[ControlledModel]:

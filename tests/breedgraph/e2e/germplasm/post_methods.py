@@ -40,17 +40,14 @@ async def post_to_create_germplasm_entry(
 async def post_to_get_germplasm_entries(
         client,
         token: str,
-        names: List[str] | None = None,
         entry_ids: List[int] | None = None,
 ):
     json={
         "query": (
             " query ( "
             "  $ids: [ID!]"
-            "  $names: [String!]"
             " ) { "
             "  germplasmEntries( "
-            "    names: $names "
             "    ids: $ids "
             "  ) { "
             "    status, "
@@ -65,7 +62,6 @@ async def post_to_get_germplasm_entries(
             " } "
         ),
         "variables": {
-            "names": names,
             "ids": entry_ids
         }
     }

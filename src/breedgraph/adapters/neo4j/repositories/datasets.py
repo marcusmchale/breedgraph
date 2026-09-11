@@ -3,7 +3,7 @@ import logging
 from neo4j import AsyncResult, Record
 
 from breedgraph.domain.model.datasets import (
-    DataRecordStored, DatasetInput, DatasetStored
+    DataRecordStored, DatasetInput, DatasetStored, RecordGroup
 )
 
 from breedgraph.adapters.neo4j.cypher import queries
@@ -18,21 +18,35 @@ logger = logging.getLogger(__name__)
 
 class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetStored]):
 
-    async def _create_controlled(self, dataset: DatasetInput) -> DatasetStored:
-        return await self._create_dataset(dataset)
+    async def _create_controlled(self, aggregate_input: DatasetInput) -> DatasetStored:
+        return await self._create_dataset(aggregate_input)
 
     def record_to_dataset(self, dataset_dict):
         for record in dataset_dict['records']:
             self.deserialize_dt64(record)
-        dataset_dict['records'] = [DataRecordStored(**record) for record in dataset_dict['records']]
+        dataset_dict['records'] = [
+            DataRecordStored(
+                unit=record.get('unit'),
+                value=record.get('value'),
+                start=record.get('start'),
+                end=record.get('end'),
+                groups=[
+                    RecordGroup(name=group['name'], code=group['code']) for group in record.get('groups')
+                ],
+                references=record.get('references', []),
+                submitted=record.get('submitted')
+            ) for record in dataset_dict['records']
+        ]
         return DatasetStored(**dataset_dict)
 
     async def _create_dataset(self, dataset: DatasetInput) -> DatasetStored:
         logger.debug(f"Create dataset: {dataset}")
         params = dataset.model_dump()
         records = params.pop('records', [])
+
         result: AsyncResult = await self.tx.run(queries['datasets']['create_dataset'], **params)
-        dataset_record: Record = await result.single()
+
+        dataset_record: Record = await result.single(strict=True)
         if records:
             for record_data in records:
                 self.serialize_dt64(record_data, to_neo4j=True)
@@ -90,7 +104,8 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
 
     async def _get_controlled(
             self,
-            dataset_id: int|None = None
+            dataset_id: int|None = None,
+            **kwargs
     ) -> ControlledQueryResult[DatasetStored] | None:
         if dataset_id is not None:
             result: AsyncResult = await self.tx.run( queries['datasets']['read_dataset'], dataset_id=dataset_id)
@@ -106,7 +121,8 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
             self,
             study_ids: List[int]|None = None,
             dataset_ids: List[int]|None = None,
-            concept_ids: List[int]|None = None
+            concept_ids: List[int]|None = None,
+            **kwargs
     ) -> AsyncGenerator[ControlledQueryResult[DatasetStored], None]:
 
         if study_ids is not None:
@@ -131,16 +147,14 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                 queries['datasets']['read_datasets_by_id'],
                 dataset_ids=dataset_ids
             )
-
-
         else:
             result: AsyncResult = await self.tx.run(queries['datasets']['read_datasets'])
 
         async for record in result:
             yield ControlledQueryResult(self.record_to_dataset(record.get('dataset')))
 
-    async def _remove_controlled(self, dataset: DatasetStored) -> None:
-        await self._delete_datasets([dataset.id])
+    async def _remove_controlled(self, aggregate: DatasetStored) -> None:
+        await self._delete_datasets([aggregate.id])
 
-    async def _update_controlled(self, dataset: TrackableProtocol | DatasetStored):
-        await self._update_dataset(dataset)
+    async def _update_controlled(self, aggregate: DatasetStored):
+        await self._update_dataset(aggregate)

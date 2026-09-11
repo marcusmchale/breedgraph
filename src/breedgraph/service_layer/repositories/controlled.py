@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from breedgraph.service_layer.tracking import TrackableProtocol
+
 from breedgraph.service_layer.tracking import TrackedObject
 from breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
 from breedgraph.custom_exceptions import UnauthorisedOperationError
@@ -201,7 +203,7 @@ class ControlledRepository(
     async def _remove_controlled(self, aggregate: TControlledAggregate):
         raise NotImplementedError
 
-    async def _update(self, aggregate: TControlledAggregate | TrackedObject):
+    async def _update(self, aggregate: TControlledAggregate | TrackableProtocol):
         if not self.controls.user_id:
             raise UnauthorisedOperationError("Changes require a user_id")
         if not aggregate.changed:
@@ -233,5 +235,5 @@ class ControlledRepository(
         await self.controls.record_writes(controlled_updates + controlled_added)
 
     @abstractmethod
-    async def _update_controlled(self, aggregate: TControlledAggregate | TrackedObject):
+    async def _update_controlled(self, aggregate: TControlledAggregate | TrackableProtocol):
         raise NotImplementedError

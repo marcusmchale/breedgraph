@@ -30,23 +30,6 @@ async def test_create_crop(
     assert_payload_success(germplasm_payload)
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_get_entry(
-        germplasm_build_context,
-        login_token_factory,
-        client
-):
-    user_id = germplasm_build_context['user_id']
-    login_token = login_token_factory(user_id=user_id)
-    response = await post_to_get_germplasm_entries(
-        client,
-        token=login_token,
-        names=["Coffee"]
-    )
-    germplasm_payload = get_verified_payload(response, "germplasmEntries")
-    assert_payload_success(germplasm_payload)
-    assert germplasm_payload.get('result')
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_get_crops(
         germplasm_build_context,
         login_token_factory,
@@ -152,16 +135,15 @@ async def test_create_hybrid(
     login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_entries(
         client,
-        token=login_token,
-        names=["Marsellesa", "CIR-SM01"]
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
-    id_map = {record['name']: record['id'] for record in germplasm_payload.get('result')}
+    germplasm_map = {record['name']: record for record in germplasm_payload.get('result')}
     germplasm_input = {
         'name': "Starmaya",
         'sources': [
-            {'sourceId': id_map['Marsellesa'], 'sourceType': 'MATERNAL'},
-            {'sourceId': id_map['CIR-SM01'], 'sourceType': 'PATERNAL'},
+            {'sourceId': germplasm_map['Marsellesa'].get('id'), 'sourceType': 'MATERNAL'},
+            {'sourceId': germplasm_map['CIR-SM01'].get('id'), 'sourceType': 'PATERNAL'},
         ]
     }
     response = await post_to_create_germplasm_entry(
@@ -175,12 +157,12 @@ async def test_create_hybrid(
 
     response = await post_to_get_germplasm_entries(
         client,
-        token=login_token,
-        names=["Starmaya"]
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
     assert_payload_success(germplasm_payload)
-    source_names = [source_rel.get('source').get('name') for source_rel in germplasm_payload.get('result')[0].get('sources')]
+    germplasm_map = {record['name']: record for record in germplasm_payload.get('result')}
+    source_names = [source_rel.get('source').get('name') for source_rel in germplasm_map['Starmaya'].get('sources')]
     assert 'Marsellesa' in source_names
     assert 'CIR-SM01' in source_names
 
@@ -195,18 +177,18 @@ async def test_update_variety(
     login_token = login_token_factory(user_id=user_id)
     response = await post_to_get_germplasm_entries(
         client,
-        token=login_token,
-        names=["Starmaya"]
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
     assert_payload_success(germplasm_payload)
-    starmaya_id = germplasm_payload.get('result')[0].get('id')
+    germplasm_map = {record['name']: record for record in germplasm_payload.get('result')}
+    starmaya_record = germplasm_map['Starmaya']
     type_to_id = {
         source_rel.get('sourceType'): source_rel.get('source').get('id')
-        for source_rel in germplasm_payload.get('result')[0].get('sources')
+        for source_rel in starmaya_record.get('sources')
     }
     germplasm_input = {
-        'id': starmaya_id,
+        'id': starmaya_record.get('id'),
         'name': "Starmaya2",
         'sources':  [
             {'sourceId': type_to_id['PATERNAL'], 'sourceType': 'MATERNAL'},
@@ -223,14 +205,15 @@ async def test_update_variety(
 
     response = await post_to_get_germplasm_entries(
         client,
-        token=login_token,
-        names=["Starmaya2"]
+        token=login_token
     )
     germplasm_payload = get_verified_payload(response, "germplasmEntries")
     assert_payload_success(germplasm_payload)
+    germplasm_map = {record['name']: record for record in germplasm_payload.get('result')}
+    starmaya2_record = germplasm_map['Starmaya2']
     updated_type_to_id = {
         source_rel.get('sourceType'): source_rel.get('source').get('id')
-        for source_rel in germplasm_payload.get('result')[0].get('sources')
+        for source_rel in starmaya2_record.get('sources')
     }
     assert type_to_id['MATERNAL'] == updated_type_to_id['PATERNAL']
     assert type_to_id['PATERNAL'] == updated_type_to_id['MATERNAL']

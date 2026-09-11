@@ -83,10 +83,12 @@ class CreateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
+    groupings: list[dict[str, list[set[int]]]] | None = None
+
     design_id: int | None = None
     licence_id: int | None = None
 
-    reference_ids: List[int] = None
+    reference_ids: List[int] | None = None
 
 
 class UpdateStudy(Command):
@@ -100,10 +102,13 @@ class UpdateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
+    groupings: list[dict[str, list[set[int]]]] | None = None
+
     design_id: int | None = None
     licence_id: int | None = None
 
     reference_ids: List[int] | None = None
+
 
 class DeleteStudy(Command):
     agent_id: int

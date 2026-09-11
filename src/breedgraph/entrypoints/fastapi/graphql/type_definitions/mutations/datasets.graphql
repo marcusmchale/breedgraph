@@ -1,8 +1,14 @@
+input RecordGroupInput {
+    name: String!
+    code: String!
+}
+
 input RecordInput {
     unitId: ID!
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroupInput!]
     referenceIds: [ID]
 }
 
@@ -12,6 +18,7 @@ input RecordUpdate {
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroupInput!]
     referenceIds: [ID]
 }
 
@@ -46,8 +53,13 @@ extend type Mutation {
         controlTeamId: ID!
         release:ReadRelease
     ): SubmissionIdPayload!
-    datasetsUpdate(dataset: DatasetUpdate!): SubmissionIdPayload!
-    datasetsAddRecords(id: ID!, records: [RecordInput!]): SubmissionIdPayload!
+    datasetsUpdate(
+        dataset: DatasetUpdate!
+    ): SubmissionIdPayload!
+    datasetsAddRecords(
+        id: ID!,
+        records: [RecordInput!]
+    ): SubmissionIdPayload!
     """Delete records from a dataset"""
     datasetsRemoveRecords(id: ID!, recordIds: [ID!]!): BooleanPayload!
 }

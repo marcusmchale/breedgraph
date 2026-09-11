@@ -6,16 +6,14 @@ SET program += $program_data
 WITH
   program
 //Link contacts
-CALL {
-  WITH program
+CALL (program) {
   MATCH (contact: Person) WHERE contact.id in $contact_ids
   CREATE (program)-[has_contact:HAS_CONTACT]->(contact)
   RETURN
     collect(contact.id) AS contacts
 }
 //Link references
-CALL {
-  WITH program
+CALL (program) {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   CREATE (reference)-[:REFERENCE_FOR ]->(program)
   RETURN

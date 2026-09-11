@@ -22,7 +22,7 @@ class Neo4jBlocksRepository(Neo4jControlledRepository[UnitInput, Block]):
         end = position.end
 
         if start is None and end is None:
-            return (0, datetime64("NaT"))
+            return (0, datetime64("NaT", "D"))
 
         return (1, start if start is not None else end)
 

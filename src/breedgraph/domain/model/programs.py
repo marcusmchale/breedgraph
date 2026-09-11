@@ -1,5 +1,8 @@
+
 from abc import ABC
 from dataclasses import dataclass, field, replace
+from enum import Enum
+
 from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
@@ -7,12 +10,53 @@ from breedgraph.domain.model.base import StoredModel, EnumLabeledModel
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 )
-
-
 from typing import List, Set, ClassVar, Dict, Any, Self
 
 import logging
 logger = logging.getLogger(__name__)
+
+@dataclass
+class GroupScope:
+    """
+    Each GroupScope defines an independent grouping;
+    records are grouped only with other records belonging to the same scope.
+    """
+    dataset_ids: set[int]
+
+    def __post_init__(self):
+        if not self.dataset_ids:
+            raise ValueError("A group scope must contain at least one dataset")
+
+@dataclass
+class RecordGrouping:
+    """
+     when no scopes are provided, the scope defaults to study-wide
+     when any are provided, each group scope defines a distinct grouping
+    """
+    name: str
+    scopes: list[GroupScope] = field(default_factory=list)
+
+    def add_scope(self, scope: GroupScope):
+        for s in self.scopes:
+            overlap = s.dataset_ids.intersection(scope.dataset_ids)
+            if overlap:
+                raise ValueError(
+                    f"Datasets {overlap} are already in a group scope"
+                )
+
+        self.scopes.append(scope)
+
+    def get_scope(self, dataset_id: int) -> GroupScope | None:
+        for scope in self.scopes:
+            if dataset_id in scope.dataset_ids:
+                return scope
+        return None
+
+    def remove_scope(self, scope: GroupScope):
+        try:
+            self.scopes.remove(scope)
+        except ValueError:
+            raise ValueError("Group scope not found")
 
 @dataclass
 class StudyBase(ABC):
@@ -22,7 +66,8 @@ class StudyBase(ABC):
     This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
-    name: str = None
+
+    name: str|None = None
     fullname: str|None = None
     description: str|None = None
 
@@ -35,7 +80,37 @@ class StudyBase(ABC):
     design_id: int | None = None  # Reference to Design in Ontology
     licence_id: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
+    groupings: list[RecordGrouping] = field(default_factory=list)
+
     reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
+
+    def get_grouping(self, name: str) -> RecordGrouping|None:
+        for g in self.groupings:
+            if g.name.casefold() == name.casefold():
+                return g
+        return None
+
+    def add_grouping(self, name: str, scopes: List[GroupScope]):
+        if self.get_grouping(name) is not None:
+            raise ValueError(f"Grouping {name} already exists")
+        self.groupings.append(RecordGrouping(name=name, scopes=scopes))
+
+    def remove_grouping(self, name: str):
+        grouping = self.get_grouping(name)
+        if grouping is None:
+            raise ValueError(f"Grouping {name} not found")
+        self.groupings.remove(grouping)
+
+    def rename_grouping(self, old_name: str, new_name: str):
+        new_grouping = self.get_grouping(new_name)
+        if new_grouping is not None:
+            raise ValueError(f"Grouping {new_name} already exists")
+        grouping = self.get_grouping(old_name)
+        if grouping is None:
+            raise ValueError(f"Grouping {old_name} not found")
+
+        grouping.name = new_name
+
 
 @dataclass
 class StudyInput(StudyBase, EnumLabeledModel):
@@ -63,11 +138,13 @@ class StudyStored(StudyBase, ControlledModel):
             end = None,
             design_id = None,
             licence_id = None,
-            reference_ids = list()
+            reference_ids = list(),
+            groupings=[]
         )
 
     def to_output(self):
         return StudyOutput.from_stored(self)
+
 
 @dataclass
 class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
@@ -84,7 +161,8 @@ class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
             end = stored.end,
             design_id = stored.design_id,
             licence_id = stored.licence_id,
-            reference_ids = stored.reference_ids
+            reference_ids = stored.reference_ids,
+            groupings = stored.groupings
         )
 
 @dataclass

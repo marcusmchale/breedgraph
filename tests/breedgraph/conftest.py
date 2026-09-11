@@ -281,7 +281,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int]:
+async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int|list[str]]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
@@ -289,6 +289,7 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     program_builder = ProgramBuilder(uow_factory=uow_factory)
     program_ids = await program_builder.program_trial_study(user_id)
     study_id = program_ids['study_id']
+    groupings = program_ids['groupings']
 
     variable_ids = await OntologyBuilder(uow_factory=uow_factory).variable_tree_height(user_id)
     unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
@@ -297,6 +298,7 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int]:
         **account_ids,
         'study_id': study_id,
         'concept_id': variable_ids['ontology_variable_height'],
+        'groupings': groupings,
         'unit_id': unit_id,
         'person_id': person_id
     }

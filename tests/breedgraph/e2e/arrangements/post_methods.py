@@ -36,11 +36,11 @@ async def post_to_create_layout(
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_arrangements(client, location_id: int|None=None, token:str|None=None):
+async def post_to_arrangements(client, location_id: int, token:str|None=None):
     json = {
         "query": (
             " query ( "
-            "   $locationId: ID "
+            "   $locationId: ID! "
             " ) { "
             "  arrangements ( "
             "   locationId: $locationId "

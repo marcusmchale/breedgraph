@@ -1,9 +1,15 @@
+type RecordGroup {
+    name: String!
+    code: String!
+}
+
 type Record {
     id: ID!
     unit: Unit
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroup!]
     references: [ReferenceInterface]
     submitted: DateTime
 }
@@ -23,6 +29,7 @@ type SubmittedRecord {
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroup!]
     referenceIds: [Int]
 }
 

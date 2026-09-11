@@ -59,7 +59,7 @@ async def test_create_dataset_with_records(
         if status == SubmissionStatus.COMPLETED:
             break
         elif status == SubmissionStatus.FAILED:
-            pytest.fail(f"Dataset submission failed")
+            pytest.fail(f"Dataset submission failed: {submission_payload.get('result')}")
         elif status in [SubmissionStatus.PENDING, SubmissionStatus.PROCESSING]:
             continue
         else:

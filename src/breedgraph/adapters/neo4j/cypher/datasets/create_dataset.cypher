@@ -8,25 +8,23 @@ WITH
 CALL (dataset) {
   MATCH (study: Study {id: $study})
   CREATE (dataset)-[:FOR_STUDY]->(study)
-  RETURN
-    collect(study.id)[0] as study
+  RETURN study.id AS study
 }
 //Link concept
 CALL (dataset) {
   MATCH (concept: Variable|Factor {id: $concept})
   CREATE (dataset)-[for_concept:FOR_CONCEPT]->(concept)
-  RETURN
-    collect(concept.id)[0] AS concept
+  RETURN concept.id AS concept
 }
 //Link contributors
-CALL (dataset) {
+OPTIONAL CALL (dataset) {
   MATCH (contributor: Person) WHERE contributor.id IN $contributors
   CREATE (contributor)-[contributed:CONTRIBUTED_TO]->(dataset)
   RETURN
     collect(contributor.id) AS contributors
 }
 //Link references
-CALL (dataset){
+OPTIONAL CALL (dataset){
   MATCH (reference: Reference) WHERE reference.id IN $references
   CREATE (reference)-[reference_for: REFERENCE_FOR]->(dataset)
   RETURN

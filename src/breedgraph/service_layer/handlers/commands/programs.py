@@ -2,9 +2,10 @@ from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from breedgraph.domain import commands
 from breedgraph.domain.model.programs import (
-    ProgramInput, ProgramStored,
-    TrialInput, TrialStored,
-    StudyInput, StudyStored
+    ProgramInput,
+    TrialInput,
+    StudyInput,
+    RecordGrouping, GroupScope
 )
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.custom_exceptions import (
@@ -177,7 +178,8 @@ async def create_study(
             end=cmd.end,
             design_id=cmd.design_id,
             licence_id=cmd.licence_id,
-            reference_ids=cmd.reference_ids
+            reference_ids=cmd.reference_ids or [],
+            groupings=[RecordGrouping(name=key, scopes= [GroupScope(dataset_ids=v) for v in value]) for scope in cmd.groupings or [] for key, value in scope.items()]
         )
         trial.add_study(study)
         await uow.commit()
@@ -213,6 +215,11 @@ async def update_study(
             study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
             study.reference_ids = cmd.reference_ids
+        if cmd.groupings is not None:
+            study.groupings = [
+                RecordGrouping(name=key, scopes=[GroupScope(dataset_ids=v) for v in value])
+                for scope in cmd.groupings for key, value in scope.items()
+            ]
         await uow.commit()
 
 @handlers.command_handler()

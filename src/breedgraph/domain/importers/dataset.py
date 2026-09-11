@@ -1,20 +1,24 @@
+from numpy import datetime64
 from pydantic import BaseModel, Field
 
-from breedgraph.domain.model.datasets import DatasetInput
+from breedgraph.domain.model.datasets import DatasetInput, RecordGroup, DataRecordInput, RecordGroup
+
 
 class RecordImport(BaseModel):
     unit_id: int
     start: str | None = None
     end: str | None = None
     value: str | int | None = None
+    groups: list[RecordGroup] = Field(default_factory=list)
     reference_ids: list[int] = Field(default_factory=list)
 
 class RecordUpdateImport(BaseModel):
     id: int
-    start: str | None = None
-    end: str | None = None
-    value: str | int | None = None
-    reference_ids: list[int] = Field(default_factory=list)
+    start: str | None
+    end: str | None
+    value: str | int | None
+    groups: list[RecordGroup]
+    reference_ids: list[int]
 
 class DatasetImportBase(BaseModel):
     study_id: int | None = None
@@ -23,9 +27,17 @@ class DatasetImportBase(BaseModel):
     contributor_ids: list[int] | None = None
     reference_ids: list[int] | None = None
 
-    def dump_records(self) -> list[dict[str, str | int | None | list]]:
+    def records_to_input(self) -> list[DataRecordInput]:
         return [
-            r.model_dump() for r in self.records
+            DataRecordInput(
+                unit=r.unit_id if hasattr(r, 'unit_id') else None,
+                start=datetime64(r.start) if r.start else None,
+                end=datetime64(r.end) if r.end else None,
+                value=r.value,
+                groups=r.groups,
+                references=r.reference_ids
+            )
+            for r in self.records
         ]
 
 class DatasetImport(DatasetImportBase):
@@ -39,8 +51,20 @@ class DatasetImport(DatasetImportBase):
             concept_id=self.concept_id,
             contributor_ids=self.contributor_ids,
             reference_ids=self.reference_ids,
+            records=[
+                DataRecordInput(
+                    unit = r.unit_id,
+                    start = datetime64(r.start) if r.start else None,
+                    end = datetime64(r.end) if r.end else None,
+                    value = r.value,
+                    groups = r.groups,
+                    references  = r.reference_ids
+                )
+                for r in self.records
+            ]
         )
 
 class DatasetUpdateImport(DatasetImportBase):
     dataset_id: int
+    # todo: support changing the concept for a dataset as when the otology evolves it may be desirable.
     records: list[RecordUpdateImport] = Field(default_factory=list)
