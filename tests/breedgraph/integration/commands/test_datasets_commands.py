@@ -2,6 +2,7 @@ import pytest
 
 from breedgraph.domain.commands.datasets import CreateDataset, UpdateDataset, AddRecords, RemoveRecords
 
+
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_dataset_command(
         bus,
@@ -13,8 +14,7 @@ async def test_create_dataset_command(
     user_id = dataset_build_context['user_id']
     records = [{
         'unit_id': dataset_build_context['unit_id'],
-        'value': f'{i * 10}',
-        'groups': [{'name':'Replicate', 'code':f'R1.{i+1}'}]
+        'value': f'{i * 10}'
     } for i in range(3)]
     dataset_input = {
         'study_id': dataset_build_context['study_id'],
@@ -28,5 +28,3 @@ async def test_create_dataset_command(
         submission_id=submission_id
     )
     await bus.handle_command(cmd)
-
-

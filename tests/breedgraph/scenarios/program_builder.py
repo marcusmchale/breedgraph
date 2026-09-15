@@ -1,5 +1,5 @@
 
-from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGrouping
+from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGrouping, GroupingScope
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.breedgraph.utilities.inputs import LoremTextGenerator
@@ -24,7 +24,11 @@ class ProgramBuilder:
     def study_input(cls):
         return StudyInput(
             name=cls.text_generator.new_text(10),
-            groupings=[RecordGrouping(name='Replicate')]
+            groupings=[
+                RecordGrouping(name='Batch', scope=GroupingScope.STUDY_WIDE),
+                RecordGrouping(name='Replicate', scope=GroupingScope.DATASET_SCOPED)
+            ]
+
         )
 
     async def program_trial_study(self, user_id: int) -> Dict[str, int|list[str]]:

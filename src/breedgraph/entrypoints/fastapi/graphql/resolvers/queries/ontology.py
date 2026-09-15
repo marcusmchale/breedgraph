@@ -46,6 +46,7 @@ control_method = ObjectType("ControlMethod")
 factor = ObjectType("Factor")
 event = ObjectType("Event")
 
+
 # Union and interface types
 ontology_entry_union = UnionType("OntologyEntryUnion")
 ontology_node_interface = InterfaceType("OntologyNodeInterface")

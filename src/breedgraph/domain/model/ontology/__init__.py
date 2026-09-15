@@ -44,6 +44,8 @@ from .people import (
     RoleBase, RoleInput, RoleStored,
     TitleBase, TitleInput, TitleStored
 )
+from .record_group import RecordGroupTypeBase, RecordGroupTypeInput, RecordGroupTypeStored
+
 
 __all__ = [
     # Enums
@@ -102,4 +104,6 @@ __all__ = [
     'RoleBase', 'RoleInput', 'RoleStored',
     'TitleBase', 'TitleInput', 'TitleStored',
 
+    # Record group entries
+    'RecordGroupTypeBase', 'RecordGroupTypeInput', 'RecordGroupTypeStored',
 ]

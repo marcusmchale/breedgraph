@@ -5,7 +5,7 @@ from breedgraph.domain.model.programs import (
     ProgramInput,
     TrialInput,
     StudyInput,
-    RecordGrouping, GroupScope
+    RecordGrouping, DatasetScope
 )
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.custom_exceptions import (
@@ -168,6 +168,8 @@ async def create_study(
         if program is None:
             raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")
 
+        groupings = cmd.groupings or {}
+
         trial = program.trials.get(cmd.trial_id)
         study = StudyInput(
             name=cmd.name,
@@ -179,7 +181,9 @@ async def create_study(
             design_id=cmd.design_id,
             licence_id=cmd.licence_id,
             reference_ids=cmd.reference_ids or [],
-            groupings=[RecordGrouping(name=key, scopes= [GroupScope(dataset_ids=v) for v in value]) for scope in cmd.groupings or [] for key, value in scope.items()]
+            groupings=[
+                RecordGrouping(name=key, scopes= [DatasetScope(dataset_ids=v) for v in value])
+                for key, value in groupings.items()]
         )
         trial.add_study(study)
         await uow.commit()
@@ -195,6 +199,7 @@ async def update_study(
             raise NoResultFoundError(f"Program containing study with ID {cmd.study} not found")
 
         study = program.get_study(cmd.study_id)
+
 
         # Update fields that are provided
         if cmd.name is not None:
@@ -215,9 +220,28 @@ async def update_study(
             study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
             study.reference_ids = cmd.reference_ids
+
+        import pdb;
+        pdb.set_trace()
+        # todo add a guard here to prevent removal of groupings if any records reference it!
+        #  also rather than replacing the groupings,
+        #  we should be using the add and remove functions as required to enforce domain rules.
+
         if cmd.groupings is not None:
+            for grouping in cmd.groupings:
+                grouping_name = grouping['name']
+                scopes = grouping['scopes']
+
+                groupings: list[dict[str, list[set[int]]]] | None = None
+
+                grouping = study.get_grouping(grouping.name)
+
+                for grouping in cmd.groupings:
+                    pass
+
+
             study.groupings = [
-                RecordGrouping(name=key, scopes=[GroupScope(dataset_ids=v) for v in value])
+                RecordGrouping(name=key, scopes=[DatasetScope(dataset_ids=v) for v in value])
                 for scope in cmd.groupings for key, value in scope.items()
             ]
         await uow.commit()

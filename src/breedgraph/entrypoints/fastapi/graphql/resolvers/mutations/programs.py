@@ -147,6 +147,8 @@ async def create_study(
     user_id = info.context.get('user_id')
     logger.debug(f"Create study: {study.get('name')} in trial {study.get('trial_id')} by user {user_id}")
 
+
+
     cmd = CreateStudy(
         agent_id=user_id,
         write_team=control_team_id,
@@ -161,7 +163,10 @@ async def create_study(
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
         reference_ids=study.get('reference_ids'),
-        groupings=study.get('groupings')
+        groupings={
+            grouping['name']: grouping['scopes']['dataset_ids']
+            for grouping in study.get('groupings', [])
+        }
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -177,7 +182,6 @@ async def update_study(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update study: {study.get('id')} by user {user_id}")
-
     cmd = UpdateStudy(
         agent_id=user_id,
         study_id=study.get('id'),
@@ -190,7 +194,10 @@ async def update_study(
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
         reference_ids=study.get('reference_ids'),
-        groupings=study.get('groupings')
+        groupings={
+            grouping['name']: grouping['scopes']['dataset_ids']
+            for grouping in study.get('groupings', [])
+        }
     )
     await info.context['bus'].handle(cmd)
     return True

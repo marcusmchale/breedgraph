@@ -23,7 +23,8 @@ from breedgraph.domain.model.ontology import (
     OntologyRelationshipBase, ParentRelationship, TermRelationship, SubjectRelationship,
     CategoryRelationship, FactorComponentRelationship, VariableComponentRelationship,
     EventTypeComponentRelationship, EntryLifecycle, RelationshipLifecycle,
-    OntologyRelationshipLabel, ScaleType
+    OntologyRelationshipLabel, ScaleType,
+    RecordGroupTypeInput, RecordGroupTypeStored
 )
 
 from breedgraph.domain.model.accounts import OntologyRole
@@ -235,6 +236,8 @@ class OntologyApplicationService:
     @overload
     async def _create_entry(self, entry: FactorInput, **kwargs) -> FactorStored:  ...
     @overload
+    async def _create_entry(self, entry: RecordGroupTypeInput, **kwargs) -> RecordGroupTypeStored:...
+    @overload
     async def _create_entry(self, entry: EventTypeInput, **kwargs) -> EventTypeStored:  ...
     @overload
     async def _create_entry(self, entry: OntologyEntryInput, **kwargs) -> OntologyEntryStored: ...
@@ -281,7 +284,7 @@ class OntologyApplicationService:
             self,
             entry: SubjectInput|TermInput|ObservationMethodInput|\
                    ScaleCategoryInput|ControlMethodInput|\
-                   LocationTypeInput|LayoutTypeInput|DesignInput|RoleInput|TitleInput,
+                   LocationTypeInput|LayoutTypeInput|DesignInput|RoleInput|TitleInput|RecordGroupTypeInput,
             parents: list[int]|None = None,
             children: list[int]|None = None
     ):
@@ -520,6 +523,10 @@ class OntologyApplicationService:
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.FACTOR]) -> FactorStored|None: ...
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.EVENT]) -> EventTypeStored|None: ...
+    @overload
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.RECORD_GROUP_TYPE]) -> RecordGroupTypeStored|None: ...
+
+
 
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, label: OntologyEntryLabel|None = None) -> OntologyEntryStored|None: ...

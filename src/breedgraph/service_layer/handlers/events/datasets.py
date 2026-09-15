@@ -13,6 +13,7 @@ from breedgraph.domain import events
 from breedgraph.domain.model.submissions import SubmissionStatus
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from breedgraph.domain.model.errors import ItemError
+from breedgraph.domain.model.programs import RecordGrouping, DatasetScope
 
 from breedgraph.domain.importers import DatasetImport, DatasetUpdateImport, RecordImport
 
@@ -36,16 +37,11 @@ async def handle_dataset_submitted(
         state_store: AbstractStateStore,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=event.agent_id, write_team=event.write_team, release=event.release) as uow:
+    async with (uow_factory.get_uow(user_id=event.agent_id, write_team=event.write_team, release=event.release) as uow):
         try:
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
             dataset_import = DatasetImport(**submission)
-            scale, categories = await get_scale_and_categories(
-                concept_id=dataset_import.concept_id,
-                ontology_service=uow.ontology
-            )
-
             dataset_input = dataset_import.to_input_for_create()
             # we want to create the dataset without records first so that we can begin locking them in
             # and return errors only for those that need to be corrected before storing.
@@ -54,16 +50,64 @@ async def handle_dataset_submitted(
 
             dataset = await uow.repositories.datasets.create(dataset_input)
 
-            item_errors = []
-
-
-            program = await uow.repositories.programs.get(study_id=dataset.study)
+            program = await uow.repositories.programs.get(study_id=dataset_import.study_id)
             if program is None:
-                raise ValueError(f"Study not found {dataset.study}")
-            study = program.get_study(dataset.study)
+                raise ValueError(f"Study not found {dataset_import.study_id}")
+            global_groupings = []
+            scoped_groupings_to_join = []
+            scoped_groupings_to_create = []
+
+            study = program.get_study(dataset_import.study_id)
+
+            for grouping in dataset_import.groupings:
+                study_grouping = study.get_grouping(grouping.name)
+                if not study_grouping:
+                    pass
+                    #study.add_grouping(grouping.name, scopes=)
+
+
+                if not grouping.name in study_grouping:
+                    study.add_grouping(grouping.name)
+                study_grouping = study_grouping_map.get(grouping.name)
+                if not study_grouping:
+                    pass
+
+
+
+            for grouping in study.groupings:
+                if grouping.scopes:
+                    join_dataset_id = dataset_grouping_map.get(grouping.name)
+                    if join_dataset_id:
+                        scoped_groupings_to_join.append(grouping.name)
+                    else:
+                        scoped_groupings_to_create.append(grouping.name)
+                else:
+                    global_groupings.append(grouping.name)
+
+
+
+
             valid_group_names = [grouping.name for grouping in study.groupings]
+
+
+
+
+
+
+            scale, categories = await get_scale_and_categories(
+                concept_id=dataset_import.concept_id,
+                ontology_service=uow.ontology
+            )
+            item_errors = []
             if records:
-                for i, e in enumerate(dataset.add_records(dataset_import.records_to_input(), scale, categories, valid_group_names)):
+                for i, e in enumerate(
+                        dataset.add_records(
+                            dataset_import.records_to_input(),
+                            scale,
+                            categories,
+                            valid_group_names
+                        )
+                ):
                     if e is not None:
                         item_errors.append(ItemError(index=i, error=e))
                         continue

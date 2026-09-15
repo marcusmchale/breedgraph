@@ -15,8 +15,8 @@ class CreateProgram(Command):
     fullname: str | None = None
     description: str | None = None
 
-    contact_ids: List[int] = None
-    reference_ids: List[int] = None
+    contact_ids: List[int] | None = None
+    reference_ids: List[int] | None = None
 
 
 class UpdateProgram(Command):
@@ -48,8 +48,8 @@ class CreateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contact_ids: List[int] = None
-    reference_ids: List[int] = None
+    contact_ids: List[int] | None = None
+    reference_ids: List[int] | None = None
 
 class UpdateTrial(Command):
     agent_id: int
@@ -83,7 +83,8 @@ class CreateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    groupings: list[dict[str, list[set[int]]]] | None = None
+    groupings: dict[str, list[set[int]]] | None = None
+
 
     design_id: int | None = None
     licence_id: int | None = None
@@ -102,7 +103,7 @@ class UpdateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    groupings: list[dict[str, list[set[int]]]] | None = None
+    groupings: dict[str, list[set[int]]] | None = None
 
     design_id: int | None = None
     licence_id: int | None = None

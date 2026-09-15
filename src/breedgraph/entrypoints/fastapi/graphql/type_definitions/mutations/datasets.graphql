@@ -1,3 +1,13 @@
+input DatasetRecordGroupingInput {
+    name: String!
+    """
+    Existing dataset whose scope this dataset should join.
+    If omitted for a scoped grouping, a new scope is created.
+    For a study-wide grouping, the dataset is implicitly included.
+    """
+    joinDatasetId: ID
+}
+
 input RecordGroupInput {
     name: String!
     code: String!
@@ -27,6 +37,11 @@ input DatasetInput {
     """ concept is either a Factor or Variable in the ontology """
     conceptId: ID!
     records: [RecordInput!]!
+    """
+    groupings should be if the scope for grouping is global.
+    However if the grouping is scoped, groupings will be created or merged.
+    """
+    groupings: [DatasetRecordGroupingInput!]
     contributorIds: [ID!]
     referenceIds: [ID!]
 }
@@ -39,6 +54,11 @@ input DatasetUpdate {
     studyId: ID
     conceptId: ID
     records: [RecordUpdate!]!
+    """
+    groupings should be if the scope for grouping is global.
+    However if the grouping is scoped, groupings will be created or merged.
+    """
+    groupings: [DatasetRecordGroupingInput!]
     contributorIds: [ID!]
     referenceIds: [ID!]
 }

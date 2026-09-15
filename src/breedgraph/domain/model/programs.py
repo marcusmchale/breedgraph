@@ -15,11 +15,14 @@ from typing import List, Set, ClassVar, Dict, Any, Self
 import logging
 logger = logging.getLogger(__name__)
 
+class GroupingScope(Enum):
+    STUDY_WIDE = "study-wide"
+    DATASET_SCOPED = "dataset-scoped"
+
 @dataclass
-class GroupScope:
+class DatasetScope:
     """
-    Each GroupScope defines an independent grouping;
-    records are grouped only with other records belonging to the same scope.
+    Records are grouped only with other records belonging to the same scope.
     """
     dataset_ids: set[int]
 
@@ -30,31 +33,38 @@ class GroupScope:
 @dataclass
 class RecordGrouping:
     """
-     when no scopes are provided, the scope defaults to study-wide
-     when any are provided, each group scope defines a distinct grouping
+    Study-wide scopes cannot be locally scoped later as this would affect existing records,
+    however DATASET_SCOPED can be extended and existing DatasetScopes can also be extended.
     """
-    name: str
-    scopes: list[GroupScope] = field(default_factory=list)
+    type: int  # reference to ID of RecordGroupTypeStored
+    scope: GroupingScope
+    dataset_scopes: list[DatasetScope] = field(default_factory=list)
 
-    def add_scope(self, scope: GroupScope):
-        for s in self.scopes:
-            overlap = s.dataset_ids.intersection(scope.dataset_ids)
+    def __post_init__(self):
+        if self.scope == GroupingScope.STUDY_WIDE and self.dataset_scopes:
+            raise ValueError(
+                "Study-wide grouping cannot have explicit scopes"
+            )
+
+    def add_dataset_scope(self, scope: DatasetScope):
+        for existing in self.dataset_scopes:
+            overlap = existing.dataset_ids & scope.dataset_ids
             if overlap:
                 raise ValueError(
                     f"Datasets {overlap} are already in a group scope"
                 )
 
-        self.scopes.append(scope)
+        self.dataset_scopes.append(scope)
 
-    def get_scope(self, dataset_id: int) -> GroupScope | None:
-        for scope in self.scopes:
+    def get_dataset_scope(self, dataset_id: int) -> DatasetScope | None:
+        for scope in self.dataset_scopes:
             if dataset_id in scope.dataset_ids:
                 return scope
         return None
 
-    def remove_scope(self, scope: GroupScope):
+    def remove_dataset_scope(self, scope: DatasetScope):
         try:
-            self.scopes.remove(scope)
+            self.dataset_scopes.remove(scope)
         except ValueError:
             raise ValueError("Group scope not found")
 
@@ -90,10 +100,10 @@ class StudyBase(ABC):
                 return g
         return None
 
-    def add_grouping(self, name: str, scopes: List[GroupScope]):
+    def add_grouping(self, name: str, scope: GroupingScope, dataset_scopes: List[DatasetScope] | None = None):
         if self.get_grouping(name) is not None:
             raise ValueError(f"Grouping {name} already exists")
-        self.groupings.append(RecordGrouping(name=name, scopes=scopes))
+        self.groupings.append(RecordGrouping(name=name, scope=scope, dataset_scopes=dataset_scopes or []))
 
     def remove_grouping(self, name: str):
         grouping = self.get_grouping(name)

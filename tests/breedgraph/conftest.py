@@ -30,7 +30,7 @@ from tests.breedgraph.scenarios import (
     ArrangementBuilder
 )
 
-from typing import Dict, cast, AsyncGenerator
+from typing import Dict, cast, AsyncGenerator, Any
 
 from breedgraph.config import (
     SECRET_KEY, CSRF_SALT,
@@ -281,7 +281,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, int|list[str]]:
+async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']

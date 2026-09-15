@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# NOTE this is strange but..
+# NOTE
 # for async generator abstract methods we need to define them as sync functions for typing to work
 # https://stackoverflow.com/questions/68905848/how-to-correctly-specify-type-hints-with-asyncgenerator-and-asynccontextmanager
 

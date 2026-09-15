@@ -2,7 +2,7 @@ import logging
 
 from neo4j import AsyncResult, Record
 
-from breedgraph.domain.model import GroupScope
+from breedgraph.domain.model import DatasetScope
 from breedgraph.domain.model.programs import (
     StudyInput, StudyStored, TrialInput, TrialStored, ProgramInput, ProgramStored, RecordGrouping
 )
@@ -115,6 +115,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         licence_id = study_data.pop('licence_id')
         design_id = study_data.pop('design_id')
         groupings = study_data.pop('groupings', [])
+
         await self.tx.run(
             queries['programs']['set_study'],
             study_id = study_id,
@@ -143,10 +144,10 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             RecordGrouping(
                 name=grouping['name'],
                 scopes= [
-                    GroupScope(dataset_ids=scope['dataset_ids'])
+                    DatasetScope(dataset_ids=scope['dataset_ids'])
                     for scope in grouping['scopes'] or []
                 ]
-            ) for grouping in record['groupings'] or []
+            ) for grouping in record.get('groupings', [])
         ]
         return StudyStored(**record)
 
