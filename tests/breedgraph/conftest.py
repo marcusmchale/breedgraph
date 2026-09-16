@@ -27,7 +27,8 @@ from tests.breedgraph.scenarios import (
     ProgramBuilder,
     BlockBuilder,
     PersonBuilder,
-    ArrangementBuilder
+    ArrangementBuilder,
+    DatasetBuilder
 )
 
 from typing import Dict, cast, AsyncGenerator, Any
@@ -286,19 +287,23 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
 
+    record_group_types = await OntologyBuilder(uow_factory=uow_factory).record_group_types(user_id=user_id)
+
     program_builder = ProgramBuilder(uow_factory=uow_factory)
-    program_ids = await program_builder.program_trial_study(user_id)
-    study_id = program_ids['study_id']
-    groupings = program_ids['groupings']
+    program_ids = await program_builder.program_trial_study(
+        user_id,
+        replicate_type=record_group_types['ontology_record_group_replicate'],
+        batch_type=record_group_types['ontology_record_group_batch']
+    )
 
     variable_ids = await OntologyBuilder(uow_factory=uow_factory).variable_tree_height(user_id)
     unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
     person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id)
     return {
         **account_ids,
-        'study_id': study_id,
+        **program_ids,
+        'study_id': program_ids['study_id'],
         'concept_id': variable_ids['ontology_variable_height'],
-        'groupings': groupings,
         'unit_id': unit_id,
         'person_id': person_id
     }
@@ -326,10 +331,13 @@ async def person_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def program_build_context(isolated_state, uow_factory) -> Dict[str, int]:
+async def program_build_context(isolated_state, uow_factory) -> Dict[str, int|str]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
-    return account_ids
+    record_group_types = await OntologyBuilder(uow_factory=uow_factory).record_group_types(
+        user_id=account_ids['user_id']
+    )
+    return {**account_ids, **record_group_types}
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def reference_build_context(isolated_state, uow_factory) -> Dict[str, int]:

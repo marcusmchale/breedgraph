@@ -16,7 +16,7 @@ RETURN
         groups: [
           (record)-[:IN_GROUP]->(group:RecordGroup)<-[:HAS_GROUP]-(grouping:RecordGrouping) |
           {
-            name: grouping.name,
+            id: grouping.id,
             code: group.code
           }
         ]

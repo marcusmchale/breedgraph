@@ -1,7 +1,7 @@
 UNWIND range(0, size($records)-1) as cnt
 WITH cnt, $records[cnt] AS record_data
 ORDER BY cnt
-  MATCH (record:Record {id: record_data['id']})<-[:INCLUDES_RECORD]-(:Dataset)-[:FOR_STUDY]->(study:Study)
+  MATCH (record:Record {id: record_data['id']})
   SET
     record.value = record_data['value'],
     record.start = record_data['start'],
@@ -37,10 +37,11 @@ ORDER BY cnt
     OPTIONAL MATCH (record)-[group_rel:IN_GROUP]->(:RecordGroup)
     DELETE group_rel
   }
-  OPTIONAL CALL (study, record, record_data) {
+  OPTIONAL CALL (record, record_data) {
     UNWIND record_data.groups AS group_data
-    MATCH (study)-[:USES_GROUPING]->(grouping:RecordGrouping {name: group_data.name})
+    MATCH (grouping:RecordGrouping {id: group_data.id})
     MERGE (grouping)-[:HAS_GROUP]->(group:RecordGroup {code: group_data.code})
+    WITH record, grouping, group
     MERGE (record)-[:IN_GROUP]->(group)
     WITH collect({
       name: grouping.name,

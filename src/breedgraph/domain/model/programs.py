@@ -6,7 +6,7 @@ from enum import Enum
 from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
-from breedgraph.domain.model.base import StoredModel, EnumLabeledModel
+from breedgraph.domain.model.base import StoredModel, LabeledModel, EnumLabeledModel
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 )
@@ -24,20 +24,25 @@ class DatasetScope:
     """
     Records are grouped only with other records belonging to the same scope.
     """
-    dataset_ids: set[int]
+    dataset_ids: List[int]
 
     def __post_init__(self):
         if not self.dataset_ids:
             raise ValueError("A group scope must contain at least one dataset")
+        self.dataset_ids = list(set(self.dataset_ids))
 
 @dataclass
-class RecordGrouping:
+class RecordGroupingBase(ABC):
     """
-    Study-wide scopes cannot be locally scoped later as this would affect existing records,
-    however DATASET_SCOPED can be extended and existing DatasetScopes can also be extended.
+    Study-wide scopes cannot be locally scoped later as this would affect existing records.
+    However DATASET_SCOPED can be extended with new DatasetScopes and existing DatasetScopes can be extended.
     """
-    type: int  # reference to ID of RecordGroupTypeStored
-    scope: GroupingScope
+    label: ClassVar[str] = "RecordGrouping"
+    plural: ClassVar[str] = "RecordGroupings"
+
+    type: int = None  # reference to ID of RecordGroupTypeStored
+    name: str = None
+    scope: GroupingScope = None
     dataset_scopes: list[DatasetScope] = field(default_factory=list)
 
     def __post_init__(self):
@@ -46,27 +51,29 @@ class RecordGrouping:
                 "Study-wide grouping cannot have explicit scopes"
             )
 
-    def add_dataset_scope(self, scope: DatasetScope):
-        for existing in self.dataset_scopes:
-            overlap = existing.dataset_ids & scope.dataset_ids
-            if overlap:
-                raise ValueError(
-                    f"Datasets {overlap} are already in a group scope"
-                )
+    def merge_dataset_scope(self, scope: DatasetScope|set[int]|list[int]):
+        if not isinstance(scope, DatasetScope):
+            scope = DatasetScope(dataset_ids=list(scope))
 
+        for i, existing in enumerate(self.dataset_scopes):
+
+            overlap = set(existing.dataset_ids) & set(scope.dataset_ids)
+            if overlap:
+                self.dataset_scopes[i].dataset_ids = list(
+                    set(existing.dataset_ids) | set(scope.dataset_ids)
+                )
+                return
         self.dataset_scopes.append(scope)
 
-    def get_dataset_scope(self, dataset_id: int) -> DatasetScope | None:
-        for scope in self.dataset_scopes:
-            if dataset_id in scope.dataset_ids:
-                return scope
-        return None
 
-    def remove_dataset_scope(self, scope: DatasetScope):
-        try:
-            self.dataset_scopes.remove(scope)
-        except ValueError:
-            raise ValueError("Group scope not found")
+
+@dataclass
+class RecordGroupingInput(RecordGroupingBase, LabeledModel):
+    pass
+
+@dataclass
+class RecordGroupingStored(RecordGroupingBase, StoredModel):
+    pass
 
 @dataclass
 class StudyBase(ABC):
@@ -77,7 +84,7 @@ class StudyBase(ABC):
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
 
-    name: str|None = None
+    name: str = None
     fullname: str|None = None
     description: str|None = None
 
@@ -90,37 +97,51 @@ class StudyBase(ABC):
     design_id: int | None = None  # Reference to Design in Ontology
     licence_id: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
-    groupings: list[RecordGrouping] = field(default_factory=list)
+    groupings: list[RecordGroupingBase] = field(default_factory=list)
 
     reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
 
-    def get_grouping(self, name: str) -> RecordGrouping|None:
-        for g in self.groupings:
-            if g.name.casefold() == name.casefold():
-                return g
+    def get_grouping(self, grouping_id: int|None=None, name: str|None = None) -> RecordGroupingBase|None:
+        if grouping_id:
+            for g in self.groupings:
+                if isinstance(g, RecordGroupingStored):
+                    if g.id == grouping_id:
+                        return g
+        elif name:
+            for g in self.groupings:
+                if g.name.casefold() == name.casefold():
+                    return g
         return None
 
-    def add_grouping(self, name: str, scope: GroupingScope, dataset_scopes: List[DatasetScope] | None = None):
-        if self.get_grouping(name) is not None:
-            raise ValueError(f"Grouping {name} already exists")
-        self.groupings.append(RecordGrouping(name=name, scope=scope, dataset_scopes=dataset_scopes or []))
+    def add_grouping(
+            self,
+            group_type: int,
+            name: str,
+            scope: GroupingScope,
+            dataset_scopes: List[DatasetScope|set[int]] | None = None
+    ):
+        dataset_scopes =[
+            ds if isinstance(ds, DatasetScope)
+            else DatasetScope(dataset_ids=list(ds))
+            for ds in dataset_scopes or []
+        ]
+        self.groupings.append(
+            RecordGroupingInput(
+                type=group_type,
+                name=name,
+                scope=scope,
+                dataset_scopes=dataset_scopes
+            )
+        )
 
-    def remove_grouping(self, name: str):
-        grouping = self.get_grouping(name)
+    def remove_grouping(self, grouping_id: int):
+        grouping = self.get_grouping(grouping_id=grouping_id)
         if grouping is None:
-            raise ValueError(f"Grouping {name} not found")
+            raise ValueError(f"Grouping {grouping_id} not found")
         self.groupings.remove(grouping)
 
-    def rename_grouping(self, old_name: str, new_name: str):
-        new_grouping = self.get_grouping(new_name)
-        if new_grouping is not None:
-            raise ValueError(f"Grouping {new_name} already exists")
-        grouping = self.get_grouping(old_name)
-        if grouping is None:
-            raise ValueError(f"Grouping {old_name} not found")
-
-        grouping.name = new_name
-
+    def get_grouping_ids(self):
+        return [grouping.id for grouping in self.groupings if isinstance(grouping, RecordGroupingStored)]
 
 @dataclass
 class StudyInput(StudyBase, EnumLabeledModel):
@@ -306,12 +327,22 @@ class ProgramBase(ABC):
         else:
             raise ValueError("Trials can only be retrieved from stored programs")
 
-    def get_study(self, study_id: int):
+    def get_study(self, study_id: int| None = None, grouping_id:int|None = None):
+        if all([study_id is None, grouping_id is None]):
+            raise ValueError("Study or Grouping ID required to fetch a study")
+
         if isinstance(self, ProgramStored):
             for trial in self.trials.values():
-                study = trial.get_study(study_id)
-                if study is not None:
-                    return study
+                if study_id is not None:
+                    study = trial.get_study(study_id)
+                    if study is not None:
+                        return study
+                elif grouping_id is not None:
+                    for study in trial.studies.values():
+                        for grouping in study.groupings:
+                            if isinstance(grouping, RecordGroupingStored):
+                                if grouping.id == grouping_id:
+                                    return study
             return None
         else:
             raise ValueError("Studies can only be retrieved from stored programs")
@@ -336,6 +367,7 @@ class ProgramBase(ABC):
                 raise ValueError(f"Study with ID {study.id} not found in any trial for this program")
         else:
             raise ValueError("Studies can only be removed from stored programs")
+
 
 @dataclass
 class ProgramInput(ProgramBase, EnumLabeledModel):

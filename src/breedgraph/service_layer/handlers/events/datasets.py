@@ -1,6 +1,6 @@
 import logging
 
-from breedgraph.domain.model import ScaleCategoryStored
+from breedgraph.domain.model import ScaleCategoryStored, DatasetScope
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ from breedgraph.domain import events
 from breedgraph.domain.model.submissions import SubmissionStatus
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from breedgraph.domain.model.errors import ItemError
-from breedgraph.domain.model.programs import RecordGrouping, DatasetScope
+from breedgraph.domain.model.programs import GroupingScope
 
 from breedgraph.domain.importers import DatasetImport, DatasetUpdateImport, RecordImport
 
@@ -41,8 +41,10 @@ async def handle_dataset_submitted(
         try:
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
+
             dataset_import = DatasetImport(**submission)
             dataset_input = dataset_import.to_input_for_create()
+
             # we want to create the dataset without records first so that we can begin locking them in
             # and return errors only for those that need to be corrected before storing.
             records = dataset_input.records
@@ -50,49 +52,11 @@ async def handle_dataset_submitted(
 
             dataset = await uow.repositories.datasets.create(dataset_input)
 
-            program = await uow.repositories.programs.get(study_id=dataset_import.study_id)
+            program = await uow.repositories.programs.get(study_id=dataset.study)
             if program is None:
                 raise ValueError(f"Study not found {dataset_import.study_id}")
-            global_groupings = []
-            scoped_groupings_to_join = []
-            scoped_groupings_to_create = []
 
             study = program.get_study(dataset_import.study_id)
-
-            for grouping in dataset_import.groupings:
-                study_grouping = study.get_grouping(grouping.name)
-                if not study_grouping:
-                    pass
-                    #study.add_grouping(grouping.name, scopes=)
-
-
-                if not grouping.name in study_grouping:
-                    study.add_grouping(grouping.name)
-                study_grouping = study_grouping_map.get(grouping.name)
-                if not study_grouping:
-                    pass
-
-
-
-            for grouping in study.groupings:
-                if grouping.scopes:
-                    join_dataset_id = dataset_grouping_map.get(grouping.name)
-                    if join_dataset_id:
-                        scoped_groupings_to_join.append(grouping.name)
-                    else:
-                        scoped_groupings_to_create.append(grouping.name)
-                else:
-                    global_groupings.append(grouping.name)
-
-
-
-
-            valid_group_names = [grouping.name for grouping in study.groupings]
-
-
-
-
-
 
             scale, categories = await get_scale_and_categories(
                 concept_id=dataset_import.concept_id,
@@ -105,7 +69,7 @@ async def handle_dataset_submitted(
                             dataset_import.records_to_input(),
                             scale,
                             categories,
-                            valid_group_names
+                            study.get_grouping_ids()
                         )
                 ):
                     if e is not None:
@@ -120,6 +84,7 @@ async def handle_dataset_submitted(
         except Exception as e:
             await state_store.add_submission_errors(event.submission_id, [f"Failed to create dataset: {type(e).__name__, e}"])
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.FAILED)
+
 
 
 @handlers.event_handler()
@@ -154,10 +119,14 @@ async def dataset_update_submitted(
             if program is None:
                 raise ValueError(f"Study not found {dataset.study}")
             study = program.get_study(dataset.study)
-            valid_group_names = [grouping.name for grouping in study.groupings]
 
             item_errors = []
-            for i, e in enumerate(dataset.update_records(dataset_import.records_to_input(), scale, categories, valid_group_names)):
+            for i, e in enumerate(dataset.update_records(
+                dataset_import.records_to_input(),
+                scale,
+                categories,
+                study.get_grouping_ids())
+            ):
                 if e is not None:
                     item_errors.append(ItemError(index=i, error=e))
                     continue

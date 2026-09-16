@@ -1,6 +1,6 @@
-from typing import List
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.programs import GroupingScope
 
 from .base import Command
 
@@ -15,8 +15,8 @@ class CreateProgram(Command):
     fullname: str | None = None
     description: str | None = None
 
-    contact_ids: List[int] | None = None
-    reference_ids: List[int] | None = None
+    contact_ids: list[int] | None = None
+    reference_ids: list[int] | None = None
 
 
 class UpdateProgram(Command):
@@ -27,8 +27,8 @@ class UpdateProgram(Command):
     fullname: str | None = None
     description: str | None = None
 
-    contact_ids: List[int] | None = None
-    reference_ids: List[int] | None = None
+    contact_ids: list[int] | None = None
+    reference_ids: list[int] | None = None
 
 class DeleteProgram(Command):
     agent_id: int
@@ -48,8 +48,8 @@ class CreateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contact_ids: List[int] | None = None
-    reference_ids: List[int] | None = None
+    contact_ids: list[int] | None = None
+    reference_ids: list[int] | None = None
 
 class UpdateTrial(Command):
     agent_id: int
@@ -61,8 +61,8 @@ class UpdateTrial(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    contact_ids: List[int] | None = None
-    reference_ids: List[int] | None = None
+    contact_ids: list[int] | None = None
+    reference_ids: list[int] | None = None
 
 class DeleteTrial(Command):
     agent_id: int
@@ -83,13 +83,10 @@ class CreateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    groupings: dict[str, list[set[int]]] | None = None
-
-
     design_id: int | None = None
     licence_id: int | None = None
 
-    reference_ids: List[int] | None = None
+    reference_ids: list[int] | None = None
 
 
 class UpdateStudy(Command):
@@ -103,14 +100,44 @@ class UpdateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
-    groupings: dict[str, list[set[int]]] | None = None
-
     design_id: int | None = None
     licence_id: int | None = None
 
-    reference_ids: List[int] | None = None
+    reference_ids: list[int] | None = None
 
 
 class DeleteStudy(Command):
     agent_id: int
     study_id: int
+
+
+# Grouping commands
+class CreateGrouping(Command):
+    agent_id: int
+
+    study_id: int
+    type_id: int
+    name: str
+    scope: GroupingScope
+    dataset_scopes: list[set[int]] | None = None
+
+class UpdateGrouping(Command):
+    agent_id: int
+
+    grouping_id: int
+
+    type_id: int | None = None
+    name: str | None = None
+    dataset_scopes: list[set[int]] | None = None
+
+class DeleteGrouping(Command):
+    agent_id: int
+    grouping_id: int
+
+class MergeDatasetScope(Command):
+    agent_id: int
+    grouping_id: int
+
+    dataset_ids: set[int]
+
+

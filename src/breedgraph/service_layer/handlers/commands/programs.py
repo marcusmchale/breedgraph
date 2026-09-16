@@ -5,7 +5,8 @@ from breedgraph.domain.model.programs import (
     ProgramInput,
     TrialInput,
     StudyInput,
-    RecordGrouping, DatasetScope
+    DatasetScope,
+    RecordGroupingInput
 )
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.custom_exceptions import (
@@ -150,6 +151,10 @@ async def delete_trial(
         if program is None:
             raise NoResultFoundError(f"Program containing trial with ID {cmd.trial_id} not found")
         trial = program.trials.get(cmd.trial_id)
+
+        if trial is None:
+            raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
+
         # Check if trial has studies that should prevent deletion
         if hasattr(trial, 'studies') and trial.studies:
             raise UnauthorisedOperationError("Cannot delete trial that contains studies")
@@ -168,9 +173,10 @@ async def create_study(
         if program is None:
             raise NoResultFoundError(f"Program with trial ID {cmd.trial_id} not found")
 
-        groupings = cmd.groupings or {}
-
         trial = program.trials.get(cmd.trial_id)
+        if trial is None:
+            raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
+
         study = StudyInput(
             name=cmd.name,
             fullname=cmd.fullname if cmd.fullname else cmd.name,
@@ -180,10 +186,7 @@ async def create_study(
             end=cmd.end,
             design_id=cmd.design_id,
             licence_id=cmd.licence_id,
-            reference_ids=cmd.reference_ids or [],
-            groupings=[
-                RecordGrouping(name=key, scopes= [DatasetScope(dataset_ids=v) for v in value])
-                for key, value in groupings.items()]
+            reference_ids=cmd.reference_ids or []
         )
         trial.add_study(study)
         await uow.commit()
@@ -196,10 +199,11 @@ async def update_study(
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         program = await uow.repositories.programs.get(study_id=cmd.study_id)
         if program is None:
-            raise NoResultFoundError(f"Program containing study with ID {cmd.study} not found")
+            raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
 
         study = program.get_study(cmd.study_id)
-
+        if study is None:
+            raise NoResultFoundError(f"Study with ID {cmd.study_id} not found")
 
         # Update fields that are provided
         if cmd.name is not None:
@@ -221,29 +225,6 @@ async def update_study(
         if cmd.reference_ids is not None:
             study.reference_ids = cmd.reference_ids
 
-        import pdb;
-        pdb.set_trace()
-        # todo add a guard here to prevent removal of groupings if any records reference it!
-        #  also rather than replacing the groupings,
-        #  we should be using the add and remove functions as required to enforce domain rules.
-
-        if cmd.groupings is not None:
-            for grouping in cmd.groupings:
-                grouping_name = grouping['name']
-                scopes = grouping['scopes']
-
-                groupings: list[dict[str, list[set[int]]]] | None = None
-
-                grouping = study.get_grouping(grouping.name)
-
-                for grouping in cmd.groupings:
-                    pass
-
-
-            study.groupings = [
-                RecordGrouping(name=key, scopes=[DatasetScope(dataset_ids=v) for v in value])
-                for scope in cmd.groupings for key, value in scope.items()
-            ]
         await uow.commit()
 
 @handlers.command_handler()
@@ -257,9 +238,94 @@ async def delete_study(
             raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
 
         study = program.get_study(cmd.study_id)
+        if study is None:
+            raise NoResultFoundError(f"Study with ID {cmd.study_id} not found")
 
         if await uow.guards.study_has_datasets(study.id):
             raise ProtectedNodeError("Cannot delete a study that has associated datasets")
 
         program.remove_study(study)
+        await uow.commit()
+
+@handlers.command_handler()
+async def create_grouping(
+        cmd: commands.programs.CreateGrouping,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(study_id=cmd.study_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing study with ID {cmd.study_id} not found")
+
+        study = program.get_study(cmd.study_id)
+        if study is None:
+            raise NoResultFoundError(f"Study with ID {cmd.study_id} not found")
+        study.add_grouping(
+            group_type=cmd.type_id,
+            name=cmd.name,
+            scope=cmd.scope,
+            dataset_scopes=cmd.dataset_scopes
+        )
+        await uow.commit()
+
+@handlers.command_handler()
+async def update_grouping(
+        cmd: commands.programs.UpdateGrouping,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(grouping_id=cmd.grouping_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing grouping with ID {cmd.grouping_id} not found")
+
+        study = program.get_study(grouping_id = cmd.grouping_id)
+
+        if study is None:
+            raise NoResultFoundError(f"Study for grouping ID {cmd.grouping_id} not found")
+
+        grouping = study.get_grouping(grouping_id=cmd.grouping_id)
+        if cmd.name is not None:
+            grouping.name = cmd.name
+        if cmd.type_id is not None:
+            grouping.type = cmd.type_id
+        if cmd.dataset_scopes is not None:
+            grouping.dataset_scopes = cmd.dataset_scopes
+        await uow.commit()
+
+@handlers.command_handler()
+async def delete_grouping(
+        cmd: commands.programs.DeleteGrouping,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        program = await uow.repositories.programs.get(grouping_id=cmd.grouping_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing grouping with ID {cmd.grouping_id} not found")
+
+        study = program.get_study(grouping_id=cmd.grouping_id)
+        if study is None:
+            raise NoResultFoundError(f"Study for grouping ID {cmd.grouping_id} not found")
+
+        study.remove_grouping(grouping_id=cmd.grouping_id)
+        await uow.commit()
+
+@handlers.command_handler()
+async def merge_dataset_scope(
+        cmd: commands.programs.MergeDatasetScope,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with (uow_factory.get_uow(user_id=cmd.agent_id) as uow):
+        program = await uow.repositories.programs.get(grouping_id=cmd.grouping_id)
+        if program is None:
+            raise NoResultFoundError(f"Program containing grouping with ID {cmd.grouping_id} not found")
+
+        study = program.get_study(grouping_id=cmd.grouping_id)
+        if study is None:
+            raise NoResultFoundError(f"Study for grouping ID {cmd.grouping_id} not found")
+
+        grouping = study.get_grouping(grouping_id=cmd.grouping_id)
+        if grouping is None:
+            raise NoResultFoundError(f"Grouping with ID {cmd.grouping_id} not found")
+
+        grouping.merge_dataset_scope(scope=cmd.dataset_ids)
         await uow.commit()

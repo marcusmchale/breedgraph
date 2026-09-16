@@ -13,29 +13,25 @@ CREATE (person: Person {
 })
 WITH
   person
-CALL {
-  WITH person
+CALL (person) {
   MATCH (team: Team) WHERE team.id IN $teams
   CREATE (person)-[in_team:IN_TEAM {time:datetime.transaction()}]->(team)
   RETURN
     collect(team.id) AS teams
 }
-CALL {
-  WITH person
+CALL (person) {
   MATCH (location: Location) WHERE location.id IN $locations
   CREATE (person)-[at_location:AT_LOCATION {time:datetime.transaction()}]->(location)
   RETURN
     collect(location.id) AS locations
 }
-CALL {
-  WITH person
+CALL (person) {
   MATCH (role: PersonRole) WHERE role.id IN $roles
   CREATE (person)-[has_role:HAS_ROLE {time:datetime.transaction()}]->(role)
   RETURN
     collect(role.id) AS roles
 }
-CALL {
-  WITH person
+CALL (person) {
   MATCH (title: Title) WHERE title.id IN $titles
   CREATE (person)-[has_title:HAS_TITLE {time:datetime.transaction()}]->(title)
   RETURN

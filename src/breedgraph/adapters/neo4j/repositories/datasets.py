@@ -31,7 +31,7 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                 start=record.get('start'),
                 end=record.get('end'),
                 groups=[
-                    RecordGroup(name=group['name'], code=group['code']) for group in record.get('groups')
+                    RecordGroup(id=group['id'], code=group['code']) for group in record.get('groups')
                 ],
                 references=record.get('references', []),
                 submitted=record.get('submitted')

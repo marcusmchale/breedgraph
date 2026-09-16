@@ -1,10 +1,14 @@
 import logging
+from encodings import charmap
 
 from neo4j import AsyncResult, Record
 
-from breedgraph.domain.model import DatasetScope
+from breedgraph.domain.model import DatasetScope, GroupingScope
 from breedgraph.domain.model.programs import (
-    StudyInput, StudyStored, TrialInput, TrialStored, ProgramInput, ProgramStored, RecordGrouping
+    StudyInput, StudyStored,
+    TrialInput, TrialStored,
+    ProgramInput, ProgramStored,
+    RecordGroupingInput, RecordGroupingStored
 )
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.service_layer.tracking import TrackableProtocol
@@ -63,6 +67,9 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         licence_id = study_data.pop('licence_id')
         design_id = study_data.pop('design_id')
         groupings = study_data.pop('groupings', [])
+        for grouping in groupings:
+            # enums to str for neo4j
+            grouping['scope'] = grouping['scope'].value
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_study'],
             study_data=study_data,
@@ -73,6 +80,16 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             groupings=groupings
         )
         record: Record = await result.single(strict=True)
+        if groupings:
+            groupings_result = await self.tx.run(
+                queries['programs']['create_groupings'],
+                study_id=record['study']['id'],
+                groupings=groupings
+            )
+
+            groupings_record = await groupings_result.single(strict=True)
+            record['study']['groupings'] = groupings_record['groupings']
+
         return self.record_to_study(record)
 
     async def _update_program(self, program: ProgramStored):
@@ -114,7 +131,10 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         reference_ids = study_data.pop('reference_ids')
         licence_id = study_data.pop('licence_id')
         design_id = study_data.pop('design_id')
+
         groupings = study_data.pop('groupings', [])
+        for grouping in groupings:
+            grouping['scope'] = grouping['scope'].value
 
         await self.tx.run(
             queries['programs']['set_study'],
@@ -122,9 +142,28 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             study_data=study_data,
             reference_ids=reference_ids,
             licence_id=licence_id,
-            design_id=design_id,
-            groupings=groupings
+            design_id=design_id
         )
+        if 'groupings' in study.changed:
+            added_groupings = [groupings[i] for i in study.groupings.added]
+            await self.tx.run(
+                queries['programs']['create_groupings'],
+                study_id=study_id,
+                groupings=added_groupings
+            )
+            changed_groupings = [groupings[i] for i in study.groupings.changed]
+            await self.tx.run(
+                queries['programs']['update_groupings'],
+                study_id=study_id,
+                groupings=changed_groupings
+            )
+            removed_grouping_ids = [groupings[i]['id'] for i in study.groupings.removed]
+            await self.tx.run(
+                queries['programs']['delete_groupings'],
+                study_id=study_id,
+                grouping_ids=removed_grouping_ids
+            )
+
 
     async def _delete_trials(self, trial_ids: List[int]) -> None:
         logger.debug(f"Remove trials: {trial_ids}")
@@ -140,10 +179,14 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         if 'study' in record:
             record = record.get('study')
         record = self.deserialize_dt64(record)
+
         record['groupings'] = [
-            RecordGrouping(
+            RecordGroupingStored(
+                id= grouping['id'],
+                type= grouping['type'],
                 name=grouping['name'],
-                scopes= [
+                scope= GroupingScope(grouping['scope']),
+                dataset_scopes= [
                     DatasetScope(dataset_ids=scope['dataset_ids'])
                     for scope in grouping['scopes'] or []
                 ]
@@ -178,18 +221,20 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
     async def _get_controlled(
             self,
-            name: str = None,
-            program_id: int = None,
-            trial_id: int=None,
-            study_id:int=None
+            name: str|None = None,
+            program_id: int|None = None,
+            trial_id: int|None = None,
+            study_id:int|None = None,
+            grouping_id: int|None = None
     ) -> ControlledQueryResult[ProgramStored] | None:
         if program_id is not None:
             result: AsyncResult = await self.tx.run( queries['programs']['read_program'], program_id=program_id)
         elif trial_id is not None:
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_trial'], trial_id=trial_id)
         elif study_id is not None:
-            logger.debug(f'get program by study_id: {study_id}')
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_study'], study_id=study_id)
+        elif grouping_id is not None:
+            result: AsyncResult = await self.tx.run(queries['programs']['read_program_from_grouping'], grouping_id=grouping_id)
         elif name is not None:
             result: AsyncResult = await self.tx.run(queries['programs']['read_program_by_name'], name_lower=name.casefold())
         else:

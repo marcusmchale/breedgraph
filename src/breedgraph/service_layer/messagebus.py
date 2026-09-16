@@ -111,3 +111,6 @@ class MessageBus:
                     logger.error(e)
                     continue
             self.event_queue.task_done()
+
+    async def wait_until_idle(self):
+        await self.event_queue.join()

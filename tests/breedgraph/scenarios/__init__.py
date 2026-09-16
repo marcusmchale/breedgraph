@@ -7,3 +7,4 @@ from .person_builder import PersonBuilder
 from .organisation_builder import OrganisationBuilder
 from .reference_builder import ReferenceBuilder
 from .arrangement_builder import ArrangementBuilder
+from .dataset_builder import DatasetBuilder

@@ -2,8 +2,11 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
-    CreateStudy, UpdateStudy, DeleteStudy
+    CreateStudy, UpdateStudy, DeleteStudy,
+    CreateGrouping, UpdateGrouping, DeleteGrouping,
 )
+from breedgraph.domain.model.programs import GroupingScope
+
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 
@@ -147,14 +150,12 @@ async def create_study(
     user_id = info.context.get('user_id')
     logger.debug(f"Create study: {study.get('name')} in trial {study.get('trial_id')} by user {user_id}")
 
-
-
     cmd = CreateStudy(
         agent_id=user_id,
         write_team=control_team_id,
         release=release,
-        trial_id=study.get('trial_id'),
-        name=study.get('name'),
+        trial_id=study['trial_id'],
+        name=study['name'],
         fullname=study.get('fullname'),
         description=study.get('description'),
         practices=study.get('practices'),
@@ -162,11 +163,7 @@ async def create_study(
         end=study.get('end'),
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
-        reference_ids=study.get('reference_ids'),
-        groupings={
-            grouping['name']: grouping['scopes']['dataset_ids']
-            for grouping in study.get('groupings', [])
-        }
+        reference_ids=study.get('reference_ids')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -193,11 +190,7 @@ async def update_study(
         end=study.get('end'),
         design_id=study.get('design_id'),
         licence_id=study.get('licence_id'),
-        reference_ids=study.get('reference_ids'),
-        groupings={
-            grouping['name']: grouping['scopes']['dataset_ids']
-            for grouping in study.get('groupings', [])
-        }
+        reference_ids=study.get('reference_ids')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -217,6 +210,66 @@ async def delete_study(
     cmd = DeleteStudy(
         agent_id=user_id,
         study_id=id
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("programsCreateGrouping")
+@graphql_payload
+@require_authentication
+async def create_grouping(
+        _,
+        info,
+        grouping: dict
+):
+    user_id = info.context.get('user_id')
+    logger.debug(f"Add grouping: {grouping} by user {user_id}")
+
+    cmd = CreateGrouping(
+        agent_id=user_id,
+        study_id=grouping.get('study_id'),
+        type_id = grouping.get('type_id'),
+        name=grouping.get('name'),
+        scope=GroupingScope(grouping.get('scope'))
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+
+@graphql_mutation.field("programsUpdateGrouping")
+@graphql_payload
+@require_authentication
+async def update_grouping(
+        _,
+        info,
+        grouping: dict
+):
+    user_id = info.context.get('user_id')
+    logger.debug(f"Update grouping: {grouping} by user {user_id}")
+
+    cmd = UpdateGrouping(
+        agent_id=user_id,
+        grouping_id=grouping['grouping_id'],
+        type_id = grouping.get('type_id'),
+        name=grouping.get('name')
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("programsDeleteGrouping")
+@graphql_payload
+@require_authentication
+async def delete_grouping(
+        _,
+        info,
+        grouping_id: int
+):
+    user_id = info.context.get('user_id')
+    logger.debug(f"Delete grouping: {grouping_id} by user {user_id}")
+
+    cmd = DeleteGrouping(
+        agent_id=user_id,
+        grouping_id=grouping_id,
     )
     await info.context['bus'].handle(cmd)
     return True

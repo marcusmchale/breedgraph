@@ -1,4 +1,4 @@
-MATCH (: Trial {id: $trial_id})<-[:HAS_TRIAL]-(program:Program)
+MATCH (grouping:RecordGrouping {id: $grouping_id})<-[:USES_GROUPING]-(:Study)<-[:HAS_STUDY]-(:Trial)<-[:HAS_TRIAL]-(program:Program)
 RETURN
   program {
     .*,

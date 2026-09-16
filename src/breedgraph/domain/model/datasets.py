@@ -16,7 +16,8 @@ from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, S
 
 @dataclass(frozen=True)
 class RecordGroup:
-    name: str
+    # id of the record grouping
+    id: int
     code: str
 
 
@@ -62,7 +63,7 @@ class DataRecordInput(DataRecordBase, LabeledModel):
                 raise ValueError("Start date cannot be after end date")
         if not self.unit:
             raise ValueError("Unit is required for record")
-        if not self.value and not self.references:
+        if self.value is None and not self.references:
             raise ValueError("Either a value or list of references are required for a record to be created")
 
 @dataclass
@@ -99,11 +100,11 @@ class DatasetBase(ABC):
             records: List[DataRecordInput],
             scale: ScaleStored,
             categories: List[ScaleCategoryStored]|None,
-            valid_group_names: List[str]|None
+            grouping_ids: List[int]|None
     ) -> Generator[None|str, None, None]:
         for record in records:
             try:
-                parsed_record = self.parse_record(record, scale, categories, valid_group_names)
+                parsed_record = self.parse_record(record, scale, categories, grouping_ids)
                 self.records.append(parsed_record)
                 yield None
             except Exception as e:
@@ -114,7 +115,7 @@ class DatasetBase(ABC):
             records: List[DataRecordStored|dict],
             scale: ScaleStored,
             categories: List[ScaleCategoryStored]|None,
-            valid_group_names: List[str] | None
+            grouping_ids: List[int] | None
     ) -> Generator[None|str, None, None]:
         record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
         for record in records:
@@ -125,7 +126,7 @@ class DatasetBase(ABC):
                     if 'reference_ids' in record:
                         record['references'] = record.pop('reference_ids')
                     record = DataRecordStored(**record)
-                record = self.parse_record(record, scale, categories, valid_group_names)
+                record = self.parse_record(record, scale, categories, grouping_ids)
 
                 record_index = record_index_map[record.id]
                 stored_record = self.records[record_index]
@@ -169,7 +170,7 @@ class DatasetBase(ABC):
             record: DataRecordInput,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored] | None,
-            valid_group_names: List[str]|None
+            grouping_ids: List[int]|None
     ) -> DataRecordInput:
         ...
 
@@ -179,7 +180,7 @@ class DatasetBase(ABC):
             record: DataRecordStored,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored] | None,
-            valid_group_names: List[str]|None
+            grouping_ids: List[int]|None
     ) -> DataRecordStored:
         ...
 
@@ -188,15 +189,15 @@ class DatasetBase(ABC):
             record: DataRecordInput|DataRecordStored,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored] | None,
-            valid_group_names: List[str]|None
+            grouping_ids: List[int]|None
     ) -> DataRecordInput|DataRecordStored:
         if scale.scale_type == ScaleType.COMPLEX:
             if not record.references:
                 raise ValueError("Complex scale records require at least one reference")
 
         for group in record.groups or []:
-            if group.name not in valid_group_names:
-                raise ValueError(f"{group.name } is not valid for records in this dataset")
+            if group.id not in grouping_ids:
+                raise ValueError(f"{group.id } is not valid for records in this dataset")
 
         record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
         return record

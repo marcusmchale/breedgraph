@@ -1,12 +1,7 @@
 from numpy import datetime64
 from pydantic import BaseModel, Field
 
-from breedgraph.domain.model.datasets import DatasetInput, RecordGroup, DataRecordInput, RecordGroup
-
-
-class DatasetRecordGrouping(BaseModel):
-    name: str
-    join_dataset_id: int
+from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, RecordGroup
 
 class RecordImport(BaseModel):
     unit_id: int
@@ -28,7 +23,6 @@ class DatasetImportBase(BaseModel):
     study_id: int | None = None
     concept_id: int | None = None
     records: list[RecordImport|RecordUpdateImport] = Field(default_factory=list)
-    groupings: list[DatasetRecordGrouping] = Field(default_factory=list)
     contributor_ids: list[int] | None = None
     reference_ids: list[int] | None = None
 

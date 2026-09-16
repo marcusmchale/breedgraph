@@ -3,7 +3,7 @@ RETURN
   dataset {
     .*,
     study: [(dataset)-[:FOR_STUDY]->(study) | study.id][0],
-    concept: [(dataset)-[:FOR_CONCEPT]->(entry: Variable:Factor)|entry.id][0],
+    concept: [(dataset)-[:FOR_CONCEPT]-(concept:Variable|Factor) | concept.id][0],
     contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person)|contributor.id],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],
     records: apoc.coll.sortMaps([
@@ -16,7 +16,7 @@ RETURN
         groups: [
           (record)-[:IN_GROUP]->(group:RecordGroup)<-[:HAS_GROUP]-(grouping:RecordGrouping) |
           {
-            name: grouping.name,
+            id: grouping.id,
             code: group.code
           }
         ]

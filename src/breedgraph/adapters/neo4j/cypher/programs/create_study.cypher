@@ -28,22 +28,6 @@ OPTIONAL CALL (study) {
   RETURN
     collect(licence.id)[0] AS licence
 }
-// Create groupings and scopes
-OPTIONAL CALL (study) {
-  UNWIND $groupings AS grouping_data
-    CREATE (study)-[:USES_GROUPING]->(grouping:RecordGrouping { name: grouping_data.name })
-    WITH grouping, grouping_data
-    OPTIONAL CALL (grouping, grouping_data) {
-      UNWIND grouping_data.scopes AS scope_data
-        CREATE (grouping)-[:HAS_SCOPE]->(scope: GroupingScope)
-        WITH scope, scope_data
-        MATCH (dataset: Dataset) WHERE dataset.id IN scope_data.dataset_ids
-        CREATE (scope)<-[:IN_SCOPE]-(dataset)
-        WITH scope, collect(dataset.id) as dataset_ids
-      RETURN collect({ dataset_ids: dataset_ids }) as scopes
-    }
-  RETURN collect({name: grouping.name, scopes: scopes}) as groupings
-}
 
 RETURN
   study {
@@ -51,5 +35,5 @@ RETURN
     reference_ids: references,
     design_id: design,
     licence_id: licence,
-    groupings: groupings
+    groupings: []
   }

@@ -1,12 +1,12 @@
-MATCH (dataset: Dataset {id: $dataset_id})-[:FOR_STUDY]->(study: Study)
+MATCH (dataset: Dataset {id: $dataset_id})
 MERGE (record_counter: Counter {name: 'record'})
 ON CREATE SET record_counter.count = 0
-WITH study, dataset, record_counter, record_counter.count as base_id
+WITH dataset, record_counter, record_counter.count as base_id
 SET record_counter.count = record_counter.count + size($records)
 
-WITH study, dataset, base_id
+WITH dataset, base_id
 UNWIND range(0, size($records)-1) as cnt
-WITH study, dataset, cnt, $records[cnt] AS record_data, (base_id + cnt) as next_id
+WITH dataset, cnt, $records[cnt] AS record_data, (base_id + cnt) as next_id
 ORDER BY cnt
 
   MATCH (unit:Unit {id: record_data['unit']})
@@ -22,7 +22,7 @@ ORDER BY cnt
     end_step:record_data['end_step']
   })-[:FOR_UNIT]->(unit)
 
-  WITH study, dataset, unit, record, record_data
+  WITH dataset, unit, record, record_data
 
   OPTIONAL CALL (record, record_data) {
     MATCH (reference:Reference) WHERE reference.id IN record_data.references
@@ -30,13 +30,14 @@ ORDER BY cnt
     RETURN collect(reference.id) as references
   }
 
-  OPTIONAL CALL (study, record, record_data) {
+  OPTIONAL CALL (record, record_data) {
     UNWIND record_data.groups AS group_data
-    MATCH (study)-[:USES_GROUPING]->(grouping:RecordGrouping {name: group_data.name})
-    MERGE (grouping)-[:HAS_GROUP]->(group:RecordGroup {code: group_data.code})
-    CREATE (record)-[:IN_GROUP]->(group)
+      MATCH (grouping:RecordGrouping {id: group_data.id})
+      MERGE (grouping)-[:HAS_GROUP]->(group:RecordGroup {code: group_data.code})
+      WITH record, group, grouping
+      CREATE (record)-[:IN_GROUP]->(group)
     RETURN collect({
-      name: grouping.name,
+      id: grouping.id,
       code: group.code
     }) AS groups
   }

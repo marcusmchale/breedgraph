@@ -14,8 +14,11 @@ RETURN
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->(study)|reference.id],
           design_id: [(study)-[:USES_DESIGN]->(design:Design)|design.id][0],
           licence_id: [(study)-[:USES_LICENCE]->(licence:Reference)|licence.id][0],
-          groupings: [(study)-[:USES_GROUPING]->(grouping: RecordGrouping) | {
+          groupings: [(study)-[:USES_GROUPING]->(grouping: RecordGrouping)-[:OF_TYPE]->(type:RecordGroupType) | {
+              id: grouping.id,
+              type: type.id,
               name: grouping.name,
+              scope: grouping.scope,
               scopes: [
                 (grouping)-[:HAS_SCOPE]->(scope:GroupingScope) | {
                   dataset_ids: [(scope)<-[:IN_SCOPE]-(dataset:Dataset) | dataset.id]
@@ -26,4 +29,3 @@ RETURN
       }
     ]
   }
-
