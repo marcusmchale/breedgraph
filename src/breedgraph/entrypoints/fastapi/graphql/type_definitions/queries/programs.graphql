@@ -1,10 +1,12 @@
-type GroupScope {
+type DatasetScope {
     datasetIds: [ID!]!
 }
 
 type RecordGrouping {
+    type: RecordGroupType!
     name: String!
-    scopes: [GroupScope!]
+    scope: GroupingScope!
+    dataset_scopes: [DatasetScope!]
 }
 
 type Program {

@@ -73,7 +73,7 @@ enum GroupingScope {
     DATASET_SCOPED
 }
 
-input DatasetScope {
+input DatasetScopeInput {
     datasetIds: [ID!]!
 }
 
@@ -82,13 +82,13 @@ input GroupingInput {
     typeId: ID!
     name: String!
     scope: GroupingScope!
-    dataset_scopes: [DatasetScope!]
+    dataset_scopes: [DatasetScopeInput!]
 }
 
 input GroupingUpdate {
     typeId: ID!
     name: String!
-    dataset_scopes: [DatasetScope!]
+    dataset_scopes: [DatasetScopeInput!]
 }
 
 # Mutation type extensions for programs

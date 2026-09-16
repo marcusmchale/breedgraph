@@ -1,6 +1,9 @@
 from ariadne import ObjectType
 
-from breedgraph.service_layer.queries.read_models.ontology import DesignOutput, OntologyViewMode
+from breedgraph.service_layer.queries.read_models.ontology import (
+    DesignOutput, RecordGroupTypeOutput,
+    OntologyViewMode
+)
 from breedgraph.domain.model import LegalReferenceStored
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -22,7 +25,8 @@ from ..registry import graphql_resolvers
 program = ObjectType("Program")
 trial = ObjectType("Trial")
 study = ObjectType("Study")
-graphql_resolvers.register_type_resolvers(program, trial, study)
+record_grouping = ObjectType("RecordGrouping")
+graphql_resolvers.register_type_resolvers(program, trial, study, record_grouping)
 
 @graphql_query.field("programs")
 @graphql_payload
@@ -130,3 +134,9 @@ async def resolve_design(obj, info) -> DesignOutput | None:
     await update_ontology_map(context = info.context, entry_ids=[obj.design_id], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.design_id)
+
+@record_grouping.field("type")
+async def resolve_type(obj, info) -> RecordGroupTypeOutput:
+    await update_ontology_map(context = info.context, entry_ids=[obj.type], view=OntologyViewMode.REFERENTIAL)
+    ontology_map = info.context.get('ontology_map')
+    return ontology_map.get(obj.type)
