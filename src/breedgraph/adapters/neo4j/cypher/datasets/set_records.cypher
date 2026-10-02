@@ -43,10 +43,6 @@ ORDER BY cnt
     MERGE (grouping)-[:HAS_GROUP]->(group:RecordGroup {code: group_data.code})
     WITH record, grouping, group
     MERGE (record)-[:IN_GROUP]->(group)
-    WITH collect({
-      name: grouping.name,
-      code: group.code
-    }) AS groups
   }
 
   RETURN NULL

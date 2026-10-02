@@ -86,8 +86,10 @@ input GroupingInput {
 }
 
 input GroupingUpdate {
+    id: ID!
     typeId: ID!
     name: String!
+    scope: GroupingScope!
     dataset_scopes: [DatasetScopeInput!]
 }
 
@@ -121,8 +123,8 @@ extend type Mutation {
     programsDeleteStudy(id: ID!): BooleanPayload!
 
     # Grouping mutations
-    programsCreateGrouping(grouping: GroupingInput): BooleanPayload!
-    programsUpdateGrouping(grouping: GroupingInput): BooleanPayload!
+    programsCreateGrouping(grouping: GroupingInput!): BooleanPayload!
+    programsUpdateGrouping(grouping: GroupingUpdate!): BooleanPayload!
     programsDeleteGrouping(id: ID!): BooleanPayload!
     """Merging scopes
     If any of the datasetIds provided are in an existing scope,

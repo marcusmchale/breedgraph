@@ -3,6 +3,7 @@ type DatasetScope {
 }
 
 type RecordGrouping {
+    id: ID!
     type: RecordGroupType!
     name: String!
     scope: GroupingScope!

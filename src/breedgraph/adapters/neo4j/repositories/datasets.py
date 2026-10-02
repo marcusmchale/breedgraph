@@ -26,6 +26,7 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
             self.deserialize_dt64(record)
         dataset_dict['records'] = [
             DataRecordStored(
+                id = record.get('id'),
                 unit=record.get('unit'),
                 value=record.get('value'),
                 start=record.get('start'),
@@ -97,6 +98,7 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                     record_index = ordered_added[i]
                     dataset.records[record_index] = DataRecordStored(**record)
                     i += 1
+
 
     async def _delete_datasets(self, dataset_ids: List[int]) -> None:
         logger.debug(f"Remove datasets: {dataset_ids}")

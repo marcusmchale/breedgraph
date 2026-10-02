@@ -36,9 +36,9 @@ class DataRecordBase(ABC):
     # grouping specifications that may be optionally used to establish replication/batch details
     # these need to match names established within the study context
     # and can be interpreted to define e.g. replication/batch effects during analysis.
-    groups: List[RecordGroup] = field(default_factory=list)
+    groups: List[RecordGroup] | None = None
 
-    references: List[int]|None = field(default_factory=list)
+    references: List[int] | None = None
     # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
@@ -62,15 +62,35 @@ class DataRecordInput(DataRecordBase, LabeledModel):
             if self.start > self.end:
                 raise ValueError("Start date cannot be after end date")
         if not self.unit:
-            raise ValueError("Unit is required for record")
+            raise ValueError("Unit is required for new records")
         if self.value is None and not self.references:
             raise ValueError("Either a value or list of references are required for a record to be created")
+
+
+@dataclass
+class DataRecordUpdate(DataRecordBase, StoredModel):
+    unit_id: InitVar[int|None] = None
+    reference_ids: InitVar[List[int] | None] = None
+    value: str|int|None = None  # integer values supported for categories, must be parsed to name for stored type though
+
+    def __post_init__(self, unit_id, reference_ids):
+        if unit_id is not None:
+            self.unit = unit_id
+        if reference_ids is not None:
+            self.references = reference_ids
+        if self.start is not None:
+            self.start = datetime64(self.start)
+        if self.end is not None:
+            self.end = datetime64(self.end)
+        if self.start is not None and self.end is not None:
+            if self.start > self.end:
+                raise ValueError("Start date cannot be after end date")
+
+
 
 @dataclass
 class DataRecordStored(DataRecordBase, StoredModel):
     submitted: datetime64|None = None
-
-
 
 @dataclass
 class DataRecordOutput(DataRecordBase, StoredModel):
@@ -89,7 +109,7 @@ class DatasetBase(ABC):
 
     study: int|None = None
     concept: int|None = None
-    records: List[DataRecordStored|DataRecordInput] = field(default_factory=list)
+    records: List[DataRecordStored|DataRecordInput|DataRecordUpdate] = field(default_factory=list)
 
     contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
@@ -112,7 +132,7 @@ class DatasetBase(ABC):
 
     def update_records(
             self,
-            records: List[DataRecordStored|dict],
+            records: List[DataRecordUpdate|dict],
             scale: ScaleStored,
             categories: List[ScaleCategoryStored]|None,
             grouping_ids: List[int] | None
@@ -125,8 +145,13 @@ class DatasetBase(ABC):
                         record['id'] = record.pop('record_id')
                     if 'reference_ids' in record:
                         record['references'] = record.pop('reference_ids')
-                    record = DataRecordStored(**record)
-                record = self.parse_record(record, scale, categories, grouping_ids)
+                    record = DataRecordUpdate(**record)
+
+                if not isinstance(record, DataRecordUpdate):
+                    raise ValueError("Invalid record type for update")
+
+                if record.value is not None:
+                    record = self.parse_record(record, scale, categories, grouping_ids)
 
                 record_index = record_index_map[record.id]
                 stored_record = self.records[record_index]
@@ -177,24 +202,26 @@ class DatasetBase(ABC):
     @overload
     def parse_record(
             self,
-            record: DataRecordStored,
+            record: DataRecordUpdate,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored] | None,
             grouping_ids: List[int]|None
-    ) -> DataRecordStored:
+    ) -> DataRecordUpdate:
         ...
 
     def parse_record(
             self,
-            record: DataRecordInput|DataRecordStored,
+            record: DataRecordInput|DataRecordUpdate,
             scale: ScaleStored,
             categories: List[ScaleCategoryStored] | None,
             grouping_ids: List[int]|None
-    ) -> DataRecordInput|DataRecordStored:
+    ) -> DataRecordInput|DataRecordUpdate:
         if scale.scale_type == ScaleType.COMPLEX:
-            if not record.references:
-                raise ValueError("Complex scale records require at least one reference")
-
+            if any([
+                    isinstance(record, DataRecordInput) and not record.references,
+                    isinstance(record, DataRecordUpdate) and record.references is not None and len(record.references) == 0
+                ]):
+                    raise ValueError("Complex scale records require at least one reference")
         for group in record.groups or []:
             if group.id not in grouping_ids:
                 raise ValueError(f"{group.id } is not valid for records in this dataset")

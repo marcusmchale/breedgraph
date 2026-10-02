@@ -1,5 +1,5 @@
 type RecordGroup {
-    name: String!
+    id: ID!
     code: String!
 }
 

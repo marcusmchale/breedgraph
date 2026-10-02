@@ -289,7 +289,7 @@ async def update_grouping(
         if cmd.type_id is not None:
             grouping.type = cmd.type_id
         if cmd.dataset_scopes is not None:
-            grouping.dataset_scopes = cmd.dataset_scopes
+            grouping.dataset_scopes = [DatasetScope(list(scope)) for scope in cmd.dataset_scopes]
         await uow.commit()
 
 @handlers.command_handler()

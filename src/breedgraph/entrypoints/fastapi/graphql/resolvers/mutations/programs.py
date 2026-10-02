@@ -3,7 +3,7 @@ from breedgraph.domain.commands.programs import (
     CreateProgram, UpdateProgram, DeleteProgram,
     CreateTrial, UpdateTrial, DeleteTrial,
     CreateStudy, UpdateStudy, DeleteStudy,
-    CreateGrouping, UpdateGrouping, DeleteGrouping,
+    CreateGrouping, UpdateGrouping, DeleteGrouping, MergeDatasetScope
 )
 from breedgraph.domain.model.programs import GroupingScope
 
@@ -246,12 +246,14 @@ async def update_grouping(
 ):
     user_id = info.context.get('user_id')
     logger.debug(f"Update grouping: {grouping} by user {user_id}")
-
     cmd = UpdateGrouping(
         agent_id=user_id,
-        grouping_id=grouping['grouping_id'],
+        grouping_id=grouping['id'],
         type_id = grouping.get('type_id'),
-        name=grouping.get('name')
+        name=grouping.get('name'),
+        dataset_scopes=[
+            set(scope.get('dataset_ids')) for scope in grouping.get('dataset_scopes', [])
+        ] if grouping.get('dataset_scopes') is not None else None
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -270,6 +272,26 @@ async def delete_grouping(
     cmd = DeleteGrouping(
         agent_id=user_id,
         grouping_id=grouping_id,
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("programsMergeScope")
+@graphql_payload
+@require_authentication
+async def merge_scope(
+        _,
+        info,
+        grouping_id: int,
+        dataset_ids: list[int]
+):
+    user_id = info.context.get('user_id')
+    logger.debug(f"Merge scope: {grouping_id} with datasets {dataset_ids} by user {user_id}")
+
+    cmd = MergeDatasetScope(
+        agent_id=user_id,
+        grouping_id=grouping_id,
+        dataset_ids=set(dataset_ids)
     )
     await info.context['bus'].handle(cmd)
     return True

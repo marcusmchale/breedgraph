@@ -122,7 +122,7 @@ async def dataset_update_submitted(
 
             item_errors = []
             for i, e in enumerate(dataset.update_records(
-                dataset_import.records_to_input(),
+                dataset_import.records_to_update(),
                 scale,
                 categories,
                 study.get_grouping_ids())
