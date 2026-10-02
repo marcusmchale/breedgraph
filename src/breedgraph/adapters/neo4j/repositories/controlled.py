@@ -1,6 +1,5 @@
 from abc import abstractmethod
 
-from pydantic import BaseModel
 from neo4j import AsyncTransaction
 
 from breedgraph.service_layer.tracking import TrackableProtocol
@@ -24,7 +23,7 @@ class Neo4jControlledRepository(
         self.tx = tx
 
     @abstractmethod
-    async def _create_controlled(self, aggregate_input: BaseModel) -> ControlledAggregate:
+    async def _create_controlled(self, aggregate_input: TAggregateInput) -> ControlledAggregate:
         ...
 
     @abstractmethod
@@ -36,9 +35,9 @@ class Neo4jControlledRepository(
         ...
 
     @abstractmethod
-    async def _remove_controlled(self, aggregate: ControlledAggregate):
+    async def _remove_controlled(self, aggregate: TControlledAggregate):
         ...
 
     @abstractmethod
-    async def _update_controlled(self, aggregate: ControlledAggregate | TrackableProtocol):
+    async def _update_controlled(self, aggregate: TControlledAggregate | TrackableProtocol):
         ...

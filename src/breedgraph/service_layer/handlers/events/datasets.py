@@ -1,6 +1,6 @@
 import logging
 
-from breedgraph.domain.model import ScaleCategoryStored
+from breedgraph.domain.model import ScaleCategoryStored, DatasetScope
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ from breedgraph.domain import events
 from breedgraph.domain.model.submissions import SubmissionStatus
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from breedgraph.domain.model.errors import ItemError
+from breedgraph.domain.model.programs import GroupingScope
 
 from breedgraph.domain.importers import DatasetImport, DatasetUpdateImport, RecordImport
 
@@ -31,29 +32,49 @@ async def get_scale_and_categories(concept_id, ontology_service: OntologyApplica
 
 
 @handlers.event_handler()
-async def dataset_submitted(
+async def handle_dataset_submitted(
         event: events.datasets.DatasetSubmitted,
         state_store: AbstractStateStore,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=event.agent_id, write_team=event.write_team, release=event.release) as uow:
+    async with (uow_factory.get_uow(user_id=event.agent_id, write_team=event.write_team, release=event.release) as uow):
         try:
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
+
             dataset_import = DatasetImport(**submission)
+            dataset_input = dataset_import.to_input_for_create()
+
+            # we want to create the dataset without records first so that we can begin locking them in
+            # and return errors only for those that need to be corrected before storing.
+            records = dataset_input.records
+            dataset_input.records = list()
+
+            dataset = await uow.repositories.datasets.create(dataset_input)
+
+            program = await uow.repositories.programs.get(study_id=dataset.study)
+            if program is None:
+                raise ValueError(f"Study not found {dataset_import.study_id}")
+
+            study = program.get_study(dataset_import.study_id)
+
             scale, categories = await get_scale_and_categories(
                 concept_id=dataset_import.concept_id,
                 ontology_service=uow.ontology
             )
-            dataset = await uow.repositories.datasets.create(dataset_import.to_input_for_create())
             item_errors = []
-
-            if dataset_import.records:
-                for i, e in enumerate(dataset.add_records(dataset_import.dump_records(), scale, categories)):
+            if records:
+                for i, e in enumerate(
+                        dataset.add_records(
+                            dataset_import.records_to_input(),
+                            scale,
+                            categories,
+                            study.get_grouping_ids()
+                        )
+                ):
                     if e is not None:
                         item_errors.append(ItemError(index=i, error=e))
                         continue
-
             await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
             await state_store.add_submission_item_errors(event.submission_id, item_errors)
             if item_errors:
@@ -63,6 +84,7 @@ async def dataset_submitted(
         except Exception as e:
             await state_store.set_errors(event.submission_id, [f"Failed to create dataset: {type(e).__name__, e}"])
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.FAILED)
+
 
 
 @handlers.event_handler()
@@ -93,8 +115,18 @@ async def dataset_update_submitted(
             if dataset_import.reference_ids is not None:
                 dataset.references = dataset_import.reference_ids
 
+            program = await uow.repositories.programs.get(study_id=dataset.study)
+            if program is None:
+                raise ValueError(f"Study not found {dataset.study}")
+            study = program.get_study(dataset.study)
+
             item_errors = []
-            for i, e in enumerate(dataset.update_records(dataset_import.dump_records(), scale, categories)):
+            for i, e in enumerate(dataset.update_records(
+                dataset_import.records_to_update(),
+                scale,
+                categories,
+                study.get_grouping_ids())
+            ):
                 if e is not None:
                     item_errors.append(ItemError(index=i, error=e))
                     continue
@@ -130,9 +162,15 @@ async def dataset_records_submitted(
                 concept_id=dataset.concept,
                 ontology_service=uow.ontology
             )
-            item_errors = []
 
-            for i, e in enumerate(dataset.add_records(records, scale, categories)):
+            program = await uow.repositories.programs.get(study_id=dataset.study)
+            if program is None:
+                raise ValueError(f"Study not found {dataset.study}")
+            study = program.get_study(dataset.study)
+            valid_group_names = [grouping.name for grouping in study.groupings]
+
+            item_errors = []
+            for i, e in enumerate(dataset.add_records(records, scale, categories, valid_group_names)):
                 if e is not None:
                     item_errors.append(ItemError(index=i, error=e))
                     continue

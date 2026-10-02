@@ -52,6 +52,7 @@ async def get_datasets(
         )]
         return datasets
 
+
 @dataset.field('concept')
 async def resolve_concept(obj, info):
     await update_ontology_map(info.context, entry_ids=[obj.concept], view=OntologyViewMode.REFERENTIAL)
@@ -152,5 +153,5 @@ async def resolve_summary_locations(obj, info):
 @dataset_summary.field("blocks")
 async def resolve_summary_blocks(obj, info):
     await update_units_map(info.context, unit_ids=obj.block_ids)
-    locations_map = info.context.get('locations_map')
-    return [locations_map.get(location_id) for location_id in obj.location_ids]
+    units_map = info.context.get('units_map')
+    return [units_map.get(unit_id) for unit_id in obj.block_ids]

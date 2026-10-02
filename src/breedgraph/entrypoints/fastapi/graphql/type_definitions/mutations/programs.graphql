@@ -68,6 +68,31 @@ input StudyUpdate {
     referenceIds: [ID!]
 }
 
+enum GroupingScope {
+    STUDY_WIDE
+    DATASET_SCOPED
+}
+
+input DatasetScopeInput {
+    datasetIds: [ID!]!
+}
+
+input GroupingInput {
+    studyId: ID!
+    typeId: ID!
+    name: String!
+    scope: GroupingScope!
+    dataset_scopes: [DatasetScopeInput!]
+}
+
+input GroupingUpdate {
+    id: ID!
+    typeId: ID!
+    name: String!
+    scope: GroupingScope!
+    dataset_scopes: [DatasetScopeInput!]
+}
+
 # Mutation type extensions for programs
 extend type Mutation {
     # Program mutations
@@ -75,25 +100,36 @@ extend type Mutation {
         program: ProgramInput!
         controlTeamId: ID!
         release: ReadRelease
-    ): BooleanPayload
-    programsUpdateProgram(program: ProgramUpdate!): BooleanPayload
-    programsDeleteProgram(id: ID!): BooleanPayload
+    ): BooleanPayload!
+    programsUpdateProgram(program: ProgramUpdate!): BooleanPayload!
+    programsDeleteProgram(id: ID!): BooleanPayload!
 
     # Trial mutations
     programsCreateTrial(
         trial: TrialInput!
         controlTeamId: ID!
         release: ReadRelease
-    ): BooleanPayload
-    programsUpdateTrial(trial: TrialUpdate!): BooleanPayload
-    programsDeleteTrial(id: ID!): BooleanPayload
+    ): BooleanPayload!
+    programsUpdateTrial(trial: TrialUpdate!): BooleanPayload!
+    programsDeleteTrial(id: ID!): BooleanPayload!
 
     # Study mutations
     programsCreateStudy(
         study: StudyInput!
         controlTeamId: ID!
         release: ReadRelease
-    ): BooleanPayload
-    programsUpdateStudy(study: StudyUpdate!): BooleanPayload
-    programsDeleteStudy(id: ID!): BooleanPayload
+    ): BooleanPayload!
+    programsUpdateStudy(study: StudyUpdate!): BooleanPayload!
+    programsDeleteStudy(id: ID!): BooleanPayload!
+
+    # Grouping mutations
+    programsCreateGrouping(grouping: GroupingInput!): BooleanPayload!
+    programsUpdateGrouping(grouping: GroupingUpdate!): BooleanPayload!
+    programsDeleteGrouping(id: ID!): BooleanPayload!
+    """Merging scopes
+    If any of the datasetIds provided are in an existing scope,
+    all datasetIds will be added to that scope.
+    Otherwise, a new scope will be created.
+    """
+    programsMergeScope(groupingId: ID!, datasetIds:[ID!]): BooleanPayload!
 }

@@ -10,7 +10,7 @@ from breedgraph.domain.commands.ontologies import (
     UpdateTerm, UpdateSubject, UpdateTrait, UpdateCondition,
     UpdateScale, UpdateCategory, UpdateObservationMethod, UpdateVariable,
     UpdateControlMethod, UpdateFactor, UpdateEventType,
-    UpdateLocationType, UpdateDesign, UpdateLayoutType
+    UpdateLocationType, UpdateDesign, UpdateLayoutType, UpdateRecordGroupType, CreateRecordGroupType
 
 )
 from breedgraph.domain.model.ontology import VersionChange
@@ -209,6 +209,16 @@ async def create_design(_, info, design: dict) -> bool:
     await info.context['bus'].handle(cmd)
     return True
 
+@graphql_mutation.field("ontologyCreateRecordGroupType")
+@graphql_payload
+@require_authentication
+async def create_record_group_type(_, info, record_group_type: dict) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} creates record group type: {record_group_type}")
+    cmd = CreateRecordGroupType(agent_id=user_id, **record_group_type)
+    await info.context['bus'].handle(cmd)
+    return True
+
 @graphql_mutation.field("ontologyCreateLayoutType")
 @graphql_payload
 @require_authentication
@@ -359,6 +369,17 @@ async def update_design(_, info, design: dict) -> bool:
     logger.debug(f"User {user_id} updates design: {design}")
     design['ontology_entry_id'] = design.pop('id')
     cmd = UpdateDesign(agent_id=user_id, **design)
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("ontologyUpdateRecordGroupType")
+@graphql_payload
+@require_authentication
+async def update_record_group_type(_, info, record_group_type: dict) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} updates record groupt type: {record_group_type}")
+    record_group_type['ontology_entry_id'] = record_group_type.pop('id')
+    cmd = UpdateRecordGroupType(agent_id=user_id, **record_group_type)
     await info.context['bus'].handle(cmd)
     return True
 

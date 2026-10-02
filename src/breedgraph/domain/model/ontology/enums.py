@@ -78,6 +78,7 @@ class OntologyEntryLabel(EnumLabel):
     LOCATION_TYPE = "LocationType"
     LAYOUT_TYPE = "LayoutType"
     DESIGN = "Design"
+    RECORD_GROUP_TYPE = "RecordGroupType"
     ROLE = "Role"
     TITLE = "Title"
 
@@ -100,7 +101,8 @@ class OntologyEntryLabel(EnumLabel):
             cls.LAYOUT_TYPE: "LayoutTypes",
             cls.DESIGN: "Designs",
             cls.ROLE: "Roles",
-            cls.TITLE: "Titles"
+            cls.TITLE: "Titles",
+            cls.RECORD_GROUP_TYPE: "RecordGroupTypes"
         }
 
     @property
