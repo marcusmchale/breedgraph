@@ -222,6 +222,18 @@ type ControllersPayload {
     errors: [Error!]
 }
 
+type ControlTransferPayload {
+    status: QueryStatus!
+    result: ControlTransfer
+    errors: [Error!]
+}
+
+type ControlTransfersPayload {
+    status: QueryStatus!
+    result: [ControlTransfer!]
+    errors: [Error!]
+}
+
 type GermplasmEntriesPayload {
     status: QueryStatus!
     result: [GermplasmEntry!]

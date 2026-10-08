@@ -17,9 +17,12 @@ It applies to every controlled entity. Person adds one extra rule (§5); see `pe
 
 - **Control moves only with the agreement of both sides.**
   The side giving up control offers, and the side taking it accepts.
-- **The unit of transfer is an aggregate.**
-  All controlled models in the aggregate move together, e.g. a Program with its Trials and Studies.
-  Partial transfers would leave an aggregate split between teams.
+- **The unit of transfer is a controlled model, not an aggregate.**
+  Models within an aggregate have their own controls, e.g. a Trial may be controlled by a different team from its Program.
+  Transferring a Program moves control of the Program only; its Trials and Studies are managed independently.
+  To move several models together, list each of them in one transfer.
+- **Only the offering teams' control moves.**
+  Other teams controlling the same model keep their control.
 - **History is kept.** Old controls are ended, not deleted, and each transfer is recorded.
 
 ## 3. Explicit transfer
@@ -27,7 +30,7 @@ It applies to every controlled entity. Person adds one extra rule (§5); see `pe
 ```
 ControlTransfer
   id
-  entities            # aggregate roots: (label, id) pairs
+  entities            # controlled models: (label, id) pairs
   from_teams[]        # current control teams giving up control
   keep_from_teams     # true for shared control: from_teams keep control as well
   recipient_team      # chosen by the offering side, often an organisation root
@@ -50,7 +53,7 @@ ControlTransfer
 3. **Reject or cancel.** An admin of `recipient_team` rejects; an admin of `from_teams` cancels. Nothing changes. The offer is kept as a record.
 
 Checks at offer and at acceptance:
-- The entities still exist and are still controlled by `from_teams`.
+- The entities still exist and every team in `from_teams` controls each of them.
 - Entity-specific rules hold (§5), against the recipient team's organisation.
 
 Only admins of `recipient_team` can accept. Admins of teams below it see the offer only if they are also admins of `recipient_team`.
@@ -60,6 +63,12 @@ If the offering user is also an admin of `recipient_team`, they choose `to_teams
 The record shows the same user and time for offer and acceptance.
 
 Offers do not expire. They stay pending until accepted, rejected or cancelled.
+
+### Renouncing control
+
+A team can give up its control of a model without a transfer, when other teams also control it.
+An admin of the renouncing team ends its control. Nobody gains control, so no acceptance is needed.
+Renouncing is refused if it would leave the model with no control team.
 
 ## 4. Team structure changes
 
@@ -104,10 +113,15 @@ Rules are checked at offer and at acceptance. Initially:
 1. **Adding and ending controls.** `add_controls` and `end_controls` on the access control service.
    Ending appends a `Control` marked `ended`, so history is kept; a team controls an entity while its latest `Control` is not ended.
    Every query that reads controls ignores ended ones. At least one control team must remain.
-   These are primitives without authorisation checks; the transfer process authorises them.
+   These are private to the access control service; only transfers and renouncing use them.
 2. **Domain.** `ControlTransfer` model, commands `OfferControlTransfer`, `AcceptControlTransfer`, `RejectControlTransfer`, `CancelControlTransfer`, and the `ControlTransferOffered` event.
-3. **Persistence.** Repository and Cypher for transfers. Transactional apply on acceptance.
+3. **Service and handlers.** Transfers belong to the access control service, which owns controls, rather than a repository.
+   `offer_transfer`, `accept_transfer`, `reject_transfer`, `cancel_transfer`, `renounce_controls`, `get_transfer` and `get_transfers`.
+   The service supplies the user's admin teams and the recipient team's sub-tree to the domain model, writes each change directly,
+   and applies accepted transfers in the same transaction. Transfers are visible to admins of the recipient team or of a team giving up control.
+   Command handlers, and an event handler emailing the recipient team's admins.
 4. **Rules.** A hook for entity-specific checks (§5). The Person rule is added with Person.
 5. **Team structure.** Pending structure changes for split, merge and move. Refuse deletion of teams that control entities.
-6. **GraphQL.** Transfer queries (offers to teams I administer, offers from teams I administer) and mutations.
+6. **GraphQL.** Queries `controlsTransfers(statuses)` and `controlsTransfer(id)`, for transfers to or from teams the user administers.
+   Mutations `controlsOfferTransfer`, `controlsAcceptTransfer`, `controlsRejectTransfer`, `controlsCancelTransfer` and `controlsRenounceControl`.
 7. **Tests.** Offer and accept flows, immediate acceptance for admins on both sides, authorisation on each side, cancellation, shared control, team structure changes.

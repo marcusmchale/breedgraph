@@ -8,6 +8,8 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
 )
 
 from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control
+from breedgraph.domain.model.control_transfers import ControlTransferStored, ControlTransferStatus
+from breedgraph.custom_exceptions import NoResultFoundError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -21,7 +23,10 @@ controller = ObjectType("Controller")
 control = ObjectType("Control")
 write_stamp = ObjectType("WriteStamp")
 graphql_resolvers.register_type_resolvers(controller, control, write_stamp)
+control_transfer = ObjectType("ControlTransfer")
+graphql_resolvers.register_type_resolvers(control_transfer)
 graphql_resolvers.register_enums(EnumType("ControlledModelLabel", ControlledModelLabel))
+graphql_resolvers.register_enums(EnumType("ControlTransferStatus", ControlTransferStatus))
 
 @graphql_query.field("controlsControllers")
 @graphql_payload
@@ -72,3 +77,64 @@ async def resolve_created(obj: Controller, info):
 @controller.field("updated")
 async def resolve_updated(obj: Controller, info):
     return str(obj.updated)
+
+@graphql_query.field("controlsTransfers")
+@graphql_payload
+@require_authentication
+async def get_transfers(_, info, statuses: List[ControlTransferStatus] | None = None) -> List[ControlTransferStored]:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        return await uow.controls.get_transfers(statuses=statuses)
+
+@graphql_query.field("controlsTransfer")
+@graphql_payload
+@require_authentication
+async def get_transfer(_, info, id: int) -> ControlTransferStored:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        transfer = await uow.controls.get_transfer(id)
+    if transfer is None:
+        raise NoResultFoundError(f"Control transfer {id} not found")
+    return transfer
+
+async def _resolve_teams(info, team_ids):
+    await update_teams_map(context=info.context, team_ids=team_ids)
+    teams_map = info.context.get('teams_map', {})
+    return [teams_map.get(team_id) for team_id in team_ids if teams_map.get(team_id)]
+
+async def _resolve_user(info, user_id):
+    if user_id is None:
+        return None
+    await update_users_map(context=info.context, user_ids=[user_id])
+    return info.context.get('users_map', {}).get(user_id)
+
+@control_transfer.field("fromTeams")
+async def resolve_from_teams(obj: ControlTransferStored, info):
+    return await _resolve_teams(info, obj.from_teams)
+
+@control_transfer.field("toTeams")
+async def resolve_to_teams(obj: ControlTransferStored, info):
+    return await _resolve_teams(info, obj.to_teams)
+
+@control_transfer.field("recipientTeam")
+async def resolve_recipient_team(obj: ControlTransferStored, info):
+    teams = await _resolve_teams(info, [obj.recipient_team])
+    return teams[0] if teams else None
+
+@control_transfer.field("offeredBy")
+async def resolve_offered_by(obj: ControlTransferStored, info):
+    return await _resolve_user(info, obj.offered_by)
+
+@control_transfer.field("acceptedBy")
+async def resolve_accepted_by(obj: ControlTransferStored, info):
+    return await _resolve_user(info, obj.accepted_by)
+
+@control_transfer.field("rejectedBy")
+async def resolve_rejected_by(obj: ControlTransferStored, info):
+    return await _resolve_user(info, obj.rejected_by)
+
+@control_transfer.field("cancelledBy")
+async def resolve_cancelled_by(obj: ControlTransferStored, info):
+    return await _resolve_user(info, obj.cancelled_by)

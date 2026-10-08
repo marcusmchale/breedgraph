@@ -137,6 +137,12 @@ type Query {
         entityLabel: ControlledModelLabel!
         entityIds: [ID!]!
     ): ControllersPayload!
+    """ Control transfers offered to or from teams the user is an admin of """
+    controlsTransfers (
+        statuses: [ControlTransferStatus!]
+    ): ControlTransfersPayload!
+    """ Get a control transfer offered to or from a team the user is an admin of """
+    controlsTransfer (id: ID!): ControlTransferPayload!
     """Get a list of Germplasm entries"""
     germplasmEntries(
         ids: [ID!]

@@ -1,3 +1,39 @@
+input ControlledEntityInput {
+    label: ControlledModelLabel!
+    id: ID!
+}
+
+input ControlTransferOffer {
+    """Controlled models to transfer. Each is transferred alone, not with other models in its aggregate"""
+    entities: [ControlledEntityInput!]!
+    """Teams giving up control. The user must be an admin of each, and each must control every entity"""
+    fromTeamIds: [ID!]!
+    """The team offered control, e.g. the root of another organisation"""
+    recipientTeamId: ID!
+    """Keep control for the teams giving it, sharing control with the teams taking it"""
+    keepFromTeams: Boolean
+    """
+    Only when the user is also an admin of the recipient team: the teams taking control.
+    The transfer is then accepted immediately.
+    """
+    toTeamIds: [ID!]
+    """Only with toTeamIds: the release level of the new controls. Defaults to PRIVATE"""
+    release: ReadRelease
+}
+
 extend type Mutation {
     controlsSetRelease(entityLabel: ControlledModelLabel!, entityIds: [ID!]!, release: ReadRelease!): BooleanPayload!
+    """Offer control of controlled models to a recipient team"""
+    controlsOfferTransfer(offer: ControlTransferOffer!): BooleanPayload!
+    """
+    Accept a transfer offered to a team the user is an admin of.
+    toTeamIds must be the recipient team or teams below it, each administered by the user.
+    """
+    controlsAcceptTransfer(id: ID!, toTeamIds: [ID!]!, release: ReadRelease): BooleanPayload!
+    """Reject a transfer offered to a team the user is an admin of"""
+    controlsRejectTransfer(id: ID!): BooleanPayload!
+    """Cancel a pending transfer offered from teams the user is an admin of"""
+    controlsCancelTransfer(id: ID!): BooleanPayload!
+    """End the control of teams the user is an admin of, where other teams also control the entities"""
+    controlsRenounceControl(entities: [ControlledEntityInput!]!, teamIds: [ID!]!): BooleanPayload!
 }

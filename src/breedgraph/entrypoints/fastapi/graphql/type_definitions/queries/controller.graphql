@@ -32,3 +32,40 @@ type Controller {
     created: DateTime!
     updated: DateTime!
 }
+
+enum ControlTransferStatus { PENDING, ACCEPTED, REJECTED, CANCELLED }
+
+"""A controlled model. Transfers apply to the model itself, not to other models in its aggregate."""
+type ControlledEntity {
+    label: ControlledModelLabel!
+    id: ID!
+}
+
+"""
+An offer of control over controlled models, from teams that control them to a recipient team.
+Admins of the recipient team accept, choosing the teams that take control from the recipient team
+and the teams below it, and the release level.
+Visible to admins of the recipient team and of the teams giving up control.
+"""
+type ControlTransfer {
+    id: ID!
+    status: ControlTransferStatus!
+    entities: [ControlledEntity!]!
+    """Teams giving up control"""
+    fromTeams: [Team!]!
+    """True for shared control: the teams giving up control keep it as well"""
+    keepFromTeams: Boolean!
+    recipientTeam: Team
+    """Teams taking control, chosen on acceptance"""
+    toTeams: [Team!]!
+    """Release level of the new controls, chosen on acceptance"""
+    release: ReadRelease
+    offeredBy: UserDisplay
+    offeredAt: DateTime
+    acceptedBy: UserDisplay
+    acceptedAt: DateTime
+    rejectedBy: UserDisplay
+    rejectedAt: DateTime
+    cancelledBy: UserDisplay
+    cancelledAt: DateTime
+}
