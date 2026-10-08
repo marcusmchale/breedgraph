@@ -5,8 +5,6 @@ input TermInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    """People that established this entry (Person ID)"""
-    authorIds: [ID!]
     """References for additional details, (Reference ID) e.g. a link to another ontology."""
     referenceIds: [ID!]
     """
@@ -28,8 +26,6 @@ input TermInput {
     locationTypeIds: [ID!]
     layoutTypeIds: [ID!]
     designIds: [ID!]
-    roleIds: [ID!]
-    titleIds: [ID!]
     recordGroupTypeIds: [ID!]
 }
 
@@ -38,7 +34,6 @@ input SubjectInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -52,7 +47,6 @@ input TraitInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -65,7 +59,6 @@ input ConditionInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -77,7 +70,6 @@ input ScaleInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -94,7 +86,6 @@ input CategoryInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -110,7 +101,6 @@ input ObservationMethodInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -123,7 +113,6 @@ input VariableInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -139,7 +128,6 @@ input ControlMethodInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -153,7 +141,6 @@ input FactorInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -169,7 +156,6 @@ input EventInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -183,7 +169,6 @@ input LocationTypeInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -195,7 +180,6 @@ input DesignInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -208,7 +192,6 @@ input RecordGroupTypeInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -220,7 +203,6 @@ input LayoutTypeInput {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -234,7 +216,6 @@ input TermUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -251,8 +232,6 @@ input TermUpdate {
     locationTypeIds: [ID!]
     layoutTypeIds: [ID!]
     designIds: [ID!]
-    roleIds: [ID!]
-    titleIds: [ID!]
 }
 
 input SubjectUpdate {
@@ -261,7 +240,6 @@ input SubjectUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -274,7 +252,6 @@ input TraitUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -289,7 +266,6 @@ input ConditionUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -304,7 +280,6 @@ input ScaleUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -320,7 +295,6 @@ input CategoryUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -335,7 +309,6 @@ input ObservationMethodUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -350,7 +323,6 @@ input VariableUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -367,7 +339,6 @@ input ControlMethodUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -382,7 +353,6 @@ input FactorUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -399,7 +369,6 @@ input EventUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -415,7 +384,6 @@ input LocationTypeUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -428,7 +396,6 @@ input DesignUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -441,7 +408,6 @@ input RecordGroupTypeUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]
@@ -455,7 +421,6 @@ input LayoutTypeUpdate {
     description: String
     abbreviation: String
     synonyms: [String!]
-    authorIds: [ID!]
     referenceIds: [ID!]
     parentIds: [ID!]
     childIds: [ID!]

@@ -29,14 +29,6 @@ RETURN
 entry {
   .*,
   label: [label IN labels(entry) WHERE label <> 'OntologyEntry'][0],
-  authors: [
-      (author: Person)-[authored:AUTHORED]->(entry)
-      WHERE
-          authored.added < $version
-      AND
-          (authored.removed IS NULL OR authored.removed > $version)
-      | author.id
-  ],
   references: [
       (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
       WHERE

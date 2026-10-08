@@ -11,7 +11,7 @@ It gives them a stable identity for **attribution** ("who produced this data") w
 
 A Person is **not**:
 - an account. Accounts are Users. A User may be linked to one Person (see §6).
-- a way to contact someone. Contact goes through the platform to a linked User, or to a Team (see §4).
+- a way to contact someone directly. Messages to a contact go through the platform to the linked User (see §4).
 - a record of external or historical people such as literature authors or variety breeders. Those are cited through References (see §4).
 
 ## 2. Legal framing
@@ -123,8 +123,8 @@ Person remains an access-controlled model (`ControlledModel`) with the usual rel
 | `email`, `phone`, `mail` | Contact details belong to the User account, if anywhere. |
 | `description` | Free text tends to collect sensitive information. |
 | `fullname` | One `name` is enough for display. |
-| `titles` (and the `Title` ontology entry) | Not needed for attribution. |
-| `roles` | Moves to the contribution relationship (§4). The `Role` ontology entry stays. |
+| `titles` (and the `Title` ontology entry) | Not needed for attribution. The ontology entry is removed. |
+| `roles` (and the `Role` ontology entry) | Not needed for attribution, including on contributions. The ontology entry is removed. |
 | `locations` | Extra personal data; teams already give affiliation. |
 
 ### What viewers see
@@ -141,17 +141,36 @@ An erased Person shows as "Erased person" with its `id` to everyone who could se
 
 | Reference | Decision |
 |---|---|
-| `Dataset.contributors` | Keep. Becomes `(Person)-[:CONTRIBUTED_TO {role}]->(Dataset)`. `role` is a `Role` ontology entry, ideally following the CRediT contributor roles. |
-| `Program/Trial/Study.contact_ids` | A contact must be **contactable**: a Person linked to a User, or a Team. `(… )-[:HAS_CONTACT]->(Person|Team)`. Messages go through the platform. Email addresses are never shown. |
-| `OntologyEntry.authors` | External authors are cited through `references`. `authors` is either removed or limited to platform contributors. Check first whether the ontology's editorial history already records this. |
-| `GermplasmEntry.authors` | Replaced by `references`. |
+| `Dataset.contributors` | Keep, as `(Person)-[:CONTRIBUTED_TO]->(Dataset)` without a role. Resolved through `people_map`. |
+| `Program/Trial.contact_ids` | Resolved through `people_map`. Contacts are described below. |
+| `OntologyEntry.authors` | Removed. External authors are cited through `references`; contributors to the ontology are recorded by its edit history. |
+| `GermplasmEntry.authors` | Removed, cited through `references`. Older entries may keep an `authors` property, which is ignored. |
+
+### Contacts
+
+A contact is someone others can ask about a Program or Trial, by message through BreedGraph. To be listed as a contact, a Person:
+- is linked to a User, who receives the messages, and
+- has a release level at least that of the Program or Trial, and at least REGISTERED, so anyone who can see the Program can see the contact.
+  This is checked when contacts are set. If either release changes later, contacts the viewer cannot read are shown restricted (id only).
+
+The linked User can remove themselves as a contact.
+
+Messages are sent by BreedGraph to the linked User's email address, which the sender never sees:
+- Only registered users can send, and only to Persons listed as contacts of something they can read.
+- The sender's name is included, with their email address as reply-to; the sender is told it will be shared.
+- Messages are rate limited per sender, limited in length, and have no attachments.
+- Logs record that a message was sent, from whom and to whom, never its content.
+
+The User is told about messaging when they link the Person to their account (§6, Notes for front-end development).
+
+Contacts depend on linking Users to Persons (§6), so they are implemented with or after claiming.
 | `UserStored.person` | Becomes the `IS_PERSON` relationship, which is currently never saved. |
 
 ## 5. Erasure (tombstone)
 
 Erasing a Person:
 - clears `name`, `orcid` and `IN_TEAM` relationships, and sets `erased_at`.
-- keeps `id`, access controls, `basis` and provenance fields, and the `CONTRIBUTED_TO`, `HAS_CONTACT` and `AUTHORED` references to it.
+- keeps `id`, access controls, `basis` and provenance fields, and the `CONTRIBUTED_TO` and `HAS_CONTACT` references to it.
 - removes the `IS_PERSON` link.
 - appends the `id` to an **erasure log** (ids only, no personal data). After restoring a backup, erasures in the log are re-applied.
 
@@ -172,6 +191,15 @@ Two routes, both ending in a confirmed `IS_PERSON` link:
 
 1. **Invitation.** An invitation can name a `person_id`. Accepting the invitation is the claim, because the invitation token proves identity.
 2. **Request and approve.** A registered user asks to claim a Person. An admin of a team that controls the record approves or rejects it, as with affiliations.
+
+### Notes for front-end development
+
+When a user links a Person to their account (accepting an invitation that names a Person, or confirming a claim), tell them before they confirm:
+- Other users may message them through BreedGraph if the Person is listed as a contact on a Program or Trial.
+  Messages arrive at their account email address, which senders never see.
+- They can remove themselves as a contact, and unlink or erase the Person at any time.
+
+Show this as part of the confirmation step, not only in the privacy notice.
 
 ### Invitations replace allowed emails
 
@@ -253,7 +281,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 5. **GraphQL.** Done: `Person` type with `restricted` (id only) and `erased` flags, queries `people(name)`, `peoplePeople(ids)` and `peoplePerson(id)`, mutations `peopleCreatePerson`, `peopleUpdatePerson` and `peopleErasePerson`.
    `update_people_map` loads Persons by id into the request context; lookups by id return the id-only form to registered users without read access.
    Mutation resolvers log IDs and actions only.
-6. **References to Person.** Contributor roles on `CONTRIBUTED_TO`. Contacts as linked Person or Team. Ontology and germplasm authors to references. Resolve `contributors` and `contacts` through `people_map`.
+6. **References to Person.** Done: `contributors` and `contacts` resolve through `people_map`; ontology and germplasm `authors`, and the `Role` and `Title` ontology entries, are removed.
+   Contacts as described in §4, with the email endpoint, follow claiming (step 9).
 7. **Logging.** Stop logging Person payloads.
 8. **Invitations.** Replace allowed emails. Separate branch, done before claiming.
 9. **Claiming and subject rights.** `IS_PERSON` link, claim request/approve, subject-rights check in access control, account-deletion option.

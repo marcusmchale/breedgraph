@@ -34,7 +34,6 @@ class CreateGermplasm(Command):
     description: str | None = None
     synonyms: List[str] | None = None
 
-    author_ids: List[int] | None = None # internal person ID
     reference_ids: List[int] | None = None  # internal reference ID
 
     origin_id: int | None = None  # internal location
@@ -53,7 +52,6 @@ class UpdateGermplasm(Command):
     description: str | None = None
     synonyms: List[str] | None = None
 
-    author_ids: List[int] | None = None # internal person ID
     reference_ids: List[int] | None = None  # internal reference ID
 
     origin_id: int | None = None  # internal location

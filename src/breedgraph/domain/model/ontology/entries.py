@@ -25,7 +25,6 @@ class OntologyEntryBase(EnumLabeledModel, ABC):
     abbreviation: str | None = None # if provided, must be unique in lowercase (for a given label)
     description: str | None = None
     synonyms: List[str] = field(default_factory=list)  # these don't have to be unique
-    authors: List[int] = field(default_factory=list)  # internal person ID
     references: List[int] = field(default_factory=list)  # internal reference ID
 
     @property

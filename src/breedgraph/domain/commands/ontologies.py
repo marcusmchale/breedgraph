@@ -32,7 +32,6 @@ class CreateEntryBase(BaseModel):
     synonyms: List[str] | None = None
     description: str | None = None
 
-    author_ids: List[int] | None = None
     reference_ids: List[int] | None = None
     parent_ids: List[int] | None = None
     child_ids: List[int] | None = None
@@ -51,8 +50,6 @@ class CreateTerm(Command, CreateEntryBase):
     location_type_ids: List[int] | None = None
     layout_type_ids: List[int] | None = None
     design_ids: List[int] | None = None
-    role_ids: List[int] | None = None
-    title_ids: List[int] | None = None
     record_group_type_ids: List[int] | None = None
 
 class CreateSubject(Command, CreateEntryBase):

@@ -197,11 +197,6 @@ async def resolve_ontology_entries(context, entry_ids):
 async def resolve_version_id(obj, _):
     return obj.version.packed_version
 
-@ontology_node_interface.field("authors")
-async def resolve_authors(obj, info):
-    return []
-    #raise NotImplementedError
-
 @ontology_node_interface.field("references")
 async def resolve_references(obj, info):
     bus = info.context.get('bus')
@@ -289,14 +284,6 @@ async def resolve_term_layout_types(obj, info):
 @term.field("designs")
 async def resolve_term_designs(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.designs)
-
-@term.field("roles")
-async def resolve_term_roles(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.roles)
-
-@term.field("titles")
-async def resolve_term_titles(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.titles)
 
 
 # Subject-specific resolvers

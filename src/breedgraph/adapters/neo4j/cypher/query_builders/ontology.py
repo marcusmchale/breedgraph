@@ -38,17 +38,6 @@ def create_ontology_entry(label: OntologyEntryLabel):
         -[:FOR_ENTRY {{version: $version, time:  datetime.transaction()}}]->(entry)
       SET patch += $params
     }}
-    // Link authors
-    CALL (entry) {{
-      UNWIND $authors as author_id
-      MATCH (author: Person {{id: author_id}})
-      CREATE (author)-[authored:AUTHORED {{
-            time:datetime.transaction(),
-            added: $version
-        }}]->(entry)
-      RETURN
-        collect(author.id) as authors
-    }}
     // Link references 
     CALL (entry) {{
       UNWIND $references as ref_id
@@ -63,7 +52,6 @@ def create_ontology_entry(label: OntologyEntryLabel):
     RETURN entry {{
       .*,
       label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-      authors: authors,
       references: references
     }}
   """
@@ -251,14 +239,6 @@ def get_entries(
         entry {
             .*,
             label: [label IN labels(entry) WHERE label <> "OntologyEntry"][0],
-            authors: [
-                (author: Person)-[authored:AUTHORED]->(entry)
-                WHERE
-                    authored.added <= $version
-                AND 
-                    (authored.removed IS NULL OR authored.removed > $version)
-                | author.id
-            ],
             references: [
                 (reference: Reference)-[ref_for:REFERENCE_FOR]->(entry)
                 WHERE

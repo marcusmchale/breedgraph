@@ -21,7 +21,6 @@ async def create_germplasm_entry(
             name=cmd.name,
             description=cmd.description,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or [],
             origin=cmd.origin_id,
             time=cmd.time,
@@ -59,8 +58,6 @@ async def update_germplasm_entry(
             entry.description = cmd.description
         if cmd.synonyms is not None and not set(cmd.synonyms) == set(entry.synonyms):
             entry.synonyms = cmd.synonyms
-        if cmd.author_ids is not None and not set(cmd.author_ids) == set(entry.authors):
-            entry.authors = cmd.author_ids
         if cmd.reference_ids is not None and not set(cmd.reference_ids) == set(entry.references):
             entry.references = cmd.reference_ids
         if cmd.origin_id is not None and not cmd.origin_id == entry.origin:

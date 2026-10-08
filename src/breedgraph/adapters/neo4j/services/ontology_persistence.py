@@ -100,13 +100,11 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         version = await self.get_current_version()
         params = entry.model_dump()
         params['name_lower'] = params['name'].casefold()
-        authors = params.pop('authors')
         references = params.pop('references')
         query = ontology.create_ontology_entry(entry.label)
         result = await self.tx.run(
             query=query,
             params=params,
-            authors=authors,
             references=references,
             user_id=user_id,
             version=version.packed_version
@@ -134,9 +132,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         if 'name' in diff:
             diff['name_lower'] = diff['name'].casefold()
 
-        diff.pop('authors', None)
-        authors_added = list(set(entry.authors) - set(stored_entry.authors))
-        authors_removed = list(set(stored_entry.authors) - set(entry.authors))
         diff.pop('references', None)
         references_added = list(set(entry.references) - set(stored_entry.references))
         references_removed = list(set(stored_entry.references) - set(entry.references))
@@ -147,9 +142,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             query=query,
             entry_id=entry.id,
             params=diff,
-            authors_added=authors_added,
             references_added=references_added,
-            authors_removed=authors_removed,
             references_removed=references_removed,
             user_id=user_id,
             version=version.packed_version

@@ -40,8 +40,6 @@ input GermplasmInput {
     Control methods (referenced in the ontology) to provide further details about how this germplasm is maintained
     """
     controlMethodIds: [ID!]
-    """Authors of this germplasm entry (A list of personId)"""
-    authorIds: [ID!] = []
     """References for ths germplasm entry (A list of referenceId)"""
     referenceIds: [ID!] = []
     """Source relationships"""
@@ -57,7 +55,6 @@ input GermplasmUpdate {
     time: DateTime
     reproduction: Reproduction
     controlMethodIds: [ID!]
-    authorIds: [ID!] = []
     referenceIds: [ID!] = []
     sources: [GermplasmSourceRelationship!]
 }

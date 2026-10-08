@@ -23,7 +23,6 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
             name=entry.name,
             description=entry.description,
             synonyms=entry.synonyms,
-            authors=entry.authors,
             references=entry.references,
             origin=entry.origin,
             time=entry.time,

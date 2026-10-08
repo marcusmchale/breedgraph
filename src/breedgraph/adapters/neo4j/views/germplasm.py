@@ -29,6 +29,7 @@ class Neo4jGermplasmView(AbstractGermplasmView):
     def record_to_output(record) -> GermplasmEntryOutput:
         entry = record["entry"]
         entry.pop("name_lower", None)
+        entry.pop('authors', None)  # no longer stored, may remain on older entries
         entry['sources'] = [GermplasmRelationshipOutput(**rel) for rel in entry.get('sources', [])]
         entry['sinks'] = [GermplasmRelationshipOutput(**rel) for rel in entry.get('sinks', [])]
         return GermplasmEntryOutput(**entry)

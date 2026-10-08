@@ -8,17 +8,6 @@ CALL (entry) {
     -[:FOR_ENTRY {version: $version, time:  datetime.transaction()}]->(entry)
   SET patch += $params
 }
-// Update authors
-CALL (entry) {
-  MATCH (author: Person)
-  WHERE author.id IN $authors_added
-  CREATE (author)-[:AUTHORED {added: $version}]->(entry)
-}
-CALL (entry) {
-  MATCH (author: Person)-[authored:AUTHORED]->(entry)
-  WHERE author.id IN $authors_removed
-  SET authored.removed = $version
-}
 // Update references
 CALL (entry) {
   MATCH (reference: Reference)
