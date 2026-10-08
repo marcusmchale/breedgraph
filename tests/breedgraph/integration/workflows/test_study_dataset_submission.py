@@ -92,3 +92,11 @@ async def test_submit_datasets_with_shared_grouping_scopes(
         dataset_ids={dataset1_id, dataset2_id}
     )
     await bus.handle(merge_scope_cmd)
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(grouping_id=replicate_grouping_id)
+        grouping = program.get_study(grouping_id=replicate_grouping_id).get_grouping(grouping_id=replicate_grouping_id)
+        assert any(
+            {dataset1_id, dataset2_id}.issubset(set(scope.dataset_ids))
+            for scope in grouping.dataset_scopes
+        )

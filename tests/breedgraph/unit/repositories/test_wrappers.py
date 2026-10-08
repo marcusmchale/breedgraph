@@ -13,6 +13,9 @@ class SimpleModel:
     def __hash__(self):
         return hash(self.id)
 
+    def rename(self, name: str):
+        self.name = name
+
 @dataclass
 class ComplexModel:
     str_value: str = 'Test Model'
@@ -21,6 +24,16 @@ class ComplexModel:
     list_model: List[SimpleModel] = field(default_factory = lambda: [SimpleModel()])
     dict_int_str: Dict[int, str] = field(default_factory = lambda: {1: 'a'})
     dict_int_model: Dict[int, SimpleModel] = field(default_factory= lambda: {1: SimpleModel()})
+
+    def set_int_value(self, value: int):
+        self.int_value = value
+
+    def replace_list_int(self, values: List[int]):
+        self.list_int = values
+
+    @property
+    def doubled(self) -> int:
+        return self.int_value * 2
 
 
 @pytest.mark.asyncio
@@ -173,3 +186,42 @@ async def test_tracked_dict_change_model():
     assert not tracked_model.changed
     assert not tracked_model.dict_int_model.changed
     assert not tracked_model.dict_int_model[1].changed
+
+
+@pytest.mark.asyncio
+async def test_method_attribute_change():
+    tracked_model = tracked(ComplexModel())
+    tracked_model.set_int_value(5)
+    assert 'int_value' in tracked_model.changed
+    assert tracked_model.int_value == 5
+    assert tracked_model.__wrapped__.int_value == 5
+
+@pytest.mark.asyncio
+async def test_method_unchanged_value_is_not_a_change():
+    tracked_model = tracked(ComplexModel())
+    tracked_model.set_int_value(tracked_model.int_value)
+    assert not tracked_model.changed
+
+@pytest.mark.asyncio
+async def test_method_replaced_list_is_tracked():
+    tracked_model = tracked(ComplexModel())
+    tracked_model.replace_list_int([7, 8])
+    assert 'list_int' in tracked_model.changed
+
+    tracked_model.reset_tracking()
+    tracked_model.list_int.append(9)
+    assert 'list_int' in tracked_model.changed
+    assert tracked_model.list_int == [7, 8, 9]
+
+@pytest.mark.asyncio
+async def test_method_on_nested_model_change():
+    tracked_model = tracked(ComplexModel())
+    tracked_model.list_model[0].rename('Renamed')
+    assert 'list_model' in tracked_model.changed
+    assert tracked_model.list_model[0].name == 'Renamed'
+
+@pytest.mark.asyncio
+async def test_properties_through_proxy():
+    tracked_model = tracked(ComplexModel())
+    assert tracked_model.doubled == 2
+    assert not tracked_model.changed
