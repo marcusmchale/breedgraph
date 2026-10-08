@@ -322,6 +322,6 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    9b, done: contacts and messaging (§4).
    Still to do: the account-deletion option, once account deletion exists.
 10. **ORCID linking.** Routes, config and constraint from §6.
-11. **Privacy notice and data processing terms.** Draft text describing what is stored, why, retention and erasure, for the DPO to finalise.
+11. **Privacy notice and data processing terms.** Drafted for the DPO: `docs/legal/privacy-notice.md` and `docs/legal/data-processing-terms.md`, each ending with the questions to settle.
 
 Tests accompany each step: repository, handlers, then GraphQL end-to-end covering each viewer type in §3 and erasure.
