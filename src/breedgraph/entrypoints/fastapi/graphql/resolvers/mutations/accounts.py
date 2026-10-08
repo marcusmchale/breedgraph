@@ -39,7 +39,7 @@ async def create_account(
         email: str,
         password: str
 ) -> bool:
-    logger.debug(f"Add account: {name}")
+    logger.debug("Add account")
     password_policy = config.get_password_policy()
     password_errors = password_policy.test(password)
     if password_errors:
@@ -66,7 +66,7 @@ async def request_change_password(
         info,
         email: str
 ) -> bool:
-    logger.debug(f"Request change password for email: {email}")
+    logger.debug("Request change password")
     await info.context['bus'].handle(PasswordChangeRequested(email=email))
     return True
 
@@ -112,7 +112,7 @@ async def login(
         username: str,
         password: str
 ) -> bool:
-    logger.debug(f"Log in: {username}")
+    logger.debug("Log in")
     fail_message = "Invalid username or password"
 
     brute_force_service = info.context.get('brute_force_service')
@@ -247,7 +247,7 @@ async def verify_email(
 @require_authentication
 async def add_email(_, info, email: str) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Add email ({email}) to allowed emails for user {user_id}")
+    logger.debug(f"Add email to allowed emails for user {user_id}")
     await info.context['bus'].handle(AddEmail(user_id=user_id, email=email))
     return True
 
@@ -256,7 +256,7 @@ async def add_email(_, info, email: str) -> bool:
 @require_authentication
 async def remove_email(_, info, email: str) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Remove email ({email}) from allowed emails for user {user_id}")
+    logger.debug(f"Remove email from allowed emails for user {user_id}")
     await info.context['bus'].handle(RemoveEmail(user_id=user_id, email=email))
     return True
 

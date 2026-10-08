@@ -33,7 +33,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
         return account
 
     async def _create_user(self, user: UserInput) -> UserStored:
-        logger.debug(f"Create user: {user}")
+        logger.debug("Create user")
         props = user.model_dump()
         props['name_lower'] = user.name.casefold()
         props['email_lower'] = user.email.casefold()

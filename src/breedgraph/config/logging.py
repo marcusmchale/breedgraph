@@ -8,7 +8,8 @@ class Environment(Enum):
     DEVELOPMENT = "development"
 
 ENVIRONMENT = Environment(os.environ.get('ENVIRONMENT', 'production'))  # or "development
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')
+# Debug logs may include query parameters from libraries, so they are only the default in development
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG' if ENVIRONMENT is Environment.DEVELOPMENT else 'INFO')
 BASE_PATH = Path(os.environ.get('LOG_BASE', '.'))
 BREEDGRAPH_LOG = BASE_PATH / os.environ.get('BREEDGRAPH_LOG', 'breedgraph.log')
 GRAPHQL_LOG = BASE_PATH / os.environ.get('GRAPHQL_LOG', 'graphql.log')

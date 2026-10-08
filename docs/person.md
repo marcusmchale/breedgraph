@@ -283,7 +283,10 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Mutation resolvers log IDs and actions only.
 6. **References to Person.** Done: `contributors` and `contacts` resolve through `people_map`; ontology and germplasm `authors`, and the `Role` and `Title` ontology entries, are removed.
    Contacts as described in §4, with the email endpoint, follow claiming (step 9).
-7. **Logging.** Stop logging Person payloads.
+7. **Logging.** Done: the message bus logs commands and events as their name and ID fields (`service_layer/log_safety.py`); validation errors are logged without input values;
+   the auth token and request context, user records, account names, emails and login usernames are no longer logged at debug level.
+   `LOG_LEVEL` defaults to `INFO` unless `ENVIRONMENT=development`, as library debug logs (e.g. Neo4j query parameters) may contain personal data.
+   Usernames of locked-out login attempts are still logged as warnings, for security monitoring; the privacy notice should say so.
 8. **Invitations.** Replace allowed emails. Separate branch, done before claiming.
 9. **Claiming and subject rights.** `IS_PERSON` link, claim request/approve, subject-rights check in access control, account-deletion option.
 10. **ORCID linking.** Routes, config and constraint from §6.
