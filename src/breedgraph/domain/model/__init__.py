@@ -4,6 +4,7 @@ from .arrangements import *
 from .authentication import *
 from .blocks import *
 from .controls import *
+from .control_transfers import *
 from .datasets import *
 from .errors import *
 from .germplasm import *

@@ -11,6 +11,7 @@ from . import (
     datasets,
     programs,
     controls,
+    control_transfers,
     germplasm,
     references,
     analysis,
