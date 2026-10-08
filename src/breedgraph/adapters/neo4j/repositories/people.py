@@ -11,7 +11,7 @@ from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRep
 from typing import AsyncGenerator, List
 
 from breedgraph.domain.model.people import PersonInput, PersonStored, LawfulBasis
-from breedgraph.domain.model.controls import DiscoveryMatch, Controller, Access
+from breedgraph.domain.model.controls import DiscoveryMatch, Controller, Access, ControlledModelLabel
 from breedgraph.domain.model.time_descriptors import deserialize_time
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,11 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             return True
         return person.erased and is_admin
 
-    async def   _linked_user(self, person_id: int) -> int | None:
+    async def get_linked_user(self, person_id: int) -> int | None:
+        """The account linked to a Person, for sending messages without revealing it"""
+        return await self._linked_user(person_id)
+
+    async def _linked_user(self, person_id: int) -> int | None:
         result = await self.tx.run(queries['people']['get_person'], person_id=person_id)
         record = await result.single()
         return record['person']['user'] if record else None
@@ -169,3 +173,21 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             {'person_id': record['person_id'], 'time': deserialize_time(record['time'])}
             async for record in result
         ]
+
+    async def get_contact_status(self, person_ids) -> dict[int, dict]:
+        """Whether Persons exist, are linked to an account, and are erased. Reveals no personal data."""
+        result = await self.tx.run(queries['people']['get_contact_status'], person_ids=list(person_ids))
+        return {record['person_id']: record.data() async for record in result}
+
+    async def get_contact_entities(self, person_id: int) -> list[tuple[ControlledModelLabel, int]]:
+        """Programs and Trials listing the Person as a contact"""
+        result = await self.tx.run(queries['people']['get_contact_entities'], person_id=person_id)
+        return [(ControlledModelLabel(record['label']), record['id']) async for record in result]
+
+    async def remove_contact(self, person_id: int, label: ControlledModelLabel, entity_id: int) -> bool:
+        """Remove the Person as a contact of a Program or Trial. The caller authorises the change."""
+        result = await self.tx.run(
+            queries['people']['remove_contact'], person_id=person_id, label=label.value, entity_id=entity_id
+        )
+        record = await result.single()
+        return bool(record and record['removed'])

@@ -340,6 +340,9 @@ class RedisStateStore(AbstractStateStore):
 
     """ Brute force protection state """
 
+    async def _increment_counter(self, key: str) -> int:
+        return await self.connection.incr(key)
+
     async def _increment_failed_logins(self, attempts_key: str) -> int:
         attempts = await self.connection.incr(attempts_key)
         return attempts

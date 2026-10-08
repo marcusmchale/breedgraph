@@ -1,9 +1,10 @@
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.people import (
     CreatePerson, UpdatePerson, ErasePerson,
-    RequestPersonClaim, WithdrawPersonClaim, ApprovePersonClaim, RejectPersonClaim, UnlinkPerson
+    RequestPersonClaim, WithdrawPersonClaim, ApprovePersonClaim, RejectPersonClaim, UnlinkPerson,
+    RemoveSelfAsContact, ContactPerson
 )
-from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 
 import logging
 logger = logging.getLogger(__name__)
@@ -105,4 +106,37 @@ async def unlink_person(_, info, person_id: int) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} unlinks Person {person_id}")
     await info.context['bus'].handle(UnlinkPerson(agent_id=user_id, person_id=person_id))
+    return True
+
+@graphql_mutation.field("peopleRemoveSelfAsContact")
+@graphql_payload
+@require_authentication
+async def remove_self_as_contact(_, info, entity_label: ControlledModelLabel, entity_id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} removes themselves as a contact of {entity_label.value} {entity_id}")
+    await info.context['bus'].handle(RemoveSelfAsContact(agent_id=user_id, entity_label=entity_label, entity_id=entity_id))
+    return True
+
+@graphql_mutation.field("peopleContactPerson")
+@graphql_payload
+@require_authentication
+async def contact_person(
+        _,
+        info,
+        person_id: int,
+        entity_label: ControlledModelLabel,
+        entity_id: int,
+        subject: str,
+        message: str
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} messages Person {person_id}")
+    await info.context['bus'].handle(ContactPerson(
+        agent_id=user_id,
+        person_id=person_id,
+        entity_label=entity_label,
+        entity_id=entity_id,
+        subject=subject,
+        message=message
+    ))
     return True

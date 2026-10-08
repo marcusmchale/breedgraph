@@ -163,7 +163,11 @@ Messages are sent by BreedGraph to the linked User's email address, which the se
 
 The User is told about messaging when they link the Person to their account (§6, Notes for front-end development).
 
-Contacts depend on linking Users to Persons (§6), so they are implemented with or after claiming.
+Implemented in step 9b:
+- Program and Trial handlers check contacts when they are added: each must exist, not be erased, be linked, and meet the release rule.
+- `peopleRemoveSelfAsContact(entityLabel, entityId)` removes the user's Person as a contact.
+- `peopleContactPerson(personId, entityLabel, entityId, subject, message)` sends a message about a Program or Trial the sender can read, to a Person listed as its contact.
+  `MESSAGE_RATE_LIMIT_PER_HOUR` (default 10), `MESSAGE_MAX_LENGTH` (5000) and `MESSAGE_SUBJECT_MAX_LENGTH` (200) apply; the rate is counted in Redis per sender.
 | `UserStored.person` | Becomes the `IS_PERSON` relationship, which is currently never saved. |
 
 ## 5. Erasure (tombstone)
@@ -315,7 +319,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Existing data is not migrated; the development database is flushed.
 9. **Claiming and subject rights.** Done: linking through invitations and through requests approved by admins, unlinking, and the linked user's rights from step 1.
    Person changes are stored field by field, so changes stored from the id-only form, such as a request, do not overwrite the record.
-   Still to do: 9b, contacts and messaging (§4); and the account-deletion option, once account deletion exists.
+   9b, done: contacts and messaging (§4).
+   Still to do: the account-deletion option, once account deletion exists.
 10. **ORCID linking.** Routes, config and constraint from §6.
 11. **Privacy notice and data processing terms.** Draft text describing what is stored, why, retention and erasure, for the DPO to finalise.
 

@@ -3,6 +3,10 @@ input ProgramInput {
     name: String!
     fullname: String
     description: String
+    """
+    Persons to contact about this. Each must be linked to an account, and released to at least the
+    release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
+    """
     contactIds: [ID!] = []
     referenceIds: [ID!] = []
 }
@@ -12,6 +16,10 @@ input ProgramUpdate {
     name: String
     fullname: String
     description: String
+    """
+    Persons to contact about this. Each must be linked to an account, and released to at least the
+    release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
+    """
     contactIds: [ID!]
     referenceIds: [ID!]
 }
@@ -24,6 +32,10 @@ input TrialInput {
     description: String
     start: DateTime
     end: DateTime
+    """
+    Persons to contact about this. Each must be linked to an account, and released to at least the
+    release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
+    """
     contactIds: [ID!] = []
     referenceIds: [ID!] = []
 }
@@ -35,6 +47,10 @@ input TrialUpdate {
     description: String
     start: DateTime
     end: DateTime
+    """
+    Persons to contact about this. Each must be linked to an account, and released to at least the
+    release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
+    """
     contactIds: [ID!]
     referenceIds: [ID!]
 }

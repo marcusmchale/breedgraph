@@ -8,7 +8,12 @@ from breedgraph.custom_exceptions import (
     UnauthorisedOperationError
 )
 
-from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
+from breedgraph.service_layer.infrastructure import (
+    AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractNotifications, AbstractStateStore
+)
+from breedgraph.service_layer.infrastructure.notifications import email_templates
+from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph import config
 
 from ..registry import handlers
 
@@ -177,3 +182,73 @@ async def unlink_person(
         controller, admin_teams = await _admin_context(uow, person)
         person.unlink(cmd.agent_id, controller, admin_teams)
         await uow.commit()
+
+
+@handlers.command_handler()
+async def remove_self_as_contact(
+        cmd: commands.people.RemoveSelfAsContact,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await uow.repositories.people.get(user_id=cmd.agent_id)
+        if person is None:
+            raise NoResultFoundError("Your account is not linked to a Person")
+        if not await uow.repositories.people.remove_contact(person.id, cmd.entity_label, cmd.entity_id):
+            raise NoResultFoundError(f"You are not a contact of {cmd.entity_label.value} {cmd.entity_id}")
+        await uow.commit()
+
+
+async def _entity_name(uow: AbstractUnitHolder, label: ControlledModelLabel, entity_id: int) -> str:
+    if label is ControlledModelLabel.PROGRAM:
+        program = await uow.repositories.programs.get(program_id=entity_id)
+        return f"the program {program.name}"
+    program = await uow.repositories.programs.get(trial_id=entity_id)
+    return f"the trial {program.get_trial(entity_id).name}"
+
+
+@handlers.command_handler()
+async def contact_person(
+        cmd: commands.people.ContactPerson,
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore,
+        notifications: AbstractNotifications
+):
+    """
+    Send a message to a contact of a Program or Trial the sender can read.
+    The recipient's email address is never revealed; the sender's is given as reply-to.
+    """
+    subject = ' '.join((cmd.subject or '').split())
+    message = (cmd.message or '').strip()
+    if not subject or not message:
+        raise IllegalOperationError("A subject and message are required")
+    if len(subject) > config.MESSAGE_SUBJECT_MAX_LENGTH or len(message) > config.MESSAGE_MAX_LENGTH:
+        raise IllegalOperationError(
+            f"Subjects are limited to {config.MESSAGE_SUBJECT_MAX_LENGTH} and messages to {config.MESSAGE_MAX_LENGTH} characters"
+        )
+    if cmd.entity_label not in (ControlledModelLabel.PROGRAM, ControlledModelLabel.TRIAL):
+        raise IllegalOperationError("Contacts are listed on Programs and Trials")
+    sent = await state_store.increment_rate_counter(f"contact:{cmd.agent_id}", window_seconds=3600)
+    if sent > config.MESSAGE_RATE_LIMIT_PER_HOUR:
+        raise IllegalOperationError("You have reached the limit of messages per hour, please try again later")
+
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        if (cmd.entity_label, cmd.entity_id) not in await uow.repositories.people.get_contact_entities(cmd.person_id):
+            raise NoResultFoundError(f"Person {cmd.person_id} is not a contact of {cmd.entity_label.value} {cmd.entity_id}")
+        controller = await uow.controls.get_controller(cmd.entity_label, cmd.entity_id)
+        if not controller.has_access(Access.READ, cmd.agent_id, uow.controls.access_teams[Access.READ]):
+            raise NoResultFoundError(f"{cmd.entity_label.value} {cmd.entity_id} not found")
+        recipient_id = await uow.repositories.people.get_linked_user(cmd.person_id)
+        if recipient_id is None:
+            raise IllegalOperationError(f"Person {cmd.person_id} is not linked to an account, so cannot be messaged")
+        sender = await uow.repositories.accounts.get(user_id=cmd.agent_id)
+        recipient = await uow.repositories.accounts.get(user_id=recipient_id)
+        about = await _entity_name(uow, cmd.entity_label, cmd.entity_id)
+
+    await notifications.send([recipient.user], email_templates.ContactMessage(
+        sender=sender.user,
+        sender_email=sender.user.email,
+        about=about,
+        subject=subject,
+        message=message
+    ))
+    logger.info(f"User {cmd.agent_id} messaged Person {cmd.person_id} about {cmd.entity_label.value} {cmd.entity_id}")

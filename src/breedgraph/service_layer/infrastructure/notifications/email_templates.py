@@ -19,6 +19,26 @@ class Email:
         self.message = EmailMessage()
 
 
+class ContactMessage(Email):
+    """A message to a contact. Replies go to the sender, who was told their address is shared."""
+
+    def __init__(self, sender: UserBase, sender_email: str, about: str, subject: str, message: str):
+        super().__init__()
+        # Header values cannot contain line breaks
+        subject = ' '.join(subject.split())
+        self.message['Subject'] = f'{SITE_NAME}: {subject}'
+        self.message['Reply-To'] = sender_email
+        body = (
+            f'{sender.fullname} sent you a message through {SITE_NAME}, as a contact for {about}:\n\n'
+            f'{message}\n\n'
+            f'---\n'
+            f'Replying to this email sends your reply, and your email address, to {sender.fullname}.\n'
+            f'Your email address has not been shared with them otherwise. '
+            f'You can remove yourself as a contact at {PROTOCOL}://{HOST_ADDRESS}.'
+        )
+        self.message.set_content(body)
+
+
 class PersonClaimRequestedMessage(Email):
 
     def __init__(self, requesting_user: UserBase, person_id: int):

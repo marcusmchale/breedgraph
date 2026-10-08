@@ -1,4 +1,4 @@
-from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 from breedgraph.domain.model.people import LawfulBasis
 
 from .base import Command
@@ -57,3 +57,20 @@ class RejectPersonClaim(Command):
 class UnlinkPerson(Command):
     agent_id: int
     person_id: int
+
+
+class RemoveSelfAsContact(Command):
+    """The linked user removes their Person as a contact of a Program or Trial"""
+    agent_id: int
+    entity_label: ControlledModelLabel
+    entity_id: int
+
+
+class ContactPerson(Command):
+    """Send a message to a contact of a Program or Trial the sender can read"""
+    agent_id: int
+    person_id: int
+    entity_label: ControlledModelLabel
+    entity_id: int
+    subject: str
+    message: str

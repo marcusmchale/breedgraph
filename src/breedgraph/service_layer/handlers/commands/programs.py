@@ -8,17 +8,42 @@ from breedgraph.domain.model.programs import (
     DatasetScope,
     RecordGroupingInput
 )
-from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
-    UnauthorisedOperationError, ProtectedNodeError
+    UnauthorisedOperationError, ProtectedNodeError, IllegalOperationError
 )
 
 from ..registry import handlers
 
 import logging
 logger = logging.getLogger(__name__)
+
+async def _verify_contacts(uow, person_ids, release: ReadRelease) -> None:
+    """
+    A contact is a Person linked to an account, so it can be messaged, and visible wherever the Program or Trial is:
+    its release is at least that of the Program or Trial, and at least REGISTERED. See docs/person.md §4.
+    If either release changes later, contacts the viewer cannot read are shown with their id only.
+    """
+    person_ids = sorted(set(person_ids or []))
+    if not person_ids:
+        return
+    statuses = await uow.repositories.people.get_contact_status(person_ids)
+    for person_id in person_ids:
+        status = statuses.get(person_id)
+        if status is None or not status['exists'] or status['erased']:
+            raise NoResultFoundError(f"Person {person_id} not found")
+        if not status['linked']:
+            raise IllegalOperationError(f"Person {person_id} is not linked to an account, so cannot be a contact")
+    minimum_release = max(release, ReadRelease.REGISTERED)
+    controllers = await uow.controls.get_controllers(ControlledModelLabel.PERSON, person_ids)
+    for person_id in person_ids:
+        if controllers[person_id].release < minimum_release:
+            raise IllegalOperationError(
+                f"Person {person_id} must be released to at least {minimum_release.name} to be a contact"
+            )
+
 
 # Program Handlers
 @handlers.command_handler()
@@ -31,6 +56,7 @@ async def create_program(
         existing_program = await uow.repositories.programs.get(name=cmd.name)
         if existing_program is not None:
             raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
+        await _verify_contacts(uow, cmd.contact_ids, cmd.release)
 
         program = ProgramInput(
             name=cmd.name,
@@ -66,6 +92,8 @@ async def update_program(
         if cmd.description is not None:
             program.description = cmd.description
         if cmd.contact_ids is not None:
+            controller = await uow.controls.get_controller(ControlledModelLabel.PROGRAM, program.id)
+            await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids), controller.release)
             program.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
             program.reference_ids = cmd.reference_ids
@@ -96,6 +124,7 @@ async def create_trial(
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
+        await _verify_contacts(uow, cmd.contact_ids, cmd.release)
 
         trial = TrialInput(
             name=cmd.name,
@@ -135,6 +164,8 @@ async def update_trial(
         if cmd.end is not None:
             trial.end = cmd.end
         if cmd.contact_ids is not None:
+            controller = await uow.controls.get_controller(ControlledModelLabel.TRIAL, trial.id)
+            await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids), controller.release)
             trial.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
             trial.reference_ids = cmd.reference_ids

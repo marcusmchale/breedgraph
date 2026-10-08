@@ -51,4 +51,19 @@ extend type Mutation {
     peopleRejectClaim(personId: ID!, userId: ID!): BooleanPayload!
     """ Remove the link between a Person and an account. By the linked user or admins of its controlling teams """
     peopleUnlinkPerson(personId: ID!): BooleanPayload!
+    """ Stop being a contact of a Program or Trial. By the user linked to the contact Person """
+    peopleRemoveSelfAsContact(entityLabel: ControlledModelLabel!, entityId: ID!): BooleanPayload!
+    """
+    Send a message to a contact of a Program or Trial the sender can read (entityLabel PROGRAM or TRIAL).
+    BreedGraph emails the linked user without revealing their address. The sender's name and email address
+    are included, so the recipient can reply: tell the sender this before sending.
+    Messages are rate limited per sender and limited in length.
+    """
+    peopleContactPerson(
+        personId: ID!
+        entityLabel: ControlledModelLabel!
+        entityId: ID!
+        subject: String!
+        message: String!
+    ): BooleanPayload!
 }

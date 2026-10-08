@@ -455,6 +455,18 @@ class AbstractStateStore(ABC):
     Identifier can be either user_id or IP address
     """
 
+    async def increment_rate_counter(self, key: str, window_seconds: int) -> int:
+        """Count an action in a fixed window starting at its first occurrence, e.g. to rate limit messages"""
+        counter_key = f"rate:{key}"
+        count = await self._increment_counter(counter_key)
+        if count == 1:
+            await self._set_expiry(counter_key, window_seconds)
+        return count
+
+    @abstractmethod
+    async def _increment_counter(self, key: str) -> int:
+        ...
+
     async def record_failed_login(self, identifier: str, duration_seconds: int) -> int:
         attempts_key = f"login_attempts:{identifier}"
         attempts = await self._increment_failed_logins(attempts_key)
