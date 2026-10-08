@@ -14,7 +14,8 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     update_ontology_map,
     update_units_map,
     update_locations_map,
-    update_reference_map
+    update_reference_map,
+    resolve_people
 )
 
 from typing import List
@@ -28,8 +29,9 @@ dataset = ObjectType("Dataset")
 record = ObjectType("Record")
 dataset_submission = ObjectType("DatasetSubmission")
 dataset_summary = ObjectType("DatasetSummary")
+submitted_data = ObjectType("SubmittedData")
 
-graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, dataset_summary)
+graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, dataset_summary, submitted_data)
 
 """Datasets resolver"""
 @graphql_query.field("datasets")
@@ -158,3 +160,11 @@ async def resolve_summary_blocks(obj, info):
     await update_units_map(info.context, unit_ids=obj.block_ids)
     units_map = info.context.get('units_map')
     return [units_map.get(unit_id) for unit_id in obj.block_ids]
+
+@dataset.field("contributors")
+async def resolve_contributors(obj, info):
+    return await resolve_people(info.context, obj.contributors)
+
+@submitted_data.field("contributors")
+async def resolve_submitted_contributors(obj: dict, info):
+    return await resolve_people(info.context, obj.get('contributor_ids'))

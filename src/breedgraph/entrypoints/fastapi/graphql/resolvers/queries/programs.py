@@ -8,7 +8,8 @@ from breedgraph.domain.model import LegalReferenceStored
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
-    update_reference_map
+    update_reference_map,
+    resolve_people
 )
 from breedgraph.domain.model.programs import ProgramOutput, TrialOutput, StudyOutput
 
@@ -140,3 +141,11 @@ async def resolve_type(obj, info) -> RecordGroupTypeOutput:
     await update_ontology_map(context = info.context, entry_ids=[obj.type], view=OntologyViewMode.REFERENTIAL)
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.type)
+
+@program.field("contacts")
+async def resolve_program_contacts(obj, info):
+    return await resolve_people(info.context, obj.contact_ids)
+
+@trial.field("contacts")
+async def resolve_trial_contacts(obj, info):
+    return await resolve_people(info.context, obj.contact_ids)

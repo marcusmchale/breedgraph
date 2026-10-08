@@ -318,3 +318,13 @@ async def update_people_map(context, person_ids: Iterable[int] | None = None):
         async with bus.uow_factory.get_uow(user_id=user_id) as uow:
             async for person in uow.repositories.people.get_all(person_ids=sorted(unmapped)):
                 people_map[person.id] = person.to_output()
+
+async def resolve_people(context, person_ids: Iterable[int] | None) -> list:
+    """
+    Resolve references to Persons, in order. Registered users without read access get the id only;
+    Persons that cannot be shown at all, e.g. to anonymous users, are omitted.
+    """
+    person_ids = list(person_ids or [])
+    await update_people_map(context, person_ids=person_ids)
+    people_map = context.get('people_map', {})
+    return [people_map[person_id] for person_id in person_ids if person_id in people_map]
