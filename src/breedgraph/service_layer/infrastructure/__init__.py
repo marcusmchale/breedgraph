@@ -8,3 +8,4 @@ from .file_management import FileManagementService
 from .archival_service import AbstractFileArchivalService
 from .constraints import AbstractConstraintsHandler
 from .dependency_guards import AbstractDependencyGuards
+from .erasure_log import AbstractErasureLog, ErasureLogEntry

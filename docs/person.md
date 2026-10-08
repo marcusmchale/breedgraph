@@ -159,6 +159,11 @@ Who can erase: admins of the teams that control the record, and the linked User.
 
 Backups and logs:
 - Backups (e.g. `instance/neo4j_archive/`) are kept for a documented retention period.
+- The erasure log is a JSON-lines file at `PERSON_ERASURE_LOG_PATH` (default `instance/person_erasure_log.jsonl`), outside the database, so restoring a backup does not roll it back.
+  It is appended to by the `PersonErased` event handler after an erasure is committed, so every logged erasure happened.
+- `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/archive_sync.sh` (cron on the archive server) copies new dumps and the erasure log.
+  The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the archived copy. Run it at least as often as dumps are made.
+- `scripts/restore.sh` loads a dump and then runs `scripts/apply_person_erasures.py`, which applies the whole log again. Replaying is idempotent.
 - Personal data is not written to application logs. Log ids and actions, not mutation payloads.
 
 ## 6. Linking a User to a Person (claiming)
@@ -243,7 +248,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 2. **Commands.** Done: `CreatePerson`, `UpdatePerson`, `ErasePerson`, replacing `DeletePerson`.
 3. **Cypher and repository.** Done: queries rewritten for the reduced model, fixing the wrong `teams` match, the role and title labels (both removed), the unescaped name search, and the error on a missing ID.
    Persons cannot be removed. `ControlledRepository._can_change` lets the linked user store changes to their own record, and admins of the controlling teams store an erasure, besides curators.
-4. **Handlers.** Create, update, erase with validation of referenced teams. Erasure log. Replaces `add_person`, which builds the abstract `PersonBase` from the full command dump and always fails.
+4. **Handlers.** Done: creating requires the write team's organisation to have a declared legal entity and the referenced teams to exist; updating an erased Person is refused, and the linked user can change only the name; erasing raises `PersonErased`, which is written to the erasure log. Replay script and backup scripts as in §5.
+   Person rules for control transfers: the receiving organisation must have a declared legal entity, and shared control stays within one organisation.
 5. **GraphQL.** `Person` type, `people` and `peoplePerson(id)` queries, create/update/erase mutations. A `people_map` context loader, following the users and teams maps, for access-controlled batch loading.
 6. **References to Person.** Contributor roles on `CONTRIBUTED_TO`. Contacts as linked Person or Team. Ontology and germplasm authors to references. Resolve `contributors` and `contacts` through `people_map`.
 7. **Logging.** Stop logging Person payloads.

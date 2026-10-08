@@ -1,21 +1,106 @@
 from breedgraph.domain import commands
-from breedgraph.domain.model.people import (
-    PersonBase, PersonStored
+from breedgraph.domain.events.people import PersonErased
+from breedgraph.domain.model.controls import Access
+from breedgraph.domain.model.people import PersonInput, PersonStored
+from breedgraph.custom_exceptions import (
+    IllegalOperationError,
+    NoResultFoundError,
+    UnauthorisedOperationError
 )
 
-from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 
 from ..registry import handlers
+
+from typing import Iterable
 
 import logging
 logger = logging.getLogger(__name__)
 
+
+async def _verify_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None) -> None:
+    team_ids = set(team_ids or [])
+    if not team_ids:
+        return
+    found = set()
+    async for organisation in uow.repositories.organisations.get_all(team_ids=team_ids):
+        found.update(team.id for team in organisation.teams)
+    missing = team_ids - found
+    if missing:
+        raise NoResultFoundError(f"Teams not found: {sorted(missing)}")
+
+
+async def _get_person(uow: AbstractUnitHolder, person_id: int) -> PersonStored:
+    person = await uow.repositories.people.get(person_id=person_id)
+    if person is None:
+        raise NoResultFoundError(f"Person {person_id} not found")
+    return person
+
+
 @handlers.command_handler()
-async def add_person(
+async def create_person(
         cmd: commands.people.CreatePerson,
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
-        person = PersonBase(**cmd.model_dump())
-        await uow.repositories.people.create(person)
+        # The organisation of the write team is the data controller for the Person
+        organisation = await uow.repositories.organisations.get(team_id=cmd.write_team)
+        if organisation is None or organisation.legal_entity is None:
+            raise IllegalOperationError(
+                "Recording a Person requires the write team's organisation to have declared its legal entity"
+            )
+        await _verify_teams(uow, cmd.teams)
+
+        await uow.repositories.people.create(PersonInput(
+            name=cmd.name,
+            teams=list(cmd.teams or []),
+            basis=cmd.basis,
+            informed_attestation=cmd.informed_attestation
+        ))
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def update_person(
+        cmd: commands.people.UpdatePerson,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_person(uow, cmd.person_id)
+        if person.erased:
+            raise IllegalOperationError("An erased Person cannot be changed")
+
+        # The linked user can change their name, other changes need curate access to the record
+        controller = await uow.controls.get_controller(person.label, person.id)
+        is_curator = controller.has_access(Access.CURATE, access_teams=uow.controls.access_teams[Access.CURATE])
+        if not is_curator and (cmd.teams is not None or cmd.basis is not None):
+            raise UnauthorisedOperationError("Changing the teams or basis of a Person requires curate access")
+
+        if cmd.name is not None:
+            name = cmd.name.strip()
+            if not name:
+                raise IllegalOperationError("A Person requires a name")
+            person.name = name
+        if cmd.teams is not None:
+            await _verify_teams(uow, cmd.teams)
+            person.teams = list(cmd.teams)
+        if cmd.basis is not None:
+            person.basis = cmd.basis
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def erase_person(
+        cmd: commands.people.ErasePerson,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_person(uow, cmd.person_id)
+        controller = await uow.controls.get_controller(person.label, person.id)
+        person.erase(
+            agent_id=cmd.agent_id,
+            controller=controller,
+            admin_teams=uow.controls.access_teams[Access.ADMIN]
+        )
+        person.events.append(PersonErased(person_id=person.id, erased_at=person.erased_at))
         await uow.commit()

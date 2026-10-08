@@ -125,6 +125,10 @@ class MockAccessControlService(AbstractAccessControlService):
     def set_test_team_descendants(self, team_id: int, descendants: Set[int]):
         self._team_descendants[team_id] = set(descendants)
 
+    async def _get_team_organisation(self, team_id: int):
+        from breedgraph.service_layer.application.access_control import TeamOrganisation
+        return TeamOrganisation(root_id=team_id, legal_entity_declared=True)
+
     async def _get_team_and_descendants(self, team_id: int) -> Set[int]:
         return {team_id} | self._team_descendants.get(team_id, set())
 

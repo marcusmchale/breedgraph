@@ -11,7 +11,7 @@ from breedgraph.domain.model.control_transfers import (
     ControlledEntity, ControlTransferInput, ControlTransferStored, ControlTransferStatus
 )
 from breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
-from breedgraph.service_layer.application.access_control import AbstractAccessControlService
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService, TeamOrganisation
 
 
 class Neo4jAccessControlService(AbstractAccessControlService):
@@ -143,6 +143,13 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             team_ids=list(team_ids),
             user_id=user_id
         )
+
+    async def _get_team_organisation(self, team_id: int) -> TeamOrganisation | None:
+        result = await self.tx.run(queries['controls']['get_team_organisation'], team_id=team_id)
+        record = await result.single()
+        if record is None:
+            return None
+        return TeamOrganisation(root_id=record['root_id'], legal_entity_declared=record['legal_entity_declared'])
 
     async def _get_team_and_descendants(self, team_id: int) -> Set[int]:
         result = await self.tx.run(queries['controls']['get_team_and_descendants'], team_id=team_id)

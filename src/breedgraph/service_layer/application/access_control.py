@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from collections import defaultdict
 from collections.abc import Iterable
 from breedgraph.service_layer.tracking.wrappers import is_tracked_object
@@ -16,6 +17,12 @@ from typing import Dict, List, Set, Optional
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TeamOrganisation:
+    root_id: int
+    legal_entity_declared: bool
 
 
 class AbstractAccessControlService(ABC):
@@ -335,6 +342,7 @@ class AbstractAccessControlService(ABC):
         transfer_input.check_offer(admin_teams=self.admin_teams)
         await self._get_recipient_teams(recipient_team)
         await self._verify_entities_controlled_by(transfer_input.entities, set(transfer_input.from_teams))
+        await self._verify_entity_rules(transfer_input)
 
         transfer = await self._create_transfer(transfer_input)
 
@@ -374,6 +382,7 @@ class AbstractAccessControlService(ABC):
             release=release
         )
         await self._verify_entities_controlled_by(transfer.entities, set(transfer.from_teams))
+        await self._verify_entity_rules(transfer)
 
         for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
             controllers = await self.get_controllers(label, model_ids)
@@ -387,6 +396,30 @@ class AbstractAccessControlService(ABC):
             await self._record_writes(label=label, model_ids=model_ids, user_id=self.user_id)
 
         return await self._set_transfer(transfer)
+
+    async def _verify_entity_rules(self, transfer: ControlTransferInput | ControlTransferStored) -> None:
+        """
+        Rules for particular kinds of entity, checked at offer and at acceptance. See docs/control-transfer.md §5.
+        Person: the organisation receiving control is the data controller, so it must have declared a legal entity,
+        and a Person's control teams must stay within one organisation.
+        """
+        if not any(entity.label is ControlledModelLabel.PERSON for entity in transfer.entities):
+            return
+
+        recipient_organisation = await self._get_team_organisation(transfer.recipient_team)
+        if recipient_organisation is None:
+            raise NoResultFoundError(f"Recipient team {transfer.recipient_team} not found")
+        if not recipient_organisation.legal_entity_declared:
+            raise IllegalOperationError(
+                "Persons can only be transferred to an organisation that has declared its legal entity"
+            )
+        if transfer.keep_from_teams:
+            for team_id in transfer.from_teams:
+                from_organisation = await self._get_team_organisation(team_id)
+                if from_organisation is None or from_organisation.root_id != recipient_organisation.root_id:
+                    raise IllegalOperationError(
+                        "Control of a Person can only be shared between teams of the same organisation"
+                    )
 
     async def reject_transfer(self, transfer_id: int) -> ControlTransferStored:
         if not self.user_id:
@@ -469,6 +502,11 @@ class AbstractAccessControlService(ABC):
             for transfer in await self._get_transfers(from_teams=admin_teams, statuses=statuses)
         })
         return [transfers[transfer_id] for transfer_id in sorted(transfers)]
+
+    @abstractmethod
+    async def _get_team_organisation(self, team_id: int) -> TeamOrganisation | None:
+        """The root of the team's organisation and whether it has declared a legal entity"""
+        ...
 
     @abstractmethod
     async def _get_team_and_descendants(self, team_id: int) -> Set[int]:

@@ -62,4 +62,26 @@ NEO4J_STOPPED=0
 echo "Removing temporary dump file ${TEMP_DUMP}"
 sudo -u neo4j rm ${NEO4J_ARCHIVE_PATH}/${DATABASE_NAME}.dump
 
+# Persons erased after the backup was taken must be erased again before the database is used
+ERASURE_LOG="${PERSON_ERASURE_LOG_PATH:-instance/person_erasure_log.jsonl}"
+if [ -f "${ERASURE_LOG}" ]; then
+    echo "Applying the Person erasure log: ${ERASURE_LOG}"
+    for attempt in $(seq 1 12); do
+        if "${BREEDGRAPH_PYTHON:-python3}" "$(dirname "$0")/apply_person_erasures.py" "${ERASURE_LOG}"; then
+            break
+        fi
+        if [ "$attempt" -eq 12 ]; then
+            echo "ERROR: Could not apply the Person erasure log. Apply it before using the database:"
+            echo "  scripts/apply_person_erasures.py ${ERASURE_LOG}"
+            exit 1
+        fi
+        echo "Waiting for Neo4j to accept connections..."
+        sleep 5
+    done
+else
+    echo "WARNING: No Person erasure log at ${ERASURE_LOG}."
+    echo "If any Persons have been erased, restore the log from the archive server and run:"
+    echo "  scripts/apply_person_erasures.py <log>"
+fi
+
 echo "Restore complete."

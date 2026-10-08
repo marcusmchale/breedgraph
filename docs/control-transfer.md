@@ -130,7 +130,7 @@ Rules are checked at offer and at acceptance. Initially:
    The service supplies the user's admin teams and the recipient team's sub-tree to the domain model, writes each change directly,
    and applies accepted transfers in the same transaction. Transfers are visible to admins of the recipient team or of a team giving up control.
    Command handlers, and an event handler emailing the recipient team's admins.
-4. **Rules.** A hook for entity-specific checks (§5). The Person rule is added with Person.
+4. **Rules.** Done: `_verify_entity_rules` in the access control service, checked at offer and at acceptance, with the Person rule (§5).
 5. **Team structure.** Done: deletion of teams that control entities is refused, and deleted teams are kept as `DeletedTeam`.
    Later, when moving teams is needed: pending structure changes for split, merge and move.
 6. **GraphQL.** Queries `controlsTransfers(statuses)` and `controlsTransfer(id)`, for transfers to or from teams the user administers.
