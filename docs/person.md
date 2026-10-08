@@ -1,0 +1,252 @@
+# Person: design note
+
+Status: **draft for review**, including review by the Data Protection Officer.
+This note records why Person exists, what it stores, and how GDPR requirements shape it.
+It is not legal advice. The legal points summarise the usual reading of GDPR and need confirming for our institution.
+
+## 1. Purpose
+
+A Person is **someone who took part in our research**: staff, technicians, collaborators.
+It gives them a stable identity for **attribution** ("who produced this data") whether or not they have an account.
+
+A Person is **not**:
+- an account. Accounts are Users. A User may be linked to one Person (see §6).
+- a way to contact someone. Contact goes through the platform to a linked User, or to a Team (see §4).
+- a record of external or historical people such as literature authors or variety breeders. Those are cited through References (see §4).
+
+## 2. Legal framing
+
+| Topic | Position |
+|---|---|
+| Lawful basis | Research. Usually **Art. 6(1)(e) public task** for a university, **6(1)(f) legitimate interests** for private partners. **Not consent**, because consent can be withdrawn and that would break attribution. |
+| Minimisation | Store only what attribution needs: a display name, affiliation, optionally ORCID. No email, phone, postal address or free text. |
+| Informing people (Art. 14) | Covered by the employer's staff privacy notice plus a published BreedGraph privacy notice (Art. 14(5)(b) research exemption from notifying each person individually). The person creating a record confirms the person has been informed, and that confirmation is stored. BreedGraph never emails people who are not users. |
+| Erasure (Art. 17) | Research may be exempt (Art. 17(3)(d)), but we don't rely on that. Erasure **tombstones** the Person: identifying data is removed, and contributions stay attributed to an anonymous id. This satisfies both the person and the research record. |
+| Objection (Art. 21) | Limited for public-interest research (Art. 21(6)). In practice, erasure is the remedy we offer. |
+
+### Data controllers
+
+BreedGraph is operated by a team within the university. Partner organisations enter data, including Person records about their own staff.
+
+- **Each organisation has exactly one legal entity, declared on its root team.**
+  Child teams never declare a legal entity of their own.
+  An organisation's team tree can model a collaborative network for data registration, but a Person always has one definite responsible party.
+  Partners in a consortium who are separate legal entities are separate organisations.
+- **The data controller of a Person is the legal entity of the organisation containing the record's write team.**
+  The write team comes from the creating user's write affiliation.
+  The user acts on behalf of that organisation; the user is not the data controller.
+- **The agreement is made when an organisation root is created**, i.e. when a team is created without a parent, or a team is moved to become the root of an organisation.
+  The creating admin gives the legal entity's name and a privacy contact (a role address such as `dataprotection@partner.org`, not an individual's), and accepts the BreedGraph data processing terms.
+  The terms set out the university's role as host, and the partner's responsibilities as data controller: informing staff, handling requests from people about their data, and erasure.
+  The terms text comes from the university's DPO or legal office. The software records who accepted which version, and when.
+- The formal arrangement between the university and partners (joint controllers under Art. 26, or processor under Art. 28) is set by those terms or a consortium agreement, not by the software.
+- Release decisions follow the existing access-control pattern: admins of the controlling team decide who can read the record, up to public release.
+  Releasing a Person publicly is a disclosure decision, so the organisation's privacy notice must cover public attribution.
+
+#### Organisation root fields
+
+```
+Team (root only)
+  legal_name
+  privacy_contact
+  terms_version
+  terms_accepted_by, terms_accepted_at
+```
+
+#### Declaring is optional
+
+Declaring a legal entity is optional for an organisation. Organisations that only model collaboration can exist without one.
+**Creating a Person requires the write team's organisation to have a declared legal entity.**
+Root admins of existing organisations, or organisations created without a declaration, can declare one later and accept the terms at that point.
+
+#### One organisation per Person
+
+A Person's access controls may only name teams in a single organisation.
+`Controller.controls` can otherwise hold teams from several organisations, which would leave the data controller ambiguous.
+`set_controls` for a Person refuses control teams from another organisation.
+
+#### Changing the data controller
+
+Any change that would put a Person under a different organisation is a **transfer of data controller**.
+This can happen in several ways:
+
+| Change | Effect on Persons controlled by the moved teams |
+|---|---|
+| Move a team within its organisation | None |
+| Split: a team becomes the root of a new organisation | Would move to the new organisation |
+| Merge: a root becomes a child of a team in another organisation | Would move to the other organisation. The merged root's declaration ends, since only roots declare |
+| Move a team to another organisation | Would move to the other organisation |
+| Set a Person's control teams to teams in another organisation | Would move to the other organisation |
+| Delete a team that controls Persons | Would leave Persons without a controlling team |
+
+All of these go through the control transfer mechanism in `control-transfer.md`, which applies to every controlled entity:
+an admin on the giving side offers, an admin on the receiving side accepts, and the transfer is recorded.
+For Persons, the receiving organisation must have a declared legal entity, and this applies to erased Persons too.
+
+As for every controlled entity, a Person is created with an explicit write team (`control-transfer.md` §6).
+
+Declarations are kept as history when a root stops being a root, so it remains possible to see which legal entity was responsible at any time.
+
+**Terminology.** In GDPR, a *data controller* is the legal organisation responsible for the data.
+In BreedGraph, `Controller` is the access-control object on a model.
+They are connected through the controlling team's organisation, but are not the same thing.
+Documents about data protection should say "data controller" for the legal sense.
+
+## 3. Model
+
+```
+Person
+  id
+  name                    # display name used for attribution
+  orcid?                  # set only by the linked User, verified through ORCID sign-in (§6)
+  teams[]                 # affiliation: (Person)-[:IN_TEAM]->(Team)
+  user?                   # (User)-[:IS_PERSON]->(Person), one-to-one; gives subject rights
+  basis                   # PUBLIC_TASK | LEGITIMATE_INTEREST
+  informed_attestation    # creator confirmed the person was informed
+  recorded_by, recorded_at  # set by the system
+  erased_at?              # tombstone marker
+```
+
+Person remains an access-controlled model (`ControlledModel`) with the usual release levels.
+
+### Removed from the current model
+
+| Field | Reason |
+|---|---|
+| `email`, `phone`, `mail` | Contact details belong to the User account, if anywhere. |
+| `description` | Free text tends to collect sensitive information. |
+| `fullname` | One `name` is enough for display. |
+| `titles` (and the `Title` ontology entry) | Not needed for attribution. |
+| `roles` | Moves to the contribution relationship (§4). The `Role` ontology entry stays. |
+| `locations` | Extra personal data; teams already give affiliation. |
+
+### What viewers see
+
+| Viewer | Sees |
+|---|---|
+| Has read access, or is the linked User | The full record |
+| Registered, without read access | `id` only. The id can be used to look up who controls access to the record. |
+| Anonymous | Nothing |
+
+An erased Person shows as "Erased person" with its `id` to everyone who could see it before.
+
+## 4. Where Person is referenced
+
+| Reference | Decision |
+|---|---|
+| `Dataset.contributors` | Keep. Becomes `(Person)-[:CONTRIBUTED_TO {role}]->(Dataset)`. `role` is a `Role` ontology entry, ideally following the CRediT contributor roles. |
+| `Program/Trial/Study.contact_ids` | A contact must be **contactable**: a Person linked to a User, or a Team. `(… )-[:HAS_CONTACT]->(Person|Team)`. Messages go through the platform. Email addresses are never shown. |
+| `OntologyEntry.authors` | External authors are cited through `references`. `authors` is either removed or limited to platform contributors. Check first whether the ontology's editorial history already records this. |
+| `GermplasmEntry.authors` | Replaced by `references`. |
+| `UserStored.person` | Becomes the `IS_PERSON` relationship, which is currently never saved. |
+
+## 5. Erasure (tombstone)
+
+Erasing a Person:
+- clears `name`, `orcid` and `IN_TEAM` relationships, and sets `erased_at`.
+- keeps `id`, access controls, `basis` and provenance fields, and the `CONTRIBUTED_TO`, `HAS_CONTACT` and `AUTHORED` references to it.
+- removes the `IS_PERSON` link.
+- appends the `id` to an **erasure log** (ids only, no personal data). After restoring a backup, erasures in the log are re-applied.
+
+Who can erase: admins of the teams that control the record, and the linked User.
+
+Backups and logs:
+- Backups (e.g. `instance/neo4j_archive/`) are kept for a documented retention period.
+- Personal data is not written to application logs. Log ids and actions, not mutation payloads.
+
+## 6. Linking a User to a Person (claiming)
+
+Two routes, both ending in a confirmed `IS_PERSON` link:
+
+1. **Invitation.** An invitation can name a `person_id`. Accepting the invitation is the claim, because the invitation token proves identity.
+2. **Request and approve.** A registered user asks to claim a Person. An admin of a team that controls the record approves or rejects it, as with affiliations.
+
+### Invitations replace allowed emails
+
+Instead of allowed emails, or unregistered Users holding email addresses indefinitely:
+
+```
+Invitation
+  email
+  invited_by
+  teams[]
+  person_id?
+  expires_at
+```
+
+The invitation, including its email address, is deleted when accepted or when it expires. This gives a clear retention period for the only email address held for a non-user.
+
+### Subject rights
+
+A linked User can always, regardless of access controls:
+- read their Person record
+- edit `name`
+- link or remove their ORCID iD
+- erase the record (§5)
+- unlink their account
+
+### ORCID
+
+The ORCID iD is public. What BreedGraph controls is the link between the iD and a person's contributions, so it shares the record's release level and is cleared on erasure.
+
+Only the linked User can set it, by signing in with ORCID. This means every stored iD is verified, and nobody can be wrongly credited through a mistyped iD. Unlinked Persons are identified by name and teams only.
+
+Requirements:
+- ORCID **Public API** credentials (free; membership is not needed for verifying an iD). Develop against `sandbox.orcid.org`.
+- Config in `instance/*.env`: `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `ORCID_BASE_URL`, and the registered HTTPS redirect address.
+- `GET /orcid/link` (signed-in users): stores a random `state` in Redis with a short expiry and redirects to ORCID with `scope=/authenticate`.
+- `GET /orcid/callback`: checks `state`, exchanges the code with ORCID using `httpx`, stores the returned iD on the user's Person, and handles the user cancelling.
+- Only the iD is stored. ORCID's access token is not kept.
+- A Neo4j uniqueness constraint: one Person per iD.
+- Front end: a "Connect your ORCID iD" button following ORCID's brand guidelines, showing the iD as its full `https://orcid.org/…` address.
+
+This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.
+
+Everything else (other users' visibility, write access) follows the normal access controls.
+The subject may lower the release level, but cannot hide the record from the teams that control it. Erasure is available if they want more.
+
+### Deleting an account
+
+The user is asked whether to erase their Person record as well. Erasure is the default. Either way the link is removed.
+
+## 7. Decisions
+
+| Question | Decision |
+|---|---|
+| Data controllers | The legal entity declared on the root of the organisation containing the record's write team (see §2). One legal entity per organisation. |
+| Agreement | Accepted when an organisation root is created or a team is moved to become a root. No separate operator approval. |
+| Declaring a legal entity | Optional for an organisation, required to create a Person. Can be declared after the organisation is created. |
+| Changing the data controller | Through the general control transfer mechanism (`control-transfer.md`), with the receiving organisation required to have a declared legal entity (§2). |
+| ORCID | Set only by the linked User through ORCID sign-in. Not recorded for unlinked Persons. |
+| Public attribution | Follows the existing release pattern. Admins of the controlling team decide, up to public release. |
+| User and Person names | The Person keeps its own `name`, so people choose how they are credited, separate from their account name. |
+| User without a Person | Allowed. A Person is created only when someone is credited or named as a contact. |
+| Retention of unlinked Persons | Kept as long as the data they are attached to, as stated in the privacy notice. |
+
+## 8. Open questions
+
+None for Person. Open questions on control transfer are in `control-transfer.md` §6.
+
+## 9. Implementation plan
+
+0. **Organisation legal entity.** Root-only fields from §2 with declaration history, terms acceptance on creating a root, a declare action for existing roots, and a check that the write team's organisation has a legal entity before a Person is created.
+   Builds on the control transfer mechanism (`control-transfer.md`), which is implemented first. The Person rule (§2) is added to its entity-specific rules.
+1. **Domain.** Reduce `PersonBase` to §3. Add `erased_at`, provenance fields, `to_output()`, erase method. Update `redacted()` to return the id-only form.
+2. **Commands.** `CreatePerson`, `UpdatePerson`, `ErasePerson`.
+3. **Cypher and repository.** Rewrite queries for the reduced model. Fix existing bugs:
+   - `get_person.cypher` matches `(team)-[:IN_TEAM]->(team:Team)`, so `teams` is wrong.
+   - `get_person` and `get_people` read titles through `AT_LOCATION`. Removed with titles.
+   - Labels `PersonRole`, `PersonTitle`, `Title` don't match the ontology labels `Role`, `Title`.
+   - `get_people_by_name` puts user input into a regex unescaped.
+   - Get by id raises instead of returning `None` when missing.
+   - `add_person` builds the abstract `PersonBase` from the full command dump, so it always fails.
+4. **Handlers.** Create, update, erase with validation of referenced teams. Erasure log.
+5. **GraphQL.** `Person` type, `people` and `peoplePerson(id)` queries, create/update/erase mutations. A `people_map` context loader, following the users and teams maps, for access-controlled batch loading.
+6. **References to Person.** Contributor roles on `CONTRIBUTED_TO`. Contacts as linked Person or Team. Ontology and germplasm authors to references. Resolve `contributors` and `contacts` through `people_map`.
+7. **Logging.** Stop logging Person payloads.
+8. **Invitations.** Replace allowed emails. Separate branch, done before claiming.
+9. **Claiming and subject rights.** `IS_PERSON` link, claim request/approve, subject-rights check in access control, account-deletion option.
+10. **ORCID linking.** Routes, config and constraint from §6.
+11. **Privacy notice and data processing terms.** Draft text describing what is stored, why, retention and erasure, for the DPO to finalise.
+
+Tests accompany each step: repository, handlers, then GraphQL end-to-end covering each viewer type in §3 and erasure.
