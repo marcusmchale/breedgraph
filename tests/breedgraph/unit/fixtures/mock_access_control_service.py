@@ -91,17 +91,33 @@ class MockAccessControlService(AbstractAccessControlService):
 
         return controllers
 
-    async def remove_controls(self, label: str, model_ids: List[int], team_ids: List[int]) -> None:
-        """Remove a specific team's control from multiple models - batch operation"""
-        if not model_ids:
-            return
-
-        team_ids_list = team_ids if isinstance(team_ids, list) else [team_ids]
-
+    async def _add_controls(
+            self,
+            label: str,
+            model_ids: List[int],
+            team_ids: Set[int] | List[int],
+            release: ReadRelease,
+            user_id: int
+    ) -> None:
         for model_id in model_ids:
-            if model_id in self._controls[label]:
-                for team_id in team_ids_list:
-                    self._controls[label][model_id].pop(team_id, None)
+            for team_id in team_ids:
+                self._controls[label][model_id][team_id] = Control(
+                    team_id=team_id,
+                    release=release,
+                    time=datetime64('now'),
+                    user_id=user_id
+                )
+
+    async def _end_controls(
+            self,
+            label: str,
+            model_ids: List[int],
+            team_ids: Set[int] | List[int],
+            user_id: int
+    ) -> None:
+        for model_id in model_ids:
+            for team_id in team_ids:
+                self._controls[label][model_id].pop(team_id, None)
 
     def load_access_teams(self, user_id: int|None = None) -> Dict[Access, Set[int]]:
         """Get access teams for a user"""

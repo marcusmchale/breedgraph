@@ -28,29 +28,38 @@ It applies to every controlled entity. Person adds one extra rule (§5); see `pe
 ControlTransfer
   id
   entities            # aggregate roots: (label, id) pairs
-  from_teams[]        # control teams being replaced
-  to_teams[]          # control teams being added
-  release             # release level after transfer
+  from_teams[]        # current control teams giving up control
+  keep_from_teams     # true for shared control: from_teams keep control as well
+  recipient_team      # chosen by the offering side, often an organisation root
+  to_teams[]?         # chosen by the receiving side on acceptance
+  release?            # chosen by the receiving side on acceptance
   offered_by, offered_at
   accepted_by?, accepted_at?
   rejected_by?, rejected_at?
   cancelled_by?, cancelled_at?
 ```
 
-1. **Offer.** An admin of every team in `from_teams` (directly or inherited) offers the entities.
+1. **Offer.** An admin of every team in `from_teams` (directly or inherited) offers the entities to one `recipient_team`.
+   The offering side only needs to see the recipient team, e.g. the root of another organisation.
    Controls do not change yet.
-2. **Accept.** An admin of every team in `to_teams` accepts.
-   In one transaction: checks are repeated, new controls are created for `to_teams`, controls for `from_teams` are ended, and a write is recorded.
-3. **Reject or cancel.** Nothing changes. The offer is kept as a record.
+2. **Accept.** An admin of `recipient_team` (directly or inherited) accepts, and chooses:
+   - `to_teams`: `recipient_team` or teams below it in the tree. The accepting user must be an admin of each, directly or through heritable admin affiliations.
+   - `release`: the release level for the new controls. Defaults to private.
+
+   In one transaction: checks are repeated, new controls are created for `to_teams`, controls for `from_teams` are ended unless `keep_from_teams`, and a write is recorded.
+3. **Reject or cancel.** An admin of `recipient_team` rejects; an admin of `from_teams` cancels. Nothing changes. The offer is kept as a record.
 
 Checks at offer and at acceptance:
 - The entities still exist and are still controlled by `from_teams`.
-- Entity-specific rules hold (§5).
+- Entity-specific rules hold (§5), against the recipient team's organisation.
 
-If the offering user is also an admin of every team in `to_teams`, acceptance happens immediately as part of the offer, as affiliation requests already do for admins.
+Only admins of `recipient_team` can accept. Admins of teams below it see the offer only if they are also admins of `recipient_team`.
+If an organisation root receives an offer meant for a child team, a root admin accepts and assigns control to that child team.
+
+If the offering user is also an admin of `recipient_team`, they choose `to_teams` and `release` when offering, and acceptance happens immediately, as affiliation requests already do for admins.
 The record shows the same user and time for offer and acceptance.
 
-Offers do not expire. They stay pending until accepted, rejected or cancelled by the offering side.
+Offers do not expire. They stay pending until accepted, rejected or cancelled.
 
 ## 4. Team structure changes
 
@@ -82,19 +91,23 @@ Rules are checked at offer and at acceptance. Initially:
 |---|---|
 | Transfers within an organisation | Same offer and accept steps as between organisations. |
 | Admin on both sides | Acceptance happens with the offer, as for affiliation requests (§3). |
-| Shared control | Adding control teams without removing any is a transfer with `from_teams` kept, accepted by the added teams. |
+| Shared control | Adding control teams without removing any is a transfer with `keep_from_teams`. |
+| Receiving side | Offers go to one recipient team. Only its admins accept, choosing `to_teams` from the recipient team and the teams below it, and the release level. |
 | Offer expiry | None. Offers stay pending until accepted, rejected or cancelled. |
-| Notifications | A `ControlTransferOffered` event emails the admins of `to_teams`, following `AffiliationRequested` (`handlers/events/accounts.py`, `AffiliationRequestedMessage`). |
+| Notifications | A `ControlTransferOffered` event emails the admins of `recipient_team`, following `AffiliationRequested` (`handlers/events/accounts.py`, `AffiliationRequestedMessage`). |
 | Write team on creation | **Required for every controlled entity.** Creating a controlled entity without an explicit write team is refused, so entities are never controlled by all of a user's write teams by default. The user's `default_write_team` is for the front end to preselect, not a server-side fallback. |
 
 ## 7. Implementation plan
 
 0. **Require a write team.** Refuse creation of controlled entities without an explicit write team (`repositories/controlled.py`, `_create` and added models in `_update`).
    Make `controlTeamId` required on create mutations, and update tests and scenario builders that create controlled entities without one.
-1. **Ending controls.** Mark a `Control` as ended instead of deleting it, and make access checks use only current controls.
+1. **Adding and ending controls.** `add_controls` and `end_controls` on the access control service.
+   Ending appends a `Control` marked `ended`, so history is kept; a team controls an entity while its latest `Control` is not ended.
+   Every query that reads controls ignores ended ones. At least one control team must remain.
+   These are primitives without authorisation checks; the transfer process authorises them.
 2. **Domain.** `ControlTransfer` model, commands `OfferControlTransfer`, `AcceptControlTransfer`, `RejectControlTransfer`, `CancelControlTransfer`, and the `ControlTransferOffered` event.
 3. **Persistence.** Repository and Cypher for transfers. Transactional apply on acceptance.
 4. **Rules.** A hook for entity-specific checks (§5). The Person rule is added with Person.
 5. **Team structure.** Pending structure changes for split, merge and move. Refuse deletion of teams that control entities.
-6. **GraphQL.** Transfer queries (offers to my teams, offers from my teams) and mutations.
+6. **GraphQL.** Transfer queries (offers to teams I administer, offers from teams I administer) and mutations.
 7. **Tests.** Offer and accept flows, immediate acceptance for admins on both sides, authorisation on each side, cancellation, shared control, team structure changes.

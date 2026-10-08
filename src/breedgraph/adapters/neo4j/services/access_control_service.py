@@ -105,13 +105,38 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             controllers[entity_id] = Controller(controls=control_map, writes=writes)
         return controllers
 
-    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_ids: Iterable[int]) -> None:
+    async def _add_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
+            release: ReadRelease,
+            user_id: int
+    ) -> None:
         if not model_ids:
             return
 
         await self.tx.run(
-            controls.remove_controls(label=label),
-            entity_ids=model_ids,
-            team_ids=team_ids
+            controls.add_controls(label=label),
+            entity_ids=list(model_ids),
+            team_ids=list(team_ids),
+            user_id=user_id,
+            release=release.value
         )
 
+    async def _end_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
+            user_id: int
+    ) -> None:
+        if not model_ids:
+            return
+
+        await self.tx.run(
+            controls.end_controls(label=label),
+            entity_ids=list(model_ids),
+            team_ids=list(team_ids),
+            user_id=user_id
+        )

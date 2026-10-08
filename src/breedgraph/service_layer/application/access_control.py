@@ -185,8 +185,91 @@ class AbstractAccessControlService(ABC):
         """Get controllers for multiple model instances - key batch operation"""
         ...
 
+    async def add_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Set[int],
+            release: ReadRelease
+    ) -> None:
+        """
+        Add control teams to existing models.
+        Callers are responsible for authorising the change, e.g. through an accepted control transfer.
+        """
+        if not self.user_id:
+            raise IllegalOperationError("User ID required to add controls")
+        if not team_ids:
+            raise IllegalOperationError("Control teams required to add controls")
+
+        model_ids = list(model_ids)
+        controllers = await self.get_controllers(label, model_ids)
+        for model_id in model_ids:
+            controller = controllers.get(model_id)
+            if controller is None:
+                raise IllegalOperationError(f"No controls found for {label} {model_id}")
+            if controller.teams.intersection(team_ids):
+                raise IllegalOperationError(f"Teams already control {label} {model_id}")
+
+        await self._add_controls(
+            label=label,
+            model_ids=model_ids,
+            team_ids=team_ids,
+            release=release,
+            user_id=self.user_id
+        )
+
     @abstractmethod
-    async def remove_controls(self, label: ControlledModelLabel, model_ids: Iterable[int], team_ids: Iterable[int]) -> None:
-        """Remove a specific team's control from multiple models - batch operation"""
+    async def _add_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
+            release: ReadRelease,
+            user_id: int
+    ) -> None:
+        ...
+
+    async def end_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Set[int]
+    ) -> None:
+        """
+        End the control of teams over existing models. The ended controls are kept as history.
+        At least one control team must remain for each model.
+        Callers are responsible for authorising the change, e.g. through an accepted control transfer.
+        """
+        if not self.user_id:
+            raise IllegalOperationError("User ID required to end controls")
+        if not team_ids:
+            raise IllegalOperationError("Control teams required to end controls")
+
+        model_ids = list(model_ids)
+        controllers = await self.get_controllers(label, model_ids)
+        for model_id in model_ids:
+            controller = controllers.get(model_id)
+            if controller is None:
+                raise IllegalOperationError(f"No controls found for {label} {model_id}")
+            if not team_ids.issubset(controller.teams):
+                raise IllegalOperationError(f"Teams do not control {label} {model_id}")
+            if not controller.teams - team_ids:
+                raise IllegalOperationError(f"At least one control team must remain for {label} {model_id}")
+
+        await self._end_controls(
+            label=label,
+            model_ids=model_ids,
+            team_ids=team_ids,
+            user_id=self.user_id
+        )
+
+    @abstractmethod
+    async def _end_controls(
+            self,
+            label: ControlledModelLabel,
+            model_ids: Iterable[int],
+            team_ids: Iterable[int],
+            user_id: int
+    ) -> None:
         ...
 

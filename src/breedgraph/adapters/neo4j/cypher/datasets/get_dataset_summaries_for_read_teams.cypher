@@ -9,6 +9,7 @@ WITH concept, dataset, team, control
 ORDER BY dataset.id, team.id, control.sequence DESC
 
 WITH concept, dataset, team, collect(control)[0] as control
+WHERE NOT coalesce(control.ended, false)
 WITH concept, dataset, collect(team.id) as team_ids, collect(control.release) as releases
 
 WITH concept, dataset, team_ids, min(releases) as effective_release
