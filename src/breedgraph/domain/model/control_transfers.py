@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC
 
-from numpy import datetime64
+from datetime import datetime
 
 from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
@@ -29,7 +29,7 @@ class ControlTransferStatus(str, Enum):
 
 @dataclass(frozen=True)
 class ControlledEntity:
-    """The root of a controlled aggregate. All controlled models in the aggregate move together."""
+    """A controlled model. Transfers apply to the model itself, not to other models in its aggregate."""
     label: ControlledModelLabel
     id: int
 
@@ -40,7 +40,7 @@ class ControlTransferBase(ABC):
     plural: ClassVar[str] = 'ControlTransfers'
 
     entities: List[ControlledEntity] = field(default_factory=list)
-    from_teams: Set[int] = field(default_factory=set)  # current control teams giving up control
+    from_teams: List[int] = field(default_factory=list)  # current control teams giving up control
     recipient_team: int = None  # chosen by the offering side, often an organisation root
     keep_from_teams: bool = False  # shared control: from_teams keep control as well
     offered_by: int = None
@@ -50,6 +50,7 @@ class ControlTransferBase(ABC):
 class ControlTransferInput(ControlTransferBase, LabeledModel):
 
     def __post_init__(self):
+        self.from_teams = sorted(set(self.from_teams or []))
         if not self.entities:
             raise IllegalOperationError("A control transfer requires entities")
         if not self.from_teams:
@@ -61,7 +62,7 @@ class ControlTransferInput(ControlTransferBase, LabeledModel):
 
     def check_offer(self, admin_teams: Set[int]) -> None:
         """The offering user must be an admin of every team giving up control."""
-        if not self.from_teams.issubset(admin_teams):
+        if not set(self.from_teams).issubset(admin_teams):
             raise UnauthorisedOperationError("Admin access to every team giving up control is required to offer a transfer")
 
 
@@ -69,16 +70,16 @@ class ControlTransferInput(ControlTransferBase, LabeledModel):
 class ControlTransferStored(ControlTransferBase, StoredModel, Aggregate):
     status: ControlTransferStatus = ControlTransferStatus.PENDING
 
-    to_teams: Set[int] = field(default_factory=set)  # chosen by the receiving side on acceptance
+    to_teams: List[int] = field(default_factory=list)  # chosen by the receiving side on acceptance
     release: ReadRelease | None = None  # chosen by the receiving side on acceptance
 
-    offered_at: datetime64 | None = None
+    offered_at: datetime | None = None
     accepted_by: int | None = None
-    accepted_at: datetime64 | None = None
+    accepted_at: datetime | None = None
     rejected_by: int | None = None
-    rejected_at: datetime64 | None = None
+    rejected_at: datetime | None = None
     cancelled_by: int | None = None
-    cancelled_at: datetime64 | None = None
+    cancelled_at: datetime | None = None
 
     @property
     def root(self) -> 'ControlTransferStored':
@@ -123,7 +124,7 @@ class ControlTransferStored(ControlTransferBase, StoredModel, Aggregate):
         if to_teams.intersection(self.from_teams):
             raise IllegalOperationError("Teams taking control must not include teams giving up control")
 
-        self.to_teams = set(to_teams)
+        self.to_teams = sorted(to_teams)
         self.release = release
         self.accepted_by = agent_id
         self.status = ControlTransferStatus.ACCEPTED
@@ -137,7 +138,7 @@ class ControlTransferStored(ControlTransferBase, StoredModel, Aggregate):
 
     def cancel(self, agent_id: int, admin_teams: Set[int]) -> None:
         self._require_pending()
-        if not self.from_teams.issubset(admin_teams):
+        if not set(self.from_teams).issubset(admin_teams):
             raise UnauthorisedOperationError("Admin access to every team giving up control is required to cancel a transfer")
         self.cancelled_by = agent_id
         self.status = ControlTransferStatus.CANCELLED

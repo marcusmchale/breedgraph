@@ -28,8 +28,11 @@ from tests.breedgraph.scenarios import (
     BlockBuilder,
     PersonBuilder,
     ArrangementBuilder,
-    DatasetBuilder
+    DatasetBuilder,
+    OrganisationBuilder
 )
+from breedgraph.domain.model.controls import Access
+from breedgraph.domain.model.organisations import TeamInput
 
 from typing import Dict, cast, AsyncGenerator, Any
 
@@ -403,4 +406,37 @@ async def ontology_build_context(isolated_state, uow_factory) -> Dict[str, int]:
         'team_id': account_1_ids['team_id'],
         'user_id_2': account_2_ids['user_id'],
         **variable_components
+    }
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def control_transfer_context(isolated_state, uow_factory) -> dict:
+    """
+    Two organisations. The second has a child team.
+    user 2 administers the second root and its child, user 3 administers only the child.
+    """
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_1 = await account_builder.account_with_affiliations()
+    account_2 = await account_builder.account_with_affiliations()
+    user_id_3 = await account_builder.account()
+
+    async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
+        organisation.add_team(TeamInput(name=OrganisationBuilder.team_input().name), parent_id=account_2['team_id'])
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
+        child_team_id = organisation.get_children_ids(account_2['team_id'])[0]
+
+    organisation_builder = OrganisationBuilder(uow_factory)
+    for user_id in (account_2['user_id'], user_id_3):
+        for access in Access:
+            await organisation_builder.authorise_access(user_id=user_id, team_id=child_team_id, access=access)
+
+    return {
+        'user_id_1': account_1['user_id'],
+        'team_id_1': account_1['team_id'],
+        'user_id_2': account_2['user_id'],
+        'team_id_2': account_2['team_id'],
+        'child_team_id': child_team_id,
+        'user_id_3': user_id_3
     }

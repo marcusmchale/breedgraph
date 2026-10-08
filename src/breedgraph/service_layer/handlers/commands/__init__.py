@@ -11,5 +11,6 @@ from . import (
     germplasm,
     references,
     analysis,
-    archive
+    archive,
+    control_transfers
 )

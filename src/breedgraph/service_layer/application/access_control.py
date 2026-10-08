@@ -6,7 +6,11 @@ from breedgraph.service_layer.tracking.wrappers import is_tracked_object
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
-from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
+from breedgraph.domain.model.control_transfers import (
+    ControlledEntity, ControlTransferInput, ControlTransferStored, ControlTransferStatus
+)
+from breedgraph.domain.events.control_transfers import ControlTransferOffered
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError, NoResultFoundError
 
 from typing import Dict, List, Set, Optional
 
@@ -20,6 +24,9 @@ class AbstractAccessControlService(ABC):
     """
     user_id: int | None
     access_teams: Dict[Access, Set[int]]
+
+    def __init__(self):
+        self.events: List = []
 
     @staticmethod
     async def _parse_input_to_models_by_label(
@@ -185,7 +192,7 @@ class AbstractAccessControlService(ABC):
         """Get controllers for multiple model instances - key batch operation"""
         ...
 
-    async def add_controls(
+    async def _verify_and_add_controls(
             self,
             label: ControlledModelLabel,
             model_ids: Iterable[int],
@@ -193,8 +200,7 @@ class AbstractAccessControlService(ABC):
             release: ReadRelease
     ) -> None:
         """
-        Add control teams to existing models.
-        Callers are responsible for authorising the change, e.g. through an accepted control transfer.
+        Add control teams to existing models. Only called by the control transfer methods, which authorise the change.
         """
         if not self.user_id:
             raise IllegalOperationError("User ID required to add controls")
@@ -229,7 +235,7 @@ class AbstractAccessControlService(ABC):
     ) -> None:
         ...
 
-    async def end_controls(
+    async def _verify_and_end_controls(
             self,
             label: ControlledModelLabel,
             model_ids: Iterable[int],
@@ -238,7 +244,7 @@ class AbstractAccessControlService(ABC):
         """
         End the control of teams over existing models. The ended controls are kept as history.
         At least one control team must remain for each model.
-        Callers are responsible for authorising the change, e.g. through an accepted control transfer.
+        Only called by the control transfer and renounce methods, which authorise the change.
         """
         if not self.user_id:
             raise IllegalOperationError("User ID required to end controls")
@@ -273,3 +279,198 @@ class AbstractAccessControlService(ABC):
     ) -> None:
         ...
 
+    # Control transfers, see docs/control-transfer.md
+    @property
+    def admin_teams(self) -> Set[int]:
+        return set(self.access_teams.get(Access.ADMIN, set()))
+
+    def collect_events(self):
+        while self.events:
+            yield self.events.pop(0)
+
+    @staticmethod
+    def _entity_ids_by_label(entities: Iterable[ControlledEntity]) -> Dict[ControlledModelLabel, List[int]]:
+        ids_by_label = defaultdict(list)
+        for entity in entities:
+            ids_by_label[entity.label].append(entity.id)
+        return ids_by_label
+
+    async def _verify_entities_controlled_by(self, entities: Iterable[ControlledEntity], team_ids: Set[int]) -> None:
+        for label, model_ids in self._entity_ids_by_label(entities).items():
+            controllers = await self.get_controllers(label, model_ids)
+            for model_id in model_ids:
+                controller = controllers.get(model_id)
+                if controller is None or not team_ids.issubset(controller.teams):
+                    raise IllegalOperationError(f"Teams giving up control do not control {label} {model_id}")
+
+    async def _get_recipient_teams(self, recipient_team: int) -> Set[int]:
+        recipient_teams = await self._get_team_and_descendants(recipient_team)
+        if not recipient_teams:
+            raise NoResultFoundError(f"Recipient team {recipient_team} not found")
+        return recipient_teams
+
+    async def offer_transfer(
+            self,
+            entities: List[ControlledEntity],
+            from_teams: Set[int],
+            recipient_team: int,
+            keep_from_teams: bool = False,
+            to_teams: Set[int] | None = None,
+            release: ReadRelease = ReadRelease.PRIVATE
+    ) -> ControlTransferStored:
+        """
+        Offer control of entities to a recipient team.
+        If the offering user is also an admin of the recipient team and to_teams are given, the transfer is accepted immediately.
+        """
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to offer a control transfer")
+
+        transfer_input = ControlTransferInput(
+            entities=list(entities),
+            from_teams=list(from_teams),
+            recipient_team=recipient_team,
+            keep_from_teams=keep_from_teams,
+            offered_by=self.user_id
+        )
+        transfer_input.check_offer(admin_teams=self.admin_teams)
+        await self._get_recipient_teams(recipient_team)
+        await self._verify_entities_controlled_by(transfer_input.entities, set(transfer_input.from_teams))
+
+        transfer = await self._create_transfer(transfer_input)
+
+        if to_teams and recipient_team in self.admin_teams:
+            return await self._accept_transfer(transfer, to_teams=to_teams, release=release)
+
+        self.events.append(ControlTransferOffered(
+            transfer_id=transfer.id,
+            recipient_team=transfer.recipient_team,
+            offered_by=transfer.offered_by,
+            entity_count=len(transfer.entities)
+        ))
+        return transfer
+
+    async def accept_transfer(
+            self,
+            transfer_id: int,
+            to_teams: Set[int],
+            release: ReadRelease = ReadRelease.PRIVATE
+    ) -> ControlTransferStored:
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to accept a control transfer")
+        transfer = await self._require_transfer(transfer_id)
+        return await self._accept_transfer(transfer, to_teams=to_teams, release=release)
+
+    async def _accept_transfer(
+            self,
+            transfer: ControlTransferStored,
+            to_teams: Set[int],
+            release: ReadRelease
+    ) -> ControlTransferStored:
+        transfer.accept(
+            agent_id=self.user_id,
+            admin_teams=self.admin_teams,
+            recipient_teams=await self._get_recipient_teams(transfer.recipient_team),
+            to_teams=set(to_teams),
+            release=release
+        )
+        await self._verify_entities_controlled_by(transfer.entities, set(transfer.from_teams))
+
+        for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
+            controllers = await self.get_controllers(label, model_ids)
+            for model_id in model_ids:
+                # Teams taking control may already share control of some models
+                teams_to_add = set(transfer.to_teams) - controllers[model_id].teams
+                if teams_to_add:
+                    await self._verify_and_add_controls(label, [model_id], teams_to_add, transfer.release)
+            if transfer.teams_to_end:
+                await self._verify_and_end_controls(label, model_ids, transfer.teams_to_end)
+            await self._record_writes(label=label, model_ids=model_ids, user_id=self.user_id)
+
+        return await self._set_transfer(transfer)
+
+    async def reject_transfer(self, transfer_id: int) -> ControlTransferStored:
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to reject a control transfer")
+        transfer = await self._require_transfer(transfer_id)
+        transfer.reject(agent_id=self.user_id, admin_teams=self.admin_teams)
+        return await self._set_transfer(transfer)
+
+    async def cancel_transfer(self, transfer_id: int) -> ControlTransferStored:
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to cancel a control transfer")
+        transfer = await self._require_transfer(transfer_id)
+        transfer.cancel(agent_id=self.user_id, admin_teams=self.admin_teams)
+        return await self._set_transfer(transfer)
+
+    async def renounce_controls(self, entities: List[ControlledEntity], team_ids: Set[int]) -> None:
+        """
+        End the control of teams over entities that other teams also control. Nobody gains control.
+        """
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to renounce control")
+        if not team_ids.issubset(self.admin_teams):
+            raise UnauthorisedOperationError("Admin access to every renouncing team is required to renounce control")
+        for label, model_ids in self._entity_ids_by_label(entities).items():
+            await self._verify_and_end_controls(label, model_ids, team_ids)
+
+    def _can_see_transfer(self, transfer: ControlTransferStored) -> bool:
+        admin_teams = self.admin_teams
+        return transfer.recipient_team in admin_teams or bool(admin_teams.intersection(transfer.from_teams))
+
+    async def _require_transfer(self, transfer_id: int) -> ControlTransferStored:
+        transfer = await self.get_transfer(transfer_id)
+        if transfer is None:
+            raise NoResultFoundError(f"Control transfer {transfer_id} not found")
+        return transfer
+
+    async def get_transfer(self, transfer_id: int) -> ControlTransferStored | None:
+        """Transfers are visible to admins of the recipient team or of a team giving up control."""
+        transfer = await self._get_transfer(transfer_id)
+        if transfer is None or not self._can_see_transfer(transfer):
+            return None
+        return transfer
+
+    async def get_transfers(
+            self,
+            statuses: Iterable[ControlTransferStatus] | None = None
+    ) -> List[ControlTransferStored]:
+        """Transfers offered to or from teams the user is an admin of."""
+        admin_teams = self.admin_teams
+        if not admin_teams:
+            return []
+        transfers = {
+            transfer.id: transfer
+            for transfer in await self._get_transfers(recipient_teams=admin_teams, statuses=statuses)
+        }
+        transfers.update({
+            transfer.id: transfer
+            for transfer in await self._get_transfers(from_teams=admin_teams, statuses=statuses)
+        })
+        return [transfers[transfer_id] for transfer_id in sorted(transfers)]
+
+    @abstractmethod
+    async def _get_team_and_descendants(self, team_id: int) -> Set[int]:
+        """The team and the teams below it, or an empty set if the team does not exist"""
+        ...
+
+    @abstractmethod
+    async def _create_transfer(self, transfer: ControlTransferInput) -> ControlTransferStored:
+        ...
+
+    @abstractmethod
+    async def _get_transfer(self, transfer_id: int) -> ControlTransferStored | None:
+        ...
+
+    @abstractmethod
+    async def _get_transfers(
+            self,
+            recipient_teams: Iterable[int] | None = None,
+            from_teams: Iterable[int] | None = None,
+            statuses: Iterable[ControlTransferStatus] | None = None
+    ) -> List[ControlTransferStored]:
+        ...
+
+    @abstractmethod
+    async def _set_transfer(self, transfer: ControlTransferStored) -> ControlTransferStored:
+        """Store the status and decision of a transfer, returning it with the recorded times"""
+        ...

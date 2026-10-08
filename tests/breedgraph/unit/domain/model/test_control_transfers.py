@@ -21,7 +21,7 @@ def pending_transfer(keep_from_teams: bool = False) -> ControlTransferStored:
     return ControlTransferStored(
         id=1,
         entities=[PROGRAM],
-        from_teams={FROM_TEAM},
+        from_teams=[FROM_TEAM],
         recipient_team=RECIPIENT_ROOT,
         keep_from_teams=keep_from_teams,
         offered_by=OFFERING_USER
@@ -30,7 +30,7 @@ def pending_transfer(keep_from_teams: bool = False) -> ControlTransferStored:
 
 @pytest.mark.parametrize("missing", ["entities", "from_teams", "recipient_team", "offered_by"])
 def test_offer_requires_fields(missing):
-    fields = dict(entities=[PROGRAM], from_teams={FROM_TEAM}, recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER)
+    fields = dict(entities=[PROGRAM], from_teams=[FROM_TEAM], recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER)
     fields[missing] = None if missing in ("recipient_team", "offered_by") else type(fields[missing])()
     with pytest.raises(IllegalOperationError):
         ControlTransferInput(**fields)
@@ -38,7 +38,7 @@ def test_offer_requires_fields(missing):
 
 def test_offer_requires_admin_of_every_from_team():
     transfer = ControlTransferInput(
-        entities=[PROGRAM], from_teams={FROM_TEAM, OTHER_TEAM}, recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER
+        entities=[PROGRAM], from_teams=[FROM_TEAM, OTHER_TEAM], recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER
     )
     transfer.check_offer(admin_teams={FROM_TEAM, OTHER_TEAM})
     with pytest.raises(UnauthorisedOperationError):
@@ -55,7 +55,7 @@ def test_accept_into_child_of_recipient():
         release=ReadRelease.REGISTERED
     )
     assert transfer.status is ControlTransferStatus.ACCEPTED
-    assert transfer.to_teams == {RECIPIENT_CHILD}
+    assert transfer.to_teams == [RECIPIENT_CHILD]
     assert transfer.release is ReadRelease.REGISTERED
     assert transfer.accepted_by == RECEIVING_USER
     assert transfer.teams_to_end == {FROM_TEAM}
@@ -131,7 +131,7 @@ def test_accept_requires_to_teams():
 
 def test_accept_refuses_from_teams_as_to_teams():
     transfer = ControlTransferStored(
-        id=1, entities=[PROGRAM], from_teams={RECIPIENT_CHILD}, recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER
+        id=1, entities=[PROGRAM], from_teams=[RECIPIENT_CHILD], recipient_team=RECIPIENT_ROOT, offered_by=OFFERING_USER
     )
     with pytest.raises(IllegalOperationError):
         transfer.accept(

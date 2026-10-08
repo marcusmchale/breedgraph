@@ -92,6 +92,20 @@ class AffiliationApprovedMessage(Email):
         )
         self.message.set_content(body)
 
+class ControlTransferOfferedMessage(Email):
+
+    def __init__(self, offering_user: UserBase, team: TeamBase, entity_count: int):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} control transfer offered to {team.name}'
+        body = (
+            f'Admin notification:\n'
+            f'{offering_user.fullname} offered control of {entity_count} '
+            f'{"entry" if entity_count == 1 else "entries"} to {team.name}.\n'
+            f'Please review the offer at {PROTOCOL}://{HOST_ADDRESS}.'
+        )
+        self.message.set_content(body)
+
+
 class FileUploadSuccess(Email):
 
     def __init__(self, user: UserBase, filename: str, reference_id: int):

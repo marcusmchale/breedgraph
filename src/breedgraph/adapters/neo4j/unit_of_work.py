@@ -124,6 +124,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         yield from self.repositories.collect_events()
         yield from self.ontology.collect_events()
         yield from self.germplasm.collect_events()
+        yield from self.controls.collect_events()
 
     async def commit(self):
         logger.debug("Transaction commit")

@@ -6,6 +6,7 @@ from typing import Dict, List, Set
 from breedgraph.domain.model.controls import Control, ReadRelease, Controller
 from breedgraph.domain.model import Access
 from breedgraph.domain.model.time_descriptors import WriteStamp
+from breedgraph.domain.model.control_transfers import ControlTransferInput, ControlTransferStored
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 
@@ -28,6 +29,8 @@ class MockAccessControlService(AbstractAccessControlService):
         self._writes: Dict[str, Dict[int, List[WriteStamp]]] = defaultdict(
             lambda: defaultdict(list))  # label -> model_id -> [WriteStamp]
         self.access_teams = self.load_access_teams(user_id)
+        self._transfers: Dict[int, ControlTransferStored] = dict()
+        self._team_descendants: Dict[int, Set[int]] = dict()
 
     @classmethod
     async def create(cls, user_id: int|None = None):
@@ -118,6 +121,39 @@ class MockAccessControlService(AbstractAccessControlService):
         for model_id in model_ids:
             for team_id in team_ids:
                 self._controls[label][model_id].pop(team_id, None)
+
+    def set_test_team_descendants(self, team_id: int, descendants: Set[int]):
+        self._team_descendants[team_id] = set(descendants)
+
+    async def _get_team_and_descendants(self, team_id: int) -> Set[int]:
+        return {team_id} | self._team_descendants.get(team_id, set())
+
+    async def _create_transfer(self, transfer: ControlTransferInput) -> ControlTransferStored:
+        stored = ControlTransferStored(
+            id=len(self._transfers) + 1,
+            entities=list(transfer.entities),
+            from_teams=list(transfer.from_teams),
+            recipient_team=transfer.recipient_team,
+            keep_from_teams=transfer.keep_from_teams,
+            offered_by=transfer.offered_by
+        )
+        self._transfers[stored.id] = stored
+        return stored
+
+    async def _get_transfer(self, transfer_id: int) -> ControlTransferStored | None:
+        return self._transfers.get(transfer_id)
+
+    async def _get_transfers(self, recipient_teams=None, from_teams=None, statuses=None) -> List[ControlTransferStored]:
+        return [
+            transfer for transfer in self._transfers.values()
+            if (recipient_teams is None or transfer.recipient_team in recipient_teams)
+            and (from_teams is None or set(transfer.from_teams).intersection(from_teams))
+            and (statuses is None or transfer.status in statuses)
+        ]
+
+    async def _set_transfer(self, transfer: ControlTransferStored) -> ControlTransferStored:
+        self._transfers[transfer.id] = transfer
+        return transfer
 
     def load_access_teams(self, user_id: int|None = None) -> Dict[Access, Set[int]]:
         """Get access teams for a user"""

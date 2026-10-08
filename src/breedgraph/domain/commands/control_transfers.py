@@ -31,3 +31,9 @@ class RejectControlTransfer(Command):
 class CancelControlTransfer(Command):
     agent_id: int
     transfer_id: int
+
+class RenounceControl(Command):
+    agent_id: int
+
+    entities: List[ControlledEntity]
+    team_ids: Set[int]
