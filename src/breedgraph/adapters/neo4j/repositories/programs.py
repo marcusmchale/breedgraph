@@ -32,6 +32,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
     async def _create_program(self, program: ProgramInput) -> ProgramStored:
         logger.debug(f"Create program: {program}")
         program_data = program.model_dump()
+        program_data['name_lower'] = program.name.casefold()
         contact_ids = program_data.pop('contact_ids')
         reference_ids = program_data.pop('reference_ids')
         result: AsyncResult = await self.tx.run(
@@ -96,6 +97,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         logger.debug(f"Set program: {program}")
         program_data = program.model_dump()
         program_data.pop('trials')
+        program_data['name_lower'] = program.name.casefold()
         program_id = program_data.pop('id')
         contact_ids = program_data.pop('contact_ids')
         reference_ids = program_data.pop('reference_ids')
@@ -212,6 +214,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             record = record.data()
         if 'program' in record:
             record = record.get('program')
+        record.pop('name_lower', None)
 
         if 'trials' in record:
             record['trials'] = {

@@ -81,7 +81,7 @@ async def update_program(
         # Check if updating name would create a conflict
         if cmd.name is not None and cmd.name != program.name:
             existing_program = await uow.repositories.programs.get(name=cmd.name)
-            if existing_program is not None and existing_program.id != cmd.program:
+            if existing_program is not None and existing_program.id != cmd.program_id:
                 raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
 
         # Update fields that are provided
