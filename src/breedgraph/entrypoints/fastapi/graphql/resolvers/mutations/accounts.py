@@ -89,7 +89,7 @@ async def reset_password(
         account = await uow.repositories.accounts.get(user_id=user_id)
         if not account:
             raise UnauthorisedOperationError("Token not valid because user was not found")
-        logger.debug(f"Change password for user: {account.user_id.id}")
+        logger.debug(f"Change password for user: {account.user.id}")
 
         password_policy = config.get_password_policy()
         password_errors = password_policy.test(password)
