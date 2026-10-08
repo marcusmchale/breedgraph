@@ -1,12 +1,13 @@
 from functools import wraps
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from inspect import signature
 from typing import get_type_hints, get_args, get_origin, Union
 from types import UnionType
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain.model.analysis import AnalysisFailed
+from breedgraph.service_layer.log_safety import describe_exception
 
 import logging
 
@@ -76,6 +77,17 @@ def graphql_payload(func):
             }
         #except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
         # todo handle exceptions more gracefully, we probably don't want to expose internal exceptions
+        except ValidationError as e:
+            # Validation errors include input values, which may be personal data
+            logging.error(describe_exception(e))
+            errors.append(GQLError(
+                name=e.__class__.__name__,
+                message=str(e)
+            ))
+            return {
+                "status": GQLStatus.ERROR.name,
+                "errors": errors
+            }
         except Exception as e:
             logging.exception(e)
             errors.append(GQLError(

@@ -21,6 +21,22 @@ type Query {
     Get a multiple team details
     """
     organisationsTeams(ids: [ID!]): TeamsPayload! # see team
+    """ What an invitation offers, for the registration form. Requires the token from the invitation link, not login """
+    accountsInvitation(token: String!): InvitationPreviewPayload!
+    """ Persons the user can read, optionally by exact name (case insensitive) """
+    people(name: String): PeoplePayload!
+    """ Get Persons by id. Registered users without read access see the id only """
+    peoplePeople(ids: [ID!]!): PeoplePayload!
+    """ Get a Person by id. Registered users without read access see the id only """
+    peoplePerson(id: ID!): PersonPayload!
+    """ The Person linked to the current user's account, if any """
+    peopleMyPerson: PersonPayload!
+    """ The current user's pending requests to be linked to a Person """
+    peopleMyClaims: PersonClaimsPayload!
+    """ Pending requests to be linked to Persons controlled by teams the current user administers """
+    peopleClaimRequests: PersonClaimRequestsPayload!
+    """ The current data processing terms, to show when declaring a legal entity """
+    organisationsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """
@@ -137,6 +153,12 @@ type Query {
         entityLabel: ControlledModelLabel!
         entityIds: [ID!]!
     ): ControllersPayload!
+    """ Control transfers offered to or from teams the user is an admin of """
+    controlsTransfers (
+        statuses: [ControlTransferStatus!]
+    ): ControlTransfersPayload!
+    """ Get a control transfer offered to or from a team the user is an admin of """
+    controlsTransfer (id: ID!): ControlTransferPayload!
     """Get a list of Germplasm entries"""
     germplasmEntries(
         ids: [ID!]

@@ -153,18 +153,6 @@ enum OntologyNodeLabel {
     in a dataset rather than as record groups.
     """
     RECORD_GROUP_TYPE
-    """
-    Role entries describe roles for people.
-    These are linked to Person (see People).
-    Examples: "Post-doctoral researcher", "Principal Investigator"
-    """
-    ROLE
-    """
-    Title entries describe titles for people.
-    These are linked to Person (see People).
-    Examples: "Professor", "Doctor"
-    """
-    TITLE
 
 }
 
@@ -308,7 +296,6 @@ interface OntologyNodeInterface {
     """
     External relationships attributes are also handled with versioned change tracking like intrinsic attributes.
     """
-    authors: [Person!]
     references: [ReferenceInterface!]
 }
 
@@ -341,8 +328,6 @@ interface TermRelationships {
         locationTypes: [LocationType!]
         layoutTypes: [LayoutType!]
         designs: [Design!]
-        roles: [Role!]
-        titles: [Title!]
 }
 
 type Term implements OntologyNodeInterface & OntologyRelationships & TermRelationships {
@@ -358,7 +343,6 @@ type Term implements OntologyNodeInterface & OntologyRelationships & TermRelatio
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Term!]
@@ -377,8 +361,6 @@ type Term implements OntologyNodeInterface & OntologyRelationships & TermRelatio
     locationTypes: [LocationType!]
     layoutTypes: [LayoutType!]
     designs: [Design!]
-    roles: [Role!]
-    titles: [Title!]
 }
 
 """
@@ -412,7 +394,6 @@ type Subject implements OntologyNodeInterface & OntologyRelationships & RelatedT
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Subject!]
@@ -448,7 +429,6 @@ type Trait implements OntologyNodeInterface & OntologyRelationships & RelatedToT
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Trait!]
@@ -483,7 +463,6 @@ type Condition implements OntologyNodeInterface & OntologyRelationships & Relate
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Condition!]
@@ -532,7 +511,6 @@ type Scale implements OntologyNodeInterface & ScaleInterface & OntologyRelations
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     scaleType: ScaleType!
@@ -569,7 +547,6 @@ type Category implements OntologyNodeInterface & OntologyRelationships & Related
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Category!]
@@ -607,7 +584,6 @@ type ObservationMethod implements OntologyNodeInterface & ObservationMethodInter
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [ObservationMethod!]
@@ -652,7 +628,6 @@ type Variable implements OntologyNodeInterface & OntologyRelationships & Related
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Variable!]
@@ -691,7 +666,6 @@ type ControlMethod implements OntologyNodeInterface & ControlMethodInterface & O
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [ControlMethod!]
@@ -735,7 +709,6 @@ type Factor implements OntologyNodeInterface & OntologyRelationships & RelatedTo
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Factor!]
@@ -771,7 +744,6 @@ type Event implements OntologyNodeInterface & OntologyRelationships & RelatedToT
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Event!]
@@ -802,7 +774,6 @@ type LocationType implements OntologyNodeInterface & OntologyRelationships & Rel
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [LocationType!]
@@ -833,7 +804,6 @@ type LayoutType implements OntologyNodeInterface & LayoutTypeInterface & Ontolog
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     axes: [AxisType!]
@@ -863,7 +833,6 @@ type Design implements OntologyNodeInterface & OntologyRelationships & RelatedTo
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Design!]
@@ -889,7 +858,6 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
     abbreviation: String
     synonyms: [String!]
 
-    authors: [Person!]
     references: [ReferenceInterface!]
 
     parents: [Design!]
@@ -901,63 +869,7 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
 
 
 
-"""
-Role entries describe roles for people.
-These are linked to Person (see People).
-Examples: "Post-doctoral researcher", "Principal Investigator"
-"""
-
-type Role implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
-    id: ID!
-    versionId: ID!
-    view: OntologyView!
-
-    phase: LifecyclePhase!
-
-    name: String!
-
-    description: String
-    abbreviation: String
-    synonyms: [String!]
-
-    authors: [Person!]
-    references: [ReferenceInterface!]
-
-    parents: [Role!]
-    children: [Role!]
-
-    terms: [Term!]
-}
-
-"""
-Title entries describe titles for people.
-These are linked to Person (see People).
-Examples: "Professor", "Doctor"
-"""
-
-type Title implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
-    id: ID!
-    versionId: ID!
-    view: OntologyView!
-
-    phase: LifecyclePhase!
-
-    name: String!
-
-    description: String
-    abbreviation: String
-    synonyms: [String!]
-
-    authors: [Person!]
-    references: [ReferenceInterface!]
-
-    parents: [Title!]
-    children: [Title!]
-
-    terms: [Term!]
-}
-
-union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | RecordGroupType | Role | Title
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | RecordGroupType
 
 type OntologyRelationship {
     id: ID!

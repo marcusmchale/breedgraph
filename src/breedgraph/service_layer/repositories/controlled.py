@@ -8,7 +8,7 @@ from breedgraph.service_layer.tracking import TrackableProtocol
 
 from breedgraph.service_layer.tracking import TrackedObject
 from breedgraph.service_layer.repositories.base import BaseRepository, TAggregateInput
-from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
 from breedgraph.domain.model.controls import Access
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from breedgraph.domain.model.controls import (
@@ -46,6 +46,11 @@ class ControlledRepository(
     @property
     def access_teams(self):
         return self.controls.access_teams
+
+    def _require_write_team(self) -> int:
+        if self.write_team is None:
+            raise IllegalOperationError("A write team is required to create controlled entities")
+        return self.write_team
 
     def _match_allows_discovery(
             self,
@@ -105,11 +110,12 @@ class ControlledRepository(
     ) -> TControlledAggregate:
         if self.controls.user_id is None:
             raise UnauthorisedOperationError("Creation of controlled entities requires a user_id")
+        write_team = self._require_write_team()
 
         aggregate = await self._create_controlled(aggregate_input)
         await self.controls.set_controls(
             aggregate,
-            control_teams=self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team },
+            control_teams={write_team},
             release=self.release
         )
         controllers = await self.controls.get_controllers_for_aggregate(aggregate)
@@ -203,6 +209,10 @@ class ControlledRepository(
     async def _remove_controlled(self, aggregate: TControlledAggregate):
         raise NotImplementedError
 
+    async def _can_change(self, model: ControlledModel, controller: Controller) -> bool:
+        """Whether the user can store changes to a model. Curate access by default."""
+        return controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE])
+
     async def _update(self, aggregate: TControlledAggregate | TrackableProtocol):
         if not self.controls.user_id:
             raise UnauthorisedOperationError("Changes require a user_id")
@@ -219,18 +229,19 @@ class ControlledRepository(
         for model in aggregate.changed_models:
             if isinstance(model, ControlledModel):
                 controller = controllers[model.label][model.id]
-                if not controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE]):
+                if not await self._can_change(model, controller):
                     raise UnauthorisedOperationError(
                         f"Editing requires curate permission")
 
         await self._update_controlled(aggregate)
 
         controlled_added = [i for i in aggregate.added_models if isinstance(i, ControlledModel)]
-        await self.controls.set_controls(
-            controlled_added,
-            control_teams=self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team },
-            release=self.release
-        )
+        if controlled_added:
+            await self.controls.set_controls(
+                controlled_added,
+                control_teams={self._require_write_team()},
+                release=self.release
+            )
         controlled_updates = [i for i in aggregate.changed_models if isinstance(i, ControlledModel)]
         await self.controls.record_writes(controlled_updates + controlled_added)
 

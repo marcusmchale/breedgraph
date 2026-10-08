@@ -1,5 +1,44 @@
+"""The GDPR basis for holding a Person record"""
+enum LawfulBasis { PUBLIC_TASK, LEGITIMATE_INTEREST }
+
+"""
+Someone who took part in research, for attribution. See docs/person.md.
+Users who can read the record, and the linked user, see all fields.
+Other registered users see the id only (restricted), which can be used to look up who controls the record.
+An erased Person keeps its id only, so contributions stay attributed to an anonymous person.
+"""
 type Person {
     id: ID!
+    """Display name used for attribution. Null when restricted or erased"""
+    name: String
+    """Affiliation"""
+    teams: [Team!]!
+    basis: LawfulBasis
+    """The creator confirmed the person was informed that this record is held"""
+    informedAttestation: Boolean
+    """Set by the linked user, verified through ORCID sign-in"""
+    orcid: String
+    """The user linked to this Person, who has rights over the record"""
+    linkedUser: UserDisplay
+    recordedBy: UserDisplay
+    recordedAt: DateTime
+    erased: Boolean!
+    erasedAt: DateTime
+    """True when the viewer can see the id only"""
+    restricted: Boolean!
+}
+
+"""A pending request by a user to be linked to a Person, shown to admins of its controlling teams"""
+type PersonClaimRequest {
+    person: Person
+    userId: ID!
     name: String!
     fullname: String
+    requestedAt: DateTime
+}
+
+"""A pending request by the current user to be linked to a Person"""
+type PersonClaim {
+    person: Person
+    requestedAt: DateTime
 }

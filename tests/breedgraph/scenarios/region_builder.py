@@ -38,12 +38,13 @@ class RegionBuilder:
     async def region(
             self,
             user_id: int,
+            team_id: int,
             ontology_location_state:int,
             ontology_location_field:int,
             ontology_location_lab: int
     ) -> Dict[str, int]:
 
-        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+        async with self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             region = await self.region_from_country(uow)
             state_temp_id = region.add_location(
                 LocationInput(name=self.text_generator.new_text(10), type=ontology_location_state),

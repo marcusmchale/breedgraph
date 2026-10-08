@@ -1,64 +1,37 @@
-MATCH
-  (person: Person {id: $id})
-SET
-  person.name = $name,
-  person.fullname = $fullname,
-  person.email = $email,
-  person.mail = $mail,
-  person.phone = $phone,
-  person.orcid = $orcid,
-  person.description = $description
+// Only changed attributes are written: $props holds changed properties,
+// and $teams, $claims are null when unchanged, as is $set_user false.
+MATCH (person: Person {id: $id})
+SET person += $props
 WITH person
-//Update teams
-CALL {
-  WITH person
-  MATCH (person)-[in_team:IN_TEAM]->(team:Team)
-    WHERE NOT team.id IN $teams
+CALL (person) {
+  MATCH (person)-[in_team: IN_TEAM]->(team: Team)
+  WHERE NOT team.id IN $teams
   DELETE in_team
 }
-CALL {
-  WITH person
+CALL (person) {
   MATCH (team: Team) WHERE team.id IN $teams
-  MERGE (person)-[in_team:IN_TEAM]->(team)
+  MERGE (person)-[in_team: IN_TEAM]->(team)
   ON CREATE SET in_team.time = datetime.transaction()
 }
-//Update roles
-CALL {
-  WITH person
-  MATCH (person)-[has_role:HAS_ROLE]->(role:PersonRole)
-    WHERE NOT role.id IN $roles
-  DELETE has_role
+CALL (person) {
+  MATCH (user: User)-[is_person: IS_PERSON]->(person)
+  WHERE $set_user AND ($user IS NULL OR user.id <> $user)
+  DELETE is_person
 }
-CALL {
-  WITH person
-  MATCH (role: PersonRole) WHERE role.id IN $roles
-  MERGE (person)-[has_role:HAS_ROLE]->(role)
-  ON CREATE SET has_role.time = datetime.transaction()
+CALL (person) {
+  MATCH (user: User {id: $user})
+  WHERE $set_user
+  MERGE (user)-[is_person: IS_PERSON]->(person)
+  ON CREATE SET is_person.time = datetime.transaction()
 }
-//Update titles
-CALL {
-  WITH person
-  MATCH (person)-[has_title:HAS_TITLE]->(title:PersonTitle)
-    WHERE NOT title.id IN $titles
-  DELETE has_title
+CALL (person) {
+  MATCH (claimant: User)-[claims: CLAIMS]->(person)
+  WHERE NOT claimant.id IN $claims
+  DELETE claims
 }
-CALL {
-  WITH person
-  MATCH (title: PersonTitle) WHERE title.id IN $titles
-  MERGE (person)-[has_title:HAS_TITLE]->(title)
-  ON CREATE SET has_title.time = datetime.transaction()
-}
-// Update locations
-CALL {
-  WITH person
-  MATCH (person)-[at_location:AT_LOCATION]->(location:Location)
-    WHERE NOT location.id IN $locations
-  DELETE at_location
-}
-CALL {
-  WITH person
-  MATCH (location: Location) WHERE location.id IN $locations
-  MERGE (person)-[at_location:AT_LOCATION]->(location)
-  ON CREATE SET at_location.time = datetime.transaction()
+CALL (person) {
+  MATCH (claimant: User) WHERE claimant.id IN $claims
+  MERGE (claimant)-[claims: CLAIMS]->(person)
+  ON CREATE SET claims.time = datetime.transaction()
 }
 RETURN NULL

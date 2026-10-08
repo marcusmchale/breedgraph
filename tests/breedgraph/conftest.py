@@ -1,3 +1,4 @@
+import pytest
 import pytest_asyncio
 
 import asyncio
@@ -28,8 +29,11 @@ from tests.breedgraph.scenarios import (
     BlockBuilder,
     PersonBuilder,
     ArrangementBuilder,
-    DatasetBuilder
+    DatasetBuilder,
+    OrganisationBuilder
 )
+from breedgraph.domain.model.controls import Access
+from breedgraph.domain.model.organisations import TeamInput
 
 from typing import Dict, cast, AsyncGenerator, Any
 
@@ -61,6 +65,16 @@ async def login_token_factory(bus):
 
     return create_token
 
+
+@pytest.fixture(scope="session", autouse=True)
+def erasure_log_path(tmp_path_factory):
+    """Tests write the Person erasure log to a temporary file rather than instance/"""
+    from breedgraph import config
+    original = config.PERSON_ERASURE_LOG_PATH
+    path = tmp_path_factory.mktemp("erasure_log") / "person_erasure_log.jsonl"
+    config.PERSON_ERASURE_LOG_PATH = str(path)
+    yield path
+    config.PERSON_ERASURE_LOG_PATH = original
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_app() -> AsyncGenerator[FastAPI, None]:
@@ -205,11 +219,12 @@ async def isolated_state(
     await flush_redis(state_store)
 
 
-async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int) -> int:
+async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int, team_id: int) -> int:
     ontology_location_ids = await OntologyBuilder(uow_factory).location_types(user_id=user_id)
     region_builder = RegionBuilder(uow_factory=uow_factory, state_store=state_store)
     location_ids = await region_builder.region(
         user_id=user_id,
+        team_id=team_id,
         ontology_location_state=ontology_location_ids['ontology_location_state'],
         ontology_location_field=ontology_location_ids['ontology_location_field'],
         ontology_location_lab=ontology_location_ids['ontology_location_lab']
@@ -228,7 +243,7 @@ async def user_registration_context(isolated_state, login_token_factory):
 async def control_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
-    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'], account_ids['team_id'])
     return {
         **account_ids,
         'location_id': location_id
@@ -239,7 +254,7 @@ async def control_context(isolated_state, uow_factory, state_store) -> Dict[str,
 async def layout_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
-    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'], account_ids['team_id'])
     layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=account_ids['user_id'])
     return {
         **account_ids,
@@ -259,6 +274,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
 
     location_ids = await RegionBuilder(uow_factory, state_store).region(
         user_id=user_id,
+        team_id=account_ids['team_id'],
         ontology_location_state=location_types['ontology_location_state'],
         ontology_location_field=location_types['ontology_location_field'],
         ontology_location_lab=location_types['ontology_location_lab']
@@ -266,6 +282,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     location_id = location_ids['location_field_id']
     layout_ids = await ArrangementBuilder(uow_factory).arrangement(
         user_id=user_id,
+        team_id=account_ids['team_id'],
         location_id=location_id,
         ontology_layout_named=layout_types['ontology_layout_named'],
         ontology_layout_3d=layout_types['ontology_layout_3d'],
@@ -292,13 +309,14 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     program_builder = ProgramBuilder(uow_factory=uow_factory)
     program_ids = await program_builder.program_trial_study(
         user_id,
+        account_ids['team_id'],
         replicate_type=record_group_types['ontology_record_group_replicate'],
         batch_type=record_group_types['ontology_record_group_batch']
     )
 
     variable_ids = await OntologyBuilder(uow_factory=uow_factory).variable_tree_height(user_id)
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
-    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id)
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=account_ids['team_id'])
+    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id, team_id=account_ids['team_id'])
     return {
         **account_ids,
         **program_ids,
@@ -370,7 +388,7 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
 
     account_ids2 = await account_builder.account_with_affiliations()
     user_id_2 = account_ids2['user_id']
@@ -399,4 +417,37 @@ async def ontology_build_context(isolated_state, uow_factory) -> Dict[str, int]:
         'team_id': account_1_ids['team_id'],
         'user_id_2': account_2_ids['user_id'],
         **variable_components
+    }
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def control_transfer_context(isolated_state, uow_factory) -> dict:
+    """
+    Two organisations. The second has a child team.
+    user 2 administers the second root and its child, user 3 administers only the child.
+    """
+    account_builder = AccountBuilder(uow_factory=uow_factory)
+    account_1 = await account_builder.account_with_affiliations()
+    account_2 = await account_builder.account_with_affiliations()
+    user_id_3 = await account_builder.account()
+
+    async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
+        organisation.add_team(TeamInput(name=OrganisationBuilder.team_input().name), parent_id=account_2['team_id'])
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
+        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
+        child_team_id = organisation.get_children_ids(account_2['team_id'])[0]
+
+    organisation_builder = OrganisationBuilder(uow_factory)
+    for user_id in (account_2['user_id'], user_id_3):
+        for access in Access:
+            await organisation_builder.authorise_access(user_id=user_id, team_id=child_team_id, access=access)
+
+    return {
+        'user_id_1': account_1['user_id'],
+        'team_id_1': account_1['team_id'],
+        'user_id_2': account_2['user_id'],
+        'team_id_2': account_2['team_id'],
+        'child_team_id': child_team_id,
+        'user_id_3': user_id_3
     }

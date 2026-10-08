@@ -1,6 +1,6 @@
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.organisations import (
-    CreateTeam, DeleteTeam, UpdateTeam
+    CreateTeam, DeleteTeam, UpdateTeam, DeclareLegalEntity, WithdrawLegalEntity
 )
 
 from typing import Optional
@@ -24,7 +24,8 @@ async def create_team(
         agent_id=user_id,
         name=team.get('name'),
         fullname=team.get('fullname'),
-        parent=team.get('parent_id')
+        parent=team.get('parent_id'),
+        legal_entity=team.get('legal_entity')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -65,3 +66,26 @@ async def update_team(
     await info.context['bus'].handle(cmd)
     return True
 
+@graphql_mutation.field("organisationsDeclareLegalEntity")
+@graphql_payload
+@require_authentication
+async def declare_legal_entity(
+        _,
+        info,
+        team_id: int,
+        legal_entity: dict
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} declares legal entity for team {team_id}")
+    cmd = DeclareLegalEntity(agent_id=user_id, team_id=team_id, legal_entity=legal_entity)
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("organisationsWithdrawLegalEntity")
+@graphql_payload
+@require_authentication
+async def withdraw_legal_entity(_, info, team_id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} withdraws legal entity for team {team_id}")
+    await info.context['bus'].handle(WithdrawLegalEntity(agent_id=user_id, team_id=team_id))
+    return True

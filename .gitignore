@@ -3,6 +3,7 @@ __pycache__
 
 /instance/private*
 /instance/file_store/
+/instance/person_erasure_log.jsonl
 
 /src/data/
 /logs/

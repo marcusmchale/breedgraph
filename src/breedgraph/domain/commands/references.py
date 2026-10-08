@@ -5,7 +5,7 @@ from .base import Command
 
 class CreateLegalReference(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
@@ -14,7 +14,7 @@ class CreateLegalReference(Command):
 
 class CreateExternalReference(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
@@ -24,7 +24,7 @@ class CreateExternalReference(Command):
 
 class CreateExternalDataReference(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
@@ -37,7 +37,7 @@ class CreateExternalDataReference(Command):
 
 class CreateFileReference(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
@@ -48,7 +48,7 @@ class CreateFileReference(Command):
     
 class CreateDataFileReference(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None

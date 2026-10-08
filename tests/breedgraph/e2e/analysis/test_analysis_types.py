@@ -32,15 +32,16 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
     light once per unit. The last unit has an outlying height.
     """
     user_id = dataset_build_context['user_id']
+    team_id = dataset_build_context['team_id']
     study_id = dataset_build_context['study_id']
     height_id = dataset_build_context['concept_id']
     light_id = (await OntologyBuilder(uow_factory).factor_light_intensity(user_id))['ontology_factor_light']
 
-    germplasm_ids = [await GermplasmBuilder(uow_factory).germplasm(user_id) for _ in range(2)]
+    germplasm_ids = [await GermplasmBuilder(uow_factory).germplasm(user_id, team_id) for _ in range(2)]
     units = []
     for g, germplasm_id in enumerate(germplasm_ids):
         for u in range(UNITS_PER_GERMPLASM):
-            units.append((await BlockBuilder(uow_factory).unit(user_id, germplasm_id=germplasm_id), g, u))
+            units.append((await BlockBuilder(uow_factory).unit(user_id, team_id, germplasm_id=germplasm_id), g, u))
 
     height_records, light_records = [], []
     for i, (unit_id, g, u) in enumerate(units):
@@ -50,8 +51,8 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
         light_records.append(DataRecordInput(unit=unit_id, value=str(100 + 10 * i + 5 * g), start=datetime64("2020-06-01")))
 
     builder = DatasetBuilder(uow_factory)
-    height_dataset = (await builder.dataset(user_id, height_id, study_id, records=height_records))['dataset_id']
-    light_dataset = (await builder.dataset(user_id, light_id, study_id, records=light_records))['dataset_id']
+    height_dataset = (await builder.dataset(user_id, team_id, height_id, study_id, records=height_records))['dataset_id']
+    light_dataset = (await builder.dataset(user_id, team_id, light_id, study_id, records=light_records))['dataset_id']
     return {
         'user_id': user_id,
         'height_id': height_id,

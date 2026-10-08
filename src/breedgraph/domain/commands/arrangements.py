@@ -7,7 +7,7 @@ from breedgraph.domain.model.controls import ReadRelease
 
 class CreateLayout(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     type_id: int

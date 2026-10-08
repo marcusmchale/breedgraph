@@ -8,7 +8,7 @@ async def test_create_and_get(
         reference_build_context
 ):
     user_id = reference_build_context['user_id']
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=reference_build_context['team_id']) as uow:
         reference_input = ReferenceBuilder.legal_reference_input()
         reference = await uow.repositories.references.create(reference_input)
         await uow.commit()
@@ -26,7 +26,7 @@ async def test_edit(
 ):
     user_id = reference_build_context['user_id']
     new_text = lorem_text_generator.new_text(10)
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=reference_build_context['team_id']) as uow:
         reference_input = ReferenceBuilder.legal_reference_input()
         reference = await uow.repositories.references.create(reference_input)
         reference.text = new_text
@@ -44,7 +44,7 @@ async def test_file_reference(
 ):
     reference_input = ReferenceBuilder.file_reference_input()
     user_id = reference_build_context['user_id']
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=reference_build_context['team_id']) as uow:
         reference = await uow.repositories.references.create(reference_input)
         await uow.commit()
 

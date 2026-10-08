@@ -51,7 +51,6 @@ class GermplasmBase(ABC):
     description: str | None = None
     synonyms: List[str] = field(default_factory=list)
 
-    authors: List[int] = field(default_factory=list)  # internal person ID
     references: List[int] = field(default_factory=list)  # internal reference ID
 
     origin: int | None = None

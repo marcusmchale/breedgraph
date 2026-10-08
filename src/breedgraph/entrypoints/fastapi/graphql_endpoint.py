@@ -20,7 +20,7 @@ router = APIRouter()
 async def get_user_id(request: Request) -> Optional[AccountStored]:
     """Extract and validate user from auth token cookie"""
     token = request.cookies.get('auth_token')
-    logger.debug(f"GraphQL context builder - auth_token cookie: {token}")
+    logger.debug(f"GraphQL context builder - auth_token cookie {'present' if token else 'absent'}")
     if token is not None:
         try:
             auth_service = request.app.bus.auth_service
@@ -42,7 +42,7 @@ async def get_context_value(request: Request):
         "cached_uow": None,
         "cookies_to_set": []  # List to store cookies that should be set
     }
-    logger.debug(f"GraphQL context builder - final context: {context}")
+    logger.debug(f"GraphQL context builder - user {context['user_id']}")
     return context
 
 

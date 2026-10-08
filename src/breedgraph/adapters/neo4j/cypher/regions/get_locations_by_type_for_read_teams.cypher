@@ -8,6 +8,7 @@ WITH location, type, team, control
 ORDER by location.id, team.id, control.sequence DESC
 
 WITH location, type, team, collect(control)[0] as control
+WHERE NOT coalesce(control.ended, false)
 WITH location, type, collect(team.id) as team_ids, collect(control.release) as releases
 
 WITH location, type, team_ids, min(releases) as effective_release

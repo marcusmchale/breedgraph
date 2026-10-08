@@ -302,3 +302,29 @@ async def update_reference_map(
                 ):
                     context['reference_map'][reference.id] = reference
 
+
+async def update_people_map(context, person_ids: Iterable[int] | None = None):
+    """
+    Load Persons by id into context['people_map'], for resolving references to Persons.
+    Registered users without read access get the id only. Anonymous users get nothing.
+    """
+    async with _get_lock(context, '_people_lock'):
+        bus = context.get('bus')
+        user_id = context.get('user_id')
+        people_map = context.setdefault('people_map', dict())
+        unmapped = set(person_ids or []) - set(people_map.keys())
+        if not unmapped:
+            return
+        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+            async for person in uow.repositories.people.get_all(person_ids=sorted(unmapped)):
+                people_map[person.id] = person.to_output()
+
+async def resolve_people(context, person_ids: Iterable[int] | None) -> list:
+    """
+    Resolve references to Persons, in order. Registered users without read access get the id only;
+    Persons that cannot be shown at all, e.g. to anonymous users, are omitted.
+    """
+    person_ids = list(person_ids or [])
+    await update_people_map(context, person_ids=person_ids)
+    people_map = context.get('people_map', {})
+    return [people_map[person_id] for person_id in person_ids if person_id in people_map]

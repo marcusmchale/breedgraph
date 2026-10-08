@@ -11,7 +11,7 @@ async def test_create_row_arrangement(
     user_id = layout_build_context['user_id']
     row_type_id = layout_build_context['ontology_layout_row']
     location_id = layout_build_context['location_id']
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=layout_build_context['team_id']) as uow:
         row_layout_input = LayoutInput(
             type=row_type_id,
             location=location_id,
@@ -41,7 +41,7 @@ async def test_extend_row_with_grid(
     grid_type_id = layout_build_context['ontology_layout_grid']
     location_id = layout_build_context['location_id']
 
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=layout_build_context['team_id']) as uow:
         row_layout_input = LayoutInput(
             type=row_type_id,
             location=location_id,

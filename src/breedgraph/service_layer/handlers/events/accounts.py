@@ -11,7 +11,7 @@ from breedgraph.domain.model.organisations import Authorisation, TeamInput, Affi
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
-from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory, AbstractAuthService
 
 from ..registry import handlers
 
@@ -20,15 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 @handlers.event_handler()
-async def email_user_allowed(
-        event: events.accounts.EmailAdded,
+async def send_invitation(
+        event: events.accounts.InvitationIssued,
+        uow_factory: AbstractUnitOfWorkFactory,
+        auth_service: AbstractAuthService,
         notifications: AbstractNotifications
 ):
-    # send allowed user a simple email with link to registration address
-    await notifications.send_to_unregistered(
-        [event.email],
-        email_templates.EmailAddedMessage()
+    async with uow_factory.get_uow(redacted=False) as uow:
+        invitation = await uow.repositories.invitations.get(invitation_id=event.invitation_id)
+        if invitation is None:
+            return
+        inviter = await uow.repositories.accounts.get(user_id=invitation.invited_by)
+    message = email_templates.InvitationMessage(
+        inviter=inviter.user,
+        token=auth_service.create_invitation_token(invitation.id, invitation.email),
+        expires_at=invitation.expires_at,
+        offers_affiliation=bool(invitation.teams)
     )
+    await notifications.send_to_unregistered([invitation.email], message)
 
 @handlers.event_handler()
 async def send_user_verify_url(
@@ -79,17 +88,6 @@ async def email_change_requested(
             [user],
             message
         )
-
-@handlers.event_handler()
-async def email_verified(
-        event: events.accounts.EmailVerified,
-        uow_factory: AbstractUnitOfWorkFactory
-):
-    # now that email is verified we can remove the allowed email to keep things tidy
-    async with uow_factory.get_uow() as uow:
-        new_account = await uow.repositories.accounts.get(user_id=event.user_id)
-        async for account in uow.repositories.accounts.get_all(allowed_email=new_account.user.email):
-            account.allowed_emails.remove(new_account.user.email)
 
 @handlers.event_handler()
 async def password_change_requested(

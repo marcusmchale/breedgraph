@@ -23,6 +23,8 @@ WITH
     team,
     collect(control)[0] AS control
 
+WHERE NOT coalesce(control.ended, false)
+
 WITH
     g,
     collect(team.id) AS team_ids,

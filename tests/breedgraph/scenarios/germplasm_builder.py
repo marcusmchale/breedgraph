@@ -27,8 +27,8 @@ class GermplasmBuilder:
             sink_id=sink_id
         )
 
-    async def germplasm(self, user_id: int) -> int:
-        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+    async def germplasm(self, user_id: int, team_id: int) -> int:
+        async with self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             germplasm = await uow.germplasm.create_entry(self.germplasm_input())
             await uow.commit()
             return germplasm.id

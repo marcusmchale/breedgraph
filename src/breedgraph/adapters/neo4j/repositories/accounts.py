@@ -33,7 +33,7 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
         return account
 
     async def _create_user(self, user: UserInput) -> UserStored:
-        logger.debug(f"Create user: {user}")
+        logger.debug("Create user")
         props = user.model_dump()
         props['name_lower'] = user.name.casefold()
         props['email_lower'] = user.email.casefold()
@@ -75,19 +75,12 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
         team_ids = kwargs.get('team_ids')
         access_types = kwargs.get('access_types')
         authorisations = kwargs.get('authorisations')
-        allowed_email = kwargs.get('allowed_email')
 
         if not any([team_ids, access_types, authorisations]):
             if user_ids:
                 result = await self.tx.run(queries['accounts']['get_accounts'], user_ids = user_ids)
             else:
-                if allowed_email:
-                    result: AsyncResult = await self.tx.run(
-                        queries['accounts']['get_accounts_by_allowed_email'],
-                        email_lower=allowed_email.casefold()
-                    )
-                else:
-                    result = await self.tx.run(queries['accounts']['get_all_accounts'])
+                result = await self.tx.run(queries['accounts']['get_all_accounts'])
         else:
             access_types = kwargs.get('access_types', [a for a in Access])
             authorisations = kwargs.get('authorisations', [a for a in Authorisation])
@@ -118,8 +111,6 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
     async def _update(self, account: TrackableProtocol|AccountStored):
         logger.debug("update user in neo4j")
         await self._set_user(account.user)
-        logger.debug("update allowed emails in neo4j")
-        await self._update_allowed_emails(account.user, account.allowed_emails)
 
     async def _set_user(self, user: TrackableProtocol|UserStored):
         if user.changed:
@@ -133,22 +124,6 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
                 change_props.update({'email_lower': user.email.casefold()})
             await self.tx.run(
                 queries['accounts']['set_user'], props=change_props, user_id=user.id
-            )
-
-    async def _update_allowed_emails(self, user: UserStored, allowed_emails: TrackedList[str]):
-        # Then create/remove allowed_emails (changes are not tracked for strings)
-        for i in allowed_emails.added:
-            await self.tx.run(
-                queries['accounts']['create_allowed_email'],
-                user=user.id,
-                email=allowed_emails[i],
-                email_lower=allowed_emails[i].casefold()
-            )
-        for email in allowed_emails.removed:
-            await self.tx.run(
-                queries['accounts']['remove_allowed_email'],
-                user=user.id,
-                email_lower=email.casefold()
             )
 
     @staticmethod
@@ -170,8 +145,6 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
         if user is None:
             raise ValueError("User details not found")
         return AccountStored(
-            user=user,
-            allowed_emails=record['allowed_emails'],
-            allowed_users=record['allowed_users']
+            user=user
         ) if record else None
 

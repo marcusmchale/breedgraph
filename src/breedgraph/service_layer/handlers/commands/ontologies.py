@@ -54,7 +54,6 @@ async def create_term(cmd: commands.ontologies.CreateTerm, uow_factory: Abstract
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry, cmd.parent_ids, cmd.child_ids)
@@ -72,8 +71,6 @@ async def create_term(cmd: commands.ontologies.CreateTerm, uow_factory: Abstract
             "location_type_ids",
             "layout_type_ids",
             "design_ids",
-            "role_ids",
-            "title_ids",
             "record_group_type_ids",
         ]
         for attr in to_link:
@@ -97,7 +94,6 @@ async def create_subject(cmd: commands.ontologies.CreateSubject, uow_factory: Ab
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_subject(entry, cmd.parent_ids, cmd.child_ids, traits=cmd.trait_ids, conditions=cmd.condition_ids)
@@ -114,7 +110,6 @@ async def create_trait(cmd: commands.ontologies.CreateTrait, uow_factory: Abstra
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_trait(entry, cmd.parent_ids, cmd.child_ids, subjects=cmd.subject_ids)
@@ -132,7 +127,6 @@ async def create_condition(cmd: commands.ontologies.CreateCondition, uow_factory
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_condition(entry, cmd.parent_ids, cmd.child_ids, subjects=cmd.subject_ids)
@@ -150,7 +144,6 @@ async def create_scale(cmd: commands.ontologies.CreateScale, uow_factory: Abstra
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or [],
             scale_type=cmd.scale_type
         )
@@ -171,7 +164,6 @@ async def create_scale_category(cmd: commands.ontologies.CreateScaleCategory, uo
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry, cmd.parent_ids, cmd.child_ids)
@@ -189,7 +181,6 @@ async def create_observation_method(cmd: commands.ontologies.CreateObservationMe
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or [],
             observation_type=cmd.observation_type
         )
@@ -208,7 +199,6 @@ async def create_variable(cmd: commands.ontologies.CreateVariable, uow_factory: 
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_variable(
@@ -233,7 +223,6 @@ async def create_control_method(cmd: commands.ontologies.CreateControlMethod, uo
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
@@ -251,7 +240,6 @@ async def create_factor(cmd: commands.ontologies.CreateFactor, uow_factory: Abst
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references = cmd.reference_ids or []
         )
 
@@ -277,7 +265,6 @@ async def create_event_type(cmd: commands.ontologies.CreateEventType, uow_factor
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_event_type(
@@ -300,7 +287,6 @@ async def create_location_type(cmd: commands.ontologies.CreateLocationType, uow_
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
@@ -318,7 +304,6 @@ async def create_design(cmd: commands.ontologies.CreateDesign, uow_factory: Abst
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
@@ -337,7 +322,6 @@ async def create_layout_type(cmd: commands.ontologies.CreateLayoutType, uow_fact
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
             axes=cmd.axes or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
@@ -354,7 +338,6 @@ async def create_record_group_type(cmd: commands.ontologies.CreateRecordGroupTyp
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
-            authors=cmd.author_ids or [],
             references=cmd.reference_ids or []
         )
         entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
@@ -486,8 +469,6 @@ async def update_relationships(
         'location_type_ids',
         'layout_type_ids',
         'design_ids',
-        'role_ids',
-        'title_ids',
         'term_ids',
         'record_group_type_ids',
     ]
@@ -531,8 +512,6 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
         entry.synonyms = cmd.synonyms
     if cmd.description is not None:
         entry.description = cmd.description
-    if cmd.author_ids is not None:
-        entry.authors = cmd.author_ids
     if cmd.reference_ids is not None:
         entry.references = cmd.reference_ids
     if hasattr(cmd, 'scale_type') and cmd.scale_type is not None:

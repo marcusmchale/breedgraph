@@ -82,6 +82,8 @@ class GermplasmApplicationService:
         """Create a new germplasm entry with validation and access control"""
         logger.debug(f"Creating germplasm entry: {entry.name}")
         self.validate_write_permission()
+        if self.write_team is None:
+            raise IllegalOperationError("A write team is required to create controlled entities")
 
         # Validate entry uniqueness (names and abbreviation)
         await self._validate_entry_uniqueness(entry)
@@ -89,10 +91,9 @@ class GermplasmApplicationService:
         stored_entry = await self.persistence.create_entry(entry)
 
         # Set up access controls for the new entry
-        control_teams = self.access_teams[Access.WRITE] if self.write_team is None else { self.write_team }
         await self.access_control.set_controls(
             models=stored_entry,
-            control_teams=control_teams,
+            control_teams={self.write_team},
             release=self.release
         )
         # Record write stamp

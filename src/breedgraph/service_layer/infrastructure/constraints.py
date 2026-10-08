@@ -8,10 +8,6 @@ class AbstractConstraintsHandler(ABC):
         ...
 
     @abstractmethod
-    async def email_allowed(self, email: str) -> bool:
-        ...
-
-    @abstractmethod
     async def is_ontology_admin(self) -> bool:
         ...
 

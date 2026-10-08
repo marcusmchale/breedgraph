@@ -1,3 +1,3 @@
 from .base import Event
-from . import accounts, ontology, references, analysis, datasets, archive
+from . import accounts, ontology, references, analysis, datasets, archive, control_transfers, people
 

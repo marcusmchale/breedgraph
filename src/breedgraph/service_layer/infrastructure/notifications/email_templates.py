@@ -19,16 +19,78 @@ class Email:
         self.message = EmailMessage()
 
 
-class EmailAddedMessage(Email):
+class ContactMessage(Email):
+    """A message to a contact. Replies go to the sender, who was told their address is shared."""
 
-    def __init__(self, ):
+    def __init__(self, sender: UserBase, sender_email: str, about: str, subject: str, message: str):
         super().__init__()
-        self.message['Subject'] = f'{SITE_NAME} registration now available'
-        self.message.set_content(
-            f'Welcome to {SITE_NAME}\n'
-            f'You are now able to register with this email address.'
-            f'Visit the {PROTOCOL}://{HOST_ADDRESS} to get started'
+        # Header values cannot contain line breaks
+        subject = ' '.join(subject.split())
+        self.message['Subject'] = f'{SITE_NAME}: {subject}'
+        self.message['Reply-To'] = sender_email
+        body = (
+            f'{sender.fullname} sent you a message through {SITE_NAME}, as a contact for {about}:\n\n'
+            f'{message}\n\n'
+            f'---\n'
+            f'Replying to this email sends your reply, and your email address, to {sender.fullname}.\n'
+            f'Your email address has not been shared with them otherwise. '
+            f'You can remove yourself as a contact at {PROTOCOL}://{HOST_ADDRESS}.'
         )
+        self.message.set_content(body)
+
+
+class PersonClaimRequestedMessage(Email):
+
+    def __init__(self, requesting_user: UserBase, person_id: int):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} request to link a Person record'
+        body = (
+            f'Admin notification:\n'
+            f'{requesting_user.fullname} asked to link their account to Person record {person_id}.\n'
+            f'Please confirm their identity before approving the request at {PROTOCOL}://{HOST_ADDRESS}.'
+        )
+        self.message.set_content(body)
+
+
+class PersonLinkedMessage(Email):
+
+    def __init__(self, user: UserBase):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} Person record linked to your account'
+        body = (
+            f'Hi {user.fullname},\n'
+            f'A Person record used to credit your contributions is now linked to your account.\n'
+            f'You can view, correct, unlink or erase it at {PROTOCOL}://{HOST_ADDRESS}.\n'
+            f'If the Person is listed as a contact, other users may message you through {SITE_NAME}. '
+            f'Messages arrive at this email address, which senders never see. '
+            f'You can remove yourself as a contact at any time.'
+        )
+        self.message.set_content(body)
+
+
+class InvitationMessage(Email):
+
+    def __init__(self, inviter: UserBase, token: str, expires_at: datetime, offers_affiliation: bool):
+        super().__init__()
+        self.message['Subject'] = f'Invitation to register with {SITE_NAME}'
+        register_url = f'{PROTOCOL}://{HOST_ADDRESS}/register?token={token}'
+        body = (
+            f'{inviter.fullname} has invited you to register with {SITE_NAME}.\n'
+            + (f'The invitation includes access to their teams, which you can accept or decline when registering.\n'
+               if offers_affiliation else '')
+            + f'Register using this email address at: \n'
+            f'{register_url}\n'
+            f'The invitation expires on {expires_at:%Y-%m-%d}. '
+            f'If you do not register, your email address is deleted when it expires.'
+        )
+        self.message.set_content(body)
+        self.message.add_attachment(
+            json.dumps({"token": token}).encode('utf-8'),
+            maintype='application',
+            subtype='json',
+            filename='invitation_token.json'
+        )
+
 
 class VerifyEmailMessage(Email):
 
@@ -91,6 +153,20 @@ class AffiliationApprovedMessage(Email):
             f'Your account was approved for {access.name.casefold()} access to {team.name}.\n'
         )
         self.message.set_content(body)
+
+class ControlTransferOfferedMessage(Email):
+
+    def __init__(self, offering_user: UserBase, team: TeamBase, entity_count: int):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} control transfer offered to {team.name}'
+        body = (
+            f'Admin notification:\n'
+            f'{offering_user.fullname} offered control of {entity_count} '
+            f'{"entry" if entity_count == 1 else "entries"} to {team.name}.\n'
+            f'Please review the offer at {PROTOCOL}://{HOST_ADDRESS}.'
+        )
+        self.message.set_content(body)
+
 
 class FileUploadSuccess(Email):
 

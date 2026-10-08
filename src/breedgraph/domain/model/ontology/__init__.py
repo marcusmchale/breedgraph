@@ -40,10 +40,6 @@ from .event_type import (
 from .location_type import LocationTypeBase, LocationTypeInput, LocationTypeStored
 from .designs import DesignBase, DesignInput, DesignStored
 from .layout_type import LayoutTypeBase, LayoutTypeInput, LayoutTypeStored
-from .people import (
-    RoleBase, RoleInput, RoleStored,
-    TitleBase, TitleInput, TitleStored
-)
 from .record_group import RecordGroupTypeBase, RecordGroupTypeInput, RecordGroupTypeStored
 
 
@@ -101,8 +97,6 @@ __all__ = [
     'LayoutTypeBase', 'LayoutTypeInput', 'LayoutTypeStored',
 
     # People-related entries
-    'RoleBase', 'RoleInput', 'RoleStored',
-    'TitleBase', 'TitleInput', 'TitleStored',
 
     # Record group entries
     'RecordGroupTypeBase', 'RecordGroupTypeInput', 'RecordGroupTypeStored',

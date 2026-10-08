@@ -5,8 +5,8 @@ from breedgraph.domain.model.controls import Access
 class AccountCreated(Event):
     user_id: int
 
-class EmailAdded(Event):
-    email: str
+class InvitationIssued(Event):
+    invitation_id: int
 
 class EmailVerified(Event):
     user_id: int

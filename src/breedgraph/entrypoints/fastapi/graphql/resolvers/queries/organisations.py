@@ -2,6 +2,7 @@ from ariadne import ObjectType
 
 from typing import List
 
+from breedgraph import config
 from breedgraph.domain.model.organisations import TeamOutput
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -18,10 +19,11 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 
 team = ObjectType("Team")
+legal_entity = ObjectType("LegalEntity")
 affiliations = ObjectType("Affiliations")
 affiliation = ObjectType("Affiliation")
 user = ObjectType("User")
-graphql_resolvers.register_type_resolvers(team, affiliations, affiliation, user)
+graphql_resolvers.register_type_resolvers(team, legal_entity, affiliations, affiliation, user)
 
 @graphql_query.field("organisations")
 @graphql_payload
@@ -47,6 +49,21 @@ async def get_teams(_, info, ids: List[int]) -> List[TeamOutput]:
     await update_teams_map(info.context, team_ids=ids)
     teams_map = info.context.get('teams_map')
     return [teams_map.get(team_id) for team_id in ids if team_id in teams_map]
+
+@graphql_query.field("organisationsDataProcessingTerms")
+@graphql_payload
+async def get_data_processing_terms(_, info) -> dict:
+    return {
+        'version': config.DATA_PROCESSING_TERMS_VERSION,
+        'url': config.DATA_PROCESSING_TERMS_URL
+    }
+
+@legal_entity.field("declaredBy")
+async def resolve_declared_by(obj, info):
+    if obj.declared_by is None:
+        return None
+    await update_users_map(info.context, user_ids=[obj.declared_by])
+    return info.context.get('users_map', {}).get(obj.declared_by)
 
 @team.field("parent")
 def resolve_parent(obj, info):

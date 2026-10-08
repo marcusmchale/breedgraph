@@ -4,6 +4,7 @@ from asyncio import Queue, create_task, gather, Task
 
 from breedgraph.domain import commands, events
 from breedgraph.config import N_EVENT_HANDLERS
+from breedgraph.service_layer.log_safety import loggable, describe_exception
 
 #if TYPE_CHECKING:
 from typing import Callable, Dict, List, Union, Type
@@ -85,7 +86,7 @@ class MessageBus:
     async def handle_command(self, command: commands.Command):
         try:
             logger.info(command.__class__.__name__)
-            logger.debug(command)
+            logger.debug(loggable(command))
             handler = self.command_handlers[type(command)]
             if not handler:
                 logger.debug(f"Command {type(command)} has no handler")
@@ -93,7 +94,7 @@ class MessageBus:
             else:
                 return await handler(command)
         except Exception as e:
-            logger.error(e)
+            logger.error(describe_exception(e))
             raise
 
     async def handle_event(self):
@@ -105,10 +106,10 @@ class MessageBus:
             for handler in handlers or []:
                 try:
                     logger.info(event.__class__.__name__)
-                    logger.debug(event)
+                    logger.debug(loggable(event))
                     await handler(event)
                 except Exception as e:
-                    logger.error(e)
+                    logger.error(describe_exception(e))
                     continue
             self.event_queue.task_done()
 

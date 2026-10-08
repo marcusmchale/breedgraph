@@ -20,3 +20,13 @@ class AbstractDependencyGuards(ABC):
     async def germplasm_has_units(self, germplasm_id: int) -> bool:
         """Check if a germplasm is part of any unit definitions"""
         ...
+
+    @abstractmethod
+    async def organisation_controls_persons(self, team_id: int) -> bool:
+        """Check if any team of the organisation rooted at the team currently controls a Person"""
+        ...
+
+    @abstractmethod
+    async def team_controls_entities(self, team_id: int) -> bool:
+        """Check if a team currently controls any entities"""
+        ...

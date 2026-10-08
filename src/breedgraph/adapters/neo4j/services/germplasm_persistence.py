@@ -31,6 +31,7 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
             record = record.get('entry')
 
         record.pop('name_lower')
+        record.pop('authors', None)  # no longer stored, may remain on older entries
         if 'time' in record:
             record['time'] = deserialize_time(record['time'], unit = record.pop('time_unit'), step=record.pop('time_step'))
         if 'reproduction' in record:

@@ -14,8 +14,8 @@ class BlockBuilder:
     def unit_input(cls, germplasm_id: int | None = None):
         return UnitInput(name=cls.text_generator.new_text(10), germplasm=germplasm_id)
 
-    async def unit(self, user_id: int, germplasm_id: int | None = None) -> int:
-        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+    async def unit(self, user_id: int, team_id: int, germplasm_id: int | None = None) -> int:
+        async with self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             block = await uow.repositories.blocks.create(self.unit_input(germplasm_id))
             await uow.commit()
         return block.root.id

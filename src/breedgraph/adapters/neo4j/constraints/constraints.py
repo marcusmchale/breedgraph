@@ -14,14 +14,6 @@ class Neo4jConstraintsHandler(AbstractConstraintsHandler):
         record = await result.single(strict=True)
         return record.value()
 
-    async def email_allowed(self, email: str) -> bool:
-        result: AsyncResult = await self.tx.run(
-            queries['accounts']['check_allowed_email'],
-            email_lower=email.casefold()
-        )
-        record = await result.single(strict=True)
-        return record.value()
-
     async def is_ontology_admin(self) -> bool:
         result: AsyncResult = await self.tx.run(
             queries['accounts']['get_user_ontology_role'],

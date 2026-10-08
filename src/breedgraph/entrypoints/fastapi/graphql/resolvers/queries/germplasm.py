@@ -116,11 +116,6 @@ async def resolve_reproduction(obj, info):
 
     return obj.reproduction
 
-@germplasm_entry.field("authors")
-async def resolve_authors(obj, info):
-    # todo Person not yet implemented
-    return []
-
 
 
 """
@@ -132,7 +127,6 @@ async def resolve_authors(obj, info):
     reproduction: Reproduction
     origin: Location
     controlMethods: [ControlMethod!]
-    authors: [Person!]
     references: [ReferenceInterface!]
     sources: [GermplasmRelationship!]
     sinks: [GermplasmRelationship!]

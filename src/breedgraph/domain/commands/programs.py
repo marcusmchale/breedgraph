@@ -8,7 +8,7 @@ from .base import Command
 # Program Commands
 class CreateProgram(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     name: str
@@ -37,7 +37,7 @@ class DeleteProgram(Command):
 # Trial Commands
 class CreateTrial(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     program_id: int
@@ -71,7 +71,7 @@ class DeleteTrial(Command):
 # Study Commands
 class CreateStudy(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     trial_id: int

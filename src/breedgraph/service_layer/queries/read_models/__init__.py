@@ -18,8 +18,6 @@ from .ontology import (
     VariableOutput,
     DesignOutput,
     EventOutput,
-    RoleOutput,
-    TitleOutput,
 
     OntologyEntryPatch
 )

@@ -4,7 +4,7 @@ from breedgraph.domain.model.controls import ReadRelease
 
 class DatasetSubmitted(Event):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     submission_id: str

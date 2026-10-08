@@ -9,3 +9,4 @@ from .people import Neo4jPeopleRepository
 from .references import Neo4jReferencesRepository
 from .programs import Neo4jProgramsRepository
 from .regions import Neo4jRegionsRepository
+from .invitations import Neo4jInvitationsRepository

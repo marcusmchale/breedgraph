@@ -7,6 +7,7 @@ from breedgraph.domain.model.accounts import AccountInput, AccountStored
 from breedgraph.domain.model.arrangements import LayoutInput, Arrangement
 from breedgraph.domain.model.blocks import UnitInput, Block
 from breedgraph.domain.model.datasets import DatasetInput, DatasetStored
+from breedgraph.domain.model.invitations import InvitationInput, InvitationStored
 from breedgraph.domain.model.organisations import TeamInput, Organisation
 from breedgraph.domain.model.people import PersonInput, PersonStored
 from breedgraph.domain.model.programs import ProgramInput, ProgramStored
@@ -17,6 +18,7 @@ class AbstractRepoHolder(ABC):
 
     accounts: BaseRepository[AccountInput, AccountStored]
     organisations: BaseRepository[TeamInput, Organisation]
+    invitations: BaseRepository[InvitationInput, InvitationStored]
 
     arrangements: ControlledRepository[LayoutInput, Arrangement]
     datasets: ControlledRepository[DatasetInput, DatasetStored]

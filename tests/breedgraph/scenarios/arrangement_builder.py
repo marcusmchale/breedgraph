@@ -15,13 +15,14 @@ class ArrangementBuilder:
     async def arrangement(
             self,
             user_id: int,
+            team_id: int,
             location_id: int,
             ontology_layout_named:int,
             ontology_layout_3d:int,
             ontology_layout_grid: int
     ) -> Dict[str, int|str|None]:
 
-        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+        async with self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             facility_layout_input = LayoutInput(
                 name="Growth Facility",
                 type=ontology_layout_named,

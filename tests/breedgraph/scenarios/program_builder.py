@@ -39,8 +39,8 @@ class ProgramBuilder:
             ]
         )
 
-    async def program_trial_study(self, user_id: int, replicate_type: int, batch_type: int) -> Dict[str, int|list[int|str]]:
-        async with (self.uow_factory.get_uow(user_id=user_id) as uow):
+    async def program_trial_study(self, user_id: int, team_id: int, replicate_type: int, batch_type: int) -> Dict[str, int|list[int|str]]:
+        async with (self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow):
             program = await uow.repositories.programs.create(self.program_input())
             program.add_trial(self.trial_input())
             await uow.repositories.programs.update_seen()

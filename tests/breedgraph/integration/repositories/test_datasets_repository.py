@@ -3,8 +3,8 @@ import pytest
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.custom_exceptions import NoResultFoundError
 
-async def create_dataset(uow_factory, user_id, dataset_input):
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+async def create_dataset(uow_factory, user_id, team_id, dataset_input):
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
         await uow.repositories.datasets.create(dataset_input)
         await uow.commit()
 
@@ -20,7 +20,7 @@ async def test_create_and_get(
         concept=concept_id,
         study=study_id
     )
-    await create_dataset(uow_factory, user_id, dataset_input)
+    await create_dataset(uow_factory, user_id, dataset_build_context['team_id'], dataset_input)
     async with uow_factory.get_uow(user_id=user_id) as uow:
         async for d in uow.repositories.datasets.get_all():
             assert d.concept == dataset_input.concept
@@ -49,7 +49,7 @@ async def test_update_contributors(
         concept=concept_id,
         study=study_id
     )
-    await create_dataset(uow_factory, user_id, dataset_input)
+    await create_dataset(uow_factory, user_id, dataset_build_context['team_id'], dataset_input)
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         dataset = await uow.repositories.datasets.get()
@@ -80,7 +80,7 @@ async def test_add_record(
         concept=concept_id,
         study=study_id
     )
-    await create_dataset(uow_factory, user_id, dataset_input)
+    await create_dataset(uow_factory, user_id, dataset_build_context['team_id'], dataset_input)
 
     unit_id = dataset_build_context['unit_id']
     async with uow_factory.get_uow(user_id=user_id) as uow:

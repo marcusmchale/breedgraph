@@ -6,10 +6,17 @@ def set_controls(label: ControlledModelLabel):
         WHERE entity.id IN $entity_ids
 
         OPTIONAL MATCH (existing_team:Team)-[:CONTROLS]->(existing_tp:Team{label.plural})
-            -[:CONTROLS]->(:Control)-[:CONTROLS]->(entity)
+            -[:CONTROLS]->(existing_control:Control)-[:CONTROLS]->(entity)
+
+        WITH entity, existing_team, existing_control
+        ORDER BY entity.id, existing_team.id, existing_control.sequence DESC
+
+        WITH entity, existing_team, collect(existing_control)[0] AS latest_control
 
         WITH entity,
-             collect(DISTINCT existing_team.id) AS existing_control_team_ids
+             collect(
+                CASE WHEN NOT coalesce(latest_control.ended, false) THEN existing_team.id END
+             ) AS existing_control_team_ids
 
         WITH entity,
              CASE
@@ -37,13 +44,56 @@ def set_controls(label: ControlledModelLabel):
     """
 
 
-def remove_controls(label:ControlledModelLabel):
+def add_controls(label: ControlledModelLabel):
     return f"""
-        MATCH (: {label.label})
-        <-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})
-        <-[:CONTROLS]-(control_team:Team)
-        WHERE control_team.id in $team_ids AND entity.id in $entity_ids
-        DETACH DELETE control
+        MATCH (entity:{label.label})
+        WHERE entity.id IN $entity_ids
+
+        UNWIND $team_ids AS team_id
+
+        MATCH (control_team:Team {{id: team_id}})
+
+        MERGE (control_team)-[:CONTROLS]->(tp:Team{label.plural})
+        ON CREATE SET tp.sequence = 0
+        ON MATCH SET tp.sequence = tp.sequence + 1
+
+        CREATE (tp)-[:CONTROLS]->(control:Control {{
+            user: $user_id,
+            release: $release,
+            time: datetime.transaction(),
+            sequence: tp.sequence
+        }})-[:CONTROLS]->(entity)
+    """
+
+def end_controls(label: ControlledModelLabel):
+    """
+    Ending a control appends a Control marked as ended, so control history is kept.
+    A team controls an entity while its latest Control for that entity is not ended.
+    """
+    return f"""
+        MATCH (entity:{label.label})
+        WHERE entity.id IN $entity_ids
+
+        UNWIND $team_ids AS team_id
+
+        MATCH (control_team:Team {{id: team_id}})-[:CONTROLS]->(tp:Team{label.plural})
+            -[:CONTROLS]->(control:Control)-[:CONTROLS]->(entity)
+
+        WITH entity, tp, control
+        ORDER BY entity.id, control.sequence DESC
+
+        WITH entity, tp, collect(control)[0] AS latest_control
+        WHERE NOT coalesce(latest_control.ended, false)
+
+        SET tp.sequence = tp.sequence + 1
+
+        CREATE (tp)-[:CONTROLS]->(ended_control:Control {{
+            user: $user_id,
+            release: latest_control.release,
+            time: datetime.transaction(),
+            sequence: tp.sequence,
+            ended: true
+        }})-[:CONTROLS]->(entity)
     """
 
 def record_writes(label:ControlledModelLabel):
@@ -68,6 +118,7 @@ def get_controllers(label:ControlledModelLabel):
         ORDER BY entity.id, team.id, control.sequence DESC
         
         WITH entity, team, collect(control)[0] as control
+        WHERE NOT coalesce(control.ended, false)
         
         RETURN
             entity.id as entity_id,

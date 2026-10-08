@@ -1,12 +1,22 @@
 from breedgraph.domain.model.controls import Access
 
+from pydantic import BaseModel
+
 from .base import Command
+
+from typing import List
 
 class CreateAccount(Command):
     name: str
     fullname: str|None = None
     email: str
     password_hash: str
+    # Required for all but the first account. The email must be the address invited.
+    invitation_token: str|None = None
+    # The affiliations offered with the invitation that the user accepts
+    accept_team_ids: List[int]|None = None
+    # Link the Person offered with the invitation to the new account
+    link_person: bool = False
 
 class UpdateUser(Command):
     user_id: int
@@ -21,13 +31,28 @@ class VerifyEmail(Command):
 class Login(Command):
     user_id: int
 
-class AddEmail(Command):
-    user_id: int
-    email: str
+class TeamInvitationInput(BaseModel):
+    team_id: int
+    access: Access
 
-class RemoveEmail(Command):
-    user_id: int
+class InviteUser(Command):
+    agent_id: int
     email: str
+    # Affiliations offered for teams the inviter administers
+    teams: List[TeamInvitationInput]|None = None
+    # A Person controlled by a team the inviter administers, offered for the user to link to their account
+    person_id: int|None = None
+
+class CancelInvitation(Command):
+    agent_id: int
+    invitation_id: int
+
+class ResendInvitation(Command):
+    agent_id: int
+    invitation_id: int
+
+class RemoveExpiredInvitations(Command):
+    pass
 
 class RequestOntologyRole(Command):
     user_id: int

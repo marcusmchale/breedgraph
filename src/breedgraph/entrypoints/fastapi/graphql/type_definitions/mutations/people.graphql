@@ -1,24 +1,78 @@
 input PersonInput {
     name: String!
-    fullname: String
+    """Affiliation"""
+    teamIds: [ID!]
+    """Defaults to PUBLIC_TASK"""
+    basis: LawfulBasis
+    """Confirm the person was informed that this record is held. Required to be true"""
+    informedAttestation: Boolean!
 }
 
 input PersonUpdate {
     id: ID!
     name: String
-    fullname: String
+    """Requires curate access"""
+    teamIds: [ID!]
+    """Requires curate access"""
+    basis: LawfulBasis
 }
 
 extend type Mutation {
+    """
+    Record a Person. The organisation of the control team must have declared its legal entity,
+    and becomes the data controller for the record.
+    """
     peopleCreatePerson(
         person: PersonInput!
         controlTeamId: ID!
-        release:ReadRelease
+        release: ReadRelease
     ): BooleanPayload!,
+    """Curators of the record can change all fields. The linked user can change the name"""
     peopleUpdatePerson(
         person: PersonUpdate!
     ): BooleanPayload!,
-    peopleDeletePerson(
+    """
+    Remove identifying data, keeping the id so contributions stay attributed.
+    By admins of the controlling teams or the linked user. Cannot be undone.
+    """
+    peopleErasePerson(
         id: ID!
+    ): BooleanPayload!
+    """
+    Ask to link the current user's account to a Person, for admins of its controlling teams to approve.
+    Before the user confirms, tell them that other users may message them through BreedGraph
+    if the Person is listed as a contact, at their account email address, which senders never see.
+    They can remove themselves as a contact, and unlink or erase the Person, at any time.
+    """
+    peopleRequestClaim(personId: ID!): BooleanPayload!
+    peopleWithdrawClaim(personId: ID!): BooleanPayload!
+    """ Link the requesting user to the Person. By admins of its controlling teams, who should confirm the user's identity """
+    peopleApproveClaim(personId: ID!, userId: ID!): BooleanPayload!
+    peopleRejectClaim(personId: ID!, userId: ID!): BooleanPayload!
+    """ Remove the link between a Person and an account. By the linked user or admins of its controlling teams """
+    peopleUnlinkPerson(personId: ID!): BooleanPayload!
+    """ Stop being a contact of a Program or Trial. By the user linked to the contact Person """
+    peopleRemoveSelfAsContact(entityLabel: ControlledModelLabel!, entityId: ID!): BooleanPayload!
+    """
+    Start verifying the user's ORCID iD for their linked Person. Returns the ORCID sign-in URL to send the browser to.
+    ORCID then redirects to the configured ORCID_REDIRECT_URI, a front-end page, adding code and state to it.
+    """
+    peopleStartOrcidLink: StringPayload!
+    """ Complete the ORCID sign-in with the code and state from the redirect, storing the verified ORCID iD """
+    peopleCompleteOrcidLink(code: String!, state: String!): BooleanPayload!
+    """ Remove the ORCID iD from the user's linked Person """
+    peopleRemoveOrcid: BooleanPayload!
+    """
+    Send a message to a contact of a Program or Trial the sender can read (entityLabel PROGRAM or TRIAL).
+    BreedGraph emails the linked user without revealing their address. The sender's name and email address
+    are included, so the recipient can reply: tell the sender this before sending.
+    Messages are rate limited per sender and limited in length.
+    """
+    peopleContactPerson(
+        personId: ID!
+        entityLabel: ControlledModelLabel!
+        entityId: ID!
+        subject: String!
+        message: String!
     ): BooleanPayload!
 }

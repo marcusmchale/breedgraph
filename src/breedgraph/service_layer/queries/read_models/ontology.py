@@ -54,7 +54,6 @@ class OntologyEntryOutput(ABC):
     description: str | None = None
     
     synonyms: tuple[str, ...] = ()
-    authors: tuple[int, ...] = ()
     references: tuple[int, ...] = ()
 
     parents: tuple[int, ...] = ()
@@ -102,8 +101,6 @@ class TermOutput(OntologyEntryOutput):
     location_types: tuple[int, ...] = ()
     layout_types: tuple[int, ...] = ()
     designs: tuple[int, ...] = ()
-    roles: tuple[int, ...] = ()
-    titles: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class LocationTypeOutput(OntologyEntryOutput):
@@ -213,16 +210,6 @@ class EventOutput(OntologyEntryOutput):
     variables: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
-class RoleOutput(OntologyEntryOutput):
-    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.ROLE
-    terms: tuple[int, ...] = ()
-
-@dataclass(frozen=True)
-class TitleOutput(OntologyEntryOutput):
-    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.TITLE
-    terms: tuple[int, ...] = ()
-
-@dataclass(frozen=True)
 class Ontology:
     version: Version
     view: OntologyViewMode
@@ -240,8 +227,6 @@ class OntologyEntryPatch:
 
     references_added: list[int]|None = None
     references_removed: list[int]|None = None
-    authors_added: list[int] | None = None
-    authors_removed: list[int] | None = None
 
 @dataclass(frozen=True)
 class OntologyRelationshipPatch:

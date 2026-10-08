@@ -21,7 +21,6 @@ class GermplasmEntryOutput:
     description: str| None = None
     synonyms: tuple[str, ...] = ()
 
-    authors: tuple[int, ...] = ()
     references: tuple[int, ...] = ()
 
     origin: int | None = None

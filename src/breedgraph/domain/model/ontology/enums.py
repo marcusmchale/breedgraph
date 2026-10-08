@@ -127,8 +127,6 @@ class OntologyEntryLabel(EnumLabel):
     LAYOUT_TYPE = "LayoutType"
     DESIGN = "Design"
     RECORD_GROUP_TYPE = "RecordGroupType"
-    ROLE = "Role"
-    TITLE = "Title"
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -148,8 +146,6 @@ class OntologyEntryLabel(EnumLabel):
             cls.LOCATION_TYPE: "LocationTypes",
             cls.LAYOUT_TYPE: "LayoutTypes",
             cls.DESIGN: "Designs",
-            cls.ROLE: "Roles",
-            cls.TITLE: "Titles",
             cls.RECORD_GROUP_TYPE: "RecordGroupTypes"
         }
 

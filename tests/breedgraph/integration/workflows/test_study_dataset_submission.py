@@ -23,6 +23,7 @@ async def test_submit_datasets_with_shared_grouping_scopes(
         dataset_build_context):
 
     user_id: int = dataset_build_context['user_id']
+    team_id: int = dataset_build_context['team_id']
     study_id: int = dataset_build_context['study_id']
     grouping_ids: list[int] = dataset_build_context['grouping_ids']
     grouping_names: list[int] = dataset_build_context['grouping_names']
@@ -33,7 +34,7 @@ async def test_submit_datasets_with_shared_grouping_scopes(
     batch_grouping_id = grouping_ids[batch_grouping_index]
     replicate_grouping_id = grouping_ids[replicate_grouping_index]
 
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
 
     variable1_ids = await OntologyBuilder(uow_factory=uow_factory).variable(user_id=user_id)
     variable2_ids = await OntologyBuilder(uow_factory=uow_factory).variable(user_id=user_id)
@@ -54,7 +55,7 @@ async def test_submit_datasets_with_shared_grouping_scopes(
         ]
     }
     key1 = await state_store.store_submission(agent_id=user_id, submission=dataset1_input)
-    cmd1 = CreateDataset(agent_id=user_id, submission_id=key1)
+    cmd1 = CreateDataset(agent_id=user_id, write_team=team_id, submission_id=key1)
     dataset2_input = {
         'study_id': study_id,
         'concept_id': variable2_ids['ontology_variable'],
@@ -71,7 +72,7 @@ async def test_submit_datasets_with_shared_grouping_scopes(
         ]
     }
     key2 = await state_store.store_submission(agent_id=user_id, submission=dataset2_input)
-    cmd2 = CreateDataset(agent_id=user_id, submission_id=key2)
+    cmd2 = CreateDataset(agent_id=user_id, write_team=team_id, submission_id=key2)
     #
     await bus.handle(cmd1)
     await bus.handle(cmd2)
