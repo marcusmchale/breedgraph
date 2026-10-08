@@ -1,4 +1,5 @@
 import bcrypt
+from typing import List
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 from breedgraph import config
@@ -7,7 +8,7 @@ from breedgraph.domain.commands.accounts import (
     UpdateUser,
     Login,
     VerifyEmail,
-    AddEmail, RemoveEmail,
+    InviteUser, CancelInvitation, ResendInvitation, TeamInvitationInput,
     RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation,
     SetOntologyRole, SetWriteTeam,
     RequestOntologyRole
@@ -37,7 +38,9 @@ async def create_account(
         name: str,
         fullname: str,
         email: str,
-        password: str
+        password: str,
+        invitation_token: str | None = None,
+        accept_team_ids: List[int] | None = None
 ) -> bool:
     logger.debug("Add account")
     password_policy = config.get_password_policy()
@@ -54,7 +57,9 @@ async def create_account(
         name=name,
         fullname=fullname,
         password_hash=password_hash,
-        email=email
+        email=email,
+        invitation_token=invitation_token,
+        accept_team_ids=accept_team_ids
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -242,22 +247,37 @@ async def verify_email(
     await info.context['bus'].handle(VerifyEmail(token=token))
     return True
 
-@graphql_mutation.field("accountsAddEmail")
+@graphql_mutation.field("accountsInvite")
 @graphql_payload
 @require_authentication
-async def add_email(_, info, email: str) -> bool:
+async def invite(_, info, email: str, teams: List[dict] | None = None, person_id: int | None = None) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Add email to allowed emails for user {user_id}")
-    await info.context['bus'].handle(AddEmail(user_id=user_id, email=email))
+    logger.debug(f"User {user_id} sends an invitation")
+    cmd = InviteUser(
+        agent_id=user_id,
+        email=email,
+        teams=[TeamInvitationInput(**team) for team in teams or []],
+        person_id=person_id
+    )
+    await info.context['bus'].handle(cmd)
     return True
 
-@graphql_mutation.field("accountsRemoveEmail")
+@graphql_mutation.field("accountsCancelInvitation")
 @graphql_payload
 @require_authentication
-async def remove_email(_, info, email: str) -> bool:
+async def cancel_invitation(_, info, id: int) -> bool:
     user_id = info.context.get('user_id')
-    logger.debug(f"Remove email from allowed emails for user {user_id}")
-    await info.context['bus'].handle(RemoveEmail(user_id=user_id, email=email))
+    logger.debug(f"User {user_id} cancels invitation {id}")
+    await info.context['bus'].handle(CancelInvitation(agent_id=user_id, invitation_id=id))
+    return True
+
+@graphql_mutation.field("accountsResendInvitation")
+@graphql_payload
+@require_authentication
+async def resend_invitation(_, info, id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} resends invitation {id}")
+    await info.context['bus'].handle(ResendInvitation(agent_id=user_id, invitation_id=id))
     return True
 
 @graphql_mutation.field("accountsRequestAffiliation")

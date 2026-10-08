@@ -21,6 +21,8 @@ type Query {
     Get a multiple team details
     """
     organisationsTeams(ids: [ID!]): TeamsPayload! # see team
+    """ What an invitation offers, for the registration form. Requires the token from the invitation link, not login """
+    accountsInvitation(token: String!): InvitationPreviewPayload!
     """ Persons the user can read, optionally by exact name (case insensitive) """
     people(name: String): PeoplePayload!
     """ Get Persons by id. Registered users without read access see the id only """

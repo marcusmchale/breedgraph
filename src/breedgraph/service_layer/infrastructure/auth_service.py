@@ -23,3 +23,13 @@ class AbstractAuthService(ABC):
     def validate_email_verification_token(self, token: str) -> dict:
         """Validate an email verification token and return the data if valid"""
         pass
+
+    @abstractmethod
+    def create_invitation_token(self, invitation_id: int, email: str) -> str:
+        """Create a registration token for an invitation"""
+        pass
+
+    @abstractmethod
+    def validate_invitation_token(self, token: str) -> dict:
+        """Validate an invitation token and return its invitation_id and email"""
+        pass

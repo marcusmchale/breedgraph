@@ -6,7 +6,7 @@ from tests.breedgraph.e2e.accounts.post_methods import (
     post_to_create_account,
     post_to_verify_email,
     post_to_login,
-    post_to_add_email,
+    post_to_invite,
     post_to_request_affiliation,
     post_to_approve_affiliation
 )
@@ -60,25 +60,26 @@ async def test_second_user_invited_registers_and_verifies(
         client,
         user_input_generator
 ):
-    # first user invites the second by adding an email address to their allowed list
+    # first user invites the second
     second_user_input = user_input_generator.new_user_input()
-    invite_response = await post_to_add_email(
+    invite_response = await post_to_invite(
         client,
         user_registration_context['login_token_user_1'],
         second_user_input["email"]
     )
-    invite_payload = get_verified_payload(invite_response, "accountsAddEmail")
+    invite_payload = get_verified_payload(invite_response, "accountsInvite")
     assert_payload_success(invite_payload)
-    assert await confirm_email_delivered(
+    invitation = await get_json_from_email(
         mailto=second_user_input["email"],
-        subject=f"{SITE_NAME} registration now available"
+        subject=f"Invitation to register with {SITE_NAME}"
     )
-    # second user can then register
+    # second user can then register with the token from the invitation
     register_response = await post_to_create_account(
         client,
         second_user_input["name"],
         second_user_input["email"],
-        second_user_input["password"]
+        second_user_input["password"],
+        invitation_token=invitation['token']
     )
     register_payload = get_verified_payload(register_response, "accountsCreateAccount")
     assert_payload_success(register_payload)

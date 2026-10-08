@@ -16,7 +16,45 @@ type User {
 
 type Account {
     user: User!
-    allowedEmails: [String!]
+    """Pending invitations sent by this user"""
+    invitations: [Invitation!]!
+}
+
+"""
+An invitation to register, sent by email with a registration link containing a token.
+The invitation, including the email address, is deleted when accepted, cancelled or expired.
+"""
+type Invitation {
+    id: ID!
+    email: String!
+    """Affiliations offered, which the invited user can accept or decline when registering"""
+    teams: [TeamInvitation!]!
+    """A Person offered for the invited user to link to their account"""
+    person: Person
+    createdAt: DateTime
+    expiresAt: DateTime
+}
+
+type TeamInvitation {
+    team: Team
+    access: Access!
+}
+
+"""What an invitation offers, shown to the invited user before registering"""
+type InvitationPreview {
+    email: String!
+    """Full name of the inviting user"""
+    invitedBy: String
+    teams: [TeamInvitationPreview!]!
+    """True when the invitation offers a Person to link to the new account"""
+    offersPerson: Boolean!
+    expiresAt: DateTime
+}
+
+type TeamInvitationPreview {
+    teamId: ID!
+    teamName: String!
+    access: Access!
 }
 
 type UserDisplay {

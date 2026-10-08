@@ -1,6 +1,9 @@
 from breedgraph.domain import commands, events
 from breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
-from breedgraph.domain.model.organisations import Authorisation
+from breedgraph.domain.model.organisations import Authorisation, Affiliation
+from breedgraph.domain.model.invitations import InvitationInput, TeamInvitation
+from breedgraph.domain.model.controls import Access, ControlledModelLabel
+from breedgraph import config
 
 
 from breedgraph.service_layer.infrastructure import (
@@ -23,14 +26,23 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def create_account(
         cmd: commands.accounts.CreateAccount,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        auth_service: AbstractAuthService
 ):
-
-    async with uow_factory.get_uow() as uow:
+    # Unredacted, to check the inviter still administers the teams offered
+    async with uow_factory.get_uow(redacted=False) as uow:
+        invitation = None
         if await uow.constraints.accounts_exist():
-            # And if so, the email must be included in the allowed emails of some other account
-            if not await uow.constraints.email_allowed(cmd.email):
+            # Registration requires an invitation to the email address used
+            if not cmd.invitation_token:
                 raise UnauthorisedOperationError("Please contact an existing user to be invited")
+            token_data = auth_service.validate_invitation_token(cmd.invitation_token)
+            invitation = await uow.repositories.invitations.get(invitation_id=token_data['invitation_id'])
+            if invitation is None or invitation.is_expired():
+                raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
+            if not invitation.matches_email(cmd.email):
+                raise UnauthorisedOperationError("Please register with the email address the invitation was sent to")
+            accepted_teams = invitation.accepted_teams(cmd.accept_team_ids)
             ontology_role = OntologyRole.CONTRIBUTOR
         else:
             # first user to register is the first Ontology Admin
@@ -63,8 +75,28 @@ async def create_account(
         )
 
         account: AccountInput = AccountInput(user=user)
-        await uow.repositories.accounts.create(account)
+        account = await uow.repositories.accounts.create(account)
+
+        if invitation is not None:
+            for team in accepted_teams:
+                await _grant_invited_affiliation(uow, invitation.invited_by, account.user.id, team)
+            # The invitation, with the email address, is not kept once accepted
+            await uow.repositories.invitations.remove(invitation)
         await uow.commit()
+
+
+async def _grant_invited_affiliation(uow, inviter_id: int, user_id: int, team: TeamInvitation):
+    organisation = await uow.repositories.organisations.get(team_id=team.team_id)
+    if organisation is None or inviter_id not in organisation.get_affiliates(team.team_id, access=Access.ADMIN):
+        raise IllegalOperationError(
+            f"Team {team.team_id} offered with this invitation is no longer administered by the inviter, "
+            f"please register without it"
+        )
+    affiliations = organisation.get_team(team.team_id).affiliations
+    affiliations.set_by_access(team.access, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
+    # As for approved requests, curate access includes read access
+    if team.access is Access.CURATE:
+        affiliations.set_by_access(Access.READ, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
 
 @handlers.command_handler()
 async def edit_user(
@@ -112,12 +144,6 @@ async def verify_email(
 
         account.user.email = email
         account.verify_email()
-
-        # now remove allowed emails and establish the ALLOWED_REGISTRATION relationship
-        # todo this relationship is not currently used but may be useful in auditing DB usage and admin activities
-        async for admin in uow.repositories.accounts.get_all(allowed_email=email):
-            admin.remove_email(email)
-
         await uow.commit()
 
 @handlers.command_handler()
@@ -130,34 +156,77 @@ async def login(
     # raise NotImplementedError
 
 @handlers.command_handler()
-async def add_email(
-        cmd: commands.accounts.AddEmail,
+async def invite_user(
+        cmd: commands.accounts.InviteUser,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
-        if await uow.repositories.accounts.get(email=cmd.email):
-            raise IdentityExistsError("This email is already registered to an account")
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        existing = await uow.repositories.accounts.get(email=cmd.email)
+        if existing is not None and existing.user.email_verified:
+            raise IdentityExistsError("This email address is already registered")
+        async for pending in uow.repositories.invitations.get_all(invited_by=cmd.agent_id, email=cmd.email):
+            raise IdentityExistsError(f"You have already invited this email address, resend invitation {pending.id} instead")
 
-        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
-        if account is None:
-            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
-        account.allow_email(cmd.email)
+        invitation = InvitationInput(
+            email=cmd.email,
+            invited_by=cmd.agent_id,
+            teams=[TeamInvitation(team_id=team.team_id, access=team.access) for team in cmd.teams or []],
+            person_id=cmd.person_id
+        )
+        admin_teams = uow.controls.access_teams[Access.ADMIN]
+        invitation.check_inviter(admin_teams)
+        if cmd.person_id is not None:
+            person = await uow.repositories.people.get(person_id=cmd.person_id)
+            if person is None or person.erased:
+                raise NoResultFoundError(f"Person {cmd.person_id} not found")
+            controller = await uow.controls.get_controller(ControlledModelLabel.PERSON, cmd.person_id)
+            if not controller.has_access(Access.ADMIN, access_teams=admin_teams):
+                raise UnauthorisedOperationError("A Person can only be offered by admins of its controlling teams")
+
+        stored = await uow.repositories.invitations.create(invitation)
+        stored.events.append(events.accounts.InvitationIssued(invitation_id=stored.id))
         await uow.commit()
+
+
+async def _get_own_invitation(uow, agent_id: int, invitation_id: int):
+    invitation = await uow.repositories.invitations.get(invitation_id=invitation_id)
+    if invitation is None or invitation.invited_by != agent_id:
+        raise NoResultFoundError(f"Invitation {invitation_id} not found among your invitations")
+    return invitation
+
 
 @handlers.command_handler()
-async def remove_email(
-        cmd: commands.accounts.RemoveEmail,
+async def cancel_invitation(
+        cmd: commands.accounts.CancelInvitation,
         uow_factory: AbstractUnitOfWorkFactory
 ):
-    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
-        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
-        if account is None:
-            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
-        try:
-            account.remove_email(cmd.email)
-        except NoResultFoundError:
-            raise NoResultFoundError("Email not found among those allowed by this account")
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        invitation = await _get_own_invitation(uow, cmd.agent_id, cmd.invitation_id)
+        await uow.repositories.invitations.remove(invitation)
         await uow.commit()
+
+
+@handlers.command_handler()
+async def resend_invitation(
+        cmd: commands.accounts.ResendInvitation,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        invitation = await _get_own_invitation(uow, cmd.agent_id, cmd.invitation_id)
+        invitation.extend(days=config.INVITATION_EXPIRY_DAYS)
+        invitation.events.append(events.accounts.InvitationIssued(invitation_id=invitation.id))
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def remove_expired_invitations(
+        cmd: commands.accounts.RemoveExpiredInvitations,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow() as uow:
+        removed = await uow.repositories.invitations.remove_expired()
+        await uow.commit()
+    logger.info(f"Removed {removed} expired invitations")
 
 @handlers.command_handler()
 async def request_ontology_role(

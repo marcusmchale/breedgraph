@@ -275,3 +275,9 @@ type PeoplePayload {
     result: [Person!]
     errors: [Error!]
 }
+
+type InvitationPreviewPayload {
+    status: QueryStatus!
+    result: InvitationPreview
+    errors: [Error!]
+}

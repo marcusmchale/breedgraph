@@ -140,6 +140,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
     async def _commit_repositories(self):
         logger.debug("Update seen aggregates across all repositories")
         await self.repositories.accounts.update_seen()
+        await self.repositories.invitations.update_seen()
         await self.repositories.organisations.update_seen()
         await self.repositories.arrangements.update_seen()
         await self.repositories.datasets.update_seen()

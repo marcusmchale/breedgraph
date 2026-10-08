@@ -2,20 +2,27 @@ from breedgraph.config import GQL_API_PATH
 from breedgraph.domain.model import Access
 from tests.breedgraph.e2e.utils import with_auth
 
-async def post_to_create_account(client, name: str, email: str, password: str):
+async def post_to_create_account(
+        client, name: str, email: str, password: str,
+        invitation_token: str | None = None, accept_team_ids: list | None = None
+):
     json={
         "query": (
             " mutation ( "
             "  $name: String!,"
             "  $fullname: String,"
             "  $email: String!,"
-            "  $password: String!"
+            "  $password: String!,"
+            "  $invitationToken: String,"
+            "  $acceptTeamIds: [ID!]"
             " ) { "
             "  accountsCreateAccount( "
             "    name: $name, "
             "    fullname: $fullname, "
             "    email: $email, "
-            "    password: $password "
+            "    password: $password, "
+            "    invitationToken: $invitationToken, "
+            "    acceptTeamIds: $acceptTeamIds "
             "  ) { "
             "    status, "
             "    result, "
@@ -27,7 +34,9 @@ async def post_to_create_account(client, name: str, email: str, password: str):
             "name": name,
             "fullname": name,
             "email": email,
-            "password": password
+            "password": password,
+            "invitationToken": invitation_token,
+            "acceptTeamIds": accept_team_ids
         }
     }
     return await client.post(GQL_API_PATH, json=json)
@@ -78,57 +87,50 @@ async def post_to_verify_email(client, token: str):
     }
     return await client.post(GQL_API_PATH, json=json)
 
-async def post_to_add_email(client, token: str, email: str):
-    json={
-        "query": (
-            " mutation ( "
-            "  $email: String!"
-            " ) { "
-            "  accountsAddEmail( "
-            "    email: $email, "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "email": email,
-        }
-    }
-    headers = with_auth(
-        csrf_token=client.headers["X-CSRF-Token"],
-        auth_token=token
-    )
-    response = await client.post(GQL_API_PATH, json=json, headers=headers)
-    return response
+async def _post(client, token: str | None, query: str, variables: dict | None = None):
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    return await client.post(GQL_API_PATH, json={"query": query, "variables": variables or {}}, headers=headers)
 
-async def post_to_remove_email(client, token: str, email: str):
-    json={
-        "query": (
-            " mutation ( "
-            "  $email: String!"
-            " ) { "
-            "  accountsRemoveEmail( "
-            "    email: $email, "
-            "  ) { "
-            "    status, "
-            "    result, "
-            "    errors { name, message } "
-            "  } "
-            " } "
-        ),
-        "variables": {
-            "email": email,
-        }
-    }
-    headers = with_auth(
-        csrf_token=client.headers["X-CSRF-Token"],
-        auth_token=token
+async def post_to_invite(client, token: str, email: str, teams: list | None = None, person_id: int | None = None):
+    return await _post(
+        client, token,
+        " mutation ( $email: String!, $teams: [TeamInvitationInput!], $personId: ID ) { "
+        "  accountsInvite( email: $email, teams: $teams, personId: $personId ) { status, result, errors { name, message } } "
+        " } ",
+        {"email": email, "teams": teams, "personId": person_id}
     )
-    response = await client.post(GQL_API_PATH, json=json, headers=headers)
-    return response
+
+async def post_to_cancel_invitation(client, token: str, invitation_id: int):
+    return await _post(
+        client, token,
+        " mutation ( $id: ID! ) { accountsCancelInvitation( id: $id ) { status, result, errors { name, message } } } ",
+        {"id": invitation_id}
+    )
+
+async def post_to_resend_invitation(client, token: str, invitation_id: int):
+    return await _post(
+        client, token,
+        " mutation ( $id: ID! ) { accountsResendInvitation( id: $id ) { status, result, errors { name, message } } } ",
+        {"id": invitation_id}
+    )
+
+async def post_to_invitation_preview(client, invitation_token: str):
+    return await _post(
+        client, None,
+        " query ( $token: String! ) { accountsInvitation( token: $token ) { "
+        "  status, result { email, invitedBy, offersPerson, expiresAt, teams { teamId, teamName, access } }, "
+        "  errors { name, message } "
+        " } } ",
+        {"token": invitation_token}
+    )
+
+async def post_to_account_invitations(client, token: str):
+    return await _post(
+        client, token,
+        " query { accountsAccount { status, result { invitations { "
+        "  id, email, createdAt, expiresAt, teams { team { id }, access }, person { id } "
+        " } }, errors { name, message } } } "
+    )
 
 
 async def post_to_account(client, token:str):

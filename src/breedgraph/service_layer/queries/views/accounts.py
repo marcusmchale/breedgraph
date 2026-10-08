@@ -19,10 +19,6 @@ class AbstractAccountsView(ABC):
     async def check_any_account(self) -> bool:
         ...
 
-    @abstractmethod
-    async def check_allowed_email(self, email: str) -> bool:
-        ...
-
     async def get_user(self) -> UserOutput | None:
         if not self.user_id:
             return None

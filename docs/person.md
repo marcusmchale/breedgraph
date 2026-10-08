@@ -214,7 +214,23 @@ Invitation
   expires_at
 ```
 
-The invitation, including its email address, is deleted when accepted or when it expires. This gives a clear retention period for the only email address held for a non-user.
+```
+(inviter: User)-[:INVITED]->(Invitation {email, created_at, expires_at})
+(Invitation)-[:OFFERS_TEAM {access}]->(Team)
+(Invitation)-[:OFFERS_PERSON]->(Person)
+```
+
+The invitation, including its email address, is deleted when accepted, cancelled or expired. This gives a clear retention period for the only email address held for a non-user.
+
+- **Inviting.** Any registered user can invite an email address, once per address while their invitation is pending.
+  They can offer affiliations, with an access level, to teams they administer, and a Person controlled by a team they administer.
+- **The invitation email** links to `/register?token=…`, with the token also attached as JSON. The token is signed and names the invitation.
+  `accountsInvitation(token)` shows what the invitation offers, without login, for the registration form.
+- **Registering.** Except for the first account, registration requires the token, and the email address must be the one invited; email verification then proves ownership.
+  The user chooses which offered affiliations to accept (`acceptTeamIds`); others are declined. Accepted affiliations are authorised, provided the inviter still administers the team.
+  The offered Person is linked only when the user confirms, see claiming (step 9).
+- **Expiry.** `INVITATION_EXPIRY_DAYS` (default 30). The inviter can resend, which extends the expiry with a new token, or cancel.
+  Expired invitations are ignored, and deleted by `/retention/run`, which the retention cron job already calls.
 
 ### Subject rights
 
@@ -287,7 +303,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    the auth token and request context, user records, account names, emails and login usernames are no longer logged at debug level.
    `LOG_LEVEL` defaults to `INFO` unless `ENVIRONMENT=development`, as library debug logs (e.g. Neo4j query parameters) may contain personal data.
    Usernames of locked-out login attempts are still logged as warnings, for security monitoring; the privacy notice should say so.
-8. **Invitations.** Replace allowed emails. Separate branch, done before claiming.
+8. **Invitations.** Done, on the `invitations` branch: invitations replace allowed emails, which are removed with their `Email` nodes and `ALLOWED_REGISTRATION` links.
+   Existing data is not migrated; the development database is flushed.
 9. **Claiming and subject rights.** `IS_PERSON` link, claim request/approve, subject-rights check in access control, account-deletion option.
 10. **ORCID linking.** Routes, config and constraint from §6.
 11. **Privacy notice and data processing terms.** Draft text describing what is stored, why, retention and erasure, for the DPO to finalise.

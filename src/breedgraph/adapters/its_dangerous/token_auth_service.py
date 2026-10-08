@@ -67,4 +67,24 @@ class ItsDangerousAuthService(AbstractAuthService):
             logger.debug("Invalid email verification token signature")
             raise UnauthorisedOperationError("Invalid verification token")
 
+    def create_invitation_token(self, invitation_id: int, email: str) -> str:
+        return self._serializer.dumps(
+            {'invitation_id': invitation_id, 'email': email},
+            salt=config.INVITATION_SALT
+        )
 
+    def validate_invitation_token(self, token: str) -> dict:
+        """The invitation's stored expiry also applies, as resending an invitation extends it with a new token"""
+        if not token:
+            raise UnauthorisedOperationError("Invalid invitation token")
+        try:
+            return self._serializer.loads(
+                token,
+                salt=config.INVITATION_SALT,
+                max_age=config.INVITATION_EXPIRY_DAYS * 24 * 60 * 60
+            )
+        except SignatureExpired:
+            raise UnauthorisedOperationError("This invitation has expired")
+        except BadSignature:
+            logger.debug("Invalid invitation token signature")
+            raise UnauthorisedOperationError("Invalid invitation token")

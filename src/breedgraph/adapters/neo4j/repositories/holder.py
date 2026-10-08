@@ -7,6 +7,7 @@ from breedgraph.service_layer.application.access_control import AbstractAccessCo
 from breedgraph.adapters.neo4j.repositories.accounts import Neo4jAccountRepository
 from breedgraph.adapters.neo4j.repositories.arrangements import Neo4jArrangementsRepository
 from breedgraph.adapters.neo4j.repositories.blocks import Neo4jBlocksRepository
+from breedgraph.adapters.neo4j.repositories.invitations import Neo4jInvitationsRepository
 from breedgraph.adapters.neo4j.repositories.datasets import Neo4jDatasetsRepository
 from breedgraph.adapters.neo4j.repositories.organisations import Neo4jOrganisationsRepository
 from breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
@@ -15,6 +16,7 @@ from breedgraph.adapters.neo4j.repositories.references import Neo4jReferencesRep
 from breedgraph.adapters.neo4j.repositories.regions import Neo4jRegionsRepository
 
 from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.config import INVITATION_EXPIRY_DAYS
 
 from breedgraph.service_layer.repositories.holder import AbstractRepoHolder
 
@@ -37,6 +39,8 @@ class Neo4jRepoHolder(AbstractRepoHolder):
 
         # Access control for account security
         self.accounts = Neo4jAccountRepository(self.tx)
+        # Access to invitations is checked by handlers: inviters manage their own, invited users present a token
+        self.invitations = Neo4jInvitationsRepository(self.tx, expiry_days=INVITATION_EXPIRY_DAYS)
         # Similarly, the access control for organisations is via internally described affiliations
 
         self.organisations = Neo4jOrganisationsRepository(
@@ -74,6 +78,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
     async def update_all_seen(self):
         logger.debug("Update seen by all repositories")
         await self.accounts.update_seen()
+        await self.invitations.update_seen()
         await self.organisations.update_seen()
         await self.arrangements.update_seen()
         await self.datasets.update_seen()

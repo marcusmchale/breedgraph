@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from breedgraph.service_layer.tracking.wrappers import asdict
-from breedgraph.domain.events.accounts import EmailAdded, EmailVerified
+from breedgraph.domain.events.accounts import EmailVerified
 
 from .base import LabeledModel, StoredModel, Aggregate, SerializableMixin
 
@@ -113,9 +113,6 @@ class AccountInput(AccountBase):
 @dataclass(eq=False)
 class AccountStored(Aggregate, AccountBase):
     user: UserStored
-    allowed_emails: List[str] = field(default_factory=list)
-    # tracked sets are not suited to strings due to collisions of hashes used to record changed elements
-    allowed_users: List[int] = field(default_factory=list)
 
     @property
     def root(self):
@@ -130,30 +127,12 @@ class AccountStored(Aggregate, AccountBase):
 
     def model_dump(self):
         return {
-            'user': self.user.model_dump(),
-            'allowed_emails': self.allowed_emails,
-            'allowed_users': self.allowed_users,
+            'user': self.user.model_dump()
         }
-
-    def allow_email(self, email: str):
-        self.allowed_emails.append(email)
-        self.events.append(EmailAdded(email=email))
 
     def verify_email(self):
         self.user.email_verified = True
         self.events.append(EmailVerified(user_id=self.user.id))
-
-    def remove_email(self, email: str):
-        email_to_remove = None # need case insensitive remove
-        for allowed_email in self.allowed_emails:
-            if allowed_email.casefold() == email.casefold():
-                email_to_remove = allowed_email
-                break
-
-        if email_to_remove:
-            self.allowed_emails.remove(email)
-        else:
-            raise ValueError(f"Email {email} not found in allowed emails")
 
     def can_contribute_ontology(self) -> bool:
         """Only these roles can contribute to ontology"""
@@ -170,10 +149,8 @@ class AccountStored(Aggregate, AccountBase):
 @dataclass
 class  AccountOutput(AccountBase):
     user: UserOutput
-    allowed_emails: List[str] = field(default_factory=list)
 
     def model_dump(self):
         return {
-            'user': self.user.model_dump(),
-            'allowed_emails': self.allowed_emails
+            'user': self.user.model_dump()
         }

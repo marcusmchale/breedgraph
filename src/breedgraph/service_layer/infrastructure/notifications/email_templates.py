@@ -19,16 +19,29 @@ class Email:
         self.message = EmailMessage()
 
 
-class EmailAddedMessage(Email):
+class InvitationMessage(Email):
 
-    def __init__(self, ):
+    def __init__(self, inviter: UserBase, token: str, expires_at: datetime, offers_affiliation: bool):
         super().__init__()
-        self.message['Subject'] = f'{SITE_NAME} registration now available'
-        self.message.set_content(
-            f'Welcome to {SITE_NAME}\n'
-            f'You are now able to register with this email address.'
-            f'Visit the {PROTOCOL}://{HOST_ADDRESS} to get started'
+        self.message['Subject'] = f'Invitation to register with {SITE_NAME}'
+        register_url = f'{PROTOCOL}://{HOST_ADDRESS}/register?token={token}'
+        body = (
+            f'{inviter.fullname} has invited you to register with {SITE_NAME}.\n'
+            + (f'The invitation includes access to their teams, which you can accept or decline when registering.\n'
+               if offers_affiliation else '')
+            + f'Register using this email address at: \n'
+            f'{register_url}\n'
+            f'The invitation expires on {expires_at:%Y-%m-%d}. '
+            f'If you do not register, your email address is deleted when it expires.'
         )
+        self.message.set_content(body)
+        self.message.add_attachment(
+            json.dumps({"token": token}).encode('utf-8'),
+            maintype='application',
+            subtype='json',
+            filename='invitation_token.json'
+        )
+
 
 class VerifyEmailMessage(Email):
 

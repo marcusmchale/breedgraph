@@ -27,15 +27,6 @@ class Neo4jAccountsView(AbstractAccountsView):
             record = await result.single()
             return record.value()
 
-    async def check_allowed_email(self, email: str) -> bool:
-        async with await self.session.begin_transaction() as tx:
-            result: AsyncResult = await tx.run(
-                queries['accounts']['check_allowed_email'],
-                email_lower=email.casefold()
-            )
-            record = await result.single()
-            return record.value()
-
     async def _get_user(self) -> UserOutput:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(queries['accounts']['get_user'], user_id=self.user_id)

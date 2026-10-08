@@ -1,9 +1,16 @@
 extend type Mutation {
+    """
+    Register. Except for the first account, requires the token from an invitation link,
+    and the email address must be the one invited.
+    """
     accountsCreateAccount(
         name: String!
         fullname: String
         email: String!
         password: String!
+        invitationToken: String
+        """ Affiliations offered with the invitation to accept. Others are declined """
+        acceptTeamIds: [ID!]
     ): BooleanPayload!
     accountsUpdateUser(
         name: String,
@@ -19,12 +26,18 @@ extend type Mutation {
         password: String!
     ): BooleanPayload!
     accountsLogout: BooleanPayload!,
-    accountsAddEmail(
+    """
+    Invite someone to register. Teams must be administered by the inviting user,
+    and a Person must be controlled by a team they administer.
+    """
+    accountsInvite(
         email: String!
+        teams: [TeamInvitationInput!]
+        personId: ID
     ): BooleanPayload!
-    accountsRemoveEmail(
-        email: String!
-    ): BooleanPayload!
+    accountsCancelInvitation(id: ID!): BooleanPayload!
+    """ Send the invitation again, extending its expiry """
+    accountsResendInvitation(id: ID!): BooleanPayload!
     accountsRequestAffiliation(
         teamId: ID!
         access: Access!
@@ -56,4 +69,9 @@ extend type Mutation {
         """ Set the default write team to ensure this team comes first in the write teams list """
         teamId: ID!
     ): BooleanPayload!
+}
+
+input TeamInvitationInput {
+    teamId: ID!
+    access: Access!
 }
