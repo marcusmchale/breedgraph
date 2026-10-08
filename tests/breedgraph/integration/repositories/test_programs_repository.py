@@ -121,6 +121,7 @@ async def test_add_controlled_model_requires_write_team(uow_factory, program_bui
         assert not program.trials
 
 
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_by_name_ignores_case(uow_factory, program_build_context):
     user_id = program_build_context['user_id']
     program_input = ProgramBuilder.program_input()
