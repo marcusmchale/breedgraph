@@ -185,8 +185,9 @@ Backups and logs:
 - Backups (e.g. `instance/neo4j_archive/`) are kept for a documented retention period.
 - The erasure log is a JSON-lines file at `PERSON_ERASURE_LOG_PATH` (default `instance/person_erasure_log.jsonl`), outside the database, so restoring a backup does not roll it back.
   It is appended to by the `PersonErased` event handler after an erasure is committed, so every logged erasure happened.
-- `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/archive_sync.sh` (cron on the archive server) copies new dumps and the erasure log.
-  The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the archived copy. Run it at least as often as dumps are made.
+- `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/sync_database_backups.sh` (cron on the archive server, settings as in `instance/backup_sync.env`) copies new dumps and the erasure log.
+  It is unrelated to the file archive worker. The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the copy. Run it at least as often as dumps are made.
+  `BACKUP_RETENTION_DAYS` optionally removes old dumps on the archive server; the erasure log is never removed.
 - `scripts/restore.sh` loads a dump and then runs `scripts/apply_person_erasures.py`, which applies the whole log again. Replaying is idempotent.
 - Personal data is not written to application logs. Log ids and actions, not mutation payloads.
 
@@ -242,7 +243,7 @@ The invitation, including its email address, is deleted when accepted, cancelled
   The user chooses which offered affiliations to accept (`acceptTeamIds`); others are declined. Accepted affiliations are authorised, provided the inviter still administers the team.
   The offered Person is linked only when the user confirms, see claiming (step 9).
 - **Expiry.** `INVITATION_EXPIRY_DAYS` (default 30). The inviter can resend, which extends the expiry with a new token, or cancel.
-  Expired invitations are ignored, and deleted by `/retention/run`, which the retention cron job already calls.
+  Expired invitations are ignored, and deleted by `/retention/run`, which `scripts/trigger_retention.sh` calls from cron.
 
 ### Subject rights
 

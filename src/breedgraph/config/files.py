@@ -19,5 +19,5 @@ RETRIEVE_ATTEMPT_LIMIT = int(os.environ.get('RETRIEVE_ATTEMPT_LIMIT', 5))
 ARCHIVE_AUTH_TOKEN = os.environ.get('ARCHIVE_AUTH_TOKEN')
 
 # File retention policy
-# For the file retention policy trigger (use a cron job to run trigger_file_retention.py)
+# For the file retention policy trigger (use a cron job to run scripts/trigger_retention.sh)
 RETENTION_AUTH_TOKEN = os.environ.get('RETENTION_AUTH_TOKEN')
