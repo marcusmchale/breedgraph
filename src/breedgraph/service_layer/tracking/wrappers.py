@@ -20,6 +20,8 @@ from typing import (
     Generator
 )
 import copy
+import inspect
+import types
 
 import logging
 
@@ -212,6 +214,15 @@ class TrackedObject(ObjectProxy):
                 # Skip attributes that can't be set
                 continue
 
+    def __getattr__(self, name):
+        # Methods of the wrapped class are bound to this proxy rather than the wrapped object,
+        # so attributes assigned within a method pass through __setattr__ and are tracked.
+        if not name.startswith('__'):
+            class_attr = inspect.getattr_static(type(self.__wrapped__), name, None)
+            if isinstance(class_attr, types.FunctionType):
+                return types.MethodType(class_attr, self)
+        return super().__getattr__(name)
+
     def __setattr__(self, key, value):
         if all([
             key not in ('_self_changed', '_self_on_changed'),
@@ -220,6 +231,7 @@ class TrackedObject(ObjectProxy):
             self._self_changed.add(key)
             for callback in self._self_on_changed:
                 callback()
+            value = self._track_value(key, value)
 
         self.__wrapped__.__setattr__(key, value)
 
@@ -227,7 +239,14 @@ class TrackedObject(ObjectProxy):
         self.__wrapped__.__setattr__(key, value)
 
     def _get_tracked(self, attr):
-        value = getattr(self.__wrapped__, attr)
+        return self._track_value(attr, getattr(self.__wrapped__, attr))
+
+    def _track_value(self, attr, value):
+        if attr.startswith('_') and attr not in self._private_tracked_attrs:
+            return value
+        if attr in self._skip_tracking_attrs or callable(value):
+            return value
+
         on_changed = lambda: self.on_changed_attr(attr)
 
         # Return primitive types unchanged - they don't require nested tracking
