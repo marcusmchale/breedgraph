@@ -180,3 +180,14 @@ def test_only_pending_transfers_change(close):
 
 def test_transfers_are_protected_from_deletion():
     assert pending_transfer().protected
+
+
+def test_cancel_for_deleted_team():
+    for team_id in (FROM_TEAM, RECIPIENT_ROOT):
+        transfer = pending_transfer()
+        transfer.cancel_for_deleted_team(agent_id=RECEIVING_USER, team_id=team_id)
+        assert transfer.status is ControlTransferStatus.CANCELLED
+        assert transfer.cancelled_by == RECEIVING_USER
+
+    with pytest.raises(IllegalOperationError):
+        pending_transfer().cancel_for_deleted_team(agent_id=RECEIVING_USER, team_id=OTHER_TEAM)

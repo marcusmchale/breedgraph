@@ -55,6 +55,10 @@ async def delete_team(
         organisation: Organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
         if organisation.get_sinks(cmd.team_id):
             raise ProtectedNodeError("Cannot remove a team with children")
+        if await uow.guards.team_controls_entities(cmd.team_id):
+            raise ProtectedNodeError("Cannot remove a team that controls entities, transfer or renounce its control first")
+
+        await uow.controls.cancel_transfers_for_team(cmd.team_id)
 
         organisation.remove_team(cmd.team_id)
         await uow.commit()

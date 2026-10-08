@@ -86,7 +86,8 @@ class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
     async def _delete_team(self, team_id: int):
         await self.tx.run(
             queries['organisations']['delete_team'],
-            team=team_id
+            team=team_id,
+            user_id=self.user_id
         )
 
     async def _get(self, team_id=None) -> Organisation|None:

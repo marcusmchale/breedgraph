@@ -402,6 +402,28 @@ class AbstractAccessControlService(ABC):
         transfer.cancel(agent_id=self.user_id, admin_teams=self.admin_teams)
         return await self._set_transfer(transfer)
 
+    async def cancel_transfers_for_team(self, team_id: int) -> List[ControlTransferStored]:
+        """Cancel pending transfers to or from a team that is being deleted."""
+        if not self.user_id:
+            raise UnauthorisedOperationError("User ID required to cancel control transfers")
+        if team_id not in self.admin_teams:
+            raise UnauthorisedOperationError("Admin access to the team is required to cancel its control transfers")
+
+        pending = {
+            transfer.id: transfer
+            for transfer in await self._get_transfers(recipient_teams=[team_id], statuses=[ControlTransferStatus.PENDING])
+        }
+        pending.update({
+            transfer.id: transfer
+            for transfer in await self._get_transfers(from_teams=[team_id], statuses=[ControlTransferStatus.PENDING])
+        })
+        cancelled = []
+        for transfer_id in sorted(pending):
+            transfer = pending[transfer_id]
+            transfer.cancel_for_deleted_team(agent_id=self.user_id, team_id=team_id)
+            cancelled.append(await self._set_transfer(transfer))
+        return cancelled
+
     async def renounce_controls(self, entities: List[ControlledEntity], team_ids: Set[int]) -> None:
         """
         End the control of teams over entities that other teams also control. Nobody gains control.

@@ -72,7 +72,8 @@ Renouncing is refused if it would leave the model with no control team.
 
 ## 4. Team structure changes
 
-A change to the team tree that would put entities under a different organisation is a transfer of everything controlled by the moved teams.
+Teams cannot yet be moved between parents: `UpdateTeam` changes only names, and the repository's `split` is unused.
+When moving teams is added, a change to the team tree that would put entities under a different organisation is a transfer of everything controlled by the moved teams.
 
 | Change | Offered by | Accepted by |
 |---|---|---|
@@ -80,9 +81,18 @@ A change to the team tree that would put entities under a different organisation
 | Split: a team becomes the root of a new organisation | An admin of the current organisation's root | An admin of the team being split off |
 | Merge: a root becomes a child of a team in another organisation | An admin of the merging root | An admin of the destination organisation's root |
 | Move a team to another organisation | An admin of the current organisation's root | An admin of the destination organisation's root |
-| Delete a team that controls entities | Refused until its entities are transferred or removed | |
+| Delete a team that controls entities | Refused until its control is transferred or renounced | |
 
 The structure change is held as a pending change, using the same offer and accept steps as §3, and applied on acceptance together with the moved entities.
+
+### Deleting a team
+
+A team that currently controls entities cannot be deleted. Once it controls none, deleting it marks it as deleted rather than removing it, so the history of its controls is kept:
+- The node's `Team` label is replaced by `DeletedTeam`, so it is excluded from every query that matches `Team`.
+- Its link to its parent is removed and the parent's ID is kept as `parent`, with `deleted_at` and `deleted_by`.
+- Affiliations to the team are removed, and it is cleared as any user's default write team.
+- Its `Control` nodes, all ended, stay attached.
+- Pending transfers to or from the team are cancelled, recorded as cancelled by the user deleting it.
 A team becoming a root triggers the legal entity declaration described in `person.md` §2, if the new organisation will control Persons.
 
 ## 5. Entity-specific rules
@@ -121,7 +131,8 @@ Rules are checked at offer and at acceptance. Initially:
    and applies accepted transfers in the same transaction. Transfers are visible to admins of the recipient team or of a team giving up control.
    Command handlers, and an event handler emailing the recipient team's admins.
 4. **Rules.** A hook for entity-specific checks (§5). The Person rule is added with Person.
-5. **Team structure.** Pending structure changes for split, merge and move. Refuse deletion of teams that control entities.
+5. **Team structure.** Done: deletion of teams that control entities is refused, and deleted teams are kept as `DeletedTeam`.
+   Later, when moving teams is needed: pending structure changes for split, merge and move.
 6. **GraphQL.** Queries `controlsTransfers(statuses)` and `controlsTransfer(id)`, for transfers to or from teams the user administers.
    Mutations `controlsOfferTransfer`, `controlsAcceptTransfer`, `controlsRejectTransfer`, `controlsCancelTransfer` and `controlsRenounceControl`.
 7. **Tests.** Offer and accept flows, immediate acceptance for admins on both sides, authorisation on each side, cancellation, shared control, team structure changes.

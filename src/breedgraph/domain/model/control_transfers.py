@@ -136,6 +136,14 @@ class ControlTransferStored(ControlTransferBase, StoredModel, Aggregate):
         self.rejected_by = agent_id
         self.status = ControlTransferStatus.REJECTED
 
+    def cancel_for_deleted_team(self, agent_id: int, team_id: int) -> None:
+        """Cancel a pending transfer to or from a team being deleted. The caller authorises the deletion."""
+        self._require_pending()
+        if team_id != self.recipient_team and team_id not in self.from_teams:
+            raise IllegalOperationError(f"Team {team_id} is not part of this transfer")
+        self.cancelled_by = agent_id
+        self.status = ControlTransferStatus.CANCELLED
+
     def cancel(self, agent_id: int, admin_teams: Set[int]) -> None:
         self._require_pending()
         if not set(self.from_teams).issubset(admin_teams):
