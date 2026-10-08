@@ -11,8 +11,9 @@ class DatasetSummary:
     block_ids: List[int]
     unit_count: int
     record_count: int
-    start: datetime64 = None
-    end: datetime64 = None
+    start: datetime64|None = None
+    end: datetime64|None = None
+
 
     def __post_init__(self):
         if self.start is not None:

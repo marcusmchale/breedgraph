@@ -8,33 +8,32 @@ SET study += $study_data
 WITH
   study
 //Link references
-CALL {
-  WITH study
+OPTIONAL CALL (study) {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   CREATE (reference)-[:REFERENCE_FOR ]->(study)
   RETURN
     collect(reference.id) AS references
 }
 //Link design (in ontology)
-CALL {
-  WITH study
+OPTIONAL CALL (study) {
   MATCH (design: Design) WHERE design.id = $design_id
   CREATE (study)-[uses_design:USES_DESIGN]->(design)
   RETURN
     collect(design.id)[0] AS design
 }
 //Link licence (reference)
-CALL {
-  WITH study
+OPTIONAL CALL (study) {
   MATCH (licence: Reference) WHERE licence.id = $licence_id
   CREATE (study)-[uses_licence:USES_LICENCE]->(licence)
   RETURN
     collect(licence.id)[0] AS licence
 }
+
 RETURN
   study {
     .*,
     reference_ids: references,
     design_id: design,
-    licence_id: licence
+    licence_id: licence,
+    groupings: []
   }

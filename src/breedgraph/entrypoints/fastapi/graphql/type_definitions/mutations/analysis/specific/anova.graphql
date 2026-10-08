@@ -1,0 +1,56 @@
+"""
+Configuration for analysis of variance.
+
+The supplied terms define the variables available to the analysis.
+Grouping defines the analytical observations on which the model operates.
+
+Models with only fixed effects are fitted as linear models. Models with
+any RANDOM term are fitted as linear mixed models; crossed random effects
+are supported.
+"""
+input AnovaInput {
+  """
+  Terms used by the analysis.
+
+  Includes the response term.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """
+  The response term.
+
+  Must reference a CONCEPT term in terms, represented as CONTINUOUS,
+  with no effect.
+  """
+  response: AnalysisTermReferenceInput!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGroupingInput
+
+  """
+  Interactions between analysis terms.
+  """
+  interactions: [InteractionTermInput!]
+
+  """
+  Significance level used for hypothesis testing.
+  """
+  alpha: Float = 0.05
+
+  """
+  Type of sums of squares. Type III uses sum-to-zero contrasts.
+  """
+  sumOfSquares: SumOfSquaresType = TYPE_III
+
+  """
+  Denominator degrees of freedom method for mixed models.
+  """
+  ddf: DdfMethod = SATTERTHWAITE
+
+  """
+  Optional estimated marginal means and contrasts.
+  """
+  estimatedMeans: [EstimatedMeansInput!]
+}

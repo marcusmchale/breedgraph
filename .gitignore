@@ -19,3 +19,4 @@ __pycache__
 /dist
 /instance/test_archive/
 /src/breedcafs_migration/private_notes.md
+/.claude/

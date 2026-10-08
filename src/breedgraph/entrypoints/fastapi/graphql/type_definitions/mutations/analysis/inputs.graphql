@@ -1,0 +1,155 @@
+"""
+Defines an analysis to be submitted for execution.
+
+Analysis configurations are validated by the server according
+to analysisType.
+"""
+input AnalysisInput {
+  """
+  Type of analysis to perform.
+  """
+  analysisType: AnalysisType!
+
+  """
+  Optional name for the analysis.
+  """
+  name: String
+
+  """
+  Datasets whose records are included in the analysis.
+  """
+  datasetIds: [ID!]!
+
+  """
+  Rules for excluding records from the analysis.
+
+  A record is excluded if it matches any rule.
+  """
+  exclusions: [AnalysisExclusionInput!]
+
+  """
+  ANOVA configuration.
+  """
+  anova: AnovaInput
+
+  """
+  MDS configuration.
+  """
+  mds: MDSInput
+
+  """
+  Correlation configuration.
+  """
+  correlation: CorrelationInput
+
+  """
+  Descriptive statistics configuration.
+  """
+  descriptiveStatistics: DescriptiveStatisticsInput
+
+  """
+  Outlier detection configuration.
+  """
+  outlierDetection: OutlierDetectionInput
+}
+
+"""
+A rule for excluding records from an analysis.
+
+A record matches the rule when it matches ALL provided criteria.
+Within a list criterion, a record matches when ANY element matches.
+At least one criterion is required.
+
+Matching is exact: excluding a germplasm does not exclude its
+descendants, and excluding a unit does not exclude its children.
+"""
+input AnalysisExclusionInput {
+  """
+  IDs of records to exclude.
+  """
+  recordIds: [ID!]
+
+  """
+  IDs of the base units of records to exclude.
+  """
+  unitIds: [ID!]
+
+  """
+  IDs of the germplasm of the base units of records to exclude.
+  """
+  germplasmIds: [ID!]
+
+  """
+  IDs of the studies of records to exclude.
+  """
+  studyIds: [ID!]
+
+  """
+  Positions of the base units of records to exclude.
+
+  Evaluated against the unit position history only: a record matches
+  when any position interval of its unit matching a criterion overlaps
+  [start, end], regardless of the record time.
+  """
+  positions: [PositionExclusionInput!]
+
+  """
+  Record group codes of records to exclude.
+  """
+  recordGroups: [RecordGroupMemberInput!]
+
+  """
+  Inclusive start of the rule (ISO 8601). Null means unbounded.
+
+  For record criteria, a record matches when its start/end overlaps
+  [start, end]. A record with no time never matches a time-bounded rule.
+  """
+  start: DateTime
+
+  """
+  Exclusive end of the rule (ISO 8601). Null means unbounded.
+  """
+  end: DateTime
+}
+
+
+"""
+A position criterion of an exclusion rule.
+"""
+input PositionExclusionInput {
+  """
+  ID of the Location in the Region hierarchy.
+  """
+  locationId: ID!
+
+  """
+  ID of the Layout in the Arrangement hierarchy.
+
+  When null, any position at the location matches.
+  """
+  layoutId: ID
+
+  """
+  Axis values to match.
+
+  When null, any position in the layout matches.
+  Otherwise only the given axes are matched.
+  """
+  axes: [AxisValueInput!]
+}
+
+
+"""
+The value of a layout axis.
+"""
+input AxisValueInput {
+  """
+  Index of the axis in the layout.
+  """
+  index: Int!
+
+  """
+  Value of the coordinate on the axis.
+  """
+  value: String!
+}

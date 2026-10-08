@@ -200,6 +200,11 @@ class DesignOutput(OntologyEntryOutput):
     terms: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
+class RecordGroupTypeOutput(OntologyEntryOutput):
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.RECORD_GROUP_TYPE
+    terms: tuple[int, ...] = ()
+
+@dataclass(frozen=True)
 class EventOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.EVENT
     terms: tuple[int, ...] = ()

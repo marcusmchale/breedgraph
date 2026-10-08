@@ -1,0 +1,54 @@
+type AnalysisSubmission {
+  """
+  ID of the analysis, as returned by submitAnalysis.
+  """
+  id: ID!
+
+  """
+  Current processing status of the analysis.
+  """
+  status: SubmissionStatus!
+
+  """
+  Name of the analysis.
+  """
+  name: String
+
+  """
+  Type of analysis.
+  """
+  analysisType: AnalysisType!
+
+  """
+  Datasets whose records are included in the analysis.
+  """
+  datasetIds: [ID!]!
+
+  """
+  Rules used to exclude records from the analysis.
+  """
+  exclusions: [AnalysisExclusion!]!
+
+  """
+  Configuration used to execute the analysis.
+  """
+  config: AnalysisConfig!
+
+  """
+  Result produced by the analysis.
+
+  Available when the analysis has completed successfully.
+  """
+  result: AnalysisResult
+
+  """
+  Errors encountered while processing the analysis.
+  """
+  errors: [AnalysisError!]!
+
+  """
+  Warnings encountered while processing the analysis.
+  """
+  warnings: [AnalysisWarning!]!
+
+}

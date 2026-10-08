@@ -1,0 +1,161 @@
+type DescriptiveStatisticsConfig {
+  """
+  Terms for which descriptive statistics are calculated.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Interactions between terms used when calculating
+  model-dependent statistics such as least-squares means.
+  """
+  interactions: [InteractionTerm!]!
+
+  """
+  Estimated marginal means requested.
+  """
+  estimatedMeans: [EstimatedMeansConfig!]!
+}
+
+
+type DescriptiveStatisticsResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Descriptive statistics calculated for the requested terms.
+  """
+  terms: [DescriptiveTermResult!]!
+
+  """
+  Estimated marginal means (least-squares means) when requested.
+  """
+  estimatedMeans: [EstimatedMeansResult!]!
+}
+
+
+type DescriptiveTermResult {
+  """
+  Term for which statistics were calculated.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Levels of the categorical and ordinal terms for which the statistics
+  were calculated. Empty for statistics over all observations.
+  """
+  levels: [AnalysisTermLevel!]!
+
+  """
+  Analytical group represented by this result, when all levels are
+  of domain terms.
+  """
+  group: AnalysisGroup
+
+  """
+  Number of observations.
+  """
+  count: Int!
+
+  """
+  Number of missing observations.
+  """
+  missingCount: Int!
+
+  mean: Float
+
+  standardDeviation: Float
+
+  standardError: Float
+
+  median: Float
+
+  minimum: Float
+
+  maximum: Float
+
+  lowerQuartile: Float
+
+  upperQuartile: Float
+}
+
+
+type AnalysisGroup {
+  """
+  Time grouping represented by this group.
+  """
+  time: String
+
+  """
+  Germplasm grouping represented by this group.
+  """
+  germplasmId: ID
+
+  """
+  Unit grouping represented by this group.
+  """
+  unitId: ID
+
+  """
+  Position represented by this group.
+  """
+  position: Position
+
+  """
+  Study represented by this group, when a STUDY term is used.
+  """
+  studyId: ID
+
+  """
+  Record group levels represented by this group.
+  """
+  recordGroups: [AnalysisRecordGroupAssignment!]!
+
+}
+
+
+"""
+The level of a record group dimension represented by a group.
+"""
+type AnalysisRecordGroupAssignment {
+  """
+  Name of the dimension.
+  """
+  dimension: String!
+
+  """
+  Identifier of the level, unique within the dimension.
+
+  The label of a shared level, otherwise an identifier
+  composed of grouping, scope and code.
+  """
+  level: String!
+
+  """
+  Whether the level is a shared level.
+  """
+  shared: Boolean!
+
+  """
+  Grouping of a nested level.
+  """
+  groupingId: ID
+
+  """
+  Datasets of the scope of a nested level.
+
+  Null for study-wide groupings and shared levels.
+  """
+  scopeDatasetIds: [ID!]
+
+  """
+  Code of a nested level.
+  """
+  code: String
+}

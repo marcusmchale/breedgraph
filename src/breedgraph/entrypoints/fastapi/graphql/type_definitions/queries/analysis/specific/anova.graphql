@@ -1,0 +1,196 @@
+
+
+type AnovaConfig {
+  """
+  Terms used by the analysis.
+  """
+  terms: [AnalysisTerm!]!
+
+  """
+  The response term.
+  """
+  response: AnalysisTermReference!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGrouping
+
+  """
+  Interactions between analysis terms.
+  """
+  interactions: [InteractionTerm!]!
+
+  """
+  Significance level used for hypothesis testing.
+  """
+  alpha: Float!
+
+  """
+  Type of sums of squares.
+  """
+  sumOfSquares: SumOfSquaresType!
+
+  """
+  Denominator degrees of freedom method for mixed models.
+  """
+  ddf: DdfMethod!
+
+  """
+  Estimated marginal means and contrasts.
+  """
+  estimatedMeans: [EstimatedMeansConfig!]!
+}
+
+
+type AnovaResult {
+  """
+  ID of the analysis that produced the result.
+  """
+  analysisId: ID!
+
+  """
+  Results for individual model terms.
+  """
+  terms: [AnovaTermResult!]!
+
+  """
+  Results for model interactions.
+  """
+  interactions: [AnovaInteractionResult!]!
+
+  """
+  Variance components of random effects, for mixed models.
+  """
+  randomEffects: [VarianceComponentResult!]!
+
+  """
+  Estimated marginal means and contrasts when requested.
+  """
+  estimatedMeans: [EstimatedMeansResult!]!
+
+  """
+  Residual/error statistics for the fitted model.
+  """
+  residual: AnovaResidualResult
+
+}
+
+
+"""
+Variance component of a random effect.
+"""
+type VarianceComponentResult {
+  """
+  Grouping term of the random effect.
+  """
+  group: AnalysisTermReference!
+
+  """
+  Term of a random slope. Null for random intercepts.
+  """
+  slope: AnalysisTermReference
+
+  """
+  Estimated variance.
+  """
+  variance: Float
+
+  """
+  Estimated standard deviation.
+  """
+  standardDeviation: Float
+}
+
+type AnovaResidualResult {
+  """
+  Degrees of freedom for the residual error.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Residual sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Residual mean square.
+  """
+  meanSquare: Float
+}
+
+
+type AnovaTermResult {
+  """
+  Term represented by this result.
+  """
+  term: AnalysisTermReference!
+
+  """
+  Degrees of freedom.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Denominator degrees of freedom, for mixed models.
+  """
+  denominatorDegreesOfFreedom: Float
+
+  """
+  Sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Mean square.
+  """
+  meanSquare: Float
+
+  """
+  F statistic.
+  """
+  fStatistic: Float
+
+  """
+  P value.
+  """
+  pValue: Float
+}
+
+
+type AnovaInteractionResult {
+  """
+  Terms participating in the interaction.
+  """
+  terms: [AnalysisTermReference!]!
+
+  """
+  Degrees of freedom.
+  """
+  degreesOfFreedom: Float
+
+  """
+  Denominator degrees of freedom, for mixed models.
+  """
+  denominatorDegreesOfFreedom: Float
+
+  """
+  Sum of squares.
+  """
+  sumOfSquares: Float
+
+  """
+  Mean square.
+  """
+  meanSquare: Float
+
+  """
+  F statistic.
+  """
+  fStatistic: Float
+
+  """
+  P value.
+  """
+  pValue: Float
+}

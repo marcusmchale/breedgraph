@@ -1,0 +1,155 @@
+"""
+Grouping configuration used to construct analytical observations.
+
+Grouping defines the statistical unit represented by each observation.
+"""
+type AnalysisGrouping {
+  """
+  Time grouping used to construct analytical observations.
+  """
+  time: TimeGrouping
+
+  """
+  Germplasm grouping used to construct analytical observations.
+  """
+  germplasm: GermplasmGrouping
+
+  """
+  Unit grouping used to construct analytical observations.
+  """
+  unit: UnitGrouping
+
+  """
+  Position grouping used to construct analytical observations.
+  """
+  position: PositionGrouping
+
+  """
+  Record group dimensions used to construct analytical observations.
+  """
+  recordGroups: [AnalysisRecordGroupDimension!]!
+
+}
+
+type TimeGrouping {
+  """
+  Binning configuration applied to record start/end times.
+  """
+  binning: Binning!
+
+  """
+  Determines how records are assigned to time bins.
+  """
+  assignment: TimeAssignment!
+}
+
+
+type GermplasmGrouping {
+  """
+  Germplasm IDs defining the grouping levels.
+
+  Germplasm hierarchy is traversed to assign each unit to
+  the appropriate grouping level.
+  """
+  germplasmIds: [ID!]!
+}
+
+
+type UnitGrouping {
+  """
+  Parent unit IDs defining the grouping levels.
+
+  Unit hierarchy is traversed to assign each unit to the
+  appropriate grouping level.
+  """
+  unitIds: [ID!]!
+}
+
+
+type PositionGrouping {
+  """
+  ID of the Location in the Region hierarchy.
+  """
+  locationId: ID!
+
+  """
+  ID of the Layout in the Arrangement hierarchy.
+  """
+  layoutId: ID
+
+  """
+  Layout axes used to define position groups.
+  """
+  axisIndexes: [Int!]
+
+  """
+  Explicit positions defining groups.
+  """
+  positions: [Position!]!
+
+  """
+  Time at which positions are evaluated.
+
+  When null, a unit is grouped according to whether it occupies
+  the specified position at any time.
+  """
+  time: DateTime
+}
+
+
+"""
+A record group dimension as applied by an analysis.
+"""
+type AnalysisRecordGroupDimension {
+  """
+  Name of the dimension.
+  """
+  name: String!
+
+  """
+  Record groupings contributing to the dimension.
+  """
+  groupings: [AnalysisRecordGrouping!]!
+
+  """
+  Shared levels combining codes across groupings or scopes.
+  """
+  levels: [AnalysisRecordGroupLevel!]!
+}
+
+
+"""
+A record grouping contributing to a record group dimension.
+"""
+type AnalysisRecordGrouping {
+  """
+  ID of the record grouping.
+  """
+  groupingId: ID!
+
+  """
+  ID of the study the grouping belongs to.
+  """
+  studyId: ID
+}
+
+"""
+A level shared by codes from one or more record groupings.
+"""
+type AnalysisRecordGroupLevel {
+  label: String!
+
+  members: [AnalysisRecordGroupMember!]!
+}
+
+
+type AnalysisRecordGroupMember {
+  groupingId: ID!
+
+  code: String!
+
+  """
+  Dataset identifying the scope of the code, for dataset-scoped groupings.
+  """
+  datasetId: ID
+}

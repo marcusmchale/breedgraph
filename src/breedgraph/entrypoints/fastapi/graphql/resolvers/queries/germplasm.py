@@ -1,6 +1,6 @@
-from ariadne import ObjectType
+from ariadne import ObjectType, EnumType
 
-from breedgraph.domain.model import LocationOutput
+from breedgraph.domain.model import LocationOutput, GroupingScope
 from breedgraph.service_layer.queries.read_models.germplasm import GermplasmEntryOutput
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
@@ -23,6 +23,10 @@ germplasm_entry = ObjectType("GermplasmEntry")
 germplasm_relationship = ObjectType("GermplasmRelationship")
 
 graphql_resolvers.register_type_resolvers(germplasm_entry, germplasm_relationship)
+
+graphql_resolvers.register_enums(
+    EnumType("GroupingScope", GroupingScope)
+)
 
 
 class GermplasmEntryRef:

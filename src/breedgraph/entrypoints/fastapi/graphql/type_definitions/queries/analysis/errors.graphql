@@ -1,0 +1,49 @@
+type AnalysisError {
+  """
+  Machine-readable error code.
+  """
+  code: String!
+
+  """
+  Human-readable error message.
+  """
+  message: String!
+
+  """
+  Path to the affected configuration value,
+  when applicable.
+  """
+  path: [String!]
+
+  """
+  Records causing the error, e.g. records with duplicate observations.
+  """
+  recordIds: [ID!]
+}
+
+
+type AnalysisWarning {
+  """
+  Machine-readable warning code.
+  """
+  code: String!
+
+  """
+  Human-readable warning message.
+  """
+  message: String!
+
+  """
+  Path to the affected configuration value,
+  when applicable.
+  """
+  path: [String!]
+
+  """
+  Records affected by the warning, e.g. records excluded because
+  they could not be assigned to a configured dimension.
+
+  These IDs can be supplied as exclusions to a subsequent analysis.
+  """
+  recordIds: [ID!]
+}

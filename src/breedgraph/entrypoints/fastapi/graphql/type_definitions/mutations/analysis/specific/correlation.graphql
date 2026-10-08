@@ -1,0 +1,22 @@
+"""
+Configuration for correlation analysis.
+
+A correlation matrix is calculated for the supplied terms across
+the analytical observations defined by grouping.
+"""
+input CorrelationInput {
+  """
+  Terms included in the correlation matrix.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGroupingInput
+
+  """
+  Correlation method.
+  """
+  method: CorrelationMethod!
+}

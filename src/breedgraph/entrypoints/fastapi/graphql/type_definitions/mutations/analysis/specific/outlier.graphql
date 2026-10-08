@@ -1,0 +1,22 @@
+"""
+Configuration for outlier detection.
+
+Outlier detection identifies observations that may be excluded from
+subsequent analyses.
+"""
+input OutlierDetectionInput {
+  """
+  Terms used to identify potential outliers.
+  """
+  terms: [AnalysisTermInput!]!
+
+  """
+  Dimensions used to construct analytical observations.
+  """
+  grouping: AnalysisGroupingInput
+
+  """
+  Method used to identify potential outliers.
+  """
+  method: OutlierDetectionMethod!
+}

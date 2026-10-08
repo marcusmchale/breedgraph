@@ -52,6 +52,10 @@ async def get_datasets(
         )]
         return datasets
 
+@dataset.field('studyId')
+def resolve_study_id(obj, info):
+    return obj.study
+
 @dataset.field('concept')
 async def resolve_concept(obj, info):
     await update_ontology_map(info.context, entry_ids=[obj.concept], view=OntologyViewMode.REFERENTIAL)
@@ -109,9 +113,8 @@ async def resolve_submission_errors(submission_id: str, info) -> List[str]:
     bus = info.context.get('bus')
     logger.debug(f"Resolving submission errors for submission_id: {submission_id}")
     errors = await bus.state_store.get_errors(agent_id=user_id, key=submission_id)
-    logger.debug(f'errors resolved: {errors}')
+    logger.debug(f'errors raised during dataset submission: {errors}')
     return errors
-
 
 @dataset_submission.field("itemErrors")
 async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemError]:
@@ -153,5 +156,5 @@ async def resolve_summary_locations(obj, info):
 @dataset_summary.field("blocks")
 async def resolve_summary_blocks(obj, info):
     await update_units_map(info.context, unit_ids=obj.block_ids)
-    locations_map = info.context.get('locations_map')
-    return [locations_map.get(location_id) for location_id in obj.location_ids]
+    units_map = info.context.get('units_map')
+    return [units_map.get(unit_id) for unit_id in obj.block_ids]

@@ -163,4 +163,6 @@ type Query {
     referencesFileDownload(fileId: ID!): FileDownloadPayload!
     " Get analysis status and results "
     analysisSubmission(id: ID!): AnalysisSubmissionPayload!
+    " Get the IDs of the user's analysis submissions that have not expired, most recently updated first "
+    analysisRecentSubmissions: AnalysisSubmissionIdsPayload!
 }

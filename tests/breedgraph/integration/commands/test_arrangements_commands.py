@@ -10,6 +10,7 @@ async def test_add_layout_command(
         layout_build_context
 ):
     user_id = layout_build_context['user_id']
+    team_id = layout_build_context['team_id']
     location_id = layout_build_context['location_id']
     type_id = layout_build_context['ontology_layout_named']
     first_layout_command = CreateLayout(
@@ -50,7 +51,6 @@ async def test_add_layout_command_nested(
             agent_id=user_id,
             name = lorem_text_generator.new_text(),
             type_id = type_id,
-            location_id= location_id,
             axes = ["x", "y"],
             parent = arrangement.get_root_id(),
             position = [1]

@@ -141,6 +141,19 @@ enum OntologyNodeLabel {
     """
     DESIGN
     """
+    A record group is a set of records associated by a common criterion arising from
+    the execution, observation, processing, or organization of a study.
+    These entries describe reusable types of record groups.
+    Examples include "Biological Replicate", "Technical Replicate", "Batch", and "Plate".
+
+    Note: Record groups are intended for grouping records according to study-specific or
+    process-specific contexts, such as replication or laboratory processing.
+    Long-term shared entities and their relationships should instead be represented as
+    Units within Blocks. Likewise, factors in a study should be represented as records
+    in a dataset rather than as record groups.
+    """
+    RECORD_GROUP_TYPE
+    """
     Role entries describe roles for people.
     These are linked to Person (see People).
     Examples: "Post-doctoral researcher", "Principal Investigator"
@@ -152,6 +165,7 @@ enum OntologyNodeLabel {
     Examples: "Professor", "Doctor"
     """
     TITLE
+
 }
 
 enum OntologyRelationshipLabel{
@@ -859,6 +873,35 @@ type Design implements OntologyNodeInterface & OntologyRelationships & RelatedTo
 }
 
 """
+Record Group Type entries describe transient identifiers like replicate, batch
+to complement the more permanent identifiers in the block/unit structure
+"""
+type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
+    id: ID!
+    versionId: ID!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
+
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String!]
+
+    authors: [Person!]
+    references: [ReferenceInterface!]
+
+    parents: [Design!]
+    children: [Design!]
+
+    terms: [Term!]
+}
+
+
+
+
+"""
 Role entries describe roles for people.
 These are linked to Person (see People).
 Examples: "Post-doctoral researcher", "Principal Investigator"
@@ -914,7 +957,7 @@ type Title implements OntologyNodeInterface & OntologyRelationships & RelatedToT
     terms: [Term!]
 }
 
-union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | Role | Title
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | RecordGroupType | Role | Title
 
 type OntologyRelationship {
     id: ID!

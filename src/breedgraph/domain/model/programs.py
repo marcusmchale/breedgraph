@@ -1,18 +1,97 @@
+
 from abc import ABC
 from dataclasses import dataclass, field, replace
+from enum import Enum
+
 from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
-from breedgraph.domain.model.base import StoredModel, EnumLabeledModel
+from breedgraph.domain.model.base import StoredModel, LabeledModel, EnumLabeledModel
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 )
-
-
 from typing import List, Set, ClassVar, Dict, Any, Self
 
 import logging
 logger = logging.getLogger(__name__)
+
+class GroupingScope(Enum):
+    STUDY_WIDE = "study-wide"
+    DATASET_SCOPED = "dataset-scoped"
+
+@dataclass
+class DatasetScope:
+    """
+    Records are grouped only with other records belonging to the same scope.
+    """
+    dataset_ids: List[int]
+
+    def __post_init__(self):
+        if not self.dataset_ids:
+            raise ValueError("A group scope must contain at least one dataset")
+        self.dataset_ids = list(set(self.dataset_ids))
+
+@dataclass
+class RecordGroupingBase(ABC):
+    """
+    Study-wide scopes cannot be locally scoped later as this would affect existing records.
+    However DATASET_SCOPED can be extended with new DatasetScopes and existing DatasetScopes can be extended.
+    """
+    label: ClassVar[str] = "RecordGrouping"
+    plural: ClassVar[str] = "RecordGroupings"
+
+    type: int = None  # reference to ID of RecordGroupTypeStored
+    name: str = None
+    scope: GroupingScope = None
+    dataset_scopes: list[DatasetScope] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.scope == GroupingScope.STUDY_WIDE and self.dataset_scopes:
+            raise ValueError(
+                "Study-wide grouping cannot have explicit scopes"
+            )
+
+    def merge_dataset_scope(self, scope: DatasetScope|set[int]|list[int]):
+        if self.scope == GroupingScope.STUDY_WIDE:
+            raise ValueError("Study-wide grouping cannot have explicit scopes")
+
+        if not isinstance(scope, DatasetScope):
+            scope = DatasetScope(dataset_ids=list(scope))
+
+        # Coalesce every existing scope overlapping the new one,
+        # so no dataset can ever belong to more than one scope.
+        merged = set(scope.dataset_ids)
+        remaining = []
+        for existing in self.dataset_scopes:
+            if merged & set(existing.dataset_ids):
+                merged |= set(existing.dataset_ids)
+            else:
+                remaining.append(existing)
+        remaining.append(DatasetScope(dataset_ids=list(merged)))
+        self.dataset_scopes = remaining
+
+    def scope_key(self, dataset_id: int) -> frozenset[int]|None:
+        """
+        Key within which codes of this grouping are comparable.
+        Study-wide: None. Dataset-scoped: the containing scope,
+        or the dataset alone if it is not in an explicit scope.
+        """
+        if self.scope == GroupingScope.STUDY_WIDE:
+            return None
+        for ds in self.dataset_scopes:
+            if dataset_id in ds.dataset_ids:
+                return frozenset(ds.dataset_ids)
+        return frozenset({dataset_id})
+
+
+
+@dataclass
+class RecordGroupingInput(RecordGroupingBase, LabeledModel):
+    pass
+
+@dataclass
+class RecordGroupingStored(RecordGroupingBase, StoredModel):
+    pass
 
 @dataclass
 class StudyBase(ABC):
@@ -22,6 +101,7 @@ class StudyBase(ABC):
     This is like the Study concept
     https://isa-specs.readthedocs.io/en/latest/isamodel.html
     """
+
     name: str = None
     fullname: str|None = None
     description: str|None = None
@@ -35,7 +115,51 @@ class StudyBase(ABC):
     design_id: int | None = None  # Reference to Design in Ontology
     licence_id: int | None = None  # A single LegalReference for usage of data associated with factors/observations in this experiment
 
+    groupings: list[RecordGroupingBase] = field(default_factory=list)
+
     reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
+
+    def get_grouping(self, grouping_id: int|None=None, name: str|None = None) -> RecordGroupingBase|None:
+        if grouping_id:
+            for g in self.groupings:
+                if isinstance(g, RecordGroupingStored):
+                    if g.id == grouping_id:
+                        return g
+        elif name:
+            for g in self.groupings:
+                if g.name.casefold() == name.casefold():
+                    return g
+        return None
+
+    def add_grouping(
+            self,
+            group_type: int,
+            name: str,
+            scope: GroupingScope,
+            dataset_scopes: List[DatasetScope|set[int]] | None = None
+    ):
+        dataset_scopes =[
+            ds if isinstance(ds, DatasetScope)
+            else DatasetScope(dataset_ids=list(ds))
+            for ds in dataset_scopes or []
+        ]
+        self.groupings.append(
+            RecordGroupingInput(
+                type=group_type,
+                name=name,
+                scope=scope,
+                dataset_scopes=dataset_scopes
+            )
+        )
+
+    def remove_grouping(self, grouping_id: int):
+        grouping = self.get_grouping(grouping_id=grouping_id)
+        if grouping is None:
+            raise ValueError(f"Grouping {grouping_id} not found")
+        self.groupings.remove(grouping)
+
+    def get_grouping_ids(self):
+        return [grouping.id for grouping in self.groupings if isinstance(grouping, RecordGroupingStored)]
 
 @dataclass
 class StudyInput(StudyBase, EnumLabeledModel):
@@ -63,11 +187,13 @@ class StudyStored(StudyBase, ControlledModel):
             end = None,
             design_id = None,
             licence_id = None,
-            reference_ids = list()
+            reference_ids = list(),
+            groupings=[]
         )
 
     def to_output(self):
         return StudyOutput.from_stored(self)
+
 
 @dataclass
 class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
@@ -84,7 +210,8 @@ class StudyOutput(StudyBase, EnumLabeledModel, StoredModel):
             end = stored.end,
             design_id = stored.design_id,
             licence_id = stored.licence_id,
-            reference_ids = stored.reference_ids
+            reference_ids = stored.reference_ids,
+            groupings = stored.groupings
         )
 
 @dataclass
@@ -218,12 +345,22 @@ class ProgramBase(ABC):
         else:
             raise ValueError("Trials can only be retrieved from stored programs")
 
-    def get_study(self, study_id: int):
+    def get_study(self, study_id: int| None = None, grouping_id:int|None = None):
+        if all([study_id is None, grouping_id is None]):
+            raise ValueError("Study or Grouping ID required to fetch a study")
+
         if isinstance(self, ProgramStored):
             for trial in self.trials.values():
-                study = trial.get_study(study_id)
-                if study is not None:
-                    return study
+                if study_id is not None:
+                    study = trial.get_study(study_id)
+                    if study is not None:
+                        return study
+                elif grouping_id is not None:
+                    for study in trial.studies.values():
+                        for grouping in study.groupings:
+                            if isinstance(grouping, RecordGroupingStored):
+                                if grouping.id == grouping_id:
+                                    return study
             return None
         else:
             raise ValueError("Studies can only be retrieved from stored programs")
@@ -248,6 +385,7 @@ class ProgramBase(ABC):
                 raise ValueError(f"Study with ID {study.id} not found in any trial for this program")
         else:
             raise ValueError("Studies can only be removed from stored programs")
+
 
 @dataclass
 class ProgramInput(ProgramBase, EnumLabeledModel):

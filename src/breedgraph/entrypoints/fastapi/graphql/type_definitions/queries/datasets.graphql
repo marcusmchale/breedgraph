@@ -1,15 +1,22 @@
+type RecordGroup {
+    id: ID!
+    code: String!
+}
+
 type Record {
     id: ID!
     unit: Unit
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroup!]
     references: [ReferenceInterface]
     submitted: DateTime
 }
 
 type Dataset {
     id: ID!
+    studyId: ID!
     # concept is either a Factor or Variable in the ontology
     concept: OntologyNodeInterface!
     records: [Record]
@@ -23,6 +30,7 @@ type SubmittedRecord {
     value: String
     start: DateTime
     end: DateTime
+    groups: [RecordGroup!]
     referenceIds: [Int]
 }
 
@@ -35,6 +43,7 @@ type SubmittedData {
 
 enum SubmissionStatus {
     PENDING
+    QUEUED
     PROCESSING
     COMPLETED
     FAILED

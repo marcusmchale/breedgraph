@@ -24,7 +24,6 @@ class CancelDeprecateOntologyEntries(Command):
     agent_id: int
     entry_ids: List[int]
 
-
 class CreateEntryBase(BaseModel):
     agent_id: int
 
@@ -54,6 +53,7 @@ class CreateTerm(Command, CreateEntryBase):
     design_ids: List[int] | None = None
     role_ids: List[int] | None = None
     title_ids: List[int] | None = None
+    record_group_type_ids: List[int] | None = None
 
 class CreateSubject(Command, CreateEntryBase):
     term_ids: List[int] | None = None
@@ -112,6 +112,9 @@ class CreateLayoutType(Command, CreateEntryBase):
     axes: List[AxisType]
     term_ids: List[int] | None = None
 
+class CreateRecordGroupType(Command, CreateEntryBase):
+    term_ids: List[int] | None = None
+
 class UpdateEntryBase(BaseModel):
     ontology_entry_id: int
     name: str | None = None
@@ -158,3 +161,5 @@ class UpdateDesign(UpdateEntryBase, CreateDesign):
 class UpdateLayoutType(UpdateEntryBase, CreateLayoutType):
     pass
 
+class UpdateRecordGroupType(UpdateEntryBase, CreateRecordGroupType):
+    pass

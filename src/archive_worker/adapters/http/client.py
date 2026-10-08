@@ -39,13 +39,18 @@ class ArchiveAPIClient(AbstractArchiveAPIClient):
     async def _get_record(self, endpoint: ArchiveEndpoint):
         """Get a record to process"""
         try:
+            logger.debug(f"Getting record from {endpoint.value}")
             response = await self.client.get(
                 f"{self.base_url}/{endpoint.value}",
                 headers=self._get_headers()
             )
+            logger.debug(f"response {response}")
             if response.status_code == 204:
                 return None  # No records
+            logger.debug(f"response json {response.json()}")
             response.raise_for_status()
+
+
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to get record: {e}")

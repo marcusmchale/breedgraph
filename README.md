@@ -107,31 +107,24 @@ These also provide context for the relevance of [traits](#trait) in the ontology
 Examples: "Leaf", "Tree", "Field", "Rhizosphere Soil"
 ##### Scale
 Scale entries describe the measurement unit or classes used in a:
-- [variable](#variable), 
-- [parameter](#parameter), or
-- [event](#eventtype)
+- [variable](#variable) or 
+- [factor](#factor) or
 Scale entries require a ScaleType, one of:
 - date,
 - duration,
 - numerical,
 - nominal,
 - ordinal,
-- text,
-- germplasm
+- text
 For nominal and ordinal types, additional category references may be provided.
-For germplasm type, [germplasm](#germplasm) identifiers must be used,
-with composite material (i.e. grafted) represented as integers using the scion/rootstock code, e.g. "11/3".
 Examples:
 "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
-"Genetic Material" is ScaleType germplasm.
 ##### ScaleCategory
 Category entries describe classes for [scale](#scale) entries with type Nominal or Ordinal.
 Ordinal scales require an additional "rank" parameter (integer value) for each category.
 Examples: "High", "Medium", "Low" with ranks 2, 1 and 0, respectively.
 ##### ObservationMethod
-Observation method entries describe the way a value is determined for:
- - [variable](#variable) or
- - [event](#eventtype).
+Observation method entries describe the way a value is determined for [variables](#variable).
 Observation method entries require an ObservationMethodType, one of:
 - measurement, 
 - counting, 
@@ -152,32 +145,21 @@ Examples:
 - "Tree height" where trait = "Height", method = "Distance measurement with calibrated reference" and scale = "Centimeters".
 - "Normalised Expression" where trait = "Gene expression", method = "Short read sequencing", scale = "Counts per million"
 ##### ControlMethod
-Control method entries describe the way a value is maintained for a [parameter](#parameter) or [event](#eventtype).
-Examples: "Fluorescent Lighting", "Fertilizer application", "Germplasm selection"
+Control method entries describe the way a value is maintained for a [parameter](#parameter).
+Examples: "Fluorescent Lighting", "Fertilizer application".
 ##### Condition
 Condition entries describe the quantities/qualities that are fixed/controlled 
 for a [parameter](#parameter).
-Examples: "Light level", "Controlled Grafting", "Water availability"
+Examples: "Light level", "Water availability"
 ##### Parameter
 Parameter entries link a [condition](#condition), [method](#controlmethod) and [scale](#scale)
 to form a single entry for a [dataset](#dataset).
 Examples:
 - "Controlled lighting" where condition = "Light level", method = "Fluorescent lighting", scale = "Micro Einsteins"
 - "Controlled water availability" where condition = "Water availability", method = "Controlled water application", scale = "L/m2/day"
-- "Grafted Material" where condition = "Genetic material", method = "controlled Grafting", scale = "Plant Genetic Material"
-##### Exposure
-Exposure entries describe temporary occurrences within an experimental setting for an [event](#eventtype) 
-Examples: "Fertilizer application", "Rainfall"
-##### EventType
-EventType entries link an [exposure](#exposure), 
-method (either [observation](#observationmethod) or [control](#controlmethod)) and a [scale](#scale).
-to form a single entry for a [dataset](#dataset).
-Examples:
-- "Pellet Fertilizer Application" where exposure = "Fertilizer application", method = "Pellet Dispersion", scale = "kg/ha"
-##### GermplasmMethod
-Germplasm method entries describe maintenance or sourcing of 
-an [entry](#germplasmentry) within a [germplasm](#germplasm) pool.
-Examples: "Controlled cross", "Mutagenesis", "Ecological survey"
+##### Event
+Event entries link  variables](#variable) and [factors](#factor).
+This is to support the definition of details that may be recorded in association with an event. 
 ##### LocationType
 Location entries describe types of locations within a [region](#region).
 Examples: "Country", "State", "Field"
@@ -193,6 +175,7 @@ Examples: "Post-doctoral researcher", "Principal Investigator"
 ##### Title
 Title entries describe titles for [people](#people).
 Examples: "Professor", "Doctor"
+
 ### Account
 Access to most functions of BreedGraph through the GraphQL API require an account.
 The add_email mutation in the GraphQL interface sends an invitation to register a new user. 
@@ -284,6 +267,8 @@ Germplasm entries have attributes for:
 - methods: a list of [germplasm methods](#germplasmmethod) in the ontology, describing the protocol for the generation of this germplasm
   - e.g. clonal propagation via tissue culture, controlled self-fertilisation, uncontrolled pollination
 ### People
+- This aspect is not fully implemented due to GDPR considerations.
+
 Each person is a singleton aggregate that may be referenced elsewhere as authors, contributors or contacts.
 Person has the following attributes:
 - name
@@ -299,6 +284,7 @@ Person has the following attributes:
   - locations (corresponding to regisered locations associated with this person)
   - roles: references to [roles](#role) in the ontology
   - titles: references to [titles](#title) in the ontology
+
 ### Program
 A program describes the highest level aggregation of a group of trials and studies 
 and would typically represent a funded project, e.g. Bolero
@@ -397,6 +383,23 @@ enable systemd to start the neo4j service
 #### neo4j offline install
   install java
 
+#### tmp directory 
+  neo4j requires an executable tmp directory.
+  If the server has noexec on /tmp
+
+    findmnt /tmp
+
+  then create a directory somewhere with executable permissions and make it owned by neo4j user with all permissions.
+  
+    sudo mkdir -p /var/lib/neo4j/tmp
+    sudo chown neo4j:neo4j /var/lib/neo4j/tmp
+    sudo chmod 700 /var/lib/neo4j/tmp
+
+  Then add these lines to the neo4j.conf and neo4j-admin.conf in /etc/neo4j/
+
+    server.jvm.additional=-Djansi.tmpdir=/var/lib/neo4j/tmp
+    server.jvm.additional=-Djava.io.tmpdir=/var/lib/neo4j/tmp
+    server.jvm.additional=-Djna.tmpdir=/var/lib/neo4j/tmp
     
 
 ### redis
@@ -417,6 +420,12 @@ To test with the uvicorn server, go to the root of the project, import the envar
 If you are cloning this project you won't have all the envars provided
 and will need to modify the ./instance/envars_public.sh file 
 to include the required values for neo4j connection, mail hosting and log file creation
+
+
+### Nginx
+  be sure to set nginx client_max_body_size to a value that is appropriate for your use case, e.g. 100M
+
+
 
 ### Notes for developers
   - for testing on community we can only have one active db
@@ -447,3 +456,6 @@ to run the scripts
     set +a
     ./setup_initial_data.py
 
+
+
+# For 

@@ -316,3 +316,21 @@ class OntologyBuilder:
                 'ontology_factor_light': factor.id
             }
 
+    async def record_group_types(self, user_id) -> Dict[str, int]:
+        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+            ontology_service = uow.ontology
+            replicate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Replicate"))
+            biorep_group_type = await ontology_service.create_entry(
+                RecordGroupTypeInput(name="Biological Replicate"),
+                parents=[replicate_group_type.id]
+            )
+            batch_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Batch"))
+            plate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Plate"), parents=[batch_group_type.id])
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added record group types")
+            await uow.commit()
+            return {
+                'ontology_record_group_replicate': replicate_group_type.id,
+                'ontology_record_group_biorep': biorep_group_type.id,
+                'ontology_record_group_batch': batch_group_type.id,
+                'ontology_record_group_plate': plate_group_type.id
+            }
