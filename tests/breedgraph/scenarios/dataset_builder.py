@@ -14,10 +14,11 @@ class DatasetBuilder:
         self.uow_factory = uow_factory
 
     @classmethod
-    def dataset_input(cls, concept_id: int, study_id: int):
+    def dataset_input(cls, concept_id: int, study_id: int, records: list[DataRecordInput] | None = None):
         return DatasetInput(
             concept=concept_id,
-            study=study_id
+            study=study_id,
+            records=records or []
         )
 
     @classmethod
@@ -28,11 +29,12 @@ class DatasetBuilder:
             self,
             user_id: int,
             concept_id: int,
-            study_id: int
+            study_id: int,
+            records: list[DataRecordInput] | None = None
     ) -> Dict[str, int]:
         async with (self.uow_factory.get_uow(user_id=user_id) as uow):
             dataset = await uow.repositories.datasets.create(
-                self.dataset_input(concept_id=concept_id, study_id=study_id)
+                self.dataset_input(concept_id=concept_id, study_id=study_id, records=records)
             )
             await uow.commit()
 

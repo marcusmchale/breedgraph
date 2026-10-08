@@ -11,6 +11,11 @@ input AnalysisTermReferenceInput {
   Stable concept ID when type is CONCEPT.
   """
   conceptId: ID
+
+  """
+  Name of a dimension in grouping.recordGroups when type is RECORD_GROUP.
+  """
+  recordGroupDimension: String
 }
 
 
@@ -18,7 +23,7 @@ input AnalysisTermReferenceInput {
 Defines a term used by an analysis.
 
 A term may represent a concept or a domain dimension such as
-time, germplasm, unit grouping or position grouping.
+time, germplasm, unit, position, record group or study.
 """
 input AnalysisTermInput {
   """
@@ -74,7 +79,7 @@ input AnalysisTermInput {
 Defines an interaction between two or more analysis terms.
 
 Each term may represent a concept or a domain dimension such as
-time, germplasm, unit or position.
+time, germplasm, unit, position, record group or study.
 """
 input InteractionTermInput {
   """

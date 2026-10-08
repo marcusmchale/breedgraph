@@ -23,21 +23,7 @@ type OutlierDetectionResult {
   analysisId: ID!
 
   """
-  Records identified as potential outliers.
-
-  These IDs can be supplied as exclusions to a subsequent analysis.
-  """
-  recordIds: [ID!]!
-
-  """
-  Units identified as potential outliers.
-
-  Excluding a unit excludes its records from subsequent analyses.
-  """
-  unitIds: [ID!]!
-
-  """
-  Detailed information about detected outliers.
+  Detected potential outliers.
   """
   outliers: [OutlierResult!]!
 }
@@ -45,17 +31,22 @@ type OutlierDetectionResult {
 
 type OutlierResult {
   """
-  Record associated with the potential outlier, when applicable.
+  Analytical observation identified as a potential outlier.
   """
-  recordId: ID
+  observation: AnalysisGroup!
 
   """
-  Unit associated with the potential outlier.
+  A rule excluding the records of the observation, which can be
+  supplied as an exclusion to a subsequent analysis.
+
+  Built from the contributing base units, the time bin and
+  the record group members of the observation.
   """
-  unitId: ID
+  exclusion: AnalysisExclusion!
 
   """
   Term for which the observation was identified as an outlier.
+  Null for multivariate methods.
   """
   term: AnalysisTermReference
 

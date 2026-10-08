@@ -6,6 +6,7 @@ from typing import get_type_hints, get_args, get_origin, Union
 from types import UnionType
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.domain.model.analysis import AnalysisFailed
 
 import logging
 
@@ -21,6 +22,7 @@ class GQLStatus(Enum):
 class GQLError(BaseModel):
     name: str
     message: str
+    path: list[str] | None = None
 
 def coerce_value(value, annotation):
     if value is None:
@@ -65,6 +67,12 @@ def graphql_payload(func):
             return {
                 "status": GQLStatus.SUCCESS.name,
                 "result": result
+            }
+        except AnalysisFailed as e:
+            # coded messages with input paths, e.g. an invalid analysis configuration
+            return {
+                "status": GQLStatus.ERROR.name,
+                "errors": [GQLError(name=m.code.value, message=m.message, path=m.path) for m in e.errors]
             }
         #except (ServiceUnavailable, NoResultFoundError, IllegalOperationError) as e:
         # todo handle exceptions more gracefully, we probably don't want to expose internal exceptions

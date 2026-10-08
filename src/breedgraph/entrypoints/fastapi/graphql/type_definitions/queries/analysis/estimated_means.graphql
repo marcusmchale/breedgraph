@@ -1,0 +1,151 @@
+"""
+Estimated marginal means requested for an analysis.
+"""
+type EstimatedMeansConfig {
+  terms: [AnalysisTermReference!]!
+
+  by: [AnalysisTermReference!]!
+
+  contrast: EstimatedMeansContrast!
+
+  control: String
+
+  adjustment: PValueAdjustment!
+}
+
+
+"""
+Estimated marginal means (least-squares means) and their contrasts.
+"""
+type EstimatedMeansResult {
+  """
+  Response term of the model.
+  """
+  response: AnalysisTermReference
+
+  """
+  Model terms for which means were estimated.
+  """
+  terms: [AnalysisTermReference!]!
+
+  """
+  Model terms conditioning the estimates.
+  """
+  by: [AnalysisTermReference!]!
+
+  """
+  Contrasts calculated between the means.
+  """
+  contrast: EstimatedMeansContrast!
+
+  """
+  Adjustment applied to p values.
+  """
+  adjustment: PValueAdjustment!
+
+  """
+  Estimated means.
+  """
+  means: [LSMeanResult!]!
+
+  """
+  Contrasts between the estimated means.
+  """
+  contrasts: [EstimatedMeansContrastResult!]!
+}
+
+
+"""
+The level of a term.
+"""
+type AnalysisTermLevel {
+  term: AnalysisTermReference!
+
+  """
+  Level of the term, as represented in the analysis.
+  """
+  level: String!
+}
+
+
+"""
+An estimated marginal mean.
+"""
+type LSMeanResult {
+  """
+  Levels of the terms for which the mean was estimated.
+  """
+  levels: [AnalysisTermLevel!]!
+
+  """
+  Levels of the conditioning terms.
+  """
+  by: [AnalysisTermLevel!]!
+
+  """
+  Estimated mean.
+  """
+  mean: Float
+
+  standardError: Float
+
+  degreesOfFreedom: Float
+
+  lowerConfidenceLimit: Float
+
+  upperConfidenceLimit: Float
+}
+
+
+"""
+A contrast between estimated marginal means.
+"""
+type EstimatedMeansContrastResult {
+  """
+  Label of the contrast, e.g. "A - B".
+  """
+  label: String!
+
+  """
+  Levels of the first mean in the contrast.
+  """
+  levelsA: [AnalysisTermLevel!]!
+
+  """
+  Levels of the second mean in the contrast.
+  """
+  levelsB: [AnalysisTermLevel!]!
+
+  """
+  Levels of the conditioning terms.
+  """
+  by: [AnalysisTermLevel!]!
+
+  """
+  Estimated difference.
+  """
+  estimate: Float
+
+  standardError: Float
+
+  degreesOfFreedom: Float
+
+  """
+  Test statistic (t or z ratio).
+  """
+  statistic: Float
+
+  """
+  Adjusted p value.
+  """
+  pValue: Float
+
+  lowerConfidenceLimit: Float
+
+  upperConfidenceLimit: Float
+
+  """
+  Whether the contrast is significant at the analysis alpha.
+  """
+  significant: Boolean
+}

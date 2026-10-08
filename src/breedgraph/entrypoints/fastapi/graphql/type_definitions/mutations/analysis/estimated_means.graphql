@@ -1,0 +1,29 @@
+"""
+Defines estimated marginal means (least-squares means) and their contrasts.
+"""
+input EstimatedMeansInput {
+  """
+  Model terms for which means are estimated.
+  """
+  terms: [AnalysisTermReferenceInput!]!
+
+  """
+  Model terms conditioning the estimates, for simple effects.
+  """
+  by: [AnalysisTermReferenceInput!]
+
+  """
+  Contrasts between the estimated means. NONE returns means only.
+  """
+  contrast: EstimatedMeansContrast = PAIRWISE
+
+  """
+  Level of the control, required for TRT_VS_CTRL.
+  """
+  control: String
+
+  """
+  Adjustment of p values for multiple comparisons.
+  """
+  adjustment: PValueAdjustment = TUKEY
+}

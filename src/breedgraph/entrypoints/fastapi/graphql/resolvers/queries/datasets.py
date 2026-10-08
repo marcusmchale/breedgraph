@@ -52,6 +52,9 @@ async def get_datasets(
         )]
         return datasets
 
+@dataset.field('studyId')
+def resolve_study_id(obj, info):
+    return obj.study
 
 @dataset.field('concept')
 async def resolve_concept(obj, info):

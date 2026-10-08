@@ -2,6 +2,7 @@ from enum import Enum
 
 class SubmissionStatus(Enum):
     PENDING = "pending"
+    QUEUED = "queued"  # analysis awaiting a worker
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -9,7 +10,7 @@ class SubmissionStatus(Enum):
 class SubmissionKeys(Enum):
     AGENT = "agent"
     DATA = "data"
-    ANALYSIS = '"analysis'
+    ANALYSIS = "analysis"
     RESULT = "result"
     DATASET_ID = "dataset_id"
     FILE_ID = "file_id"
@@ -17,6 +18,9 @@ class SubmissionKeys(Enum):
     ERRORS = "errors"
     WARNINGS = "warnings"
     ITEM_ERRORS = "item_errors"
+    JOB = "job"  # analysis job payload, while queued or leased
+    JOB_WARNINGS = "job_warnings"  # warnings from analysis preparation, written with the final messages
+    LEASE = "lease"  # token of the current analysis job lease
 
 class ArchiveKeys(Enum):
     ARCHIVE = "archive" # copy from webserver to archive

@@ -14,6 +14,35 @@ logger = logging.getLogger(__name__)
 
 from typing import AsyncGenerator, List, Self
 
+import time
+from uuid import uuid4
+
+ANALYSIS_QUEUE = "analysis:queue"  # list of queued analysis IDs
+ANALYSIS_LEASES = "analysis:leases"  # sorted set of leased analysis IDs scored by lease expiry
+
+# KEYS: queue, leases; ARGV: now, lease expiry, token, lease field
+LEASE_SCRIPT = """
+local expired = redis.call('ZRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
+for _, id in ipairs(expired) do
+  redis.call('ZREM', KEYS[2], id)
+  redis.call('HDEL', id, ARGV[4])
+  redis.call('LPUSH', KEYS[1], id)
+end
+local id = redis.call('LPOP', KEYS[1])
+if not id then return nil end
+redis.call('ZADD', KEYS[2], ARGV[2], id)
+redis.call('HSET', id, ARGV[4], ARGV[3])
+return id
+"""
+
+# KEYS: leases, analysis hash; ARGV: token, lease field
+RELEASE_SCRIPT = """
+if redis.call('HGET', KEYS[2], ARGV[2]) ~= ARGV[1] then return 0 end
+redis.call('HDEL', KEYS[2], ARGV[2])
+redis.call('ZREM', KEYS[1], KEYS[2])
+return 1
+"""
+
 
 class RedisStateStore(AbstractStateStore):
     def __init__(self, connection: redis.Redis = None):
@@ -78,6 +107,22 @@ class RedisStateStore(AbstractStateStore):
             analysis_id
         )
 
+    async def _get_user_analyses(self, agent_id: int) -> List[str]:
+        analysis_ids = await self.connection.smembers(f"user:{agent_id}:analyses")
+        return [analysis_id.decode('utf-8') for analysis_id in analysis_ids]
+
+    async def _analysis_exists(self, analysis_id: str) -> bool:
+        return await self.connection.exists(analysis_id)
+
+    async def _remove_user_analysis(self, agent_id: int, analysis_id: str):
+        await self.connection.srem(f"user:{agent_id}:analyses", analysis_id)
+
+    async def _delete_analysis(self, analysis_id: str):
+        async with self.connection.pipeline(transaction=True) as pipe:
+            pipe.delete(analysis_id)
+            pipe.lrem(ANALYSIS_QUEUE, 0, analysis_id)
+            pipe.zrem(ANALYSIS_LEASES, analysis_id)
+            await pipe.execute()
 
     async def _store_user_file(self, agent_id: int, file_id: str):
         await self.connection.sadd(
@@ -100,8 +145,8 @@ class RedisStateStore(AbstractStateStore):
         )
 
     async def _get_analysis_config(self, analysis_id: str):
-        dataset_json = await self.connection.hget(analysis_id, key=SubmissionKeys.ANALYSIS.value)
-        return json.loads(dataset_json)
+        analysis_json = await self.connection.hget(analysis_id, key=SubmissionKeys.ANALYSIS.value)
+        return json.loads(analysis_json) if analysis_json is not None else None
 
     async def _set_analysis_result(self, analysis_id: str, result: dict):
         await self.connection.hset(
@@ -115,6 +160,39 @@ class RedisStateStore(AbstractStateStore):
         if result_json is None:
             return None
         return json.loads(result_json)
+
+    async def _delete_fields(self, key: str, fields: List[SubmissionKeys]):
+        await self.connection.hdel(key, *[f.value for f in fields])
+
+    async def _replace_array(self, key: str, field: SubmissionKeys, values: List[str|dict]):
+        await self.connection.hset(name=key, key=field.value, value=json.dumps(values))
+
+    async def _set_json(self, key: str, field: SubmissionKeys, value: dict | list):
+        await self.connection.hset(name=key, key=field.value, value=json.dumps(value))
+
+    async def _get_json(self, key: str, field: SubmissionKeys) -> dict | list | None:
+        value = await self.connection.hget(key, key=field.value)
+        return json.loads(value) if value is not None else None
+
+    async def _push_analysis_job(self, analysis_id: str):
+        await self.connection.rpush(ANALYSIS_QUEUE, analysis_id)
+
+    async def _lease_next_analysis_job(self, lease_seconds: int) -> tuple[str, str] | None:
+        token = uuid4().hex
+        now = time.time()
+        analysis_id = await self.connection.eval(
+            LEASE_SCRIPT, 2, ANALYSIS_QUEUE, ANALYSIS_LEASES,
+            now, now + lease_seconds, token, SubmissionKeys.LEASE.value
+        )
+        if analysis_id is None:
+            return None
+        return analysis_id.decode('utf-8'), token
+
+    async def _release_analysis_lease(self, analysis_id: str, token: str) -> bool:
+        released = await self.connection.eval(
+            RELEASE_SCRIPT, 2, ANALYSIS_LEASES, analysis_id, token, SubmissionKeys.LEASE.value
+        )
+        return bool(released)
 
 
     async def _set_filename(self, file_id: str, filename: str):

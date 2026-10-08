@@ -17,4 +17,9 @@ input DescriptiveStatisticsInput {
   statistics are requested.
   """
   interactions: [InteractionTermInput!]
+
+  """
+  Optional estimated marginal means (least-squares means).
+  """
+  estimatedMeans: [EstimatedMeansInput!]
 }

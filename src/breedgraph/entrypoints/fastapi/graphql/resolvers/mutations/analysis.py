@@ -18,7 +18,18 @@ async def submit_analysis(
     user_id: int = info.context.get('user_id')
     logger.debug(f"User {user_id} requesting analysis {analysis}")
     bus = info.context.get('bus')
-    key = await bus.state_store.store_analysis(agent_id=user_id, analysis=analysis)
-    cmd = RequestAnalysis(agent_id=user_id, analysis_id=key)
-    await bus.handle(cmd)
-    return key
+    return await bus.handle(RequestAnalysis(agent_id=user_id, analysis=analysis))
+
+@graphql_mutation.field("analysisDelete")
+@graphql_payload
+@require_authentication
+async def delete_analysis(
+        _,
+        info,
+        id: str
+) -> bool:
+    user_id: int = info.context.get('user_id')
+    logger.debug(f"User {user_id} deleting analysis {id}")
+    bus = info.context.get('bus')
+    await bus.state_store.delete_analysis(agent_id=user_id, analysis_id=id)
+    return True

@@ -14,6 +14,11 @@ type DescriptiveStatisticsConfig {
   model-dependent statistics such as least-squares means.
   """
   interactions: [InteractionTerm!]!
+
+  """
+  Estimated marginal means requested.
+  """
+  estimatedMeans: [EstimatedMeansConfig!]!
 }
 
 
@@ -29,9 +34,9 @@ type DescriptiveStatisticsResult {
   terms: [DescriptiveTermResult!]!
 
   """
-  Least-squares means when a suitable model was specified.
+  Estimated marginal means (least-squares means) when requested.
   """
-  lsMeans: [LSMeanResult!]!
+  estimatedMeans: [EstimatedMeansResult!]!
 }
 
 
@@ -42,7 +47,14 @@ type DescriptiveTermResult {
   term: AnalysisTermReference!
 
   """
-  Analytical group represented by this result.
+  Levels of the categorical and ordinal terms for which the statistics
+  were calculated. Empty for statistics over all observations.
+  """
+  levels: [AnalysisTermLevel!]!
+
+  """
+  Analytical group represented by this result, when all levels are
+  of domain terms.
   """
   group: AnalysisGroup
 
@@ -74,43 +86,6 @@ type DescriptiveTermResult {
 }
 
 
-type LSMeanResult {
-  """
-  Term for which the least-squares mean was calculated.
-  """
-  term: AnalysisTermReference!
-
-  """
-  Analytical group for which the adjusted mean was estimated.
-  """
-  group: AnalysisGroup
-
-  """
-  Estimated least-squares mean.
-  """
-  mean: Float!
-
-  """
-  Standard error.
-  """
-  standardError: Float
-
-  """
-  Degrees of freedom.
-  """
-  degreesOfFreedom: Float
-
-  """
-  Lower confidence limit.
-  """
-  lowerConfidenceLimit: Float
-
-  """
-  Upper confidence limit.
-  """
-  upperConfidenceLimit: Float
-}
-
 type AnalysisGroup {
   """
   Time grouping represented by this group.
@@ -131,4 +106,56 @@ type AnalysisGroup {
   Position represented by this group.
   """
   position: Position
+
+  """
+  Study represented by this group, when a STUDY term is used.
+  """
+  studyId: ID
+
+  """
+  Record group levels represented by this group.
+  """
+  recordGroups: [AnalysisRecordGroupAssignment!]!
+
+}
+
+
+"""
+The level of a record group dimension represented by a group.
+"""
+type AnalysisRecordGroupAssignment {
+  """
+  Name of the dimension.
+  """
+  dimension: String!
+
+  """
+  Identifier of the level, unique within the dimension.
+
+  The label of a shared level, otherwise an identifier
+  composed of grouping, scope and code.
+  """
+  level: String!
+
+  """
+  Whether the level is a shared level.
+  """
+  shared: Boolean!
+
+  """
+  Grouping of a nested level.
+  """
+  groupingId: ID
+
+  """
+  Datasets of the scope of a nested level.
+
+  Null for study-wide groupings and shared levels.
+  """
+  scopeDatasetIds: [ID!]
+
+  """
+  Code of a nested level.
+  """
+  code: String
 }

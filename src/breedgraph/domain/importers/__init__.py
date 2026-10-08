@@ -14,4 +14,4 @@ coercion is insufficient (e.g. datasets containing nested records).
 
 """
 from .dataset import DatasetImport, DatasetUpdateImport, RecordImport
-from .analysis import AnalysisImport, AnalysisVariableImport, InteractionTermImport
+from .analysis import AnalysisInputImport

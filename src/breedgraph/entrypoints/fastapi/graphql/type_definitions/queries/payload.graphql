@@ -7,6 +7,10 @@ enum QueryStatus {
 type Error {
     name: String
     message: String
+    """
+    Path of the input field the error relates to, when applicable.
+    """
+    path: [String!]
 }
 
 type StatusPayload {
@@ -226,12 +230,18 @@ type GermplasmEntriesPayload {
 
 type AnalysisSubmissionIdPayload {
   status: QueryStatus!
-  result: ID!
+  result: ID
+  errors: [Error!]
+}
+
+type AnalysisSubmissionIdsPayload {
+  status: QueryStatus!
+  result: [ID!]
   errors: [Error!]
 }
 
 type AnalysisSubmissionPayload {
   status: QueryStatus!
-  result: AnalysisSubmission!
+  result: AnalysisSubmission
   errors: [Error!]
 }

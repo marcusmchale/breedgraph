@@ -2,7 +2,7 @@
 A resolved analysis term.
 
 A term may represent a concept or a domain dimension such as
-time, germplasm, unit grouping or position grouping.
+time, germplasm, unit, position, record group or study.
 """
 type AnalysisTerm {
   """
@@ -50,8 +50,8 @@ type AnalysisTerm {
 """
 Identifies a term used by an analysis.
 
-Concept terms are identified by conceptId. Domain dimensions
-are identified by their AnalysisTermType.
+Concept terms are identified by conceptId, record group terms by
+their dimension. Other domain terms are identified by their type.
 """
 type AnalysisTermReference {
   """
@@ -63,6 +63,11 @@ type AnalysisTermReference {
   Stable concept ID when the term represents a concept.
   """
   conceptId: ID
+
+  """
+  Record group dimension when the term represents a record group.
+  """
+  recordGroupDimension: AnalysisRecordGroupDimension
 }
 
 

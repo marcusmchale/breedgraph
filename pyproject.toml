@@ -35,14 +35,24 @@ api = [
 
     "networkx~=3.6.1",
     "numpy~=2.5.0",
-    "pandas~=3.0.3",
-    "statsmodels~=0.14.6"
+    "pandas~=3.0.3"
 ]
 
 # Archive worker guards
 worker = [
     "httpx==0.28.1",
     "aiofiles~=25.1.0"
+]
+
+# Analysis worker, also requires R with lme4, lmerTest, emmeans, car and pbkrtest installed at system level
+analysis_worker = [
+    "httpx==0.28.1",
+    "numpy~=2.5.0",
+    "pandas~=3.0.3",
+    "scipy~=1.17.0",
+    "scikit-learn~=1.9.1",
+    # rpy2 3.6 uses R API not available in R 4.3
+    "rpy2~=3.5.17"
 ]
 
 test = [
@@ -75,9 +85,11 @@ breedgraph = [
     "adapters/neo4j/cypher/**/*.cypher",
 ]
 archive_worker = []
+analysis_worker = []
 
 [project.scripts]
-archive-worker = "archive_worker.main:cli"
+archive-worker = "archive_worker.main:main"
+analysis-worker = "analysis_worker.main:main"
 
 [project.urls]
 Homepage = "https://github.com/marcusmchale/breedgraph"

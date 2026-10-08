@@ -16,6 +16,7 @@ type Record {
 
 type Dataset {
     id: ID!
+    studyId: ID!
     # concept is either a Factor or Variable in the ontology
     concept: OntologyNodeInterface!
     records: [Record]
@@ -42,6 +43,7 @@ type SubmittedData {
 
 enum SubmissionStatus {
     PENDING
+    QUEUED
     PROCESSING
     COMPLETED
     FAILED

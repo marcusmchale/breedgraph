@@ -8,5 +8,10 @@ extend type Mutation {
   analysisSubmit(
     analysis: AnalysisInput!
   ): AnalysisSubmissionIdPayload!
+  """
+  Delete an analysis, including its result.
+  A queued or running analysis is cancelled.
+  """
+  analysisDelete(id: ID!): BooleanPayload!
 }
 

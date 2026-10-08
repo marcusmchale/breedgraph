@@ -7,6 +7,11 @@ type AnovaConfig {
   terms: [AnalysisTerm!]!
 
   """
+  The response term.
+  """
+  response: AnalysisTermReference!
+
+  """
   Dimensions used to construct analytical observations.
   """
   grouping: AnalysisGrouping
@@ -22,26 +27,19 @@ type AnovaConfig {
   alpha: Float!
 
   """
-  Optional Tukey HSD post-hoc comparisons.
+  Type of sums of squares.
   """
-  tukey: TukeyConfig
-}
+  sumOfSquares: SumOfSquaresType!
 
-
-
-"""
-Defines Tukey HSD post-hoc comparisons for an ANOVA.
-
-Tukey HSD compares the levels of a categorical or ordinal term.
-A term is eligible when its AnalysisTermInput representation is
-CATEGORICAL or ORDINAL. The server validates that each requested
-term is suitable for post-hoc comparison.
-"""
-type TukeyConfig {
   """
-  Terms whose levels should be compared pairwise.
+  Denominator degrees of freedom method for mixed models.
   """
-  terms: [AnalysisTermReference!]!
+  ddf: DdfMethod!
+
+  """
+  Estimated marginal means and contrasts.
+  """
+  estimatedMeans: [EstimatedMeansConfig!]!
 }
 
 
@@ -62,15 +60,46 @@ type AnovaResult {
   interactions: [AnovaInteractionResult!]!
 
   """
-  Tukey HSD results when requested.
+  Variance components of random effects, for mixed models.
   """
-  tukey: [TukeyResult!]!
+  randomEffects: [VarianceComponentResult!]!
+
+  """
+  Estimated marginal means and contrasts when requested.
+  """
+  estimatedMeans: [EstimatedMeansResult!]!
 
   """
   Residual/error statistics for the fitted model.
   """
   residual: AnovaResidualResult
 
+}
+
+
+"""
+Variance component of a random effect.
+"""
+type VarianceComponentResult {
+  """
+  Grouping term of the random effect.
+  """
+  group: AnalysisTermReference!
+
+  """
+  Term of a random slope. Null for random intercepts.
+  """
+  slope: AnalysisTermReference
+
+  """
+  Estimated variance.
+  """
+  variance: Float
+
+  """
+  Estimated standard deviation.
+  """
+  standardDeviation: Float
 }
 
 type AnovaResidualResult {
@@ -101,6 +130,11 @@ type AnovaTermResult {
   Degrees of freedom.
   """
   degreesOfFreedom: Float
+
+  """
+  Denominator degrees of freedom, for mixed models.
+  """
+  denominatorDegreesOfFreedom: Float
 
   """
   Sum of squares.
@@ -136,6 +170,11 @@ type AnovaInteractionResult {
   degreesOfFreedom: Float
 
   """
+  Denominator degrees of freedom, for mixed models.
+  """
+  denominatorDegreesOfFreedom: Float
+
+  """
   Sum of squares.
   """
   sumOfSquares: Float
@@ -154,54 +193,4 @@ type AnovaInteractionResult {
   P value.
   """
   pValue: Float
-}
-
-type TukeyResult {
-  """
-  Term whose levels were compared.
-  """
-  term: AnalysisTermReference!
-
-  """
-  Pairwise comparisons between levels.
-  """
-  comparisons: [TukeyComparison!]!
-}
-
-
-type TukeyComparison {
-  """
-  First level in the comparison.
-  """
-  levelA: String!
-
-  """
-  Second level in the comparison.
-  """
-  levelB: String!
-
-  """
-  Difference between estimated means.
-  """
-  difference: Float
-
-  """
-  Adjusted p value.
-  """
-  pValue: Float
-
-  """
-  Lower confidence limit.
-  """
-  lowerConfidenceLimit: Float
-
-  """
-  Upper confidence limit.
-  """
-  upperConfidenceLimit: Float
-
-  """
-  Whether the comparison is statistically significant.
-  """
-  significant: Boolean!
 }

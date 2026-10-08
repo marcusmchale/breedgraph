@@ -21,7 +21,6 @@ input TimeSpecificationInput {
   binning: BinningInput!
 }
 
-
 """
 Defines how germplasm is resolved into analytical groups.
 
@@ -38,7 +37,6 @@ input GermplasmGroupingInput {
   germplasmIds: [ID!]!
 }
 
-
 """
 Defines how units are resolved into analytical groups.
 
@@ -54,7 +52,6 @@ input UnitGroupingInput {
   """
   unitIds: [ID!]!
 }
-
 
 """
 Defines how positions are resolved into analytical groups.
@@ -95,13 +92,102 @@ input PositionGroupingInput {
   time: DateTime
 }
 
+"""
+A code of a record grouping.
+"""
+input RecordGroupMemberInput {
+  """
+  ID of the record grouping.
+  """
+  groupingId: ID!
+
+  """
+  Record group code within the grouping.
+  """
+  code: String!
+
+  """
+  A selected dataset in the scope the code belongs to.
+
+  Required for dataset-scoped groupings, where equal codes in
+  different scopes are distinct levels. Must not be provided for
+  study-wide groupings.
+  """
+  datasetId: ID
+}
+
+
+"""
+Defines a level shared by codes from one or more record groupings.
+
+Use this when codes from different groupings or scopes represent
+the same thing, e.g. a processing batch that included samples
+from several studies.
+"""
+input RecordGroupLevelInput {
+  """
+  Label of the level in analysis results.
+
+  Unique within the dimension. Must not contain "|".
+  """
+  label: String!
+
+  """
+  Codes that belong to this level. Each code may belong to only one level.
+  """
+  members: [RecordGroupMemberInput!]!
+}
+
+
+"""
+Defines a record group dimension, which may span studies.
+
+Levels are nested by default: each code is a distinct level within
+its grouping and scope, so equal codes from different studies or
+scopes are never pooled. Level definitions explicitly combine codes
+into shared levels; codes not included in a level definition keep
+their nested identity.
+
+Records with no code for any of the dimension's groupings, including
+all records from studies without such a grouping, are excluded from
+the analysis and reported in a warning.
+"""
+input RecordGroupDimensionInput {
+  """
+  Name of the dimension, unique within the analysis.
+
+  Referenced by AnalysisTermReferenceInput.recordGroupDimension
+  and used as the label of the dimension in results.
+  """
+  name: String!
+
+  """
+  Record groupings contributing to the dimension.
+
+  Each grouping must belong to the study of a selected dataset.
+  At most one grouping per study, and each grouping may contribute
+  to only one dimension in the analysis.
+  """
+  groupingIds: [ID!]!
+
+  """
+  Optional shared levels combining codes across groupings or scopes.
+  """
+  levels: [RecordGroupLevelInput!]
+}
+
 
 """
 Defines the dimensions used to construct analytical observations.
 
-Each configured dimension contributes to the identity of an
-analytical observation. Records sharing the same values across
-all configured dimensions belong to the same analytical unit.
+The observation unit is always part of observation identity: the
+base unit of each record, or its parent unit when a unit grouping
+is configured. Each configured dimension also contributes to
+observation identity. Study contributes only when a STUDY term
+is used.
+
+Records that cannot be assigned to a configured dimension are
+excluded from the analysis and reported in a warning.
 """
 input AnalysisGroupingInput {
   """
@@ -115,7 +201,7 @@ input AnalysisGroupingInput {
   germplasm: GermplasmGroupingInput
 
   """
-  Groups records according to unit hierarchy.
+  Replaces the base unit with a selected parent unit.
   """
   unit: UnitGroupingInput
 
@@ -123,4 +209,9 @@ input AnalysisGroupingInput {
   Groups records according to geographic or layout position.
   """
   position: PositionGroupingInput
+
+  """
+  Groups records according to study record groupings, e.g. batch or replicate.
+  """
+  recordGroups: [RecordGroupDimensionInput!]
 }

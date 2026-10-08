@@ -42,6 +42,7 @@ type CorrelationMatrixRow {
 
   """
   Correlation values corresponding to the ordered term list.
+  Null where too few observations have values for both terms.
   """
-  values: [Float!]!
+  values: [Float]!
 }

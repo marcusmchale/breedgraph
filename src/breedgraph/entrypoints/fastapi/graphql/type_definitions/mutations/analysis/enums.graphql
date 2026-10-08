@@ -154,6 +154,13 @@ enum TermAggregation {
   MODE
 }
 
+
+"""
+Type of term used by an analysis.
+
+Each domain term type corresponds to a dimension of analytical
+observation identity.
+"""
 enum AnalysisTermType {
   """
   A dataset concept.
@@ -161,24 +168,41 @@ enum AnalysisTermType {
   CONCEPT
 
   """
-  The analysis time grouping dimension.
+  The time dimension. Requires grouping.time.
   """
   TIME
 
   """
-  The germplasm grouping dimension.
+  The germplasm dimension. Requires grouping.germplasm.
   """
   GERMPLASM
 
   """
-  The unit grouping dimension.
+  The observation unit: the base unit of each record, or the
+  parent unit when grouping.unit is configured.
   """
-  UNIT_GROUP
+  UNIT
 
   """
-  The position grouping dimension.
+  The position dimension. Requires grouping.position.
   """
-  POSITION_GROUP
+  POSITION
+
+  """
+  A record group dimension, identified by recordGroupDimension.
+  Requires a matching dimension in grouping.recordGroups.
+  """
+  RECORD_GROUP
+
+  """
+  The study each record belongs to.
+
+  Requires no configuration. When used, study becomes part of
+  observation identity, so records of a unit in different studies
+  form distinct observations.
+  """
+  STUDY
+
 }
 
 """
@@ -274,14 +298,55 @@ enum ClusteringMethod {
 
 
 """
-Type of grouping used to construct analytical observations.
+Type of sums of squares used for ANOVA tables.
 """
-enum AnalysisGroupingType {
-  TIME
+enum SumOfSquaresType {
+  TYPE_II
 
-  GERMPLASM
+  """
+  Uses sum-to-zero contrasts.
+  """
+  TYPE_III
+}
 
-  UNIT
 
-  POSITION
+"""
+Method for denominator degrees of freedom in mixed models.
+"""
+enum DdfMethod {
+  SATTERTHWAITE
+  KENWARD_ROGER
+}
+
+
+"""
+Contrasts between estimated marginal means.
+"""
+enum EstimatedMeansContrast {
+  """
+  All pairwise comparisons.
+  """
+  PAIRWISE
+
+  """
+  Comparisons of each level against a control level.
+  """
+  TRT_VS_CTRL
+
+  """
+  Means only.
+  """
+  NONE
+}
+
+
+"""
+Adjustment of p values for multiple comparisons.
+"""
+enum PValueAdjustment {
+  TUKEY
+  BONFERRONI
+  HOLM
+  SIDAK
+  NONE
 }

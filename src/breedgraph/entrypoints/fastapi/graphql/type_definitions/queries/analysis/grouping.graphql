@@ -23,6 +23,12 @@ type AnalysisGrouping {
   Position grouping used to construct analytical observations.
   """
   position: PositionGrouping
+
+  """
+  Record group dimensions used to construct analytical observations.
+  """
+  recordGroups: [AnalysisRecordGroupDimension!]!
+
 }
 
 type TimeGrouping {
@@ -62,14 +68,24 @@ type UnitGrouping {
 
 type PositionGrouping {
   """
-  Positions defining the grouping levels.
+  ID of the Location in the Region hierarchy.
   """
-  positions: [Position!]!
+  locationId: ID!
 
   """
-  Layout axes whose values are used to distinguish groups.
+  ID of the Layout in the Arrangement hierarchy.
   """
-  axes: [String!]
+  layoutId: ID
+
+  """
+  Layout axes used to define position groups.
+  """
+  axisIndexes: [Int!]
+
+  """
+  Explicit positions defining groups.
+  """
+  positions: [Position!]!
 
   """
   Time at which positions are evaluated.
@@ -78,4 +94,62 @@ type PositionGrouping {
   the specified position at any time.
   """
   time: DateTime
+}
+
+
+"""
+A record group dimension as applied by an analysis.
+"""
+type AnalysisRecordGroupDimension {
+  """
+  Name of the dimension.
+  """
+  name: String!
+
+  """
+  Record groupings contributing to the dimension.
+  """
+  groupings: [AnalysisRecordGrouping!]!
+
+  """
+  Shared levels combining codes across groupings or scopes.
+  """
+  levels: [AnalysisRecordGroupLevel!]!
+}
+
+
+"""
+A record grouping contributing to a record group dimension.
+"""
+type AnalysisRecordGrouping {
+  """
+  ID of the record grouping.
+  """
+  groupingId: ID!
+
+  """
+  ID of the study the grouping belongs to.
+  """
+  studyId: ID
+}
+
+"""
+A level shared by codes from one or more record groupings.
+"""
+type AnalysisRecordGroupLevel {
+  label: String!
+
+  members: [AnalysisRecordGroupMember!]!
+}
+
+
+type AnalysisRecordGroupMember {
+  groupingId: ID!
+
+  code: String!
+
+  """
+  Dataset identifying the scope of the code, for dataset-scoped groupings.
+  """
+  datasetId: ID
 }

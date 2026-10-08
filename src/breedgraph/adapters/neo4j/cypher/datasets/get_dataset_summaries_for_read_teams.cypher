@@ -29,14 +29,14 @@ CALL (unit, record) {
   OPTIONAL MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
   WHERE (record.start IS NULL OR position.start IS NULL OR position.start < record.start)
   AND (record.end IS NULL OR position.end IS NULL OR position.end < record.end)
-  RETURN collect(location.id) as location_ids
+  RETURN location.id as location_id
 }
 
 WITH
     concept.id as concept_id,
     dataset.id as id,
     collect(distinct subject.id) as subject_ids,
-    location_ids,
+    collect(location_id) as location_ids,
     collect(distinct block.id) as block_ids,
     count(distinct unit) as unit_count,
     count(distinct record) as record_count,

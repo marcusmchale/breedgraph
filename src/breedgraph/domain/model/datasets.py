@@ -152,6 +152,8 @@ class DatasetBase(ABC):
 
                 if record.value is not None:
                     record = self.parse_record(record, scale, categories, grouping_ids)
+                elif record.groups is not None:
+                    self.validate_groups(record.groups, grouping_ids)
 
                 record_index = record_index_map[record.id]
                 stored_record = self.records[record_index]
@@ -165,6 +167,9 @@ class DatasetBase(ABC):
                     stored_record.unit = record.unit
                 if record.references is not None and stored_record.references != record.references:
                     stored_record.references = record.references
+                if record.groups is not None and stored_record.groups != record.groups:
+                    # None means unchanged, [] clears groups
+                    stored_record.groups = record.groups
 
                 yield None
             except Exception as e:
@@ -188,6 +193,18 @@ class DatasetBase(ABC):
         dump = asdict(self)
         dump['records'] = [record.model_dump() for record in self.records]
         return dump
+
+    @staticmethod
+    def validate_groups(groups: List[RecordGroup], grouping_ids: List[int]|None):
+        seen = set()
+        for group in groups:
+            if group.id not in (grouping_ids or []):
+                raise ValueError(f"{group.id} is not valid for records in this dataset")
+            if group.id in seen:
+                raise ValueError(f"A record may only have one code for grouping {group.id}")
+            if not group.code or not group.code.strip():
+                raise ValueError(f"A code is required for grouping {group.id}")
+            seen.add(group.id)
 
     @overload
     def parse_record(
@@ -222,9 +239,7 @@ class DatasetBase(ABC):
                     isinstance(record, DataRecordUpdate) and record.references is not None and len(record.references) == 0
                 ]):
                     raise ValueError("Complex scale records require at least one reference")
-        for group in record.groups or []:
-            if group.id not in grouping_ids:
-                raise ValueError(f"{group.id } is not valid for records in this dataset")
+        self.validate_groups(record.groups or [], grouping_ids)
 
         record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
         return record

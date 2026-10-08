@@ -1,0 +1,42 @@
+# /etc/systemd/system/analysis_worker.service
+# Requires R with the lme4, lmerTest, emmeans, car and pbkrtest packages installed at system level.
+[Unit]
+Description=Analysis Worker Service - Statistical Analyses
+After=network.target
+Wants=network-online.target
+
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=analysisworker
+Group=analysisworker
+
+WorkingDirectory=/opt/analysis_worker
+EnvironmentFile=/opt/analysis_worker/analysis_worker.env
+
+ExecStart=/opt/analysis_worker/.venv/bin/python -m analysis_worker.main
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Graceful shutdown
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/analysis_worker /var/log/analysis_worker
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=analysis-worker
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,51 @@
+"""
+A rule for excluding records from an analysis.
+
+Mirrors AnalysisExclusionInput, so it can be supplied as an
+exclusion to a subsequent analysis.
+"""
+type AnalysisExclusion {
+  recordIds: [ID!]
+
+  unitIds: [ID!]
+
+  germplasmIds: [ID!]
+
+  studyIds: [ID!]
+
+  positions: [PositionExclusion!]
+
+  recordGroups: [AnalysisRecordGroupMember!]
+
+  """
+  Inclusive start of the rule. Null means unbounded.
+  """
+  start: DateTime
+
+  """
+  Exclusive end of the rule. Null means unbounded.
+  """
+  end: DateTime
+}
+
+
+"""
+A position criterion of an exclusion rule.
+"""
+type PositionExclusion {
+  locationId: ID!
+
+  layoutId: ID
+
+  axes: [AxisValue!]
+}
+
+
+"""
+The value of a layout axis.
+"""
+type AxisValue {
+  index: Int!
+
+  value: String!
+}

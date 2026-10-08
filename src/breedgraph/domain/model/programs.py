@@ -52,18 +52,36 @@ class RecordGroupingBase(ABC):
             )
 
     def merge_dataset_scope(self, scope: DatasetScope|set[int]|list[int]):
+        if self.scope == GroupingScope.STUDY_WIDE:
+            raise ValueError("Study-wide grouping cannot have explicit scopes")
+
         if not isinstance(scope, DatasetScope):
             scope = DatasetScope(dataset_ids=list(scope))
 
-        for i, existing in enumerate(self.dataset_scopes):
+        # Coalesce every existing scope overlapping the new one,
+        # so no dataset can ever belong to more than one scope.
+        merged = set(scope.dataset_ids)
+        remaining = []
+        for existing in self.dataset_scopes:
+            if merged & set(existing.dataset_ids):
+                merged |= set(existing.dataset_ids)
+            else:
+                remaining.append(existing)
+        remaining.append(DatasetScope(dataset_ids=list(merged)))
+        self.dataset_scopes = remaining
 
-            overlap = set(existing.dataset_ids) & set(scope.dataset_ids)
-            if overlap:
-                self.dataset_scopes[i].dataset_ids = list(
-                    set(existing.dataset_ids) | set(scope.dataset_ids)
-                )
-                return
-        self.dataset_scopes.append(scope)
+    def scope_key(self, dataset_id: int) -> frozenset[int]|None:
+        """
+        Key within which codes of this grouping are comparable.
+        Study-wide: None. Dataset-scoped: the containing scope,
+        or the dataset alone if it is not in an explicit scope.
+        """
+        if self.scope == GroupingScope.STUDY_WIDE:
+            return None
+        for ds in self.dataset_scopes:
+            if dataset_id in ds.dataset_ids:
+                return frozenset(ds.dataset_ids)
+        return frozenset({dataset_id})
 
 
 

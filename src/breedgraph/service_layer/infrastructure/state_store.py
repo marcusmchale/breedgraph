@@ -180,11 +180,79 @@ class AbstractStateStore(ABC):
         await self._set_agent(agent_id, analysis_id)
         await self._store_user_analysis(agent_id, analysis_id)
         await self._set_analysis_config(analysis_id, analysis)
-        await self.set_submission_status(analysis_id, SubmissionStatus.PENDING)
+        await self.set_analysis_status(analysis_id, SubmissionStatus.PENDING)
         return analysis_id
+
+    async def get_user_analyses(self, agent_id: int) -> List[str]:
+        """ Return a list of analysis ID, most recently updated first """
+        analysis_ids = await self._get_user_analyses(agent_id)
+        valid_analyses = []
+        for analysis_id in analysis_ids:
+            if await self._analysis_exists(analysis_id):
+                valid_analyses.append((analysis_id, await self._get_ttl(analysis_id)))
+            else:
+                # clean up expired analysis
+                await self._remove_user_analysis(agent_id, analysis_id)
+        # expiry is reset on each status change, so the longest ttl is the most recent
+        valid_analyses.sort(key=lambda analysis: analysis[1], reverse=True)
+        return [analysis_id for analysis_id, _ in valid_analyses]
+
+    async def delete_analysis(self, agent_id: int, analysis_id: str):
+        """Remove an analysis, including any queued or leased job, so a running job's result is discarded."""
+        await self.verify_agent(agent_id, analysis_id)
+        await self._delete_analysis(analysis_id)
+        await self._remove_user_analysis(agent_id, analysis_id)
+
+    async def get_analysis_errors(self, agent_id: int, analysis_id: str) -> List[dict]:
+        await self.verify_agent(agent_id, analysis_id)
+        return await self._get_errors(analysis_id)
+
+    async def get_analysis_warnings(self, agent_id: int, analysis_id: str) -> List[dict]:
+        await self.verify_agent(agent_id, analysis_id)
+        return await self._get_warnings(analysis_id)
+
+    async def reset_analysis_messages(self, analysis_id: str):
+        """Remove errors and warnings, including those pending from analysis preparation."""
+        await self._delete_fields(
+            analysis_id, [SubmissionKeys.ERRORS, SubmissionKeys.WARNINGS, SubmissionKeys.JOB_WARNINGS]
+        )
+
+    async def set_analysis_messages(self, analysis_id: str, errors: List[dict], warnings: List[dict]):
+        """Write the final errors and warnings of an analysis, replacing any stored."""
+        await self._replace_array(analysis_id, SubmissionKeys.ERRORS, errors)
+        await self._replace_array(analysis_id, SubmissionKeys.WARNINGS, warnings)
+
+    async def fail_analysis(self, analysis_id: str, errors: List[dict], warnings: List[dict]):
+        await self.set_analysis_messages(analysis_id, errors=errors, warnings=warnings)
+        await self.set_analysis_status(analysis_id, SubmissionStatus.FAILED)
+
+    @abstractmethod
+    async def _delete_fields(self, key: str, fields: List[SubmissionKeys]):
+        ...
+
+    @abstractmethod
+    async def _replace_array(self, key: str, field: SubmissionKeys, values: List[str|dict]):
+        ...
 
     @abstractmethod
     async def _store_user_analysis(self, agent_id: int, analysis_id: str):
+        ...
+
+    @abstractmethod
+    async def _get_user_analyses(self, agent_id: int) -> List[str]:
+        ...
+
+    @abstractmethod
+    async def _analysis_exists(self, analysis_id: str) -> bool:
+        ...
+
+    @abstractmethod
+    async def _remove_user_analysis(self, agent_id: int, analysis_id: str):
+        ...
+
+    @abstractmethod
+    async def _delete_analysis(self, analysis_id: str):
+        """Delete the analysis and remove it from the job queue and leases."""
         ...
 
     async def set_analysis_config(self, agent_id, analysis_id, analysis):
@@ -202,17 +270,22 @@ class AbstractStateStore(ABC):
 
     async def set_analysis_status(self, analysis_id: str, status: SubmissionStatus):
         await self.set_status(analysis_id, status)
-        if status == SubmissionStatus.COMPLETED:
-            # reset expiry from when complete
-            await self._set_expiry(analysis_id, duration_seconds=60 * 60 * 24 * ANALYSIS_RETENTION_DAYS)
+        # retention is counted from the latest status change
+        await self._set_expiry(analysis_id, duration_seconds=60 * 60 * 24 * ANALYSIS_RETENTION_DAYS)
 
     async def get_analysis_config(self, agent_id: int, analysis_id: str):
         await self.verify_agent(agent_id, analysis_id)
         return await self._get_analysis_config(analysis_id)
 
+    async def get_analysis_type(self, analysis_id: str) -> str | None:
+        """For the analysis worker, which acts for no user"""
+        config = await self._get_analysis_config(analysis_id)
+        return config.get('analysis_type') if config else None
+
     async def set_analysis_result(self, analysis_id: str, result: dict):
-        await self.set_status(analysis_id, SubmissionStatus.COMPLETED)
+        # result first, so a COMPLETED status always has a result
         await self._set_analysis_result(analysis_id, result)
+        await self.set_analysis_status(analysis_id, SubmissionStatus.COMPLETED)
 
     @abstractmethod
     async def _set_analysis_result(self, analysis_id: str, result: dict):
@@ -224,6 +297,80 @@ class AbstractStateStore(ABC):
 
     @abstractmethod
     async def _get_analysis_result(self, analysis_id: str) -> dict | None:
+        ...
+
+    """ Analysis jobs, processed by the analysis worker """
+    async def enqueue_analysis_job(self, analysis_id: str, payload: dict, warnings: List[dict]):
+        """
+        Store the job payload and queue it for the worker.
+        Preparation warnings are held until the job completes or fails.
+        """
+        await self._set_json(analysis_id, SubmissionKeys.JOB, payload)
+        await self._set_json(analysis_id, SubmissionKeys.JOB_WARNINGS, warnings)
+        await self.set_analysis_status(analysis_id, SubmissionStatus.QUEUED)
+        await self._push_analysis_job(analysis_id)
+
+    async def lease_analysis_job(self, lease_seconds: int) -> tuple[str, str, dict] | None:
+        """
+        Lease the next queued job: (analysis_id, lease token, payload), or None if the queue is empty.
+        Jobs whose lease has expired are re-queued first.
+        """
+        while True:
+            leased = await self._lease_next_analysis_job(lease_seconds)
+            if leased is None:
+                return None
+            analysis_id, token = leased
+            payload = await self._get_json(analysis_id, SubmissionKeys.JOB)
+            if payload is None:
+                # the analysis expired while queued
+                await self._release_analysis_lease(analysis_id, token)
+                continue
+            await self.set_analysis_status(analysis_id, SubmissionStatus.PROCESSING)
+            return analysis_id, token, payload
+
+    async def complete_analysis_job(self, analysis_id: str, token: str, result: dict, warnings: List[dict]) -> bool:
+        """Store the result of a leased job. Returns False if the lease is not held."""
+        if not await self._release_analysis_lease(analysis_id, token):
+            return False
+        job_warnings = await self._get_json(analysis_id, SubmissionKeys.JOB_WARNINGS) or []
+        await self._delete_fields(analysis_id, [SubmissionKeys.JOB, SubmissionKeys.JOB_WARNINGS])
+        await self.set_analysis_messages(analysis_id, errors=[], warnings=job_warnings + warnings)
+        await self.set_analysis_result(analysis_id, result)
+        return True
+
+    async def fail_analysis_job(self, analysis_id: str, token: str, errors: List[dict], warnings: List[dict]) -> bool:
+        """Store the errors of a leased job. Returns False if the lease is not held."""
+        if not await self._release_analysis_lease(analysis_id, token):
+            return False
+        job_warnings = await self._get_json(analysis_id, SubmissionKeys.JOB_WARNINGS) or []
+        await self._delete_fields(analysis_id, [SubmissionKeys.JOB, SubmissionKeys.JOB_WARNINGS])
+        await self.fail_analysis(analysis_id, errors=errors, warnings=job_warnings + warnings)
+        return True
+
+    @abstractmethod
+    async def _set_json(self, key: str, field: SubmissionKeys, value: dict | list):
+        ...
+
+    @abstractmethod
+    async def _get_json(self, key: str, field: SubmissionKeys) -> dict | list | None:
+        ...
+
+    @abstractmethod
+    async def _push_analysis_job(self, analysis_id: str):
+        """Append to the job queue"""
+        ...
+
+    @abstractmethod
+    async def _lease_next_analysis_job(self, lease_seconds: int) -> tuple[str, str] | None:
+        """
+        Atomically re-queue expired leases, then pop the next job and lease it.
+        Returns (analysis_id, lease token).
+        """
+        ...
+
+    @abstractmethod
+    async def _release_analysis_lease(self, analysis_id: str, token: str) -> bool:
+        """Atomically release a lease if the token holds it."""
         ...
 
     """ File management state """
