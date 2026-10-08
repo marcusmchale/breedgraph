@@ -1,5 +1,8 @@
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from breedgraph.domain.commands.people import CreatePerson, UpdatePerson, ErasePerson
+from breedgraph.domain.commands.people import (
+    CreatePerson, UpdatePerson, ErasePerson,
+    RequestPersonClaim, WithdrawPersonClaim, ApprovePersonClaim, RejectPersonClaim, UnlinkPerson
+)
 from breedgraph.domain.model.controls import ReadRelease
 
 import logging
@@ -57,4 +60,49 @@ async def erase_person(_, info, id: int) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} erases Person {id}")
     await info.context['bus'].handle(ErasePerson(agent_id=user_id, person_id=id))
+    return True
+
+@graphql_mutation.field("peopleRequestClaim")
+@graphql_payload
+@require_authentication
+async def request_claim(_, info, person_id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} asks to be linked to Person {person_id}")
+    await info.context['bus'].handle(RequestPersonClaim(agent_id=user_id, person_id=person_id))
+    return True
+
+@graphql_mutation.field("peopleWithdrawClaim")
+@graphql_payload
+@require_authentication
+async def withdraw_claim(_, info, person_id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} withdraws request to be linked to Person {person_id}")
+    await info.context['bus'].handle(WithdrawPersonClaim(agent_id=user_id, person_id=person_id))
+    return True
+
+@graphql_mutation.field("peopleApproveClaim")
+@graphql_payload
+@require_authentication
+async def approve_claim(_, info, person_id: int, user_id: int) -> bool:
+    agent_id = info.context.get('user_id')
+    logger.debug(f"User {agent_id} approves linking user {user_id} to Person {person_id}")
+    await info.context['bus'].handle(ApprovePersonClaim(agent_id=agent_id, person_id=person_id, user_id=user_id))
+    return True
+
+@graphql_mutation.field("peopleRejectClaim")
+@graphql_payload
+@require_authentication
+async def reject_claim(_, info, person_id: int, user_id: int) -> bool:
+    agent_id = info.context.get('user_id')
+    logger.debug(f"User {agent_id} rejects linking user {user_id} to Person {person_id}")
+    await info.context['bus'].handle(RejectPersonClaim(agent_id=agent_id, person_id=person_id, user_id=user_id))
+    return True
+
+@graphql_mutation.field("peopleUnlinkPerson")
+@graphql_payload
+@require_authentication
+async def unlink_person(_, info, person_id: int) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} unlinks Person {person_id}")
+    await info.context['bus'].handle(UnlinkPerson(agent_id=user_id, person_id=person_id))
     return True

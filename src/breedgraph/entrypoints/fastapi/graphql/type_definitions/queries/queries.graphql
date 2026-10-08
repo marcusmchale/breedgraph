@@ -29,6 +29,12 @@ type Query {
     peoplePeople(ids: [ID!]!): PeoplePayload!
     """ Get a Person by id. Registered users without read access see the id only """
     peoplePerson(id: ID!): PersonPayload!
+    """ The Person linked to the current user's account, if any """
+    peopleMyPerson: PersonPayload!
+    """ The current user's pending requests to be linked to a Person """
+    peopleMyClaims: PersonClaimsPayload!
+    """ Pending requests to be linked to Persons controlled by teams the current user administers """
+    peopleClaimRequests: PersonClaimRequestsPayload!
     """ The current data processing terms, to show when declaring a legal entity """
     organisationsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""

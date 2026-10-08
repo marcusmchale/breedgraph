@@ -15,6 +15,8 @@ class CreateAccount(Command):
     invitation_token: str|None = None
     # The affiliations offered with the invitation that the user accepts
     accept_team_ids: List[int]|None = None
+    # Link the Person offered with the invitation to the new account
+    link_person: bool = False
 
 class UpdateUser(Command):
     user_id: int

@@ -36,11 +36,12 @@ async def create_account(
         _,
         info,
         name: str,
-        fullname: str,
         email: str,
         password: str,
+        fullname: str | None = None,
         invitation_token: str | None = None,
-        accept_team_ids: List[int] | None = None
+        accept_team_ids: List[int] | None = None,
+        link_person: bool | None = None
 ) -> bool:
     logger.debug("Add account")
     password_policy = config.get_password_policy()
@@ -59,7 +60,8 @@ async def create_account(
         password_hash=password_hash,
         email=email,
         invitation_token=invitation_token,
-        accept_team_ids=accept_team_ids
+        accept_team_ids=accept_team_ids,
+        link_person=bool(link_person)
     )
     await info.context['bus'].handle(cmd)
     return True

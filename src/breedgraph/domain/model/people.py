@@ -54,6 +54,7 @@ class PersonInput(PersonBase, EnumLabeledModel):
 class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
     orcid: str | None = None  # set only by the linked user, verified through ORCID sign-in
     user: int | None = None  # the linked user, who has subject rights over this record
+    claims: List[int] = field(default_factory=list)  # users requesting to be linked, pending approval
 
     recorded_by: int | None = None
     recorded_at: datetime | None = None
@@ -78,13 +79,15 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
     def is_subject(self, user_id: int | None) -> bool:
         return user_id is not None and user_id == self.user
 
-    def _id_only(self) -> 'PersonStored':
+    def _id_only(self, user_id: int | None = None) -> 'PersonStored':
         return replace(
             self,
             name=None,
             teams=list(),
             orcid=None,
             user=None,
+            # users see their own request to be linked, so they can withdraw it, but not others'
+            claims=[user_id] if user_id is not None and user_id in self.claims else list(),
             recorded_by=None,
             recorded_at=None
         )
@@ -108,7 +111,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             return self
         if user_id is None:
             return None
-        return self._id_only()
+        return self._id_only(user_id)
 
     def erase(self, agent_id: int, controller: Controller, admin_teams: Set[int]) -> None:
         """
@@ -124,7 +127,55 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         self.teams = list()
         self.orcid = None
         self.user = None
+        self.claims = list()
         self.erased_at = datetime.now(timezone.utc)
+
+    def _require_linkable(self) -> None:
+        if self.erased:
+            raise IllegalOperationError("An erased Person cannot be linked to an account")
+        if self.user is not None:
+            raise IllegalOperationError("This Person is already linked to an account")
+
+    def request_claim(self, user_id: int) -> None:
+        """A registered user asks to be linked to this Person, for admins of the controlling teams to decide"""
+        self._require_linkable()
+        if user_id in self.claims:
+            raise IllegalOperationError("You have already asked to be linked to this Person")
+        self.claims.append(user_id)
+
+    def withdraw_claim(self, user_id: int) -> None:
+        if user_id not in self.claims:
+            raise IllegalOperationError("No request to link this Person was found")
+        self.claims.remove(user_id)
+
+    def _require_admin(self, agent_id: int, controller: Controller, admin_teams: Set[int]) -> None:
+        if not controller.has_access(Access.ADMIN, agent_id, admin_teams):
+            raise UnauthorisedOperationError("Only admins of the controlling teams can decide requests to link a Person")
+
+    def approve_claim(self, agent_id: int, user_id: int, controller: Controller, admin_teams: Set[int]) -> None:
+        """Link the requesting user. Other pending requests are dropped."""
+        self._require_admin(agent_id, controller, admin_teams)
+        if user_id not in self.claims:
+            raise IllegalOperationError("No request to link this Person was found for the user")
+        self.link(user_id)
+
+    def reject_claim(self, agent_id: int, user_id: int, controller: Controller, admin_teams: Set[int]) -> None:
+        self._require_admin(agent_id, controller, admin_teams)
+        self.withdraw_claim(user_id)
+
+    def link(self, user_id: int) -> None:
+        """Link a user, who gains subject rights over the record. The caller authorises the link."""
+        self._require_linkable()
+        self.user = user_id
+        self.claims = list()
+
+    def unlink(self, agent_id: int, controller: Controller, admin_teams: Set[int]) -> None:
+        """The linked user or admins of the controlling teams can remove the link"""
+        if self.user is None:
+            raise IllegalOperationError("This Person is not linked to an account")
+        if not (self.is_subject(agent_id) or controller.has_access(Access.ADMIN, agent_id, admin_teams)):
+            raise UnauthorisedOperationError("Only the linked user or admins of the controlling teams can unlink a Person")
+        self.user = None
 
     def to_output(self) -> 'PersonOutput':
         return PersonOutput(
@@ -135,6 +186,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             informed_attestation=self.informed_attestation,
             orcid=self.orcid,
             user=self.user,
+            claims=list(self.claims),
             recorded_by=self.recorded_by,
             recorded_at=self.recorded_at,
             erased_at=self.erased_at
@@ -146,6 +198,7 @@ class PersonOutput(PersonBase, EnumLabeledModel):
     id: int = None
     orcid: str | None = None
     user: int | None = None
+    claims: List[int] = field(default_factory=list)
     recorded_by: int | None = None
     recorded_at: datetime | None = None
     erased_at: datetime | None = None

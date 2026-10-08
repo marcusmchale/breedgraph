@@ -33,9 +33,16 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
     async def _get_controlled(
             self,
             person_id: int|None = None,
-            name: str|None = None
+            name: str|None = None,
+            user_id: int|None = None
     ) -> ControlledQueryResult[PersonStored]|None:
-        if person_id is not None:
+        if user_id is not None:
+            result = await self.tx.run(queries['people']['get_person_by_user'], user_id=user_id)
+            record = await result.single()
+            if record is None:
+                return None
+            return ControlledQueryResult(aggregate=self.record_to_person(record['person']))
+        elif person_id is not None:
             result = await self.tx.run(queries['people']['get_person'], person_id=person_id)
             record = await result.single()
             if record is None:
@@ -89,7 +96,15 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             return True
         if self.user_id is not None and await self._linked_user(person.id) == self.user_id:
             return True
-        return person.erased and controller.has_access(Access.ADMIN, access_teams=self.access_teams[Access.ADMIN])
+        changed = set(person.changed)
+        if changed and changed <= {'claims'}:
+            # Requests to be linked are authorised by the domain model and handlers
+            return True
+        is_admin = controller.has_access(Access.ADMIN, access_teams=self.access_teams[Access.ADMIN])
+        if is_admin and changed <= {'user', 'claims'}:
+            # Approving a request, or unlinking
+            return True
+        return person.erased and is_admin
 
     async def   _linked_user(self, person_id: int) -> int | None:
         result = await self.tx.run(queries['people']['get_person'], person_id=person_id)
@@ -100,17 +115,27 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         raise ProtectedNodeError(person.protected)
 
     async def _update_controlled(self, person: PersonStored | TrackableProtocol):
-        if not person.changed:
+        """
+        Only changed attributes are written, so changes stored from the id-only form,
+        e.g. a request to be linked, do not overwrite the rest of the record.
+        """
+        changed = set(person.changed)
+        if not changed:
             return
+        props = {}
+        for attr in ('name', 'orcid', 'erased_at'):
+            if attr in changed:
+                props[attr] = getattr(person, attr)
+        if 'basis' in changed:
+            props['basis'] = person.basis.value
         await self.tx.run(
             queries['people']['set_person'],
             id=person.id,
-            name=person.name,
-            teams=list(person.teams),
-            basis=person.basis.value,
-            orcid=person.orcid,
-            user=person.user,
-            erased_at=person.erased_at
+            props=props,
+            teams=list(person.teams) if 'teams' in changed else None,
+            claims=list(person.claims) if 'claims' in changed else None,
+            set_user='user' in changed,
+            user=person.user
         )
 
     @staticmethod
@@ -123,7 +148,24 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             informed_attestation=record.get('informed_attestation', False),
             orcid=record.get('orcid'),
             user=record.get('user'),
+            claims=list(record.get('claims') or []),
             recorded_by=record.get('recorded_by'),
             recorded_at=deserialize_time(record.get('recorded_at')),
             erased_at=deserialize_time(record.get('erased_at'))
         )
+
+    async def get_claim_requests(self, team_ids) -> list[dict]:
+        """Pending requests to be linked to Persons controlled by the given teams"""
+        result = await self.tx.run(queries['people']['get_claim_requests'], team_ids=list(team_ids))
+        return [
+            {**record.data(), 'time': deserialize_time(record['time'])}
+            async for record in result
+        ]
+
+    async def get_claims_by_user(self, user_id: int) -> list[dict]:
+        """The user's pending requests to be linked to Persons"""
+        result = await self.tx.run(queries['people']['get_claims_by_user'], user_id=user_id)
+        return [
+            {'person_id': record['person_id'], 'time': deserialize_time(record['time'])}
+            async for record in result
+        ]

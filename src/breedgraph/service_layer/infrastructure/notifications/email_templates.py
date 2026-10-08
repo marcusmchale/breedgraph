@@ -19,6 +19,35 @@ class Email:
         self.message = EmailMessage()
 
 
+class PersonClaimRequestedMessage(Email):
+
+    def __init__(self, requesting_user: UserBase, person_id: int):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} request to link a Person record'
+        body = (
+            f'Admin notification:\n'
+            f'{requesting_user.fullname} asked to link their account to Person record {person_id}.\n'
+            f'Please confirm their identity before approving the request at {PROTOCOL}://{HOST_ADDRESS}.'
+        )
+        self.message.set_content(body)
+
+
+class PersonLinkedMessage(Email):
+
+    def __init__(self, user: UserBase):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME} Person record linked to your account'
+        body = (
+            f'Hi {user.fullname},\n'
+            f'A Person record used to credit your contributions is now linked to your account.\n'
+            f'You can view, correct, unlink or erase it at {PROTOCOL}://{HOST_ADDRESS}.\n'
+            f'If the Person is listed as a contact, other users may message you through {SITE_NAME}. '
+            f'Messages arrive at this email address, which senders never see. '
+            f'You can remove yourself as a contact at any time.'
+        )
+        self.message.set_content(body)
+
+
 class InvitationMessage(Email):
 
     def __init__(self, inviter: UserBase, token: str, expires_at: datetime, offers_affiliation: bool):

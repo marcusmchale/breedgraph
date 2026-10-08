@@ -29,11 +29,10 @@ async def create_account(
         uow_factory: AbstractUnitOfWorkFactory,
         auth_service: AbstractAuthService
 ):
-    # Unredacted, to check the inviter still administers the teams offered
+    # Registration requires an invitation to the email address used, once a verified account exists
     async with uow_factory.get_uow(redacted=False) as uow:
         invitation = None
         if await uow.constraints.accounts_exist():
-            # Registration requires an invitation to the email address used
             if not cmd.invitation_token:
                 raise UnauthorisedOperationError("Please contact an existing user to be invited")
             token_data = auth_service.validate_invitation_token(cmd.invitation_token)
@@ -42,6 +41,18 @@ async def create_account(
                 raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
             if not invitation.matches_email(cmd.email):
                 raise UnauthorisedOperationError("Please register with the email address the invitation was sent to")
+            invitation.accepted_teams(cmd.accept_team_ids)
+        if cmd.link_person and (invitation is None or invitation.person_id is None):
+            raise IllegalOperationError("This invitation does not offer a Person to link")
+
+    # What the invitation offers is granted with the inviter's authority, which is checked again here.
+    # Unredacted, to check the inviter still administers the teams offered.
+    inviter_id = invitation.invited_by if invitation is not None else None
+    async with uow_factory.get_uow(user_id=inviter_id, redacted=False) as uow:
+        if invitation is not None:
+            invitation = await uow.repositories.invitations.get(invitation_id=invitation.id)
+            if invitation is None:
+                raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
             accepted_teams = invitation.accepted_teams(cmd.accept_team_ids)
             ontology_role = OntologyRole.CONTRIBUTOR
         else:
@@ -80,9 +91,25 @@ async def create_account(
         if invitation is not None:
             for team in accepted_teams:
                 await _grant_invited_affiliation(uow, invitation.invited_by, account.user.id, team)
+            if cmd.link_person:
+                await _link_invited_person(uow, invitation.person_id, account.user.id)
             # The invitation, with the email address, is not kept once accepted
             await uow.repositories.invitations.remove(invitation)
         await uow.commit()
+
+
+async def _link_invited_person(uow, person_id: int, user_id: int):
+    """In a unit of work acting as the inviter, who must still administer a team controlling the Person"""
+    person = await uow.repositories.people.get(person_id=person_id)
+    if person is None:
+        raise NoResultFoundError("The Person offered with this invitation was not found")
+    controller = await uow.controls.get_controller(ControlledModelLabel.PERSON, person_id)
+    if not controller.has_access(Access.ADMIN, access_teams=uow.controls.access_teams[Access.ADMIN]):
+        raise IllegalOperationError(
+            "The Person offered with this invitation is no longer controlled by the inviter, please register without it"
+        )
+    person.link(user_id)
+    person.events.append(events.people.PersonLinked(person_id=person_id, user_id=user_id))
 
 
 async def _grant_invited_affiliation(uow, inviter_id: int, user_id: int, team: TeamInvitation):

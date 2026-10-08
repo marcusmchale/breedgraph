@@ -1,5 +1,5 @@
 from breedgraph.domain import commands
-from breedgraph.domain.events.people import PersonErased
+from breedgraph.domain.events.people import PersonErased, PersonClaimRequested, PersonLinked
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.people import PersonInput, PersonStored
 from breedgraph.custom_exceptions import (
@@ -103,4 +103,77 @@ async def erase_person(
             admin_teams=uow.controls.access_teams[Access.ADMIN]
         )
         person.events.append(PersonErased(person_id=person.id, erased_at=person.erased_at))
+        await uow.commit()
+
+
+async def _require_unlinked_user(uow: AbstractUnitHolder, user_id: int) -> None:
+    """Each account can be linked to one Person"""
+    if await uow.repositories.people.get(user_id=user_id) is not None:
+        raise IllegalOperationError("This account is already linked to a Person")
+
+
+async def _admin_context(uow: AbstractUnitHolder, person: PersonStored):
+    controller = await uow.controls.get_controller(person.label, person.id)
+    return controller, uow.controls.access_teams[Access.ADMIN]
+
+
+@handlers.command_handler()
+async def request_person_claim(
+        cmd: commands.people.RequestPersonClaim,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        await _require_unlinked_user(uow, cmd.agent_id)
+        person = await _get_person(uow, cmd.person_id)
+        person.request_claim(cmd.agent_id)
+        person.events.append(PersonClaimRequested(person_id=person.id, user_id=cmd.agent_id))
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def withdraw_person_claim(
+        cmd: commands.people.WithdrawPersonClaim,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_person(uow, cmd.person_id)
+        person.withdraw_claim(cmd.agent_id)
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def approve_person_claim(
+        cmd: commands.people.ApprovePersonClaim,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        await _require_unlinked_user(uow, cmd.user_id)
+        person = await _get_person(uow, cmd.person_id)
+        controller, admin_teams = await _admin_context(uow, person)
+        person.approve_claim(cmd.agent_id, cmd.user_id, controller, admin_teams)
+        person.events.append(PersonLinked(person_id=person.id, user_id=cmd.user_id))
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def reject_person_claim(
+        cmd: commands.people.RejectPersonClaim,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_person(uow, cmd.person_id)
+        controller, admin_teams = await _admin_context(uow, person)
+        person.reject_claim(cmd.agent_id, cmd.user_id, controller, admin_teams)
+        await uow.commit()
+
+
+@handlers.command_handler()
+async def unlink_person(
+        cmd: commands.people.UnlinkPerson,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_person(uow, cmd.person_id)
+        controller, admin_teams = await _admin_context(uow, person)
+        person.unlink(cmd.agent_id, controller, admin_teams)
         await uow.commit()

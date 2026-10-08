@@ -29,3 +29,31 @@ class UpdatePerson(Command):
 class ErasePerson(Command):
     agent_id: int
     person_id: int
+
+
+class RequestPersonClaim(Command):
+    """A registered user asks to be linked to a Person"""
+    agent_id: int
+    person_id: int
+
+
+class WithdrawPersonClaim(Command):
+    agent_id: int
+    person_id: int
+
+
+class ApprovePersonClaim(Command):
+    agent_id: int
+    person_id: int
+    user_id: int
+
+
+class RejectPersonClaim(Command):
+    agent_id: int
+    person_id: int
+    user_id: int
+
+
+class UnlinkPerson(Command):
+    agent_id: int
+    person_id: int

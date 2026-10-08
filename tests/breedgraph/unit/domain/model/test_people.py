@@ -124,3 +124,66 @@ def test_to_output():
     assert output.name == 'A Technician'
     assert output.teams == [CONTROL_TEAM]
     assert output.erased_at is None
+
+
+CLAIMANT = 4
+
+
+def admin_controller(person):
+    return controllers(person)[ControlledModelLabel.PERSON][person.id]
+
+
+def test_claim_approved_links_user():
+    person = stored_person(user=None)
+    person.request_claim(CLAIMANT)
+    person.request_claim(OTHER_USER)
+    with pytest.raises(IllegalOperationError, match="already asked"):
+        person.request_claim(CLAIMANT)
+
+    with pytest.raises(UnauthorisedOperationError):
+        person.approve_claim(OTHER_USER, CLAIMANT, admin_controller(person), admin_teams={OTHER_TEAM})
+    person.approve_claim(ADMIN_USER, CLAIMANT, admin_controller(person), admin_teams={CONTROL_TEAM})
+    assert person.user == CLAIMANT
+    assert person.claims == []
+
+
+def test_claim_rejected_and_withdrawn():
+    person = stored_person(user=None)
+    person.request_claim(CLAIMANT)
+    person.reject_claim(ADMIN_USER, CLAIMANT, admin_controller(person), admin_teams={CONTROL_TEAM})
+    assert person.claims == []
+    person.request_claim(CLAIMANT)
+    person.withdraw_claim(CLAIMANT)
+    assert person.claims == []
+    with pytest.raises(IllegalOperationError, match="No request"):
+        person.withdraw_claim(CLAIMANT)
+
+
+def test_linked_or_erased_persons_cannot_be_claimed():
+    with pytest.raises(IllegalOperationError, match="already linked"):
+        stored_person().request_claim(CLAIMANT)
+    erased = stored_person(user=None)
+    erased.erase(agent_id=ADMIN_USER, controller=admin_controller(erased), admin_teams={CONTROL_TEAM})
+    with pytest.raises(IllegalOperationError, match="erased"):
+        erased.request_claim(CLAIMANT)
+
+
+@pytest.mark.parametrize("agent_id, admin_teams", [(SUBJECT_USER, set()), (ADMIN_USER, {CONTROL_TEAM})])
+def test_unlink(agent_id, admin_teams):
+    person = stored_person()
+    person.unlink(agent_id, admin_controller(person), admin_teams)
+    assert person.user is None
+    with pytest.raises(IllegalOperationError, match="not linked"):
+        person.unlink(agent_id, admin_controller(person), admin_teams)
+
+
+def test_unlink_requires_subject_or_admin():
+    person = stored_person()
+    with pytest.raises(UnauthorisedOperationError):
+        person.unlink(OTHER_USER, admin_controller(person), {OTHER_TEAM})
+
+
+def test_only_own_claim_in_id_only_view():
+    person = stored_person(user=None, claims=[CLAIMANT, OTHER_USER])
+    assert person.redacted(controllers(person), user_id=OTHER_USER, read_teams=set()).claims == [OTHER_USER]
+    assert person.redacted(controllers(person), user_id=ADMIN_USER + 10, read_teams=set()).claims == []

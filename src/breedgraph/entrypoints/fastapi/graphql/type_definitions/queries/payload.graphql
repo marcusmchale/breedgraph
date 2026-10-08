@@ -281,3 +281,15 @@ type InvitationPreviewPayload {
     result: InvitationPreview
     errors: [Error!]
 }
+
+type PersonClaimsPayload {
+    status: QueryStatus!
+    result: [PersonClaim!]
+    errors: [Error!]
+}
+
+type PersonClaimRequestsPayload {
+    status: QueryStatus!
+    result: [PersonClaimRequest!]
+    errors: [Error!]
+}

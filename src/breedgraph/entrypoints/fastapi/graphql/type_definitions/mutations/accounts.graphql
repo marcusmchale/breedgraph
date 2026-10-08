@@ -11,6 +11,13 @@ extend type Mutation {
         invitationToken: String
         """ Affiliations offered with the invitation to accept. Others are declined """
         acceptTeamIds: [ID!]
+        """
+        Link the Person offered with the invitation to the new account.
+        Before the user confirms, tell them that other users may message them through BreedGraph
+        if the Person is listed as a contact, at their account email address, which senders never see.
+        They can remove themselves as a contact, and unlink or erase the Person, at any time.
+        """
+        linkPerson: Boolean
     ): BooleanPayload!
     accountsUpdateUser(
         name: String,

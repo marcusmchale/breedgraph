@@ -1,9 +1,7 @@
-MATCH (person: Person)
-WHERE person.id IN $person_ids
+MATCH (user: User {id: $user_id})-[:IS_PERSON]->(person: Person)
 RETURN person {
   .*,
   teams: [(person)-[:IN_TEAM]->(team: Team) | team.id],
-  user: head([(user: User)-[:IS_PERSON]->(person) | user.id]),
+  user: user.id,
   claims: [(claimant: User)-[:CLAIMS]->(person) | claimant.id]
 } AS person
-ORDER BY person.id

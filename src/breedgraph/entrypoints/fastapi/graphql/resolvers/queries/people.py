@@ -8,8 +8,10 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_people_map,
     update_teams_map,
-    update_users_map
+    update_users_map,
+    resolve_people
 )
+from breedgraph.domain.model.controls import Access
 
 import logging
 logger = logging.getLogger(__name__)
@@ -18,7 +20,9 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 
 person = ObjectType("Person")
-graphql_resolvers.register_type_resolvers(person)
+person_claim = ObjectType("PersonClaim")
+person_claim_request = ObjectType("PersonClaimRequest")
+graphql_resolvers.register_type_resolvers(person, person_claim, person_claim_request)
 graphql_resolvers.register_enums(EnumType("LawfulBasis", LawfulBasis))
 
 
@@ -78,3 +82,54 @@ def resolve_erased(obj: PersonOutput, info) -> bool:
 def resolve_restricted(obj: PersonOutput, info) -> bool:
     # Readers always see a name unless the Person is erased, see PersonStored.redacted
     return obj.name is None and obj.erased_at is None
+
+@graphql_query.field("peopleMyPerson")
+@graphql_payload
+@require_authentication
+async def get_my_person(_, info) -> PersonOutput | None:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        person_stored = await uow.repositories.people.get(user_id=user_id)
+        return person_stored.to_output() if person_stored is not None else None
+
+@graphql_query.field("peopleMyClaims")
+@graphql_payload
+@require_authentication
+async def get_my_claims(_, info) -> List[dict]:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        return await uow.repositories.people.get_claims_by_user(user_id)
+
+@graphql_query.field("peopleClaimRequests")
+@graphql_payload
+@require_authentication
+async def get_claim_requests(_, info) -> List[dict]:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        admin_teams = uow.controls.access_teams[Access.ADMIN]
+        if not admin_teams:
+            return []
+        return await uow.repositories.people.get_claim_requests(team_ids=admin_teams)
+
+async def _resolve_claimed_person(obj: dict, info):
+    people = await resolve_people(info.context, [obj['person_id']])
+    return people[0] if people else None
+
+@person_claim.field("person")
+async def resolve_claim_person(obj: dict, info):
+    return await _resolve_claimed_person(obj, info)
+
+@person_claim.field("requestedAt")
+def resolve_claim_time(obj: dict, info):
+    return obj['time']
+
+@person_claim_request.field("person")
+async def resolve_claim_request_person(obj: dict, info):
+    return await _resolve_claimed_person(obj, info)
+
+@person_claim_request.field("requestedAt")
+def resolve_claim_request_time(obj: dict, info):
+    return obj['time']

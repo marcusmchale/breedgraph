@@ -38,4 +38,17 @@ extend type Mutation {
     peopleErasePerson(
         id: ID!
     ): BooleanPayload!
+    """
+    Ask to link the current user's account to a Person, for admins of its controlling teams to approve.
+    Before the user confirms, tell them that other users may message them through BreedGraph
+    if the Person is listed as a contact, at their account email address, which senders never see.
+    They can remove themselves as a contact, and unlink or erase the Person, at any time.
+    """
+    peopleRequestClaim(personId: ID!): BooleanPayload!
+    peopleWithdrawClaim(personId: ID!): BooleanPayload!
+    """ Link the requesting user to the Person. By admins of its controlling teams, who should confirm the user's identity """
+    peopleApproveClaim(personId: ID!, userId: ID!): BooleanPayload!
+    peopleRejectClaim(personId: ID!, userId: ID!): BooleanPayload!
+    """ Remove the link between a Person and an account. By the linked user or admins of its controlling teams """
+    peopleUnlinkPerson(personId: ID!): BooleanPayload!
 }

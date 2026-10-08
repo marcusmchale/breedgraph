@@ -189,8 +189,15 @@ Backups and logs:
 
 Two routes, both ending in a confirmed `IS_PERSON` link:
 
-1. **Invitation.** An invitation can name a `person_id`. Accepting the invitation is the claim, because the invitation token proves identity.
-2. **Request and approve.** A registered user asks to claim a Person. An admin of a team that controls the record approves or rejects it, as with affiliations.
+1. **Invitation.** An invitation can name a `person_id`. Registering with `linkPerson` links it, because the invitation token and email verification prove identity.
+   The link is made with the inviter's authority, which is checked again: they must still administer a team controlling the Person. The user can register without linking.
+2. **Request and approve.** A registered user asks to claim a Person by id (`peopleRequestClaim`), even one they can only see as an id; the request reveals nothing.
+   Admins of the controlling teams are emailed, see pending requests with the requester's name (`peopleClaimRequests`), and approve or reject them, confirming the user's identity first.
+   Approving links the user and drops other pending requests. The requester sees their own pending requests (`peopleMyClaims`) and can withdraw them.
+
+A request is stored as `(User)-[:CLAIMS {time}]->(Person)`. Each account is linked to at most one Person, and each Person to at most one account.
+The user is emailed when linked, including the notice about messaging below. The linked user or admins of the controlling teams can unlink (`peopleUnlinkPerson`).
+`peopleMyPerson` returns the user's linked Person in full.
 
 ### Notes for front-end development
 
@@ -264,6 +271,7 @@ The subject may lower the release level, but cannot hide the record from the tea
 ### Deleting an account
 
 The user is asked whether to erase their Person record as well. Erasure is the default. Either way the link is removed.
+Accounts cannot be deleted yet (verified accounts are protected); this applies when account deletion is added.
 
 ## 7. Decisions
 
@@ -305,7 +313,9 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Usernames of locked-out login attempts are still logged as warnings, for security monitoring; the privacy notice should say so.
 8. **Invitations.** Done, on the `invitations` branch: invitations replace allowed emails, which are removed with their `Email` nodes and `ALLOWED_REGISTRATION` links.
    Existing data is not migrated; the development database is flushed.
-9. **Claiming and subject rights.** `IS_PERSON` link, claim request/approve, subject-rights check in access control, account-deletion option.
+9. **Claiming and subject rights.** Done: linking through invitations and through requests approved by admins, unlinking, and the linked user's rights from step 1.
+   Person changes are stored field by field, so changes stored from the id-only form, such as a request, do not overwrite the record.
+   Still to do: 9b, contacts and messaging (§4); and the account-deletion option, once account deletion exists.
 10. **ORCID linking.** Routes, config and constraint from §6.
 11. **Privacy notice and data processing terms.** Draft text describing what is stored, why, retention and erasure, for the DPO to finalise.
 

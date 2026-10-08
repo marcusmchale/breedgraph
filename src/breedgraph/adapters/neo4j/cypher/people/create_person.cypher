@@ -17,5 +17,6 @@ CALL (person) {
 RETURN person {
   .*,
   teams: [(person)-[:IN_TEAM]->(team: Team) | team.id],
-  user: null
+  user: null,
+  claims: []
 } AS person

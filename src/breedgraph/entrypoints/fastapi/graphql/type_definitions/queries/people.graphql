@@ -27,3 +27,18 @@ type Person {
     """True when the viewer can see the id only"""
     restricted: Boolean!
 }
+
+"""A pending request by a user to be linked to a Person, shown to admins of its controlling teams"""
+type PersonClaimRequest {
+    person: Person
+    userId: ID!
+    name: String!
+    fullname: String
+    requestedAt: DateTime
+}
+
+"""A pending request by the current user to be linked to a Person"""
+type PersonClaim {
+    person: Person
+    requestedAt: DateTime
+}

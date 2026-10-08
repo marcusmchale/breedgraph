@@ -54,7 +54,6 @@ class UserStored(UserBase, StoredModel):
     password_hash: str = ''
     email: str = ''
     email_verified: bool = False
-    person: None|int = None  #ID for the corresponding Person
     default_write_team: int | None = None
 
 @dataclass
