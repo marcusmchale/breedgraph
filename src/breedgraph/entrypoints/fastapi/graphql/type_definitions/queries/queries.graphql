@@ -21,6 +21,12 @@ type Query {
     Get a multiple team details
     """
     organisationsTeams(ids: [ID!]): TeamsPayload! # see team
+    """ Persons the user can read, optionally by exact name (case insensitive) """
+    people(name: String): PeoplePayload!
+    """ Get Persons by id. Registered users without read access see the id only """
+    peoplePeople(ids: [ID!]!): PeoplePayload!
+    """ Get a Person by id. Registered users without read access see the id only """
+    peoplePerson(id: ID!): PersonPayload!
     """ The current data processing terms, to show when declaring a legal entity """
     organisationsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""

@@ -263,3 +263,15 @@ type DataProcessingTermsPayload {
     result: DataProcessingTerms
     errors: [Error!]
 }
+
+type PersonPayload {
+    status: QueryStatus!
+    result: Person
+    errors: [Error!]
+}
+
+type PeoplePayload {
+    status: QueryStatus!
+    result: [Person!]
+    errors: [Error!]
+}

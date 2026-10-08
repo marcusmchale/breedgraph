@@ -19,6 +19,7 @@ from . import accounts
 from . import germplasm
 from . import references
 from . import analysis
+from . import people
 
 # Export only the main query object
 __all__ = ['graphql_query']

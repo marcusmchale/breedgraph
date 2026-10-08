@@ -1,24 +1,41 @@
 input PersonInput {
     name: String!
-    fullname: String
+    """Affiliation"""
+    teamIds: [ID!]
+    """Defaults to PUBLIC_TASK"""
+    basis: LawfulBasis
+    """Confirm the person was informed that this record is held. Required to be true"""
+    informedAttestation: Boolean!
 }
 
 input PersonUpdate {
     id: ID!
     name: String
-    fullname: String
+    """Requires curate access"""
+    teamIds: [ID!]
+    """Requires curate access"""
+    basis: LawfulBasis
 }
 
 extend type Mutation {
+    """
+    Record a Person. The organisation of the control team must have declared its legal entity,
+    and becomes the data controller for the record.
+    """
     peopleCreatePerson(
         person: PersonInput!
         controlTeamId: ID!
-        release:ReadRelease
+        release: ReadRelease
     ): BooleanPayload!,
+    """Curators of the record can change all fields. The linked user can change the name"""
     peopleUpdatePerson(
         person: PersonUpdate!
     ): BooleanPayload!,
-    peopleDeletePerson(
+    """
+    Remove identifying data, keeping the id so contributions stay attributed.
+    By admins of the controlling teams or the linked user. Cannot be undone.
+    """
+    peopleErasePerson(
         id: ID!
     ): BooleanPayload!
 }

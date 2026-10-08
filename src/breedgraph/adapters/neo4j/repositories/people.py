@@ -8,7 +8,7 @@ from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 
 from breedgraph.domain.model.people import PersonInput, PersonStored, LawfulBasis
 from breedgraph.domain.model.controls import DiscoveryMatch, Controller, Access
@@ -52,8 +52,17 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             except StopAsyncIteration:
                 return None
 
-    async def _get_all_controlled(self, name: str|None = None) -> AsyncGenerator[ControlledQueryResult[PersonStored], None]:
-        if name is None:
+    async def _get_all_controlled(
+            self,
+            name: str|None = None,
+            person_ids: List[int]|None = None
+    ) -> AsyncGenerator[ControlledQueryResult[PersonStored], None]:
+        if person_ids is not None:
+            # Lookup by ID: registered users without read access get the ID only, see PersonStored.redacted
+            result = await self.tx.run(queries['people']['get_people_by_ids'], person_ids=list(person_ids))
+            async for record in result:
+                yield ControlledQueryResult(self.record_to_person(record['person']))
+        elif name is None:
             result = await self.tx.run(queries['people']['get_people'])
             async for record in result:
                 yield ControlledQueryResult(self.record_to_person(record['person']))

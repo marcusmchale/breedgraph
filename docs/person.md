@@ -250,7 +250,9 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Persons cannot be removed. `ControlledRepository._can_change` lets the linked user store changes to their own record, and admins of the controlling teams store an erasure, besides curators.
 4. **Handlers.** Done: creating requires the write team's organisation to have a declared legal entity and the referenced teams to exist; updating an erased Person is refused, and the linked user can change only the name; erasing raises `PersonErased`, which is written to the erasure log. Replay script and backup scripts as in §5.
    Person rules for control transfers: the receiving organisation must have a declared legal entity, and shared control stays within one organisation.
-5. **GraphQL.** `Person` type, `people` and `peoplePerson(id)` queries, create/update/erase mutations. A `people_map` context loader, following the users and teams maps, for access-controlled batch loading.
+5. **GraphQL.** Done: `Person` type with `restricted` (id only) and `erased` flags, queries `people(name)`, `peoplePeople(ids)` and `peoplePerson(id)`, mutations `peopleCreatePerson`, `peopleUpdatePerson` and `peopleErasePerson`.
+   `update_people_map` loads Persons by id into the request context; lookups by id return the id-only form to registered users without read access.
+   Mutation resolvers log IDs and actions only.
 6. **References to Person.** Contributor roles on `CONTRIBUTED_TO`. Contacts as linked Person or Team. Ontology and germplasm authors to references. Resolve `contributors` and `contacts` through `people_map`.
 7. **Logging.** Stop logging Person payloads.
 8. **Invitations.** Replace allowed emails. Separate branch, done before claiming.
