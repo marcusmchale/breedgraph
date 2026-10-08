@@ -257,3 +257,9 @@ type AnalysisSubmissionPayload {
   result: AnalysisSubmission
   errors: [Error!]
 }
+
+type DataProcessingTermsPayload {
+    status: QueryStatus!
+    result: DataProcessingTerms
+    errors: [Error!]
+}

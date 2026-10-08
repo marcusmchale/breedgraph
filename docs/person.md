@@ -43,15 +43,22 @@ BreedGraph is operated by a team within the university. Partner organisations en
 - Release decisions follow the existing access-control pattern: admins of the controlling team decide who can read the record, up to public release.
   Releasing a Person publicly is a disclosure decision, so the organisation's privacy notice must cover public attribution.
 
-#### Organisation root fields
+#### Legal entity declarations
 
 ```
-Team (root only)
+(root: Team)-[:DECLARED {current}]->(LegalEntityDeclaration)
   legal_name
   privacy_contact
   terms_version
-  terms_accepted_by, terms_accepted_at
+  declared_by, declared_at
 ```
+
+- The current data processing terms are configured by `DATA_PROCESSING_TERMS_VERSION` and `DATA_PROCESSING_TERMS_URL`.
+  Declaring requires the version the user was shown to equal the configured version. Without a configured version, declaring is refused.
+- Declaring again creates a new declaration and accepts the current terms again. Earlier declarations are kept, and only the latest is current.
+- Visibility follows the team: the legal name, privacy contact, terms version and time are visible wherever the root team is.
+  Who declared is visible to admins of the root team only, as for affiliations.
+- Withdrawing a declaration is not supported yet. When Persons exist, it will be allowed only for organisations that control no Persons.
 
 #### Declaring is optional
 
@@ -229,7 +236,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 
 ## 9. Implementation plan
 
-0. **Organisation legal entity.** Root-only fields from §2 with declaration history, terms acceptance on creating a root, a declare action for existing roots, and a check that the write team's organisation has a legal entity before a Person is created.
+0. **Organisation legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `organisationsDeclareLegalEntity`, `organisationsDataProcessingTerms`).
+   The check that the write team's organisation has a legal entity is added with Person (`Organisation.legal_entity`).
    Builds on the control transfer mechanism (`control-transfer.md`), which is implemented first. The Person rule (§2) is added to its entity-specific rules.
 1. **Domain.** Reduce `PersonBase` to §3. Add `erased_at`, provenance fields, `to_output()`, erase method. Update `redacted()` to return the id-only form.
 2. **Commands.** `CreatePerson`, `UpdatePerson`, `ErasePerson`.

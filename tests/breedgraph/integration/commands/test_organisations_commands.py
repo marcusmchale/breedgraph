@@ -2,7 +2,9 @@ import pytest
 
 from breedgraph.custom_exceptions import ProtectedNodeError
 from breedgraph.domain.commands.accounts import SetWriteTeam
-from breedgraph.domain.commands.organisations import CreateTeam, DeleteTeam
+from breedgraph import config
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
+from breedgraph.domain.commands.organisations import CreateTeam, DeleteTeam, DeclareLegalEntity, LegalEntity
 from breedgraph.domain.model.control_transfers import ControlledEntity
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 
@@ -128,3 +130,107 @@ async def test_delete_team_cancels_pending_transfers(bus, uow_factory, isolated_
             assert transfer.status.value == 'CANCELLED'
             assert transfer.cancelled_by == user_id
             assert transfer.cancelled_at is not None
+
+
+@pytest.fixture
+def terms_version(monkeypatch) -> str:
+    monkeypatch.setattr(config, 'DATA_PROCESSING_TERMS_VERSION', 'test-terms-1')
+    return 'test-terms-1'
+
+
+def legal_entity(terms_version: str, legal_name: str = 'Test University') -> LegalEntity:
+    return LegalEntity(
+        legal_name=legal_name,
+        privacy_contact='dataprotection@test.example',
+        terms_version=terms_version
+    )
+
+
+async def get_organisation(uow_factory, user_id: int | None, team_id: int):
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        return await uow.repositories.organisations.get(team_id=team_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_organisation_with_legal_entity(bus, uow_factory, isolated_state, terms_version):
+    user_id = await AccountBuilder(uow_factory).account()
+    name = OrganisationBuilder.team_input().name
+    await bus.handle(CreateTeam(agent_id=user_id, name=name, parent=None, legal_entity=legal_entity(terms_version)))
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        [root_id] = [
+            organisation.root.id async for organisation in uow.repositories.organisations.get_all()
+            if organisation.root.name == name
+        ]
+    organisation = await get_organisation(uow_factory, user_id, root_id)
+    assert organisation.legal_entity.legal_name == 'Test University'
+    assert organisation.legal_entity.privacy_contact == 'dataprotection@test.example'
+    assert organisation.legal_entity.terms_version == terms_version
+    assert organisation.legal_entity.declared_by == user_id
+    assert organisation.legal_entity.declared_at is not None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_declare_legal_entity_later_keeps_history(bus, uow_factory, isolated_state, terms_version):
+    account = await AccountBuilder(uow_factory).account_with_affiliations()
+    user_id, root_id = account['user_id'], account['team_id']
+    assert (await get_organisation(uow_factory, user_id, root_id)).legal_entity is None
+
+    await bus.handle(DeclareLegalEntity(agent_id=user_id, team_id=root_id, legal_entity=legal_entity(terms_version)))
+    await bus.handle(DeclareLegalEntity(
+        agent_id=user_id, team_id=root_id, legal_entity=legal_entity(terms_version, legal_name='Renamed University')
+    ))
+
+    assert (await get_organisation(uow_factory, user_id, root_id)).legal_entity.legal_name == 'Renamed University'
+    async with uow_factory.get_uow() as uow:
+        result = await uow.tx.run(
+            "MATCH (:Team {id: $team_id})-[declared:DECLARED]->(declaration:LegalEntityDeclaration) "
+            "RETURN declaration.legal_name AS legal_name, declared.current AS current ORDER BY declaration.declared_at",
+            team_id=root_id
+        )
+        history = [(record['legal_name'], record['current']) async for record in result]
+    assert history == [('Test University', False), ('Renamed University', True)]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_legal_entity_visible_to_others_without_declared_by(bus, uow_factory, isolated_state, terms_version):
+    account = await AccountBuilder(uow_factory).account_with_affiliations()
+    other_user_id = await AccountBuilder(uow_factory).account()
+    await bus.handle(DeclareLegalEntity(
+        agent_id=account['user_id'], team_id=account['team_id'], legal_entity=legal_entity(terms_version)
+    ))
+
+    for user_id in (other_user_id, None):
+        organisation = await get_organisation(uow_factory, user_id, account['team_id'])
+        assert organisation.legal_entity.legal_name == 'Test University'
+        assert organisation.legal_entity.declared_by is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_legal_entity_only_on_root(bus, uow_factory, isolated_state, terms_version):
+    account = await AccountBuilder(uow_factory).account_with_affiliations()
+    user_id, root_id = account['user_id'], account['team_id']
+    with pytest.raises(IllegalOperationError, match="root team"):
+        await bus.handle(CreateTeam(
+            agent_id=user_id, name=OrganisationBuilder.team_input().name, parent=root_id,
+            legal_entity=legal_entity(terms_version)
+        ))
+
+    team_id = await child_team(bus, uow_factory, user_id, root_id)
+    with pytest.raises(IllegalOperationError, match="root team"):
+        await bus.handle(DeclareLegalEntity(agent_id=user_id, team_id=team_id, legal_entity=legal_entity(terms_version)))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_declare_legal_entity_requires_root_admin_and_current_terms(bus, uow_factory, isolated_state, terms_version):
+    account = await AccountBuilder(uow_factory).account_with_affiliations()
+    other_user_id = await AccountBuilder(uow_factory).account()
+    with pytest.raises(UnauthorisedOperationError):
+        await bus.handle(DeclareLegalEntity(
+            agent_id=other_user_id, team_id=account['team_id'], legal_entity=legal_entity(terms_version)
+        ))
+    with pytest.raises(IllegalOperationError, match="current data processing terms"):
+        await bus.handle(DeclareLegalEntity(
+            agent_id=account['user_id'], team_id=account['team_id'], legal_entity=legal_entity('old-terms')
+        ))
+    assert (await get_organisation(uow_factory, account['user_id'], account['team_id'])).legal_entity is None

@@ -21,6 +21,8 @@ type Query {
     Get a multiple team details
     """
     organisationsTeams(ids: [ID!]): TeamsPayload! # see team
+    """ The current data processing terms, to show when declaring a legal entity """
+    organisationsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """

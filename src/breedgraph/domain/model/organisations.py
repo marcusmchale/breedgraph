@@ -1,6 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass, field, replace
 from copy import deepcopy
+from datetime import datetime
 from enum import Enum
 
 from breedgraph.domain.model.controls import Access
@@ -80,6 +81,23 @@ class Affiliations:
         return affiliations
 
 @dataclass
+class LegalEntityDeclaration:
+    """
+    The legal entity responsible for an organisation, declared on its root team.
+    Declaring accepts a version of the data processing terms. Each declaration is kept, the latest is current.
+    See docs/person.md.
+    """
+    legal_name: str
+    privacy_contact: str  # a role address for requests about personal data, not an individual's
+    terms_version: str
+    declared_by: int | None = None  # visible to admins of the team only
+    declared_at: datetime | None = None  # set when stored
+
+    def redacted(self) -> 'LegalEntityDeclaration':
+        return replace(self, declared_by=None)
+
+
+@dataclass
 class TeamBase(ABC):
     label: ClassVar[str] = 'Team'
     plural: ClassVar[str] = 'Teams'
@@ -98,9 +116,14 @@ class TeamStored(TeamBase, StoredModel):
     Each access level contains a mapping of user IDs to their affiliation details.
     """
     affiliations: Affiliations = field(default_factory = Affiliations)
+    legal_entity: LegalEntityDeclaration | None = None  # only on organisation roots
 
     def redacted(self, user_id: int = None) -> 'TeamStored':
-        return replace(self, affiliations=self.affiliations.get_redacted_copy(user_id))
+        return replace(
+            self,
+            affiliations=self.affiliations.get_redacted_copy(user_id),
+            legal_entity=self.legal_entity.redacted() if self.legal_entity is not None else None
+        )
 
 @dataclass
 class TeamOutput(TeamBase, StoredModel):
@@ -109,6 +132,7 @@ class TeamOutput(TeamBase, StoredModel):
 
     direct_affiliations: Affiliations = field(default_factory=Affiliations)
     inherited_affiliations: Affiliations = field(default_factory=Affiliations)
+    legal_entity: LegalEntityDeclaration | None = None
 
     @property
     def affiliations(self) -> Affiliations:
@@ -148,7 +172,8 @@ class TeamOutput(TeamBase, StoredModel):
             direct_affiliations=stored.affiliations,
             parent=parent,
             children=children or [],
-            inherited_affiliations=inherited_affiliations or Affiliations()
+            inherited_affiliations=inherited_affiliations or Affiliations(),
+            legal_entity=stored.legal_entity
         )
 
 TInput = TeamInput
@@ -176,6 +201,50 @@ class Organisation(TreeAggregate):
                 if t.name.casefold() == team.casefold():
                     return t
         return None
+
+    @property
+    def legal_entity(self) -> LegalEntityDeclaration | None:
+        """The legal entity declared on the root, responsible for the organisation"""
+        root = self.root
+        return root.legal_entity if root is not None else None
+
+    def declare_legal_entity(
+            self,
+            agent_id: int,
+            team_id: int,
+            legal_name: str,
+            privacy_contact: str,
+            terms_version: str,
+            current_terms_version: str | None
+    ) -> None:
+        """
+        Declare the legal entity responsible for the organisation, accepting the data processing terms.
+        Only the root team declares, and only its admins may do so. A new declaration replaces the current one.
+        """
+        if team_id != self.get_root_id():
+            raise IllegalOperationError("A legal entity can only be declared on the root team of an organisation")
+        if agent_id not in self.get_affiliates(team_id, access=Access.ADMIN):
+            raise UnauthorisedOperationError("Only admins of the root team can declare its legal entity")
+        if current_terms_version is None:
+            raise IllegalOperationError("No data processing terms are configured, so a legal entity cannot be declared")
+        if terms_version != current_terms_version:
+            raise IllegalOperationError(
+                f"The current data processing terms are version {current_terms_version}, not {terms_version}"
+            )
+        legal_name = (legal_name or '').strip()
+        privacy_contact = (privacy_contact or '').strip()
+        if not legal_name:
+            raise IllegalOperationError("A legal name is required")
+        if '@' not in privacy_contact:
+            raise IllegalOperationError("A privacy contact email address is required")
+
+        team = self.get_team(team_id)
+        team.legal_entity = LegalEntityDeclaration(
+            legal_name=legal_name,
+            privacy_contact=privacy_contact,
+            terms_version=terms_version,
+            declared_by=agent_id
+        )
 
     def get_children(self, team_id: int) -> List[int]:
         return list(self._graph.successors(team_id))

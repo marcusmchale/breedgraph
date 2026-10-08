@@ -50,3 +50,4 @@ from .files import (
     RETENTION_AUTH_TOKEN
 )
 from .data import COUNTRY_CODES_PATH
+from .legal import DATA_PROCESSING_TERMS_VERSION, DATA_PROCESSING_TERMS_URL

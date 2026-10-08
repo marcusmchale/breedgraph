@@ -6,7 +6,7 @@ from breedgraph.domain.model.organisations import (
     Affiliation, Affiliations, Authorisation
 )
 from breedgraph.domain.model import Access
-from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
 def get_team_input(lorem_text_generator) -> TeamInput:
     return TeamInput(name=lorem_text_generator.new_text(5), fullname = lorem_text_generator.new_text(10))
@@ -99,3 +99,71 @@ async def test_revoke_affiliation_by_admin(first_organisation, root_team):
     assert 2 not in affiliates_authorised
     affiliates_all = first_organisation.get_affiliates(team_id=1, authorisation=Authorisation.REVOKED)
     assert 2 in affiliates_all
+
+def declare(organisation, agent_id=1, team_id=1, **kwargs):
+    declaration = dict(
+        legal_name='University of Testing',
+        privacy_contact='dataprotection@test.example',
+        terms_version='v1',
+        current_terms_version='v1'
+    )
+    declaration.update(kwargs)
+    organisation.declare_legal_entity(agent_id=agent_id, team_id=team_id, **declaration)
+
+
+@pytest.mark.asyncio
+async def test_declare_legal_entity(first_organisation):
+    assert first_organisation.legal_entity is None
+    declare(first_organisation)
+    legal_entity = first_organisation.legal_entity
+    assert legal_entity.legal_name == 'University of Testing'
+    assert legal_entity.privacy_contact == 'dataprotection@test.example'
+    assert legal_entity.terms_version == 'v1'
+    assert legal_entity.declared_by == 1
+    assert legal_entity.declared_at is None
+
+
+@pytest.mark.asyncio
+async def test_declare_legal_entity_replaces_current(first_organisation):
+    declare(first_organisation)
+    declare(first_organisation, legal_name='Renamed University', terms_version='v2', current_terms_version='v2')
+    assert first_organisation.legal_entity.legal_name == 'Renamed University'
+    assert first_organisation.legal_entity.terms_version == 'v2'
+
+
+@pytest.mark.asyncio
+async def test_declare_legal_entity_only_on_root(first_organisation, first_child_team):
+    child_id = first_organisation.add_team(first_child_team, first_organisation.root.id)
+    with pytest.raises(IllegalOperationError, match="root team"):
+        declare(first_organisation, team_id=child_id)
+
+
+@pytest.mark.asyncio
+async def test_declare_legal_entity_requires_root_admin(first_organisation):
+    with pytest.raises(UnauthorisedOperationError):
+        declare(first_organisation, agent_id=2)
+    assert first_organisation.legal_entity is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kwargs, message", [
+    (dict(current_terms_version=None), "No data processing terms"),
+    (dict(terms_version='v0'), "current data processing terms are version v1"),
+    (dict(legal_name='  '), "legal name is required"),
+    (dict(privacy_contact='nobody'), "privacy contact email"),
+])
+async def test_declare_legal_entity_validation(first_organisation, kwargs, message):
+    with pytest.raises(IllegalOperationError, match=message):
+        declare(first_organisation, **kwargs)
+    assert first_organisation.legal_entity is None
+
+
+@pytest.mark.asyncio
+async def test_declared_by_is_redacted_for_non_admins(first_organisation):
+    declare(first_organisation)
+    assert first_organisation.redacted(user_id=1).legal_entity.declared_by == 1
+
+    redacted = first_organisation.redacted(user_id=2).legal_entity
+    assert redacted.legal_name == 'University of Testing'
+    assert redacted.privacy_contact == 'dataprotection@test.example'
+    assert redacted.declared_by is None

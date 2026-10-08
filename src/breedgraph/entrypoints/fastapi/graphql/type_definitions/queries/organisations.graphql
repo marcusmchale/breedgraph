@@ -23,6 +23,30 @@ type Team {
     affiliations: Affiliations
     directAffiliations: Affiliations
     inheritedAffiliations: Affiliations
+    """The legal entity responsible for the organisation. Only declared on organisation roots"""
+    legalEntity: LegalEntity
+}
+
+"""
+The legal entity responsible for an organisation, declared on its root team by accepting the data processing terms.
+Required for the organisation to record Persons.
+"""
+type LegalEntity {
+    legalName: String!
+    """A role address for requests about personal data"""
+    privacyContact: String!
+    """The version of the data processing terms accepted"""
+    termsVersion: String!
+    declaredAt: DateTime
+    """Visible to admins of the team only"""
+    declaredBy: UserDisplay
+}
+
+"""The data processing terms accepted when declaring a legal entity"""
+type DataProcessingTerms {
+    """Null when no terms are configured, in which case legal entities cannot be declared"""
+    version: String
+    url: String
 }
 
 type UserAccess {

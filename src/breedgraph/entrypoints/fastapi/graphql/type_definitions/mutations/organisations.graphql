@@ -5,6 +5,16 @@ input TeamInput {
     fullname: String
     """ Optional parent team to extend an organisation"""
     parentId: ID
+    """ Optional legal entity for a new organisation, i.e. without a parent """
+    legalEntity: LegalEntityInput
+}
+
+input LegalEntityInput {
+    legalName: String!
+    """ A role address for requests about personal data, not an individual's """
+    privacyContact: String!
+    """ The version of the data processing terms shown and accepted, see organisationsDataProcessingTerms """
+    termsVersion: String!
 }
 
 input TeamUpdate {
@@ -22,5 +32,13 @@ extend type Mutation {
     ): BooleanPayload!
     organisationsUpdateTeam(
         team: TeamUpdate!
+    ): BooleanPayload!
+    """
+    Declare the legal entity responsible for an organisation, accepting the current data processing terms.
+    Only on the root team, by its admins. A new declaration replaces the current one, which is kept as history.
+    """
+    organisationsDeclareLegalEntity(
+        teamId: ID!
+        legalEntity: LegalEntityInput!
     ): BooleanPayload!
 }
