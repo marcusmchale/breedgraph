@@ -246,6 +246,20 @@ class Organisation(TreeAggregate):
             declared_by=agent_id
         )
 
+    def withdraw_legal_entity(self, agent_id: int, team_id: int) -> None:
+        """
+        Withdraw the current declaration, which is kept as history.
+        The caller must check that the organisation controls no Persons, as it is their data controller.
+        """
+        if team_id != self.get_root_id():
+            raise IllegalOperationError("A legal entity is only declared on the root team of an organisation")
+        if agent_id not in self.get_affiliates(team_id, access=Access.ADMIN):
+            raise UnauthorisedOperationError("Only admins of the root team can withdraw its legal entity")
+        team = self.get_team(team_id)
+        if team.legal_entity is None:
+            raise IllegalOperationError("No legal entity is declared for this organisation")
+        team.legal_entity = None
+
     def get_children(self, team_id: int) -> List[int]:
         return list(self._graph.successors(team_id))
 

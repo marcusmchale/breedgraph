@@ -167,3 +167,17 @@ async def test_declared_by_is_redacted_for_non_admins(first_organisation):
     assert redacted.legal_name == 'University of Testing'
     assert redacted.privacy_contact == 'dataprotection@test.example'
     assert redacted.declared_by is None
+
+
+@pytest.mark.asyncio
+async def test_withdraw_legal_entity(first_organisation, first_child_team):
+    with pytest.raises(IllegalOperationError, match="No legal entity"):
+        first_organisation.withdraw_legal_entity(agent_id=1, team_id=1)
+    declare(first_organisation)
+    with pytest.raises(UnauthorisedOperationError):
+        first_organisation.withdraw_legal_entity(agent_id=2, team_id=1)
+    child_id = first_organisation.add_team(first_child_team, first_organisation.root.id)
+    with pytest.raises(IllegalOperationError, match="root team"):
+        first_organisation.withdraw_legal_entity(agent_id=1, team_id=child_id)
+    first_organisation.withdraw_legal_entity(agent_id=1, team_id=1)
+    assert first_organisation.legal_entity is None

@@ -27,6 +27,10 @@ class DeclareLegalEntity(Command):
     team_id: int
     legal_entity: LegalEntity
 
+class WithdrawLegalEntity(Command):
+    agent_id: int
+    team_id: int
+
 class DeleteTeam(Command):
     agent_id: int
     team_id: int

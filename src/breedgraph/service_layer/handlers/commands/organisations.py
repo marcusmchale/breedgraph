@@ -73,6 +73,23 @@ async def declare_legal_entity(
         await uow.commit()
 
 @handlers.command_handler()
+async def withdraw_legal_entity(
+        cmd: commands.organisations.WithdrawLegalEntity,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        organisation: Organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        if organisation is None:
+            raise NoResultFoundError(f"Team {cmd.team_id} not found")
+        if await uow.guards.organisation_controls_persons(organisation.get_root_id()):
+            raise ProtectedNodeError(
+                "The legal entity cannot be withdrawn while the organisation controls Persons, including erased Persons; "
+                "transfer them to another organisation first"
+            )
+        organisation.withdraw_legal_entity(agent_id=cmd.agent_id, team_id=cmd.team_id)
+        await uow.commit()
+
+@handlers.command_handler()
 async def delete_team(
         cmd: commands.organisations.DeleteTeam,
         uow_factory: AbstractUnitOfWorkFactory

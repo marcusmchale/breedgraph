@@ -67,6 +67,8 @@ class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
         await self._set_team_access(team)
         if team.legal_entity is not None and team.legal_entity.declared_at is None:
             await self._declare_legal_entity(team)
+        elif team.legal_entity is None and 'legal_entity' in team.changed:
+            await self.tx.run(queries['organisations']['withdraw_legal_entity'], team=team.id, user_id=self.user_id)
 
     async def _declare_legal_entity(self, team: TeamStored | TrackableProtocol):
         result = await self.tx.run(

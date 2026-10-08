@@ -41,4 +41,9 @@ extend type Mutation {
         teamId: ID!
         legalEntity: LegalEntityInput!
     ): BooleanPayload!
+    """
+    Withdraw the legal entity declared for an organisation, by admins of its root team.
+    Refused while the organisation controls any Person, including erased Persons. The declaration is kept as history.
+    """
+    organisationsWithdrawLegalEntity(teamId: ID!): BooleanPayload!
 }
