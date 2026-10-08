@@ -102,7 +102,7 @@ def resolve_representation(term: AnalysisTerm, concept: ConceptContext, path: li
         return TermRepresentationType.CONTINUOUS
 
     if term.binning is not None:
-        if scale not in (ScaleType.NUMERICAL, ScaleType.DATETIME):
+        if scale not in (ScaleType.NUMERICAL, ScaleType.DATE):
             raise _incompatible("Binning requires a numerical or date scale", path + ['binning'])
         if requested == TermRepresentationType.CONTINUOUS:
             raise _incompatible("Binned terms cannot be represented as CONTINUOUS", path + ['representation'])
@@ -123,7 +123,7 @@ def resolve_representation(term: AnalysisTerm, concept: ConceptContext, path: li
     if term.aggregation in NUMERIC_AGGREGATIONS and scale != ScaleType.NUMERICAL:
         raise _incompatible(f"{term.aggregation.value} aggregation requires a numerical scale", path + ['aggregation'])
     if term.aggregation in (TermAggregation.MIN, TermAggregation.MAX) and not (
-            scale in (ScaleType.NUMERICAL, ScaleType.DATETIME) or representation == TermRepresentationType.ORDINAL
+            scale in (ScaleType.NUMERICAL, ScaleType.DATE) or representation == TermRepresentationType.ORDINAL
     ):
         raise _incompatible(
             f"{term.aggregation.value} aggregation requires ordered values", path + ['aggregation']
@@ -205,7 +205,7 @@ class ObservationBuilder:
         binner = None
         if term.binning is not None:
             try:
-                binner = Binner(term.binning, parse_datetime if concept.scale_type == ScaleType.DATETIME else parse_number)
+                binner = Binner(term.binning, parse_datetime if concept.scale_type == ScaleType.DATE else parse_number)
             except ValueError as e:
                 raise AnalysisFailed.single(AnalysisErrorCode.CONFIG_INVALID, str(e), path=path + ['binning', 'boundaries'])
             values = [binner.bin(v).label if v is not None else None for v in values]
@@ -237,7 +237,7 @@ class ObservationBuilder:
             return lambda value: value
         if concept.scale_type == ScaleType.NUMERICAL:
             return parse_number
-        if concept.scale_type == ScaleType.DATETIME and (
+        if concept.scale_type == ScaleType.DATE and (
                 term.binning is not None or term.aggregation in (TermAggregation.MIN, TermAggregation.MAX)
         ):
             return parse_datetime
