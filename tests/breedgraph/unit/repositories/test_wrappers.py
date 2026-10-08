@@ -3,6 +3,7 @@ import pytest
 from dataclasses import dataclass, field
 from breedgraph.service_layer.tracking.wrappers import tracked
 from typing import List, Set, Dict
+from datetime import datetime, date, timezone
 
 @dataclass
 class SimpleModel:
@@ -225,3 +226,22 @@ async def test_properties_through_proxy():
     tracked_model = tracked(ComplexModel())
     assert tracked_model.doubled == 2
     assert not tracked_model.changed
+
+
+@dataclass
+class TimedModel:
+    time: datetime | None = None
+    day: date | None = None
+
+    def set_time(self, value: datetime):
+        self.time = value
+
+
+@pytest.mark.asyncio
+async def test_datetime_assignment():
+    tracked_model = tracked(TimedModel(time=datetime(2020, 1, 1, tzinfo=timezone.utc)))
+    tracked_model.set_time(datetime(2021, 1, 1, tzinfo=timezone.utc))
+    tracked_model.day = date(2021, 1, 1)
+    assert {'time', 'day'} <= tracked_model.changed
+    assert tracked_model.time == datetime(2021, 1, 1, tzinfo=timezone.utc)
+    assert tracked_model.day == date(2021, 1, 1)

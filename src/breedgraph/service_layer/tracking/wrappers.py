@@ -9,6 +9,7 @@ Changes to attributes of an object are also recorded in the wrapper, however new
 """
 import networkx as nx
 from numpy import datetime64
+from datetime import datetime, date, time, timedelta
 from wrapt import ObjectProxy
 from enum import Enum
 from collections import defaultdict
@@ -28,7 +29,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Primitive type changes that don't require nested tracking
-primitives = (int, float, str, bool, bytes, Enum, datetime64)
+primitives = (int, float, str, bool, bytes, Enum, datetime64, datetime, date, time, timedelta)
 
 class TrackableProtocol(Protocol):
     """Protocol defining the common interface for all trackable objects"""
