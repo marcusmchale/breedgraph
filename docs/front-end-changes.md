@@ -60,6 +60,7 @@ An organisation must declare the legal entity responsible for it before it can r
   Show the terms (link to `url`) and require the user to accept them; send the `version` shown as `termsVersion`.
   Declaring again replaces the current declaration, accepting the current terms again.
 - `privacyContact` should be a role address, such as `dataprotection@…`, not a person's own.
+- `organisationsWithdrawLegalEntity(teamId)` withdraws the declaration, by root admins. It is refused while the organisation controls any Person, including erased ones: they must be transferred first.
 
 ## 4. Persons
 
@@ -122,9 +123,16 @@ Show this in the confirmation step, not only in the privacy notice. The same tex
 - Each account can be linked to one Person, and each Person to one account.
 
 **Once linked:**
-- `peopleMyPerson` returns the user's Person in full, for a "my profile" page: edit name, erase, unlink.
+- `peopleMyPerson` returns the user's Person in full, for a "my profile" page: edit name, link ORCID, erase, unlink.
 - `peopleUnlinkPerson(personId)`, by the linked user or admins of the controlling teams.
 - Admins and linked users receive emails for requests and links; no front-end action is needed.
+
+**ORCID iD** (linked users only):
+1. A "Connect your ORCID iD" button, following ORCID's brand guidelines, calls `peopleStartOrcidLink` and sends the browser to the URL it returns.
+2. ORCID redirects to the front-end page `/orcid` (the configured `ORCID_REDIRECT_URI`) with `code` and `state` in the query string, or `error` if the user cancelled.
+3. That page calls `peopleCompleteOrcidLink(code, state)`, then returns to the profile.
+- Show the iD as its full `https://orcid.org/…` address. `peopleRemoveOrcid` removes it.
+- When ORCID is not configured on the server, `peopleStartOrcidLink` returns an error; hide the button if it does.
 
 ## 7. Control transfers and teams
 

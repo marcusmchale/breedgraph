@@ -54,6 +54,15 @@ extend type Mutation {
     """ Stop being a contact of a Program or Trial. By the user linked to the contact Person """
     peopleRemoveSelfAsContact(entityLabel: ControlledModelLabel!, entityId: ID!): BooleanPayload!
     """
+    Start verifying the user's ORCID iD for their linked Person. Returns the ORCID sign-in URL to send the browser to.
+    ORCID then redirects to the configured ORCID_REDIRECT_URI, a front-end page, adding code and state to it.
+    """
+    peopleStartOrcidLink: StringPayload!
+    """ Complete the ORCID sign-in with the code and state from the redirect, storing the verified ORCID iD """
+    peopleCompleteOrcidLink(code: String!, state: String!): BooleanPayload!
+    """ Remove the ORCID iD from the user's linked Person """
+    peopleRemoveOrcid: BooleanPayload!
+    """
     Send a message to a contact of a Program or Trial the sender can read (entityLabel PROGRAM or TRIAL).
     BreedGraph emails the linked user without revealing their address. The sender's name and email address
     are included, so the recipient can reply: tell the sender this before sending.

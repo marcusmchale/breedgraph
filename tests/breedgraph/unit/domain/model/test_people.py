@@ -187,3 +187,32 @@ def test_only_own_claim_in_id_only_view():
     person = stored_person(user=None, claims=[CLAIMANT, OTHER_USER])
     assert person.redacted(controllers(person), user_id=OTHER_USER, read_teams=set()).claims == [OTHER_USER]
     assert person.redacted(controllers(person), user_id=ADMIN_USER + 10, read_teams=set()).claims == []
+
+
+@pytest.mark.parametrize("value, expected", [
+    ('0000-0002-1825-0097', '0000-0002-1825-0097'),
+    ('https://orcid.org/0000-0002-1825-0097', '0000-0002-1825-0097'),
+    (' 0000-0002-1694-233x ', '0000-0002-1694-233X'),
+])
+def test_normalise_orcid(value, expected):
+    from breedgraph.domain.model.people import normalise_orcid
+    assert normalise_orcid(value) == expected
+
+
+@pytest.mark.parametrize("value", ['0000-0002-1825-0098', '0000-0002-1825-009', 'orcid', ''])
+def test_invalid_orcid(value):
+    from breedgraph.domain.model.people import normalise_orcid
+    with pytest.raises(IllegalOperationError, match="ORCID"):
+        normalise_orcid(value)
+
+
+def test_only_subject_sets_and_removes_orcid():
+    person = stored_person()
+    with pytest.raises(UnauthorisedOperationError):
+        person.set_orcid(ADMIN_USER, '0000-0002-1825-0097')
+    person.set_orcid(SUBJECT_USER, 'https://orcid.org/0000-0002-1825-0097')
+    assert person.orcid == '0000-0002-1825-0097'
+    with pytest.raises(UnauthorisedOperationError):
+        person.remove_orcid(ADMIN_USER)
+    person.remove_orcid(SUBJECT_USER)
+    assert person.orcid is None

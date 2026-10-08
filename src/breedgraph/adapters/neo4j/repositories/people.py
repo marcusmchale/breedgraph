@@ -191,3 +191,9 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         )
         record = await result.single()
         return bool(record and record['removed'])
+
+    async def orcid_in_use(self, orcid: str, person_id: int) -> bool:
+        """Whether another Person has this ORCID iD"""
+        result = await self.tx.run(queries['people']['orcid_in_use'], orcid=orcid, person_id=person_id)
+        record = await result.single()
+        return bool(record['in_use'])

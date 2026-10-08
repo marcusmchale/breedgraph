@@ -340,6 +340,13 @@ class RedisStateStore(AbstractStateStore):
 
     """ Brute force protection state """
 
+    async def _set_with_expiry(self, key: str, value: str, expires_seconds: int) -> None:
+        await self.connection.set(key, value, ex=expires_seconds)
+
+    async def _get_and_delete(self, key: str) -> str | None:
+        value = await self.connection.getdel(key)
+        return value.decode() if isinstance(value, bytes) else value
+
     async def _increment_counter(self, key: str) -> int:
         return await self.connection.incr(key)
 

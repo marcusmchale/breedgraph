@@ -9,7 +9,8 @@ from breedgraph.service_layer.infrastructure import (
     AbstractAuthService,
     FileManagementService,
     AbstractFileArchivalService,
-    AbstractErasureLog
+    AbstractErasureLog,
+    AbstractOrcidService
 )
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
@@ -19,6 +20,7 @@ from breedgraph.adapters.redis.state_store import RedisStateStore
 from breedgraph.adapters.aiosmtp import EmailNotifications
 from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from breedgraph.adapters.files import JsonLinesErasureLog
+from breedgraph.adapters.orcid import HttpxOrcidService
 
 
 
@@ -40,7 +42,8 @@ async def bootstrap(
         auth_service: Type[AbstractAuthService] = ItsDangerousAuthService,
         event_queue: Queue = Queue(),
         archival_service: Type[AbstractFileArchivalService]|None = None,
-        erasure_log: Type[AbstractErasureLog] = JsonLinesErasureLog
+        erasure_log: Type[AbstractErasureLog] = JsonLinesErasureLog,
+        orcid_service: Type[AbstractOrcidService] = HttpxOrcidService
 ) -> MessageBus:
     logger.debug("Init driver")
     driver = driver()
@@ -79,7 +82,8 @@ async def bootstrap(
         file_management=file_management,
         archival_service=archival_service,
         event_queue=event_queue,
-        erasure_log=erasure_log
+        erasure_log=erasure_log,
+        orcid_service=orcid_service()
     )
 
     return MessageBus(

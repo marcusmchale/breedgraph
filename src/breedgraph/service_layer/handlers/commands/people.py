@@ -1,7 +1,7 @@
 from breedgraph.domain import commands
 from breedgraph.domain.events.people import PersonErased, PersonClaimRequested, PersonLinked
 from breedgraph.domain.model.controls import Access
-from breedgraph.domain.model.people import PersonInput, PersonStored
+from breedgraph.domain.model.people import PersonInput, PersonStored, normalise_orcid
 from breedgraph.custom_exceptions import (
     IllegalOperationError,
     NoResultFoundError,
@@ -9,8 +9,9 @@ from breedgraph.custom_exceptions import (
 )
 
 from breedgraph.service_layer.infrastructure import (
-    AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractNotifications, AbstractStateStore
+    AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractNotifications, AbstractStateStore, AbstractOrcidService
 )
+import secrets
 from breedgraph.service_layer.infrastructure.notifications import email_templates
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph import config
@@ -252,3 +253,56 @@ async def contact_person(
         message=message
     ))
     logger.info(f"User {cmd.agent_id} messaged Person {cmd.person_id} about {cmd.entity_label.value} {cmd.entity_id}")
+
+
+async def _get_own_person(uow: AbstractUnitHolder, user_id: int) -> PersonStored:
+    person = await uow.repositories.people.get(user_id=user_id)
+    if person is None:
+        raise NoResultFoundError("Your account is not linked to a Person")
+    return person
+
+
+@handlers.command_handler()
+async def start_orcid_link(
+        cmd: commands.people.StartOrcidLink,
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore,
+        orcid_service: AbstractOrcidService
+) -> str:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        await _get_own_person(uow, cmd.agent_id)
+    state = secrets.token_urlsafe(32)
+    url = orcid_service.authorization_url(state)
+    await state_store.store_oauth_state(state, cmd.agent_id, expires_seconds=config.ORCID_STATE_EXPIRES_SECONDS)
+    return url
+
+
+@handlers.command_handler()
+async def complete_orcid_link(
+        cmd: commands.people.CompleteOrcidLink,
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore,
+        orcid_service: AbstractOrcidService
+):
+    # The state is single use, and must have been issued to the same user
+    if await state_store.pop_oauth_state(cmd.state) != cmd.agent_id:
+        raise UnauthorisedOperationError("This ORCID sign-in was not started by you or has expired, please try again")
+    orcid = normalise_orcid(await orcid_service.verified_orcid(cmd.code))
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_own_person(uow, cmd.agent_id)
+        if await uow.repositories.people.orcid_in_use(orcid, person.id):
+            raise IllegalOperationError("This ORCID iD is already linked to another Person")
+        person.set_orcid(cmd.agent_id, orcid)
+        await uow.commit()
+    logger.info(f"User {cmd.agent_id} linked an ORCID iD to Person {person.id}")
+
+
+@handlers.command_handler()
+async def remove_orcid(
+        cmd: commands.people.RemoveOrcid,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        person = await _get_own_person(uow, cmd.agent_id)
+        person.remove_orcid(cmd.agent_id)
+        await uow.commit()

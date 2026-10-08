@@ -2,7 +2,8 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.domain.commands.people import (
     CreatePerson, UpdatePerson, ErasePerson,
     RequestPersonClaim, WithdrawPersonClaim, ApprovePersonClaim, RejectPersonClaim, UnlinkPerson,
-    RemoveSelfAsContact, ContactPerson
+    RemoveSelfAsContact, ContactPerson,
+    StartOrcidLink, CompleteOrcidLink, RemoveOrcid
 )
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 
@@ -139,4 +140,30 @@ async def contact_person(
         subject=subject,
         message=message
     ))
+    return True
+
+@graphql_mutation.field("peopleStartOrcidLink")
+@graphql_payload
+@require_authentication
+async def start_orcid_link(_, info) -> str:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} starts linking an ORCID iD")
+    return await info.context['bus'].handle(StartOrcidLink(agent_id=user_id))
+
+@graphql_mutation.field("peopleCompleteOrcidLink")
+@graphql_payload
+@require_authentication
+async def complete_orcid_link(_, info, code: str, state: str) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} completes linking an ORCID iD")
+    await info.context['bus'].handle(CompleteOrcidLink(agent_id=user_id, code=code, state=state))
+    return True
+
+@graphql_mutation.field("peopleRemoveOrcid")
+@graphql_payload
+@require_authentication
+async def remove_orcid(_, info) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} removes their ORCID iD")
+    await info.context['bus'].handle(RemoveOrcid(agent_id=user_id))
     return True

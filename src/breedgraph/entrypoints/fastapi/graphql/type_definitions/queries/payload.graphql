@@ -293,3 +293,9 @@ type PersonClaimRequestsPayload {
     result: [PersonClaimRequest!]
     errors: [Error!]
 }
+
+type StringPayload {
+    status: QueryStatus!
+    result: String
+    errors: [Error!]
+}

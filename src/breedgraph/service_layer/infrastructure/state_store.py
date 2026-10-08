@@ -455,6 +455,23 @@ class AbstractStateStore(ABC):
     Identifier can be either user_id or IP address
     """
 
+    async def store_oauth_state(self, state: str, user_id: int, expires_seconds: int) -> None:
+        """Remember which user started a sign-in with an external service, e.g. ORCID"""
+        await self._set_with_expiry(f"oauth_state:{state}", str(user_id), expires_seconds)
+
+    async def pop_oauth_state(self, state: str) -> int | None:
+        """The user who started the sign-in. Each state can be used once."""
+        value = await self._get_and_delete(f"oauth_state:{state}")
+        return int(value) if value is not None else None
+
+    @abstractmethod
+    async def _set_with_expiry(self, key: str, value: str, expires_seconds: int) -> None:
+        ...
+
+    @abstractmethod
+    async def _get_and_delete(self, key: str) -> str | None:
+        ...
+
     async def increment_rate_counter(self, key: str, window_seconds: int) -> int:
         """Count an action in a fixed window starting at its first occurrence, e.g. to rate limit messages"""
         counter_key = f"rate:{key}"

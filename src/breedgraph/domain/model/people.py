@@ -17,7 +17,26 @@ from .controls import ControlledModel, ControlledAggregate, Controller, Controll
 from typing import List, Set, ClassVar, Dict
 
 import logging
+import re
 logger = logging.getLogger(__name__)
+
+
+ORCID_PATTERN = re.compile(r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+
+
+def normalise_orcid(orcid: str) -> str:
+    """An ORCID iD in its 16-character form, accepting the https://orcid.org/ URI form. Raises if not valid."""
+    orcid = (orcid or '').strip().removeprefix('https://orcid.org/').removeprefix('http://orcid.org/').upper()
+    if not ORCID_PATTERN.match(orcid):
+        raise IllegalOperationError("Not a valid ORCID iD")
+    # Check digit, ISO 7064 11,2
+    total = 0
+    for digit in orcid.replace('-', '')[:-1]:
+        total = (total + int(digit)) * 2
+    check = (12 - total % 11) % 11
+    if orcid[-1] != ('X' if check == 10 else str(check)):
+        raise IllegalOperationError("Not a valid ORCID iD")
+    return orcid
 
 
 class LawfulBasis(str, Enum):
@@ -129,6 +148,17 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         self.user = None
         self.claims = list()
         self.erased_at = datetime.now(timezone.utc)
+
+    def set_orcid(self, agent_id: int, orcid: str) -> None:
+        """Only the linked user sets the ORCID iD, verified through ORCID sign-in"""
+        if not self.is_subject(agent_id):
+            raise UnauthorisedOperationError("Only the linked user can set the ORCID iD of a Person")
+        self.orcid = normalise_orcid(orcid)
+
+    def remove_orcid(self, agent_id: int) -> None:
+        if not self.is_subject(agent_id):
+            raise UnauthorisedOperationError("Only the linked user can remove the ORCID iD of a Person")
+        self.orcid = None
 
     def _require_linkable(self) -> None:
         if self.erased:

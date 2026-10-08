@@ -74,3 +74,19 @@ class ContactPerson(Command):
     entity_id: int
     subject: str
     message: str
+
+
+class StartOrcidLink(Command):
+    """Returns the ORCID sign-in URL for the linked user to verify their ORCID iD"""
+    agent_id: int
+
+
+class CompleteOrcidLink(Command):
+    """With the code and state ORCID adds to the redirect URI"""
+    agent_id: int
+    code: str
+    state: str
+
+
+class RemoveOrcid(Command):
+    agent_id: int

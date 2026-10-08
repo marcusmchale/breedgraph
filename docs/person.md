@@ -58,7 +58,8 @@ BreedGraph is operated by a team within the university. Partner organisations en
 - Declaring again creates a new declaration and accepts the current terms again. Earlier declarations are kept, and only the latest is current.
 - Visibility follows the team: the legal name, privacy contact, terms version and time are visible wherever the root team is.
   Who declared is visible to admins of the root team only, as for affiliations.
-- Withdrawing a declaration is not supported yet. When Persons exist, it will be allowed only for organisations that control no Persons.
+- `organisationsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the organisation controls a Person, including erased Persons; transfer them first.
+  The declaration is kept, marked with who withdrew it and when.
 
 #### Declaring is optional
 
@@ -258,13 +259,17 @@ The ORCID iD is public. What BreedGraph controls is the link between the iD and 
 
 Only the linked User can set it, by signing in with ORCID. This means every stored iD is verified, and nobody can be wrongly credited through a mistyped iD. Unlinked Persons are identified by name and teams only.
 
-Requirements:
-- ORCID **Public API** credentials (free; membership is not needed for verifying an iD). Develop against `sandbox.orcid.org`.
-- Config in `instance/*.env`: `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `ORCID_BASE_URL`, and the registered HTTPS redirect address.
-- `GET /orcid/link` (signed-in users): stores a random `state` in Redis with a short expiry and redirects to ORCID with `scope=/authenticate`.
-- `GET /orcid/callback`: checks `state`, exchanges the code with ORCID using `httpx`, stores the returned iD on the user's Person, and handles the user cancelling.
-- Only the iD is stored. ORCID's access token is not kept.
-- A Neo4j uniqueness constraint: one Person per iD.
+The flow runs through GraphQL, so every step is authenticated and protected against request forgery.
+The login cookie is `SameSite=Strict`, so it would not be sent on ORCID's redirect back to a server route.
+1. `peopleStartOrcidLink` returns ORCID's sign-in URL (`scope=/authenticate`), with a random single-use `state` stored in Redis against the user for `ORCID_STATE_EXPIRES_SECONDS` (600).
+2. ORCID redirects to `ORCID_REDIRECT_URI`, a front-end page (default `/orcid`), adding `code` and `state`, or `error` if the user cancelled.
+3. The page calls `peopleCompleteOrcidLink(code, state)`. The server checks the state was issued to this user, exchanges the code with ORCID using `httpx`, validates the returned iD (including its check digit), and stores it.
+
+- Only the iD is stored. ORCID's access token and name are not kept.
+- One Person per iD: checked when linking, and a uniqueness constraint in `create_constraints.cypher` for new databases.
+- `peopleRemoveOrcid` removes it. Only the linked user can set or remove it.
+- Config in `instance/*.env`: `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET` (ORCID **Public API** credentials, free), `ORCID_BASE_URL` (default `https://sandbox.orcid.org`; `https://orcid.org` in production) and `ORCID_REDIRECT_URI`, which must be registered with ORCID.
+  Without credentials, `peopleStartOrcidLink` returns an error saying linking is not available.
 - Front end: a "Connect your ORCID iD" button following ORCID's brand guidelines, showing the iD as its full `https://orcid.org/…` address.
 
 This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.
@@ -321,7 +326,7 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Person changes are stored field by field, so changes stored from the id-only form, such as a request, do not overwrite the record.
    9b, done: contacts and messaging (§4).
    Still to do: the account-deletion option, once account deletion exists.
-10. **ORCID linking.** Routes, config and constraint from §6.
+10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes. Tested against a fake ORCID service and a mocked token exchange; to test against ORCID, register an application in the sandbox and set the credentials.
 11. **Privacy notice and data processing terms.** Drafted for the DPO: `docs/legal/privacy-notice.md` and `docs/legal/data-processing-terms.md`, each ending with the questions to settle.
 
 Tests accompany each step: repository, handlers, then GraphQL end-to-end covering each viewer type in §3 and erasure.
