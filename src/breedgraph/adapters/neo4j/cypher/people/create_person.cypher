@@ -2,46 +2,20 @@ MERGE (counter: Counter {name: 'person'})
   ON CREATE SET counter.count = 0
 SET counter.count = counter.count + 1
 CREATE (person: Person {
-  id:          counter.count,
-  name:        $name,
-  fullname:    $fullname,
-  email:       $email,
-  mail:        $mail,
-  phone:       $phone,
-  orcid:       $orcid,
-  description: $description
+  id:                   counter.count,
+  name:                 $name,
+  basis:                $basis,
+  informed_attestation: $informed_attestation,
+  recorded_by:          $recorded_by,
+  recorded_at:          datetime.transaction()
 })
-WITH
-  person
+WITH person
 CALL (person) {
   MATCH (team: Team) WHERE team.id IN $teams
-  CREATE (person)-[in_team:IN_TEAM {time:datetime.transaction()}]->(team)
-  RETURN
-    collect(team.id) AS teams
+  CREATE (person)-[:IN_TEAM {time: datetime.transaction()}]->(team)
 }
-CALL (person) {
-  MATCH (location: Location) WHERE location.id IN $locations
-  CREATE (person)-[at_location:AT_LOCATION {time:datetime.transaction()}]->(location)
-  RETURN
-    collect(location.id) AS locations
-}
-CALL (person) {
-  MATCH (role: PersonRole) WHERE role.id IN $roles
-  CREATE (person)-[has_role:HAS_ROLE {time:datetime.transaction()}]->(role)
-  RETURN
-    collect(role.id) AS roles
-}
-CALL (person) {
-  MATCH (title: Title) WHERE title.id IN $titles
-  CREATE (person)-[has_title:HAS_TITLE {time:datetime.transaction()}]->(title)
-  RETURN
-    collect(title.id) AS titles
-}
-RETURN
-  person {
-    .*,
-    teams: teams,
-    locations: locations,
-    roles: roles,
-    titles: titles
-  }
+RETURN person {
+  .*,
+  teams: [(person)-[:IN_TEAM]->(team: Team) | team.id],
+  user: null
+} AS person

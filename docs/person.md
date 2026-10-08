@@ -239,16 +239,11 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 0. **Organisation legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `organisationsDeclareLegalEntity`, `organisationsDataProcessingTerms`).
    The check that the write team's organisation has a legal entity is added with Person (`Organisation.legal_entity`).
    Builds on the control transfer mechanism (`control-transfer.md`), which is implemented first. The Person rule (§2) is added to its entity-specific rules.
-1. **Domain.** Reduce `PersonBase` to §3. Add `erased_at`, provenance fields, `to_output()`, erase method. Update `redacted()` to return the id-only form.
-2. **Commands.** `CreatePerson`, `UpdatePerson`, `ErasePerson`.
-3. **Cypher and repository.** Rewrite queries for the reduced model. Fix existing bugs:
-   - `get_person.cypher` matches `(team)-[:IN_TEAM]->(team:Team)`, so `teams` is wrong.
-   - `get_person` and `get_people` read titles through `AT_LOCATION`. Removed with titles.
-   - Labels `PersonRole`, `PersonTitle`, `Title` don't match the ontology labels `Role`, `Title`.
-   - `get_people_by_name` puts user input into a regex unescaped.
-   - Get by id raises instead of returning `None` when missing.
-   - `add_person` builds the abstract `PersonBase` from the full command dump, so it always fails.
-4. **Handlers.** Create, update, erase with validation of referenced teams. Erasure log.
+1. **Domain.** Done: `PersonInput` requires a name and the informed attestation; `PersonStored` adds `orcid`, `user`, provenance and `erased_at`, `redacted()` gives readers and the linked user the full record and other registered users the ID only, and `erase()` clears identifying data for admins of the controlling teams or the linked user. `LawfulBasis` enumerates the bases.
+2. **Commands.** Done: `CreatePerson`, `UpdatePerson`, `ErasePerson`, replacing `DeletePerson`.
+3. **Cypher and repository.** Done: queries rewritten for the reduced model, fixing the wrong `teams` match, the role and title labels (both removed), the unescaped name search, and the error on a missing ID.
+   Persons cannot be removed. `ControlledRepository._can_change` lets the linked user store changes to their own record, and admins of the controlling teams store an erasure, besides curators.
+4. **Handlers.** Create, update, erase with validation of referenced teams. Erasure log. Replaces `add_person`, which builds the abstract `PersonBase` from the full command dump and always fails.
 5. **GraphQL.** `Person` type, `people` and `peoplePerson(id)` queries, create/update/erase mutations. A `people_map` context loader, following the users and teams maps, for access-controlled batch loading.
 6. **References to Person.** Contributor roles on `CONTRIBUTED_TO`. Contacts as linked Person or Team. Ontology and germplasm authors to references. Resolve `contributors` and `contacts` through `people_map`.
 7. **Logging.** Stop logging Person payloads.

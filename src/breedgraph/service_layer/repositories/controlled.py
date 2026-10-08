@@ -209,6 +209,10 @@ class ControlledRepository(
     async def _remove_controlled(self, aggregate: TControlledAggregate):
         raise NotImplementedError
 
+    async def _can_change(self, model: ControlledModel, controller: Controller) -> bool:
+        """Whether the user can store changes to a model. Curate access by default."""
+        return controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE])
+
     async def _update(self, aggregate: TControlledAggregate | TrackableProtocol):
         if not self.controls.user_id:
             raise UnauthorisedOperationError("Changes require a user_id")
@@ -225,7 +229,7 @@ class ControlledRepository(
         for model in aggregate.changed_models:
             if isinstance(model, ControlledModel):
                 controller = controllers[model.label][model.id]
-                if not controller.has_access(Access.CURATE, access_teams=self.access_teams[Access.CURATE]):
+                if not await self._can_change(model, controller):
                     raise UnauthorisedOperationError(
                         f"Editing requires curate permission")
 

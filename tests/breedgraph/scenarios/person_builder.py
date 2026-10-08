@@ -1,4 +1,3 @@
-
 from breedgraph.domain.model.people import PersonInput
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
@@ -15,9 +14,8 @@ class PersonBuilder:
         person_input = cls.user_input_generator.new_user_input()
         return PersonInput(
             name=person_input['name'],
-            fullname=person_input['name'],
-            email=person_input['email'],
-            teams=[team_id] if team_id else []
+            teams=[team_id] if team_id else [],
+            informed_attestation=True
         )
 
     async def person(self, user_id: int, team_id: int) -> int:
