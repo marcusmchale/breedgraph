@@ -22,7 +22,7 @@ async def dataset_with_records(
         concept=concept_id,
         study=study_id
     )
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=dataset_build_context['team_id']) as uow:
         dataset = await uow.repositories.datasets.create(dataset_input)
         for i in range(10):
             new_record = DataRecordInput(unit=unit_id, value=str(i))

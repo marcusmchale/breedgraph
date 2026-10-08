@@ -10,7 +10,7 @@ async def test_create(
     user_id = block_build_context['user_id']
     tree_subject = block_build_context['ontology_subject_tree']
     tree_name = "Tree 1"
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=block_build_context['team_id']) as uow:
         stored_block = await uow.repositories.blocks.create(UnitInput(
             name=tree_name,
             subject=tree_subject
@@ -32,7 +32,7 @@ async def test_rename(
     tree_subject = block_build_context['ontology_subject_tree']
     tree_name_1 = "Tree 1"
     tree_name_2 = "Tree One"
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=block_build_context['team_id']) as uow:
         stored_block = await uow.repositories.blocks.create(UnitInput(
             name=tree_name_1,
             subject=tree_subject

@@ -14,7 +14,7 @@ async def test_create_region(
         region_build_context
 ):
     user_id = region_build_context['user_id']
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=region_build_context['team_id']) as uow:
         region = None
         count = 0
         async for country in state_store.get_countries():
@@ -48,7 +48,7 @@ async def test_extend_region(
     user_id = region_build_context['user_id']
     state_type_id = region_build_context['ontology_location_state']
     field_type_id = region_build_context['ontology_location_field']
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=region_build_context['team_id']) as uow:
         region = await RegionBuilder(uow_factory=uow_factory, state_store=state_store).region_from_country(uow)
         temp_field_id = region.add_location(
             LocationInput(
@@ -86,6 +86,7 @@ async def test_make_location_visible_to_registered(
     lab_type_id = region_build_context['ontology_location_lab']
     region_ids = await RegionBuilder(uow_factory, state_store).region(
         user_id=user_id_1,
+        team_id=team_id,
         ontology_location_state=state_type_id,
         ontology_location_field=field_type_id,
         ontology_location_lab=lab_type_id

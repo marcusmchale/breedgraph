@@ -205,11 +205,12 @@ async def isolated_state(
     await flush_redis(state_store)
 
 
-async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int) -> int:
+async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int, team_id: int) -> int:
     ontology_location_ids = await OntologyBuilder(uow_factory).location_types(user_id=user_id)
     region_builder = RegionBuilder(uow_factory=uow_factory, state_store=state_store)
     location_ids = await region_builder.region(
         user_id=user_id,
+        team_id=team_id,
         ontology_location_state=ontology_location_ids['ontology_location_state'],
         ontology_location_field=ontology_location_ids['ontology_location_field'],
         ontology_location_lab=ontology_location_ids['ontology_location_lab']
@@ -228,7 +229,7 @@ async def user_registration_context(isolated_state, login_token_factory):
 async def control_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
-    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'], account_ids['team_id'])
     return {
         **account_ids,
         'location_id': location_id
@@ -239,7 +240,7 @@ async def control_context(isolated_state, uow_factory, state_store) -> Dict[str,
 async def layout_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
-    location_id = await build_location(uow_factory, state_store, account_ids['user_id'])
+    location_id = await build_location(uow_factory, state_store, account_ids['user_id'], account_ids['team_id'])
     layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=account_ids['user_id'])
     return {
         **account_ids,
@@ -259,6 +260,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
 
     location_ids = await RegionBuilder(uow_factory, state_store).region(
         user_id=user_id,
+        team_id=account_ids['team_id'],
         ontology_location_state=location_types['ontology_location_state'],
         ontology_location_field=location_types['ontology_location_field'],
         ontology_location_lab=location_types['ontology_location_lab']
@@ -266,6 +268,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     location_id = location_ids['location_field_id']
     layout_ids = await ArrangementBuilder(uow_factory).arrangement(
         user_id=user_id,
+        team_id=account_ids['team_id'],
         location_id=location_id,
         ontology_layout_named=layout_types['ontology_layout_named'],
         ontology_layout_3d=layout_types['ontology_layout_3d'],
@@ -292,13 +295,14 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     program_builder = ProgramBuilder(uow_factory=uow_factory)
     program_ids = await program_builder.program_trial_study(
         user_id,
+        account_ids['team_id'],
         replicate_type=record_group_types['ontology_record_group_replicate'],
         batch_type=record_group_types['ontology_record_group_batch']
     )
 
     variable_ids = await OntologyBuilder(uow_factory=uow_factory).variable_tree_height(user_id)
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
-    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id)
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=account_ids['team_id'])
+    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id, team_id=account_ids['team_id'])
     return {
         **account_ids,
         **program_ids,
@@ -370,7 +374,7 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id)
+    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
 
     account_ids2 = await account_builder.account_with_affiliations()
     user_id_2 = account_ids2['user_id']

@@ -20,8 +20,8 @@ class PersonBuilder:
             teams=[team_id] if team_id else []
         )
 
-    async def person(self, user_id: int) -> int:
-        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+    async def person(self, user_id: int, team_id: int) -> int:
+        async with self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             person = await uow.repositories.people.create(
                 self.person_input()
             )

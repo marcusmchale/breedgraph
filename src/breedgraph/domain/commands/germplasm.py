@@ -27,7 +27,7 @@ class GermplasmSourceRelationship(GermplasmRelationshipBase):
 
 class CreateGermplasm(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     name: str = ''
@@ -45,7 +45,7 @@ class CreateGermplasm(Command):
 
     sources: List[GermplasmSourceRelationship] | None = None
 
-class UpdateGermplasm(CreateGermplasm):
+class UpdateGermplasm(Command):
     agent_id: int
 
     germplasm_id: int

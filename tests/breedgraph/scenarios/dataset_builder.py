@@ -28,11 +28,12 @@ class DatasetBuilder:
     async def dataset(
             self,
             user_id: int,
+            team_id: int,
             concept_id: int,
             study_id: int,
             records: list[DataRecordInput] | None = None
     ) -> Dict[str, int]:
-        async with (self.uow_factory.get_uow(user_id=user_id) as uow):
+        async with (self.uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow):
             dataset = await uow.repositories.datasets.create(
                 self.dataset_input(concept_id=concept_id, study_id=study_id, records=records)
             )

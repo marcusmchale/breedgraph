@@ -14,7 +14,7 @@ async def test_create_and_get(
     user_id = person_build_context['user_id']
     team_id = person_build_context['team_id']
     person_input = PersonBuilder.person_input(team_id=team_id)
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=person_build_context['team_id']) as uow:
         await uow.repositories.people.create(person_input)
         await uow.commit()
 
@@ -39,7 +39,7 @@ async def test_get_unregistered_and_without_read_access(
     user_id_2 = person_build_context['user_id_2']
     person_input = PersonBuilder.person_input()
     # Create person as user 1
-    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+    async with uow_factory.get_uow(user_id=user_id_1, write_team=person_build_context['team_id']) as uow:
         person = await uow.repositories.people.create(person_input)
         await uow.commit()
         person_id = person.id
@@ -70,7 +70,7 @@ async def test_release_to_registered(
     person_input = PersonBuilder.person_input()
 
     # Create person as user 1 released to registered users
-    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+    async with uow_factory.get_uow(user_id=user_id_1, write_team=person_build_context['team_id']) as uow:
         person = await uow.repositories.people.create(person_input)
         await uow.controls.set_controls(person, control_teams={team_id}, release=ReadRelease.REGISTERED)
         await uow.commit()
@@ -103,7 +103,7 @@ async def test_release_to_public(
     person_input = PersonBuilder.person_input()
 
     # Create person as user 1 released to public users
-    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+    async with uow_factory.get_uow(user_id=user_id_1, write_team=person_build_context['team_id']) as uow:
         person = await uow.repositories.people.create(person_input)
         await uow.controls.set_controls(person, control_teams={team_id}, release=ReadRelease.PUBLIC)
         await uow.commit()
@@ -139,7 +139,7 @@ async def test_edit_person_name(
     person_input_2 = PersonBuilder.person_input()
 
     # Create person
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=person_build_context['team_id']) as uow:
         person = await uow.repositories.people.create(person_input_1)
         await uow.commit()
         person_id = person.id

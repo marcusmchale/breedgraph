@@ -28,6 +28,7 @@ async def test_create_dataset_command(
 
     cmd = CreateDataset(
         agent_id=user_id,
+        write_team=dataset_build_context['team_id'],
         submission_id=submission_id
     )
     await bus.handle_command(cmd)

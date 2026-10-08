@@ -44,7 +44,8 @@ class TestGermplasmApplicationService:
         return GermplasmApplicationService(
             persistence_service=mock_persistence,
             access_control_service=mock_access_control,
-            release=ReadRelease.PRIVATE
+            release=ReadRelease.PRIVATE,
+            write_team=1
         )
 
     @pytest.mark.asyncio
@@ -203,6 +204,25 @@ class TestGermplasmApplicationService:
 
         # Act & Assert - creating entry without user_id fails
         with pytest.raises(IllegalOperationError, match="User ID required"):
+            await service.create_entry(GermplasmInput(name="Test"))
+
+    @pytest.mark.asyncio
+    async def test_create_entry_requires_write_team(self, mock_persistence, mock_access_control):
+        mock_access_control.set_test_access_teams(
+            user_id=1,
+            access_teams={
+                Access.READ: {1},
+                Access.WRITE: {1},
+                Access.CURATE: {1}
+            }
+        )
+        await mock_access_control._change_user_context(user_id=1)
+        service = GermplasmApplicationService(
+            persistence_service=mock_persistence,
+            access_control_service=mock_access_control
+        )
+
+        with pytest.raises(IllegalOperationError, match="write team is required"):
             await service.create_entry(GermplasmInput(name="Test"))
 
     @pytest.mark.asyncio

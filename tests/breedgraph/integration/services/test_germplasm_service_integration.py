@@ -18,7 +18,7 @@ async def test_create_and_get(
 ):
         user_id = germplasm_build_context['user_id']
         germplasm_input = GermplasmBuilder.germplasm_input()
-        async with uow_factory.get_uow(user_id=user_id) as uow:
+        async with uow_factory.get_uow(user_id=user_id, write_team=germplasm_build_context['team_id']) as uow:
             germplasm_entry = await uow.germplasm.create_entry(germplasm_input)
             await uow.commit()
 
@@ -35,7 +35,7 @@ async def test_create_relationship(
     user_id = germplasm_build_context['user_id']
     germplasm_input_1 = GermplasmBuilder.germplasm_input()
     germplasm_input_2 = GermplasmBuilder.germplasm_input()
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=germplasm_build_context['team_id']) as uow:
         germplasm_1 = await uow.germplasm.create_entry(germplasm_input_1)
         germplasm_2 = await uow.germplasm.create_entry(germplasm_input_2)
         germplasm_relationship = GermplasmBuilder.relationship_input(
@@ -72,7 +72,7 @@ async def test_read_access_control(
     team_id = germplasm_build_context['team_id']
     user_id_2 = germplasm_build_context['user_id_2']
     germplasm_input = GermplasmBuilder.germplasm_input()
-    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+    async with uow_factory.get_uow(user_id=user_id_1, write_team=germplasm_build_context['team_id']) as uow:
         germplasm_entry = await uow.germplasm.create_entry(germplasm_input)
         await uow.commit()
 
@@ -183,7 +183,7 @@ async def test_edit_name_access_control(
     user_id_2 = germplasm_build_context['user_id_2']
     germplasm_input = GermplasmBuilder.germplasm_input()
     new_name = lorem_text_generator.new_text(10)
-    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+    async with uow_factory.get_uow(user_id=user_id_1, write_team=germplasm_build_context['team_id']) as uow:
         germplasm_entry = await uow.germplasm.create_entry(germplasm_input)
         await uow.controls.set_controls(
             models=[germplasm_entry],
@@ -258,10 +258,10 @@ async def test_get_descendants_and_ancestors(
     """Test retrieving descendants and ancestors through the service."""
     user_id = germplasm_build_context['user_id']
 
-    crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
-    group_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
-    variety_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
-    accession_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
+    crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
+    group_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
+    variety_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
+    accession_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         await uow.germplasm.create_relationship(GermplasmRelationship(source_id=crop_id, sink_id=group_id))
@@ -286,7 +286,7 @@ async def test_referenced_germplasm_is_protected(
     user_id = germplasm_build_context['user_id']
     unit_id = germplasm_build_context['unit_id']
 
-    crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id)
+    crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=unit_id)

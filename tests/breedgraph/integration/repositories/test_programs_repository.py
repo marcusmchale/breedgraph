@@ -1,6 +1,6 @@
 import pytest
 
-from breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError
 from breedgraph.domain.model import GroupingScope
 
 
@@ -19,12 +19,12 @@ async def test_create(
     trial_input = ProgramBuilder.trial_input()
     study_input = ProgramBuilder.study_input(replicate_type=replicate_type, batch_type=batch_type)
 
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
         program = await uow.repositories.programs.create(program_input)
         program.add_trial(trial_input)
         await uow.commit()
 
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
         program = await uow.repositories.programs.get(program_id=program.id)
         trial_id = list(program.trials.keys())[0]
         program.add_study(trial_id=trial_id, study=study_input)
@@ -54,13 +54,13 @@ async def test_update_study(uow_factory, program_build_context):
         replicate_type=replicate_type, batch_type=batch_type
     )
     # create a trial
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
         program = await uow.repositories.programs.create(program_input)
         program.add_trial(trial_input)
         await uow.commit()
 
     # add a study
-    async with uow_factory.get_uow(user_id=user_id) as uow:
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
         program = await uow.repositories.programs.get(program_id=program.id)
         trial_id = list(program.trials.keys())[0]
         program.add_study(trial_id=trial_id, study=study_input)
@@ -87,3 +87,35 @@ async def test_update_study(uow_factory, program_build_context):
         assert grouping
 
 
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_requires_write_team(uow_factory, program_build_context):
+    user_id = program_build_context['user_id']
+    program_input = ProgramBuilder.program_input()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        with pytest.raises(IllegalOperationError, match="write team is required"):
+            await uow.repositories.programs.create(program_input)
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        assert await uow.repositories.programs.get(name=program_input.name) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_controlled_model_requires_write_team(uow_factory, program_build_context):
+    user_id = program_build_context['user_id']
+    program_input = ProgramBuilder.program_input()
+
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
+        program = await uow.repositories.programs.create(program_input)
+        await uow.commit()
+        program_id = program.id
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(program_id=program_id)
+        program.add_trial(ProgramBuilder.trial_input())
+        with pytest.raises(IllegalOperationError, match="write team is required"):
+            await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(program_id=program_id)
+        assert not program.trials

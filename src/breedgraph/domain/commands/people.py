@@ -7,7 +7,7 @@ from typing import List
 
 class CreatePerson(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     name: str

@@ -14,7 +14,7 @@ class GeoCoordinate(BaseModel):  #ISO 6709
 
 class CreateLocation(Command):
     agent_id: int
-    write_team: int | None = None
+    write_team: int
     release: ReadRelease = ReadRelease.PRIVATE
 
     type_id: int

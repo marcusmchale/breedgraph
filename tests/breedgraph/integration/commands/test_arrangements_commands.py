@@ -15,6 +15,7 @@ async def test_add_layout_command(
     type_id = layout_build_context['ontology_layout_named']
     first_layout_command = CreateLayout(
         agent_id = user_id,
+        write_team = team_id,
         name = lorem_text_generator.new_text(),
         type_id = type_id,
         location_id= location_id,
@@ -39,6 +40,7 @@ async def test_add_layout_command_nested(
         layout_build_context
 ):
     user_id = layout_build_context['user_id']
+    team_id = layout_build_context['team_id']
     location_id = layout_build_context['location_id']
     type_id = layout_build_context['ontology_layout_grid']
     async with uow_factory.get_uow(user_id=user_id) as uow:
@@ -49,6 +51,7 @@ async def test_add_layout_command_nested(
 
         second_layout_command = CreateLayout(
             agent_id=user_id,
+            write_team=team_id,
             name = lorem_text_generator.new_text(),
             type_id = type_id,
             axes = ["x", "y"],
