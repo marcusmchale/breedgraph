@@ -87,3 +87,21 @@ async def test_update_study(uow_factory, program_build_context):
         assert grouping
 
 
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_by_name_ignores_case(uow_factory, program_build_context):
+    user_id = program_build_context['user_id']
+    program_input = ProgramBuilder.program_input()
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
+        program = await uow.repositories.programs.create(program_input)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        found = await uow.repositories.programs.get(name=program_input.name.upper())
+        assert found is not None and found.id == program.id
+        # renaming updates the name used to find it
+        found.name = f"{program_input.name} renamed"
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        assert (await uow.repositories.programs.get(name=f"{program_input.name} RENAMED")).id == program.id
+        assert await uow.repositories.programs.get(name=program_input.name) is None
