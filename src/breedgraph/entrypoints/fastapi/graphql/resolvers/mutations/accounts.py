@@ -35,9 +35,9 @@ async def create_account(
         _,
         info,
         name: str,
-        fullname: str,
         email: str,
-        password: str
+        password: str,
+        fullname: str | None = None
 ) -> bool:
     logger.debug(f"Add account: {name}")
     password_policy = config.get_password_policy()
