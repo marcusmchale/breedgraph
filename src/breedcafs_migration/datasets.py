@@ -8,10 +8,13 @@ Each record in records.csv is assigned:
   - its study, by study_for (README §7.5);
   - its unit (unit_ids.csv);
   - its value, as parsed against the scale of its variable or factor ("True" and "False" as Yes and No);
-  - its time: observations start and end at their time, conditions at their start and end where given;
+  - its time: observations start and end at their time, conditions at their start and end where given,
+    to the minute where a time of day was entered (text_time), and otherwise as the date alone,
+    as BreedCAFS set the time of day of dates to 12:00;
   - its replicate code, in the study's Replicate grouping.
 A dataset holds the records of one variable or factor, from one submission, in one study.
 Records loaded without a submission (the photosynthesis data) are one dataset per variable and study.
+About half of them repeat submitted records (same item, input and day); they are kept, in these datasets of their own.
 The Replicate grouping of each study is scoped to the datasets of each submission,
 so replicate codes are only compared within the records submitted together.
 The factor records of factor_records.csv (block treatments and branch strata) are one dataset per factor and study.
@@ -77,6 +80,17 @@ def epoch_ms(value: str) -> datetime64 | None:
     return datetime64(int(value), 'ms') if value and value.lstrip('-').isdigit() else None
 
 
+def entered_time(value: str, text: str) -> datetime64 | None:
+    """
+    A BreedCAFS time as it was entered: the date and time of day (text) to the minute,
+    or the date alone where no time of day was entered and BreedCAFS set it to 12:00.
+    """
+    time = epoch_ms(value)
+    if time is None:
+        return None
+    return time.astype('datetime64[m]') if text else time.astype('datetime64[D]')
+
+
 class DatasetPlan:
     """The datasets to create and their records, from the extracted files"""
 
@@ -121,9 +135,10 @@ class DatasetPlan:
             label, concept = self.ontology.inputs[(row['input'], self.apparatus(row, recorded, jip_times))]
             self.label[concept] = label
             if row['record_type'] == 'Condition':
-                start, end = epoch_ms(row['start']), epoch_ms(row['end'])
+                start = entered_time(row['start'], row['text_start_time'])
+                end = entered_time(row['end'], row['text_end_time'])
             else:
-                start = end = epoch_ms(row['time'])
+                start = end = entered_time(row['time'], row['text_time'])
             key = (self.study(row['input'], row['item_uid']), concept, row['submission_time'], row['submitter_id'])
             self.add(key, RecordPlan(
                 item_uid=row['item_uid'], value=row['value'], start=start, end=end, replicate=row['replicate'] or None

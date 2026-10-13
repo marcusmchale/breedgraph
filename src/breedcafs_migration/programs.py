@@ -92,7 +92,7 @@ def field_countries() -> dict[str, str]:
 
 
 def study_dates() -> dict[str, tuple[datetime64, datetime64]]:
-    """The first and last record times of each study, in milliseconds since the epoch as BreedCAFS stores them"""
+    """The dates of the first and last record times of each study (BreedCAFS times are milliseconds since the epoch)"""
     terms = input_terms()
     countries = field_countries()
     times: dict[str, list[int]] = {}
@@ -102,7 +102,10 @@ def study_dates() -> dict[str, tuple[datetime64, datetime64]]:
             if values:
                 study = study_for(terms.get(row['input'], set()), countries[row['item_uid'].split('_')[0]])
                 times.setdefault(study, []).extend(values)
-    return {study: (datetime64(min(values), 'ms'), datetime64(max(values), 'ms')) for study, values in times.items()}
+    return {
+        study: (datetime64(min(values), 'ms').astype('datetime64[D]'), datetime64(max(values), 'ms').astype('datetime64[D]'))
+        for study, values in times.items()
+    }
 
 
 @dataclass

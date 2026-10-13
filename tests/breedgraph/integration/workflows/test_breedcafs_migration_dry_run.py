@@ -12,7 +12,9 @@ import pytest
 
 from breedgraph.domain.model.accounts import OntologyRole
 
-from breedcafs_migration import ontology, germplasm, locations, layouts, units, programs, datasets
+from breedgraph.service_layer.infrastructure import archival_service
+
+from breedcafs_migration import ontology, germplasm, locations, layouts, units, programs, datasets, curves
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.main import migrate
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -29,8 +31,9 @@ pytestmark = pytest.mark.skipif(
 async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     data_dir = tmp_path / 'data'
     shutil.copytree(BREEDCAFS_DATA_DIR, data_dir)
-    for module in (ontology, germplasm, locations, layouts, units, programs, datasets):
+    for module in (ontology, germplasm, locations, layouts, units, programs, datasets, curves):
         monkeypatch.setattr(module, 'BREEDCAFS_DATA_DIR', data_dir)
+    monkeypatch.setattr(archival_service, 'FILE_STORAGE_PATH', str(tmp_path / 'files'))
 
     account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
     started = time.monotonic()
@@ -55,3 +58,7 @@ async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     with open(data_dir / 'dataset_ids.csv') as f:
         dataset_ids = [row['dataset_id'] for row in csv.DictReader(f)]
     assert len(dataset_ids) == len(set(dataset_ids)) == 1187
+
+    with open(data_dir / 'curve_ids.csv') as f:
+        curve_datasets = [row['dataset_id'] for row in csv.DictReader(f) if row['dataset_id']]
+    assert len(curve_datasets) == 5

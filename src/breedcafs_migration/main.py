@@ -21,6 +21,7 @@ from breedcafs_migration.layouts import prepare_breedcafs_layouts
 from breedcafs_migration.units import prepare_breedcafs_units
 from breedcafs_migration.programs import prepare_breedcafs_programs
 from breedcafs_migration.datasets import prepare_breedcafs_datasets
+from breedcafs_migration.curves import prepare_breedcafs_curves
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -56,8 +57,13 @@ async def migrate(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext
         uow_factory=uow_factory, context=context, record_group_types=ontology_ids.record_group_types
     )
     logger.info("Prepare datasets")
-    await prepare_breedcafs_datasets(
+    dataset_ids = await prepare_breedcafs_datasets(
         uow_factory=uow_factory, context=context, ontology=ontology_ids, programs=program_ids, units=unit_ids.units
+    )
+    logger.info("Prepare curves")
+    await prepare_breedcafs_curves(
+        uow_factory=uow_factory, context=context, ontology=ontology_ids, programs=program_ids,
+        units=unit_ids.units, datasets=dataset_ids
     )
 
 

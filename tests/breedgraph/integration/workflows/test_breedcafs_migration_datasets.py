@@ -2,7 +2,7 @@ import csv
 
 import pytest
 import pytest_asyncio
-from numpy import datetime64
+from numpy import datetime64, datetime_data
 
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology import (
@@ -21,19 +21,21 @@ from breedcafs_migration.programs import ProgramIds
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.block_builder import BlockBuilder
 
-T1, T2, T3 = '1558310400000', '1558396800000', '1558483200000'  # 2019-05-20, 21 and 22
+# As BreedCAFS stored dates: at 12:00 where no time of day was entered
+T1, T2, T3 = '1558353600000', '1558440000000', '1558526400000'  # 2019-05-20, 21 and 22 at 12:00
+T4 = '1558319460000'  # 2019-05-20 at 02:31, entered as text_time "2:31"
 
 
-def record(submission, item, input_name, value, time='', replicate='', record_type='Trait', start='', end=''):
+def record(submission, item, input_name, value, time='', replicate='', record_type='Trait', start='', end='', text_time=''):
     submission_time, submitter_id = submission
     return {
         'record_id': '', 'submission_time': submission_time, 'submitter_id': submitter_id, 'item_uid': item,
-        'record_type': record_type, 'input': input_name, 'value': value, 'time': time, 'text_time': '',
+        'record_type': record_type, 'input': input_name, 'value': value, 'time': time, 'text_time': text_time,
         'start': start, 'text_start_time': '', 'end': end, 'text_end_time': '', 'replicate': replicate
     }
 
 
-A, B = ('100', '7'), ('200', '8')
+A, B, NONE = ('100', '7'), ('200', '8'), ('', '')
 RECORDS = [
     record(A, '1_T1', 'Tree height', '12.5', T1, '0'),
     record(A, '1_T2', 'Tree height', '13', T1, '0'),
@@ -42,10 +44,13 @@ RECORDS = [
     record(A, '1_T1', 'Fᵥ / Fₘ', '0.8', T2, '1'),             # no apparatus recorded, but with a JIP-test parameter
     record(A, '1_T2', 'Photosynthetic Analysis Apparatus', 'MiniPAM', T3, record_type='Trait'),
     record(A, '1_T2', 'Fᵥ / Fₘ', '0.7', T3),
-    record(A, '1_S1', '5CQA', '3.2', T1),                     # a metabolite, wherever recorded
+    record(A, '1_S1', '5CQA', '3.2', T4, text_time='2:31'),   # a metabolite, wherever recorded
     record(A, '1_T1', 'Set harvest time', '12:00', record_type='Property'),
-    record(B, '22_T1', 'Shade level', '40', record_type='Condition', start='1438387200000', end='False'),
+    record(B, '22_T1', 'Shade level', '40', record_type='Condition', start='1438430400000', end='False'),
     record(B, '22_T1', 'Tree height', '2', T1, '0'),
+    # Loaded without a submission, one repeating a record of submission A (same item, input and day): their own dataset
+    record(NONE, '1_T1', 'Tree height', '12.5', T1, '0'),
+    record(NONE, '1_T1', 'Tree height', '11', T3, '0'),
 ]
 FILES = {
     'records.csv': RECORDS,
@@ -149,6 +154,7 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
 
     assert set(ids.datasets) == {
         ('Vietnam', concept_of('Tree height'), *A),
+        ('Vietnam', concept_of('Tree height'), *NONE),
         ('Vietnam', concept_of('Flowering'), *A),
         ('Vietnam', concept_of('Fₒ', 'PocketPEA'), *A),
         ('Vietnam', concept_of('Fᵥ / Fₘ', 'PocketPEA'), *A),
@@ -158,7 +164,7 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         ('Nicaragua', concept_of('Tree height'), *B),
         ('Nicaragua', datasets_context['ontology'].design_factors['Stratum'], DESIGN, ''),
     }
-    assert ids.records == 10
+    assert ids.records == 12
 
     async with uow_factory.get_uow(user_id=datasets_context['context'].user_id) as uow:
         async def dataset(study, concept, submission=A):
@@ -167,9 +173,13 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         heights = await dataset('Vietnam', concept_of('Tree height'))
         assert heights.study == studies['Vietnam']
         assert sorted((r.unit, r.value) for r in heights.records) == sorted([(units['1_T1'], '12.5'), (units['1_T2'], '13')])
+        loaded = (await dataset('Vietnam', concept_of('Tree height'), NONE)).records
+        assert sorted((r.unit, r.value) for r in loaded) == sorted([(units['1_T1'], '12.5'), (units['1_T1'], '11')])
         replicate = datasets_context['programs'].replicate_groupings['Vietnam']
         for r in heights.records:
+            # The date alone, as no time of day was entered
             assert (r.start, r.end) == (datetime64('2019-05-20'), datetime64('2019-05-20'))
+            assert datetime_data(r.start.dtype)[0] == 'D'
             assert [(g.id, g.code) for g in r.groups] == [(replicate, '0')]
 
         [flowering] = (await dataset('Vietnam', concept_of('Flowering'))).records
@@ -180,6 +190,10 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         assert (pocket_pea.unit, pocket_pea.value) == (units['1_T1'], '0.8')
         [shade] = (await dataset('Nicaragua', concept_of('Shade level'), B)).records
         assert (shade.start, shade.end) == (datetime64('2015-08-01'), None)
+        [metabolite] = (await dataset('Metabolomics', concept_of('5CQA'))).records
+        # To the minute, as the time of day was entered
+        assert metabolite.start == datetime64('2019-05-20T02:31')
+        assert datetime_data(metabolite.start.dtype)[0] == 'm'
         [stratum] = (await dataset('Nicaragua', datasets_context['ontology'].design_factors['Stratum'], (DESIGN, ''))).records
         assert (stratum.unit, stratum.value) == (units['22_T1'], 'Upper')
 
@@ -188,7 +202,7 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         scopes = lambda study: [
             set(scope.dataset_ids) for scope in program.get_study(studies[study]).get_grouping(name="Replicate").dataset_scopes
         ]
-        assert scopes('Vietnam') == [{dataset_id for key, dataset_id in ids.datasets.items() if key[0] == 'Vietnam'}]
+        assert {dataset_id for key, dataset_id in ids.datasets.items() if key[0] == 'Vietnam' and key[2] == A[0]} in scopes('Vietnam')
         assert scopes('Nicaragua') == [{ids.datasets[('Nicaragua', concept_of(name), *B)] for name in ('Shade level', 'Tree height')}]
 
     with open(data_dir / 'dataset_ids.csv') as f:

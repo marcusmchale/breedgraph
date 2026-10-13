@@ -317,22 +317,17 @@ with:
 
 ### Curve data
 
-Collate the curve values into a CSV file.
+The curve values are collated into one CSV data file, fluorescence_curves.csv (curves.py), an immutable migration artefact:
+a row per curve with its BreedCAFS item uid, unit id, time (ISO 8601) and replicate code, then its 118 values,
+one column for each of the times, in seconds (1e-05 to 1.0), shared by all curves and given as the column names.
+No Person information is included. Times are as entered (7.6): to the minute for the 5,084 curves with a `text_time`,
+the date alone for the 16 without.
 
-The data should include:
-
-* Item ID
-* Time
-* Replicate
-* Curve Y values
-
-Do not include Person information.
-
-Retain the original `text_time` value as appropriate.
-Validate that the time values can be parsed as `numpy.datetime64`.
-Create BreedGraph records for each relevant Item referencing the resulting data file.
-
-The CSV should be treated as an immutable migration data artefact.
+The file is stored as an upload is, referenced as a CSV data file whose schema describes the columns,
+and queued for archival. Each curve is a record of Fluorescence ~ Time (PocketPEA) for its unit, referencing the file;
+its row is the one with its unit, time and replicate. As in 7.6, a dataset holds the curves of one submission
+(5: four submissions and the curves loaded without one), joining the Replicate scope of its submission's other datasets.
+Saved curve_ids.csv: the data file reference and the curve datasets.
 
 ---
 
@@ -427,10 +422,20 @@ Each record of records.csv gets:
   * its Study, by `study_for` (7.5), and its unit (unit_ids.csv).
   * its value, parsed against its scale. Flowering is recorded as True or False, the categories Yes and No.
   * its time: observations start and end at their time; conditions at their start and end where given.
+    Times are stored as entered: BreedCAFS records have no date field of their own, only `time`
+    (milliseconds since the epoch) and `text_time`, the time of day where one was entered (e.g. "2:31").
+    Where a time of day was entered, `time` is the date at that time, so it is kept to the minute;
+    where none was, BreedCAFS set the time of day to 12:00, so only the date is kept.
 
 The apparatus records are not migrated as data, nor are the "Set harvest time" records: all are the default "12:00",
-and the harvest date is recorded. Curves (7.1) are left to a separate step, as their complex scale needs a data file.
+and the harvest date is recorded. Curves (7.1) follow in their own step (curves.py), as their complex scale needs a data file.
 The factor records of factor_records.csv (block treatments and branch strata) are one Dataset per factor and Study.
+
+Records loaded without a submission (1,096 records, all from field 25 except 16 apparatus records of field 34,
+and the 16 curves of 7.1) are one Dataset per variable and Study, as they were loaded apart from any submission.
+About half repeat submitted records: 528 have a submitted record of the same item, input, day and value,
+12 one of the same item, input and day with another value, and 556 none; all 16 curves repeat submitted curves.
+They are kept, in their own Datasets, to help understand what went wrong (§11).
 
 Each Study and submission is one transaction, recorded in dataset_ids.csv as it completes,
 so a second run creates only the Datasets not yet created.
@@ -500,7 +505,9 @@ Once migrated data has been reviewed:
 
 1. Resolve the duplicate positions in field 5's July 2018 planting with the partner: whether each position is a plot of several trees,
    and what the tree codes (e.g. "7-ED6-1D2") mean beyond the field they cite. Review the per-block layouts of field 29 too.
-2. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
+2. Review the records and curves loaded without a submission (7.6) with the partner: about half repeat submitted
+   records, 12 with another value; remove the repeats once understood.
+3. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
 
 Blocks named after a treatment are already migrated as factor records (6.4).
 
