@@ -351,6 +351,7 @@ async def revoke_affiliation(
 
 @graphql_mutation.field("accountsRequestOntologyRole")
 @graphql_payload
+@require_authentication
 async def request_ontology_role(
         _,
         info,
@@ -363,6 +364,7 @@ async def request_ontology_role(
 
 @graphql_mutation.field("accountsSetOntologyRole")
 @graphql_payload
+@require_authentication
 async def set_ontology_role(
         _,
         info,
@@ -376,6 +378,7 @@ async def set_ontology_role(
 
 @graphql_mutation.field("accountsSetWriteTeam")
 @graphql_payload
+@require_authentication
 async def set_write_team(
         _,
         info,
