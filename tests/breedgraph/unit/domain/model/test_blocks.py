@@ -61,3 +61,11 @@ def test_merge_blocks(lorem_text_generator, unit_stored):
     new_unit_graph = Block(nodes=[new_input])
     ug.merge_block(new_unit_graph, [ug.get_root_id()])
     assert ug.get_sinks(ug.get_root_id())
+
+
+def test_stored_unit_with_id_zero_keeps_its_id():
+    """Id 0 is a stored id, not a missing one: it must not be given a temporary id"""
+    unit = UnitStored(id=0, name="First unit", subject=1)
+    block = Block(nodes=[unit])
+    assert block.get_root_id() == 0
+    assert block.get_unit(0) is unit

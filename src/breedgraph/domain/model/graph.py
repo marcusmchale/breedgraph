@@ -67,7 +67,7 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
         :return: Returns node ID, useful if adding a model that doesn't have its own ID
         """
         if hasattr(model, 'id'):
-            node_id = model.id or self.temp_id
+            node_id = model.id if model.id is not None else self.temp_id
         else:
             node_id = self.temp_id
 
