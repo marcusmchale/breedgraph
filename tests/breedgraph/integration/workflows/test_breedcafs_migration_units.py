@@ -44,6 +44,7 @@ ITEMS = [
     item('25', 'Field', 'Parcel 1'),
     item('25_B1', 'Block', 'Shade', [25]),          # named after a treatment
     item('25_T1', 'Tree', None, ['25_B1', 25]),
+    item('1_T9', 'Tree', 'Catimor', ['1_B1', 1]),      # a duplicate of 1_T1
 ]
 FILES = {
     'item_name_subject_sources_sinks.csv': ITEMS,
@@ -120,6 +121,7 @@ def data_dir(tmp_path, monkeypatch):
     for name, rows in FILES.items():
         write_csv(tmp_path / name, rows)
     monkeypatch.setattr(units, 'BREEDCAFS_DATA_DIR', tmp_path)
+    monkeypatch.setattr(units, 'DUPLICATE_ITEMS', {'1_T9': '1_T1'})
     return tmp_path
 
 

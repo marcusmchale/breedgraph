@@ -41,7 +41,7 @@ RETURN collect(t.id), record.value, input.name
 ```
 
 It seems the most prudent strategy is to keep the units in and later resolve in discussion
-with the project partner ([private notes](private_notes.md#layouts)). Likely to remove te duplicates.
+with the project partner ([private notes](private_notes.md#layouts)). The second tree of each pair is left out of the migration (README §6.5).
 But we won't worry about a custom layout as it is more likely to be an error in data entry. 
 
 Consider whether the same thing happened at the field level to create the other duplications, 

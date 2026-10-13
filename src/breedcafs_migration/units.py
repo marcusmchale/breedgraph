@@ -9,7 +9,7 @@ Every other item is a unit in its field's block, `PRIVATE` and controlled by the
   - its germplasm, from item_variety.csv and germplasm_ids.csv, unless it was pooled from parents of different varieties,
     when its parents say what it contains;
   - positions: trees in their layout (unit_positions.csv), and samples at their location (sample_positions.csv).
-Items in skipped_items.csv are left out (README §6.5).
+Items in skipped_items.csv are left out (README §6.5), as are the duplicates in DUPLICATE_ITEMS.
 Blocks named after a treatment (TREATMENT_FIELDS) are not units: their trees are placed under the field,
 and get a record of the treatment. Branches get a record of their stratum (branch_strata.csv).
 These records are written to factor_records.csv, for the datasets phase.
@@ -48,6 +48,14 @@ SUBJECTS = {
     "Cherry": "Cherry",
     "Cherries": "Cherries",
     "Green Beans": "Green Beans",
+}
+
+# Trees registered twice, with the same name, variety, block, position and records, and no samples:
+# the second of each pair is left out, with its records (README §6.5)
+DUPLICATE_ITEMS = {
+    "24_T1080": "24_T1079",
+    "24_T1090": "24_T1089",
+    "24_T1100": "24_T1099",
 }
 
 # Fields whose blocks are named after a treatment -> the factor whose categories they are (README §6.4)
@@ -98,7 +106,7 @@ def coordinate(value: str) -> str:
 
 
 def read_items() -> dict[str, Item]:
-    skipped = {row['item_uid'] for row in read_csv('skipped_items.csv')}
+    skipped = {row['item_uid'] for row in read_csv('skipped_items.csv')} | set(DUPLICATE_ITEMS)
     items = {}
     for row in read_csv('item_name_subject_sources_sinks.csv'):
         uid = clean(row['item_uid'])

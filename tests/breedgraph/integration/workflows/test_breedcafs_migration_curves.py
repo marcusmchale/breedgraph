@@ -19,7 +19,7 @@ from breedgraph.domain.model.references import DataFileStored, DataFormat
 
 from breedcafs_migration import curves, programs
 from breedcafs_migration.bootstrap import MigrationContext
-from breedcafs_migration.curves import prepare_breedcafs_curves, DATA_FILE
+from breedcafs_migration.curves import prepare_breedcafs_curves, file_name
 from breedcafs_migration.datasets import DatasetIds
 from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds
@@ -45,7 +45,7 @@ FILES = {
         curve(A, '34_T1', T1, [1.0, 2.0, 3.0]),
         curve(A, '34_T2', T1, [4.0, 5.0, 6.0]),
         curve(B, '34_T1', T2, [7.0, 8.0, 9.0], text_time='00:00'),
-        curve(B, '34_T1', T1, [1.0, 2.0, 3.0]),  # repeats 34_T1's curve of submission A, the same day: in B's dataset
+        curve(B, '34_T1', T2, [1.0, 2.0, 3.0]),  # repeats 34_T1's curve of submission A, on another day: left out
     ],
     'input_details_curated.csv': [{'name': '"Fluorescence ~ Time"', 'terms': '[“Photosynthesis”]'}],
     'field_farm_region_country.csv': [{'field_uid': '34', 'country': '"Nicaragua"'}],
@@ -128,44 +128,54 @@ async def test_prepare_curves(uow_factory, curves_context, data_dir):
 
     ids = await prepare(uow_factory, curves_context)
 
-    assert set(ids.datasets) == {("Nicaragua", curves_context['variable'], *A), ("Nicaragua", curves_context['variable'], *B)}
-    assert ids.created == 3
+    key_a, key_b = ("Nicaragua", curves_context['variable'], *A), ("Nicaragua", curves_context['variable'], *B)
+    assert set(ids.datasets) == {key_a, key_b}
+    assert ids.created == 2
+    assert file_name(key_a) == "fluorescence_curves_nicaragua_1970-01-01T00-00-00.csv"
+    assert file_name(key_b) == "fluorescence_curves_nicaragua_without_submission.csv"
 
-    with open(data_dir / 'data' / DATA_FILE) as f:
+    # One data file per dataset
+    with open(data_dir / 'data' / file_name(key_a)) as f:
         rows = list(csv.reader(f))
     assert rows[0] == ["item_uid", "unit_id", "time", "replicate", *[str(x) for x in X]]
     assert rows[1] == ['34_T1', str(units['34_T1']), '2019-05-20', '0', '1.0', '2.0', '3.0']
-    assert rows[3][:3] == ['34_T1', str(units['34_T1']), '2019-05-21T00:00']
-    assert len(rows) == 5
+    assert len(rows) == 3
+    with open(data_dir / 'data' / file_name(key_b)) as f:
+        rows = list(csv.reader(f))
+    assert [row[:3] for row in rows[1:]] == [['34_T1', str(units['34_T1']), '2019-05-21T00:00']]
 
+    archival = Neo4jFileArchivalService(driver=uow_factory.driver, queue=None)
     async with uow_factory.get_uow(user_id=curves_context['context'].user_id) as uow:
-        reference = await uow.repositories.references.get(reference_id=ids.reference_id)
-        assert isinstance(reference, DataFileStored)
-        assert (reference.filename, reference.format, reference.content_type) == (DATA_FILE, DataFormat.CSV, "text/csv")
-        assert reference.schema['index_columns'] == ["item_uid", "unit_id", "time", "replicate"]
-        stored = data_dir / 'files' / reference.file_id
-        assert stored.read_bytes() == (data_dir / 'data' / DATA_FILE).read_bytes()
+        for key in (key_a, key_b):
+            reference_id, dataset_id = ids.datasets[key]
+            reference = await uow.repositories.references.get(reference_id=reference_id)
+            assert isinstance(reference, DataFileStored)
+            assert (reference.filename, reference.format, reference.content_type) == (file_name(key), DataFormat.CSV, "text/csv")
+            assert reference.schema['index_columns'] == ["item_uid", "unit_id", "time", "replicate"]
+            assert (data_dir / 'files' / reference.file_id).read_bytes() == (data_dir / 'data' / file_name(key)).read_bytes()
+            assert (await archival.get(reference.file_id)).archive_state is ArchiveState.ARCHIVAL_PENDING
 
-        dataset = await uow.repositories.datasets.get(dataset_id=ids.datasets[("Nicaragua", curves_context['variable'], *A)])
-        assert dataset.study == study_id
+            dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
+            assert dataset.study == study_id
+            assert dataset.references == [reference_id]
+            for r in dataset.records:
+                assert r.references == [reference_id]
+                assert r.value is None
+                assert [(g.id, g.code) for g in r.groups] == [(replicate, '0')]
+
+        dataset = await uow.repositories.datasets.get(dataset_id=ids.datasets[key_a][1])
         assert sorted(r.unit for r in dataset.records) == sorted(units.values())
-        loaded = await uow.repositories.datasets.get(dataset_id=ids.datasets[("Nicaragua", curves_context['variable'], *B)])
-        assert [r.unit for r in loaded.records] == [units['34_T1']] * 2
         for r in dataset.records:
-            assert r.references == [ids.reference_id]
-            assert r.value is None
             assert (r.start, r.end) == (datetime64('2019-05-20'), datetime64('2019-05-20'))
-            assert [(g.id, g.code) for g in r.groups] == [(replicate, '0')]
+        loaded = await uow.repositories.datasets.get(dataset_id=ids.datasets[key_b][1])
+        assert [r.unit for r in loaded.records] == [units['34_T1']]
 
         # Joined the scope of the other dataset of submission A
         program = await uow.repositories.programs.get(study_id=study_id)
         scopes = [set(s.dataset_ids) for s in program.get_study(study_id).get_grouping(grouping_id=replicate).dataset_scopes]
-        other = curves_context['datasets'].datasets[("Nicaragua", next(iter(curves_context['datasets'].datasets))[1], *A)]
-        assert {other, ids.datasets[("Nicaragua", curves_context['variable'], *A)]} in scopes
-
-    archival = Neo4jFileArchivalService(driver=uow_factory.driver, queue=None)
-    assert (await archival.get(reference.file_id)).archive_state is ArchiveState.ARCHIVAL_PENDING
+        other = next(iter(curves_context['datasets'].datasets.values()))
+        assert {other, ids.datasets[key_a][1]} in scopes
 
     again = await prepare(uow_factory, curves_context)
     assert again.created == 0
-    assert (again.reference_id, again.datasets) == (ids.reference_id, ids.datasets)
+    assert again.datasets == ids.datasets

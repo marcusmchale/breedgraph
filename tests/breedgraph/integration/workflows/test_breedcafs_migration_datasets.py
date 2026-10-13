@@ -48,8 +48,9 @@ RECORDS = [
     record(A, '1_T1', 'Set harvest time', '12:00', record_type='Property'),
     record(B, '22_T1', 'Shade level', '40', record_type='Condition', start='1438430400000', end='False'),
     record(B, '22_T1', 'Tree height', '2', T1, '0'),
-    # Loaded without a submission, one repeating a record of submission A (same item, input and day): their own dataset
-    record(NONE, '1_T1', 'Tree height', '12.5', T1, '0'),
+    # Loaded without a submission: one repeating a record of submission A (same item, input, value and replicate),
+    # left out whatever its date; one not, kept in a dataset of its own
+    record(NONE, '1_T1', 'Tree height', '12.5', T3, '0'),
     record(NONE, '1_T1', 'Tree height', '11', T3, '0'),
 ]
 FILES = {
@@ -164,7 +165,8 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         ('Nicaragua', concept_of('Tree height'), *B),
         ('Nicaragua', datasets_context['ontology'].design_factors['Stratum'], DESIGN, ''),
     }
-    assert ids.records == 12
+    assert ids.records == 11
+    assert ids.repeats_left_out == 1
 
     async with uow_factory.get_uow(user_id=datasets_context['context'].user_id) as uow:
         async def dataset(study, concept, submission=A):
@@ -173,8 +175,8 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         heights = await dataset('Vietnam', concept_of('Tree height'))
         assert heights.study == studies['Vietnam']
         assert sorted((r.unit, r.value) for r in heights.records) == sorted([(units['1_T1'], '12.5'), (units['1_T2'], '13')])
-        loaded = (await dataset('Vietnam', concept_of('Tree height'), NONE)).records
-        assert sorted((r.unit, r.value) for r in loaded) == sorted([(units['1_T1'], '12.5'), (units['1_T1'], '11')])
+        [loaded] = (await dataset('Vietnam', concept_of('Tree height'), NONE)).records
+        assert (loaded.unit, loaded.value) == (units['1_T1'], '11')
         replicate = datasets_context['programs'].replicate_groupings['Vietnam']
         for r in heights.records:
             # The date alone, as no time of day was entered

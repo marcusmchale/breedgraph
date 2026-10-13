@@ -1,5 +1,7 @@
 # BreedCAFS → BreedGraph Migration Plan
 
+To run the migration, follow [RUNBOOK.md](RUNBOOK.md).
+
 ## Guiding Principles
 
 **Migration is performed by a dedicated BreedCAFS Migration User**, affiliated with a dedicated **BreedCAFS Migration Team** under the **University of Galway** organisation.
@@ -289,6 +291,10 @@ as they have no data and no other item depends on them:
 
 Saved this as skipped_items.csv. No record in records.csv or curves.csv belongs to these items.
 
+Also left out are three trees registered twice in field 24 (row 29, block 24_B5): 24_T1080, 24_T1090 and 24_T1100
+repeat 24_T1079, 24_T1089 and 24_T1099 in name, variety, block, position and their one record (planting date),
+and have no samples. The second of each pair is left out with its record (`DUPLICATE_ITEMS` in units.py).
+
 ---
 
 # 7. Inputs, Variables, Factors and Records
@@ -317,17 +323,20 @@ with:
 
 ### Curve data
 
-The curve values are collated into one CSV data file, fluorescence_curves.csv (curves.py), an immutable migration artefact:
-a row per curve with its BreedCAFS item uid, unit id, time (ISO 8601) and replicate code, then its 118 values,
+The curves are collated into CSV data files (curves.py), immutable migration artefacts, one per curve dataset,
+so that access to the files can follow access to the datasets: e.g. fluorescence_curves_nicaragua_2020-07-01T12-00-55.csv,
+named after the Study and the submission time.
+Each has a row per curve with its BreedCAFS item uid, unit id, time and replicate code, then its 118 values,
 one column for each of the times, in seconds (1e-05 to 1.0), shared by all curves and given as the column names.
-No Person information is included. Times are as entered (7.6): to the minute for the 5,084 curves with a `text_time`,
-the date alone for the 16 without.
+No Person information is included. Times are as entered (7.6): to the minute, as all the submitted curves have a `text_time`.
 
-The file is stored as an upload is, referenced as a CSV data file whose schema describes the columns,
-and queued for archival. Each curve is a record of Fluorescence ~ Time (PocketPEA) for its unit, referencing the file;
-its row is the one with its unit, time and replicate. As in 7.6, a dataset holds the curves of one submission
-(5: four submissions and the curves loaded without one), joining the Replicate scope of its submission's other datasets.
-Saved curve_ids.csv: the data file reference and the curve datasets.
+Each file is stored as an upload is, referenced as a CSV data file whose schema describes the columns,
+and queued for archival. As in 7.6, a dataset holds the curves of one submission (4), joining the Replicate scope of its submission's
+other datasets. The 16 curves loaded without a submission all repeat submitted curves, so are left out.
+Each curve is a record of Fluorescence ~ Time (PocketPEA) for its unit, referencing its dataset's file,
+which the dataset also references; its row is the one with its unit, time and replicate.
+All curves have replicate code 0; on 16 tree-days, two submitted curves a few minutes apart look like
+replicates recorded without codes (§11). Saved curve_ids.csv: each curve dataset and its data file reference.
 
 ---
 
@@ -407,6 +416,8 @@ Each Study has a dataset-scoped Replicate grouping, of the Replicate record grou
 scoped in the datasets phase (7.6). Saved study_ids.csv: each Study, its id and its Replicate grouping.
 Each Study's start and end are the first and last times of its records: record times, and condition starts and ends
 where given (BreedCAFS stores False for most). French Guiana has no timed records, so no dates.
+Nicaragua starts in August 2015, before BreedCAFS: data recorded earlier was submitted within BreedCAFS,
+and a Study may start before its Program.
 
 ## 7.6 Datasets
 
@@ -433,13 +444,16 @@ The factor records of factor_records.csv (block treatments and branch strata) ar
 
 Records loaded without a submission (1,096 records, all from field 25 except 16 apparatus records of field 34,
 and the 16 curves of 7.1) are one Dataset per variable and Study, as they were loaded apart from any submission.
-About half repeat submitted records: 528 have a submitted record of the same item, input, day and value,
-12 one of the same item, input and day with another value, and 556 none; all 16 curves repeat submitted curves.
-They are kept, in their own Datasets, to help understand what went wrong (§11).
+All of them repeat submitted records: the 16 curves exactly, and each of the 1,080 field 25 records is one of the
+submitted readings (same item, input, value and replicate code), the first of the three readings of its replicate,
+though two of the three sessions are dated differently (29 rather than 25 November 2018, and a session across midnight).
+They look like a manual submission script, run before the users uploaded their own versions of the same data.
+So records and curves loaded without a submission are left out where they repeat a submitted one, whatever the date,
+as the submitted dates are trusted; any that repeat none would be kept, in Datasets of their own. None are left.
+The plan is then 1,175 Datasets with 265,651 records, without the 3 records of the duplicate trees (§6.5).
 
 Each Study and submission is one transaction, recorded in dataset_ids.csv as it completes,
 so a second run creates only the Datasets not yet created.
-The plan is 1,187 Datasets with 266,734 records (51,758 of them factor records).
 
   * Replicate codes become a dataset-scoped record grouping on each Study,
     with one scope per submission: the Datasets of that submission in the Study.
@@ -452,22 +466,32 @@ The plan is 1,187 Datasets with 266,734 records (51,758 of them factor records).
 
 # 8. Validation and Reconciliation
 
-Before transferring control from the migration team, validate:
+Before transferring control from the migration team, run the validation (validate.py) as the migration user:
 
-* Source/target entity counts, accounting for the items in skipped_items.csv.
-* Every expected BreedCAFS ID has a corresponding mapping.
-* All cross-references resolve.
-* Unit hierarchies are valid.
-* Location hierarchies are valid.
-* Layout references resolve.
-* Germplasm references resolve.
-* Variable and Factor references resolve.
-* Curve data has the expected structure.
-* Time values parse correctly.
-* Only the curated Persons have been imported, each with a name only, and every `person` value maps to at least one Person.
-* Every dataset's contributors match the `person` values of its records.
-* All migrated data remains controlled by the migration team.
-* All migrated data has the expected initial release state.
+```bash
+python -m breedcafs_migration.main validate --user-id <id> --team-id <id>
+```
+
+It only reads. It works out again, from the extracted and curated files, what should have been migrated, and compares
+that with the mapping files written by the run and with what is stored. It writes validation_report.md, a table of the
+checks, to the data directory, and exits with 3 if any check fails. The checks:
+
+* Every input maps to a stored variable or factor, and the design factors and subjects are in the ontology.
+* Every field and sample location maps to a stored location, every planned layout to a stored layout,
+  and every variety to stored germplasm.
+* Every item maps to a unit, except the skipped items, the duplicates (§6.5) and the blocks named after a treatment (§6.4).
+  Each unit is stored with its subject, its parents, its germplasm (none for pooled samples of mixed varieties)
+  and, for trees, its position in its layout.
+* Every study is mapped. Every planned dataset is mapped and stored, in its study and for its variable or factor,
+  with the planned number of records, so every record parsed against its scale. The total number of records matches.
+* Every curve dataset is stored with its curves, each referencing the dataset's data file. The file is in the file
+  store, and its hash matches its archival record.
+* The Persons are those in persons.csv, stored with their names and institutions, and each dataset has as contributors
+  exactly the Persons who recorded it (§7.6).
+* The fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets, curve data files
+  and Persons are controlled by the migration team alone, and `PRIVATE`.
+
+The dry run (`BREEDCAFS_DRY_RUN=1`) runs the validation after the migration and fails if any check fails.
 
 Resolve any migration errors before proceeding to handover.
 
@@ -505,8 +529,8 @@ Once migrated data has been reviewed:
 
 1. Resolve the duplicate positions in field 5's July 2018 planting with the partner: whether each position is a plot of several trees,
    and what the tree codes (e.g. "7-ED6-1D2") mean beyond the field they cite. Review the per-block layouts of field 29 too.
-2. Review the records and curves loaded without a submission (7.6) with the partner: about half repeat submitted
-   records, 12 with another value; remove the repeats once understood.
+2. The records and curves loaded without a submission (7.6) are left out, as all repeat submitted records;
+   the submitted dates are kept where they differ (e.g. 25 rather than 29 November 2018 for La Hilda).
 3. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
 
 Blocks named after a treatment are already migrated as factor records (6.4).
@@ -533,7 +557,7 @@ BreedCAFS ID → BreedGraph ID
 
 These mappings provide the identifiers required by subsequent migration stages and provide a persistent record of the migration.
 
-The migration artefacts should be retained after migration for audit, troubleshooting and provenance purposes.
+The migration artefacts, with the validation report (§8), should be retained after migration for audit, troubleshooting and provenance purposes.
 
 The BreedCAFS Migration Team should likewise not be removed immediately after migration;
 it can remain as historical provenance for data that was initially migrated under its control.

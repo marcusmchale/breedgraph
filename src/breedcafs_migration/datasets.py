@@ -13,13 +13,14 @@ Each record in records.csv is assigned:
     as BreedCAFS set the time of day of dates to 12:00;
   - its replicate code, in the study's Replicate grouping.
 A dataset holds the records of one variable or factor, from one submission, in one study.
-Records loaded without a submission (the photosynthesis data) are one dataset per variable and study.
-About half of them repeat submitted records (same item, input and day); they are kept, in these datasets of their own.
+Records loaded without a submission (by a manual script, README §7.6) are left out where they repeat a submitted record:
+the same item, input, value and replicate code, whatever the date, as the submitted dates are trusted.
+Any that do not repeat one are kept, one dataset per variable and study; in the extracted data, all repeat one.
 The Replicate grouping of each study is scoped to the datasets of each submission,
 so replicate codes are only compared within the records submitted together.
 The factor records of factor_records.csv (block treatments and branch strata) are one dataset per factor and study.
 
-Left out: the apparatus records (used to choose the variable), "Set harvest time" records (all the default "12:00",
+Left out: the records of duplicate items (units.DUPLICATE_ITEMS), the apparatus records (used to choose the variable), "Set harvest time" records (all the default "12:00",
 the harvest date being recorded), and curves (curves.py), whose complex scale needs a data file.
 
 Each study and submission is one transaction, recorded in dataset_ids.csv as it completes,
@@ -38,6 +39,7 @@ from breedgraph.service_layer.handlers.events.datasets import get_scale_and_cate
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds, study_for, input_terms, field_countries
+from breedcafs_migration.units import DUPLICATE_ITEMS
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 import logging
@@ -68,6 +70,7 @@ class DatasetIds:
     datasets: dict[DatasetKey, int] = field(default_factory=dict)
     records: int = 0
     created: int = 0
+    repeats_left_out: int = 0
 
 
 def read_csv(name: str) -> list[dict[str, str]]:
@@ -103,6 +106,7 @@ class DatasetPlan:
             self.apparatus_options.setdefault(input_name, set()).add(apparatus)
         self.datasets: dict[DatasetKey, list[RecordPlan]] = {}
         self.label: dict[int, OntologyEntryLabel] = {}
+        self.repeats_left_out = 0
 
     def study(self, input_name: str, item_uid: str) -> str:
         return study_for(self.terms.get(input_name, set()), self.countries[item_uid.split('_')[0]])
@@ -129,8 +133,13 @@ class DatasetPlan:
         # JIP-test parameters: the inputs measured only with PocketPEA
         jip_inputs = {name for name, options in self.apparatus_options.items() if options == {POCKET_PEA}}
         jip_times = {(r['item_uid'], r['time']) for r in rows if r['input'] in jip_inputs}
+        repeat_key = lambda r: (r['item_uid'], r['input'], r['value'], r['replicate'])
+        submitted = {repeat_key(r) for r in rows if r['submission_time']}
         for row in rows:
-            if row['input'] in LEFT_OUT_INPUTS:
+            if row['input'] in LEFT_OUT_INPUTS or row['item_uid'] in DUPLICATE_ITEMS:
+                continue
+            if not row['submission_time'] and repeat_key(row) in submitted:
+                self.repeats_left_out += 1
                 continue
             label, concept = self.ontology.inputs[(row['input'], self.apparatus(row, recorded, jip_times))]
             self.label[concept] = label
@@ -197,7 +206,9 @@ async def prepare_breedcafs_datasets(
     plan = DatasetPlan(ontology)
     plan.read_records()
     plan.read_factor_records()
-    ids = DatasetIds(datasets=read_mapping())
+    ids = DatasetIds(datasets=read_mapping(), repeats_left_out=plan.repeats_left_out)
+    if plan.repeats_left_out:
+        logger.info(f"Left out {plan.repeats_left_out} records loaded without a submission, repeating submitted records")
     scales = {}
 
     for (study, submission_time, submitter_id), keys in plan.submissions().items():
