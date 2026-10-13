@@ -411,15 +411,19 @@ restart to load config
     sudo systemctl restart redis.service
 
 ### Run with uvicorn
-To test with the uvicorn server, go to the root of the project, import the envars from instance directory and run, e.g.
-  
-    . ./instace/envars.sh
-    pip install uvicorn
+To test with the uvicorn server, go to the root of the project, export the environment variables from the instance directory and run, e.g.
+
+    pip install -e .[server]
+    set -a
+    . ./instance/breedgraph.env
+    . ./instance/private.breedgraph.env
+    set +a
     uvicorn src.breedgraph.main:app --log-level debug
 
-If you are cloning this project you won't have all the envars provided
-and will need to modify the ./instance/envars_public.sh file 
-to include the required values for neo4j connection, mail hosting and log file creation
+./instance/breedgraph.env lists every variable the API reads, with public defaults.
+Values in ./instance/private.breedgraph.env override them, and this file is not tracked by git.
+If you are cloning this project, create ./instance/private.breedgraph.env
+with your own values for secrets, the neo4j connection, mail hosting and log file creation.
 
 
 ### Nginx
