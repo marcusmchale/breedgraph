@@ -117,7 +117,6 @@ Create, with ordinal axes (1.2):
 
 * Row and Tree
 * Row, Tree and Stratum, a child of Row and Tree, for branch positions
-* Grid, for the different coordinate system of field 5
 
 Blocks are units (6.4), not layouts.
 
@@ -150,19 +149,25 @@ Saved location_ids.csv: each BreedCAFS field and its location.
 From field_layout_types.csv (1.2.1), create the layouts at each Field's location:
 
 * `row_and_tree`: a "Row and Tree" layout for the Field, or one for each Block where rows and trees are numbered per block (field 29).
-  Field 5 uses a different coordinate system, so has a "Grid" layout instead.
+* Field 5 (ED5, Vietnam) has two plantings, each with a "Row and Tree" layout:
+  * 368 trees in Block 1 and Block 2, planted on 26 June 2018, with a variety, one tree to each position (rows 1–23, columns 1–16).
+  * 1,178 trees planted on 15 July 2018 in rows and columns of their own (rows 1–12, columns 1–7),
+    the "ED5 July 2018 planting: Row and Tree" layout. They have no variety, and are named with a code citing another
+    Vietnam field (ED2–ED12), e.g. "7-ED6-1D2", probably the field they were collected from.
+    Many share a position (73 positions, 2 to 38 trees each). Their positions are migrated as recorded,
+    and the duplicate positions are to be resolved with the partner (§11).
+  Trees are assigned to the plantings by name (`PLANTINGS` and `tree_group` in layouts.py).
 * `row_tree_and_stratum`: also a "Row, Tree and Stratum" layout for the Field, regardless of the other layouts.
 
-Tree positions are recorded in the Row and Tree (or Grid) layout, and branch positions,
+Tree positions are recorded in the Row and Tree layout, and branch positions,
 with the stratum recorded for the branch, in the Row, Tree and Stratum layout.
 Positions come from unit_positions.csv (1.2.2), whose `layout_level` and `layout_name` give the layout for each unit.
 
-Store:
+Each layout is the root of its own arrangement (layouts.py), as axis names cannot repeat along a branch of an arrangement.
+Layouts are named after their Field (and Block), e.g. "ED1: Row and Tree", with axes Row and Tree, or Row, Tree and Stratum.
+They are matched by name and type at the Field's location, or created `PRIVATE`, controlled by the migration team.
 
-```text
-BreedCAFS Block ID → BreedGraph Layout ID
-BreedGraph Layout ID → BreedCAFS Partner
-```
+Saved layout_ids.csv: each Field (and Block or planting) and BreedCAFS layout type, and its layout.
 
 ---
 
@@ -484,7 +489,8 @@ The mechanical migration itself should not make uncertain publication decisions.
 
 Once migrated data has been reviewed:
 
-1. Review the Grid layout of field 5 and the per-block layouts of field 29 with the partners, and rename them to suit.
+1. Resolve the duplicate positions in field 5's July 2018 planting with the partner: whether each position is a plot of several trees,
+   and what the tree codes (e.g. "7-ED6-1D2") mean beyond the field they cite. Review the per-block layouts of field 29 too.
 2. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
 
 Blocks named after a treatment are already migrated as factor records (6.4).

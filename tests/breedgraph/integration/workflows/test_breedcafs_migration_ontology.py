@@ -90,7 +90,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
 
     assert set(ids.subjects) == {s[0] for s in ontology.SUBJECTS}
     assert set(ids.location_types) == {"Country", "Region", "Farm", "Field", "Research Center"}
-    assert set(ids.layout_types) == {"Row and Tree", "Row, Tree and Stratum", "Grid"}
+    assert set(ids.layout_types) == {"Row and Tree", "Row, Tree and Stratum"}
     assert set(ids.inputs) == {
         ("Total Boron", ""), ("Tree rust symptoms", ""), ("Set planting date", ""),
         ("Fᵥ / Fₘ", "PocketPEA"), ("Fᵥ / Fₘ", "MiniPAM")

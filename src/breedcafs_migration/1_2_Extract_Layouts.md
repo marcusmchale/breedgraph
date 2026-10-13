@@ -77,8 +77,9 @@ One field (29) this appears to be a true case of distinct coordinates per block.
 
 Another field (5) appears to be using a different coordinate system entirely,
 We will need to discuss this with the project partner ([private notes](private_notes.md#layouts)).
-But for now we will need to create a unique layout definition in the ontology describing the abstract concept.
-This might be a grid or similar.
+It turns out to have two plantings (README §4): trees in its blocks, one to each position,
+and a later planting of trees named with codes citing other fields, in rows and columns of their own, many sharing a position.
+Each has a "Row and Tree" layout; a grid would imply more than is known.
 
 We also need to consider where we recorded Stratum data, 
 as these fields will require this additional layout for defining branch positions.
@@ -89,7 +90,7 @@ MATCH (f:Field)<-[:IS_IN|FROM*]-(item:Item)<-[:FOR_ITEM]-(ii:ItemInput)-[:FOR_IN
 RETURN collect(distinct f.uid)
 ```
 
-So we need to create three layout types in the ontology (README §2.3), "Row and Tree", "Row, Tree and Stratum", and "Grid".
+So we need to create two layout types in the ontology (README §2.3), "Row and Tree" and "Row, Tree and Stratum".
 
 And we need to summarise which layout type is required for any location with either trees with row and column data or stratum records.
 ```cypher

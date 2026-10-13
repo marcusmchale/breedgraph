@@ -61,7 +61,6 @@ LAYOUT_TYPES = [
         [AxisType.ORDINAL, AxisType.ORDINAL, AxisType.ORDINAL],
         ["Row and Tree"]
     ),
-    ("Grid", "Positions in a grid of rows and columns", [AxisType.ORDINAL, AxisType.ORDINAL], []),
 ]
 
 SCALE_TYPES = {'Date': ScaleType.DATE}
