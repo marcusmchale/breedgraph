@@ -1,3 +1,3 @@
-MATCH (u:User {ontology_role: "admin"})
+MATCH (u:User {ontology_role: "ADMIN"})
 WHERE u.id <> $user_id
-RETURN count(u) <= 1
+RETURN count(u) = 0

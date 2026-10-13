@@ -1,6 +1,6 @@
 MATCH (commit:OntologyCommit)
 WHERE commit.version < $last_version
-MATCH (commit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User)
+MATCH (commit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User|DeletedUser)
 RETURN commit {
        . *,
          time:committed.time,

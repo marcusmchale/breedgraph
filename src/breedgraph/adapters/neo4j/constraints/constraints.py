@@ -30,3 +30,11 @@ class Neo4jConstraintsHandler(AbstractConstraintsHandler):
         )
         record = await result.single(strict=True)
         return record.value()
+
+    async def sole_admin_teams(self) -> list[int]:
+        result: AsyncResult = await self.tx.run(
+            queries['constraints']['sole_admin_teams'],
+            user_id=self.user_id
+        )
+        record = await result.single(strict=True)
+        return record.value()

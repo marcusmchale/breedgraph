@@ -19,6 +19,11 @@ class AbstractAccountsView(ABC):
     async def check_any_account(self) -> bool:
         ...
 
+    @abstractmethod
+    async def user_exists(self) -> bool:
+        """False for a deleted account, whose login token is still validly signed"""
+        ...
+
     async def get_user(self) -> UserOutput | None:
         if not self.user_id:
             return None

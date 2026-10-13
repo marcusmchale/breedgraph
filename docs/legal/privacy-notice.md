@@ -90,7 +90,8 @@ If you send a message, your name and email address are given to the recipient.
 You have rights to access, correct and erase your personal data, to restrict or object to its processing, and to data portability, subject to the conditions in the GDPR, including exemptions for research.
 
 In BreedGraph:
-- **Your account:** view and change your details in your account settings. [To delete your account, contact us at the address above; this is not yet possible in BreedGraph itself.]
+- **Your account:** view and change your details in your account settings. You can delete your account in your account settings. You are asked whether to erase the Person record linked to it as well, which is the default.
+  Deleting removes your name, email address, password and team memberships. What you contributed stays attributed to an anonymous account number.
 - **A Person record crediting you:** register (or ask to be invited) and ask to link the record to your account. Once linked, you can see it in full, correct your name, unlink it, or **erase it**.
   Erasing removes your name and teams and keeps only an anonymous record number, so research data stays attributed without identifying you. You can also ask the organisation that recorded you, using its privacy contact.
 - **Anything else:** contact us, or the privacy contact of the organisation concerned.
@@ -114,7 +115,8 @@ Backups of the database are kept for [period] on [the archive server]. If we res
 1. **Lawful bases** for account data, and for Person records by the university and by partner organisations.
 2. **Art. 89 / section 42 DPA 2018**: whether the research provisions apply as described, and which safeguards to name.
 3. **Retention periods** to fill in: security logs, application and access logs, backups.
-4. **Account deletion**: not yet implemented in BreedGraph; requests are handled manually until it is. Proposed: deleting an account offers to erase the linked Person record, erasing by default.
+4. **Account deletion**: implemented. Deleting an account removes the name, email address, password and memberships, and keeps contributions attributed to an anonymous account number. It offers to erase the linked Person record, erasing by default.
+   Still to do: deletions are not yet in the erasure log, so restoring an older backup would bring a deleted account back.
 5. **Access logs**: whether IP addresses are logged, and for how long, depends on the deployment's web server configuration.
 6. **Processors** and where data is hosted.
 7. **Public release of Person records**: organisations can release a Person record to the public. The data processing terms make this their decision and require their own notice to cover it.

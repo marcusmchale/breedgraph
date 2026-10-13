@@ -103,10 +103,16 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             yield self.record_to_account(record)
 
     async def _remove(self, account: AccountStored):
-        await self.tx.run(
-            queries['accounts']['remove_unverified_user'],
-            email_lower=account.user.email.casefold()
-        )
+        if account.user.email_verified:
+            await self.tx.run(
+                queries['accounts']['delete_user'],
+                user_id=account.user.id
+            )
+        else:
+            await self.tx.run(
+                queries['accounts']['remove_unverified_user'],
+                email_lower=account.user.email.casefold()
+            )
 
     async def _update(self, account: TrackableProtocol|AccountStored):
         logger.debug("update user in neo4j")

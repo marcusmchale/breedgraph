@@ -124,6 +124,14 @@ class RedisStateStore(AbstractStateStore):
             pipe.zrem(ANALYSIS_LEASES, analysis_id)
             await pipe.execute()
 
+    async def _remove_user_index(self, user_id: int, submission_ids: List[str]) -> None:
+        await self.connection.delete(
+            *submission_ids,
+            f"user:{user_id}:submissions",
+            f"user:{user_id}:analyses",
+            f"user:{user_id}:files"
+        )
+
     async def _store_user_file(self, agent_id: int, file_id: str):
         await self.connection.sadd(
             f"user:{agent_id}:files",

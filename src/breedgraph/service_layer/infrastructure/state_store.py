@@ -449,6 +449,21 @@ class AbstractStateStore(ABC):
     async def _remove_user_file(self, agent_id, file_id) -> None:
         ...
 
+    """ Deleted accounts """
+    async def remove_user_state(self, user_id: int) -> None:
+        """
+        Delete a user's submissions and analyses, cancelling any queued.
+        Uploaded files are kept, as they are attached to References in the graph.
+        """
+        for analysis_id in await self._get_user_analyses(user_id):
+            await self._delete_analysis(analysis_id)
+        await self._remove_user_index(user_id, await self._get_user_submissions(user_id))
+
+    @abstractmethod
+    async def _remove_user_index(self, user_id: int, submission_ids: List[str]) -> None:
+        """Delete the given submissions and the user's sets of submissions, analyses and files"""
+        ...
+
     """
     Brute force protection state
     

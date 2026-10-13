@@ -8,7 +8,8 @@ from breedgraph import config
 
 from breedgraph.service_layer.infrastructure import (
     AbstractUnitOfWorkFactory,
-    AbstractAuthService
+    AbstractAuthService,
+    AbstractStateStore
 )
 
 
@@ -145,6 +146,45 @@ async def edit_user(
         if cmd.password_hash is not None:
             account.user.password_hash = cmd.password_hash
         await uow.commit()
+
+@handlers.command_handler()
+async def delete_account(
+        cmd: commands.accounts.DeleteAccount,
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore
+):
+    async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=cmd.user_id)
+        if account is None:
+            raise NoResultFoundError(f"Account not found with user id {cmd.user_id}")
+        if account.user.ontology_role == OntologyRole.ADMIN and await uow.constraints.is_last_ontology_admin():
+            raise IllegalOperationError(
+                "This would result in no ontology admins, please select another admin before deleting your account"
+            )
+        sole_admin_teams = await uow.constraints.sole_admin_teams()
+        if sole_admin_teams:
+            raise IllegalOperationError(
+                f"You are the only admin of teams {sorted(sole_admin_teams)}, "
+                f"please make someone else an admin before deleting your account"
+            )
+
+        person = await uow.repositories.people.get(user_id=cmd.user_id)
+        if person is not None:
+            controller = await uow.controls.get_controller(person.label, person.id)
+            admin_teams = uow.controls.access_teams[Access.ADMIN]
+            if cmd.erase_person:
+                person.erase(agent_id=cmd.user_id, controller=controller, admin_teams=admin_teams)
+                person.events.append(events.people.PersonErased(person_id=person.id, erased_at=person.erased_at))
+            else:
+                person.unlink(cmd.user_id, controller, admin_teams)
+            # Stored before the account is removed, as the repository authorises it by the stored link
+            await uow.repositories.people.update_seen()
+
+        await uow.repositories.accounts.remove(account)
+        await uow.commit()
+
+    # Events from a removed aggregate are not collected, so working state is cleared here
+    await state_store.remove_user_state(cmd.user_id)
 
 @handlers.command_handler()
 async def verify_email(

@@ -10,7 +10,7 @@ from breedgraph.domain.commands.accounts import (
     VerifyEmail,
     InviteUser, CancelInvitation, ResendInvitation, TeamInvitationInput,
     RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation,
-    SetOntologyRole, SetWriteTeam,
+    SetOntologyRole, SetWriteTeam, DeleteAccount,
     RequestOntologyRole
 )
 from breedgraph.domain.events.accounts import (
@@ -177,6 +177,50 @@ async def login(
             if brute_force_service:
                 await brute_force_service.record_failed_attempt(username)
             raise UnauthorisedOperationError(fail_message)
+
+
+@graphql_mutation.field("accountsDeleteAccount")
+@graphql_payload
+@require_authentication
+async def delete_account(
+        _,
+        info,
+        password: str,
+        erase_person: bool | None = True
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"Delete account for user: {user_id}")
+    fail_message = "Incorrect password"
+
+    async with info.context['bus'].uow_factory.get_uow(user_id=user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=user_id)
+        if account is None:
+            raise UnauthorisedOperationError(fail_message)
+        username = account.user.name
+        password_hash = account.user.password_hash
+
+    # Failed attempts count towards the login lockout, so this can't be used to guess the password
+    brute_force_service = info.context.get('brute_force_service')
+    if brute_force_service and await brute_force_service.is_locked_out(username):
+        ttl = await brute_force_service.get_lockout_ttl(username)
+        raise UnauthorisedOperationError(f"Too many failed attempts. Please try again in {ttl} seconds.")
+    if not password_hash or not bcrypt.checkpw(password.encode(), password_hash.encode()):
+        if brute_force_service:
+            await brute_force_service.record_failed_attempt(username)
+        raise UnauthorisedOperationError(fail_message)
+
+    await info.context['bus'].handle(DeleteAccount(user_id=user_id, erase_person=erase_person is not False))
+
+    info.context["cookies_to_set"].append({
+        "key": "auth_token",
+        "value": "",
+        "max_age": 0,
+        "httponly": True,
+        "secure": True,
+        "samesite": "strict",
+        "path": "/"
+    })
+    return True
 
 
 @graphql_mutation.field("accountsLogout")

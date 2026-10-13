@@ -123,6 +123,6 @@ def get_controllers(label:ControlledModelLabel):
         RETURN
             entity.id as entity_id,
             collect({{team: team.id, release: control.release, time: control.time, user: control.user}}) as controls,
-            [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User) |
+            [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
             {{user:user.id, time: write.time}}] as writes
    """

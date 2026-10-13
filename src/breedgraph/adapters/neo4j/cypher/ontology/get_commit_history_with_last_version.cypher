@@ -1,4 +1,4 @@
-MATCH (commit:OntologyCommit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User)
+MATCH (commit:OntologyCommit)<-[committed:COMMITTED]-(:UserOntologyCommits)<-[:COMMITTED]-(user:User|DeletedUser)
 WHERE commit.version <= $last_version
 RETURN commit {
        . *,

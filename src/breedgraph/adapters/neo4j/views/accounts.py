@@ -27,6 +27,12 @@ class Neo4jAccountsView(AbstractAccountsView):
             record = await result.single()
             return record.value()
 
+    async def user_exists(self) -> bool:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(queries['accounts']['user_exists'], user_id=self.user_id)
+            record = await result.single(strict=True)
+            return record.value()
+
     async def _get_user(self) -> UserOutput:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(queries['accounts']['get_user'], user_id=self.user_id)

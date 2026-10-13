@@ -281,7 +281,15 @@ The subject may lower the release level, but cannot hide the record from the tea
 ### Deleting an account
 
 The user is asked whether to erase their Person record as well. Erasure is the default. Either way the link is removed.
-Accounts cannot be deleted yet (verified accounts are protected); this applies when account deletion is added.
+
+`accountsDeleteAccount(password, erasePerson = true)` deletes the user's own account after checking the password (failures count towards the login lockout), and clears the login cookie.
+- Refused while the user is the only ontology admin, or the only authorised admin of a team, counting heritable admins of ancestor teams.
+- The User node is **tombstoned**: relabelled `DeletedUser`, keeping only `id` and `deleted_at`. Affiliations, the Person link, claims and pending invitations they sent are removed, as are their archive retrieval requests.
+  Provenance (contributions, ontology commits and lifecycle changes) stays attributed to the anonymous id; user ids are never reused.
+- Login tokens cannot be revoked, so the GraphQL context checks the user still exists on every request.
+- Their submissions and analyses in Redis are deleted, cancelling queued analyses. Uploaded files are kept, as they belong to References.
+- Unverified accounts are still deleted outright, when someone registers again with the same email.
+- Not yet covered by the erasure log: restoring a backup taken before the deletion brings the account back.
 
 ## 7. Decisions
 
@@ -326,7 +334,7 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 9. **Claiming and subject rights.** Done: linking through invitations and through requests approved by admins, unlinking, and the linked user's rights from step 1.
    Person changes are stored field by field, so changes stored from the id-only form, such as a request, do not overwrite the record.
    9b, done: contacts and messaging (§4).
-   Still to do: the account-deletion option, once account deletion exists.
+   Done: deleting an account erases the linked Person by default (§6).
 10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes. Tested against a fake ORCID service and a mocked token exchange; to test against ORCID, register an application in the sandbox and set the credentials.
 11. **Privacy notice and data processing terms.** Drafted for the DPO: `docs/legal/privacy-notice.md` and `docs/legal/data-processing-terms.md`, each ending with the questions to settle.
 

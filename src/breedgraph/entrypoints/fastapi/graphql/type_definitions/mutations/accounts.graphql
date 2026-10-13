@@ -34,6 +34,17 @@ extend type Mutation {
     ): BooleanPayload!
     accountsLogout: BooleanPayload!,
     """
+    Delete your own account, confirming with your password, and log out.
+    Your contributions stay attributed to an anonymous user id.
+    Refused while you are the only ontology admin or the only admin of a team.
+    Before the user confirms, ask whether to erase their linked Person as well, with erasing as the default.
+    """
+    accountsDeleteAccount(
+        password: String!
+        """ Erase the linked Person (the default), otherwise only unlink it """
+        erasePerson: Boolean = true
+    ): BooleanPayload!
+    """
     Invite someone to register. Teams must be administered by the inviting user,
     and a Person must be controlled by a team they administer.
     """

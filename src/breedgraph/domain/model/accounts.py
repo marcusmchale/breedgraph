@@ -119,10 +119,8 @@ class AccountStored(Aggregate, AccountBase):
 
     @property
     def protected(self):
-        if self.user.email_verified:
-            return "Accounts with a verified email cannot be removed"
-        else:
-            return False
+        # Unverified accounts are deleted, verified accounts are tombstoned to keep provenance
+        return False
 
     def model_dump(self):
         return {

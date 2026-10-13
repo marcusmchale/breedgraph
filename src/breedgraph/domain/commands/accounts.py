@@ -25,6 +25,12 @@ class UpdateUser(Command):
     email: str|None = None
     password_hash: str|None = None
 
+class DeleteAccount(Command):
+    """The password is checked by the entrypoint before this is sent"""
+    user_id: int
+    # Erase the linked Person, otherwise only unlink it
+    erase_person: bool = True
+
 class VerifyEmail(Command):
     token: str
 

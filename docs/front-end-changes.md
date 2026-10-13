@@ -161,6 +161,10 @@ Admins of the recipient team are emailed about new offers.
 
 ## 8. Other changes
 
+- `accountsDeleteAccount(password, erasePerson)` deletes the user's own account and logs them out. Ask for the password, and ask whether to erase their linked Person as well, ticked by default.
+  Errors explain when it is refused: the only ontology admin, or the only admin of a team (the message lists the teams).
+  Deleted users show as null wherever a user is shown, like users the viewer can't see.
+
 - `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
 - Password reset with a token works again (it always failed before).
 - Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `organisationsDataProcessingTerms`. Everything else still requires login.
