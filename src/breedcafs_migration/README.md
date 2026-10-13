@@ -415,8 +415,26 @@ where given (BreedCAFS stores False for most). French Guiana has no timed record
 
 ## 7.6 Datasets
 
-A Dataset holds the records of one input, from one submission, in one Study.
+A Dataset holds the records of one variable or factor, from one submission, in one Study (datasets.py).
 A Study can hold several Datasets for the same variable or factor.
+
+Each record of records.csv gets:
+
+  * its variable or factor from its input (ontology_ids.csv). For photosynthesis inputs this depends on the apparatus:
+    the Photosynthetic Analysis Apparatus recorded for its item at the same time, or the only apparatus of its input,
+    or else PocketPEA where JIP-test parameters (measured only with PocketPEA) were recorded with it.
+    In field 25 (La Hilda), 4,320 photosynthesis records have no apparatus at the same time; all are resolved this way.
+  * its Study, by `study_for` (7.5), and its unit (unit_ids.csv).
+  * its value, parsed against its scale. Flowering is recorded as True or False, the categories Yes and No.
+  * its time: observations start and end at their time; conditions at their start and end where given.
+
+The apparatus records are not migrated as data, nor are the "Set harvest time" records: all are the default "12:00",
+and the harvest date is recorded. Curves (7.1) are left to a separate step, as their complex scale needs a data file.
+The factor records of factor_records.csv (block treatments and branch strata) are one Dataset per factor and Study.
+
+Each Study and submission is one transaction, recorded in dataset_ids.csv as it completes,
+so a second run creates only the Datasets not yet created.
+The plan is 1,187 Datasets with 266,734 records (51,758 of them factor records).
 
   * Replicate codes become a dataset-scoped record grouping on each Study,
     with one scope per submission: the Datasets of that submission in the Study.

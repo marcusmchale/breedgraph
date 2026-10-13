@@ -152,6 +152,19 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_scale_names_must_not_clash(uow_factory, editor_id, tmp_path, monkeypatch):
+    rows = [
+        {**CURATED_ROWS[0], 'name': '"Curve"', 'Variable': 'Curve variable', 'Scale': 'Shared', 'ScaleType': 'COMPLEX'},
+        {**CURATED_ROWS[0], 'name': '"Point"', 'Variable': 'Point variable', 'Scale': 'Shared', 'ScaleType': 'NUMERICAL'},
+    ]
+    write_csv(tmp_path / 'input_details_curated.csv', CURATED_COLUMNS, rows)
+    write_csv(tmp_path / 'input_subjects.csv', ['input', 'subject', 'record_count'], INPUT_SUBJECTS)
+    monkeypatch.setattr(ontology, 'BREEDCAFS_DATA_DIR', tmp_path)
+    with pytest.raises(ValueError, match="The scale Shared is COMPLEX, not NUMERICAL"):
+        await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.skipif(
     not (BREEDCAFS_DATA_DIR / 'input_details_curated.csv').exists(),
     reason="The curated BreedCAFS inputs are not in the data directory"

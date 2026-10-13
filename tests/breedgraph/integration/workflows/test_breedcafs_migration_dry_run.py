@@ -12,7 +12,7 @@ import pytest
 
 from breedgraph.domain.model.accounts import OntologyRole
 
-from breedcafs_migration import ontology, germplasm, locations, layouts, units
+from breedcafs_migration import ontology, germplasm, locations, layouts, units, programs, datasets
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.main import migrate
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -29,7 +29,7 @@ pytestmark = pytest.mark.skipif(
 async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     data_dir = tmp_path / 'data'
     shutil.copytree(BREEDCAFS_DATA_DIR, data_dir)
-    for module in (ontology, germplasm, locations, layouts, units):
+    for module in (ontology, germplasm, locations, layouts, units, programs, datasets):
         monkeypatch.setattr(module, 'BREEDCAFS_DATA_DIR', data_dir)
 
     account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
@@ -51,3 +51,7 @@ async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     assert len(treatment_blocks) == 12
     assert treatment_trees <= set(unit_ids)
     assert len(set(unit_ids.values())) == len(unit_ids)
+
+    with open(data_dir / 'dataset_ids.csv') as f:
+        dataset_ids = [row['dataset_id'] for row in csv.DictReader(f)]
+    assert len(dataset_ids) == len(set(dataset_ids)) == 1187

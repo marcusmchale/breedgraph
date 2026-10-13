@@ -216,6 +216,9 @@ class OntologyPreparation:
                 categories=category_ids
             )
 
+        existing = await self.ontology.get_entry(name=name, label=OntologyEntryLabel.SCALE)
+        if existing is not None and existing.scale_type is not scale_type:
+            raise ValueError(f"The scale {name} is {existing.scale_type.value}, not {scale_type.value}: give the scales distinct names")
         scale_id, _ = await self.get_or_create(OntologyEntryLabel.SCALE, name, create)
         return scale_id
 
