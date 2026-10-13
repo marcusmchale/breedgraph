@@ -15,6 +15,7 @@ from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 
 from breedcafs_migration.bootstrap import setup_breedcafs_migration_account, MigrationContext, MigrationSettingsError
 from breedcafs_migration.ontology import prepare_breedcafs_ontology
+from breedcafs_migration.germplasm import prepare_breedcafs_germplasm, GermplasmNameConflict
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -29,6 +30,8 @@ async def bootstrap(uow_factory: Neo4jUnitOfWorkFactory) -> None:
 async def migrate(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext) -> None:
     logger.info("Prepare ontology")
     await prepare_breedcafs_ontology(uow_factory=uow_factory, user_id=context.user_id)
+    logger.info("Prepare germplasm")
+    await prepare_breedcafs_germplasm(uow_factory=uow_factory, context=context)
 
 
 async def main(args: argparse.Namespace) -> None:
@@ -56,7 +59,7 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     try:
         asyncio.run(main(parse_args()))
-    except MigrationSettingsError as e:
+    except (MigrationSettingsError, GermplasmNameConflict) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
     except Exception:

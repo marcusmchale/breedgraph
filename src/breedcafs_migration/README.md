@@ -172,26 +172,38 @@ This avoids importing unused BreedCAFS variety definitions.
 
 ## 5.1 BreedCAFS Varieties Node
 
-Create a **BreedCAFS Varieties** node/group in the BreedGraph germplasm.
+Create a **BreedCAFS Varieties** germplasm entry, the source of the varieties created from BreedCAFS,
+whose sources are to be curated.
 
 ## 5.2 Variety Matching
 
-For each relevant BreedCAFS variety:
+For each relevant BreedCAFS variety (germplasm.py):
 
-1. Normalise the variety name for matching, including lowercase matching.
-2. If an existing BreedGraph germplasm node has a matching name, use that node.
-3. Otherwise, create a new BreedGraph germplasm node sourced from BreedCAFS.
+1. Normalise the variety name for matching: case-insensitive, with whitespace collapsed.
+2. If a germplasm entry the migration user can read has a matching name or synonym, use that entry.
+3. If the name is used by an entry the migration user cannot read, stop and report it:
+   the migration team needs read access to that entry, or it needs to be released, before running again.
+4. Otherwise, create a germplasm entry, `PRIVATE` and controlled by the migration team,
+   with the BreedCAFS Varieties entry as its source, unless it is a cross or a graft (below).
 
 BreedCAFS variety names are known to be unique, so exact case-insensitive name matching is considered sufficient for the mechanical migration.
 
+47 names are crosses, named "maternal x paternal" (all from Nicaragua), e.g. "T5296 x Rume Sudan".
+Each is its own germplasm entry, with MATERNAL and PATERNAL source relationships from its parents.
+Parents are matched ignoring case and spaces, as some are written without the space of the variety,
+e.g. "ET26A1" for "ET26 A1". The 8 parents that are not BreedCAFS varieties or existing entries
+(ET1, ET1A1, ET2A1, ET25bcA2, ET27A6, ET40, ET52, ET57) are created under the BreedCAFS Varieties entry, for curation:
+some may be the same lines as varieties written more fully (e.g. ET40 and ET40 A5).
+
+Three names are grafts, named "scion / rootstock": "H3 / Nemaya", "Nemaya / Villa Sarchi" and "Starmaya / Nemaya",
+used by the trees named "Grafted". Each is its own germplasm entry, with TISSUE source relationships
+from its scion and its rootstock, described as "Scion" and "Rootstock", rather than the BreedCAFS Varieties entry.
+The nomenclature is trusted, so Nemaya is the scion in "Nemaya / Villa Sarchi".
+The four parts are varieties in their own right, so exist as entries.
+
 Units are given their germplasm from item_variety.csv (1.3.2).
 
-Store:
-
-```text
-BreedCAFS Variety ID → BreedGraph Germplasm ID
-BreedGraph Germplasm ID -> BreedCAFS Partner
-```
+Saved germplasm_ids.csv: each variety, its germplasm entry, and whether it matched an existing entry or was created from BreedCAFS.
 
 Any subsequent curation and Release can be handled by the Germplasm curation team
 and following discussions with Partner organisations.
