@@ -1,4 +1,5 @@
 import logging
+import re
 
 from neo4j import AsyncResult, Record
 
@@ -19,13 +20,14 @@ logger = logging.getLogger(__name__)
 class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
 
     async def _create_controlled(self, location: LocationInput) -> Region:
+        # Only region roots (countries) must be unique; locations within regions may share names
+        async for _ in self._get_all_controlled(location.name, location.code):
+            raise IdentityExistsError("A region root location with this name or code is already registered")
         stored_location = await self._create_location(location)
         return Region(nodes=[stored_location])
 
     async def _create_location(self, location: LocationInput) -> LocationStored:
         logger.debug(f"Create location: {location}")
-        async for _ in self._get_all_controlled(location.name, location.code):
-            raise IdentityExistsError("A region root location with this name or code is already registered")
         result: AsyncResult = await self.tx.run(queries['regions']['create_location'], **location.model_dump())
         record: Record = await result.single()
         return LocationStored(**record['location'])
@@ -78,9 +80,9 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
         else:
             result = await self.tx.run(
                 queries['regions']['get_regions_by_root_name_or_code'],
-                name_regex=f"(?i)^{name}$",
+                name_regex=f"(?i)^{re.escape(name)}$" if name is not None else None,
                 # case insensitive matching won't use indices, so use sparingly
-                code_regex=f"(?i)^{code}$"
+                code_regex=f"(?i)^{re.escape(code)}$" if code is not None else None
             )
             async for record in result:
                 yield ControlledQueryResult(self.record_to_region(record), matches=tuple(DiscoveryMatch(**m) for m in record.get('matches')))

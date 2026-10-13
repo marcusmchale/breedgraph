@@ -72,6 +72,28 @@ async def test_extend_region(
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_locations_within_regions_may_share_names(
+        uow_factory,
+        state_store,
+        region_build_context
+):
+    """Only roots must be unique. Locations added in one commit are linked to their parents after all are created."""
+    user_id = region_build_context['user_id']
+    state_type_id = region_build_context['ontology_location_state']
+    field_type_id = region_build_context['ontology_location_field']
+    async with uow_factory.get_uow(user_id=user_id, write_team=region_build_context['team_id']) as uow:
+        region = await RegionBuilder(uow_factory=uow_factory, state_store=state_store).region_from_country(uow)
+        for state_name in ("State A", "State B"):
+            state_id = region.add_location(LocationInput(name=state_name, type=state_type_id), parent_id=region.get_root_id())
+            region.add_location(LocationInput(name="Station (1)", type=field_type_id), parent_id=state_id)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        region = await uow.repositories.regions.get(location_id=region.root.id)
+        assert [location.name for location in region.yield_locations_by_type(field_type_id)] == ["Station (1)"] * 2
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_make_location_visible_to_registered(
         uow_factory,
         state_store,
