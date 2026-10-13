@@ -30,7 +30,9 @@ Saved this as item_variety.csv
 
 #### Noteworthy case for later validation
 
-There is one case of pooling across multiple varieties, not sure why this was done but just to note.
+There is one case of pooling across multiple varieties, not sure why this was done but just to note:
+green bean sample 42_S161, pooled from items of "T8667 x ET8A8" and "catuai", yet recorded as "T8667 x ET8A8".
+It is migrated without germplasm, its two parents saying what it contains (README §6.1); to check with the partner.
 
 ```cypher
 MATCH (i:Item) 

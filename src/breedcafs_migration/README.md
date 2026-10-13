@@ -231,7 +231,9 @@ For each other Item, a unit in its Field's block, `PRIVATE` and controlled by th
   by which a second run finds the units created before.
 * Its Subject is the Item type, or the sample `unit` for samples (blocks are `Trees`, 6.4).
 * Its parents are the Items it is in or was taken from, or else its Field.
-* Its germplasm is set where a single variety is known (item_variety.csv, 5).
+* Its germplasm is set where a single variety is known (item_variety.csv, 5). No sample has more than one variety.
+  A sample pooled from parents of different varieties (only 42_S161, 1.3.2) is left without germplasm,
+  its parents saying what it contains.
 * Trees are positioned in their layout (unit_positions.csv, 4). Coordinates are stored as strings, as the API gives them.
 * Branches get a record of the Stratum factor (condition Canopy Position, an ordinal scale Lower, Middle, Upper)
   from branch_strata.csv, as the stratum was set by the sampling design. They have no positions of their own.

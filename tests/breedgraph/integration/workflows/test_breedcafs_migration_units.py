@@ -38,6 +38,8 @@ ITEMS = [
     item('1_S2', 'Tree', None, ['1_B1']),           # a tree sample taken from the block
     item('1_S3', 'Branch', None, ['1_S2']),
     item('1_S4', 'Green Beans', '384-1', ['1_T1', '1_T2']),
+    item('1_S6', 'Green Beans', '384-2', ['1_T1', '1_T3']),   # pooled from trees of different varieties
+    item('1_T3', 'Tree', None, ['1_B1', 1]),
     item('1_S5', 'null', None, ['1_T1']),           # skipped
     item('25', 'Field', 'Parcel 1'),
     item('25_B1', 'Block', 'Shade', [25]),          # named after a treatment
@@ -46,7 +48,10 @@ ITEMS = [
 FILES = {
     'item_name_subject_sources_sinks.csv': ITEMS,
     'skipped_items.csv': [{'item_uid': '1_S5', 'reason': 'Sample without a sample unit'}],
-    'item_variety.csv': [{'item_uid': f'"""{uid}"""', 'variety': '"""Catimor"""'} for uid in ('1_T1', '1_T2')],
+    'item_variety.csv': [
+        {'item_uid': f'"""{uid}"""', 'variety': f'"""{variety}"""'}
+        for uid, variety in (('1_T1', 'Catimor'), ('1_T2', 'Catimor'), ('1_T3', 'Caturra'), ('1_S4', 'Catimor'), ('1_S6', 'Catimor'))
+    ],
     'unit_positions.csv': [
         {'field_uid': '1', 'item_uid': f'"""1_T{i}"""', 'layout_type': '"""row_and_tree"""', 'layout_level': '"""field"""',
          'layout_name': '"""ED1"""', 'row': '1.0', 'column': f'{i}.0', 'stratum': 'null'}
@@ -95,12 +100,13 @@ async def units_context(isolated_state, uow_factory) -> dict:
             )
             layout_ids[key] = arrangement.get_root_id()
         catimor = await uow.germplasm.create_entry(GermplasmInput(name="Catimor"))
+        caturra = await uow.germplasm.create_entry(GermplasmInput(name="Caturra"))
         await uow.commit()
 
     return {
         'context': MigrationContext(user_id=user_id, team_id=team_id),
         'subjects': subjects,
-        'germplasm': {"Catimor": catimor.id},
+        'germplasm': {"Catimor": catimor.id, "Caturra": caturra.id},
         'locations': LocationIds(
             fields={'1': location_ids["ED1"], '25': location_ids["Parcel 1"]},
             sample_locations={"Montpellier/ IRD": location_ids["IRD Montpellier"]}
@@ -133,8 +139,8 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
     ids = await prepare(uow_factory, units_context)
 
     # Not the skipped sample, nor the block named after a treatment
-    assert set(ids.units) == {'1', '1_B1', '1_T1', '1_T2', '1_S1', '1_S2', '1_S3', '1_S4', '25', '25_T1'}
-    assert ids.created == 10
+    assert set(ids.units) == {'1', '1_B1', '1_T1', '1_T2', '1_T3', '1_S1', '1_S2', '1_S3', '1_S4', '1_S6', '25', '25_T1'}
+    assert ids.created == 12
     assert ids.factor_records == [('1_S1', 'Stratum', 'Upper'), ('1_S3', 'Stratum', 'Lower'), ('25_T1', 'Shade Treatment', 'Shade')]
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
@@ -161,6 +167,11 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
         assert branch.subject == subjects["Branch"]
         assert branch.positions == []
         assert parents('1_S1') == {ids.units['1_T1']}
+
+        # Pooled from trees of one variety: its own; of different varieties: none, as its parents say what it contains
+        assert unit('1_S4').germplasm == units_context['germplasm']["Catimor"]
+        assert unit('1_S6').germplasm is None
+        assert parents('1_S6') == {ids.units['1_T1'], ids.units['1_T3']}
 
         beans = unit('1_S4')
         assert [(p.location_id, p.start) for p in beans.positions] == [

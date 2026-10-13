@@ -6,7 +6,8 @@ Every other item is a unit in its field's block, `PRIVATE` and controlled by the
   - its subject, from item_name_subject_sources_sinks.csv: the item type, or the sample unit for samples,
     with BreedCAFS blocks as `Trees` (README §6.4);
   - its parents, the items it is in or was taken from, or else its field;
-  - its germplasm, from item_variety.csv and germplasm_ids.csv;
+  - its germplasm, from item_variety.csv and germplasm_ids.csv, unless it was pooled from parents of different varieties,
+    when its parents say what it contains;
   - positions: trees in their layout (unit_positions.csv), and samples at their location (sample_positions.csv).
 Items in skipped_items.csv are left out (README §6.5).
 Blocks named after a treatment (TREATMENT_FIELDS) are not units: their trees are placed under the field,
@@ -145,6 +146,26 @@ class UnitPlan:
             clean(row['item_uid']): (clean(row['location']), clean(row['date'])) for row in read_csv('sample_positions.csv')
         }
 
+    def lineage_varieties(self, uid: str) -> set[str]:
+        """The variety of an item, or else the varieties of its parents"""
+        if uid in self.varieties:
+            return {self.varieties[uid]}
+        item = self.items.get(uid)
+        if item is None or uid == item.field_uid:
+            return set()
+        return set().union(*(self.lineage_varieties(parent) for parent in self.parents(item)))
+
+    def germplasm_variety(self, item: Item) -> str | None:
+        """The item's variety, unless it was pooled from parents of different varieties"""
+        parents = self.parents(item)
+        if len(parents) > 1 and len(set().union(*(self.lineage_varieties(parent) for parent in parents))) > 1:
+            return None
+        return self.varieties.get(item.uid)
+
+    def mixed_pools(self) -> list[str]:
+        """Items pooled from parents of different varieties, whose germplasm is left unset"""
+        return sorted(uid for uid, item in self.items.items() if uid in self.varieties and self.germplasm_variety(item) is None)
+
     def parents(self, item: Item) -> list[str]:
         """Parent uids: blocks named after a treatment are replaced by the field, as is no parent at all"""
         parents = []
@@ -196,7 +217,7 @@ class UnitPlan:
 
 
 def unit_input(plan: UnitPlan, item: Item, subjects: dict[str, int], germplasm: dict[str, int], positions: list[Position]) -> UnitInput:
-    variety = plan.varieties.get(item.uid)
+    variety = plan.germplasm_variety(item)
     return UnitInput(
         subject=subjects[SUBJECTS[item.subject]],
         germplasm=germplasm[variety] if variety else None,
@@ -221,6 +242,8 @@ async def prepare_breedcafs_units(
     ids = UnitIds()
     plan = UnitPlan(read_items())
     ids.factor_records = plan.factor_records()
+    if plan.mixed_pools():
+        logger.warning(f"Pooled from parents of different varieties, so no germplasm is set: {plan.mixed_pools()}")
     field_uids = sorted({item.field_uid for item in plan.items.values()}, key=int)
 
     for field_uid in field_uids:
