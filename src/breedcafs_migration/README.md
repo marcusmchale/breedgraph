@@ -119,6 +119,10 @@ Create, with ordinal axes (1.2):
 
 Blocks are units (6.4), not layouts.
 
+## 2.4 Record Group Types
+
+* Replicate, for replicate codes (7.6)
+
 ---
 
 # 3. Locations
@@ -401,6 +405,13 @@ and one covers fields in two countries.
 
   * Records of inputs with the `Metabolites` term go to Metabolomics, and those with the `Elements` term to Mineral analysis.
   * Other records go by the country of their item's field, with Denmark to the controlled environment Study.
+
+The Program ("BreedCAFS", Breeding Coffee for Agroforestry Systems), Trials and Studies are created `PRIVATE`,
+controlled by the migration team, or matched by name (programs.py, with `study_for` for the rule above).
+Each Study has a dataset-scoped Replicate grouping, of the Replicate record group type in the ontology,
+scoped in the datasets phase (7.6). Saved study_ids.csv: each Study, its id and its Replicate grouping.
+Each Study's start and end are the first and last times of its records: record times, and condition starts and ends
+where given (BreedCAFS stores False for most). French Guiana has no timed records, so no dates.
 
 ## 7.6 Datasets
 

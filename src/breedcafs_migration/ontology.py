@@ -22,7 +22,8 @@ from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, VersionChange, AxisType, ScaleType, ObservationMethodType, ControlMethodType,
     SubjectInput, LocationTypeInput, LayoutTypeInput, TermInput, ScaleInput, ScaleCategoryInput,
-    ObservationMethodInput, ControlMethodInput, TraitInput, ConditionInput, VariableInput, FactorInput
+    ObservationMethodInput, ControlMethodInput, TraitInput, ConditionInput, VariableInput, FactorInput,
+    RecordGroupTypeInput
 )
 
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -50,6 +51,11 @@ LOCATION_TYPES = [
     ("Farm", "A place where crops are grown", ["Region"]),
     ("Field", "A piece of land used for growing crops", ["Farm"]),
     ("Research Center", "A research institute or laboratory, e.g. where samples were analysed", ["Country"]),
+]
+
+# name, description
+RECORD_GROUP_TYPES = [
+    ("Replicate", "Repeated observations of the same unit at the same time, distinguished by a replicate code"),
 ]
 
 # name, description, axes, parent names
@@ -101,6 +107,7 @@ class OntologyIds:
     subjects: dict[str, int] = field(default_factory=dict)
     location_types: dict[str, int] = field(default_factory=dict)
     layout_types: dict[str, int] = field(default_factory=dict)
+    record_group_types: dict[str, int] = field(default_factory=dict)
     # (BreedCAFS input name, apparatus or '') -> (label, id) of the variable or factor
     inputs: dict[tuple[str, str], tuple[OntologyEntryLabel, int]] = field(default_factory=dict)
     # Factor name -> id, for DESIGN_FACTORS
@@ -178,6 +185,13 @@ class OntologyPreparation:
                     LayoutTypeInput(name=name, description=description, axes=axes),
                     parents=[self.ids.layout_types[p] for p in parents]
                 )
+            )
+
+    async def record_group_types(self):
+        for name, description in RECORD_GROUP_TYPES:
+            self.ids.record_group_types[name], _ = await self.get_or_create(
+                OntologyEntryLabel.RECORD_GROUP_TYPE, name,
+                lambda: self.ontology.create_entry(RecordGroupTypeInput(name=name, description=description))
             )
 
     async def scale(self, row: dict) -> int:
@@ -325,6 +339,7 @@ async def prepare_breedcafs_ontology(uow_factory: Neo4jUnitOfWorkFactory, user_i
         await preparation.subjects()
         await preparation.location_types()
         await preparation.layout_types()
+        await preparation.record_group_types()
         incomplete = await preparation.inputs()
         await design_factors(preparation)
         if incomplete:
