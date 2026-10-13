@@ -88,6 +88,50 @@ async def test_update_study(uow_factory, program_build_context):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_merging_scopes_keeps_one_of_each(uow_factory, program_build_context):
+    """Each save rewrites the scopes of a grouping; they were recreated once for every scope already stored"""
+    user_id = program_build_context['user_id']
+    study_input = ProgramBuilder.study_input(
+        replicate_type=program_build_context['ontology_record_group_replicate'],
+        batch_type=program_build_context['ontology_record_group_batch']
+    )
+    async with uow_factory.get_uow(user_id=user_id, write_team=program_build_context['team_id']) as uow:
+        program = await uow.repositories.programs.create(ProgramBuilder.program_input())
+        program.add_trial(ProgramBuilder.trial_input())
+        await uow.repositories.programs.update_seen()
+        trial_id = list(program.trials.keys())[0]
+        program.add_study(trial_id=trial_id, study=study_input)
+        await uow.repositories.programs.update_seen()
+        study_id = list(program.get_trial(trial_id).studies.keys())[0]
+        dataset_ids = []
+        for _ in range(4):
+            result = await uow.tx.run(
+                "MERGE (counter: Counter {name: 'dataset'}) ON CREATE SET counter.count = 0 "
+                "SET counter.count = counter.count + 1 CREATE (dataset: Dataset {id: counter.count}) RETURN dataset.id AS id"
+            )
+            dataset_ids.append((await result.single())['id'])
+        await uow.commit()
+
+    for scope in ({dataset_ids[0]}, {dataset_ids[1]}, {dataset_ids[2]}, {dataset_ids[3], dataset_ids[0]}):
+        async with uow_factory.get_uow(user_id=user_id) as uow:
+            program = await uow.repositories.programs.get(program_id=program.id)
+            program.get_study(study_id).get_grouping(name='Dataset Scoped Replicate').merge_dataset_scope(scope)
+            await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(program_id=program.id)
+        grouping = program.get_study(study_id).get_grouping(name='Dataset Scoped Replicate')
+        assert sorted(sorted(scope.dataset_ids) for scope in grouping.dataset_scopes) == sorted([
+            sorted([dataset_ids[0], dataset_ids[3]]), [dataset_ids[1]], [dataset_ids[2]]
+        ])
+        result = await uow.tx.run(
+            "MATCH (:RecordGrouping {id: $id})-[:HAS_SCOPE]->(scope: GroupingScope) RETURN count(scope) AS scopes",
+            id=grouping.id
+        )
+        assert (await result.single())['scopes'] == 3
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_requires_write_team(uow_factory, program_build_context):
     user_id = program_build_context['user_id']
     program_input = ProgramBuilder.program_input()

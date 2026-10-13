@@ -16,12 +16,12 @@ CALL (grouping, grouping_data) {
   RETURN type
 }
 
-//Update scopes
-OPTIONAL CALL (grouping, grouping_data) {
-  // Delete all scopes
+//Update scopes: delete all scopes, in a subquery so the scopes are then created once rather than once per deleted scope
+CALL (grouping) {
   OPTIONAL MATCH (grouping)-[:HAS_SCOPE]->(scope:GroupingScope)
   DETACH DELETE scope
-  WITH grouping, grouping_data
+}
+OPTIONAL CALL (grouping, grouping_data) {
   UNWIND grouping_data.dataset_scopes as scope_data
     // Then create each scope anew
     CREATE (grouping)-[:HAS_SCOPE]->(scope: GroupingScope)
