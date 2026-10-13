@@ -122,7 +122,7 @@ and also "Set Harvest Time" as this is to be merged with "Set Harvest Date"
   -"Location (text)" (this data is to be recorded as positions)
 
 #### Stratum
-- Removed the stratum trait (encoded in positions)
+- Removed the stratum trait: recorded as a Stratum factor on each branch instead (README §6.1)
 
 #### Photosynthesis traits
 - Removed the "Photosynthetic Analysis Apparatus" trait. Its records are kept in records.csv (1.6), to choose each photosynthesis record's variable.

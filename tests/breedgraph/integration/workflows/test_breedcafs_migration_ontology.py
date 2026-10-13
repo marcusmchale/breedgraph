@@ -90,7 +90,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
 
     assert set(ids.subjects) == {s[0] for s in ontology.SUBJECTS}
     assert set(ids.location_types) == {"Country", "Region", "Farm", "Field", "Research Center"}
-    assert set(ids.layout_types) == {"Row and Tree", "Row, Tree and Stratum"}
+    assert set(ids.layout_types) == {"Row and Tree"}
     assert set(ids.inputs) == {
         ("Total Boron", ""), ("Tree rust symptoms", ""), ("Set planting date", ""),
         ("Fᵥ / Fₘ", "PocketPEA"), ("Fᵥ / Fₘ", "MiniPAM")
@@ -98,7 +98,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
     assert ids.inputs[("Set planting date", "")][0] is OntologyEntryLabel.FACTOR
     assert ids.inputs[("Fᵥ / Fₘ", "PocketPEA")] != ids.inputs[("Fᵥ / Fₘ", "MiniPAM")]
 
-    assert set(ids.treatment_factors) == {"Shade Treatment", "Shade Level Treatment"}
+    assert set(ids.design_factors) == {"Shade Treatment", "Shade Level Treatment", "Stratum"}
 
     async with uow_factory.get_uow(user_id=editor_id) as uow:
         variable = await uow.ontology.get_entry(entry_id=ids.inputs[("Total Boron", "")][1], label=OntologyEntryLabel.VARIABLE)
@@ -120,12 +120,19 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
         assert rust_scale.scale_type is ScaleType.ORDINAL
         assert len(await targets(rust_scale.id, OntologyRelationshipLabel.HAS_CATEGORY)) == 3
 
-        shade_level = await uow.ontology.get_entry(entry_id=ids.treatment_factors["Shade Level Treatment"], label=OntologyEntryLabel.FACTOR)
+        shade_level = await uow.ontology.get_entry(entry_id=ids.design_factors["Shade Level Treatment"], label=OntologyEntryLabel.FACTOR)
         shade_scale_id = next(iter(await targets(shade_level.id, OntologyRelationshipLabel.USES_SCALE)))
         assert len(await targets(shade_scale_id, OntologyRelationshipLabel.HAS_CATEGORY)) == 6
         shade_condition_id = next(iter(await targets(shade_level.id, OntologyRelationshipLabel.DESCRIBES_CONDITION)))
         assert await targets(shade_condition_id, OntologyRelationshipLabel.DESCRIBES_SUBJECT) == {ids.subjects["Tree"]}
-        shade_treatment_id = ids.treatment_factors["Shade Treatment"]
+        stratum = ids.design_factors["Stratum"]
+        stratum_scale_id = next(iter(await targets(stratum, OntologyRelationshipLabel.USES_SCALE)))
+        stratum_scale = await uow.ontology.get_entry(entry_id=stratum_scale_id, label=OntologyEntryLabel.SCALE)
+        assert stratum_scale.scale_type is ScaleType.ORDINAL
+        stratum_condition_id = next(iter(await targets(stratum, OntologyRelationshipLabel.DESCRIBES_CONDITION)))
+        assert await targets(stratum_condition_id, OntologyRelationshipLabel.DESCRIBES_SUBJECT) == {ids.subjects["Branch"]}
+
+        shade_treatment_id = ids.design_factors["Shade Treatment"]
         for label in (OntologyRelationshipLabel.DESCRIBES_CONDITION, OntologyRelationshipLabel.USES_CONTROL_METHOD):
             assert await targets(shade_level.id, label) == await targets(shade_treatment_id, label)
         date_scale = await uow.ontology.get_entry(name="Datetime", label=OntologyEntryLabel.SCALE)

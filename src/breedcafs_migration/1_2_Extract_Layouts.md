@@ -81,8 +81,8 @@ It turns out to have two plantings (README §4): trees in its blocks, one to eac
 and a later planting of trees named with codes citing other fields, in rows and columns of their own, many sharing a position.
 Each has a "Row and Tree" layout; a grid would imply more than is known.
 
-We also need to consider where we recorded Stratum data, 
-as these fields will require this additional layout for defining branch positions.
+We also need to consider where we recorded Stratum data.
+(This was first planned as a further layout for branch positions; branch strata are instead recorded as a Stratum factor, README §6.1.)
 
 ```cypher
 MATCH (f:Field)<-[:IS_IN|FROM*]-(item:Item)<-[:FOR_ITEM]-(ii:ItemInput)-[:FOR_INPUT*..5]->(:Input {name: "Stratum"}),
@@ -90,7 +90,7 @@ MATCH (f:Field)<-[:IS_IN|FROM*]-(item:Item)<-[:FOR_ITEM]-(ii:ItemInput)-[:FOR_IN
 RETURN collect(distinct f.uid)
 ```
 
-So we need to create two layout types in the ontology (README §2.3), "Row and Tree" and "Row, Tree and Stratum".
+So we need one layout type in the ontology (README §2.3), "Row and Tree".
 
 And we need to summarise which layout type is required for any location with either trees with row and column data or stratum records.
 ```cypher

@@ -55,18 +55,14 @@ LOCATION_TYPES = [
 # name, description, axes, parent names
 LAYOUT_TYPES = [
     ("Row and Tree", "Trees by row, and position within the row", [AxisType.ORDINAL, AxisType.ORDINAL], []),
-    (
-        "Row, Tree and Stratum",
-        "Branches by the row and position of their tree, and stratum on the tree (Upper, Middle, Lower)",
-        [AxisType.ORDINAL, AxisType.ORDINAL, AxisType.ORDINAL],
-        ["Row and Tree"]
-    ),
 ]
 
 SCALE_TYPES = {'Date': ScaleType.DATE}
 
+# Factors of the migration's design, recorded on units rather than from BreedCAFS inputs,
+# given as curated input rows with the subject they describe.
 # Blocks named after a treatment are not migrated as units; their trees get a record of the treatment (README §6.4).
-# The block names are the categories. Given as curated input rows, for the trees' subject.
+# The block names are the categories.
 TREATMENT_FACTORS = [
     {
         'Factor': "Shade Treatment",
@@ -75,6 +71,7 @@ TREATMENT_FACTORS = [
         'ControlMethod': "Shade cloth", 'ControlMethodType': "ENVIRONMENTAL", 'ControlMethodDescription': "",
         'Scale': "Shade treatment", 'Scale Description': "", 'ScaleType': "NOMINAL",
         'categories': "Full Sun / Shade",
+        'subject': "Tree",
     },
     {
         'Factor': "Shade Level Treatment",
@@ -83,8 +80,20 @@ TREATMENT_FACTORS = [
         'ControlMethod': "Shade cloth", 'ControlMethodType': "ENVIRONMENTAL", 'ControlMethodDescription': "",
         'Scale': "Shade level treatment", 'Scale Description': "", 'ScaleType': "NOMINAL",
         'categories': "Shade Level 1 / Shade Level 2 / Shade Level 3 / Shade Level 4 / Shade Level 5 / 2 Years Low Light Acclimation",
+        'subject': "Tree",
     },
 ]
+# Each branch gets a record of the stratum of the tree it was sampled from, as set by the sampling design (README §6.1).
+STRATUM_FACTOR = {
+    'Factor': "Stratum",
+    'description': "The stratum of the tree a branch was sampled from",
+    'Condition': "Canopy Position",
+    'ControlMethod': "Procedure (BreedCAFS)", 'ControlMethodType': "MANAGEMENT", 'ControlMethodDescription': "",
+    'Scale': "Stratum", 'Scale Description': "Position in the canopy, from the lowest", 'ScaleType': "ORDINAL",
+    'categories': "Lower / Middle / Upper",
+    'subject': "Branch",
+}
+DESIGN_FACTORS = [*TREATMENT_FACTORS, STRATUM_FACTOR]
 
 
 @dataclass
@@ -94,8 +103,8 @@ class OntologyIds:
     layout_types: dict[str, int] = field(default_factory=dict)
     # (BreedCAFS input name, apparatus or '') -> (label, id) of the variable or factor
     inputs: dict[tuple[str, str], tuple[OntologyEntryLabel, int]] = field(default_factory=dict)
-    # Factor name -> id, for blocks named after a treatment
-    treatment_factors: dict[str, int] = field(default_factory=dict)
+    # Factor name -> id, for DESIGN_FACTORS
+    design_factors: dict[str, int] = field(default_factory=dict)
     created: int = 0
 
 
@@ -293,11 +302,11 @@ class OntologyPreparation:
         return incomplete
 
 
-async def treatment_factors(preparation: 'OntologyPreparation') -> None:
-    for row in TREATMENT_FACTORS:
+async def design_factors(preparation: 'OntologyPreparation') -> None:
+    for row in DESIGN_FACTORS:
         row = {**row, 'terms': ''}
-        preparation.ids.treatment_factors[row['Factor']] = await preparation.factor(
-            row['Factor'], row, subject_ids=[preparation.ids.subjects["Tree"]]
+        preparation.ids.design_factors[row['Factor']] = await preparation.factor(
+            row['Factor'], row, subject_ids=[preparation.ids.subjects[row['subject']]]
         )
 
 
@@ -317,7 +326,7 @@ async def prepare_breedcafs_ontology(uow_factory: Neo4jUnitOfWorkFactory, user_i
         await preparation.location_types()
         await preparation.layout_types()
         incomplete = await preparation.inputs()
-        await treatment_factors(preparation)
+        await design_factors(preparation)
         if incomplete:
             logger.warning(f"Inputs not mapped, as their curation is incomplete: {incomplete}")
         if ids.created and commit_version:

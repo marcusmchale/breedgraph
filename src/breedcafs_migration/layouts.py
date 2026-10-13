@@ -5,8 +5,7 @@ From field_layout_types.csv, each field has, at its location:
   - where trees have row and column positions, a "Row and Tree" layout,
     or one per block where rows and trees are numbered per block (field 29),
     and one for each separate planting in the field with its own rows (PLANTINGS);
-  - where branches have a stratum, a "Row, Tree and Stratum" layout as well, for branch positions.
-Each layout is the root of its own arrangement, as axis names cannot repeat along a branch of an arrangement.
+Each layout is the root of its own arrangement. Branch strata are recorded as a factor, not positions (units.py).
 Layouts are matched by name and type at the field's location, or created, `PRIVATE` and controlled by the migration team.
 
 Running this again matches the layouts created before.
@@ -29,12 +28,10 @@ logger = logging.getLogger(__name__)
 # Layout type name -> axis names, in the order of the layout type's axes
 AXES = {
     "Row and Tree": ["Row", "Tree"],
-    "Row, Tree and Stratum": ["Row", "Tree", "Stratum"],
 }
 
-# The layout types named in unit_positions.csv
+# The layout type named in unit_positions.csv
 ROW_AND_TREE = "row_and_tree"
-ROW_TREE_AND_STRATUM = "row_tree_and_stratum"
 
 # Separate plantings within a field, with their own rows and trees, recognised by tree name.
 # In field 5 (ED5), the trees named with a code citing another field, e.g. "7-ED6-1D2", were planted in July 2018,
@@ -95,9 +92,6 @@ def planned_layouts() -> dict[LayoutKey, tuple[str, str]]:
                 layouts[(field_uid, '', ROW_AND_TREE)] = (f"{field_name}: {type_name}", type_name)
             for planting, _ in PLANTINGS.get(field_uid, []):
                 layouts[(field_uid, planting, ROW_AND_TREE)] = (f"{field_name} {planting}: {type_name}", type_name)
-        if row['row_tree_and_stratum'] == 'true':
-            type_name = "Row, Tree and Stratum"
-            layouts[(field_uid, '', ROW_TREE_AND_STRATUM)] = (f"{field_name}: {type_name}", type_name)
     return layouts
 
 

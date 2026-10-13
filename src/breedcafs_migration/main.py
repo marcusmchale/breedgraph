@@ -18,6 +18,7 @@ from breedcafs_migration.ontology import prepare_breedcafs_ontology
 from breedcafs_migration.germplasm import prepare_breedcafs_germplasm, GermplasmNameConflict
 from breedcafs_migration.locations import prepare_breedcafs_locations
 from breedcafs_migration.layouts import prepare_breedcafs_layouts
+from breedcafs_migration.units import prepare_breedcafs_units
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -33,15 +34,20 @@ async def migrate(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext
     logger.info("Prepare ontology")
     ontology_ids = await prepare_breedcafs_ontology(uow_factory=uow_factory, user_id=context.user_id)
     logger.info("Prepare germplasm")
-    await prepare_breedcafs_germplasm(uow_factory=uow_factory, context=context)
+    germplasm_ids = await prepare_breedcafs_germplasm(uow_factory=uow_factory, context=context)
     logger.info("Prepare locations")
     location_ids = await prepare_breedcafs_locations(
         uow_factory=uow_factory, context=context, location_types=ontology_ids.location_types
     )
     logger.info("Prepare layouts")
-    await prepare_breedcafs_layouts(
+    layout_ids = await prepare_breedcafs_layouts(
         uow_factory=uow_factory, context=context,
         layout_types=ontology_ids.layout_types, field_locations=location_ids.fields
+    )
+    logger.info("Prepare units")
+    await prepare_breedcafs_units(
+        uow_factory=uow_factory, context=context, subjects=ontology_ids.subjects,
+        germplasm=germplasm_ids.varieties, locations=location_ids, layouts=layout_ids
     )
 
 

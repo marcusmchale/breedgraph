@@ -116,7 +116,6 @@ Create:
 Create, with ordinal axes (1.2):
 
 * Row and Tree
-* Row, Tree and Stratum, a child of Row and Tree, for branch positions
 
 Blocks are units (6.4), not layouts.
 
@@ -157,14 +156,13 @@ From field_layout_types.csv (1.2.1), create the layouts at each Field's location
     Many share a position (73 positions, 2 to 38 trees each). Their positions are migrated as recorded,
     and the duplicate positions are to be resolved with the partner (§11).
   Trees are assigned to the plantings by name (`PLANTINGS` and `tree_group` in layouts.py).
-* `row_tree_and_stratum`: also a "Row, Tree and Stratum" layout for the Field, regardless of the other layouts.
+Tree positions are recorded in the Row and Tree layouts, from unit_positions.csv (1.2.2).
+Branch strata are not positions: each branch gets a record of the Stratum factor (6.1), as the stratum was set by the sampling design.
+In fields 18–24 (Nicaragua) the branches were taken from tree samples taken from a block or the field,
+with no row or tree recorded, so a stratum layout could not have placed them anyway.
 
-Tree positions are recorded in the Row and Tree layout, and branch positions,
-with the stratum recorded for the branch, in the Row, Tree and Stratum layout.
-Positions come from unit_positions.csv (1.2.2), whose `layout_level` and `layout_name` give the layout for each unit.
-
-Each layout is the root of its own arrangement (layouts.py), as axis names cannot repeat along a branch of an arrangement.
-Layouts are named after their Field (and Block), e.g. "ED1: Row and Tree", with axes Row and Tree, or Row, Tree and Stratum.
+Each layout is the root of its own arrangement (layouts.py).
+Layouts are named after their Field (and Block or planting), e.g. "ED1: Row and Tree", with axes Row and Tree.
 They are matched by name and type at the Field's location, or created `PRIVATE`, controlled by the migration team.
 
 Saved layout_ids.csv: each Field (and Block or planting) and BreedCAFS layout type, and its layout.
@@ -226,53 +224,35 @@ and following discussions with Partner organisations.
 
 ## 6.1 Ordinary Units
 
-For each Item:
+Each Field is a block, rooted at a Field unit positioned at the Field's location (units.py).
+For each other Item, a unit in its Field's block, `PRIVATE` and controlled by the migration team:
 
-* Copy the `name` field.
-* Set the Subject based on the BreedCAFS Item `unit` value.
-* Establish the appropriate hierarchy.
-* Set the `Varieties`/Germplasm field where a single variety is known.
-* Set positions within the layouts using Item Row and Column data (1.2).
-* Assign the appropriate Location.
+* Its name is the Item `name`, or its uid where it has none, and its description "BreedCAFS item <uid>",
+  by which a second run finds the units created before.
+* Its Subject is the Item type, or the sample `unit` for samples (blocks are `Trees`, 6.4).
+* Its parents are the Items it is in or was taken from, or else its Field.
+* Its germplasm is set where a single variety is known (item_variety.csv, 5).
+* Trees are positioned in their layout (unit_positions.csv, 4). Coordinates are stored as strings, as the API gives them.
+* Branches get a record of the Stratum factor (condition Canopy Position, an ordinal scale Lower, Middle, Upper)
+  from branch_strata.csv, as the stratum was set by the sampling design. They have no positions of their own.
+* Samples analysed at IRD Montpellier are positioned there, from the date given (sample_positions.csv).
+
+Factor records for units, the block treatments (6.4) and the strata of branches,
+are saved in factor_records.csv for the datasets phase. Saved unit_ids.csv: each Item and its unit.
 
 ## 6.2 Fields with Multiple Germplasm
 
-Some BreedCAFS Fields contain multiple varieties without recording the number of trees belonging to each variety.
-
-Represent the known information explicitly using the `Trees` Subject:
-
-```text
-Field
-├── Trees [Variety A]
-├── Trees [Variety B]
-└── Trees [Variety C]
-```
-
-Each `Trees` unit represents:
-
-> An unknown number of trees of this germplasm within the Field.
-
-This preserves the distinction between:
-
-* a known individual Tree;
-* a known collection of Trees;
-* and a Field that is known to contain a particular germplasm but for which the number of trees is unknown.
-
-This also allows samples from such a Field to be interpreted as representative of the mixed germplasm population
-without implying that the source data identified individual trees or their quantities.
-
-Store:
-```text
-BreedCAFS UID → BreedGraph Unit ID
-BreedGraph Unit ID -> BreedCAFS Partner
-```
+Some BreedCAFS Fields contain multiple varieties, and samples were taken from the Field (or a block) as a whole,
+e.g. 2,310 tree samples in fields 18–24 and about 150 green bean samples.
+These samples stay under their Field (or block), with their variety as their germplasm:
+no `Trees` unit per variety is created, as the variety already says which population a sample represents.
 
 ## 6.3 Location Aggregation
 
 Where locations (coordinates) assigned to units are identical, aggregate them to a single BreedGraph Location.
 
 Assign these coordinates to the highest aggregation level where appropriate, e.g. the Field.
-Assign the corresponding location as a position for each unit.
+Assign the corresponding location   as a position for each unit.
 
 ## 6.4 Blocks
 
@@ -291,7 +271,7 @@ BreedCAFS Blocks group the trees of a Field, and have no data of their own.
   Both describe the Light Availability condition, as the curated "Shade level" factor (a percentage) does,
   and differ only in their scale, keeping the labels of each experiment together.
 
-  These factors are created with the ontology (`TREATMENT_FACTORS` in ontology.py).
+  These factors, and the Stratum factor, are created with the ontology (`DESIGN_FACTORS` in ontology.py).
 
 ## 6.5 Skipped Items
 
@@ -380,9 +360,7 @@ Collect BreedCAFS Traits that have associated data.
 
 match (:RecordType {name:'Trait'})<-[:OF_TYPE]-(i:Input)<-[:FOR_INPUT*..2]-()<-[:RECORD_FOR]-(:Record) return distinct i
 
-For branch "Stratum". This is better encoded as a layout.
-  1. Create a "Row, Tree and Stratum" LayoutType in the ontology, as a child of "Row and Tree"
-  2. For Fields with stratum data, create a new layout within the Field as "Row Tree and Stratum" and define coordinates accordingly.
+For branch "Stratum": recorded as the Stratum factor on each branch (6.1), not as a trait.
    
 For each remaining:
 

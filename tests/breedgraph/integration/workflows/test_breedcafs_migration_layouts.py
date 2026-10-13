@@ -11,7 +11,7 @@ from breedgraph.domain.model.regions import LocationInput
 
 from breedcafs_migration import layouts
 from breedcafs_migration.bootstrap import MigrationContext
-from breedcafs_migration.layouts import prepare_breedcafs_layouts, planned_layouts, tree_group, ROW_AND_TREE, ROW_TREE_AND_STRATUM
+from breedcafs_migration.layouts import prepare_breedcafs_layouts, planned_layouts, tree_group, ROW_AND_TREE
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
@@ -19,11 +19,12 @@ from tests.breedgraph.scenarios.account_builder import AccountBuilder
 # As exported: values wrapped in extra quotes
 FIELDS = [
     {'field_uid': uid, 'field': f'"""{name}"""', 'farm': '"""Farm"""', 'region': '"""Region"""', 'country': '"""Nicaragua"""'}
-    for uid, name in (('1', 'ED1'), ('5', 'ED5'), ('29', 'La Cumplida'), ('40', 'Lab Field'))
+    for uid, name in (('1', 'ED1'), ('5', 'ED5'), ('18', 'Max Padilla'), ('29', 'La Cumplida'), ('40', 'Lab Field'))
 ]
 LAYOUT_TYPES = [
     {'f.uid': '1', 'row_and_tree': 'true', 'row_and_tree_per_block': 'false', 'row_tree_and_stratum': 'true'},
     {'f.uid': '5', 'row_and_tree': 'true', 'row_and_tree_per_block': 'false', 'row_tree_and_stratum': 'true'},
+    {'f.uid': '18', 'row_and_tree': 'true', 'row_and_tree_per_block': 'false', 'row_tree_and_stratum': 'true'},
     {'f.uid': '29', 'row_and_tree': 'true', 'row_and_tree_per_block': 'true', 'row_tree_and_stratum': 'false'},
     {'f.uid': '40', 'row_and_tree': 'false', 'row_and_tree_per_block': 'false', 'row_tree_and_stratum': 'false'},
 ]
@@ -31,7 +32,12 @@ POSITIONS = [
     {'field_uid': '29', 'item_uid': f'"""29_T{i}"""', 'layout_type': '"""row_and_tree"""', 'layout_level': '"""block"""',
      'layout_name': f'"""{block}"""', 'row': '1.0', 'column': f'{i}.0', 'stratum': 'null'}
     for i, block in enumerate(['Block A', 'Block B', 'Block A'])
+] + [
+    {'field_uid': field_uid, 'item_uid': f'"""{field_uid}_T1"""', 'layout_type': '"""row_and_tree"""', 'layout_level': '"""field"""',
+     'layout_name': f'"""ED{field_uid}"""', 'row': '1.0', 'column': '1.0', 'stratum': 'null'}
+    for field_uid in ('1', '5', '18')
 ]
+
 
 
 def write_csv(path, rows):
@@ -49,7 +55,6 @@ async def layouts_context(isolated_state, uow_factory) -> dict:
             name: (await uow.ontology.create_entry(LayoutTypeInput(name=name, axes=axes))).id
             for name, axes in (
                 ("Row and Tree", [AxisType.ORDINAL] * 2),
-                ("Row, Tree and Stratum", [AxisType.ORDINAL] * 3),
             )
         }
         country_type = await uow.ontology.get_entry(name="Country", label=OntologyEntryLabel.LOCATION_TYPE)
@@ -95,11 +100,12 @@ async def test_prepare_layouts(uow_factory, layouts_context, data_dir):
     ids = await prepare_breedcafs_layouts(uow_factory, context, layout_types, field_locations)
 
     assert set(ids.layouts) == {
-        ('1', '', ROW_AND_TREE), ('1', '', ROW_TREE_AND_STRATUM),
-        ('5', '', ROW_AND_TREE), ('5', '', ROW_TREE_AND_STRATUM), ('5', 'July 2018 planting', ROW_AND_TREE),
+        ('1', '', ROW_AND_TREE),
+        ('5', '', ROW_AND_TREE), ('5', 'July 2018 planting', ROW_AND_TREE),
+        ('18', '', ROW_AND_TREE),
         ('29', 'Block A', ROW_AND_TREE), ('29', 'Block B', ROW_AND_TREE),
     }
-    assert ids.created == 7
+    assert ids.created == 6
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         async def layout(key):
@@ -109,8 +115,6 @@ async def test_prepare_layouts(uow_factory, layouts_context, data_dir):
         assert (ed1.name, ed1.type, ed1.location, ed1.axes) == (
             "ED1: Row and Tree", layout_types["Row and Tree"], field_locations['1'], ["Row", "Tree"]
         )
-        ed1_stratum = await layout(('1', '', ROW_TREE_AND_STRATUM))
-        assert (ed1_stratum.type, ed1_stratum.axes) == (layout_types["Row, Tree and Stratum"], ["Row", "Tree", "Stratum"])
         ed5 = await layout(('5', '', ROW_AND_TREE))
         assert (ed5.name, ed5.type, ed5.axes) == ("ED5: Row and Tree", layout_types["Row and Tree"], ["Row", "Tree"])
         planting = await layout(('5', 'July 2018 planting', ROW_AND_TREE))
