@@ -5,7 +5,7 @@ from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.organisations import Organisation
 
 from breedcafs_migration import bootstrap
-from breedcafs_migration.bootstrap import setup_breedcafs_migration_account
+from breedcafs_migration.bootstrap import setup_breedcafs_migration_account, MigrationSettingsError
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.organisation_builder import OrganisationBuilder
@@ -44,8 +44,21 @@ async def declare_legal_entity(uow_factory, admin_id: int, root_id: int):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize("admin_id, parent_id, message", [
+    (None, "1", "BREEDCAFS_ADMIN_USER_ID is not set"),
+    ("1", " ", "BREEDCAFS_PARENT_TEAM_ID is not set"),
+    ("admin", "1", "BREEDCAFS_ADMIN_USER_ID must be an id"),
+])
+async def test_bootstrap_requires_settings(uow_factory, monkeypatch, admin_id, parent_id, message):
+    monkeypatch.setattr(bootstrap, 'BREEDCAFS_ADMIN_USER_ID', admin_id)
+    monkeypatch.setattr(bootstrap, 'BREEDCAFS_PARENT_TEAM_ID', parent_id)
+    with pytest.raises(MigrationSettingsError, match=message):
+        await setup_breedcafs_migration_account(uow_factory)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_bootstrap_requires_legal_entity(uow_factory, migration_config):
-    with pytest.raises(ValueError, match="legal entity"):
+    with pytest.raises(MigrationSettingsError, match="legal entity"):
         await setup_breedcafs_migration_account(uow_factory)
 
 

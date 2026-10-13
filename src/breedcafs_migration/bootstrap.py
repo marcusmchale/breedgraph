@@ -28,6 +28,19 @@ logger = logging.getLogger(__name__)
 MIGRATION_ACCESS = [Access.WRITE, Access.CURATE]
 
 
+class MigrationSettingsError(ValueError):
+    """A required setting is missing or invalid"""
+
+
+def required_id(name: str, value: str | None, meaning: str) -> int:
+    if value is None or not value.strip():
+        raise MigrationSettingsError(f"{name} is not set. Set it to {meaning}.")
+    try:
+        return int(value)
+    except ValueError:
+        raise MigrationSettingsError(f"{name} must be an id (an integer), not {value!r}. Set it to {meaning}.") from None
+
+
 @dataclass(frozen=True)
 class MigrationContext:
     user_id: int
@@ -39,7 +52,10 @@ async def get_or_create_migration_account(uow_factory: Neo4jUnitOfWorkFactory) -
         account = await uow.repositories.accounts.get(name=BREEDCAFS_USER_NAME)
         if account is not None:
             if account.user.password_hash:
-                raise ValueError(f"An account named {BREEDCAFS_USER_NAME} exists and is not the migration system account")
+                raise MigrationSettingsError(
+                    f"An account named {BREEDCAFS_USER_NAME} exists and is not the migration system account. "
+                    f"Set BREEDCAFS_USER_NAME to another name."
+                )
             logger.info("Using the existing BreedCAFS migration account")
             return account
 
@@ -68,11 +84,11 @@ async def get_or_create_migration_team(uow_factory: Neo4jUnitOfWorkFactory, admi
     async with uow_factory.get_uow(user_id=admin_id) as uow:
         organisation: Organisation = await uow.repositories.organisations.get(team_id=parent_id)
         if organisation is None:
-            raise ValueError(f"Parent team {parent_id} not found")
+            raise MigrationSettingsError(f"Parent team {parent_id} (BREEDCAFS_PARENT_TEAM_ID) not found")
         if organisation.legal_entity is None:
-            raise ValueError("The parent team's organisation has not declared a legal entity, which Persons require")
+            raise MigrationSettingsError("The parent team's organisation has not declared a legal entity, which Persons require")
         if admin_id not in organisation.get_affiliates(parent_id, Access.ADMIN):
-            raise ValueError(f"User {admin_id} is not an admin of the parent team {parent_id}")
+            raise MigrationSettingsError(f"User {admin_id} (BREEDCAFS_ADMIN_USER_ID) is not an admin of the parent team {parent_id}")
 
         team = get_child_team(organisation, parent_id, BREEDCAFS_TEAM_NAME)
         if team is not None:
@@ -92,7 +108,7 @@ async def affiliate_migration_user(uow_factory: Neo4jUnitOfWorkFactory, admin_id
     async with uow_factory.get_uow(user_id=admin_id) as uow:
         organisation: Organisation = await uow.repositories.organisations.get(team_id=team_id)
         if admin_id not in organisation.get_affiliates(team_id, Access.ADMIN):
-            raise ValueError(f"User {admin_id} is not an admin of the migration team; admin of the parent team must be heritable")
+            raise MigrationSettingsError(f"User {admin_id} is not an admin of the migration team; admin of the parent team must be heritable")
 
         for access in MIGRATION_ACCESS:
             if user_id in organisation.get_affiliates(team_id, access, inheritance=False):
@@ -110,10 +126,14 @@ async def affiliate_migration_user(uow_factory: Neo4jUnitOfWorkFactory, admin_id
 
 
 async def setup_breedcafs_migration_account(uow_factory: Neo4jUnitOfWorkFactory) -> MigrationContext:
-    if BREEDCAFS_ADMIN_USER_ID is None or BREEDCAFS_PARENT_TEAM_ID is None:
-        raise ValueError("Set BREEDCAFS_ADMIN_USER_ID and BREEDCAFS_PARENT_TEAM_ID")
-    admin_id = int(BREEDCAFS_ADMIN_USER_ID)
-    parent_id = int(BREEDCAFS_PARENT_TEAM_ID)
+    admin_id = required_id(
+        'BREEDCAFS_ADMIN_USER_ID', BREEDCAFS_ADMIN_USER_ID,
+        "the id of the user running the migration, a heritable admin of the parent team"
+    )
+    parent_id = required_id(
+        'BREEDCAFS_PARENT_TEAM_ID', BREEDCAFS_PARENT_TEAM_ID,
+        "the id of the team to create the migration team under, in an organisation with a declared legal entity"
+    )
 
     account = await get_or_create_migration_account(uow_factory)
     team_id = await get_or_create_migration_team(uow_factory, admin_id=admin_id, parent_id=parent_id)

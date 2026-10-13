@@ -1,63 +1,64 @@
+"""
+BreedCAFS migration (README.md).
+
+    python -m breedcafs_migration.main bootstrap
+        Create the migration user and team (BREEDCAFS_ADMIN_USER_ID, BREEDCAFS_PARENT_TEAM_ID) and print their ids.
+    python -m breedcafs_migration.main migrate --user-id <id> --team-id <id>
+        Run the migration phases as the migration user, with the migration team as write team.
+"""
+import argparse
 import asyncio
 import sys
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory, Neo4jUnitHolder
-from breedcafs_migration.setup.breedcafs_driver import BreedCAFSAsyncDriver
+from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 
-from breedcafs_migration.bootstrap import setup_breedcafs_migration_account
-
+from breedcafs_migration.bootstrap import setup_breedcafs_migration_account, MigrationContext, MigrationSettingsError
 from breedcafs_migration.ontology import prepare_breedcafs_ontology
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
+async def bootstrap(uow_factory: Neo4jUnitOfWorkFactory) -> None:
+    context = await setup_breedcafs_migration_account(uow_factory=uow_factory)
+    print(f"Migration user id: {context.user_id}, team id: {context.team_id}")
 
-async def main():
-    logger.info("Starting BreedCAFS data migration...")
 
-    breedgraph_driver = None
-    breedcafs_driver = None
+async def migrate(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext) -> None:
+    logger.info("Prepare ontology")
+    await prepare_breedcafs_ontology(uow_factory=uow_factory, user_id=context.user_id)
 
+
+async def main(args: argparse.Namespace) -> None:
+    driver = Neo4jAsyncDriver()
     try:
-        logger.info("Build BreedGraph driver")
-        breedgraph_driver = Neo4jAsyncDriver()
-
-        logger.info("Build BreedCAFS driver")
-        breedcafs_driver = BreedCAFSAsyncDriver()
-
-        logger.info("Build BreedGraph UOW factory")
-        breedgraph_uow_factory = Neo4jUnitOfWorkFactory(driver=breedgraph_driver)
-
-        logger.info("Setup BreedCAFS migration account")
-        context = await setup_breedcafs_migration_account(uow_factory=breedgraph_uow_factory)
-        logger.info("Prepare Ontology")
-        ontology_ids = await prepare_breedcafs_ontology(uow_factory=breedgraph_uow_factory, user_id=context.user_id)
-
-
-
-
-    except Exception as e:
-        logger.error(f"Setup failed: {e}")
-        sys.exit(1)
-
+        uow_factory = Neo4jUnitOfWorkFactory(driver=driver)
+        if args.step == 'bootstrap':
+            await bootstrap(uow_factory)
+        else:
+            await migrate(uow_factory, MigrationContext(user_id=args.user_id, team_id=args.team_id))
     finally:
-        if breedgraph_driver is not None:
-            try:
-                logger.debug("Closing BreedGraph driver")
-                await breedgraph_driver.close()
-            except Exception as e:
-                logger.warning(f"Error closing BreedGraph driver: {e}")
+        await driver.close()
 
-        if breedcafs_driver is not None:
-            try:
-                logger.debug("Closing BreedCAFS driver")
-                await breedcafs_driver.close()
-            except Exception as e:
-                logger.warning(f"Error closing BreedCAFS driver: {e}")
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Migrate BreedCAFS data into BreedGraph")
+    steps = parser.add_subparsers(dest='step', required=True)
+    steps.add_parser('bootstrap', help="Create the migration user and team")
+    migrate_parser = steps.add_parser('migrate', help="Run the migration phases")
+    migrate_parser.add_argument('--user-id', type=int, required=True, help="The migration user")
+    migrate_parser.add_argument('--team-id', type=int, required=True, help="The migration team")
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main(parse_args()))
+    except MigrationSettingsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(2)
+    except Exception:
+        logger.exception("Migration failed")
+        sys.exit(1)
