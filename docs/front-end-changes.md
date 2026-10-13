@@ -1,7 +1,49 @@
 # Front-end changes: people, access control and registration
 
-This lists the API changes made with the Person, control transfer and invitation work (branches `control_transfer`, `person_implementations` and `invitations`), and what the front end needs to do about each.
+This lists the API changes made with the Person, control transfer and invitation work (branches `control_transfer`, `person_implementations` and `invitations`),
+and later account deletion and Person institutions, and what the front end needs to do about each.
 Field names are given as in GraphQL (camelCase). Design background is in `person.md` and `control-transfer.md`.
+
+Checked against the front end (`breedview` at `7c27267`, 2026-10-13) and the API on master (2026-10-13):
+the front end's schema snapshot was compared with the current schema, and every operation in it was validated (§10).
+All API changes since the snapshot are listed here.
+
+## 0. Starting point and work list
+
+**Where the front end is.** It is up to date with the API up to the analysis and record grouping work.
+It has none of the changes below: no Person pages or forms (contacts and contributors are only read, as `{ id }` and `{ id name }`),
+no invitations, transfers, legal entities, account deletion or ORCID. The regions components had uncommitted changes on 2026-10-13.
+
+**First:** regenerate the schema files with the API running, so tooling and the Apollo cache know the new types:
+`node scripts/fetchGraphqlSchema.js` writes `src/graphql/schema.graphql`; regenerate `possibleTypes.json` and `unionTypes.json` the same way
+(`OntologyEntryUnion` no longer includes `Role` and `Title`). Then `python scripts/check_front_end_queries.py ../breedview/src`
+in this repository lists the operations that no longer validate (§10).
+
+**What breaks now** (seven operations, and code the check does not see):
+
+| File | Problem | Fix |
+|---|---|---|
+| `graphql/account/account.graphql` | queries `allowedEmails` | Query `invitations` instead (§2) |
+| `graphql/account/addEmail.graphql`, `removeEmail.graphql` | mutations removed | Delete; use `accountsInvite`, `accountsCancelInvitation` (§2) |
+| `components/user/InviteUserModal.vue`, `composables/user/useAuthentication.js` | use allowed emails | Rewrite as invitations (§2) |
+| `graphql/ontology/entries.graphql`, `ontology.graphql`, `graphql/programs/study.graphql` | query `Term.roles`, `Term.titles` | Remove them |
+| `composables/ontology/createOntologyEntries.js`, `updateOntologyEntries.js` | send `roleIds`, `titleIds` (not caught by the check, as they are variables) | Remove the fields and their form inputs |
+| `composables/ontology/nodeColorMap.js` | `ROLE` and `TITLE` labels | Remove |
+| `graphql/datasets/submissionWithData.graphql` | spreads `RecordFields` (on `Record`) on `SubmittedRecord`, whose fields differ (`unitId`, `referenceIds`). Older than these changes, and unused | Delete it, or give it its own fields |
+
+`authors` / `authorIds` (§1) are not used by the front end, so need no change.
+
+**Then, new work, in a suggested order:**
+1. Registration by invitation (§2): `/register` reads `token`, and the invite modal. Needed before anyone else can register.
+2. Persons (§4): a Person display component ("Name (Institution)", restricted and erased forms), used for contacts and dataset contributors,
+   then create, edit and erase forms, and a people list.
+3. Organisation legal entity (§3), needed before Persons can be created.
+4. Profile page from `peopleMyPerson`: edit, ORCID (with a new `/orcid` route), claims, unlink, erase, and account deletion (§6, §8).
+5. Contacts on Programs and Trials, with messaging (§5).
+6. Claim requests for admins (§6).
+7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
+
+New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 
 ## 1. Breaking changes at a glance
 
@@ -171,3 +213,28 @@ Admins of the recipient team are emailed about new offers.
 - `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
 - Password reset with a token works again (it always failed before).
 - Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `organisationsDataProcessingTerms`. Everything else still requires login.
+
+## 9. Migrated BreedCAFS data
+
+The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end has not shown at this scale. Nothing in the API changes for it, but expect:
+- **Size.** 41 fields with up to about 9,500 units each (field → trees → branches, leaves, cherries and samples), 1,179 datasets of up to about 6,900 records,
+  99,739 units and 265,651 records in all. Block, dataset and analysis views should page or virtualise rather than load a whole field.
+- **Persons as contributors.** Dataset contributors are Persons with an institution, `PRIVATE` until handover, so most users see them restricted (§4).
+- **Curves.** The four fluorescence curve datasets (Fluorescence ~ Time, PocketPEA) have records with no value: each references its dataset's CSV data file,
+  whose schema gives the index columns (`item_uid, unit_id, time, replicate`) that find a record's row. The existing complex-scale cells show the reference count.
+- **Times as entered.** Record times are to the minute where a time of day was entered, and to the day otherwise. `DateTime` values keep their precision,
+  e.g. `2018-11-25` or `2018-11-25T10:30`; show them as given rather than parsing a date alone into midnight in the browser's time zone.
+- **Layouts.** Fields have "Row and Tree" layouts with ordinal Row and Tree axes, some per block, and Field 5 has a second layout for a later planting.
+- **Studies** may start before their program (Nicaragua, 2015).
+- Branch stratum and the shade treatments are factor records (Stratum, Shade Treatment, Shade Level Treatment), not unit properties.
+
+## 10. Checking the front end against the API
+
+```bash
+set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
+.venv/bin/python scripts/check_front_end_queries.py ../breedview/src
+```
+
+It builds the API's schema and validates every operation in the front end's `.graphql` files, with the fragments each uses, and exits with 1 if any fails.
+It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
+Rerun it after changing the front end, and after any API change, before releasing either.
