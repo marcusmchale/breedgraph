@@ -68,7 +68,7 @@ async def login_token_factory(bus):
 
 @pytest.fixture(scope="session", autouse=True)
 def erasure_log_path(tmp_path_factory):
-    """Tests write the Person erasure log to a temporary file rather than instance/"""
+    """Tests write the erasure log to a temporary file rather than instance/"""
     from breedgraph import config
     original = config.PERSON_ERASURE_LOG_PATH
     path = tmp_path_factory.mktemp("erasure_log") / "person_erasure_log.jsonl"

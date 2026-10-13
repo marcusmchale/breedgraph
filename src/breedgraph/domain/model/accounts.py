@@ -2,10 +2,11 @@ import logging
 
 from abc import ABC
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 
 from breedgraph.service_layer.tracking.wrappers import asdict
-from breedgraph.domain.events.accounts import EmailVerified
+from breedgraph.domain.events.accounts import EmailVerified, AccountDeleted
 
 from .base import LabeledModel, StoredModel, Aggregate, SerializableMixin
 
@@ -112,6 +113,8 @@ class AccountInput(AccountBase):
 @dataclass(eq=False)
 class AccountStored(Aggregate, AccountBase):
     user: UserStored
+    # Set when the account is deleted, before it is removed from the repository
+    deleted_at: datetime | None = None
 
     @property
     def root(self):
@@ -119,13 +122,20 @@ class AccountStored(Aggregate, AccountBase):
 
     @property
     def protected(self):
-        # Unverified accounts are deleted, verified accounts are tombstoned to keep provenance
+        # Deleted accounts are tombstoned to keep provenance, unverified accounts are removed outright
+        if self.user.email_verified and self.deleted_at is None:
+            return "Accounts with a verified email are removed by deleting them"
         return False
 
     def model_dump(self):
         return {
             'user': self.user.model_dump()
         }
+
+    def delete(self):
+        """Mark the account for deletion. Removing it from the repository then tombstones it."""
+        self.deleted_at = datetime.now(timezone.utc)
+        self.events.append(AccountDeleted(user_id=self.user.id, deleted_at=self.deleted_at))
 
     def verify_email(self):
         self.user.email_verified = True

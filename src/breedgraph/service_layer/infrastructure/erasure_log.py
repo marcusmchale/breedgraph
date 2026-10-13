@@ -1,5 +1,5 @@
 """
-A record of erased Persons, kept outside the database, so erasures can be applied again
+A record of erased Persons and deleted accounts, kept outside the database, so they can be applied again
 after restoring a backup taken before them. Entries hold IDs and times only, no personal data.
 See docs/person.md §5.
 """
@@ -15,12 +15,21 @@ class ErasureLogEntry:
     erased_at: datetime
 
 
+@dataclass(frozen=True)
+class AccountDeletionLogEntry:
+    user_id: int
+    deleted_at: datetime
+
+
+LogEntry = ErasureLogEntry | AccountDeletionLogEntry
+
+
 class AbstractErasureLog(ABC):
 
     @abstractmethod
-    async def append(self, entry: ErasureLogEntry) -> None:
+    async def append(self, entry: LogEntry) -> None:
         ...
 
     @abstractmethod
-    def read(self) -> List[ErasureLogEntry]:
+    def read(self) -> List[LogEntry]:
         ...

@@ -103,10 +103,10 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             yield self.record_to_account(record)
 
     async def _remove(self, account: AccountStored):
-        if account.user.email_verified:
+        if account.deleted_at is not None:
             await self.tx.run(
-                queries['accounts']['delete_user'],
-                user_id=account.user.id
+                queries['accounts']['delete_users'],
+                deletions=[{'user_id': account.user.id, 'deleted_at': account.deleted_at.isoformat()}]
             )
         else:
             await self.tx.run(

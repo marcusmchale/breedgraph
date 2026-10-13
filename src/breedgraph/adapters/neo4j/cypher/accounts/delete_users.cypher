@@ -1,7 +1,10 @@
-// Tombstone a deleted account. The node is kept, relabelled DeletedUser, so that provenance
+// Tombstone deleted accounts. The node is kept, relabelled DeletedUser, so that provenance
 // (contributions, ontology commits and lifecycle changes) stays attributed to an anonymous id.
 // Relabelling also excludes it from every query matching :User, so login tokens no longer resolve.
-MATCH (user: User {id: $user_id})
+// Also used to apply logged deletions again after restoring a backup taken before them;
+// accounts already deleted, or not in the backup, are skipped.
+UNWIND $deletions AS deletion
+MATCH (user: User {id: deletion.user_id})
 CALL (user) {
   MATCH (user)-[r: READ|WRITE|CURATE|ADMIN|IS_PERSON|CLAIMS]->()
   DELETE r
@@ -18,4 +21,5 @@ CALL (user) {
 }
 REMOVE user: User
 SET user: DeletedUser
-SET user = {id: user.id, deleted_at: datetime.transaction()}
+SET user = {id: user.id, deleted_at: datetime(deletion.deleted_at)}
+RETURN count(user) AS deleted

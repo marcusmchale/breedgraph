@@ -5,6 +5,9 @@ from breedgraph.domain.model import Access
 from breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
+from breedgraph.adapters.files import JsonLinesErasureLog
+from breedgraph.adapters.neo4j.erasures import apply_erasures
+from breedgraph.service_layer.infrastructure.erasure_log import AccountDeletionLogEntry, ErasureLogEntry
 
 from tests.breedgraph.e2e.accounts.post_methods import _post
 from tests.breedgraph.e2e.people.post_methods import post_to_person
@@ -84,7 +87,9 @@ async def deleted_user_node(uow_factory, user_id: int) -> dict:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_delete_account_erases_person_by_default(client, login_token_factory, uow_factory, state_store, delete_context):
+async def test_delete_account_erases_person_by_default(
+        client, login_token_factory, uow_factory, state_store, event_queue, erasure_log_path, delete_context
+):
     admin_token = login_token_factory(user_id=delete_context['user_id'])
     user_id, password, person_id = await member_with_person(uow_factory, delete_context)
     token = login_token_factory(user_id=user_id)
@@ -97,6 +102,7 @@ async def test_delete_account_erases_person_by_default(client, login_token_facto
 
     response, payload = await delete_account(client, token, password)
     assert_payload_success(payload)
+    await event_queue.join()
     assert 'auth_token=""' in response.headers.get('set-cookie', '') or 'Max-Age=0' in response.headers.get('set-cookie', '')
 
     node = await deleted_user_node(uow_factory, user_id)
@@ -121,6 +127,34 @@ async def test_delete_account_erases_person_by_default(client, login_token_facto
     # The login token, still validly signed, is no longer accepted
     response, payload = await delete_account(client, token, password)
     assert payload['status'] == GQLStatus.ERROR.name
+
+    # Both the deletion and the erasure are logged
+    log = JsonLinesErasureLog(erasure_log_path).read()
+    [deletion] = [e for e in log if isinstance(e, AccountDeletionLogEntry) and e.user_id == user_id]
+    assert [e for e in log if isinstance(e, ErasureLogEntry) and e.person_id == person_id]
+    assert deletion.deleted_at == node['props']['deleted_at'].to_native()
+
+    # Simulate restoring a backup taken before the deletion
+    async with uow_factory.get_uow() as uow:
+        await uow.tx.run(
+            "MATCH (user:DeletedUser {id: $user_id}), (team:Team {id: $team_id}) "
+            "REMOVE user:DeletedUser SET user:User, user.name = 'Restored', user.email = 'restored@example.org', "
+            "user.deleted_at = null "
+            "CREATE (user)-[:READ {authorisation: 'AUTHORISED', heritable: false}]->(team)",
+            user_id=user_id, team_id=delete_context['team_id']
+        )
+        await uow.commit()
+    assert (await deleted_user_node(uow_factory, user_id))['labels'] == ['User']
+
+    applied = await apply_erasures(uow_factory.driver, [deletion])
+    assert applied.accounts == 1
+    node = await deleted_user_node(uow_factory, user_id)
+    assert node['labels'] == ['DeletedUser']
+    assert node['props'] == {'id': user_id, 'deleted_at': node['props']['deleted_at']}
+    assert node['props']['deleted_at'].to_native() == deletion.deleted_at
+    assert node['links'] == 0
+    # Replaying is idempotent
+    assert (await apply_erasures(uow_factory.driver, [deletion])).accounts == 0
 
 
 @pytest.mark.asyncio(loop_scope="session")

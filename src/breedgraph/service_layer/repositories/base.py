@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, AsyncGenerator, TypeVar, Generic, Union, cast
+from typing import Dict, AsyncGenerator, TypeVar, Generic, Union, List, cast
 from neo4j import Record
 
 from breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject, tracked
@@ -14,6 +14,8 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
 
     def __init__(self):
         self.seen: Dict[TrackedObject|TAggregate,TrackedObject|TAggregate] = dict()
+        # Kept so their events are still published once the removal is committed
+        self.removed: List[TrackedObject|TAggregate] = list()
 
     @staticmethod
     def deserialize_dt64(record: Dict | Record) -> dict:
@@ -101,6 +103,7 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
 
         await self._remove(aggregate)
         self.seen.pop(aggregate)
+        self.removed.append(aggregate)
 
     @abstractmethod
     async def _remove(self, aggregate: Union[TrackedObject, TAggregate]) -> None:

@@ -11,7 +11,10 @@ from breedgraph.domain.model.organisations import Authorisation, TeamInput, Affi
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
-from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory, AbstractAuthService
+from breedgraph.service_layer.infrastructure import (
+    AbstractNotifications, AbstractUnitOfWorkFactory, AbstractAuthService,
+    AbstractErasureLog, AccountDeletionLogEntry, AbstractStateStore
+)
 
 from ..registry import handlers
 
@@ -183,3 +186,28 @@ async def notify_user_approved(
             [account.user],
             message
         )
+
+
+@handlers.event_handler()
+async def log_account_deletion(
+        event: events.accounts.AccountDeleted,
+        erasure_log: AbstractErasureLog
+):
+    """Deletions are logged after they are committed, so a logged deletion always happened."""
+    try:
+        await erasure_log.append(AccountDeletionLogEntry(user_id=event.user_id, deleted_at=event.deleted_at))
+    except Exception:
+        logger.critical(
+            f"Failed to log the deletion of account {event.user_id}. "
+            f"Add it to the erasure log, or it will not be applied again after restoring a backup.",
+            exc_info=True
+        )
+        raise
+
+
+@handlers.event_handler()
+async def remove_deleted_account_state(
+        event: events.accounts.AccountDeleted,
+        state_store: AbstractStateStore
+):
+    await state_store.remove_user_state(event.user_id)

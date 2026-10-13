@@ -164,6 +164,7 @@ Admins of the recipient team are emailed about new offers.
 - `accountsDeleteAccount(password, erasePerson)` deletes the user's own account and logs them out. Ask for the password, and ask whether to erase their linked Person as well, ticked by default.
   Errors explain when it is refused: the only ontology admin, or the only admin of a team (the message lists the teams).
   Deleted users show as null wherever a user is shown, like users the viewer can't see.
+  The deletion takes effect at once: the user's login no longer works, and their username is free to register again. It stays deleted if a backup is restored.
 
 - `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
 - Password reset with a token works again (it always failed before).

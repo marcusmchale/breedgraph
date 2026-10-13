@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import List
 
 from breedgraph import config
-from breedgraph.service_layer.infrastructure.erasure_log import AbstractErasureLog, ErasureLogEntry
+from breedgraph.service_layer.infrastructure.erasure_log import (
+    AbstractErasureLog, ErasureLogEntry, AccountDeletionLogEntry, LogEntry
+)
 
 
 class JsonLinesErasureLog(AbstractErasureLog):
     """
-    One JSON object per line, appended and flushed to disk for each erasure.
+    One JSON object per line, appended and flushed to disk for each erasure or account deletion.
     The path is read from config.PERSON_ERASURE_LOG_PATH unless given.
     """
 
@@ -22,8 +24,11 @@ class JsonLinesErasureLog(AbstractErasureLog):
     def path(self) -> Path:
         return Path(self._path or config.PERSON_ERASURE_LOG_PATH)
 
-    async def append(self, entry: ErasureLogEntry) -> None:
-        line = json.dumps({'person_id': entry.person_id, 'erased_at': entry.erased_at.isoformat()})
+    async def append(self, entry: LogEntry) -> None:
+        if isinstance(entry, AccountDeletionLogEntry):
+            line = json.dumps({'user_id': entry.user_id, 'deleted_at': entry.deleted_at.isoformat()})
+        else:
+            line = json.dumps({'person_id': entry.person_id, 'erased_at': entry.erased_at.isoformat()})
         await asyncio.to_thread(self._append_line, line)
 
     def _append_line(self, line: str) -> None:
@@ -34,7 +39,7 @@ class JsonLinesErasureLog(AbstractErasureLog):
             log_file.flush()
             os.fsync(log_file.fileno())
 
-    def read(self) -> List[ErasureLogEntry]:
+    def read(self) -> List[LogEntry]:
         if not self.path.exists():
             return []
         entries = []
@@ -42,8 +47,14 @@ class JsonLinesErasureLog(AbstractErasureLog):
             for line in log_file:
                 if line.strip():
                     record = json.loads(line)
-                    entries.append(ErasureLogEntry(
-                        person_id=int(record['person_id']),
-                        erased_at=datetime.fromisoformat(record['erased_at'])
-                    ))
+                    if 'user_id' in record:
+                        entries.append(AccountDeletionLogEntry(
+                            user_id=int(record['user_id']),
+                            deleted_at=datetime.fromisoformat(record['deleted_at'])
+                        ))
+                    else:
+                        entries.append(ErasureLogEntry(
+                            person_id=int(record['person_id']),
+                            erased_at=datetime.fromisoformat(record['erased_at'])
+                        ))
         return entries

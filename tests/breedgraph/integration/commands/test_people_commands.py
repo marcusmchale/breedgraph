@@ -3,7 +3,8 @@ import pytest_asyncio
 
 from breedgraph import config
 from breedgraph.adapters.files import JsonLinesErasureLog
-from breedgraph.adapters.neo4j.erasures import apply_person_erasures
+from breedgraph.adapters.neo4j.erasures import apply_erasures
+from breedgraph.service_layer.infrastructure.erasure_log import ErasureLogEntry
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError, UnauthorisedOperationError
 from breedgraph.domain.commands.organisations import DeclareLegalEntity, LegalEntity
 from breedgraph.domain.commands.people import CreatePerson, UpdatePerson, ErasePerson
@@ -131,7 +132,10 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
 
     person = await get_person(uow_factory, account['user_id'], person_id)
     assert person.erased and person.name is None and person.teams == []
-    [entry] = [entry for entry in JsonLinesErasureLog(erasure_log_path).read() if entry.person_id == person_id]
+    [entry] = [
+        entry for entry in JsonLinesErasureLog(erasure_log_path).read()
+        if isinstance(entry, ErasureLogEntry) and entry.person_id == person_id
+    ]
     assert entry.erased_at == person.erased_at
 
     with pytest.raises(IllegalOperationError, match="erased"):
@@ -148,8 +152,8 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
         await uow.commit()
     assert (await get_person(uow_factory, account['user_id'], person_id)).name == 'Restored Name'
 
-    erased = await apply_person_erasures(bus.uow_factory.driver, [entry])
-    assert erased == 1
+    applied = await apply_erasures(bus.uow_factory.driver, [entry])
+    assert applied.persons == 1
     person = await get_person(uow_factory, account['user_id'], person_id)
     assert person.erased and person.name is None and person.teams == []
     assert person.erased_at == entry.erased_at

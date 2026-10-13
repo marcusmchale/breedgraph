@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Apply the Person erasure log to the database again.
-Run after restoring a database backup, so Persons erased since the backup was taken stay erased.
+Apply the erasure log to the database again.
+Run after restoring a database backup, so Persons erased and accounts deleted since the backup was taken stay that way.
 The log is read from PERSON_ERASURE_LOG_PATH, or from the path given as the first argument.
 """
 import asyncio
@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from breedgraph.adapters.files import JsonLinesErasureLog
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-from breedgraph.adapters.neo4j.erasures import apply_person_erasures
+from breedgraph.adapters.neo4j.erasures import apply_erasures
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -27,13 +27,13 @@ async def main(log_path: str | None = None):
         sys.exit(1)
 
     entries = erasure_log.read()
-    logger.info(f"Applying {len(entries)} logged erasures from {erasure_log.path}")
+    logger.info(f"Applying {len(entries)} logged erasures and account deletions from {erasure_log.path}")
     driver = Neo4jAsyncDriver()
     try:
-        erased = await apply_person_erasures(driver, entries)
+        applied = await apply_erasures(driver, entries)
     finally:
         await driver.close()
-    logger.info(f"Erasures applied to {erased} Persons")
+    logger.info(f"Erasures applied to {applied.persons} Persons, and {applied.accounts} accounts deleted again")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,6 @@ class AbstractRepoHolder(ABC):
     def collect_events(self):
         for attr, value in self.__dict__.items():
             if isinstance(value, BaseRepository):
-                for aggregate in value.seen:
+                for aggregate in [*value.seen, *value.removed]:
                     while aggregate.events:
                         yield aggregate.events.pop(0)

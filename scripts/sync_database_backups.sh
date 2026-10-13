@@ -4,7 +4,7 @@
 # This is NOT the file archive worker (archive_worker, ARCHIVE_* settings), which moves uploaded files
 # to archive storage. This script copies only:
 #   - Neo4j database dumps, written on the web server by scripts/backup.sh, and
-#   - the Person erasure log, which scripts/restore.sh replays after loading a dump (docs/person.md §4).
+#   - the erasure log of erased Persons and deleted accounts, which scripts/restore.sh replays after loading a dump (docs/person.md §5).
 #
 # Settings are read from BACKUP_SYNC_ENV (default /etc/breedgraph/backup_sync.env) if it exists,
 # otherwise from the environment. See instance/backup_sync.env for an example.

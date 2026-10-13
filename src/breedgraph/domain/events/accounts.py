@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from .base import Event
 from breedgraph.domain.model.controls import Access
 
@@ -10,6 +12,10 @@ class InvitationIssued(Event):
 
 class EmailVerified(Event):
     user_id: int
+
+class AccountDeleted(Event):
+    user_id: int
+    deleted_at: datetime
 
 class AffiliationRequested(Event):
     user_id: int

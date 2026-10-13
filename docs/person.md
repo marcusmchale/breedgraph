@@ -173,6 +173,8 @@ Implemented in step 9b:
 
 ## 5. Erasure (tombstone)
 
+Deleted accounts are tombstoned too, and logged in the same erasure log (§6, Deleting an account).
+
 Erasing a Person:
 - clears `name`, `orcid` and `IN_TEAM` relationships, and sets `erased_at`.
 - keeps `id`, access controls, `basis` and provenance fields, and the `CONTRIBUTED_TO` and `HAS_CONTACT` references to it.
@@ -184,11 +186,13 @@ Who can erase: admins of the teams that control the record, and the linked User.
 Backups and logs:
 - Backups (e.g. `instance/neo4j_archive/`) are kept for a documented retention period.
 - The erasure log is a JSON-lines file at `PERSON_ERASURE_LOG_PATH` (default `instance/person_erasure_log.jsonl`), outside the database, so restoring a backup does not roll it back.
-  It is appended to by the `PersonErased` event handler after an erasure is committed, so every logged erasure happened.
+  It has one line per erased Person, `{"person_id", "erased_at"}`, and per deleted account, `{"user_id", "deleted_at"}`.
+  It is appended to by the `PersonErased` and `AccountDeleted` event handlers after the change is committed, so every logged erasure happened.
+  The setting and file keep their Person names, so existing deployments need no change.
 - `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/sync_database_backups.sh` (cron on the archive server, settings as in `instance/backup_sync.env`) copies new dumps and the erasure log.
   It is unrelated to the file archive worker. The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the copy. Run it at least as often as dumps are made.
   `BACKUP_RETENTION_DAYS` optionally removes old dumps on the archive server; the erasure log is never removed.
-- `scripts/restore.sh` loads a dump and then runs `scripts/apply_person_erasures.py`, which applies the whole log again. Replaying is idempotent.
+- `scripts/restore.sh` loads a dump and then runs `scripts/apply_erasures.py`, which applies the whole log again: Persons are erased and accounts tombstoned again, with their logged times. Replaying is idempotent.
 - Personal data is not written to application logs. Log ids and actions, not mutation payloads.
 
 ## 6. Linking a User to a Person (claiming)
@@ -289,7 +293,9 @@ The user is asked whether to erase their Person record as well. Erasure is the d
 - Login tokens cannot be revoked, so the GraphQL context checks the user still exists on every request.
 - Their submissions and analyses in Redis are deleted, cancelling queued analyses. Uploaded files are kept, as they belong to References.
 - Unverified accounts are still deleted outright, when someone registers again with the same email.
-- Not yet covered by the erasure log: restoring a backup taken before the deletion brings the account back.
+- The deletion is logged in the erasure log (§5), and tombstoned again if a backup taken before it is restored. If the Person was erased, that is logged too.
+  `AccountStored.delete()` raises `AccountDeleted`; repositories keep removed aggregates until commit so their events are published.
+  Its handlers write the log entry and clear the Redis state.
 
 ## 7. Decisions
 

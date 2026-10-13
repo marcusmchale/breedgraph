@@ -8,8 +8,7 @@ from breedgraph import config
 
 from breedgraph.service_layer.infrastructure import (
     AbstractUnitOfWorkFactory,
-    AbstractAuthService,
-    AbstractStateStore
+    AbstractAuthService
 )
 
 
@@ -150,8 +149,7 @@ async def edit_user(
 @handlers.command_handler()
 async def delete_account(
         cmd: commands.accounts.DeleteAccount,
-        uow_factory: AbstractUnitOfWorkFactory,
-        state_store: AbstractStateStore
+        uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
@@ -180,11 +178,9 @@ async def delete_account(
             # Stored before the account is removed, as the repository authorises it by the stored link
             await uow.repositories.people.update_seen()
 
+        account.delete()
         await uow.repositories.accounts.remove(account)
         await uow.commit()
-
-    # Events from a removed aggregate are not collected, so working state is cleared here
-    await state_store.remove_user_state(cmd.user_id)
 
 @handlers.command_handler()
 async def verify_email(
