@@ -39,8 +39,9 @@ Broadly we will follow the follow phases:
 4. Create locations
 5. Create layouts
 6. Create units
-7. Create datasets
-8. Create Persons and set dataset contributors
+7. Create the program, trials and studies
+8. Create datasets
+9. Create Persons and set dataset contributors
  
 
 
@@ -92,9 +93,14 @@ Create Subjects:
 * Leaves
 * Leaf
 * Cherries
+* Cherry
 * Green Beans
 
-`Trees` is specifically used to represent an **unknown number of trees** of a particular germplasm within a field.
+`Trees` represents a group of trees within a field whose individual trees are not identified,
+e.g. a block (6.4), or the trees of one germplasm in a field (6.2).
+
+The ontology preparation (ontology.py) also creates the variables and factors of the curated inputs (1.5),
+and the treatment factors for blocks named after a treatment (6.4).
 
 ## 2.2 Location Types
 
@@ -106,13 +112,13 @@ Create:
 
 ## 2.3 Layout Types
 
-Initially create:
+Create, with ordinal axes (1.2):
 
-* Block, one nominal axis
-* Row and Tree, two ordinal or coordinate axes
+* Row and Tree
+* Row, Tree and Stratum, a child of Row and Tree, for branch positions
+* Grid, for the different coordinate system of field 5
 
-`Block` is a migration-era representation and may subsequently be deprecated 
-once the semantic meaning of the relevant layouts has been assessed.
+Blocks are units (6.4), not layouts.
 
 ---
 
@@ -195,7 +201,7 @@ For each Item:
 * Set the Subject based on the BreedCAFS Item `unit` value.
 * Establish the appropriate hierarchy.
 * Set the `Varieties`/Germplasm field where a single variety is known.
-* Set positions within Block layouts using Item Row and Column data.
+* Set positions within the layouts using Item Row and Column data (1.2).
 * Assign the appropriate Location.
 
 ## 6.2 Fields with Multiple Germplasm
@@ -236,6 +242,35 @@ Where locations (coordinates) assigned to units are identical, aggregate them to
 
 Assign these coordinates to the highest aggregation level where appropriate, e.g. the Field.
 Assign the corresponding location as a position for each unit.
+
+## 6.4 Blocks
+
+BreedCAFS Blocks group the trees of a Field, and have no data of their own.
+
+* Blocks named as numbered blocks ("Block 1", "Block A", and the "Bulk" block of field 22) become `Trees` units under their Field,
+  named as the block is in BreedCAFS (block names are only unique within a Field).
+  Their trees are their children, and samples taken from the block (about 12,750 with data, e.g. most cherry and green bean samples)
+  keep the block as their parent.
+* Blocks named after a treatment are not units. Their trees are placed directly under the Field,
+  and each tree gets a record of the treatment, with the block name as the category:
+  * "Full Sun" and "Shade" in fields 25–27 (La Hilda, Costa Rica): the "Shade Treatment" factor (shade cloth).
+  * "Shade Level 1" to "Shade Level 5" and "2 Years Low Light Acclimation" in field 35 (Copenhagen greenhouse):
+    the "Shade Level Treatment" factor (shade cloth).
+
+  Both describe the Light Availability condition, as the curated "Shade level" factor (a percentage) does,
+  and differ only in their scale, keeping the labels of each experiment together.
+
+  These factors are created with the ontology (`TREATMENT_FACTORS` in ontology.py).
+
+## 6.5 Skipped Items
+
+[extract_skipped_items.cypher](cypher/extract_skipped_items.cypher) lists the items that are not migrated,
+as they have no data and no other item depends on them:
+
+* 4,037 samples whose sample unit (subject) was never set, registered but never used.
+* 2 blocks without trees or samples (blocks "1" and "3" of field 35).
+
+Saved this as skipped_items.csv. No record in records.csv or curves.csv belongs to these items.
 
 ---
 
@@ -340,13 +375,41 @@ For each:
 
 Unused BreedCAFS Condition definitions do not need to be migrated.
 
+## 7.5 Program, Trials and Studies
+
+All migrated data belongs to one **BreedCAFS** Program, with Trials and Studies by the kind of data and where it was recorded:
+
+| Trial | Studies |
+|---|---|
+| Field trials | One per country: Cameroon, Costa Rica, French Guiana, Nicaragua, Vietnam |
+| Controlled environment | Denmark (greenhouse rooms in Copenhagen) |
+| Sample analyses | Metabolomics (IRD), across Costa Rica, Nicaragua and Vietnam; Mineral analysis (Costa Rica) |
+
+Each record is assigned a Study, not each submission: some submissions mix sample analyses with field data,
+and one covers fields in two countries.
+
+  * Records of inputs with the `Metabolites` term go to Metabolomics, and those with the `Elements` term to Mineral analysis.
+  * Other records go by the country of their item's field, with Denmark to the controlled environment Study.
+
+## 7.6 Datasets
+
+A Dataset holds the records of one input, from one submission, in one Study.
+A Study can hold several Datasets for the same variable or factor.
+
+  * Replicate codes become a dataset-scoped record grouping on each Study,
+    with one scope per submission: the Datasets of that submission in the Study.
+    Replicate codes are then only compared within the records submitted together.
+  * Contributors are the Persons of the submission's attribution values for that input
+    (submissions.csv, attribution_persons.csv and persons.csv, see [1.7](1_7_Extract_Persons.md)).
+  * Records loaded without a submission (the photosynthesis data) are grouped as one submission per input.
+
 ---
 
 # 8. Validation and Reconciliation
 
 Before transferring control from the migration team, validate:
 
-* Source/target entity counts.
+* Source/target entity counts, accounting for the items in skipped_items.csv.
 * Every expected BreedCAFS ID has a corresponding mapping.
 * All cross-references resolve.
 * Unit hierarchies are valid.
@@ -395,12 +458,10 @@ The mechanical migration itself should not make uncertain publication decisions.
 
 Once migrated data has been reviewed:
 
-1. Deprecate the `Blocks` LayoutType.
-2. Update corresponding layouts with more appropriate terminology depending on their actual meaning.
-3. Where appropriate, replace structural representations with semantic Conditions.
+1. Review the Grid layout of field 5 and the per-block layouts of field 29 with the partners, and rename them to suit.
+2. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
 
-For example, shade-level blocks in a greenhouse may be better represented as a Condition rather than as a Layout. 
-The true block structure may not exist or be undefined in BreedCAFS db.
+Blocks named after a treatment are already migrated as factor records (6.4).
 
 ---
 

@@ -129,6 +129,12 @@ MATCH (input:Input {name: "Photosynthetic Analysis Apparatus"})<-[:FOR_INPUT*]-(
 return distinct user.username as username, record.time as record_time, collect(distinct record.value) as apparatus
 ```
 
+The apparatus records show which instrument each photosynthesis input was measured with:
+PocketPEA (the fluorescence curve and JIP-test parameters), CIRAS3 (gas exchange) and MiniPAM (Fᵥ / Fₘ only).
+The apparatus is the observation method of these variables, typed MEASUREMENT as the instrument reports every value,
+and each variable is named "Trait (Apparatus)". An added `Apparatus` column keys these rows,
+with a second Fᵥ / Fₘ row for MiniPAM, so a record's variable follows from the apparatus recorded for its item at the same time.
+
 ## Ontology Entry Curation
 - Added columns:
 - Factor	

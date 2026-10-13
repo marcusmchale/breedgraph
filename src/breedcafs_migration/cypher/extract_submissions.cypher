@@ -23,6 +23,7 @@ CALL {
 OPTIONAL MATCH (user)-[:AFFILIATED {data_shared: true}]->(partner:Partner)
 WITH
     submission_time,
+    id(user) AS submitter_id,
     user.name AS submitter,
     partner.name AS partner,
     coalesce(person, 'submitter: ' + user.name) AS attribution,
@@ -33,5 +34,5 @@ WITH
 RETURN
     submission_time,
     CASE WHEN submission_time IS NOT NULL THEN toString(datetime({epochMillis: submission_time})) END AS submitted_at,
-    submitter, partner, attribution, record_type, input, record_count, field_uids
+    submitter_id, submitter, partner, attribution, record_type, input, record_count, field_uids
 ORDER BY submission_time, attribution, input

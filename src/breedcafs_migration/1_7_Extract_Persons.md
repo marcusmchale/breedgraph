@@ -29,7 +29,7 @@ A submission is the set of records a User submitted at one time, `(:UserFieldInp
 Each has one submitter, and so one Partner. Most submissions have one attribution value; some have two or three.
 
 [extract_submissions.cypher](cypher/extract_submissions.cypher) gives one row per submission, input and attribution value,
-with the submitter's Partner, record count and fields.
+with the submitter (name, and BreedCAFS node id as in records.csv), the submitter's Partner, record count and fields.
 The attribution is the trimmed `person` value or, where that is empty, `submitter: <user name>`.
 Records loaded without a submission (the photosynthesis data) have no submission time, submitter or Partner.
 Datasets are attributed from these rows: the records of an input submitted together, and the Persons who recorded them.

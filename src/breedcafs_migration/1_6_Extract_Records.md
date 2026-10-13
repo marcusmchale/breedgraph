@@ -57,6 +57,25 @@ So just the metabolite and photosynthesis data. This makes sense.
 
 
 
+### Extract
+
+[extract_records.cypher](cypher/extract_records.cypher) gives one row per live record, except curves,
+leaving out the structural properties and the inputs extracted elsewhere (1.2, 1.4, 1.5).
+Each row has the BreedCAFS record id, the submission (time and the submitter's BreedCAFS node id),
+the item uid, input, value, time or start and end (with the original text times) and replicate code.
+It does not name who recorded the record; the submission links it to the attribution values in submissions.csv.
+"Set harvest time" records are kept, to be merged into Harvest.
+
+Saved this as records.csv
+
+Records loaded without a submission have no submission time or submitter.
+No record repeats the same submission, input, item, time and replicate code.
+
+[extract_curves.cypher](cypher/extract_curves.cypher) gives the curve records in the same way, with their x and y values.
+All curves share the same x values.
+
+Saved this as curves.csv
+
 ### Curve
 Collate the curve values into a CSV file with Item ID, Time, Replicate then all X-values as header.
 
