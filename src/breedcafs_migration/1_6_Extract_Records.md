@@ -1,5 +1,6 @@
 ## 1.6. Extract Records
-Do not include Person information.
+Do not include the `person` value in record dumps; attribution is extracted separately in [1.7](1_7_Extract_Persons.md).
+Deleted BreedCAFS records have no `RECORD_FOR` relationship (see [1.7.2](1_7_Extract_Persons.md#172-deleted-records)), so queries through `RECORD_FOR` leave them out.
 
 
 ### Replication

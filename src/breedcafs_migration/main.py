@@ -32,9 +32,9 @@ async def main():
         breedgraph_uow_factory = Neo4jUnitOfWorkFactory(driver=breedgraph_driver)
 
         logger.info("Setup BreedCAFS migration account")
-        user_id = await setup_breedcafs_migration_account(uow_factory=breedgraph_uow_factory)
+        context = await setup_breedcafs_migration_account(uow_factory=breedgraph_uow_factory)
         logger.info("Prepare Ontology")
-        ontology_ids = await prepare_breedcafs_ontology(uow_factory=breedgraph_uow_factory, user_id=user_id)
+        ontology_ids = await prepare_breedcafs_ontology(uow_factory=breedgraph_uow_factory, user_id=context.user_id)
 
 
 
@@ -44,7 +44,7 @@ async def main():
         sys.exit(1)
 
     finally:
-        if breedcafs_driver is not None:
+        if breedgraph_driver is not None:
             try:
                 logger.debug("Closing BreedGraph driver")
                 await breedgraph_driver.close()

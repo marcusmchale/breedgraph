@@ -2,11 +2,13 @@
 
 ## Guiding Principles
 
-**Migration is performed by a dedicated BreedCAFS Migration User**, belonging to a dedicated **BreedCAFS Migration Organisation/Team**.
+**Migration is performed by a dedicated BreedCAFS Migration User**, affiliated with a dedicated **BreedCAFS Migration Team** under the **University of Galway** organisation.
 
    * The migration identity is not a human account and does not need login capability.
    * Migration commands and events therefore go through the normal BreedGraph application/domain machinery.
    * The personal account of the migration administrator remains separate from the historical provenance of migrated data.
+   * The University of Galway root team declares the legal entity, so the university is the data controller
+     of Persons created by the migration until they are handed over (see docs/person.md §2).
 
 **The migration team temporarily controls all migrated data.**
 
@@ -14,11 +16,19 @@
    * The migration team provides the required read/write/curation authority during migration.
    * Control is subsequently transferred to the appropriate BreedGraph Organisation/team.
 
-**Do not migrate BreedCAFS submission identity.**
+**Attribute data to the people who recorded it.**
 
-   * `submitted_by` and `submitted_at` are not carried over as BreedGraph authorship/provenance.
-   * BreedCAFS users are not migrated into BreedGraph Persons.
-   * Personal data is not imported unless there is an explicit requirement and appropriate GDPR basis for doing so.
+   * Each BreedCAFS Record has a free-text `person` field naming who recorded it.
+     These values are curated into BreedGraph Persons and set as `contributors` of the datasets their records fall into.
+     The BreedCAFS user who submitted a record is used only where `person` is empty.
+   * A Person stores only a name and an institution, the full name of the BreedCAFS Partner,
+     with no team affiliation, email or username. Names can be refined later, but must be unique per Person.
+   * Persons are created `PRIVATE` with the migration team as write team, and stay `PRIVATE` until handover;
+     the responsible organisation then decides on release.
+   * The migration administrator gives the informed attestation for each Person.
+   * `submitted_at` is not carried over, as BreedGraph sets the submission time when records are created.
+   * Person data (extracted values, the curated mapping, and the BreedCAFS → Person id mapping)
+     is kept only in the untracked `src/data/breedcafs_migration/` directory, never in git.
 
 Broadly we will follow the follow phases:
   
@@ -30,6 +40,7 @@ Broadly we will follow the follow phases:
 5. Create layouts
 6. Create units
 7. Create datasets
+8. Create Persons and set dataset contributors
  
 
 
@@ -45,15 +56,24 @@ CALL db.schema.nodeTypeProperties()
 
 ## [1.2 Extract Layouts](1_2_Extract_Layouts.md)
 
+## [1.3 Extract Germplasm](1_3_Extract_Germplasm.md)
+
+## [1.4 Extract Units](1_4_Extract_Units.md)
+
+## [1.5 Extract Inputs](1_5_Extract_Inputs.md)
+
+## [1.6 Extract Records](1_6_Extract_Records.md)
+
+## [1.7 Extract Persons](1_7_Extract_Persons.md)
+
 
 # 1. Migration Bootstrap
 
-3. Create the **BreedCAFS Migration User**.
-1. Create the **BreedCAFS Migration Organisation**.
-2. Create the **BreedCAFS Migration Team**.
-
-4. Establish the required affiliations/permissions for the migration user.
-5. Use the migration user as the actor for all migration commands.
+1. Create the **BreedCAFS Migration User**.
+2. Create the **BreedCAFS Migration Team** as a child of the University of Galway root team
+   (the University of Galway organisation, with its declared legal entity, already exists in production).
+3. Establish the required affiliations/permissions for the migration user on the migration team.
+4. Use the migration user as the actor for all migration commands.
 
 The migration team provides temporary control rather than final ownership.
 
@@ -336,7 +356,8 @@ Before transferring control from the migration team, validate:
 * Variable and Factor references resolve.
 * Curve data has the expected structure.
 * Time values parse correctly.
-* No unintended Person/personal data has been imported.
+* Only the curated Persons have been imported, each with a name only, and every `person` value maps to at least one Person.
+* Every dataset's contributors match the `person` values of its records.
 * All migrated data remains controlled by the migration team.
 * All migrated data has the expected initial release state.
 
