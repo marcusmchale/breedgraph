@@ -4,9 +4,9 @@ Links an ORCID iD to the user's Person on a running BreedGraph server, without t
 For testing against the ORCID sandbox until the front-end /orcid page exists.
 
 Load the env files and start the server, then run with the same env files loaded:
-    python scripts/orcid_sandbox_link.py --username <user>   # link
-    python scripts/orcid_sandbox_link.py --create-user       # create a test user first, after the tests wipe the database
-    python scripts/orcid_sandbox_link.py --remove            # remove the iD again
+    python tests/breedgraph/manual/orcid_sandbox_link.py --username <user>   # link
+    python tests/breedgraph/manual/orcid_sandbox_link.py --create-user       # create a test user first, after the tests wipe the database
+    python tests/breedgraph/manual/orcid_sandbox_link.py --remove            # remove the iD again
 
 The user must be linked to a Person (peopleMyPerson). --create-user writes to the configured Neo4j database directly,
 creating a verified user with a random password, a team and a linked Person, and prints the login. The script opens ORCID's sign-in URL in a browser.
