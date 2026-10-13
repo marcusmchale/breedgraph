@@ -4,10 +4,8 @@ Deleted BreedCAFS records have no `RECORD_FOR` relationship (see [1.7.2](1_7_Ext
 
 
 ### Replication
-Replication in BreedGraph is to be defined with units in block structures rather than embedded in records.
-
-
-Extract the replicate code here and during registration create replicates.
+BreedCAFS records have a replicate code. In BreedGraph, replicates are a record grouping on the Study,
+whose codes are compared only within a scope of Datasets.
 
 First consider how many cases this was used in (where more than one replicate is given).
 
@@ -52,7 +50,11 @@ WHERE record_count > 1
 RETURN distinct(input.name)
 ```
 
-So just the metabolite and photosynthesis data. This makes sense. 
+So just the metabolite and photosynthesis data. This makes sense.
+
+Replicate codes are not otherwise reserved for real replication (e.g. 0 is often given for a single replicate),
+and were only checked within a submission. So they become a dataset-scoped grouping with one scope per submission:
+the Datasets of that submission in a Study (README §7.6).
 
 
 
@@ -77,9 +79,8 @@ All curves share the same x values.
 Saved this as curves.csv
 
 ### Curve
-Collate the curve values into a CSV file with Item ID, Time, Replicate then all X-values as header.
-
-The data rows should include values for ID, timem replicate and y-values.
+During creation, the curve data file is built from curves.csv: a CSV with Item ID, Time and Replicate,
+then a column for each x value, as all curves share the same x values; each row has a curve's y values.
 
 Retain the original `text_time` value as appropriate.
 Validate that the time values can be parsed as `numpy.datetime64`.

@@ -124,14 +124,11 @@ Blocks are units (6.4), not layouts.
 
 # 3. Locations
 
-Extract:
+From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields,
+each under its parent and the Regions under their (existing) Country.
+Set each Field's coordinates from field_lat_long.csv (1.1.2).
 
-* Countries
-* Regions
-* Farms
-* Fields
-
-Create them in BreedGraph with the appropriate hierarchy.
+The one location given by the "Location (text)" input is created too, as the position of the samples in sample_positions.csv (1.2.2).
 
 For each location created store:
 ```text
@@ -143,7 +140,15 @@ BreedGraph Location ID → BreedCAFS Partner
 
 # 4. Layouts
 
-Extract BreedCAFS Blocks and create BreedGraph layouts for the corresponding Field location.
+From field_layout_types.csv (1.2.1), create the layouts at each Field's location:
+
+* `row_and_tree`: a "Row and Tree" layout for the Field, or one for each Block where rows and trees are numbered per block (field 29).
+  Field 5 uses a different coordinate system, so has a "Grid" layout instead.
+* `row_tree_and_stratum`: also a "Row, Tree and Stratum" layout for the Field, regardless of the other layouts.
+
+Tree positions are recorded in the Row and Tree (or Grid) layout, and branch positions,
+with the stratum recorded for the branch, in the Row, Tree and Stratum layout.
+Positions come from unit_positions.csv (1.2.2), whose `layout_level` and `layout_name` give the layout for each unit.
 
 Store:
 
@@ -156,7 +161,7 @@ BreedGraph Layout ID → BreedCAFS Partner
 
 # 5. Germplasm
 
-Only migrate BreedCAFS varieties that participate in:
+From varieties.csv (1.3.1), only migrate BreedCAFS varieties that participate in:
 
 * `OF_VARIETY`, or
 * `CONTAINS_VARIETY`
@@ -178,6 +183,8 @@ For each relevant BreedCAFS variety:
 3. Otherwise, create a new BreedGraph germplasm node sourced from BreedCAFS.
 
 BreedCAFS variety names are known to be unique, so exact case-insensitive name matching is considered sufficient for the mechanical migration.
+
+Units are given their germplasm from item_variety.csv (1.3.2).
 
 Store:
 

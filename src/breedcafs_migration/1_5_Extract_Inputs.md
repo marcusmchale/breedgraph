@@ -1,6 +1,6 @@
-## 1.4. Inputs
+## 1.5. Inputs
 
-### 1.4.1 Attributes
+### 1.5.1 Attributes
 
 Inputs have:
   - name
@@ -17,34 +17,36 @@ Formats can be mapped to BreedGraph ScaleType as follows:
   - percent = numerical with the scale name and description as '%' + 'percentage'
   - boolean = NOMINAL categorical (e.g. present/absent, yes/no)
     
-### 1.4.2 Terms
+### 1.5.2 Terms
 
 Inputs were also grouped into input groups, for ease of template generation. 
 In BreedGraph this will be better encoded by association a term in the ontology.
 
-### 1.4.3 Subjects
+### 1.5.3 Subjects
 
 Inputs have an "AT_LEVEL" relationship that determines whether they are available for  each item type (samples/trees/blocks/fields)
-This would be useful to associate as a subject in BreedGraph.
+These levels (e.g. "Sample") are not the subjects in BreedGraph, so trait and condition subjects are instead taken
+from the subjects of the items each input has records for: [extract_input_subjects.cypher](cypher/extract_input_subjects.cypher),
+saved as input_subjects.csv.
 
-### 1.4.1 Input Types
+### 1.5.4 Input Types
 BreedCAFS inputs had an associated RecordType (trait/curve/condition/property).
 Traits and conditions probably map well onto Variable/Factor in BreedGraph, but individual inputs will need to be validated
 as BreedGraph has a more comprehensive definition and supports time periods for all records.
 
-#### 1.4.1.1 Properties
+#### 1.5.4.1 Properties
   - properties don't have a time attribute and are designed to set attributes of the item.
 
 Most BreedCAFS Properties are already represented through unit attributes and do not require separate records.
 
-Migrate only the following as factors:
+Migrate only the following, as curated in input_details_curated.csv:
 
-* Elevation => Elevation
-* Harvest Time / Harvest Date => Harvested
-* Sowing Date => Sown 
-* Planting Date => Planted
+* Set elevation => the Elevation variable
+* Set harvest date and Set harvest time => the Harvest Date-time variable (harvest time records are merged in)
+* Set sowing date => the Sowing Date factor
+* Set planting date => the Planting Date factor
 
-#### 1.4.1.2 Traits
+#### 1.5.4.2 Traits
   - traits support values at a single timepoint
 
   - To be encoded as BreedGraph variables which support optional datetime ranges.
@@ -54,7 +56,7 @@ match (i:Input)-[:OF_TYPE]->(t:RecordType {name:"Trait"}) return collect(distinc
 ```
   - ["numeric", "boolean", "categorical", "percent", "date"]
 
-#### 1.4.1.3 Conditions
+#### 1.5.4.3 Conditions
   - conditions support values with optional start and end time
 
  - To be encoded as BreedGraph factors. Some may need to be adapted.
@@ -63,12 +65,12 @@ match (i:Input)-[:OF_TYPE]->(t:RecordType {name:"Condition"}) return collect(dis
 ```
   - ["categorical", "numeric", "text", "percent"]
 
-#### 1.4.1.4 Curves
+#### 1.5.4.4 Curves
   - curves support arrays of x/y values
 
 Only a single Curve input was used, describing fluorescence data. This will be a Variable in BreedGraph.
 
-### Extract
+### 1.5.5 Extract
 
 ```cypher
 match (i:Input)<-[:FOR_INPUT*]-(ii:ItemInput)<-[:RECORD_FOR]-(r:Record)
@@ -98,7 +100,7 @@ ORDER BY t.name, i.name
 ```
 saved as input_details.csv
 
-### Transform
+### 1.5.6 Transform
 Manually curated the exported CSV.
 - Removed properties:
 ```text
@@ -115,19 +117,15 @@ Manually curated the exported CSV.
 ```
 and also "Set Harvest Time" as this is to be merged with "Set Harvest Date"
 
-## Location
+#### Location
 - Removed the condition for sample locations
   -"Location (text)" (this data is to be recorded as positions)
 
-## Stratum
+#### Stratum
 - Removed the stratum trait (encoded in positions)
 
-## Photosynthesis traits
-- Removed the "Photosynthetic Analysis Apparatus" trait and generated a map to later assign
-```cypher
-MATCH (input:Input {name: "Photosynthetic Analysis Apparatus"})<-[:FOR_INPUT*]-(ii:ItemInput)<-[:RECORD_FOR]-(record:Record)<-[:SUBMITTED]-()<-[:SUBMITTED*]-(user:User)
-return distinct user.username as username, record.time as record_time, collect(distinct record.value) as apparatus
-```
+#### Photosynthesis traits
+- Removed the "Photosynthetic Analysis Apparatus" trait. Its records are kept in records.csv (1.6), to choose each photosynthesis record's variable.
 
 The apparatus records show which instrument each photosynthesis input was measured with:
 PocketPEA (the fluorescence curve and JIP-test parameters), CIRAS3 (gas exchange) and MiniPAM (Fᵥ / Fₘ only).
@@ -135,7 +133,7 @@ The apparatus is the observation method of these variables, typed MEASUREMENT as
 and each variable is named "Trait (Apparatus)". An added `Apparatus` column keys these rows,
 with a second Fᵥ / Fₘ row for MiniPAM, so a record's variable follows from the apparatus recorded for its item at the same time.
 
-## Ontology Entry Curation
+#### Ontology Entry Curation
 - Added columns:
 - Factor	
 - Condition
@@ -155,7 +153,7 @@ with a second Fᵥ / Fₘ row for MiniPAM, so a record's variable follows from t
 - subjects
 
 
-## Metabolites.
+#### Metabolites
 Here we are lacking details on what instrument was used to generate the data.
 
 Start by considering submission batches so we can map these back to input groups:

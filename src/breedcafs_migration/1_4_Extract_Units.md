@@ -50,3 +50,17 @@ RETURN
 ```
 
 saved this as item_name_subject_sources_sinks.csv
+
+### Samples without a subject
+
+4,037 samples have no `unit`, so no subject. They were registered but never used:
+none has records that are migrated, and no other item was taken from them.
+They are not migrated, and are listed in skipped_items.csv (README §6.5).
+
+### Blocks
+
+Blocks have no data of their own (README §6.4):
+  - Numbered blocks become `Trees` units, keeping their BreedCAFS names, with their trees and samples beneath them.
+  - Blocks named after a treatment (shade treatments in fields 25–27 and 35) are not units:
+    their trees are placed under the Field and get a record of the treatment.
+  - The two blocks without trees or samples (field 35) are skipped.

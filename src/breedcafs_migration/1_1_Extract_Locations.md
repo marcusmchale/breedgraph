@@ -103,8 +103,8 @@ ORDER BY field_uid
 Exported this as field_lat_long.csv
 
 
-### Extract units per location.
-So now we have established the structure of the resulting locations, now is a good time to map
-from "item" to "location". Although many of these items will be rooted in a block at the location, 
-they still have their own position data. In the absence of a layout definition we need to at least know the location. 
-Though in fact, this is already determined by the item UID which encodes the field already (the number before the string)
+### 1.1.3 Units per location
+
+No separate extraction is needed to place each item at a location: every item belongs to one Field,
+given by the item hierarchy (1.4) and also encoded in its uid (the number before the underscore).
+Units are placed at their Field's location; positions within the Field come from the layouts (1.2).

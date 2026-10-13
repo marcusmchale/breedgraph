@@ -89,7 +89,7 @@ MATCH (f:Field)<-[:IS_IN|FROM*]-(item:Item)<-[:FOR_ITEM]-(ii:ItemInput)-[:FOR_IN
 RETURN collect(distinct f.uid)
 ```
 
-So we need to create three layout types in the [ontology](_Create_Ontology.md), "Row and Tree", "Row, Tree and Stratum", and "Grid".
+So we need to create three layout types in the ontology (README §2.3), "Row and Tree", "Row, Tree and Stratum", and "Grid".
 
 And we need to summarise which layout type is required for any location with either trees with row and column data or stratum records.
 ```cypher
