@@ -10,6 +10,7 @@ DELETE is_person
 WITH DISTINCT person, erasure
 SET
   person.name = null,
+  person.institution = null,
   person.orcid = null,
   person.erased_at = coalesce(person.erased_at, datetime(erasure.erased_at))
 RETURN count(DISTINCT person) AS erased

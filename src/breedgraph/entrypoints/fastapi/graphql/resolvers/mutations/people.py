@@ -32,6 +32,7 @@ async def create_person(
         write_team=control_team_id,
         release=release or ReadRelease.PRIVATE,
         name=person['name'],
+        institution=person.get('institution'),
         teams=person.get('team_ids'),
         informed_attestation=person['informed_attestation'],
         **optional
@@ -49,6 +50,7 @@ async def update_person(_, info, person: dict) -> bool:
         agent_id=user_id,
         person_id=person['id'],
         name=person.get('name'),
+        institution=person.get('institution'),
         teams=person.get('team_ids'),
         basis=person.get('basis')
     )

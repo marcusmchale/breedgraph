@@ -11,6 +11,8 @@ type Person {
     id: ID!
     """Display name used for attribution. Null when restricted or erased"""
     name: String
+    """The institution the person did the work with, for attribution. Null when restricted or erased"""
+    institution: String
     """Affiliation"""
     teams: [Team!]!
     basis: LawfulBasis

@@ -64,9 +64,10 @@ An organisation must declare the legal entity responsible for it before it can r
 
 ## 4. Persons
 
-A Person is someone credited for research, with or without an account. It holds only a display name, teams, lawful basis and, once linked, an ORCID iD.
+A Person is someone credited for research, with or without an account. It holds only a display name, an optional institution, teams, lawful basis and, once linked, an ORCID iD.
+Show the institution with the name where a Person is credited, e.g. "Name (Institution)".
 
-**Type `Person`:** `id, name, teams, basis, informedAttestation, orcid, linkedUser, recordedBy, recordedAt, erased, erasedAt, restricted`.
+**Type `Person`:** `id, name, institution, teams, basis, informedAttestation, orcid, linkedUser, recordedBy, recordedAt, erased, erasedAt, restricted`.
 
 A Person appears in one of three forms:
 
@@ -82,12 +83,13 @@ Anonymous users get nothing; Persons they cannot see are omitted from lists.
 - `people(name)`: Persons the user can read, optionally by exact name (case insensitive).
 - `peoplePeople(ids)`, `peoplePerson(id)`: by id; restricted where the user cannot read the record.
 
-**Creating:** `peopleCreatePerson(person: PersonInput!, controlTeamId, release)` with `PersonInput { name, teamIds, basis, informedAttestation }`.
+**Creating:** `peopleCreatePerson(person: PersonInput!, controlTeamId, release)` with `PersonInput { name, institution, teamIds, basis, informedAttestation }`.
 - `informedAttestation` must be true: ask the user to confirm the person has been informed that the record is held.
 - `basis` is `PUBLIC_TASK` (default) or `LEGITIMATE_INTEREST`.
 - Refused unless the control team's organisation has a legal entity (§3).
 
-**Updating:** `peopleUpdatePerson(person: PersonUpdate!)` with `PersonUpdate { id, name, teamIds, basis }`. The linked user can change the name only; other changes need curate access.
+**Updating:** `peopleUpdatePerson(person: PersonUpdate!)` with `PersonUpdate { id, name, institution, teamIds, basis }`. An empty `institution` removes it.
+The linked user can change the name and institution only; other changes need curate access.
 
 **Erasing:** `peopleErasePerson(id)`, by admins of the controlling teams or the linked user.
 It cannot be undone: identifying data is removed and the id kept. Ask for confirmation.

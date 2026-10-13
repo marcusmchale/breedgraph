@@ -50,6 +50,7 @@ class PersonBase(ABC):
     label: ClassVar[ControlledModelLabel] = ControlledModelLabel.PERSON
 
     name: str | None = None  # display name used for attribution
+    institution: str | None = None  # the institution the person did the work with, for attribution
     teams: List[int] = field(default_factory=list)  # affiliation, references to stored Team IDs
 
     basis: LawfulBasis = LawfulBasis.PUBLIC_TASK
@@ -63,6 +64,7 @@ class PersonInput(PersonBase, EnumLabeledModel):
         self.name = (self.name or '').strip()
         if not self.name:
             raise IllegalOperationError("A Person requires a name")
+        self.institution = (self.institution or '').strip() or None
         if not self.informed_attestation:
             raise IllegalOperationError("The person must have been informed that this record is held")
         if not isinstance(self.basis, LawfulBasis):
@@ -102,6 +104,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         return replace(
             self,
             name=None,
+            institution=None,
             teams=list(),
             orcid=None,
             user=None,
@@ -143,6 +146,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             raise UnauthorisedOperationError("Only admins of the controlling teams or the linked user can erase a Person")
 
         self.name = None
+        self.institution = None
         self.teams = list()
         self.orcid = None
         self.user = None
@@ -211,6 +215,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         return PersonOutput(
             id=self.id,
             name=self.name,
+            institution=self.institution,
             teams=list(self.teams),
             basis=self.basis,
             informed_attestation=self.informed_attestation,

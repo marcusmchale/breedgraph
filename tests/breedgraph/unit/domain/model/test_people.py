@@ -23,6 +23,7 @@ def stored_person(**kwargs) -> PersonStored:
     fields = dict(
         id=1,
         name='A Technician',
+        institution='A University',
         teams=[CONTROL_TEAM],
         basis=LawfulBasis.PUBLIC_TASK,
         informed_attestation=True,
@@ -49,6 +50,13 @@ def test_input_basis_from_value():
     assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
 
 
+def test_input_institution_is_optional():
+    assert PersonInput(name='A Technician', informed_attestation=True).institution is None
+    assert PersonInput(name='A Technician', informed_attestation=True, institution='  ').institution is None
+    person = PersonInput(name='A Technician', informed_attestation=True, institution=' A University ')
+    assert person.institution == 'A University'
+
+
 def test_readers_see_the_full_record():
     person = stored_person()
     assert person.redacted(controllers(person), user_id=OTHER_USER, read_teams={CONTROL_TEAM}) is person
@@ -64,6 +72,7 @@ def test_registered_users_without_access_see_id_only():
     redacted = person.redacted(controllers(person), user_id=OTHER_USER, read_teams={OTHER_TEAM})
     assert redacted.id == person.id
     assert redacted.name is None
+    assert redacted.institution is None
     assert redacted.teams == []
     assert redacted.user is None
     assert redacted.recorded_by is None
@@ -88,6 +97,7 @@ def test_erase(agent_id, admin_teams):
 
     assert person.erased
     assert person.name is None
+    assert person.institution is None
     assert person.teams == []
     assert person.orcid is None
     assert person.user is None
@@ -122,6 +132,7 @@ def test_to_output():
     assert isinstance(output, PersonOutput)
     assert output.id == 1
     assert output.name == 'A Technician'
+    assert output.institution == 'A University'
     assert output.teams == [CONTROL_TEAM]
     assert output.erased_at is None
 

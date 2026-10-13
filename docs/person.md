@@ -19,7 +19,7 @@ A Person is **not**:
 | Topic | Position |
 |---|---|
 | Lawful basis | Research. Usually **Art. 6(1)(e) public task** for a university, **6(1)(f) legitimate interests** for private partners. **Not consent**, because consent can be withdrawn and that would break attribution. |
-| Minimisation | Store only what attribution needs: a display name, affiliation, optionally ORCID. No email, phone, postal address or free text. |
+| Minimisation | Store only what attribution needs: a display name, institution, affiliation, optionally ORCID. No email, phone, postal address or free text. |
 | Informing people (Art. 14) | Covered by the employer's staff privacy notice plus a published BreedGraph privacy notice (Art. 14(5)(b) research exemption from notifying each person individually). The person creating a record confirms the person has been informed, and that confirmation is stored. BreedGraph never emails people who are not users. |
 | Erasure (Art. 17) | Research may be exempt (Art. 17(3)(d)), but we don't rely on that. Erasure **tombstones** the Person: identifying data is removed, and contributions stay attributed to an anonymous id. This satisfies both the person and the research record. |
 | Objection (Art. 21) | Limited for public-interest research (Art. 21(6)). In practice, erasure is the remedy we offer. |
@@ -106,6 +106,7 @@ Documents about data protection should say "data controller" for the legal sense
 Person
   id
   name                    # display name used for attribution
+  institution?            # institution the person did the work with, as free text, for attribution
   orcid?                  # set only by the linked User, verified through ORCID sign-in (§6)
   teams[]                 # affiliation: (Person)-[:IN_TEAM]->(Team)
   user?                   # (User)-[:IS_PERSON]->(Person), one-to-one; gives subject rights
@@ -117,6 +118,11 @@ Person
 
 Person remains an access-controlled model (`ControlledModel`) with the usual release levels.
 
+`institution` is shown with the name, as an author's affiliation is in a publication.
+Teams only cover organisations represented in BreedGraph, and many people are credited for work done with other institutions,
+e.g. the partners of migrated BreedCAFS data. It is set and changed like the name, by curators and the linked User,
+has the same visibility as the name, and is cleared on erasure.
+
 ### Removed from the current model
 
 | Field | Reason |
@@ -126,7 +132,7 @@ Person remains an access-controlled model (`ControlledModel`) with the usual rel
 | `fullname` | One `name` is enough for display. |
 | `titles` (and the `Title` ontology entry) | Not needed for attribution. The ontology entry is removed. |
 | `roles` (and the `Role` ontology entry) | Not needed for attribution, including on contributions. The ontology entry is removed. |
-| `locations` | Extra personal data; teams already give affiliation. |
+| `locations` | Extra personal data; teams and institution already give affiliation. |
 
 ### What viewers see
 
@@ -176,7 +182,7 @@ Implemented in step 9b:
 Deleted accounts are tombstoned too, and logged in the same erasure log (§6, Deleting an account).
 
 Erasing a Person:
-- clears `name`, `orcid` and `IN_TEAM` relationships, and sets `erased_at`.
+- clears `name`, `institution`, `orcid` and `IN_TEAM` relationships, and sets `erased_at`.
 - keeps `id`, access controls, `basis` and provenance fields, and the `CONTRIBUTED_TO` and `HAS_CONTACT` references to it.
 - removes the `IS_PERSON` link.
 - appends the `id` to an **erasure log** (ids only, no personal data). After restoring a backup, erasures in the log are re-applied.

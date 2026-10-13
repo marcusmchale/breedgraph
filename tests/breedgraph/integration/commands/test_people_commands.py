@@ -67,9 +67,11 @@ async def test_create_requires_declared_legal_entity(bus, uow_factory, isolated_
 async def test_create(bus, uow_factory, isolated_state):
     account = await declared_account(bus, uow_factory)
     person_id = await create_person(
-        bus, uow_factory, account, teams=[account['team_id']], basis=LawfulBasis.LEGITIMATE_INTEREST
+        bus, uow_factory, account, teams=[account['team_id']], basis=LawfulBasis.LEGITIMATE_INTEREST,
+        institution='A University'
     )
     person = await get_person(uow_factory, account['user_id'], person_id)
+    assert person.institution == 'A University'
     assert person.teams == [account['team_id']]
     assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
     assert person.recorded_by == account['user_id']
@@ -97,16 +99,24 @@ async def test_update(bus, uow_factory, isolated_state):
     account = await declared_account(bus, uow_factory)
     person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']])
     await bus.handle(UpdatePerson(
-        agent_id=account['user_id'], person_id=person_id, name='Renamed', teams=[], basis=LawfulBasis.LEGITIMATE_INTEREST
+        agent_id=account['user_id'], person_id=person_id, name='Renamed', institution='A University',
+        teams=[], basis=LawfulBasis.LEGITIMATE_INTEREST
     ))
     person = await get_person(uow_factory, account['user_id'], person_id)
     assert person.name == 'Renamed'
+    assert person.institution == 'A University'
     assert person.teams == []
     assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
 
+    # An empty string removes the institution, and leaving it out keeps it
+    await bus.handle(UpdatePerson(agent_id=account['user_id'], person_id=person_id, name='Renamed Again'))
+    assert (await get_person(uow_factory, account['user_id'], person_id)).institution == 'A University'
+    await bus.handle(UpdatePerson(agent_id=account['user_id'], person_id=person_id, institution=' '))
+    assert (await get_person(uow_factory, account['user_id'], person_id)).institution is None
+
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_linked_user_can_change_name_only(bus, uow_factory, isolated_state):
+async def test_linked_user_can_change_name_and_institution_only(bus, uow_factory, isolated_state):
     account = await declared_account(bus, uow_factory)
     subject_id = await AccountBuilder(uow_factory).account()
     person_id = await create_person(bus, uow_factory, account)
@@ -115,8 +125,10 @@ async def test_linked_user_can_change_name_only(bus, uow_factory, isolated_state
         person.user = subject_id
         await uow.commit()
 
-    await bus.handle(UpdatePerson(agent_id=subject_id, person_id=person_id, name='Preferred Name'))
-    assert (await get_person(uow_factory, subject_id, person_id)).name == 'Preferred Name'
+    await bus.handle(UpdatePerson(agent_id=subject_id, person_id=person_id, name='Preferred Name', institution='A University'))
+    person = await get_person(uow_factory, subject_id, person_id)
+    assert person.name == 'Preferred Name'
+    assert person.institution == 'A University'
 
     with pytest.raises(UnauthorisedOperationError):
         await bus.handle(UpdatePerson(agent_id=subject_id, person_id=person_id, teams=[]))
@@ -125,13 +137,13 @@ async def test_linked_user_can_change_name_only(bus, uow_factory, isolated_state
 @pytest.mark.asyncio(loop_scope="session")
 async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_state, erasure_log_path):
     account = await declared_account(bus, uow_factory)
-    person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']])
+    person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']], institution='A University')
 
     await bus.handle(ErasePerson(agent_id=account['user_id'], person_id=person_id))
     await event_queue.join()
 
     person = await get_person(uow_factory, account['user_id'], person_id)
-    assert person.erased and person.name is None and person.teams == []
+    assert person.erased and person.name is None and person.institution is None and person.teams == []
     [entry] = [
         entry for entry in JsonLinesErasureLog(erasure_log_path).read()
         if isinstance(entry, ErasureLogEntry) and entry.person_id == person_id
@@ -145,7 +157,7 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
     async with uow_factory.get_uow() as uow:
         await uow.tx.run(
             "MATCH (person:Person {id: $person_id}), (team:Team {id: $team_id}) "
-            "SET person.name = 'Restored Name', person.erased_at = null "
+            "SET person.name = 'Restored Name', person.institution = 'A University', person.erased_at = null "
             "CREATE (person)-[:IN_TEAM]->(team)",
             person_id=person_id, team_id=account['team_id']
         )
@@ -155,7 +167,7 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
     applied = await apply_erasures(bus.uow_factory.driver, [entry])
     assert applied.persons == 1
     person = await get_person(uow_factory, account['user_id'], person_id)
-    assert person.erased and person.name is None and person.teams == []
+    assert person.erased and person.name is None and person.institution is None and person.teams == []
     assert person.erased_at == entry.erased_at
 
 

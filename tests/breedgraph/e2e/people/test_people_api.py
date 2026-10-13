@@ -52,6 +52,7 @@ async def create_person(client, token, context) -> dict:
     name = PersonBuilder.person_input().name
     payload = get_verified_payload(await post_to_create_person(client, token, {
         'name': name,
+        'institution': 'A University',
         'teamIds': [context['team_id']],
         'informedAttestation': True
     }, context['team_id']), "peopleCreatePerson")
@@ -67,6 +68,7 @@ async def create_person(client, token, context) -> dict:
 async def test_create_and_read(client, login_token_factory, people_api_context):
     token = login_token_factory(user_id=people_api_context['user_id'])
     person = await create_person(client, token, people_api_context)
+    assert person['institution'] == 'A University'
     assert [team['id'] for team in person['teams']] == [str(people_api_context['team_id'])]
     assert person['basis'] == 'PUBLIC_TASK'
     assert person['informedAttestation'] is True
@@ -91,6 +93,7 @@ async def test_other_users_see_id_only(client, login_token_factory, people_api_c
     assert restricted['id'] == person['id']
     assert restricted['restricted'] is True
     assert restricted['name'] is None
+    assert restricted['institution'] is None
     assert restricted['teams'] == []
     assert restricted['recordedBy'] is None
 
@@ -121,11 +124,13 @@ async def test_update_and_erase(client, login_token_factory, people_api_context)
     person_id = int(person['id'])
 
     payload = get_verified_payload(await post_to_update_person(client, token, {
-        'id': person_id, 'name': 'Renamed Person', 'teamIds': [], 'basis': 'LEGITIMATE_INTEREST'
+        'id': person_id, 'name': 'Renamed Person', 'institution': 'Another University', 'teamIds': [],
+        'basis': 'LEGITIMATE_INTEREST'
     }), "peopleUpdatePerson")
     assert_payload_success(payload)
     updated = get_verified_payload(await post_to_person(client, token, person_id), "peoplePerson")['result']
     assert updated['name'] == 'Renamed Person'
+    assert updated['institution'] == 'Another University'
     assert updated['teams'] == []
     assert updated['basis'] == 'LEGITIMATE_INTEREST'
 
@@ -135,4 +140,5 @@ async def test_update_and_erase(client, login_token_factory, people_api_context)
     assert erased['erased'] is True
     assert erased['erasedAt'] is not None
     assert erased['name'] is None
+    assert erased['institution'] is None
     assert erased['restricted'] is False

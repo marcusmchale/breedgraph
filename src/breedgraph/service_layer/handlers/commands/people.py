@@ -59,6 +59,7 @@ async def create_person(
 
         await uow.repositories.people.create(PersonInput(
             name=cmd.name,
+            institution=cmd.institution,
             teams=list(cmd.teams or []),
             basis=cmd.basis,
             informed_attestation=cmd.informed_attestation
@@ -76,7 +77,7 @@ async def update_person(
         if person.erased:
             raise IllegalOperationError("An erased Person cannot be changed")
 
-        # The linked user can change their name, other changes need curate access to the record
+        # The linked user can change their name and institution, other changes need curate access to the record
         controller = await uow.controls.get_controller(person.label, person.id)
         is_curator = controller.has_access(Access.CURATE, access_teams=uow.controls.access_teams[Access.CURATE])
         if not is_curator and (cmd.teams is not None or cmd.basis is not None):
@@ -87,6 +88,8 @@ async def update_person(
             if not name:
                 raise IllegalOperationError("A Person requires a name")
             person.name = name
+        if cmd.institution is not None:
+            person.institution = cmd.institution.strip() or None
         if cmd.teams is not None:
             await _verify_teams(uow, cmd.teams)
             person.teams = list(cmd.teams)

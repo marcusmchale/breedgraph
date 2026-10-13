@@ -22,6 +22,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         result = await self.tx.run(
             queries['people']['create_person'],
             name=person.name,
+            institution=person.institution,
             teams=list(person.teams or []),
             basis=person.basis.value,
             informed_attestation=person.informed_attestation,
@@ -127,7 +128,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         if not changed:
             return
         props = {}
-        for attr in ('name', 'orcid', 'erased_at'):
+        for attr in ('name', 'institution', 'orcid', 'erased_at'):
             if attr in changed:
                 props[attr] = getattr(person, attr)
         if 'basis' in changed:
@@ -147,6 +148,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         return PersonStored(
             id=record['id'],
             name=record.get('name'),
+            institution=record.get('institution'),
             teams=list(record.get('teams') or []),
             basis=LawfulBasis(record['basis']),
             informed_attestation=record.get('informed_attestation', False),

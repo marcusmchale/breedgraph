@@ -4,7 +4,7 @@ from tests.breedgraph.e2e.utils import with_auth
 from typing import List
 
 PERSON_FIELDS = (
-    " id name basis informedAttestation orcid recordedAt erased erasedAt restricted "
+    " id name institution basis informedAttestation orcid recordedAt erased erasedAt restricted "
     " teams { id } linkedUser { id } recordedBy { id } "
 )
 

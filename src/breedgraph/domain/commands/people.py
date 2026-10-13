@@ -12,6 +12,7 @@ class CreatePerson(Command):
     release: ReadRelease = ReadRelease.PRIVATE
 
     name: str
+    institution: str | None = None
     teams: List[int] | None = None
     basis: LawfulBasis = LawfulBasis.PUBLIC_TASK
     informed_attestation: bool = False  # the person was informed that this record is held
@@ -22,6 +23,7 @@ class UpdatePerson(Command):
     person_id: int
 
     name: str | None = None
+    institution: str | None = None  # an empty string removes it
     teams: List[int] | None = None
     basis: LawfulBasis | None = None
 

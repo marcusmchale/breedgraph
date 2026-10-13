@@ -1,5 +1,7 @@
 input PersonInput {
     name: String!
+    """The institution the person did the work with, shown with the name for attribution"""
+    institution: String
     """Affiliation"""
     teamIds: [ID!]
     """Defaults to PUBLIC_TASK"""
@@ -11,6 +13,8 @@ input PersonInput {
 input PersonUpdate {
     id: ID!
     name: String
+    """An empty string removes it"""
+    institution: String
     """Requires curate access"""
     teamIds: [ID!]
     """Requires curate access"""
@@ -27,7 +31,7 @@ extend type Mutation {
         controlTeamId: ID!
         release: ReadRelease
     ): BooleanPayload!,
-    """Curators of the record can change all fields. The linked user can change the name"""
+    """Curators of the record can change all fields. The linked user can change the name and institution"""
     peopleUpdatePerson(
         person: PersonUpdate!
     ): BooleanPayload!,
