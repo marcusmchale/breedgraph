@@ -120,7 +120,7 @@ class StudyBase(ABC):
     reference_ids: List[int] = field(default_factory=list) # list of other references by IDs
 
     def get_grouping(self, grouping_id: int|None=None, name: str|None = None) -> RecordGroupingBase|None:
-        if grouping_id:
+        if grouping_id is not None:
             for g in self.groupings:
                 if isinstance(g, RecordGroupingStored):
                     if g.id == grouping_id:
@@ -331,10 +331,10 @@ class ProgramBase(ABC):
             raise ValueError("Trials can only be removed from stored programs")
 
     def get_trial(self, trial_id: int|None = None, study_id: int|None = None):
-        if not trial_id or study_id:
+        if trial_id is None and study_id is None:
             raise ValueError("Trial or Study ID required to fetch a trial")
         if isinstance(self, ProgramStored):
-            if trial_id:
+            if trial_id is not None:
                 return self.trials.get(trial_id)
             else:
                 for trial in self.trials.values():
