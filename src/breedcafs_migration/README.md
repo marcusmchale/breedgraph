@@ -109,6 +109,7 @@ Create:
 * Region
 * Farm
 * Field
+* Research Center, for where samples were analysed (IRD Montpellier)
 
 ## 2.3 Layout Types
 
@@ -124,17 +125,23 @@ Blocks are units (6.4), not layouts.
 
 # 3. Locations
 
-From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields,
-each under its parent and the Regions under their (existing) Country.
-Set each Field's coordinates from field_lat_long.csv (1.1.2).
+From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields (locations.py):
 
-The one location given by the "Location (text)" input is created too, as the position of the samples in sample_positions.csv (1.2.2).
+* Each BreedCAFS country is the root of a BreedGraph region, found by its ISO 3166-1 alpha-3 code,
+  or created and released `PUBLIC`, as countries are. BreedCAFS "Vietnam" is "Viet Nam" (VNM).
+  Countries are shared roots, so a country created by the migration is not transferred at handover.
+* Regions, Farms and Fields are matched by name and type under their parent, or created `PRIVATE`,
+  controlled by the migration team. Field names repeat across farms (e.g. "IRAD Station" in Cameroon).
+* Each Field is given its coordinates from field_lat_long.csv (1.1.2) when created.
 
-For each location created store:
-```text
-BreedCAFS location ID, BreedGraph Location ID
-BreedGraph Location ID → BreedCAFS Partner
-```
+Countries are cached in the API's state store, which is only loaded at startup:
+after the migration creates a country, run scripts/load_state_store.py so the API sees it as stored.
+
+The one location given by the "Location (text)" input, "Montpellier/ IRD", is the position of the samples in sample_positions.csv (1.2.2).
+It is created as "IRD Montpellier", a Research Center under France (`SAMPLE_LOCATIONS` in locations.py),
+and saved in sample_location_ids.csv.
+
+Saved location_ids.csv: each BreedCAFS field and its location.
 
 ---
 

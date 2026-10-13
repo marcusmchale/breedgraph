@@ -49,6 +49,7 @@ LOCATION_TYPES = [
     ("Region", "A large area of land", ["Country"]),
     ("Farm", "A place where crops are grown", ["Region"]),
     ("Field", "A piece of land used for growing crops", ["Farm"]),
+    ("Research Center", "A research institute or laboratory, e.g. where samples were analysed", ["Country"]),
 ]
 
 # name, description, axes, parent names
