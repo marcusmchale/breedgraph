@@ -5,13 +5,19 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
+    SUMMARY_FIELDS,
+    UNIT_FIELDS,
+    dataset_summaries as dataset_summaries_query,
+    dataset_unit_summaries as dataset_unit_summaries_query
+)
 from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit
 from breedgraph.domain.model.blocks import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
 from numpy import datetime64
 from breedgraph.service_layer.repositories.base import BaseRepository
 
-from typing import List, Dict
+from typing import List, Dict, AbstractSet
 
 
 class Neo4jDatasetsView(AbstractDatasetsView):
@@ -180,14 +186,27 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             groups=[GroupingCodes(grouping_id=group['grouping_id'], codes=list(group['codes'])) for group in dimensions['groups']]
         )
 
-    async def _get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
+    async def _get_dataset_summaries(
+            self,
+            study_id: int,
+            fields: AbstractSet[str] | None = None
+    ) -> List[DatasetSummary]:
+        fields = SUMMARY_FIELDS if fields is None else frozenset(fields)
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['get_dataset_summaries_for_read_teams'],
+                dataset_summaries_query(fields),
                 study_id=study_id,
                 read_teams = self.read_teams,
                 minimum_release = ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED
             )
-            return [
-                DatasetSummary(**record.get('dataset_summary')) async for record in result
-            ]
+            summaries = {record['dataset_summary']['id']: record['dataset_summary'] async for record in result}
+            if summaries and fields & UNIT_FIELDS:
+                result = await tx.run(dataset_unit_summaries_query(fields), dataset_ids=list(summaries))
+                async for record in result:
+                    unit_summary = record['unit_summary']
+                    summaries[unit_summary['id']].update(unit_summary)
+                # a dataset without records has no units
+                if 'unit_count' in fields:
+                    for summary in summaries.values():
+                        summary.setdefault('unit_count', 0)
+            return [DatasetSummary(**summary) for summary in summaries.values()]

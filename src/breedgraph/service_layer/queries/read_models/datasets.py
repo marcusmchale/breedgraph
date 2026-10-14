@@ -4,13 +4,17 @@ from typing import List
 
 @dataclass
 class DatasetSummary:
+    """
+    A readable dataset of a study and what its records span. Only the fields asked of the view are read:
+    the others keep their defaults.
+    """
     id: int
     concept_id: int
-    subject_ids: List[int]
-    location_ids: List[int]
-    block_ids: List[int]
-    unit_count: int
-    record_count: int
+    subject_ids: List[int] = field(default_factory=list)
+    location_ids: List[int] = field(default_factory=list)
+    block_ids: List[int] = field(default_factory=list)
+    unit_count: int|None = None
+    record_count: int|None = None
     start: datetime64|None = None
     end: datetime64|None = None
 

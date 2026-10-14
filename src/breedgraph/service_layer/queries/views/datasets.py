@@ -4,17 +4,30 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary, Dataset
 from numpy import datetime64
 from breedgraph.domain.model.blocks import UnitOutput
 
-from typing import List, Dict, AsyncGenerator
+from typing import List, Dict, AsyncGenerator, AbstractSet
 
 class AbstractDatasetsView(ABC):
     user_id: int|None
     read_teams: List[int]
 
-    async def get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
-        return await self._get_dataset_summaries(study_id=study_id)
+    async def get_dataset_summaries(
+            self,
+            study_id: int,
+            fields: AbstractSet[str] | None = None
+    ) -> List[DatasetSummary]:
+        """
+        The summaries of a study's readable datasets. Pass the DatasetSummary fields to read beyond id and
+        concept_id (subject_ids, location_ids, block_ids, unit_count, record_count, start, end) to skip the
+        rest, which keep their defaults; None reads them all.
+        """
+        return await self._get_dataset_summaries(study_id=study_id, fields=fields)
 
     @abstractmethod
-    async def _get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
+    async def _get_dataset_summaries(
+            self,
+            study_id: int,
+            fields: AbstractSet[str] | None = None
+    ) -> List[DatasetSummary]:
         ...
 
     async def get_datasets(

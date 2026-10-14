@@ -1,5 +1,6 @@
 from numpy import datetime64
 from ariadne import ObjectType
+from graphql import FragmentSpreadNode, InlineFragmentNode
 
 from breedgraph.adapters.redis.state_store import SubmissionStatus
 
@@ -237,16 +238,57 @@ async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemE
     return errors
 
 """Summary resolvers"""
+# The read model fields each DatasetSummary field needs, so the summaries read only what was asked for
+SUMMARY_FIELDS_BY_GRAPHQL_FIELD = {
+    'subjects': 'subject_ids',
+    'locations': 'location_ids',
+    'blocks': 'block_ids',
+    'unit_count': 'unit_count',
+    'record_count': 'record_count',
+    'start': 'start',
+    'end': 'end'
+}
+
+def selected_field_names(info, path: List[str]) -> set[str]:
+    """The names of the fields selected below the resolved field along a path of field names, through fragments"""
+    def children(selection_set):
+        for selection in selection_set.selections if selection_set else []:
+            if isinstance(selection, FragmentSpreadNode):
+                yield from children(info.fragments[selection.name.value].selection_set)
+            elif isinstance(selection, InlineFragmentNode):
+                yield from children(selection.selection_set)
+            else:
+                yield selection
+
+    nodes = list(info.field_nodes)
+    for name in path:
+        nodes = [child for node in nodes for child in children(node.selection_set) if child.name.value == name]
+    return {child.name.value for node in nodes for child in children(node.selection_set)}
+
 @graphql_query.field("datasetsSummaries")
 @graphql_payload
 @require_authentication
 async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[DatasetSummary]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
+    selected = selected_field_names(info, ['result'])
+    fields = {SUMMARY_FIELDS_BY_GRAPHQL_FIELD[name] for name in selected if name in SUMMARY_FIELDS_BY_GRAPHQL_FIELD}
     async with bus.views_factory.get_views(user_id=user_id) as views:
-        summaries = await views.datasets.get_dataset_summaries(study_id=study_id)
-    # Preload the block units of every summary in one call, instead of one per summary
-    await update_units_map(info.context, unit_ids=[block_id for summary in summaries for block_id in summary.block_ids])
+        summaries = await views.datasets.get_dataset_summaries(study_id=study_id, fields=fields)
+    # Preload what the summaries refer to in one call each, instead of one per summary
+    await update_ontology_map(
+        info.context,
+        entry_ids=[summary.concept_id for summary in summaries] + [
+            subject_id for summary in summaries for subject_id in summary.subject_ids
+        ],
+        view=OntologyViewMode.REFERENTIAL
+    )
+    if 'block_ids' in fields:
+        await update_units_map(info.context, unit_ids=[block_id for summary in summaries for block_id in summary.block_ids])
+    if 'location_ids' in fields:
+        await update_locations_map(info.context, location_ids={
+            location_id for summary in summaries for location_id in summary.location_ids
+        })
     return summaries
 
 @dataset_summary.field("concept")
