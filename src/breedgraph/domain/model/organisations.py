@@ -465,9 +465,9 @@ class Organisation(TreeAggregate):
         )
         self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
 
-        # Always authorise read access to the same extent that we authorise curate access
+        # Always authorise read access to the same extent that we authorise curate or admin access
         # we aren't raising a separate event to notify
-        if access is Access.CURATE:
+        if access in (Access.CURATE, Access.ADMIN):
             affiliations_dict = team.affiliations.get_by_access(Access.READ)
             affiliations_dict[user_id] = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
 
@@ -481,6 +481,13 @@ class Organisation(TreeAggregate):
             raise IllegalOperationError(f"No team found with id: {team_id}")
 
         affiliation = team.affiliations.get_by_access(access)[user_id]
+
+        # Admin access includes read access, and the last admin cannot be removed, so revoke admin first
+        if access is Access.READ:
+            admin_affiliation = team.affiliations.get_by_access(Access.ADMIN).get(user_id)
+            if admin_affiliation is not None and admin_affiliation.authorisation is Authorisation.AUTHORISED:
+                raise IllegalOperationError("Revoke this user's admin access before revoking their read access")
+
         affiliation.authorisation = Authorisation.REVOKED
 
         # Always revoke curate access (if found) if revoking read access

@@ -121,8 +121,8 @@ async def _grant_invited_affiliation(uow, inviter_id: int, user_id: int, team: T
         )
     affiliations = organisation.get_team(team.team_id).affiliations
     affiliations.set_by_access(team.access, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
-    # As for approved requests, curate access includes read access
-    if team.access is Access.CURATE:
+    # As for approved requests, curate and admin access include read access
+    if team.access in (Access.CURATE, Access.ADMIN):
         affiliations.set_by_access(Access.READ, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
 
 @handlers.command_handler()

@@ -100,6 +100,33 @@ async def test_revoke_affiliation_by_admin(first_organisation, root_team):
     affiliates_all = first_organisation.get_affiliates(team_id=1, authorisation=Authorisation.REVOKED)
     assert 2 in affiliates_all
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("access", [Access.CURATE, Access.ADMIN])
+async def test_authorise_curate_or_admin_includes_read(first_organisation, access):
+    first_organisation.request_affiliation(agent_id=2, team_id=1, user_id=2, access=access)
+    first_organisation.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=access, heritable=True)
+    assert 2 in first_organisation.get_affiliates(team_id=1, access=access)
+    assert 2 in first_organisation.get_affiliates(team_id=1, access=Access.READ)
+    read_affiliation = first_organisation.get_team(1).affiliations.get_by_access(Access.READ)[2]
+    assert read_affiliation.heritable is True
+
+@pytest.mark.asyncio
+async def test_authorise_write_does_not_include_read(first_organisation):
+    first_organisation.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.WRITE)
+    first_organisation.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.WRITE, heritable=False)
+    assert 2 not in first_organisation.get_affiliates(team_id=1, access=Access.READ)
+
+@pytest.mark.asyncio
+async def test_revoke_read_from_admin_is_refused(first_organisation):
+    first_organisation.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.ADMIN)
+    first_organisation.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.ADMIN, heritable=False)
+    with pytest.raises(IllegalOperationError):
+        first_organisation.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ)
+    # once admin access is revoked, read access can be revoked, and curate goes with it as before
+    first_organisation.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.ADMIN)
+    first_organisation.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ)
+    assert 2 not in first_organisation.get_affiliates(team_id=1, access=Access.READ)
+
 def declare(organisation, agent_id=1, team_id=1, **kwargs):
     declaration = dict(
         legal_name='University of Testing',

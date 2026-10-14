@@ -232,11 +232,12 @@ class Neo4jOrganisationsRepository(BaseRepository[TeamInput, Organisation]):
         team = organisation.get_team(team_id)
         # The current admins become the new root admins, i.e. all are given heritable admin access
         for user_id in organisation.get_affiliates(team_id, access=Access.ADMIN):
-            team.affiliations.set_by_access(
-                Access.ADMIN,
-                user_id,
-                Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)
-            )
+            for access in (Access.ADMIN, Access.READ):  # admin access includes read access
+                team.affiliations.set_by_access(
+                    access,
+                    user_id,
+                    Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)
+                )
         # But this should break other inherited access
         parent_id = organisation.get_parent_id(team_id)
         # finally break the graph.

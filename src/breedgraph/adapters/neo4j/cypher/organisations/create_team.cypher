@@ -8,9 +8,12 @@ CREATE (admin)-[affiliation: ADMIN {authorisation:'AUTHORISED', heritable:$herit
   name_lower: $name_lower,
   fullname: $fullname
 })
+// Admin access includes read access, to the same extent
+CREATE (admin)-[read: READ {authorisation:'AUTHORISED', heritable:$heritable}]-> (team)
 RETURN team {
   . *,
   affiliations: {
-    ADMIN : [affiliation {.*, id: admin.id}]
+    ADMIN : [affiliation {.*, id: admin.id}],
+    READ : [read {.*, id: admin.id}]
   }
 }
