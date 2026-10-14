@@ -177,6 +177,10 @@ class StudyStored(StudyBase, ControlledModel):
         if controller.has_access(Access.READ, user_id, read_teams):
             return self
 
+        return self.without_details()
+
+    def without_details(self) -> Self:
+        """The study as shown to a registered user who cannot read it"""
         return replace(
             self,
             name = self.redacted_str,
@@ -440,10 +444,13 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
                 reference_ids = list()
             )
 
-        for trial_key, trial in self.trials.items():
+        # over copies, as the hidden trials and studies are removed from the same dictionaries
+        for trial_key, trial in list(self.trials.items()):
             if not controllers['Trial'][trial_key].has_access(Access.READ, user_id, read_teams):
                 if user_id is None:
+                    # an anonymous user does not see a hidden trial, nor its studies
                     aggregate.trials.pop(trial_key)
+                    continue
                 else:
                     aggregate.trials[trial_key] = trial.redacted(
                         controller=controllers['Trial'][trial_key],
@@ -451,7 +458,7 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
                         read_teams=read_teams
                     )
 
-            for study_key, study in trial.studies.items():
+            for study_key, study in list(trial.studies.items()):
                 if not controllers['Study'][study_key].has_access(Access.READ, user_id, read_teams):
                     if user_id is None:
                         aggregate.trials[trial_key].studies.pop(study_key)

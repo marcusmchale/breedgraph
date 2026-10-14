@@ -26,7 +26,9 @@ type WriteStamp {
 
 type Controller {
     controls: [Control!]!
-    writes: [WriteStamp!]!
+    """The writes in the order they were made, or the last of them"""
+    writes(last: Int): [WriteStamp!]!
+    writeCount: Int!
     teams: [Team!]!
     release: ReadRelease!
     created: DateTime!

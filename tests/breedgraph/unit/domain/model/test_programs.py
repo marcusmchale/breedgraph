@@ -1,5 +1,7 @@
 import pytest
+from numpy import datetime64
 
+from breedgraph.domain.model.controls import Controller, Control, ReadRelease
 from breedgraph.domain.model.programs import (
     ProgramStored, TrialStored, StudyStored, RecordGroupingStored, GroupingScope
 )
@@ -26,3 +28,52 @@ def test_get_trial_by_id_or_study(program):
     assert program.get_trial(study_id=0).name == "Trial"
     with pytest.raises(ValueError, match="Trial or Study ID required"):
         program.get_trial()
+
+
+def controlled_program() -> tuple[ProgramStored, dict]:
+    """
+    A public program with a private trial (1) holding study 10, and a public trial (2) holding a private study (20)
+    and a public study (21), all controlled by team 1, with their controllers keyed as the repository gives them
+    """
+    program = ProgramStored(id=0, name="Program", trials={
+        1: TrialStored(id=1, name="Hidden trial", studies={10: StudyStored(id=10, name="Study in hidden trial")}),
+        2: TrialStored(id=2, name="Open trial", studies={
+            20: StudyStored(id=20, name="Hidden study"),
+            21: StudyStored(id=21, name="Open study")
+        })
+    })
+    controller = lambda release: Controller(
+        controls={1: Control(user_id=1, team_id=1, release=release, time=datetime64('now'))}
+    )
+    controllers = {
+        'Program': {0: controller(ReadRelease.PUBLIC)},
+        'Trial': {1: controller(ReadRelease.PRIVATE), 2: controller(ReadRelease.PUBLIC)},
+        'Study': {10: controller(ReadRelease.PUBLIC), 20: controller(ReadRelease.PRIVATE), 21: controller(ReadRelease.PUBLIC)}
+    }
+    return program, controllers
+
+
+def test_redaction_removes_hidden_trials_and_studies_for_anonymous_users():
+    program, controllers = controlled_program()
+    redacted = program.redacted(controllers=controllers, user_id=None, read_teams=None)
+    # the hidden trial goes with its studies, readable or not
+    assert list(redacted.trials) == [2]
+    assert list(redacted.trials[2].studies) == [21]
+    assert redacted.trials[2].studies[21].name == "Open study"
+
+
+def test_redaction_redacts_hidden_trials_and_studies_for_registered_users():
+    program, controllers = controlled_program()
+    redacted = program.redacted(controllers=controllers, user_id=2, read_teams=set())
+    assert redacted.trials[1].name == TrialStored.redacted_str
+    # a readable study of a hidden trial is still shown
+    assert redacted.trials[1].studies[10].name == "Study in hidden trial"
+    assert redacted.trials[2].studies[20].name == StudyStored.redacted_str
+    assert redacted.trials[2].studies[21].name == "Open study"
+
+
+def test_redaction_leaves_everything_for_controlling_teams():
+    program, controllers = controlled_program()
+    redacted = program.redacted(controllers=controllers, user_id=1, read_teams={1})
+    assert [trial.name for trial in redacted.trials.values()] == ["Hidden trial", "Open trial"]
+    assert [study.name for study in redacted.trials[2].studies.values()] == ["Hidden study", "Open study"]

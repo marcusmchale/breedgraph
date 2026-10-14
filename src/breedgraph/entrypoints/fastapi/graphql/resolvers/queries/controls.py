@@ -39,9 +39,21 @@ async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_id
         return [controllers.get(entity_id) for entity_id in entity_ids]
 
 @controller.field("controls")
-def resolve_controls(obj: Controller, info):
-    """Resolve controls field on Controller"""
+async def resolve_controls(obj: Controller, info):
+    """Resolve controls field on Controller, loading their teams in one call"""
+    await update_teams_map(context=info.context, team_ids=[control.team_id for control in obj.controls.values()])
     return obj.controls.values()
+
+@controller.field("writes")
+async def resolve_writes(obj: Controller, info, last: int | None = None) -> List[WriteStamp]:
+    """The writes in the order they were made, or the last of them, loading their users in one call"""
+    writes = obj.writes if last is None else obj.writes[-last:] if last > 0 else []
+    await update_users_map(context=info.context, user_ids={write.user for write in writes})
+    return writes
+
+@controller.field("writeCount")
+def resolve_write_count(obj: Controller, info) -> int:
+    return len(obj.writes)
 
 @control.field("team")
 async def resolve_team(obj: Control, info):

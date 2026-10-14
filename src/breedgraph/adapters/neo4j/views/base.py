@@ -4,6 +4,7 @@ from breedgraph.adapters.neo4j.views.datasets import Neo4jDatasetsView
 from breedgraph.adapters.neo4j.views.germplasm import Neo4jGermplasmView
 from breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
 from breedgraph.adapters.neo4j.views.units import Neo4jUnitsView
+from breedgraph.adapters.neo4j.views.programs import Neo4jProgramsView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
 
@@ -23,9 +24,11 @@ class Neo4jViewsHolder(AbstractViewsHolder):
             regions: Neo4jRegionsView,
             datasets: Neo4jDatasetsView,
             ontology: Neo4jOntologyView,
-            units: Neo4jUnitsView
+            units: Neo4jUnitsView,
+            programs: Neo4jProgramsView
     ):
         self.units = units
+        self.programs = programs
         self.ontology = ontology
         self.accounts = accounts
         self.regions = regions
@@ -53,5 +56,6 @@ class Neo4jViewsFactory(AbstractViewsFactory):
                 germplasm = Neo4jGermplasmView(session=session, user_id=user_id, read_teams=read_teams),
                 regions = Neo4jRegionsView(state_store=self.state_store, user_id = user_id, read_teams=read_teams, session=session),
                 datasets = Neo4jDatasetsView(user_id=user_id, read_teams=read_teams, session=session),
-                units = Neo4jUnitsView(session=session, user_id=user_id, read_teams=read_teams)
+                units = Neo4jUnitsView(session=session, user_id=user_id, read_teams=read_teams),
+                programs = Neo4jProgramsView(session=session, user_id=user_id, read_teams=read_teams)
             )

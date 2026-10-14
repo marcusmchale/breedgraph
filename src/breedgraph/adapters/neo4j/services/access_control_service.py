@@ -101,9 +101,10 @@ class Neo4jAccessControlService(AbstractAccessControlService):
                 )
                 for control in record['controls']
             }
+            # in the order they were made
             writes = [
                 WriteStamp(user=writes['user'], time=writes['time'])
-                for writes in record['writes']
+                for writes in sorted(record['writes'], key=lambda write: write['time'])
             ]
             controllers[entity_id] = Controller(controls=control_map, writes=writes)
         return controllers

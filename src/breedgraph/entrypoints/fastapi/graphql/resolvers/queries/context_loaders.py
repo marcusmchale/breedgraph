@@ -157,29 +157,29 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
             context['organisation_roots'] = organisation_roots
 
 async def update_users_map(context, user_ids: Iterable[int] | None = None):
+    """
+    Load the users the agent may see into the request's users map. Users that cannot be shown are remembered as
+    such, so resolving many write stamps by the same hidden user reads it once rather than once per stamp.
+    """
     async with (_get_lock(context, '_users_lock')):
+        agent_id = context.get('user_id')  # This might be None for unauthenticated requests
+        users_map = context.setdefault('users_map', dict())
+        unavailable = context.setdefault('_users_unavailable', set())
+
+        user_ids = {user_id for user_id in user_ids or [] if user_id is not None}
+        unmapped = list(user_ids - users_map.keys() - unavailable)
+        if not unmapped:
+            return
 
         bus = context.get('bus')
-        agent_id = context.get('user_id')  # This might be None for unauthenticated requests
-        users_map = context.get('users_map', dict())
-
         async with bus.views_factory.get_views(user_id=agent_id) as views:
-            user_ids = set(user_ids) if user_ids is not None else set()
-            unmapped = list(user_ids - set(users_map.keys()))
             for user in await views.accounts.get_users_for_admin(user_ids=unmapped):
                 users_map[user.id] = user
 
-            if agent_id in user_ids and not agent_id in users_map:
+            if agent_id in unmapped and not agent_id in users_map:
                 users_map[agent_id] = await views.accounts.get_user()
 
-            ## Present redacted users, with only the ID property (whether real or not)
-            #for user_id in user_ids:
-            #    if not user_id in users_map:
-            #        users_map[user_id] = UserOutput(
-            #            id=user_id
-            #        )
-
-        context['users_map'] = users_map
+        unavailable.update(user_id for user_id in unmapped if user_id not in users_map)
 
 async def update_locations_map(context, location_ids: Iterable[int] | None = None):
     async with _get_lock(context, '_locations_lock'):

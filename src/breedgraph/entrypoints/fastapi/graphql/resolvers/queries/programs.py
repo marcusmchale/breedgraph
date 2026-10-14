@@ -1,5 +1,7 @@
 from ariadne import ObjectType
 
+from breedgraph.custom_exceptions import NoResultFoundError
+
 from breedgraph.service_layer.queries.read_models.ontology import (
     DesignOutput, RecordGroupTypeOutput,
     OntologyViewMode
@@ -88,10 +90,12 @@ async def get_study(
 ) -> StudyOutput:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(study_id=id)
-        study_stored = program_stored.get_study(study_id=id)
-        return study_stored.to_output()
+    # read through the programs view, so the rest of the program and its controllers are not loaded
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        study_stored = await views.programs.get_study(study_id=id)
+    if study_stored is None:
+        raise NoResultFoundError(f"Study {id} not found")
+    return study_stored.to_output()
 
 
 @program.field("trials")

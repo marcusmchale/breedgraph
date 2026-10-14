@@ -175,12 +175,14 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         logger.debug(f"Remove studies: {study_ids}")
         await self.tx.run(queries['programs']['remove_studies'], study_ids=study_ids)
 
-    def record_to_study(self, record: Record | dict) -> StudyStored:
+    @classmethod
+    def record_to_study(cls, record: Record | dict) -> StudyStored:
+        """A study as read with its groupings, shared with the programs view"""
         if isinstance(record, Record):
             record = record.data()
         if 'study' in record:
             record = record.get('study')
-        record = self.deserialize_dt64(record)
+        record = cls.deserialize_dt64(record)
 
         record['groupings'] = [
             RecordGroupingStored(
