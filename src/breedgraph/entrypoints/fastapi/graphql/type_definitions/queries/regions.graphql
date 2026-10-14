@@ -29,6 +29,12 @@ type Location {
     children: [Location]
 }
 
+""" Locations below some locations that share a type, as id and name """
+type LocationTypeLocations {
+    type: LocationType
+    locations: [Location!]!
+}
+
 
 type LocationTemplate {
     name: String!

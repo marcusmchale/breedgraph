@@ -20,7 +20,8 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 location = ObjectType("Location")
 location_template = ObjectType("LocationTemplate")
-graphql_resolvers.register_type_resolvers(location, location_template)
+location_type_locations = ObjectType("LocationTypeLocations")
+graphql_resolvers.register_type_resolvers(location, location_template, location_type_locations)
 
 @graphql_query.field("regionsCountries")
 @graphql_payload
@@ -74,6 +75,22 @@ async def resolve_parent(obj, info) -> LocationOutput:
 async def resolve_children(obj, info):
     await update_locations_map(info.context, location_ids=obj.children)
     return [info.context.get('locations_map').get(child) for child in obj.children]
+
+@graphql_query.field("regionsDescendantsByType")
+@graphql_payload
+@require_authentication
+async def get_descendants_by_type(_, info, location_ids: List[int]) -> List[dict]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:
+        by_type = await views.regions.get_descendants_by_type(location_ids=location_ids)
+    return [{'type': type_id, 'locations': locations} for type_id, locations in by_type.items()]
+
+@location_type_locations.field("type")
+async def resolve_location_type_locations_type(obj, info):
+    if obj.get('type') is None:
+        return None
+    await update_ontology_map(info.context, entry_ids=[obj['type']], view=OntologyViewMode.REFERENTIAL)
+    return info.context.get('ontology_map').get(obj['type'])
 
 @location.field("type")
 async def resolve_type(obj, info):

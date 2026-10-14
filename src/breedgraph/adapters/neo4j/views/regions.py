@@ -8,7 +8,7 @@ from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.domain.model.regions import LocationOutput
 from breedgraph.domain.model.controls import ReadRelease
 
-from typing import List, AsyncGenerator
+from typing import List, Dict, AsyncGenerator
 
 class Neo4jRegionsView(AbstractRegionsView):
     def __init__(
@@ -33,3 +33,19 @@ class Neo4jRegionsView(AbstractRegionsView):
             )
             async for record in result:
                 yield LocationOutput(**record['location'])
+
+    async def _get_descendants_by_type(self, location_ids: List[int]) -> Dict[int | None, List[LocationOutput]]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['regions']['get_descendants_by_type_for_read_teams'],
+                location_ids=location_ids,
+                read_teams=self.read_teams,
+                minimum_release=ReadRelease.REGISTERED if self.user_id is not None else ReadRelease.PUBLIC
+            )
+            return {
+                record['type']: [
+                    LocationOutput(id=location['id'], name=location['name'], type=record['type'])
+                    for location in record['locations']
+                ]
+                async for record in result
+            }

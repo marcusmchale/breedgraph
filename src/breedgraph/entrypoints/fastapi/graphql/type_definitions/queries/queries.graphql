@@ -109,6 +109,11 @@ type Query {
     """ Search for locations by ontology Location type """
     regionsLocationsByType (locationTypeId: ID!): LocationsPayload!
     """
+    Every readable location below the given locations, grouped by location type, as id and name.
+    For selecting all the locations of a type at once.
+    """
+    regionsDescendantsByType (locationIds: [ID!]!): LocationTypeLocationsPayload!
+    """
     Get a list of arrangement roots.
     These are all layouts that form the top-level layout in an arrangement.
     Optionally retrieve only those at a given location by supplying locationId.
@@ -123,6 +128,11 @@ type Query {
     blocks(locationIds: [ID!]): UnitsPayload!
     """ Get units by ID. """
     blocksUnits(ids: [ID!]): UnitsPayload!
+    """
+    Every readable unit below the given units, grouped by subject, as id and name.
+    For selecting all the units of a subject at once, e.g. every tree of a field.
+    """
+    blocksDescendantsBySubject(unitIds: [ID!]!): SubjectUnitsPayload!
     """ Get a list of all programs """
     programs: ProgramsPayload!
     """Get a program by Id of program, trial or study """

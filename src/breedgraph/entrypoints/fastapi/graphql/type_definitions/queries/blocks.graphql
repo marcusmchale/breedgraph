@@ -28,3 +28,9 @@ type Unit {
     parents: [Unit]
     children: [Unit]
 }
+
+""" Units below some units that share a subject, as id and name """
+type SubjectUnits {
+    subject: Subject
+    units: [Unit!]!
+}

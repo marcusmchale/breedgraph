@@ -34,6 +34,20 @@ class AbstractUnitsView(ABC):
             return {}
         return await self._get_unit_names(unit_ids)
 
+    async def get_descendants_by_subject(self, unit_ids: Iterable[int]) -> Dict[int | None, List[UnitOutput]]:
+        """
+        Every readable unit below these units, as id, name and subject, keyed by subject id.
+        For selecting all the units of a subject at once; units the user cannot read are left out.
+        """
+        unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        if not unit_ids:
+            return {}
+        return await self._get_descendants_by_subject(unit_ids)
+
+    @abstractmethod
+    async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
+        ...
+
     @abstractmethod
     async def _get_unit_names(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
         ...

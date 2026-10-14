@@ -4,7 +4,7 @@ from breedgraph.domain.model.regions import LocationOutput
 from breedgraph.service_layer.infrastructure import AbstractStateStore
 
 from breedgraph.domain.model.regions import LocationInput
-from typing import List, AsyncGenerator
+from typing import List, Dict, Iterable, AsyncGenerator
 
 class AbstractRegionsView(ABC):
     state_store: AbstractStateStore
@@ -19,4 +19,18 @@ class AbstractRegionsView(ABC):
 
     @abstractmethod
     def _get_locations_by_type(self, location_type: int) -> AsyncGenerator[LocationOutput, None]:
+        ...
+
+    async def get_descendants_by_type(self, location_ids: Iterable[int]) -> Dict[int | None, List[LocationOutput]]:
+        """
+        Every readable location below these locations, as id, name and type, keyed by location type id.
+        For selecting all the locations of a type at once; locations the user cannot read are left out.
+        """
+        location_ids = [location_id for location_id in dict.fromkeys(location_ids) if location_id is not None]
+        if not location_ids:
+            return {}
+        return await self._get_descendants_by_type(location_ids)
+
+    @abstractmethod
+    async def _get_descendants_by_type(self, location_ids: List[int]) -> Dict[int | None, List[LocationOutput]]:
         ...

@@ -21,7 +21,8 @@ from . import graphql_query
 from ..registry import graphql_resolvers
 unit = ObjectType("Unit")
 position = ObjectType("Position")
-graphql_resolvers.register_type_resolvers(unit, position)
+subject_units = ObjectType("SubjectUnits")
+graphql_resolvers.register_type_resolvers(unit, position, subject_units)
 
 @graphql_query.field("blocks")
 @graphql_payload
@@ -39,6 +40,22 @@ async def get_units(_, info, ids: List[int]) -> List[UnitOutput]:
     await update_units_map(info.context, unit_ids=ids)
     units_map = info.context.get('units_map')
     return [units_map.get(i) for i in ids]
+
+@graphql_query.field("blocksDescendantsBySubject")
+@graphql_payload
+@require_authentication
+async def get_descendants_by_subject(_, info, unit_ids: List[int]) -> List[dict]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:
+        by_subject = await views.units.get_descendants_by_subject(unit_ids=unit_ids)
+    return [{'subject': subject, 'units': units} for subject, units in by_subject.items()]
+
+@subject_units.field("subject")
+async def resolve_subject_units_subject(obj, info):
+    if obj.get('subject') is None:
+        return None
+    await update_ontology_map(info.context, entry_ids=[obj['subject']], view=OntologyViewMode.REFERENTIAL)
+    return info.context.get('ontology_map').get(obj['subject'])
 
 @unit.field("subject")
 async def resolve_subject(obj, info):

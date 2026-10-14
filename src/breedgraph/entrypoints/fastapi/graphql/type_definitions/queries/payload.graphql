@@ -108,6 +108,12 @@ type LocationsPayload {
     errors: [Error!]
 }
 
+type LocationTypeLocationsPayload {
+    status: QueryStatus!
+    result: [LocationTypeLocations!]
+    errors: [Error!]
+}
+
 type LocationTemplatesPayload {
     status: QueryStatus!
     result: [LocationTemplate!]
@@ -123,6 +129,12 @@ type LayoutsPayload {
 type UnitsPayload {
     status: QueryStatus!
     result: [Unit!]
+    errors: [Error!]
+}
+
+type SubjectUnitsPayload {
+    status: QueryStatus!
+    result: [SubjectUnits!]
     errors: [Error!]
 }
 
