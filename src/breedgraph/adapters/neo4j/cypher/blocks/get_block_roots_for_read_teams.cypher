@@ -41,8 +41,9 @@ RETURN unit {
   subject: [(unit)-[:OF_SUBJECT]->(subject:Subject) | subject.id][0],
   germplasm: [(unit)-[:OF_GERMPLASM]->(germplasm:Germplasm) | germplasm.id][0],
   positions: CASE WHEN readable THEN coalesce(positions, []) ELSE [] END,
-  parents: [(parent:Unit)-[:INCLUDES_UNIT]->(unit) | parent.id],
+  parents: [],
   children: [(unit)-[:INCLUDES_UNIT]->(child:Unit) | child.id],
+  root_id: unit.id,
   readable: readable
 } AS unit
 ORDER BY unit.id

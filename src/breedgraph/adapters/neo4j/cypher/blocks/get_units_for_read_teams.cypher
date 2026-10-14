@@ -1,7 +1,14 @@
-// Units by id, with their current control teams resolved to a readable flag for the given read teams.
-// Returns each unit once, with subject, germplasm, positions (only when readable), parent and child ids.
+// Units by id, each with the id of its block root, a readable flag from its current controls and the
+// given read teams and minimum release, its direct parent and child ids, and positions only when readable.
+// Edges are raw: the view collapses them across units the user cannot read (see get_hidden_units_in_block).
 UNWIND $unit_ids AS unit_id
 MATCH (unit:Unit {id: unit_id})
+
+CALL (unit) {
+  MATCH (root:Unit)-[:INCLUDES_UNIT*0..]->(unit)
+  WHERE NOT (root)<-[:INCLUDES_UNIT]-(:Unit)
+  RETURN root.id AS root_id LIMIT 1
+}
 
 CALL (unit) {
   OPTIONAL MATCH (unit)<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:TeamUnits)<-[:CONTROLS]-(team:Team)
@@ -12,7 +19,7 @@ CALL (unit) {
   RETURN collect(team.id) AS team_ids, collect(control.release) AS releases
 }
 
-WITH unit,
+WITH unit, root_id,
   CASE
     WHEN size(team_ids) = 0 THEN true
     WHEN any(team_id IN team_ids WHERE team_id IN $read_teams) THEN true
@@ -43,5 +50,6 @@ RETURN unit {
   positions: CASE WHEN readable THEN coalesce(positions, []) ELSE [] END,
   parents: [(parent:Unit)-[:INCLUDES_UNIT]->(unit) | parent.id],
   children: [(unit)-[:INCLUDES_UNIT]->(child:Unit) | child.id],
+  root_id: root_id,
   readable: readable
 } AS unit
