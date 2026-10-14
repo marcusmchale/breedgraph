@@ -13,6 +13,7 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary, Ontolog
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_units_map,
+    update_unit_names_map,
     get_context_views,
     get_context_lock,
     update_germplasm_map,
@@ -63,14 +64,23 @@ async def resolve_concept(obj, info):
     return ontology_map.get(obj.concept)
 
 @dataset.field('records')
-async def resolve_records(obj, info):
-    # Preload what the record resolvers need in one call per dataset, instead of one per record
-    records = obj.records or []
-    await update_units_map(info.context, unit_ids=[record.get('unit') for record in records])
-    units_map = info.context.get('units_map', {})
+async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset=None, limit=None):
+    """A page of the dataset's records, read through the datasets view; nothing for a dataset the user cannot read"""
+    if not obj.readable:
+        return []
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        records = await views.datasets.get_records(
+            dataset_id=obj.id,
+            unit_ids=[int(unit_id) for unit_id in unit_ids] if unit_ids is not None else None,
+            start=start, end=end, offset=offset or 0, limit=limit
+        )
+    # Preload what the record resolvers need in one call per page, instead of one per record
+    await update_unit_names_map(info.context, unit_ids=[record.get('unit') for record in records])
+    names_map = info.context.get('unit_names_map', {})
     await update_germplasm_map(
         info.context,
-        entry_ids=[units_map[record.get('unit')].germplasm for record in records if record.get('unit') in units_map]
+        entry_ids=[names_map[record['unit']].germplasm for record in records if record.get('unit') in names_map]
     )
     await update_reference_map(
         info.context,
@@ -78,11 +88,20 @@ async def resolve_records(obj, info):
     )
     return records
 
+@dataset.field('recordCount')
+def resolve_record_count(obj, info):
+    # as with the records themselves, nothing for a dataset the user cannot read
+    return obj.record_count if obj.readable else 0
+
 @record.field('unit')
 async def resolve_unit(obj: dict, info):
-    await update_units_map(info.context, unit_ids=[obj.get('unit')])
-    units_map = info.context.get('units_map')
-    return units_map.get(obj.get('unit'))
+    # Records credit units by id, name and germplasm; the names map is filled when the records are resolved
+    unit_id = obj.get('unit')
+    names_map = info.context.get('unit_names_map', {})
+    if unit_id in names_map:
+        return names_map[unit_id]
+    await update_units_map(info.context, unit_ids=[unit_id])
+    return info.context.get('units_map', {}).get(unit_id)
 
 @record.field('references')
 async def resolve_references(obj: dict, info):

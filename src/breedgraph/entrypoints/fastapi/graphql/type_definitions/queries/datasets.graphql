@@ -19,7 +19,14 @@ type Dataset {
     studyId: ID!
     # concept is either a Factor or Variable in the ontology
     concept: OntologyNodeInterface!
-    records: [Record]
+    """
+    The dataset's records, in submission order. Without arguments, all of them.
+    unitIds, start and end narrow them (a record matches start/end when its own start/end lies within);
+    offset and limit page through the result.
+    """
+    records(unitIds: [ID!], start: DateTime, end: DateTime, offset: Int, limit: Int): [Record]
+    """ The number of records in the dataset, before any narrowing """
+    recordCount: Int!
     contributors: [Person]
     references: [ReferenceInterface]
 }

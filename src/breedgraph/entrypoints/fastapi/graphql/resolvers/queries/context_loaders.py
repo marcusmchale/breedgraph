@@ -273,6 +273,19 @@ async def update_units_map(context, location_ids: Iterable[int] | None = None, u
             if unmapped:
                 units_map.update(await views.units.get_units(unit_ids=unmapped))
 
+async def update_unit_names_map(context, unit_ids: Iterable[int]):
+    """
+    Units as id, name and germplasm only, for crediting records: the full units map is not consulted or filled,
+    so crediting 25,000 records does not read their positions, edges and neighbours.
+    """
+    async with _get_lock(context, '_views_lock'):
+        names_map = context.setdefault('unit_names_map', dict())
+        unmapped = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None and unit_id not in names_map]
+        if unmapped:
+            views = await get_context_views(context)
+            names_map.update(await views.units.get_unit_names(unit_ids=unmapped))
+
+
 async def update_germplasm_map(
         context,
         entry_ids: Iterable[int]|None = None

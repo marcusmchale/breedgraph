@@ -102,6 +102,23 @@ class Neo4jUnitsView(AbstractUnitsView):
             units.append(unit)
         return units
 
+    async def _get_unit_names(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['blocks']['get_unit_names_for_read_teams'],
+                unit_ids=unit_ids,
+                read_teams=self.read_teams,
+                minimum_release=self.minimum_release
+            )
+            units = {}
+            async for record in result:
+                units[record['id']] = UnitOutput(
+                    id=record['id'],
+                    name=(record['name'] and ControlledModel.redacted_str) if not record['readable'] else record['name'],
+                    germplasm=record['germplasm'] if record['readable'] else None
+                )
+            return units
+
     async def _get_units(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(

@@ -20,3 +20,15 @@ class DatasetSummary:
             self.start = datetime64(self.start)
         if self.end is not None:
             self.end = datetime64(self.end)
+
+
+@dataclass
+class DatasetRead:
+    """A dataset as the datasets view returns it: the header without its records, which are paged separately"""
+    id: int
+    study: int | None
+    concept: int | None
+    contributors: List[int]
+    references: List[int]
+    record_count: int
+    readable: bool

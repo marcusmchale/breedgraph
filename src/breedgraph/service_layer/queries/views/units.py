@@ -27,6 +27,17 @@ class AbstractUnitsView(ABC):
             return []
         return await self._get_block_roots(location_ids)
 
+    async def get_unit_names(self, unit_ids: Iterable[int]) -> Dict[int, UnitOutput]:
+        """Units as id, name and germplasm only, for crediting records; the name is REDACTED where the user cannot read"""
+        unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        if not unit_ids:
+            return {}
+        return await self._get_unit_names(unit_ids)
+
+    @abstractmethod
+    async def _get_unit_names(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
+        ...
+
     @abstractmethod
     async def _get_units(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
         ...
