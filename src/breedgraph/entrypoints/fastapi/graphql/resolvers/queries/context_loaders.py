@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import AsyncExitStack
 
-from typing import Iterable
+from typing import Iterable, List
 
 import logging
 
@@ -181,75 +181,45 @@ async def update_users_map(context, user_ids: Iterable[int] | None = None):
 
         unavailable.update(user_id for user_id in unmapped if user_id not in users_map)
 
-async def update_locations_map(context, location_ids: Iterable[int] | None = None):
-    async with _get_lock(context, '_locations_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
+async def update_locations_map(context, location_ids: Iterable[int] | None = None) -> List[LocationOutput]:
+    """
+    Load locations into the request's locations map through the regions view, by id, or, with no ids, the root of
+    every region the user can read a location in, which are returned. Hidden locations asked for come back as the
+    view's placeholders; ids of locations that do not exist are not mapped.
+    """
+    async with _get_lock(context, '_views_lock'):
+        locations_map = context.setdefault('locations_map', dict())
+        views = await get_context_views(context)
+        if location_ids is None:
+            roots = await views.regions.get_regions()
+            locations_map.update({root.id: root for root in roots})
+            return roots
 
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            locations_map = context.get('locations_map', dict())
-            region_roots = context.get('region_roots', list())
+        location_ids = list(location_ids)
+        unmapped = [location_id for location_id in dict.fromkeys(location_ids) if location_id is not None and location_id not in locations_map]
+        if unmapped:
+            locations_map.update(await views.regions.get_locations(unmapped))
+        return [locations_map[location_id] for location_id in location_ids if location_id in locations_map]
 
-            if location_ids is None:
-                if not locations_map:
-                    async for region in uow.repositories.regions.get_all():
-                        locations_map.update(region.to_output_map())
-                        region_roots.append(region.root.id)
-                else:
-                    pass
-            else:
-                for location_id in location_ids:
-                    if not location_id in locations_map:
-                        region = await uow.repositories.regions.get(location_id=location_id)
-                        if region is not None:
-                            locations_map.update(region.to_output_map())
-                            region_root = region.root
-                            if not region_root in region_roots:
-                                region_roots.append(region_root)
-                            # placeholder for location_ids that fetched a region but are not in the output map
-                            # these are redacted so the user can know they exist but shouldn't be aware of details other than
-                            if location_id not in locations_map:
-                                locations_map[location_id] = LocationOutput(id=location_id, name='REDACTED')
+async def update_layouts_map(context, location_id: int | None = None, layout_ids: Iterable[int] | None = None) -> List[LayoutOutput]:
+    """
+    Load layouts into the request's layouts map through the arrangements view, by id, or the roots of the
+    arrangements at a location the user can read a layout in, which are returned. Hidden layouts asked for come back
+    as the view's placeholders; ids of layouts that do not exist are not mapped.
+    """
+    async with _get_lock(context, '_views_lock'):
+        layouts_map = context.setdefault('layouts_map', dict())
+        views = await get_context_views(context)
+        if location_id is not None:
+            roots = await views.arrangements.get_arrangements(location_id)
+            layouts_map.update({root.id: root for root in roots})
+            return roots
 
-            context['locations_map'] = locations_map
-            context['region_roots'] = region_roots
-
-async def update_layouts_map(context, location_id: int | None = None, layout_ids: Iterable[int] | None = None):
-    async with _get_lock(context, '_layouts_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
-
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-
-            layouts_map = context.get('layouts_map', dict())
-            arrangement_roots = context.get('arrangement_roots', list())
-            if layout_ids is None:
-                if not layouts_map:
-                    async for arrangement in uow.repositories.arrangements.get_all(location_id=location_id):
-                        layouts_map.update(arrangement.to_output_map())
-                        arrangement_roots.append(arrangement.root.id)
-                else:
-                    return # if we already have layouts loaded just leave it
-
-            else:
-                for layout_id in layout_ids:
-                    if layout_id in layouts_map:
-                        continue # already loaded
-                    else:
-                        arrangement = await uow.repositories.arrangements.get(layout_id=layout_id)
-                        if arrangement is not None:
-                            layouts_map.update(arrangement.to_output_map())
-                            arrangement_root = arrangement.root
-                            if not arrangement_root in arrangement_roots:
-                                arrangement_roots.append(arrangement_root)
-                            # placeholder for arrangement_ids that fetched an arrangement but are not in the output map
-                            # these are redacted so the user can know they exist but shouldn't be aware of details other than the ID
-                            if layout_id not in layouts_map:
-                                layouts_map[layout_id] = LayoutOutput(id=layout_id, name='REDACTED')
-
-
-            context['layouts_map'] = layouts_map
-            context['arrangement_roots'] = arrangement_roots
+        layout_ids = list(layout_ids or [])
+        unmapped = [layout_id for layout_id in dict.fromkeys(layout_ids) if layout_id is not None and layout_id not in layouts_map]
+        if unmapped:
+            layouts_map.update(await views.arrangements.get_layouts(unmapped))
+        return [layouts_map[layout_id] for layout_id in layout_ids if layout_id in layouts_map]
 
 async def update_units_map(context, location_ids: Iterable[int] | None = None, unit_ids: Iterable[int] | None = None):
     """

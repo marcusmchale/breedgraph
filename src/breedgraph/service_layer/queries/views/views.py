@@ -11,6 +11,7 @@ from .datasets import AbstractDatasetsView
 from .germplasm import AbstractGermplasmView
 from .units import AbstractUnitsView
 from .programs import AbstractProgramsView
+from .arrangements import AbstractArrangementsView
 
 
 from typing import AsyncGenerator
@@ -26,6 +27,7 @@ class AbstractViewsHolder(ABC):
     datasets: AbstractDatasetsView
     units: AbstractUnitsView
     programs: AbstractProgramsView
+    arrangements: AbstractArrangementsView
 
 
 class AbstractViewsFactory(ABC):

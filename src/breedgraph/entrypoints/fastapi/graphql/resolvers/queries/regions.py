@@ -35,18 +35,13 @@ async def get_countries(_, info) -> List[LocationInput]:
 @graphql_payload
 @require_authentication
 async def get_regions(_, info) -> List[LocationOutput]:
-    await update_locations_map(info.context)
-    locations_map = info.context.get('locations_map')
-    region_roots = info.context.get('region_roots')
-    return [locations_map.get(i) for i in region_roots if i in locations_map]
+    return await update_locations_map(info.context)
 
 @graphql_query.field("regionsLocations")
 @graphql_payload
 @require_authentication
 async def get_locations(_, info, ids: List[int]) -> List[LocationOutput]:
-    await update_locations_map(info.context, location_ids=ids)
-    locations_map = info.context.get('locations_map')
-    return [locations_map.get(i) for i in ids if i in locations_map]
+    return await update_locations_map(info.context, location_ids=ids)
 
 @graphql_query.field("regionsLocationsByType")
 @graphql_payload
@@ -54,12 +49,10 @@ async def get_locations(_, info, ids: List[int]) -> List[LocationOutput]:
 async def get_locations_by_type(_, info, location_type_id: int | None = None) -> List[LocationOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
-    locations_map = info.context.get('locations_map', dict())
     async with bus.views_factory.get_views(user_id=user_id) as views:
         locations = await views.regions.get_locations_by_type(location_type = location_type_id)
-        for location_ in locations:
-            locations_map[location_.id] = location_
-        return locations
+    info.context.setdefault('locations_map', dict()).update({location_.id: location_ for location_ in locations})
+    return locations
 
 @location.field("region")
 async def resolve_region(obj, info) -> LocationOutput:

@@ -6,3 +6,4 @@ from .ontology import AbstractOntologyView
 from .germplasm import AbstractGermplasmView
 from .units import AbstractUnitsView
 from .programs import AbstractProgramsView
+from .arrangements import AbstractArrangementsView

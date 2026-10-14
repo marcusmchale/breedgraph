@@ -4,6 +4,7 @@ from breedgraph.service_layer.queries.views.regions import AbstractRegionsView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders import regions as region_queries
 
 from breedgraph.domain.model.regions import LocationOutput
 from breedgraph.domain.model.controls import ReadRelease
@@ -23,16 +24,26 @@ class Neo4jRegionsView(AbstractRegionsView):
         self.read_teams: List[int] = read_teams
         self.session = session
 
+    @property
+    def _minimum_release(self) -> ReadRelease:
+        return ReadRelease.REGISTERED if self.user_id is not None else ReadRelease.PUBLIC
+
+    async def _read(self, query: str, **params) -> List[LocationOutput]:
+        result: AsyncResult = await self.session.run(
+            query, **params, read_teams=self.read_teams, minimum_release=self._minimum_release
+        )
+        return [LocationOutput(**record['location']) async for record in result]
+
+    async def _get_regions(self) -> List[LocationOutput]:
+        return await self._read(region_queries.read_regions())
+
+    async def _get_locations(self, location_ids: List[int]) -> Dict[int, LocationOutput]:
+        locations = await self._read(region_queries.read_locations(), location_ids=location_ids)
+        return {location.id: location for location in locations}
+
     async def _get_locations_by_type(self, location_type_id: int) -> AsyncGenerator[LocationOutput, None]:
-        async with await self.session.begin_transaction() as tx:
-            result: AsyncResult = await tx.run(
-                queries['regions']['get_locations_by_type_for_read_teams'],
-                location_type=location_type_id,
-                read_teams=self.read_teams,
-                minimum_release=ReadRelease.REGISTERED if self.user_id is not None else ReadRelease.PUBLIC
-            )
-            async for record in result:
-                yield LocationOutput(**record['location'])
+        for location in await self._read(region_queries.read_locations_by_type(), location_type=location_type_id):
+            yield location
 
     async def _get_descendants_by_type(self, location_ids: List[int]) -> Dict[int | None, List[LocationOutput]]:
         async with await self.session.begin_transaction() as tx:

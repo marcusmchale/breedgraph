@@ -15,6 +15,7 @@ from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders import regions as region_queries
 
 # logging
 import logging
@@ -61,7 +62,7 @@ class RedisLoader:
                 country_type_id = country_type.id
 
                 result: AsyncResult = await tx.run(
-                    queries['regions']['get_locations_by_type_for_read_teams'],
+                    region_queries.read_locations_by_type(),
                     location_type=country_type_id,
                     read_teams=[],
                     minimum_release=ReadRelease.PUBLIC

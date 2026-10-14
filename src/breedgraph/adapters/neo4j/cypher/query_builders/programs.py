@@ -1,30 +1,9 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible
 
 # Programs, trials and studies as the user may see them. A node the user can read is returned in full. A node the
 # user cannot read is returned only as a placeholder, its id and a REDACTED name: when it was asked for directly, or
 # when it holds members the user can read, which then stay reachable below it. Otherwise it is left out.
-
-
-def _visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
-    """
-    A call setting alias to whether the user can read entity: with no current controls, when the least of its current
-    controls' releases is at least $minimum_release, or when a team in $read_teams controls it
-    """
-    return f"""
-        CALL ({entity}) {{
-          OPTIONAL MATCH ({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team)
-          WITH team, control
-          ORDER BY team.id, control.sequence DESC
-          WITH team, collect(control)[0] AS control
-          WITH collect(
-            CASE WHEN team IS NOT NULL AND NOT coalesce(control.ended, false) THEN {{team: team.id, release: control.release}} END
-          ) AS controls
-          RETURN size(controls) = 0
-            OR any(c IN controls WHERE c.team IN $read_teams)
-            OR reduce(least = 2, c IN controls | CASE WHEN c.release < least THEN c.release ELSE least END) >= $minimum_release
-            AS {alias}
-        }}
-    """
 
 
 def _study(study: str = 'study') -> str:
