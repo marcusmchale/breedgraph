@@ -23,6 +23,11 @@ def _get_lock(context, lock_name: str):
     return context[lock_name]
 
 
+def get_context_lock(context):
+    """The lock to hold while using the request's shared views holder"""
+    return _get_lock(context, '_views_lock')
+
+
 async def get_context_views(context):
     """
     One views holder for the whole request, opened on first use and closed with the request's exit stack

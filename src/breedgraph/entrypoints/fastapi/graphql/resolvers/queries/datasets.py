@@ -13,6 +13,8 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary, Ontolog
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_units_map,
+    get_context_views,
+    get_context_lock,
     update_germplasm_map,
     update_locations_map,
     update_reference_map,
@@ -45,15 +47,10 @@ async def get_datasets(
         study_ids: List[int]|None = None,
         concept_ids: List[int]|None = None
 ) -> List[DatasetOutput]:
-    user_id = info.context.get('user_id')
-    bus = info.context.get('bus')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        datasets = [d.to_output() async for d in uow.repositories.datasets.get_all(
-            dataset_ids=ids,
-            study_ids=study_ids,
-            concept_ids=concept_ids
-        )]
-        return datasets
+    # Read through the datasets view: no aggregate, tracking or controller lookups for a read
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.datasets.get_datasets(dataset_ids=ids, study_ids=study_ids, concept_ids=concept_ids)
 
 @dataset.field('studyId')
 def resolve_study_id(obj, info):
