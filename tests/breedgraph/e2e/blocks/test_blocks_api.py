@@ -136,3 +136,13 @@ async def test_add_unit_position(
     add_position_response = await post_to_add_position(client, login_token, unit_id=tree_unit_id, position=position)
     add_position_payload = get_verified_payload(add_position_response, "blocksAddPosition")
     assert_payload_success(add_position_payload)
+
+    units_response = await post_to_units(client, unit_ids=[tree_unit_id], token=login_token)
+    units_payload = get_verified_payload(units_response, "blocksUnits")
+    assert_payload_success(units_payload)
+    positions = units_payload.get('result')[0].get('positions')
+    added = [p for p in positions if p.get('layout') and p['layout']['id'] == str(layout_id)]
+    assert len(added) == 1
+    assert added[0]['location']['id'] == str(location_id)
+    assert added[0]['coordinates'] == ["1", "1"]
+    assert added[0]['start'].startswith('2023')

@@ -112,6 +112,7 @@ async def post_to_units(client, unit_ids: List[int], token:str = None):
             "    result { "
             "       id, name, "
             "       subject { id, name }"
+            "       positions { location { id }, layout { id }, coordinates, start, end } "
             "       parents {id, name, subject {id, name} } "
             "       children {id, name, subject {id, name} } "
             "    }, "

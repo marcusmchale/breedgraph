@@ -9,7 +9,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     update_germplasm_map
 )
 
-from breedgraph.domain.model.blocks import UnitOutput, Position
+from breedgraph.domain.model.blocks import UnitOutput
 from breedgraph.service_layer.queries.read_models import OntologyViewMode
 
 from typing import List
@@ -51,10 +51,6 @@ async def resolve_germplasm(obj, info):
     await update_germplasm_map(info.context, entry_ids=[obj.germplasm])
     germplasm_map = info.context.get('germplasm_map')
     return germplasm_map.get(obj.germplasm)
-
-@unit.field("positions")
-async def resolve_positions(obj, _):
-    return [Position(**p) for p in obj.positions]
 
 @unit.field("parents")
 async def resolve_parents(obj, info):
