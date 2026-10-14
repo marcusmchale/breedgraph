@@ -6,7 +6,7 @@ from breedgraph.domain.model import FileReferenceBase, Access
 from breedgraph.domain.model.accounts import UserBase
 from breedgraph.domain.model.organisations import TeamBase
 from breedgraph.domain.model.archive import ArchiveRequestor
-from breedgraph.config import PROTOCOL, HOST_ADDRESS
+from breedgraph.config import get_vue_url, get_base_url
 from email.message import EmailMessage
 
 import logging
@@ -34,7 +34,7 @@ class ContactMessage(Email):
             f'---\n'
             f'Replying to this email sends your reply, and your email address, to {sender.fullname}.\n'
             f'Your email address has not been shared with them otherwise. '
-            f'You can remove yourself as a contact at {PROTOCOL}://{HOST_ADDRESS}.'
+            f'You can remove yourself as a contact at {get_vue_url()}.'
         )
         self.message.set_content(body)
 
@@ -47,7 +47,7 @@ class PersonClaimRequestedMessage(Email):
         body = (
             f'Admin notification:\n'
             f'{requesting_user.fullname} asked to link their account to Person record {person_id}.\n'
-            f'Please confirm their identity before approving the request at {PROTOCOL}://{HOST_ADDRESS}.'
+            f'Please confirm their identity before approving the request at {get_vue_url()}.'
         )
         self.message.set_content(body)
 
@@ -60,7 +60,7 @@ class PersonLinkedMessage(Email):
         body = (
             f'Hi {user.fullname},\n'
             f'A Person record used to credit your contributions is now linked to your account.\n'
-            f'You can view, correct, unlink or erase it at {PROTOCOL}://{HOST_ADDRESS}.\n'
+            f'You can view, correct, unlink or erase it at {get_vue_url()}.\n'
             f'If the Person is listed as a contact, other users may message you through {SITE_NAME}. '
             f'Messages arrive at this email address, which senders never see. '
             f'You can remove yourself as a contact at any time.'
@@ -73,7 +73,7 @@ class InvitationMessage(Email):
     def __init__(self, inviter: UserBase, token: str, expires_at: datetime, offers_affiliation: bool):
         super().__init__()
         self.message['Subject'] = f'Invitation to register with {SITE_NAME}'
-        register_url = f'{PROTOCOL}://{HOST_ADDRESS}/register?token={token}'
+        register_url = f'{get_vue_url()}register?token={token}'
         body = (
             f'{inviter.fullname} has invited you to register with {SITE_NAME}.\n'
             + (f'The invitation includes access to their teams, which you can accept or decline when registering.\n'
@@ -97,7 +97,7 @@ class VerifyEmailMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} account email verification'
-        verify_url = f'{PROTOCOL}://{HOST_ADDRESS}/verify'
+        verify_url = f'{get_base_url()}verify'
         body = (
             f'Hi {user.fullname}, \n'
             f'Please visit the following link to verify your email address: \n'
@@ -116,7 +116,7 @@ class ResetPasswordMessage(Email):
     def __init__(self, user: UserBase, token: str):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} account reset password'
-        reset_url = f'{PROTOCOL}://{HOST_ADDRESS}/reset'
+        reset_url = f'{get_base_url()}reset'
         body = (
             f'Hi {user.fullname}, \n'
             f'Please visit the following link to reset your password address: \n'
@@ -163,7 +163,7 @@ class ControlTransferOfferedMessage(Email):
             f'Admin notification:\n'
             f'{offering_user.fullname} offered control of {entity_count} '
             f'{"entry" if entity_count == 1 else "entries"} to {team.name}.\n'
-            f'Please review the offer at {PROTOCOL}://{HOST_ADDRESS}.'
+            f'Please review the offer at {get_vue_url()}.'
         )
         self.message.set_content(body)
 

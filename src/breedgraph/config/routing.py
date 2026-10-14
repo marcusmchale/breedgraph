@@ -21,23 +21,26 @@ MAIL_USE_TLS = bool(int(os.environ.get('MAIL_USE_TLS', 1)))
 MAIL_AUTHENTICATED = bool(int(os.environ.get('MAIL_AUTHENTICATED', 1)))
 
 
+def _is_default_port(port) -> bool:
+    # Ports come from the environment as strings
+    return str(port) in ('80', '443')
+
 def get_base_url():
-    if not HOST_PORT in [80, 443]:
+    """The API's own address, with a trailing slash"""
+    if not _is_default_port(HOST_PORT):
         return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/'
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 def get_vue_url():
-    if not VUE_PORT in [80, 443]:
+    """The front end's address, with a trailing slash. Use it for every link sent to users"""
+    if not _is_default_port(VUE_PORT):
         return f'{PROTOCOL}://{HOST_ADDRESS}:{VUE_PORT}/'
     else:
         return f'{PROTOCOL}://{HOST_ADDRESS}/'
 
 def get_download_endpoint():
-    if not HOST_PORT in [80, 443]:
-        return f'{PROTOCOL}://{HOST_ADDRESS}:{HOST_PORT}/download?token='
-    else:
-        return f'{PROTOCOL}://{HOST_ADDRESS}/download?token='
+    return f'{get_base_url()}download?token='
 
 DATABASE_NAME = os.environ.get("DATABASE_NAME")  # currently only a single database available
 def get_bolt_url():
