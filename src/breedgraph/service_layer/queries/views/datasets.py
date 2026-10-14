@@ -38,10 +38,38 @@ class AbstractDatasetsView(ABC):
             offset: int = 0,
             limit: int | None = None
     ) -> List[dict]:
-        """A page of a readable dataset's records in submission order, as dicts with the record fields"""
+        """
+        A page of a readable dataset's records in submission order, as dicts with the record fields.
+        unit_ids narrow them to the records of those units and of every unit below them; start and end to
+        records whose own period overlaps the window.
+        """
         if unit_ids is not None:
             unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
         return await self._get_records(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end, offset=max(offset or 0, 0), limit=limit)
+
+    async def count_records(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None = None,
+            start: datetime64 | None = None,
+            end: datetime64 | None = None
+    ) -> int:
+        """The number of a readable dataset's records, narrowed the same way as get_records"""
+        if unit_ids is not None:
+            unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        return await self._count_records(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end)
+
+    async def get_unit_ids(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None = None,
+            start: datetime64 | None = None,
+            end: datetime64 | None = None
+    ) -> List[int]:
+        """The ids of the units a readable dataset has records for, in id order, narrowed the same way as get_records"""
+        if unit_ids is not None:
+            unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        return await self._get_unit_ids(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end)
 
     @abstractmethod
     async def _get_datasets(
@@ -62,4 +90,24 @@ class AbstractDatasetsView(ABC):
             offset: int,
             limit: int | None
     ) -> List[dict]:
+        ...
+
+    @abstractmethod
+    async def _get_unit_ids(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> List[int]:
+        ...
+
+    @abstractmethod
+    async def _count_records(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> int:
         ...

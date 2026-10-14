@@ -21,12 +21,18 @@ type Dataset {
     concept: OntologyNodeInterface!
     """
     The dataset's records, in submission order. Without arguments, all of them.
-    unitIds, start and end narrow them (a record matches start/end when its own start/end lies within);
+    unitIds narrows them to the records of those units and of every unit below them (a block or a plot selects
+    what it contains); start and end to records whose own period overlaps the window;
     offset and limit page through the result.
     """
     records(unitIds: [ID!], start: DateTime, end: DateTime, offset: Int, limit: Int): [Record]
-    """ The number of records in the dataset, before any narrowing """
-    recordCount: Int!
+    """ The number of records in the dataset, narrowed like records when the same arguments are given """
+    recordCount(unitIds: [ID!], start: DateTime, end: DateTime): Int!
+    """
+    The ids of the units the dataset has records for, in id order, narrowed like records when the same arguments
+    are given: a client pages by unit with these, so that every record of a unit is in the same page
+    """
+    unitIds(unitIds: [ID!], start: DateTime, end: DateTime): [ID!]!
     contributors: [Person]
     references: [ReferenceInterface]
 }

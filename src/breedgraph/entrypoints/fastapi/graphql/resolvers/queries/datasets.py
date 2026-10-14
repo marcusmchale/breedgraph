@@ -88,10 +88,34 @@ async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset
     )
     return records
 
+@dataset.field('unitIds')
+async def resolve_unit_ids(obj, info, unit_ids=None, start=None, end=None):
+    # the units with records under the same narrowing as records, so a client can page by unit; nothing if unreadable
+    if not obj.readable:
+        return []
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.datasets.get_unit_ids(
+            dataset_id=obj.id,
+            unit_ids=[int(unit_id) for unit_id in unit_ids] if unit_ids is not None else None,
+            start=start, end=end
+        )
+
 @dataset.field('recordCount')
-def resolve_record_count(obj, info):
+async def resolve_record_count(obj, info, unit_ids=None, start=None, end=None):
     # as with the records themselves, nothing for a dataset the user cannot read
-    return obj.record_count if obj.readable else 0
+    if not obj.readable:
+        return 0
+    # the header carries the full count; a narrowed count is read when the records' filters are given
+    if unit_ids is None and start is None and end is None:
+        return obj.record_count
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.datasets.count_records(
+            dataset_id=obj.id,
+            unit_ids=[int(unit_id) for unit_id in unit_ids] if unit_ids is not None else None,
+            start=start, end=end
+        )
 
 @record.field('unit')
 async def resolve_unit(obj: dict, info):

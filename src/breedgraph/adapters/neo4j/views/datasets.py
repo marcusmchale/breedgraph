@@ -72,6 +72,42 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             )
             return [self.record_to_dict(record['record']) async for record in result]
 
+    async def _get_unit_ids(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> List[int]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['datasets']['read_dataset_unit_ids'],
+                dataset_id=dataset_id,
+                unit_ids=unit_ids,
+                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+            )
+            record = await result.single()
+            return list(record['unit_ids']) if record else []
+
+    async def _count_records(
+            self,
+            dataset_id: int,
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> int:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['datasets']['count_dataset_records'],
+                dataset_id=dataset_id,
+                unit_ids=unit_ids,
+                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+            )
+            record = await result.single()
+            return record['record_count'] if record else 0
+
     async def _get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
