@@ -162,6 +162,12 @@ type DatasetSubmissionPayload {
     errors: [Error!]
 }
 
+type DatasetsUnitsPayload {
+    status: QueryStatus!
+    result: [DatasetsUnit!]
+    errors: [Error!]
+}
+
 type DatasetSummariesPayload {
     status: QueryStatus!
     result: [DatasetSummary]

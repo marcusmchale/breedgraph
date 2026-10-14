@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 
-from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions
+from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit
 from numpy import datetime64
+from breedgraph.domain.model.blocks import UnitOutput
 
-from typing import List, AsyncGenerator
+from typing import List, Dict, AsyncGenerator
 
 class AbstractDatasetsView(ABC):
     user_id: int|None
@@ -71,6 +72,48 @@ class AbstractDatasetsView(ABC):
             unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
         return await self._get_unit_ids(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end)
 
+    async def get_unit_level(
+            self,
+            dataset_ids: List[int],
+            parent_ids: List[int] | None = None,
+            start: datetime64 | None = None,
+            end: datetime64 | None = None
+    ) -> List[DatasetsUnit]:
+        """
+        One level of the tree of units readable datasets have records for, narrowed by time the same way as
+        get_records: the children of parent_ids that have records at or below them, or the roots of the blocks
+        that do when parent_ids is None. In name order.
+        """
+        dataset_ids = [dataset_id for dataset_id in dict.fromkeys(dataset_ids) if dataset_id is not None]
+        if not dataset_ids:
+            return []
+        if parent_ids is not None:
+            parent_ids = [parent_id for parent_id in dict.fromkeys(parent_ids) if parent_id is not None]
+            if not parent_ids:
+                return []
+        return await self._get_unit_level(dataset_ids=dataset_ids, parent_ids=parent_ids, start=start, end=end)
+
+    async def get_units_by_subject(
+            self,
+            dataset_ids: List[int],
+            unit_ids: List[int] | None = None,
+            start: datetime64 | None = None,
+            end: datetime64 | None = None
+    ) -> Dict[int | None, List[UnitOutput]]:
+        """
+        Every readable unit readable datasets have records for, narrowed the same way as get_records (unit_ids to
+        those units and everything below them), as id, name and subject keyed by subject id.
+        For selecting all the recorded units of a subject at once.
+        """
+        dataset_ids = [dataset_id for dataset_id in dict.fromkeys(dataset_ids) if dataset_id is not None]
+        if not dataset_ids:
+            return {}
+        if unit_ids is not None:
+            unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+            if not unit_ids:
+                return {}
+        return await self._get_units_by_subject(dataset_ids=dataset_ids, unit_ids=unit_ids, start=start, end=end)
+
     async def get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         """
         What a readable dataset's records span without reading them: counts, the time range, the record times and
@@ -80,6 +123,26 @@ class AbstractDatasetsView(ABC):
 
     @abstractmethod
     async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
+        ...
+
+    @abstractmethod
+    async def _get_unit_level(
+            self,
+            dataset_ids: List[int],
+            parent_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> List[DatasetsUnit]:
+        ...
+
+    @abstractmethod
+    async def _get_units_by_subject(
+            self,
+            dataset_ids: List[int],
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> Dict[int | None, List[UnitOutput]]:
         ...
 
     @abstractmethod

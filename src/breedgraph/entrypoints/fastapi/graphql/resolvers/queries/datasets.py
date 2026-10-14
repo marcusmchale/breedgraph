@@ -33,9 +33,10 @@ dataset = ObjectType("Dataset")
 record = ObjectType("Record")
 dataset_submission = ObjectType("DatasetSubmission")
 dataset_summary = ObjectType("DatasetSummary")
+datasets_unit = ObjectType("DatasetsUnit")
 submitted_data = ObjectType("SubmittedData")
 
-graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, dataset_summary, submitted_data)
+graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, dataset_summary, datasets_unit, submitted_data)
 
 """Datasets resolver"""
 @graphql_query.field("datasets")
@@ -52,6 +53,51 @@ async def get_datasets(
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
         return await views.datasets.get_datasets(dataset_ids=ids, study_ids=study_ids, concept_ids=concept_ids)
+
+async def _readable_dataset_ids(views, dataset_ids: List[int]) -> List[int]:
+    """The given datasets the user can read; the others contribute no units or records"""
+    if not dataset_ids:
+        return []
+    datasets = await views.datasets.get_datasets(dataset_ids=[int(dataset_id) for dataset_id in dataset_ids])
+    return [dataset.id for dataset in datasets if dataset.readable]
+
+@graphql_query.field("datasetsUnits")
+@graphql_payload
+@require_authentication
+async def get_datasets_units(_, info, dataset_ids: List[int], parent_ids: List[int]|None = None, start=None, end=None):
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        readable_ids = await _readable_dataset_ids(views, dataset_ids)
+        if not readable_ids:
+            return []
+        level = await views.datasets.get_unit_level(
+            dataset_ids=readable_ids,
+            parent_ids=[int(parent_id) for parent_id in parent_ids] if parent_ids is not None else None,
+            start=start, end=end
+        )
+    # Preload the level's units in one call, instead of one per node
+    await update_units_map(info.context, unit_ids=[node.id for node in level])
+    return level
+
+@datasets_unit.field("unit")
+def resolve_datasets_unit_unit(obj, info):
+    return info.context.get('units_map', {}).get(obj.id)
+
+@graphql_query.field("datasetsUnitsBySubject")
+@graphql_payload
+@require_authentication
+async def get_datasets_units_by_subject(_, info, dataset_ids: List[int], unit_ids: List[int]|None = None, start=None, end=None):
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        readable_ids = await _readable_dataset_ids(views, dataset_ids)
+        if not readable_ids:
+            return []
+        by_subject = await views.datasets.get_units_by_subject(
+            dataset_ids=readable_ids,
+            unit_ids=[int(unit_id) for unit_id in unit_ids] if unit_ids is not None else None,
+            start=start, end=end
+        )
+    return [{'subject': subject, 'units': units} for subject, units in by_subject.items()]
 
 @dataset.field('studyId')
 def resolve_study_id(obj, info):

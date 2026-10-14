@@ -66,6 +66,20 @@ type Dataset {
     references: [ReferenceInterface]
 }
 
+"""
+A unit some datasets have records for, at it or below it: one node of the tree of units that matter to those
+datasets, for narrowing their records to units
+"""
+type DatasetsUnit {
+    unit: Unit!
+    """ The number of units at or below this one that the datasets have records for, under the narrowing """
+    unitCount: Int!
+    """ The number of those records """
+    recordCount: Int!
+    """ Whether a unit below this one has records: whether there is a level to open under it """
+    hasChildren: Boolean!
+}
+
 type SubmittedRecord {
     id: ID  # may be null if a new record, or provided if an update
     unitId: Int!

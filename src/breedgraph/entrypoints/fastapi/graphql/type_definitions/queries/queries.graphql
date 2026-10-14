@@ -158,6 +158,19 @@ type Query {
     datasetsSubmission(id: ID!): DatasetSubmissionPayload!
     """ Get a summary of datasets for a study """
     datasetsSummaries(studyId: ID!): DatasetSummariesPayload!
+    """
+    One level of the tree of units the given datasets have records for: the children of parentIds that have records
+    at or below them, or, without parentIds, the roots of the blocks that do. start and end narrow the records
+    counted to those whose own period overlaps the window, as for Dataset.records. Datasets the user cannot read
+    contribute nothing. For offering only the units that matter to the datasets when narrowing their records.
+    """
+    datasetsUnits(datasetIds: [ID!]!, parentIds: [ID!], start: DateTime, end: DateTime): DatasetsUnitsPayload!
+    """
+    Every readable unit the given datasets have records for, grouped by subject as id and name, narrowed like
+    Dataset.records: unitIds to those units and everything below them, start and end to a time window.
+    For selecting all the recorded units of a subject at once, e.g. every measured tree of a field.
+    """
+    datasetsUnitsBySubject(datasetIds: [ID!]!, unitIds: [ID!], start: DateTime, end: DateTime): SubjectUnitsPayload!
     """ Get the controller data for access controlled entities """
     controlsControllers (
         entityLabel: ControlledModelLabel!

@@ -5,12 +5,13 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.adapters.neo4j.cypher import queries
-from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes
+from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit
+from breedgraph.domain.model.blocks import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
 from numpy import datetime64
 from breedgraph.service_layer.repositories.base import BaseRepository
 
-from typing import List
+from typing import List, Dict
 
 
 class Neo4jDatasetsView(AbstractDatasetsView):
@@ -107,6 +108,54 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             )
             record = await result.single()
             return record['record_count'] if record else 0
+
+    async def _get_unit_level(
+            self,
+            dataset_ids: List[int],
+            parent_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> List[DatasetsUnit]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['datasets']['read_datasets_unit_level'],
+                dataset_ids=dataset_ids,
+                parent_ids=parent_ids,
+                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+            )
+            return [
+                DatasetsUnit(
+                    id=record['id'],
+                    unit_count=record['unit_count'],
+                    record_count=record['record_count'],
+                    has_children=record['has_children']
+                ) async for record in result
+            ]
+
+    async def _get_units_by_subject(
+            self,
+            dataset_ids: List[int],
+            unit_ids: List[int] | None,
+            start: datetime64 | None,
+            end: datetime64 | None
+    ) -> Dict[int | None, List[UnitOutput]]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['datasets']['read_datasets_units_by_subject'],
+                dataset_ids=dataset_ids,
+                unit_ids=unit_ids,
+                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                read_teams=self.read_teams,
+                minimum_release=int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+            )
+            return {
+                record['subject']: [
+                    UnitOutput(id=unit['id'], name=unit['name'], subject=record['subject']) for unit in record['units']
+                ]
+                async for record in result
+            }
 
     async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         async with await self.session.begin_transaction() as tx:

@@ -35,6 +35,19 @@ class DatasetRead:
 
 
 @dataclass
+class DatasetsUnit:
+    """
+    A unit some datasets have records for, at it or below it: one node of the tree of units that matter to those
+    datasets, with how many units at or below it have records, how many records that is, and whether any of those
+    units lies below it
+    """
+    id: int
+    unit_count: int
+    record_count: int
+    has_children: bool
+
+
+@dataclass
 class GroupingCodes:
     """The codes of one record grouping that a dataset's records carry, in text order"""
     grouping_id: int
