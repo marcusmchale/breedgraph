@@ -53,3 +53,21 @@ def tree_links(node: str, root: str, label: ControlledModelLabel, edge: str, vis
               | descendant.id
             ])""",
     }
+
+
+def readable(entity: str, label: ControlledModelLabel) -> str:
+    """
+    A predicate for whether the user can read entity, as visible() decides it, written with EXISTS subqueries only so
+    it can stand where calls cannot, such as in a quantified path pattern: a team's current control is its latest,
+    and the team controls the entity while that control is not ended
+    """
+    current = (
+        f"NOT coalesce(control.ended, false) AND NOT EXISTS {{ "
+        f"MATCH ({entity})<-[:CONTROLS]-(newer:Control)<-[:CONTROLS]-(team_node) WHERE newer.sequence > control.sequence }}"
+    )
+    controls = f"({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(team_node:Team{label.plural})"
+    return f"""(
+          NOT EXISTS {{ MATCH {controls} WHERE {current} }}
+          OR EXISTS {{ MATCH {controls}<-[:CONTROLS]-(team:Team) WHERE team.id IN $read_teams AND {current} }}
+          OR NOT EXISTS {{ MATCH {controls} WHERE control.release < $minimum_release AND {current} }}
+        )"""
