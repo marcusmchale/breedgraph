@@ -13,6 +13,7 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary, Ontolog
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_units_map,
+    update_germplasm_map,
     update_locations_map,
     update_reference_map,
     resolve_people
@@ -64,10 +65,24 @@ async def resolve_concept(obj, info):
     ontology_map = info.context.get('ontology_map')
     return ontology_map.get(obj.concept)
 
+@dataset.field('records')
+async def resolve_records(obj, info):
+    # Preload what the record resolvers need in one call per dataset, instead of one per record
+    records = obj.records or []
+    await update_units_map(info.context, unit_ids=[record.get('unit') for record in records])
+    units_map = info.context.get('units_map', {})
+    await update_germplasm_map(
+        info.context,
+        entry_ids=[units_map[record.get('unit')].germplasm for record in records if record.get('unit') in units_map]
+    )
+    await update_reference_map(
+        info.context,
+        reference_ids=[reference_id for record in records for reference_id in (record.get('references') or [])]
+    )
+    return records
+
 @record.field('unit')
 async def resolve_unit(obj: dict, info):
-    # todo preload all units if units are requested,
-    #  there are many cases like this throughout resolvers that require query introspection
     await update_units_map(info.context, unit_ids=[obj.get('unit')])
     units_map = info.context.get('units_map')
     return units_map.get(obj.get('unit'))
@@ -135,7 +150,9 @@ async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[Data
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id=user_id) as views:
         summaries = await views.datasets.get_dataset_summaries(study_id=study_id)
-        return summaries
+    # Preload the block units of every summary in one call, instead of one per summary
+    await update_units_map(info.context, unit_ids=[block_id for summary in summaries for block_id in summary.block_ids])
+    return summaries
 
 @dataset_summary.field("concept")
 async def resolve_summary_concept(obj, info):

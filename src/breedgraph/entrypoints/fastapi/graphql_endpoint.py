@@ -11,6 +11,7 @@ from breedgraph.config import GQL_API_PATH
 
 # logging
 import logging
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import close_context
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ async def extract_graphql_data(request: Request) -> Dict[str, Any]:
 async def graphql_server(request: Request):
     """Handle GraphQL POST requests"""
     logger.debug("GraphQL endpoint started")
+    context = None
     try:
         data = await extract_graphql_data(request)
         context = await get_context_value(request)
@@ -128,4 +130,5 @@ async def graphql_server(request: Request):
         )
 
     finally:
+        await close_context(context)
         logger.debug("GraphQL endpoint complete")

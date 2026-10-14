@@ -9,6 +9,7 @@ from .accounts import AbstractAccountsView
 from .regions import AbstractRegionsView
 from .datasets import AbstractDatasetsView
 from .germplasm import AbstractGermplasmView
+from .units import AbstractUnitsView
 
 
 from typing import AsyncGenerator
@@ -22,6 +23,7 @@ class AbstractViewsHolder(ABC):
     accounts: AbstractAccountsView
     regions: AbstractRegionsView
     datasets: AbstractDatasetsView
+    units: AbstractUnitsView
 
 
 class AbstractViewsFactory(ABC):

@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import AsyncExitStack
 
 from typing import Iterable
 
@@ -20,6 +21,30 @@ def _get_lock(context, lock_name: str):
     if lock_name not in context:
         context[lock_name] = asyncio.Lock()
     return context[lock_name]
+
+
+async def get_context_views(context):
+    """
+    One views holder for the whole request, opened on first use and closed with the request's exit stack
+    (see graphql_endpoint), so per-field resolvers don't each open a session and load the user's access teams.
+    The holder shares one database session, which cannot run transactions concurrently: call this, and use
+    the views it returns, while holding the context's '_views_lock'.
+    """
+    if 'views' not in context:
+        if '_exit_stack' not in context:
+            context['_exit_stack'] = AsyncExitStack()
+        bus = context.get('bus')
+        context['views'] = await context['_exit_stack'].enter_async_context(
+            bus.views_factory.get_views(user_id=context.get('user_id'))
+        )
+    return context['views']
+
+
+async def close_context(context):
+    """Release what the loaders opened for this request"""
+    stack = context.get('_exit_stack') if context else None
+    if stack is not None:
+        await stack.aclose()
 
 
 async def load_entries_to_ontology_map(
@@ -222,62 +247,49 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
             context['arrangement_roots'] = arrangement_roots
 
 async def update_units_map(context, location_ids: Iterable[int] | None = None, unit_ids: Iterable[int] | None = None):
-    async with _get_lock(context, '_units_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
+    """
+    Load units into the request's units map through the units view, by id or as the block roots at locations.
+    Units are read individually, not by loading their whole block, so the cost follows the ids requested.
+    Callers that resolve many objects should pass all their ids in one call (see Dataset.records).
+    """
+    async with _get_lock(context, '_views_lock'):
+        units_map = context.setdefault('units_map', dict())
+        block_roots = context.setdefault('block_roots', list())
+        views = await get_context_views(context)
 
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
+        if location_ids is not None:
+            for unit in await views.units.get_block_roots(location_ids=location_ids):
+                units_map[unit.id] = unit
+                if unit.id not in block_roots:
+                    block_roots.append(unit.id)
 
-            units_map = context.get('units_map', dict())
-            block_roots = context.get('block_roots', list())
-
-            if unit_ids is None and not units_map:
-                async for block in uow.repositories.blocks.get_all(location_ids=location_ids):
-                    units_map.update(block.to_output_map())
-                    block_roots.append(block.root.id)
-
-            if unit_ids is not None:
-                unmapped = set(unit_ids) - units_map.keys()
-                if unmapped:
-                    for unit_id in unmapped:
-                        if unit_id in units_map:
-                            continue # likely to have been loaded along with units from a previously retrieved block
-                        block = await uow.repositories.blocks.get(unit_id=unit_id)
-                        if block is not None:
-                            units_map.update(block.to_output_map())
-                            block_root = block.root
-                            if not block_root in block_roots:
-                                block_roots.append(block_root)
-                            # placeholder for unit_ids that fetched a block but are not in the output map
-                            # these are redacted so the user can know they exist but shouldn't be aware of details other than the ID
-                            if unit_id not in units_map:
-                                units_map[unit_id] = UnitOutput(id=unit_id, name='REDACTED')
-
-            context['units_map'] = units_map
-            context['block_roots'] = block_roots
+        if unit_ids is not None:
+            unmapped = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None and unit_id not in units_map]
+            if unmapped:
+                units_map.update(await views.units.get_units(unit_ids=unmapped))
 
 async def update_germplasm_map(
         context,
         entry_ids: Iterable[int]|None = None
 ):
-    async with _get_lock(context, '_germplasm_lock'):
-        if not 'germplasm_map' in context:
-            context['germplasm_map'] = dict()
-        # filter out existing entries in germplasm_map
-        if entry_ids:
-            entry_ids = [
-                entry_id for entry_id in entry_ids if entry_id not in context['germplasm_map']
+    async with _get_lock(context, '_views_lock'):
+        germplasm_map = context.setdefault('germplasm_map', dict())
+        if entry_ids is None:
+            # everything, once per request
+            if context.get('_germplasm_all_loaded'):
+                return
+            context['_germplasm_all_loaded'] = True
+            to_load = None
+        else:
+            to_load = [
+                entry_id for entry_id in dict.fromkeys(entry_ids)
+                if entry_id is not None and entry_id not in germplasm_map
             ]
-        # return if no entry_ids provided and we already have a germplasm_map
-        if context['germplasm_map'] and not entry_ids:
-            return
-
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
-        entry_ids = entry_ids or []
-        async with bus.views_factory.get_views(user_id=user_id) as views:
-            for entry in await views.germplasm.get_entries(entry_ids=entry_ids):
-                context['germplasm_map'][entry.id] = entry
+            if not to_load:
+                return
+        views = await get_context_views(context)
+        for entry in await views.germplasm.get_entries(entry_ids=to_load):
+            germplasm_map[entry.id] = entry
 
 async def update_reference_map(
         context,
