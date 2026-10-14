@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead
+from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions
 from numpy import datetime64
 
 from typing import List, AsyncGenerator
@@ -70,6 +70,17 @@ class AbstractDatasetsView(ABC):
         if unit_ids is not None:
             unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
         return await self._get_unit_ids(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end)
+
+    async def get_dimensions(self, dataset_id: int) -> DatasetDimensions:
+        """
+        What a readable dataset's records span without reading them: counts, the time range, the record times and
+        values at each percentile, and the record group codes by grouping
+        """
+        return await self._get_dimensions(dataset_id=dataset_id)
+
+    @abstractmethod
+    async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
+        ...
 
     @abstractmethod
     async def _get_datasets(

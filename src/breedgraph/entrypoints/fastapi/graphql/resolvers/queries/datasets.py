@@ -117,6 +117,15 @@ async def resolve_record_count(obj, info, unit_ids=None, start=None, end=None):
             start=start, end=end
         )
 
+@dataset.field('dimensions')
+async def resolve_dimensions(obj, info):
+    # what the records span, read without them; nothing for a dataset the user cannot read
+    if not obj.readable:
+        return None
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.datasets.get_dimensions(dataset_id=obj.id)
+
 @record.field('unit')
 async def resolve_unit(obj: dict, info):
     # Records credit units by id, name and germplasm; the names map is filled when the records are resolved

@@ -5,8 +5,8 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.adapters.neo4j.cypher import queries
-from breedgraph.service_layer.queries.read_models import DatasetRead
-from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j
+from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes
+from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
 from numpy import datetime64
 from breedgraph.service_layer.repositories.base import BaseRepository
 
@@ -107,6 +107,29 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             )
             record = await result.single()
             return record['record_count'] if record else 0
+
+    async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                queries['datasets']['read_dataset_dimensions'],
+                dataset_id=dataset_id
+            )
+            record = await result.single()
+        if not record:
+            return DatasetDimensions(record_count=0, unit_count=0)
+        dimensions = record['dimensions']
+        return DatasetDimensions(
+            record_count=dimensions['record_count'],
+            unit_count=dimensions['unit_count'],
+            start=dimensions['start'],
+            end=dimensions['end'],
+            # percentile times have no stored precision, so they are given to the second, as naive UTC like the records
+            time_percentiles=[
+                datetime64(deserialize_time(time).replace(tzinfo=None), 's') for time in dimensions['time_percentiles']
+            ],
+            value_percentiles=list(dimensions['value_percentiles']),
+            groups=[GroupingCodes(grouping_id=group['grouping_id'], codes=list(group['codes'])) for group in dimensions['groups']]
+        )
 
     async def _get_dataset_summaries(self, study_id: int) -> List[DatasetSummary]:
         async with await self.session.begin_transaction() as tx:

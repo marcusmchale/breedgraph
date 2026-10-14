@@ -14,6 +14,33 @@ type Record {
     submitted: DateTime
 }
 
+""" The codes of one record grouping that a dataset's records carry """
+type GroupingCodes {
+    groupingId: ID!
+    codes: [String!]!
+}
+
+"""
+What a dataset's records span, read without the records themselves, so that pickers and binning suggestions
+need not load them
+"""
+type DatasetDimensions {
+    recordCount: Int!
+    unitCount: Int!
+    """ The earliest and latest record time, either of start and end standing in for a missing other """
+    start: DateTime
+    end: DateTime
+    """ The record times, every start and end, at percentiles 0 to 100; empty when no record has a time """
+    timePercentiles: [DateTime!]!
+    """
+    The record values at percentiles 0 to 100, in numeric order when every value is a number and in text order
+    otherwise; empty when no record has a value
+    """
+    valuePercentiles: [String!]!
+    """ The record group codes present, by grouping, each in text order """
+    groups: [GroupingCodes!]!
+}
+
 type Dataset {
     id: ID!
     studyId: ID!
@@ -33,6 +60,8 @@ type Dataset {
     are given: a client pages by unit with these, so that every record of a unit is in the same page
     """
     unitIds(unitIds: [ID!], start: DateTime, end: DateTime): [ID!]!
+    """ What the records span, without reading them; null for a dataset the user cannot read """
+    dimensions: DatasetDimensions
     contributors: [Person]
     references: [ReferenceInterface]
 }
