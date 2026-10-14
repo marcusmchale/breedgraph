@@ -55,6 +55,7 @@ class LocationStored(LocationBase, ControlledModel):
             self,
             type = None,
             name = self.redacted_str,
+            fullname = self.fullname and self.redacted_str,
             synonyms = [self.redacted_str for _ in self.synonyms],
             description = self.description and self.redacted_str,
             code = self.code and self.redacted_str,

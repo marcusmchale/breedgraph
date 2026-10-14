@@ -1,19 +1,21 @@
-MATCH
-(location: Location)-[:OF_LOCATION_TYPE]->(type:LocationType {id: $location_type}),
-(location)<-[:CONTROLS]-(control:Control)
-  <-[:CONTROLS]-(:TeamLocations)
-  <-[:CONTROLS]-(team:Team)
-
-WITH location, type, team, control
-ORDER by location.id, team.id, control.sequence DESC
-
-WITH location, type, team, collect(control)[0] as control
-WHERE NOT coalesce(control.ended, false)
-WITH location, type, collect(team.id) as team_ids, collect(control.release) as releases
-
-WITH location, type, team_ids, min(releases) as effective_release
-WHERE any(team_id in team_ids WHERE team_id in $read_teams)
-OR effective_release >= $minimum_release
+// The locations of a type that the given read teams can read: with no current controls, when the least of their
+// current controls' releases is at least $minimum_release, or when a team in $read_teams controls them
+MATCH (location: Location)-[:OF_LOCATION_TYPE]->(type:LocationType {id: $location_type})
+CALL (location) {
+  OPTIONAL MATCH (location)<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:TeamLocations)<-[:CONTROLS]-(team:Team)
+  WITH team, control
+  ORDER BY team.id, control.sequence DESC
+  WITH team, collect(control)[0] AS control
+  WHERE team IS NULL OR NOT coalesce(control.ended, false)
+  RETURN collect(team.id) AS team_ids, collect(control.release) AS releases
+}
+WITH location, type,
+  CASE
+    WHEN size(team_ids) = 0 THEN true
+    WHEN any(team_id IN team_ids WHERE team_id IN $read_teams) THEN true
+    ELSE reduce(lowest = 2, release IN releases | CASE WHEN release < lowest THEN release ELSE lowest END) >= $minimum_release
+  END AS readable
+WHERE readable
 
 WITH DISTINCT location, type
 
