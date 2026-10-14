@@ -40,9 +40,8 @@ async def get_programs(
 ) -> List[ProgramOutput]:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        programs = [p.to_output() async for p in uow.repositories.programs.get_all()]
-        return programs
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        return [program.to_output() for program in await views.programs.get_programs()]
 
 @graphql_query.field("programsProgram")
 @graphql_payload
@@ -54,13 +53,13 @@ async def get_program(
         trial_id: int | None = None,
         study_id: int | None = None
 ) -> ProgramOutput:
-    if not id or trial_id or study_id:
-        raise ValueError("Program, Trial or Study ID required to fetch a program")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(program_id=id, trial_id=trial_id, study_id=study_id)
-        return program_stored.to_output()
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        program_stored = await views.programs.get_program(program_id=id, trial_id=trial_id, study_id=study_id)
+    if program_stored is None:
+        raise NoResultFoundError("Program not found")
+    return program_stored.to_output()
 
 @graphql_query.field("programsTrial")
 @graphql_payload
@@ -71,14 +70,13 @@ async def get_trial(
         id: int | None = None,
         study_id: int | None = None
 ) -> TrialOutput:
-    if not id or study_id:
-        raise ValueError("Trial or Study ID required to fetch a trial")
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        program_stored = await uow.repositories.programs.get(trial_id=id, study_id=study_id)
-        trial_stored = program_stored.get_trial(trial_id=id, study_id=study_id)
-        return trial_stored.to_output()
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        trial_stored = await views.programs.get_trial(trial_id=id, study_id=study_id)
+    if trial_stored is None:
+        raise NoResultFoundError("Trial not found")
+    return trial_stored.to_output()
 
 @graphql_query.field("programsStudy")
 @graphql_payload
@@ -90,7 +88,6 @@ async def get_study(
 ) -> StudyOutput:
     bus = info.context.get('bus')
     user_id = info.context.get('user_id')
-    # read through the programs view, so the rest of the program and its controllers are not loaded
     async with bus.views_factory.get_views(user_id=user_id) as views:
         study_stored = await views.programs.get_study(study_id=id)
     if study_stored is None:

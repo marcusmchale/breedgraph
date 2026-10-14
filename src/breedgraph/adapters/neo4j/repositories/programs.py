@@ -198,20 +198,22 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         ]
         return StudyStored(**record)
 
-    def record_to_trial(self, record: Record | dict) -> TrialStored:
+    @classmethod
+    def record_to_trial(cls, record: Record | dict) -> TrialStored:
         if isinstance(record, Record):
             record = record.data()
         if 'trial' in record:
             record = record.get('trial')
-        record = self.deserialize_dt64(record)
+        record = cls.deserialize_dt64(record)
 
         if 'studies' in record:
             record['studies'] = {
-                study['id']: self.record_to_study(study) for study in record['studies']
+                study['id']: cls.record_to_study(study) for study in record['studies']
             }
         return TrialStored(**record)
 
-    def record_to_program(self, record: Record | dict) -> ProgramStored:
+    @classmethod
+    def record_to_program(cls, record: Record | dict) -> ProgramStored:
         if isinstance(record, Record):
             record = record.data()
         if 'program' in record:
@@ -220,7 +222,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
 
         if 'trials' in record:
             record['trials'] = {
-                trial['id']: self.record_to_trial(trial) for trial in record['trials']
+                trial['id']: cls.record_to_trial(trial) for trial in record['trials']
             }
         return ProgramStored(**record)
 
