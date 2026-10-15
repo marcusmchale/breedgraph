@@ -28,7 +28,7 @@ type TeamReference {
 type Team {
     id: ID!
     name: String!
-    fullname: String!
+    fullname: String
     parent: Team
     children: [Team!]
     affiliations: Affiliations
