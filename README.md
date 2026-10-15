@@ -472,6 +472,53 @@ to run the scripts
     set +a
     ./setup_initial_data.py
 
+### Backups, restores and retention
+
+Neo4j is dumped on the web server, and the dumps and the erasure log are copied to an archive server.
+The erasure log records erased Persons and deleted accounts outside the database, so a restore can apply them
+again ([docs/person.md](docs/person.md) §5). Redis is not backed up: it holds read models, which are rebuilt from
+Neo4j, and work in progress (dataset submissions, analysis jobs and their results for `ANALYSIS_RETENTION_DAYS`,
+upload progress), which is lost if Redis is.
+
+**Back up** on the web server with `scripts/backup.sh`. It stops Neo4j (the API is unavailable meanwhile),
+dumps `DATABASE_NAME` to `NEO4J_ARCHIVE_PATH` as `<database>-<date>.dump`, and starts Neo4j again.
+It uses `sudo` to stop Neo4j and dump as the neo4j user, and reads its settings from the environment, which cron
+doesn't load. For example, in the crontab of a user allowed those commands, nightly:
+
+    15 2 * * * cd /path/to/breedgraph && set -a && . ./breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph_backup.log 2>&1
+
+Dumps accumulate on the web server; remove old ones there as space requires, once the archive server has them.
+
+**Copy** the dumps and the erasure log to the archive server with `scripts/sync_database_backups.sh`, run from cron
+*on the archive server*, at least as often as dumps are made: an erasure is at risk until the log is copied.
+Its settings are in `/etc/breedgraph/backup_sync.env` (example: `instance/backup_sync.env`), and it needs ssh key
+access to the web server. New dumps are copied as they appear, and the log with `rsync --append-verify`, as it is only
+ever appended to. `BACKUP_RETENTION_DAYS` optionally removes old dumps there; the erasure log is never removed.
+
+    0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
+
+**Restore** on the web server, with the environment loaded, by the dump's file name in `NEO4J_ARCHIVE_PATH`
+(copy it back from the archive server first if needed):
+
+    cd /path/to/breedgraph
+    set -a; . ./breedgraph.env; set +a
+    scripts/restore.sh <database>-20261015-021500.dump
+
+It asks for confirmation, stops Neo4j, loads the dump over `DATABASE_NAME`, starts Neo4j, and replays the erasure log
+(`scripts/apply_erasures.py`), so Persons erased and accounts deleted since the dump stay that way. Each entry is
+applied to its own record only, and the id counters are advanced past the logged ids, so no erased id is given out
+again. If the log isn't on the web server, restore it from the archive server and run `scripts/apply_erasures.py <log>`
+before the database is used. Then rebuild the read models in Redis from the restored database:
+
+    scripts/load_state_store.py
+
+Uploaded files are not in the dump: they stay in `FILE_STORAGE_PATH`, or in archive storage (the archive worker).
+
+**Retention** of files and expired invitations runs through the API, with `scripts/trigger_retention.sh` from cron
+on the web server (it loads the env files itself), e.g. daily:
+
+    30 3 * * * /path/to/breedgraph/scripts/trigger_retention.sh >> /var/log/breedgraph_retention.log 2>&1
+
 ### Migrating the BreedCAFS data
 
 The legacy BreedCAFS data is migrated once, after the initial setup and the germplasm import,
