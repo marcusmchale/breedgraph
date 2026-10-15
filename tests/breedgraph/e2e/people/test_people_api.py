@@ -69,7 +69,7 @@ async def test_create_and_read(client, login_token_factory, people_api_context):
     token = login_token_factory(user_id=people_api_context['user_id'])
     person = await create_person(client, token, people_api_context)
     assert person['institution'] == 'A University'
-    assert [team['id'] for team in person['teams']] == [str(people_api_context['team_id'])]
+    assert [team['team']['id'] for team in person['teams']] == [str(people_api_context['team_id'])]
     assert person['basis'] == 'PUBLIC_TASK'
     assert person['informedAttestation'] is True
     assert person['recordedBy']['id'] == str(people_api_context['user_id'])

@@ -42,7 +42,7 @@ async def program_control_team_ids(client, token, program_id: int) -> set[int]:
         "controlsControllers"
     )
     assert_payload_success(payload)
-    return {int(team['id']) for team in payload['result'][0]['teams']}
+    return {int(team['team']['id']) for team in payload['result'][0]['teams']}
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -40,7 +40,7 @@ async def get_email(mailto: str, subject: str, string_in_body: None|str = None):
     for e in all_emails['items']:
         if all([
             mailto in e['Raw']['To'],
-            subject in [decode_mime_words(w) for w in e['Content']['Headers']['Subject']]
+            subject in [decode_mime_words(w) for w in e['Content']['Headers'].get('Subject', [])]
         ]):
             if string_in_body is not None:
                 #if not string_in_body in decode_mime_words(e['Content']['Body']):

@@ -5,7 +5,7 @@ from typing import List
 
 PERSON_FIELDS = (
     " id name institution basis informedAttestation orcid recordedAt erased erasedAt restricted "
-    " teams { id } linkedUser { id } recordedBy { id } "
+    " teams { team { id } standIn } linkedUser { id } recordedBy { id } "
 )
 
 async def _post(client, token: str | None, query: str, variables: dict | None = None):
