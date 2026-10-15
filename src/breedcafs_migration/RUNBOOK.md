@@ -18,7 +18,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    ```
    It sets up what §2 expects (a team with a legal entity, the production germplasm), bundles and unbundles the data
    as below, runs §3–4 and the validation, and exits with the validation's status. Dump the result privately if
-   you keep it: it holds BreedCAFS and Person data.
+   you keep it: it holds BreedCAFS and Person data ([docs/test-databases.md](../../docs/test-databases.md)).
 3. **Build** the BreedGraph wheelhouse as for any deployment (README), and the migration wheel:
    ```bash
    python scripts/build_migration_wheel.py
