@@ -7,7 +7,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     update_users_map
 )
 
-from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control
+from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access
 from breedgraph.domain.model.control_transfers import ControlTransferStored, ControlTransferStatus
 from breedgraph.custom_exceptions import NoResultFoundError
 
@@ -36,7 +36,32 @@ async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_id
     bus = info.context.get('bus')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
         controllers = await uow.controls.get_controllers(label=entity_label, model_ids=entity_ids)
+        # for Controller.access, which answers from the user's affiliations rather than the teams they can see
+        info.context['access_teams'] = {access: set(teams) for access, teams in uow.controls.access_teams.items()}
         return [controllers.get(entity_id) for entity_id in entity_ids]
+
+async def _team_outputs(context, team_ids) -> dict:
+    """
+    The teams the user sees for these team ids, as {team id: (team, hidden)}. A team hidden from the user is shown as
+    the nearest team they can see that includes it, its organisation's root at the furthest: the party to contact
+    for access (see docs/read-access.md)
+    """
+    await update_teams_map(context=context, team_ids=team_ids)
+    teams_map = context.get('teams_map', {})
+    return {
+        team_id: (teams_map[team_id], teams_map[team_id].id != team_id)
+        for team_id in team_ids if teams_map.get(team_id) is not None
+    }
+
+def _distinct(teams) -> list:
+    return list({team.id: team for team in teams}.values())
+
+@controller.field("access")
+def resolve_access(obj: Controller, info) -> List[Access]:
+    """What the user's affiliations let them do with the entity through the teams that control it"""
+    user_id = info.context.get('user_id')
+    access_teams = info.context.get('access_teams', {})
+    return [access for access in Access if obj.has_access(access, user_id, access_teams.get(access, set()))]
 
 @controller.field("controls")
 async def resolve_controls(obj: Controller, info):
@@ -57,9 +82,13 @@ def resolve_write_count(obj: Controller, info) -> int:
 
 @control.field("team")
 async def resolve_team(obj: Control, info):
-    await update_teams_map(context = info.context, team_ids = [obj.team_id])
-    teams_map = info.context.get('teams_map', {})
-    return teams_map.get(obj.team_id)
+    team, _ = (await _team_outputs(info.context, [obj.team_id])).get(obj.team_id, (None, False))
+    return team
+
+@control.field("teamHidden")
+async def resolve_team_hidden(obj: Control, info) -> bool:
+    _, hidden = (await _team_outputs(info.context, [obj.team_id])).get(obj.team_id, (None, True))
+    return hidden
 
 @control.field("time")
 async def resolve_time(obj: WriteStamp, info) -> str:
@@ -67,10 +96,15 @@ async def resolve_time(obj: WriteStamp, info) -> str:
 
 @controller.field("teams")
 async def resolve_teams(obj: Controller, info):
-    """Resolve teams field on Controller"""
-    await update_teams_map(context = info.context, team_ids=obj.teams)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map.get(team) for team in obj.teams if teams_map.get(team)]
+    """The controlling teams the user can see"""
+    outputs = await _team_outputs(info.context, obj.teams)
+    return _distinct(team for team, hidden in outputs.values() if not hidden)
+
+@controller.field("standInTeams")
+async def resolve_stand_in_teams(obj: Controller, info):
+    """For the controlling teams hidden from the user, the nearest teams they can see that include them"""
+    outputs = await _team_outputs(info.context, obj.teams)
+    return _distinct(team for team, hidden in outputs.values() if hidden)
 
 @write_stamp.field("user")
 async def resolve_user(obj: WriteStamp, info):

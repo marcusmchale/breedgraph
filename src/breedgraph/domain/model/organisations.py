@@ -537,6 +537,10 @@ class Organisation(TreeAggregate):
         if self.redaction_mapping is not None:
             # we map from removed teams to the visible source node in the redacted map
             # this way a user only sees the most relevant controlling team information that they have access to.
-            for key, value in self.redaction_mapping.items():
-                team_map[key] = team_map[value]
+            # A removed team's parent may be removed too, so follow the mapping up to a team that is kept.
+            for key in self.redaction_mapping:
+                visible = key
+                while visible in self.redaction_mapping:
+                    visible = self.redaction_mapping[visible]
+                team_map[key] = team_map[visible]
         return team_map

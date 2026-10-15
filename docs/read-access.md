@@ -37,7 +37,7 @@ In detail:
 2. **References across aggregates give placeholders.** When a readable entity refers to an entity in another
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a hidden
-   entity asked for directly by id.
+   entity asked for directly by id. References to teams are the exception (rule 7).
 3. **Within an aggregate, hidden members are skipped.** A tree (a block of units, a region of locations, an
    arrangement of layouts) is shown with its hidden members left out and their readable descendants joined to the
    nearest readable ancestor. Nothing about the hidden members is shown: not their number, nor how the readable
@@ -51,7 +51,15 @@ In detail:
    reference, so it gives no placeholders for what it found hidden.
 6. **Counts follow what is released.** A count of things a readable entity holds counts them all (a released dataset's
    records); a count over a tree counts what rules 2 to 4 would show.
-7. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
+7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is
+   shown as the nearest team they can see that includes it, at furthest its organisation's root, which is never
+   hidden. This is a stand-in rather than a placeholder: its purpose is that a user can always follow a reference to
+   a responsible party and ask there for an affiliation. Stand-ins are marked as such (`Controller.standInTeams`,
+   `Control.teamHidden`), never mixed with the controlling teams the user can see (`Controller.teams`), so a reader
+   can tell "Galway controls this" from "a team within Galway that you can't see controls this". Because a
+   stand-in's id is not the controlling team's, access is never decided by comparing team ids on the client: the
+   server answers it (`Controller.access`) from the user's affiliations.
+8. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
    repositories, where redaction keeps hidden members present. Making them independent of redaction is open.
 
 ## 3. Datasets under this policy

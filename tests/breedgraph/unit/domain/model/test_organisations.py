@@ -208,3 +208,14 @@ async def test_withdraw_legal_entity(first_organisation, first_child_team):
         first_organisation.withdraw_legal_entity(agent_id=1, team_id=child_id)
     first_organisation.withdraw_legal_entity(agent_id=1, team_id=1)
     assert first_organisation.legal_entity is None
+
+
+@pytest.mark.asyncio
+async def test_hidden_teams_map_to_the_nearest_visible_team(root_team, lorem_text_generator):
+    # a team hidden from the user is shown as the nearest team they can see that includes it, even when its parent is
+    # hidden too and comes after it in the graph
+    grandchild = TeamStored(id=3, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    child = TeamStored(id=2, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    organisation = Organisation(nodes=[root_team, grandchild, child], edges=[(1, 2, {}), (2, 3, {})])
+    output_map = organisation.redacted(user_id=2).to_output_map()
+    assert {team_id: team.id for team_id, team in output_map.items()} == {1: 1, 2: 1, 3: 1}

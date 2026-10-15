@@ -14,7 +14,12 @@ enum ControlledModelLabel{
 }
 
 type Control {
+    """
+    The controlling team, or when it is hidden from you (teamHidden), the nearest team you can see that includes it:
+    the party to contact for access
+    """
     team: Team!
+    teamHidden: Boolean!
     release: ReadRelease!
     time: DateTime!
 }
@@ -29,7 +34,15 @@ type Controller {
     """The writes in the order they were made, or the last of them"""
     writes(last: Int): [WriteStamp!]!
     writeCount: Int!
+    """ The controlling teams you can see """
     teams: [Team!]!
+    """
+    For controlling teams hidden from you, the nearest teams you can see that include them, at furthest an
+    organisation's root: the parties to contact for access. A team may be both here and in teams.
+    """
+    standInTeams: [Team!]!
+    """ What your affiliations let you do with the entity through the teams that control it """
+    access: [Access!]!
     release: ReadRelease!
     created: DateTime!
     updated: DateTime!
