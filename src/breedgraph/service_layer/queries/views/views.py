@@ -14,6 +14,7 @@ from .programs import AbstractProgramsView
 from .arrangements import AbstractArrangementsView
 from .references import AbstractReferencesView
 from .people import AbstractPeopleView
+from .controls import AbstractControlsView
 
 
 from typing import AsyncGenerator
@@ -32,6 +33,7 @@ class AbstractViewsHolder(ABC):
     arrangements: AbstractArrangementsView
     references: AbstractReferencesView
     people: AbstractPeopleView
+    controls: AbstractControlsView
 
 
 class AbstractViewsFactory(ABC):

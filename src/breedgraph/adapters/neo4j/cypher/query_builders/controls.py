@@ -1,4 +1,5 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible
 
 def set_controls(label: ControlledModelLabel):
     return f"""
@@ -126,3 +127,36 @@ def get_controllers(label:ControlledModelLabel):
             [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
             {{user:user.id, time: write.time}}] as writes
    """
+
+
+def read_controllers(label: ControlledModelLabel):
+    """
+    The controllers of the entities with ids $entity_ids as the user may see them (see docs/read-access.md): the
+    current controls of each, and the writes to it only when the user can read the entity. For an entity they cannot
+    read, the controller is a placeholder with its controls alone, without when they were set, so they see whom to
+    ask for access, but not the history of data hidden from them. An entity without current controls has none.
+    """
+    return f"""
+        MATCH (entity: {label.label}) WHERE entity.id IN $entity_ids
+        {_visible('entity', label, 'entity_readable')}
+        CALL (entity, entity_readable) {{
+            OPTIONAL MATCH (entity)<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team)
+            WITH team, control
+            ORDER BY team.id, control.sequence DESC
+            WITH team, collect(control)[0] AS control
+            WHERE team IS NOT NULL AND NOT coalesce(control.ended, false)
+            RETURN collect({{
+                team: team.id,
+                release: control.release,
+                time: CASE WHEN entity_readable THEN control.time END,
+                user: CASE WHEN entity_readable THEN control.user END
+            }}) AS controls
+        }}
+        RETURN
+            entity.id AS entity_id,
+            controls,
+            CASE WHEN entity_readable THEN [
+                (entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
+                {{user: user.id, time: write.time}}
+            ] ELSE [] END AS writes
+    """

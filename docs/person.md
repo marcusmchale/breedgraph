@@ -293,6 +293,9 @@ The login cookie is `SameSite=Strict`, so it would not be sent on ORCID's redire
 This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.
 
 Everything else (other users' visibility, write access) follows the normal access controls.
+This includes the record's controller: a linked user who cannot otherwise read their Person sees its placeholder
+controller (docs/read-access.md, rule 8), without its history, and the controlling teams stood in for by the nearest
+teams they can see, which is where to ask for changes they cannot make themselves. This is intended.
 The subject may lower the release level, but cannot hide the record from the teams that control it. Erasure is available if they want more.
 
 ### Deleting an account

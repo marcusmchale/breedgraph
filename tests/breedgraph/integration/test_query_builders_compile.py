@@ -72,7 +72,7 @@ QUERIES = {
     **{
         f'controls.{builder.__name__}({label.name})': builder(label)
         for label in ControlledModelLabel
-        for builder in (controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes, controls.get_controllers)
+        for builder in (controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes, controls.get_controllers, controls.read_controllers)
     },
 }
 

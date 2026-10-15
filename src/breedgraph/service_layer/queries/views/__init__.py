@@ -9,3 +9,4 @@ from .programs import AbstractProgramsView
 from .arrangements import AbstractArrangementsView
 from .references import AbstractReferencesView
 from .people import AbstractPeopleView
+from .controls import AbstractControlsView

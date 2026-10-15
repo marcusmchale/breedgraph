@@ -66,7 +66,12 @@ In detail:
    reference, not the team, as the same team can be itself in one place and a stand-in in another. Because a
    stand-in's id is not the controlling team's, access is never decided by comparing team ids on the client: the
    server answers it (`Controller.access`) from the user's affiliations.
-8. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
+8. **An entity's controller follows the entity.** The controller of an entity the user can read is returned in
+   full: its controls, writes, and when each was made. For an entity they cannot read it is a placeholder: its release
+   level, its controlling teams (stood in for as rule 7 says), and the user's own access, but no writes and no times,
+   as the history of hidden data is part of it. Controllers are for signed-in users only, as only they can ask for
+   access (`controlsControllers` requires authentication); anonymous users see no controller badges.
+9. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
    repositories, where redaction keeps hidden members present. Making them independent of redaction is open.
 
 ## 3. Datasets under this policy
@@ -103,4 +108,5 @@ EDITORIAL view, with drafts, needs an account.
 | References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
 | People (`views.people`, `query_builders/people.py`) | yes; the linked user also sees their own Person in full (docs/person.md) |
-| Accounts, controls | not yet reviewed |
+| Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
+| Accounts | not yet reviewed |

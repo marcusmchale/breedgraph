@@ -17,7 +17,8 @@ type Control {
     """ The controlling team, or when it is hidden from you, the team standing in for it """
     team: TeamReference!
     release: ReadRelease!
-    time: DateTime!
+    """ When the control was set: null for an entity you cannot read """
+    time: DateTime
 }
 
 type WriteStamp {
@@ -27,7 +28,7 @@ type WriteStamp {
 
 type Controller {
     controls: [Control!]!
-    """The writes in the order they were made, or the last of them"""
+    """The writes in the order they were made, or the last of them; none for an entity you cannot read"""
     writes(last: Int): [WriteStamp!]!
     writeCount: Int!
     """ The controlling teams, those hidden from you stood in for by the nearest team you can see """
@@ -35,8 +36,9 @@ type Controller {
     """ What your affiliations let you do with the entity through the teams that control it """
     access: [Access!]!
     release: ReadRelease!
-    created: DateTime!
-    updated: DateTime!
+    """ The first and latest writes: null for an entity you cannot read, whose history is hidden """
+    created: DateTime
+    updated: DateTime
 }
 
 enum ControlTransferStatus { PENDING, ACCEPTED, REJECTED, CANCELLED }

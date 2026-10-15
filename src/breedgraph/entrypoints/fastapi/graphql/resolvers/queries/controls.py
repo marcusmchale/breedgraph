@@ -5,7 +5,9 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_teams_map,
     update_users_map,
-    team_references
+    team_references,
+    get_context_views,
+    get_context_lock
 )
 
 from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access
@@ -33,13 +35,19 @@ graphql_resolvers.register_enums(EnumType("ControlTransferStatus", ControlTransf
 @graphql_payload
 @require_authentication
 async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_ids: List[int]) -> List[Controller]:
+    """
+    Through the controls view: an entity the user cannot read has a placeholder controller, its controls without the
+    writes to it (see docs/read-access.md). Only for signed-in users, who can ask for access.
+    """
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
     async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        controllers = await uow.controls.get_controllers(label=entity_label, model_ids=entity_ids)
         # for Controller.access, which answers from the user's affiliations rather than the teams they can see
         info.context['access_teams'] = {access: set(teams) for access, teams in uow.controls.access_teams.items()}
-        return [controllers.get(entity_id) for entity_id in entity_ids]
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        controllers = await views.controls.get_controllers(entity_label, entity_ids)
+    return [controllers.get(int(entity_id)) for entity_id in entity_ids]
 
 
 @controller.field("access")
@@ -73,8 +81,8 @@ async def resolve_team(obj: Control, info):
     return references[0] if references else None
 
 @control.field("time")
-async def resolve_time(obj: WriteStamp, info) -> str:
-    return str(obj.time)
+async def resolve_time(obj: Control, info) -> str | None:
+    return str(obj.time) if obj.time is not None else None
 
 @controller.field("teams")
 async def resolve_teams(obj: Controller, info):
@@ -93,11 +101,12 @@ async def resolve_time(obj: WriteStamp, info) -> str:
 
 @controller.field("created")
 async def resolve_created(obj: Controller, info):
-    return str(obj.created)
+    # none for a placeholder controller, which has no writes
+    return str(obj.created) if obj.writes else None
 
 @controller.field("updated")
 async def resolve_updated(obj: Controller, info):
-    return str(obj.updated)
+    return str(obj.updated) if obj.writes else None
 
 @graphql_query.field("controlsTransfers")
 @graphql_payload
