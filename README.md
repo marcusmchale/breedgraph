@@ -478,7 +478,3 @@ The legacy BreedCAFS data is migrated once, after the initial setup and the germ
 following [src/breedcafs_migration/RUNBOOK.md](src/breedcafs_migration/RUNBOOK.md).
 The data is extracted and rehearsed locally, then copied to the server as a checked bundle,
 with the migration as its own wheel (`scripts/build_migration_wheel.py`), installed only for the run.
-
-
-
-# For 
