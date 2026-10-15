@@ -11,7 +11,8 @@ Each record in records.csv is assigned:
   - its time: observations start and end at their time, conditions at their start and end where given,
     to the minute where a time of day was entered (text_time), and otherwise as the date alone,
     as BreedCAFS set the time of day of dates to 12:00;
-  - its replicate code, in the study's Replicate grouping.
+  - its replicate code, in the study's Replicate grouping, unless it is 0 (`replicate_code`): BreedCAFS recorded 0
+    where a reading was not replicated, never alongside other codes, and replication is numbered from 1 (README §7.6).
 A dataset holds the records of one variable or factor, from one submission, in one study.
 Records loaded without a submission (by a manual script, README §7.6) are left out where they repeat a submitted record:
 the same item, input, value and replicate code, whatever the date, as the submitted dates are trusted.
@@ -76,6 +77,12 @@ class DatasetIds:
 def read_csv(name: str) -> list[dict[str, str]]:
     with open(BREEDCAFS_DATA_DIR / name, encoding='utf-8-sig') as f:
         return list(csv.DictReader(f))
+
+
+def replicate_code(value: str | None) -> str | None:
+    """The replicate code to migrate: none where BreedCAFS has none, or 0, its code for a reading not replicated"""
+    value = (value or '').strip()
+    return None if value in ('', '0') else value
 
 
 def epoch_ms(value: str) -> datetime64 | None:
@@ -230,7 +237,7 @@ async def prepare_breedcafs_datasets(
                         value=value_for(record.value, scale, categories),
                         start=record.start,
                         end=record.end,
-                        groups=[RecordGroup(id=replicate, code=record.replicate)] if record.replicate else None
+                        groups=[RecordGroup(id=replicate, code=code)] if (code := replicate_code(record.replicate)) else None
                     )
                     for record in plan.datasets[key]
                 ]

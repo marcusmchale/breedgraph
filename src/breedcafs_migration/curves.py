@@ -13,7 +13,8 @@ then the curve's values, one column for each of the times (in seconds) all curve
 The file is written to the data directory, stored as an upload is (FILE_STORAGE_PATH, by a new uuid),
 referenced as a CSV data file whose schema describes these columns, and queued for archival.
 Each curve is a record of the Fluorescence ~ Time variable, referencing its dataset's data file;
-its row in the file is the one with its unit, time and replicate.
+its row in the file is the one with its unit, time and replicate. The file keeps the replicate codes as extracted,
+though code 0 (all curves have it) is not migrated as a record group (`replicate_code`, README §7.6).
 
 Each dataset, with its data file reference, is one transaction, recorded in curve_ids.csv as it completes,
 so running this again creates only what was not created before.
@@ -36,7 +37,7 @@ from breedgraph.domain.model.references import DataFileInput, DataFormat
 from breedgraph.service_layer.handlers.events.datasets import get_scale_and_categories
 
 from breedcafs_migration.bootstrap import MigrationContext
-from breedcafs_migration.datasets import DatasetIds, DatasetKey, entered_time, epoch_ms
+from breedcafs_migration.datasets import DatasetIds, DatasetKey, entered_time, epoch_ms, replicate_code
 from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds, study_for, input_terms, field_countries
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -184,7 +185,7 @@ async def prepare_breedcafs_curves(
                     unit_id=units[curve['item_uid']],
                     start=entered_time(curve['time'], curve['text_time']),
                     end=entered_time(curve['time'], curve['text_time']),
-                    groups=[RecordGroup(id=replicate, code=curve['replicate'])] if curve['replicate'] else None,
+                    groups=[RecordGroup(id=replicate, code=code)] if (code := replicate_code(curve['replicate'])) else None,
                     reference_ids=[reference.id]
                 )
                 for curve in key_curves

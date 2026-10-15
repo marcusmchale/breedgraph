@@ -182,7 +182,8 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
             # The date alone, as no time of day was entered
             assert (r.start, r.end) == (datetime64('2019-05-20'), datetime64('2019-05-20'))
             assert datetime_data(r.start.dtype)[0] == 'D'
-            assert [(g.id, g.code) for g in r.groups] == [(replicate, '0')]
+            # code 0 marks a reading not replicated, so it is not migrated
+            assert not r.groups
 
         [flowering] = (await dataset('Vietnam', concept_of('Flowering'))).records
         assert flowering.value == "Yes"
@@ -190,6 +191,8 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         assert (mini_pam.unit, mini_pam.value) == (units['1_T2'], '0.7')
         [pocket_pea] = (await dataset('Vietnam', concept_of('Fᵥ / Fₘ', 'PocketPEA'))).records
         assert (pocket_pea.unit, pocket_pea.value) == (units['1_T1'], '0.8')
+        # a real replicate code is kept
+        assert [(g.id, g.code) for g in pocket_pea.groups] == [(replicate, '1')]
         [shade] = (await dataset('Nicaragua', concept_of('Shade level'), B)).records
         assert (shade.start, shade.end) == (datetime64('2015-08-01'), None)
         [metabolite] = (await dataset('Metabolomics', concept_of('5CQA'))).records

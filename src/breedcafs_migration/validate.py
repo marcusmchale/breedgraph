@@ -203,6 +203,17 @@ async def validate_datasets(validation, uow_factory, ontology: OntologyIds):
     expected_records = sum(len(records) for records in plan.datasets.values())
     stored_records = sum(dataset['records'] for dataset in stored.values())
     validation.check("Records stored", stored_records == expected_records, f"{stored_records} of {expected_records}")
+
+    replicate_groupings = [int(row['replicate_grouping_id']) for row in read_mapping('study_ids.csv')]
+    zero, = await query(uow_factory, """
+        MATCH (g:RecordGrouping)-[:HAS_GROUP]->(:RecordGroup {code: '0'})<-[:IN_GROUP]-(record:Record)
+        WHERE g.id IN $ids
+        RETURN count(record) AS records
+    """, ids=replicate_groupings)
+    validation.check(
+        "No record has replicate code 0, BreedCAFS's code for a reading not replicated",
+        zero['records'] == 0, f"{zero['records']} with code 0"
+    )
     return mapped, list(studies.values())
 
 

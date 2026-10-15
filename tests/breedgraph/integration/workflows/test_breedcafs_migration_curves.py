@@ -161,7 +161,8 @@ async def test_prepare_curves(uow_factory, curves_context, data_dir):
             for r in dataset.records:
                 assert r.references == [reference_id]
                 assert r.value is None
-                assert [(g.id, g.code) for g in r.groups] == [(replicate, '0')]
+                # code 0 marks a curve not replicated, so it is not migrated
+                assert not r.groups
 
         dataset = await uow.repositories.datasets.get(dataset_id=ids.datasets[key_a][1])
         assert sorted(r.unit for r in dataset.records) == sorted(units.values())

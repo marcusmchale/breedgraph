@@ -341,8 +341,8 @@ and queued for archival. As in 7.6, a dataset holds the curves of one submission
 other datasets. The 16 curves loaded without a submission all repeat submitted curves, so are left out.
 Each curve is a record of Fluorescence ~ Time (PocketPEA) for its unit, referencing its dataset's file,
 which the dataset also references; its row is the one with its unit, time and replicate.
-All curves have replicate code 0; on 16 tree-days, two submitted curves a few minutes apart look like
-replicates recorded without codes (§11). Saved curve_ids.csv: each curve dataset and its data file reference.
+All curves have replicate code 0, which is not migrated as a code (7.6); the data file keeps it as extracted.
+On 16 tree-days, two submitted curves a few minutes apart look like replicates recorded without codes (§11). Saved curve_ids.csv: each curve dataset and its data file reference.
 
 ---
 
@@ -464,6 +464,11 @@ so a second run creates only the Datasets not yet created.
   * Replicate codes become a dataset-scoped record grouping on each Study,
     with one scope per submission: the Datasets of that submission in the Study.
     Replicate codes are then only compared within the records submitted together.
+  * Replicate code 0 is not migrated. BreedCAFS recorded 0 where a reading was not replicated:
+    in the extracted records it never appears with another code for the same submission, item and input
+    (nor for the same item, input and day), and replication is numbered from 1. Of 224,006 records, 153,873 have 0
+    and 27,351 no code; all 5,100 curves have 0. Those records and curves are migrated without a Replicate code,
+    so they are not one-member replicate groups; their values are all kept.
   * Contributors are the Persons of the submission's attribution values for that input
     (submissions.csv, attribution_persons.csv and persons.csv, see [1.7](1_7_Extract_Persons.md)).
   * Records loaded without a submission (the photosynthesis data) are grouped as one submission per input.
@@ -496,6 +501,7 @@ checks, to the data directory, and exits with 3 if any check fails. The checks:
   exactly the Persons who recorded it (§7.6).
 * The fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets, curve data files
   and Persons are controlled by the migration team alone, and `PRIVATE`.
+* No record has replicate code 0 (§7.6).
 * No model has more than one write stamp by the migration user (§14).
 
 The dry run (`BREEDCAFS_DRY_RUN=1`) runs the validation after the migration and fails if any check fails.
