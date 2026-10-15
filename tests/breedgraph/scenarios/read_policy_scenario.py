@@ -97,7 +97,7 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 from breedgraph import config
-from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.accounts import OntologyRole, AccountInput, UserInput
 from breedgraph.domain.model.ontology import VersionChange
 from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
 from breedgraph.domain.model.arrangements import LayoutInput
@@ -448,7 +448,8 @@ class ReadPolicyScenario:
 class ReadPolicyScenarioBuilder:
     """
     Builds the scenario through the repositories. File references get their files written to file_storage_path and
-    an archival record, as an upload would, when both it and an archival service are given.
+    an archival record, as an upload would, when both it and an archival service are given. The viewers' accounts are
+    generated, or taken from users (by viewer name) where given, e.g. with known credentials for a test database.
     """
 
     def __init__(
@@ -456,13 +457,23 @@ class ReadPolicyScenarioBuilder:
             uow_factory: AbstractUnitOfWorkFactory,
             state_store: AbstractStateStore,
             archival_service: AbstractFileArchivalService | None = None,
-            file_storage_path: str | Path | None = None
+            file_storage_path: str | Path | None = None,
+            users: Dict[str, UserInput] | None = None
     ):
         self.uow_factory = uow_factory
         self.state_store = state_store
         self.archival_service = archival_service
         self.file_storage_path = Path(file_storage_path) if file_storage_path is not None else None
+        self.users = users or {}
         self.scenario = ReadPolicyScenario()
+
+    async def _account(self, viewer: str, ontology_role: OntologyRole = OntologyRole.CONTRIBUTOR) -> int:
+        if viewer not in self.users:
+            return await AccountBuilder(uow_factory=self.uow_factory).account(ontology_role=ontology_role)
+        async with self.uow_factory.get_uow() as uow:
+            account = await uow.repositories.accounts.create(AccountInput(user=self.users[viewer]))
+            await uow.commit()
+        return account.user.id
 
     def _set(self, name: str, entity_id: int, team: str, release: ReadRelease):
         self.scenario.ids[name] = entity_id
@@ -493,11 +504,10 @@ class ReadPolicyScenarioBuilder:
         return self.scenario
 
     async def _teams(self):
-        accounts = AccountBuilder(uow_factory=self.uow_factory)
         organisations = OrganisationBuilder(uow_factory=self.uow_factory)
         s = self.scenario.ids
 
-        s['admin'] = await accounts.account(ontology_role=OntologyRole.ADMIN)
+        s['admin'] = await self._account('admin', ontology_role=OntologyRole.ADMIN)
         s['root'] = await organisations.organisation(user_id=s['admin'])
         for access in Access:
             await organisations.authorise_access(user_id=s['admin'], team_id=s['root'], access=access)
@@ -522,18 +532,18 @@ class ReadPolicyScenarioBuilder:
         for access in (Access.ADMIN, Access.READ):
             await organisations.authorise_access(user_id=s['admin'], team_id=s['child'], access=access)
 
-        s['writer'] = await accounts.account()
+        s['writer'] = await self._account('writer')
         for access in (Access.READ, Access.WRITE, Access.CURATE):
             await AuthorisationManager(self.uow_factory).authorise_affiliation(
                 agent_id=s['admin'], user_id=s['writer'], team_id=s['child'], access=access
             )
 
-        s['stranger'] = await accounts.account()
+        s['stranger'] = await self._account('stranger')
         s['other'] = await organisations.organisation(user_id=s['stranger'])
         for access in Access:
             await organisations.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
 
-        s['outsider'] = await accounts.account()
+        s['outsider'] = await self._account('outsider')
 
     async def _ontology(self):
         ontology = OntologyBuilder(uow_factory=self.uow_factory)
