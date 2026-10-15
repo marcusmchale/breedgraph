@@ -39,14 +39,19 @@ In detail:
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
    study's or ontology entry's reference, a hidden entity asked for directly by id. A reference placeholder keeps its
    type as well (legal, external, file and so on), as GraphQL needs it to choose the reference's type. References to teams are the exception (rule 7).
-3. **Within an aggregate, hidden members are skipped.** A tree (a block of units, a region of locations, an
-   arrangement of layouts) is shown with its hidden members left out and their readable descendants joined to the
-   nearest readable ancestor. Nothing about the hidden members is shown: not their number, nor how the readable
-   members were grouped under them.
+3. **Within an aggregate, hidden members are skipped.** A tree or graph (a block of units, a region of locations, an
+   arrangement of layouts, a crop's pedigree of germplasm) is shown with its hidden members left out and their
+   readable descendants joined to the nearest readable ancestor. Nothing about the hidden members is shown: not their
+   number, nor how the readable members were grouped under them. Where joining loses the kind of link, the joined
+   link says so (a germplasm relationship through hidden entries is UNKNOWN).
+   Aggregate here means what is read as one structure, which need not be what is written as one: germplasm entries
+   are written one at a time through `GermplasmApplicationService`, as no rule spans a crop's whole pedigree and loading
+   it for each edit would be wasted, yet a crop and its connected entries are read as one pedigree.
 4. **Except where the shape requires a placeholder.** A hidden member is kept as a placeholder when its readable
    members cannot be reached otherwise:
    - fixed depth: a hidden trial between a readable program and study, a hidden program above a readable trial;
-   - a hidden root holding readable members (a block root, a region root), so the tree has a root to hang from.
+   - a hidden root holding readable members (a block root, a region root, a crop), so the tree has a root to hang
+     from; a readable entry can then name the hidden root as its parent or source.
 5. **Searches leave hidden entities out.** Listing by a filter (datasets by study or concept, programs, units by
    subject) returns only readable entities, and placeholders only where rule 4 needs them. A search is not a
    reference, so it gives no placeholders for what it found hidden.
@@ -95,4 +100,5 @@ EDITORIAL view, with drafts, needs an account.
 | Blocks (`views.blocks`) | yes |
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
 | References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
-| People, accounts, controls, references, ontology, germplasm | not yet reviewed |
+| Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
+| People, accounts, controls | not yet reviewed |

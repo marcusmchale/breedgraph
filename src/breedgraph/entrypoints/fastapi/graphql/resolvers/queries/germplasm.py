@@ -3,7 +3,7 @@ from ariadne import ObjectType, EnumType
 from breedgraph.domain.model import LocationOutput, GroupingScope
 from breedgraph.service_layer.queries.read_models.germplasm import GermplasmEntryOutput
 
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_germplasm_map, update_locations_map, update_ontology_map, update_reference_map
 )
@@ -40,7 +40,6 @@ class GermplasmEntryRef:
 
 @graphql_query.field("germplasmEntries")
 @graphql_payload
-@require_authentication
 async def get_germplasm_entries(
         _,
         info,
@@ -55,7 +54,6 @@ async def get_germplasm_entries(
 
 @graphql_query.field("germplasmCrops")
 @graphql_payload
-@require_authentication
 async def get_germplasm_crops(
         _,
         info

@@ -7,6 +7,12 @@ from breedgraph.service_layer.queries.read_models import (
 from typing import List, AsyncGenerator
 
 class AbstractGermplasmView(ABC):
+    """
+    Germplasm entries as the user may see them: a crop and the entries connected to it are read as one pedigree, the
+    entries the user can read in full, linked to the nearest ones they can read, hidden ones between skipped. A hidden
+    crop is a placeholder holding the readable entries below it; other hidden entries are placeholders only when
+    asked for by id, and lists leave them out (see docs/read-access.md).
+    """
     user_id: int|None
     read_teams: List[int]
 
