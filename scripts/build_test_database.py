@@ -41,6 +41,7 @@ from faker import Faker
 
 from breedgraph.config import FILE_STORAGE_PATH, COUNTRY_CODES_PATH, get_redis_host_and_port
 from breedgraph.domain.model.accounts import UserInput, OntologyRole
+from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.neo4j.services.file_archival_service import Neo4jFileArchivalService
@@ -132,7 +133,7 @@ def manifest(scenario: ReadPolicyScenario, seed: int, password: str, files_dir: 
             }
             for viewer in ACCOUNTS
         },
-        'teams': {team: scenario[team] for team in ('root', 'child', 'other')},
+        'teams': {team: {'id': scenario[team]} for team in ('root', 'child', 'other')},
         'ids': dict(sorted(scenario.ids.items())),
         'entities': {
             name: {
@@ -163,6 +164,33 @@ def manifest(scenario: ReadPolicyScenario, seed: int, password: str, files_dir: 
         },
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
+
+
+async def add_names(driver: Neo4jAsyncDriver, contents: dict) -> None:
+    """
+    Add each entity's and team's name, as the app shows it, from the database: a reference's description, and none for
+    a dataset, which is known by its study and concept. Every id must be found under its label.
+    """
+    by_label: dict[str, dict[int, dict]] = {}
+    for entity in contents['entities'].values():
+        # the label is checked against the model's labels before it goes into the query text
+        label = ControlledModelLabel(entity['label']).value
+        by_label.setdefault(label, {})[entity['id']] = entity
+    by_label['Team'] = {team['id']: team for team in contents['teams'].values()}
+
+    async with driver.session() as session:
+        for label, entities in by_label.items():
+            result = await session.run(
+                f"MATCH (n:{label}) WHERE n.id IN $ids "
+                "RETURN n.id AS id, CASE WHEN n:Reference THEN n.description ELSE n.name END AS name",
+                ids=list(entities)
+            )
+            found = {record['id']: record['name'] async for record in result}
+            missing = set(entities) - set(found)
+            if missing:
+                raise RuntimeError(f"{label} ids {sorted(missing)} of the scenario are not in the database")
+            for entity_id, entity in entities.items():
+                entity['name'] = found[entity_id]
 
 
 async def build(seed: int, password: str, manifest_path: Path, scale_parameters: ScaleParameters | None):
@@ -205,15 +233,18 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
             scale = await ScaleScenarioBuilder(uow_factory, scenario, scale_parameters).build()
+
+        files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
+        contents = manifest(scenario, seed, password, files_dir, scale)
+        await add_names(driver, contents)
     finally:
         await connection.aclose()
         await driver.close()
 
-    files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
     files_dir.mkdir(parents=True, exist_ok=True)
     for file_id, _ in scenario.files.values():
         shutil.copy2(Path(FILE_STORAGE_PATH, file_id), files_dir / file_id)
-    manifest_path.write_text(json.dumps(manifest(scenario, seed, password, files_dir, scale), indent=2) + '\n')
+    manifest_path.write_text(json.dumps(contents, indent=2) + '\n')
 
     logger.info(f"Built {len(ENTITY_LABELS)} entities; manifest at {manifest_path}, files in {files_dir}")
     logger.info("Next: dump the database with scripts/backup.sh and rename the dump to sit beside the manifest")
