@@ -77,19 +77,17 @@ exit code 1 is anything else, with the traceback in the log.
 
 ## 4. After the run
 
-1. **Load the state store**, so the API sees the countries the locations phase created:
-   ```bash
-   .venv/bin/python scripts/load_state_store.py
-   ```
-2. **Validate:**
+The locations phase has already refreshed the countries in the state store, so the API sees them as stored.
+
+1. **Validate:**
    ```bash
    .venv/bin/python -m breedcafs_migration.main validate --user-id <migration user id> --team-id <migration team id>
    ```
    It only reads, writes `validation_report.md` to the data directory and exits with 3 if a check fails (README §8).
    Resolve failures before going on.
-3. **Archive the curve files.** Their archival records are pending; the archive worker archives them once it runs.
-4. **Take a backup** of the migrated database.
-5. **Keep the artefacts** (README §13): the data directory with its mapping files and validation report, and the log,
+2. **Archive the curve files.** Their archival records are pending; the archive worker archives them once it runs.
+3. **Take a backup** of the migrated database.
+4. **Keep the artefacts** (README §13): the data directory with its mapping files and validation report, and the log,
    somewhere private, as they hold Person data.
 
 Everything stays `PRIVATE` under the migration team until handover (README §9–10),

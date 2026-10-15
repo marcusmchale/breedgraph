@@ -45,7 +45,7 @@ from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.neo4j.services.file_archival_service import Neo4jFileArchivalService
-from breedgraph.adapters.redis.load_data import RedisLoader
+from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.adapters.redis.state_store import RedisStateStore
 
 from setup_initial_data import ensure_empty_db, create_schema, create_system_account, create_initial_ontology_entries
@@ -219,7 +219,8 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await create_initial_ontology_entries(system_account, uow_factory)
 
         logger.info("Loading the state store")
-        await RedisLoader(connection, driver).load_read_model()
+        read_models = await RedisReadModels.create(driver=driver, connection=connection)
+        await read_models.refresh()
 
         logger.info("Building the read-policy scenario")
         scenario = await ReadPolicyScenarioBuilder(
@@ -233,6 +234,8 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
             scale = await ScaleScenarioBuilder(uow_factory, scenario, scale_parameters).build()
+        # the scenario creates countries without the message bus
+        await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
         contents = manifest(scenario, seed, password, files_dir, scale)

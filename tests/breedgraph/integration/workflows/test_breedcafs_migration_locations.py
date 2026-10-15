@@ -7,7 +7,7 @@ import pytest_asyncio
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import LocationTypeInput, OntologyEntryLabel
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.regions import LocationInput, LocationOutput
 
 from breedcafs_migration import locations
 from breedcafs_migration.bootstrap import MigrationContext
@@ -65,7 +65,7 @@ async def locations_context(isolated_state, uow_factory) -> dict:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_prepare_locations(uow_factory, locations_context, tmp_path, monkeypatch):
+async def test_prepare_locations(uow_factory, state_store, locations_context, tmp_path, monkeypatch):
     write_csv(tmp_path / 'field_farm_region_country.csv', FIELDS)
     write_csv(tmp_path / 'field_lat_long.csv', COORDINATES)
     write_csv(tmp_path / 'sample_positions.csv', SAMPLE_POSITIONS)
@@ -107,6 +107,10 @@ async def test_prepare_locations(uow_factory, locations_context, tmp_path, monke
 
     with open(tmp_path / 'location_ids.csv') as f:
         assert {row['field_uid']: int(row['location_id']) for row in csv.DictReader(f)} == ids.fields
+
+    # the API sees the created countries as stored
+    denmark = await state_store.get_country('DNK')
+    assert isinstance(denmark, LocationOutput) and denmark.id == ids.countries["Denmark"]
 
     again = await prepare_breedcafs_locations(uow_factory, context, locations_context['location_types'])
     assert again.created == 0

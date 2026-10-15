@@ -3,7 +3,7 @@ from typing import Self, List, AsyncGenerator
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
 from breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
-from breedgraph.domain.model.regions import LocationInput, LocationStored
+from breedgraph.domain.model.regions import LocationInput, LocationOutput
 from breedgraph.domain.model.errors import ItemError
 
 
@@ -14,16 +14,13 @@ class AbstractStateStore(ABC):
     async def create(cls, *args, **kwargs) -> Self:
         ...
 
-    """" Read model """
-    # todo consider moving read model behaviour to another class
-    # state store and read_model have been blurred here by the use of redis
-    # consider using another redis db
+    """" Read model, built and refreshed by AbstractReadModels """
     @abstractmethod
-    async def get_country(self, code: str) -> LocationInput|LocationStored|None:
+    async def get_country(self, code: str) -> LocationInput|LocationOutput|None:
         ...
 
     @abstractmethod
-    def get_countries(self) -> AsyncGenerator[LocationInput | LocationStored, None]:
+    def get_countries(self) -> AsyncGenerator[LocationInput | LocationOutput, None]:
         ...
 
     """ Agent and Status control (for dataset, analysis and file management) """

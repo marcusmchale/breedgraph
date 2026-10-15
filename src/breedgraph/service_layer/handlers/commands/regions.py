@@ -3,7 +3,7 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.regions import Region, LocationInput, LocationStored, LocationOutput, GeoCoordinate
 
 from breedgraph.adapters.redis.state_store import RedisStateStore
-from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractReadModels
 
 from breedgraph.custom_exceptions import IdentityExistsError
 
@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 async def create_location(
         cmd: commands.regions.CreateLocation,
         uow_factory: AbstractUnitOfWorkFactory,
-        state_store: RedisStateStore
+        state_store: RedisStateStore,
+        read_models: AbstractReadModels
 ):
     location_input = LocationInput(
         name = cmd.name,
@@ -52,15 +53,20 @@ async def create_location(
 
         await uow.commit()
 
+    if cmd.parent_id is None:
+        await read_models.refresh(['countries'])
+
 
 @handlers.command_handler()
 async def update_location(
         cmd: commands.regions.UpdateLocation,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        read_models: AbstractReadModels
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         region = await uow.repositories.regions.get(location_id=cmd.location_id)
         location = region.get_location(cmd.location_id)
+        was_root = cmd.location_id == region.root.id
 
         if cmd.name is not None:
             location.name = cmd.name
@@ -82,16 +88,25 @@ async def update_location(
         await uow.repositories.regions.update_seen()
         await uow.commit()
 
+    if was_root:
+        # countries are the roots of regions
+        await read_models.refresh(['countries'])
+
 @handlers.command_handler()
 async def delete_location(
         cmd: commands.regions.DeleteLocation,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        read_models: AbstractReadModels
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         region = await uow.repositories.regions.get(location_id=cmd.location_id)
-        if cmd.location_id == region.root.id:
+        is_root = cmd.location_id == region.root.id
+        if is_root:
             await uow.repositories.regions.remove(region)
         else:
             region.remove_location(cmd.location_id)
 
         await uow.commit()
+
+    if is_root:
+        await read_models.refresh(['countries'])

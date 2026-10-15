@@ -12,7 +12,7 @@ from breedgraph.main import app
 from breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
 from breedgraph.domain.model.ontology import *
 
-from breedgraph.adapters.redis import RedisLoader
+from breedgraph.adapters.redis import RedisReadModels
 from breedgraph.adapters.redis import RedisStateStore
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.neo4j import Neo4jViewsFactory
@@ -148,8 +148,8 @@ async def init_redis(uow_factory) -> None:
     connection = await redis.Redis(host=host, port=port, db=0)
     try:
         assert await is_redis_empty(connection), "Redis is not empty, aborting test!"
-        loader = RedisLoader(connection, uow_factory.driver)
-        await loader.load_read_model()
+        read_models = await RedisReadModels.create(driver=uow_factory.driver, connection=connection)
+        await read_models.refresh()
     finally:
         await connection.aclose()
 

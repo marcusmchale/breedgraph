@@ -141,8 +141,8 @@ From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields
   controlled by the migration team. Field names repeat across farms (e.g. "IRAD Station" in Cameroon).
 * Each Field is given its coordinates from field_lat_long.csv (1.1.2) when created.
 
-Countries are cached in the API's state store, which is only loaded at startup:
-after the migration creates a country, run scripts/load_state_store.py so the API sees it as stored.
+Countries are a read model in the API's state store. The locations phase refreshes it at its end, on every run,
+so the API sees the countries as stored without restarting or reloading anything.
 
 The one location given by the "Location (text)" input, "Montpellier/ IRD", is the position of the samples in sample_positions.csv (1.2.2).
 It is created as "IRD Montpellier", a Research Center under France (`SAMPLE_LOCATIONS` in locations.py),

@@ -47,6 +47,29 @@ async def test_create_location(
     assert country.get('code') in [l.get('code') for l in regions_payload.get('result')]
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_country_once(
+        region_build_context,
+        login_token_factory,
+        client
+):
+    login_token = login_token_factory(region_build_context['user_id'])
+    countries = get_verified_payload(await post_to_countries(client, login_token), "regionsCountries")['result']
+    regions = get_verified_payload(await post_to_regions(client, login_token), "regions")['result']
+    stored = {region.get('code') for region in regions}
+    country = next(c for c in countries if c['code'] not in stored)
+
+    async def create():
+        response = await post_to_create_location(
+            client, token=login_token, location=country, control_team_id=region_build_context['team_id']
+        )
+        return get_verified_payload(response, "regionsCreateLocation")
+
+    assert_payload_success(await create())
+    # the countries read model was refreshed, so the country is known to be stored
+    errors = (await create()).get('errors')
+    assert errors and "already stored" in errors[0]['message']
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_extend_region(
         region_build_context,
         login_token_factory,

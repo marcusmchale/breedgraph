@@ -11,13 +11,14 @@ Running this again matches the locations created before.
 Writes location_ids.csv, mapping each BreedCAFS field to its location,
 and sample_location_ids.csv, mapping each sample location value to its location.
 
-Countries are cached in the API's state store: run scripts/load_state_store.py after creating countries,
-so the API sees them as stored.
+Countries are a read model in the API's state store, refreshed at the end of this phase (as on every run,
+in case an earlier run stopped before it), so the API sees the countries as stored.
 """
 import csv
 from dataclasses import dataclass, field
 
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
+from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.regions import Region, LocationInput, GeoCoordinate
 
@@ -190,11 +191,13 @@ async def prepare_breedcafs_locations(
     ids = await LocationPreparation(uow_factory, context, location_types).prepare()
     logger.info(f"Prepared locations: {ids.created} created, {len(ids.fields)} fields mapped")
     if ids.countries_created:
-        logger.warning(
-            f"Countries created: {sorted(ids.countries_created)}. "
-            f"Run scripts/load_state_store.py so the API sees them as stored."
-        )
+        logger.info(f"Countries created: {sorted(ids.countries_created)}")
     write_mappings(ids)
+    read_models = await RedisReadModels.create(driver=uow_factory.driver)
+    try:
+        await read_models.refresh(['countries'])
+    finally:
+        await read_models.close()
     return ids
 
 

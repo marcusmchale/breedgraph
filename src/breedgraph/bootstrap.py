@@ -5,6 +5,7 @@ from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfW
 from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
 from breedgraph.service_layer.infrastructure import (
     AbstractStateStore,
+    AbstractReadModels,
     AbstractNotifications,
     AbstractAuthService,
     FileManagementService,
@@ -17,6 +18,7 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.neo4j.views import Neo4jViewsFactory
 from breedgraph.adapters.redis.state_store import RedisStateStore
+from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.adapters.aiosmtp import EmailNotifications
 from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from breedgraph.adapters.files import JsonLinesErasureLog
@@ -38,6 +40,7 @@ async def bootstrap(
         uow_factory: Type[AbstractUnitOfWorkFactory] = Neo4jUnitOfWorkFactory,
         views_factory: Type[AbstractViewsFactory] = Neo4jViewsFactory,
         state_store: Type[AbstractStateStore] = RedisStateStore,
+        read_models: Type[AbstractReadModels] = RedisReadModels,
         notifications: Type[AbstractNotifications] = EmailNotifications,
         auth_service: Type[AbstractAuthService] = ItsDangerousAuthService,
         event_queue: Queue = Queue(),
@@ -53,6 +56,9 @@ async def bootstrap(
 
     logger.debug("Init state store")
     state_store = await state_store.create()
+
+    logger.debug("Init read models")
+    read_models = await read_models.create(driver=driver)
 
     logger.debug("Init views factory")
     views_factory = views_factory(driver=driver, state_store=state_store)
@@ -78,6 +84,7 @@ async def bootstrap(
         views_factory=views_factory,
         notifications=notifications,
         state_store=state_store,
+        read_models=read_models,
         auth_service=auth_service,
         file_management=file_management,
         archival_service=archival_service,

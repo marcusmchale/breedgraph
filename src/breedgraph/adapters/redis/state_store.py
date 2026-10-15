@@ -5,7 +5,7 @@ from breedgraph.service_layer.infrastructure.state_store import AbstractStateSto
 
 from breedgraph.config import get_redis_host_and_port, LOCAL_STORAGE_DURATION
 
-from breedgraph.domain.model.regions import LocationInput, LocationStored
+from breedgraph.domain.model.regions import LocationInput, LocationOutput
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys, ArchiveKeys
 
@@ -62,17 +62,23 @@ class RedisStateStore(AbstractStateStore):
 
         return cls(connection)
 
-    async def get_country(self, code: str) -> LocationInput|LocationStored|None:
-        return await self.connection.hget('country', code)
+    async def get_country(self, code: str) -> LocationInput|LocationOutput|None:
+        """The country with this code: stored (with an id), or from the country codes, or None for an unknown code"""
+        country = await self.connection.hget('country', code)
+        return self._country(country) if country is not None else None
 
-    async def get_countries(self) -> AsyncGenerator[LocationInput|LocationStored, None]:
+    async def get_countries(self) -> AsyncGenerator[LocationInput|LocationOutput, None]:
         countries_bytes = await self.connection.hgetall("country")
         for code, country in countries_bytes.items():
-            country_json = json.loads(country)
-            if country_json.get('id'):
-                yield LocationStored(**country_json)
-            else:
-                yield LocationInput(**country_json)
+            yield self._country(country)
+
+    @staticmethod
+    def _country(country: bytes) -> LocationInput|LocationOutput:
+        """A stored country as the read model holds it (LocationOutput), or one of the country codes"""
+        country_json = json.loads(country)
+        if country_json.get('id'):
+            return LocationOutput(**country_json)
+        return LocationInput(**country_json)
 
     async def _set_agent(self, agent_id: int, key: str):
         await self.connection.hset(

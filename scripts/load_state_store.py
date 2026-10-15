@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """
-Run this after setting up initial data on first setup, or after redis shutdown
+Refresh the read models in the state store (Redis) from the database: on first setup, after restoring a dump or
+a Redis shutdown, or after writing to the database outside the API, e.g. with a script.
+
+Each read model is rebuilt whole and swapped in, so this is safe on a running instance: it touches nothing else
+in Redis (submissions, analyses, files). Without --models, every read model is refreshed.
+
+    python scripts/load_state_store.py                    # all read models
+    python scripts/load_state_store.py --models countries ontology   # just these
 """
+import argparse
 import sys
 import asyncio
-import redis.asyncio as redis
 
-from breedgraph.adapters.redis.load_data import RedisLoader
+from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-
-from breedgraph.config import get_redis_host_and_port
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
+
 
 async def is_redis_empty(connection):
     cursor = 0
@@ -26,50 +32,28 @@ async def is_redis_empty(connection):
     return True  # No keys found, Redis is empty
 
 
-async def main():
-    logger.info("Starting setup to load state store...")
-
-    connection = None
-    driver = None
-
+async def main(names: list[str] | None) -> bool:
+    driver = Neo4jAsyncDriver()
+    read_models = None
     try:
-        logger.info("Get connection to redis")
-        host, port = get_redis_host_and_port()
-        connection = await redis.Redis(host=host, port=port, db=0)
-        logger.info(f"Ping redis successful: {await connection.ping()}")
-
-        if not await is_redis_empty(connection):
-            raise RuntimeError("Redis is not empty, aborting!")
-
-        logger.info("Build neo4j driver")
-        driver = Neo4jAsyncDriver()
-
-        logger.info("Starting to load redis")
-        loader = RedisLoader(connection, driver)
-        await loader.load_read_model()
-
-        logger.info("State store setup completed successfully!")
-
+        read_models = await RedisReadModels.create(driver=driver)
+        await read_models.refresh(names)
+        logger.info("Read models refreshed")
+        return True
     except Exception as e:
-        logger.error(f"State store setup failed: {e}")
-        sys.exit(1)
-
+        logger.error(f"Refreshing the read models failed: {e}")
+        return False
     finally:
-        # Explicit cleanup of async resources BEFORE event loop closes
-        if connection is not None:
-            try:
-                logger.debug("Closing Redis connection")
-                await connection.aclose()
-            except Exception as e:
-                logger.warning(f"Error closing Redis connection: {e}")
-
-        if driver is not None:
-            try:
-                logger.debug("Closing Neo4j driver")
-                await driver.close()
-            except Exception as e:
-                logger.warning(f"Error closing Neo4j driver: {e}")
+        if read_models is not None:
+            await read_models.close()
+        await driver.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Refresh the read models in the state store from the database")
+    parser.add_argument(
+        '--models', nargs='+', choices=RedisReadModels.names, metavar='NAME',
+        help=f"refresh only these read models, of: {', '.join(RedisReadModels.names)}"
+    )
+    if not asyncio.run(main(parser.parse_args().models)):
+        sys.exit(1)
