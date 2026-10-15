@@ -71,7 +71,14 @@ In detail:
    level, its controlling teams (stood in for as rule 7 says), and the user's own access, but no writes and no times,
    as the history of hidden data is part of it. Controllers are for signed-in users only, as only they can ask for
    access (`controlsControllers` requires authentication); anonymous users see no controller badges.
-9. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
+9. **Accounts are private; attribution goes through Persons.** An account (User) is shown only to its owner and
+   admins of its teams. What an account did, a write or an ontology commit, is attributed to its linked Person
+   (`WriteStamp.person`, `OntologyCommit.person`), which follows the people rules: in full, restricted, or none if the
+   account has no Person. Teams are not controlled entities: a team is seen by those affiliated with it, and an
+   organisation's root, with its legal entity, by everyone, anonymous users included, as whom personal data is held
+   by is public. Hidden teams are skipped within an organisation (rule 3), stood in for where referred to (rule 7),
+   and a placeholder when asked for by id (rule 2).
+10. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
    repositories, where redaction keeps hidden members present. Making them independent of redaction is open.
 
 ## 3. Datasets under this policy
@@ -109,4 +116,4 @@ EDITORIAL view, with drafts, needs an account.
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
 | People (`views.people`, `query_builders/people.py`) | yes; the linked user also sees their own Person in full (docs/person.md) |
 | Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
-| Accounts | not yet reviewed |
+| Accounts and organisations | yes; organisations are read through the repository and redacted in Python (small, and already following the note) |

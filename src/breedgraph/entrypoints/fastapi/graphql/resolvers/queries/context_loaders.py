@@ -315,6 +315,36 @@ async def update_people_map(context, person_ids: Iterable[int] | None = None):
             for person in await views.people.get_people(sorted(unmapped)):
                 people_map[person.id] = person
 
+async def resolve_user_person(context, user_id: int | None):
+    """
+    The Person linked to an account, for attributing what the account did: a placeholder if the agent cannot read it,
+    None if the account has no Person. Accounts are shown only to their owner and admins of their teams; their Persons
+    follow the read policy (see docs/person.md).
+    """
+    if user_id is None:
+        return None
+    async with _get_lock(context, '_user_people_lock'):
+        user_people = context.setdefault('user_people_map', dict())
+        if user_id not in user_people:
+            async with get_context_lock(context):
+                views = await get_context_views(context)
+                # the Persons of the accounts asked for together, should the caller have gathered them
+                pending = set(context.pop('_user_people_pending', set())) | {user_id}
+                found = await views.people.get_people_by_users(sorted(pending - user_people.keys()))
+            for pending_id in pending:
+                user_people.setdefault(pending_id, found.get(pending_id))
+            people_map = context.setdefault('people_map', dict())
+            for person in found.values():
+                people_map.setdefault(person.id, person)
+        return user_people[user_id]
+
+
+def prepare_user_people(context, user_ids: Iterable[int]) -> None:
+    """Note accounts whose Persons will be asked for, so the first resolve_user_person reads them all at once"""
+    pending = context.setdefault('_user_people_pending', set())
+    pending.update(user_id for user_id in user_ids if user_id is not None)
+
+
 async def resolve_people(context, person_ids: Iterable[int] | None) -> list:
     """Resolve references to Persons, in order, placeholders for those the user cannot read"""
     person_ids = list(person_ids or [])

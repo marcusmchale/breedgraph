@@ -7,7 +7,9 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     update_users_map,
     team_references,
     get_context_views,
-    get_context_lock
+    get_context_lock,
+    resolve_user_person,
+    prepare_user_people
 )
 
 from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access
@@ -68,6 +70,7 @@ async def resolve_writes(obj: Controller, info, last: int | None = None) -> List
     """The writes in the order they were made, or the last of them, loading their users in one call"""
     writes = obj.writes if last is None else obj.writes[-last:] if last > 0 else []
     await update_users_map(context=info.context, user_ids={write.user for write in writes})
+    prepare_user_people(info.context, {write.user for write in writes})
     return writes
 
 @controller.field("writeCount")
@@ -94,6 +97,11 @@ async def resolve_user(obj: WriteStamp, info):
     await update_users_map(context=info.context, user_ids=[obj.user])
     users_map = info.context.get('users_map', {})
     return users_map.get(obj.user)
+
+@write_stamp.field("person")
+async def resolve_write_person(obj: WriteStamp, info):
+    """The writer's Person, for attribution where the account is not shown"""
+    return await resolve_user_person(info.context, obj.user)
 
 @write_stamp.field("time")
 async def resolve_time(obj: WriteStamp, info) -> str:

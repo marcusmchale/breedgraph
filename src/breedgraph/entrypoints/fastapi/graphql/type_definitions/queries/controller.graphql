@@ -22,7 +22,12 @@ type Control {
 }
 
 type WriteStamp {
+    """ The account that wrote: shown to its owner and admins of its teams only """
     user: UserDisplay
+    """
+    The writer's Person, for attribution: restricted if you cannot read it, null if the account has no Person
+    """
+    person: Person
     time: DateTime!
 }
 

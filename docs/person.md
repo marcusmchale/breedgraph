@@ -293,6 +293,8 @@ The login cookie is `SameSite=Strict`, so it would not be sent on ORCID's redire
 This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.
 
 Everything else (other users' visibility, write access) follows the normal access controls.
+Persons are also how others see who did something: write stamps and ontology commits name the account's Person,
+as accounts themselves are shown only to their owner and admins of their teams (docs/read-access.md, rule 9).
 This includes the record's controller: a linked user who cannot otherwise read their Person sees its placeholder
 controller (docs/read-access.md, rule 8), without its history, and the controlling teams stood in for by the nearest
 teams they can see, which is where to ask for changes they cannot make themselves. This is intended.

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from breedgraph.domain.model.people import PersonOutput
 
-from typing import List
+from typing import Dict, List
 
 
 class AbstractPeopleView(ABC):
@@ -22,6 +22,17 @@ class AbstractPeopleView(ABC):
 
     @abstractmethod
     async def _get_people(self, person_ids: List[int]) -> List[PersonOutput]:
+        ...
+
+    async def get_people_by_users(self, user_ids: List[int]) -> Dict[int, PersonOutput]:
+        """The Persons linked to these accounts, by account id; accounts without a Person are left out"""
+        user_ids = [int(user_id) for user_id in dict.fromkeys(user_ids) if user_id is not None]
+        if not user_ids:
+            return {}
+        return await self._get_people_by_users(user_ids)
+
+    @abstractmethod
+    async def _get_people_by_users(self, user_ids: List[int]) -> Dict[int, PersonOutput]:
         ...
 
     async def search_people(self, name: str | None = None) -> List[PersonOutput]:

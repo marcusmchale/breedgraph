@@ -10,7 +10,10 @@ type OntologyCommit {
     comment: String
     # Set by the server
     time: DateTime!
+    """ The account that committed: shown to its owner and admins of its teams only """
     user: UserDisplay
+    """ The committer's Person, for attribution: restricted if you cannot read it, null if there is none """
+    person: Person
     # References not handled
     licence: LegalReference
     copyright: LegalReference

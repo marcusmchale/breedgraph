@@ -52,3 +52,17 @@ def search_people():
         RETURN {_person()} AS person
         ORDER BY person.id
     """
+
+
+def read_people_by_user():
+    """
+    The Persons linked to the accounts with ids $user_ids, as user_id and person, a placeholder for those the user
+    cannot read: for attributing what accounts did (write stamps, ontology commits) to their Persons, as accounts
+    themselves are shown only to their owner and admins of their teams. Accounts without a Person are left out.
+    """
+    return f"""
+        MATCH (account: User)-[:IS_PERSON]->(person: Person)
+        WHERE account.id IN $user_ids
+        {_shown()}
+        RETURN account.id AS user_id, {_person()} AS person
+    """

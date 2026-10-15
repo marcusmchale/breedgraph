@@ -5,7 +5,7 @@ from typing import List
 from breedgraph import config
 from breedgraph.domain.model.organisations import TeamOutput
 
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map,
@@ -27,28 +27,40 @@ graphql_resolvers.register_type_resolvers(team, legal_entity, affiliations, affi
 
 @graphql_query.field("organisations")
 @graphql_payload
-@require_authentication
 async def get_organisations(_, info) -> List[TeamOutput]:
+    """
+    Every organisation root, and the teams in it the user is affiliated with; anonymous users see the roots only,
+    with their legal entities, as whom data is held by is public (see docs/read-access.md)
+    """
     await update_teams_map(info.context)
     teams_map = info.context.get('teams_map')
     organisation_roots = info.context.get('organisation_roots')
     return [teams_map.get(i) for i in organisation_roots]
 
+def _team_asked_for(teams_map: dict, team_id: int) -> TeamOutput | None:
+    """
+    A team asked for by id: the team, or a placeholder for one hidden from the user, its id and a REDACTED name (see
+    docs/read-access.md, rule 2). The teams map gives a hidden team's stand-in, which serves references, not this.
+    """
+    team = teams_map.get(team_id)
+    if team is None:
+        return None
+    if team.id != team_id:
+        return TeamOutput(id=team_id, name='REDACTED', fullname='REDACTED')
+    return team
+
 @graphql_query.field("organisationsTeam")
 @graphql_payload
-@require_authentication
 async def get_team(_, info, id: int) -> TeamOutput:
     await update_teams_map(info.context, team_ids=[id])
-    teams_map = info.context.get('teams_map')
-    return teams_map.get(id, None)
+    return _team_asked_for(info.context.get('teams_map'), id)
 
 @graphql_query.field("organisationsTeams")
 @graphql_payload
-@require_authentication
 async def get_teams(_, info, ids: List[int]) -> List[TeamOutput]:
     await update_teams_map(info.context, team_ids=ids)
     teams_map = info.context.get('teams_map')
-    return [teams_map.get(team_id) for team_id in ids if team_id in teams_map]
+    return [team for team in (_team_asked_for(teams_map, team_id) for team_id in ids) if team is not None]
 
 @graphql_query.field("organisationsDataProcessingTerms")
 @graphql_payload

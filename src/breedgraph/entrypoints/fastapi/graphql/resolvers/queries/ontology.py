@@ -16,7 +16,8 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_users_map,
-    load_entries_to_ontology_map, update_reference_map
+    load_entries_to_ontology_map, update_reference_map,
+    resolve_user_person
 )
 
 
@@ -406,6 +407,11 @@ async def resolve_commit_user(obj, info):
     await update_users_map(context, user_ids=[obj.user])
     users_map = context.get('users_map')
     return users_map.get(obj.user)
+
+@ontology_commit.field("person")
+async def resolve_commit_person(obj, info):
+    """The committer's Person, for attribution where the account is not shown"""
+    return await resolve_user_person(info.context, obj.user)
 
 @ontology_commit.field("licence")
 async def resolve_commit_licence(obj:OntologyCommit, info):

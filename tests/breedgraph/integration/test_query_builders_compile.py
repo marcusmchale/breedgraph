@@ -58,6 +58,7 @@ QUERIES = {
     'germplasm.read_crops': germplasm.read_crops(),
     'people.read_people': people.read_people(),
     'people.search_people': people.search_people(),
+    'people.read_people_by_user': people.read_people_by_user(),
     'references.read_references': references.read_references(),
     'references.search_references': references.search_references(),
     'references.read_file_reference': references.read_file_reference(),
