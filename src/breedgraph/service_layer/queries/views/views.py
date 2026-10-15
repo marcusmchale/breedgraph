@@ -12,6 +12,7 @@ from .germplasm import AbstractGermplasmView
 from .units import AbstractUnitsView
 from .programs import AbstractProgramsView
 from .arrangements import AbstractArrangementsView
+from .references import AbstractReferencesView
 
 
 from typing import AsyncGenerator
@@ -28,6 +29,7 @@ class AbstractViewsHolder(ABC):
     units: AbstractUnitsView
     programs: AbstractProgramsView
     arrangements: AbstractArrangementsView
+    references: AbstractReferencesView
 
 
 class AbstractViewsFactory(ABC):

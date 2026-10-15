@@ -16,7 +16,7 @@ from neo4j import GraphDatabase
 
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders import (
-    arrangements, blocks, controls, datasets, programs, regions
+    arrangements, blocks, controls, datasets, programs, references, regions
 )
 
 ENV_FILE = Path(__file__).parents[3] / 'instance' / 'private.breedgraph.env'
@@ -53,6 +53,9 @@ QUERIES = {
     **{f'programs.read_program({by})': programs.read_program(by) for by in ('program', 'trial', 'study')},
     **{f'programs.read_trial({by})': programs.read_trial(by) for by in ('trial', 'study')},
     'programs.read_study': programs.read_study(),
+    'references.read_references': references.read_references(),
+    'references.search_references': references.search_references(),
+    'references.read_file_reference': references.read_file_reference(),
     'datasets.read_datasets': datasets.read_datasets(),
     'datasets.read_records': datasets.read_records(),
     'datasets.count_records': datasets.count_records(),

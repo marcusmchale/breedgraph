@@ -2,16 +2,11 @@ from ariadne import ObjectType, UnionType, InterfaceType, EnumType
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
 
-from breedgraph.service_layer.application.access_control import AbstractAccessControlService
-
 from breedgraph.adapters.redis.state_store import SubmissionStatus
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import get_context_views, get_context_lock
 
-
-from breedgraph.domain.model.controls import (
-    Controller, ReadRelease, ControlledModelLabel, Access
-)
 
 from breedgraph.domain.model.references import (
     ReferenceType,
@@ -83,36 +78,27 @@ def resolve_reference_type(obj, *_):
 def resolve_reference_interface_type(obj, *_):
     return resolve_type(obj)
 
-"""References resolver by ID list"""
+"""References by id: a placeholder for those the user cannot read (see docs/read-access.md)"""
 @graphql_query.field("references")
 @graphql_payload
-@require_authentication
 async def get_references(_, info, ids: List[int]) -> List[ReferenceStoredBase]:
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=ids)]
-        return references
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.references.get_references(ids)
 
 
-"""References resolver by query string"""
+"""References whose description matches: only those the user can read"""
 @graphql_query.field("referencesSearch")
 @graphql_payload
-@require_authentication
 async def find_references(
         _,
         info,
         description: str,
         reference_types: list[ReferenceType]|None = None
 ) -> List[ReferenceStoredBase]:
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(
-            description=description,
-            reference_types=reference_types
-        )]
-        return references
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.references.search_references(description, reference_types)
 
 
 @external_data_reference.field("format")
@@ -134,14 +120,10 @@ async def get_recent_file_references(
 ) -> List[ReferenceStoredBase]:
     bus = info.context['bus']
     reference_ids = await bus.state_store.get_user_file_reference_ids(user_id=info.context['user_id'])
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(
-            reference_ids=reference_ids,
-            reference_types=reference_types
-        )]
-        return references
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        references = await views.references.get_references(reference_ids)
+    return [reference for reference in references if not reference_types or reference.type in reference_types]
 
 @graphql_query.field("referencesFileSubmission")
 @graphql_payload
@@ -176,9 +158,21 @@ async def get_file_errors(file_id, info) -> List[str]:
     errors = await bus.state_store._get_errors(file_id)
     return errors
 
+async def _readable_file_reference(info, file_id: str) -> FileReferenceStored | DataFileStored | None:
+    """
+    The file reference for a stored file, None when there is none, refused when the user cannot read it: a file is
+    downloadable by anyone who can read its reference, anonymous users included for public ones
+    """
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        reference = await views.references.get_file_reference(file_id)
+    if reference is not None and reference.file_id is None:
+        # a placeholder, which never carries the file id
+        raise UnauthorisedOperationError("You do not have access to read this file")
+    return reference
+
 @graphql_query.field("referencesFileDownloadState")
 @graphql_payload
-@require_authentication
 async def get_file_download_state(_, info, file_id: str):
     """
      Check if the file download request is registered
@@ -186,6 +180,8 @@ async def get_file_download_state(_, info, file_id: str):
     """
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} requesting download of file {file_id}')
+    if await _readable_file_reference(info, file_id) is None:
+        raise NoResultFoundError(f"Reference with file ID {file_id} not found")
     bus = info.context['bus']
     archival_service = bus.archival_service
     record: FileArchivalRecord = await archival_service.get(file_id)
@@ -226,58 +222,34 @@ async def get_file_download_state(_, info, file_id: str):
 
 @graphql_query.field("referencesFileDownload")
 @graphql_payload
-@require_authentication
 async def get_file_download(_, info, file_id: str):
     user_id = info.context.get('user_id')
     bus = info.context['bus']
-    async with bus.uow_factory.get_uow(user_id) as uow:
-        reference: FileReferenceStored | DataFileStored = await uow.repositories.references.get(file_id=file_id)
-        if not reference:
-            # Check if the upload is still in progress
-            status = await bus.state_store.get_status(agent_id=user_id, key=file_id)
-            if status and status is not SubmissionStatus.COMPLETED:
-                if status in [SubmissionStatus.PENDING, SubmissionStatus.PROCESSING]:
-                    raise NoResultFoundError("The file upload is still in progress")
-                elif status == SubmissionStatus.FAILED:
-                    raise NoResultFoundError("The requested file failed to upload successfully")
-                else:
-                    raise ValueError("Unexpected error. The file reference is in an unknown state")
-            raise ValueError(f"Reference with file ID {file_id} not found")
-
-        if not reference.file_id:
-            # The user may have requested a file that they do not have access to
-            # The query allows to see that the reference exists and get the reference ID, but not see other details
-            # Confirm the user does not have access before returning the error message.
-            controls: AbstractAccessControlService = uow.controls
-            controller = await controls.get_controller(
-                label=ControlledModelLabel.REFERENCE,
-                model_id=reference.id
-            )
-            if not controller:
-                raise ValueError("Controller not found for file reference")
-
-            has_access = controller.has_access(
-                access=Access.READ,
-                user_id=user_id,
-                access_teams=controls.access_teams.get(Access.READ)
-            )
-            if not has_access:
-                raise UnauthorisedOperationError("The requesting user does not have access to read this reference")
+    reference = await _readable_file_reference(info, file_id)
+    if reference is None:
+        # Check if the user's own upload is still in progress
+        status = await bus.state_store.get_status(agent_id=user_id, key=file_id) if user_id is not None else None
+        if status and status is not SubmissionStatus.COMPLETED:
+            if status in [SubmissionStatus.PENDING, SubmissionStatus.PROCESSING]:
+                raise NoResultFoundError("The file upload is still in progress")
+            elif status == SubmissionStatus.FAILED:
+                raise NoResultFoundError("The requested file failed to upload successfully")
             else:
-                raise ValueError("Unexpected error. The file reference is missing a file id")
+                raise ValueError("Unexpected error. The file reference is in an unknown state")
+        raise ValueError(f"Reference with file ID {file_id} not found")
 
-        file_details = {
-            'uuid': reference.file_id,
-            'filename': reference.filename,
-            'contentType': reference.content_type
-        }
+    file_details = {
+        'uuid': reference.file_id,
+        'filename': reference.filename,
+        'contentType': reference.content_type
+    }
 
-        token = URLSafeTimedSerializer(SECRET_KEY).dumps(
-            file_details,
-            salt=FILE_DOWNLOAD_SALT
-        )
+    token = URLSafeTimedSerializer(SECRET_KEY).dumps(
+        file_details,
+        salt=FILE_DOWNLOAD_SALT
+    )
 
-        return {
-            'expires_at': datetime.now() + timedelta(minutes=FILE_DOWNLOAD_EXPIRES),
-            'url': f'{get_download_endpoint()}{token}'
-        }
+    return {
+        'expires_at': datetime.now() + timedelta(minutes=FILE_DOWNLOAD_EXPIRES),
+        'url': f'{get_download_endpoint()}{token}'
+    }

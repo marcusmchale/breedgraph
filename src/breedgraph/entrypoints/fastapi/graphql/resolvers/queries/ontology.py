@@ -203,11 +203,9 @@ async def resolve_version_id(obj, _):
 
 @ontology_node_interface.field("references")
 async def resolve_references(obj, info):
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        references = [reference async for reference in uow.repositories.references.get_all(reference_ids=obj.references)]
-        return references
+    await update_reference_map(info.context, reference_ids=obj.references)
+    reference_map = info.context.get('reference_map')
+    return [reference_map[reference_id] for reference_id in obj.references if reference_id in reference_map]
 
 @ontology_node_interface.field("phase")
 async def resolve_phase(obj, info):
@@ -413,21 +411,15 @@ async def resolve_commit_user(obj, info):
 async def resolve_commit_licence(obj:OntologyCommit, info):
     if not obj.licence:
         return None
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        reference = await uow.repositories.references.get(reference_id=obj.licence)
-        return reference
+    await update_reference_map(info.context, reference_ids=[obj.licence])
+    return info.context.get('reference_map', {}).get(obj.licence)
 
 @ontology_commit.field("copyright")
 async def resolve_commit_copyright(obj:OntologyCommit, info):
     if not obj.copyright:
         return None
-    bus = info.context.get('bus')
-    user_id = info.context.get('user_id')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        reference = await uow.repositories.references.get(reference_id=obj.copyright)
-        return reference
+    await update_reference_map(info.context, reference_ids=[obj.copyright])
+    return info.context.get('reference_map', {}).get(obj.copyright)
 
 @graphql_query.field("ontologyRoleRequests")
 @graphql_payload

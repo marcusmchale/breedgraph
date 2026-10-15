@@ -288,18 +288,15 @@ async def update_reference_map(
     if not reference_ids:
         return
 
+    # through the references view: a reference the user cannot read is a placeholder (see docs/read-access.md)
     async with _get_lock(context, '_reference_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')  # This might be None for unauthenticated requests
-        reference_ids = reference_ids or []
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            references_to_update = [
-                reference_id for reference_id in reference_ids if reference_id not in context['reference_map']
-            ]
-            if references_to_update:
-                async for reference in uow.repositories.references.get_all(
-                        reference_ids=references_to_update
-                ):
+        references_to_update = [
+            reference_id for reference_id in reference_ids if reference_id not in context['reference_map']
+        ]
+        if references_to_update:
+            async with get_context_lock(context):
+                views = await get_context_views(context)
+                for reference in await views.references.get_references(references_to_update):
                     context['reference_map'][reference.id] = reference
 
 

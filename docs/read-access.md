@@ -36,8 +36,9 @@ In detail:
    (a dataset's records, a study's groupings).
 2. **References across aggregates give placeholders.** When a readable entity refers to an entity in another
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
-   `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a hidden
-   entity asked for directly by id. References to teams are the exception (rule 7).
+   `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
+   study's or ontology entry's reference, a hidden entity asked for directly by id. A reference placeholder keeps its
+   type as well (legal, external, file and so on), as GraphQL needs it to choose the reference's type. References to teams are the exception (rule 7).
 3. **Within an aggregate, hidden members are skipped.** A tree (a block of units, a region of locations, an
    arrangement of layouts) is shown with its hidden members left out and their readable descendants joined to the
    nearest readable ancestor. Nothing about the hidden members is shown: not their number, nor how the readable
@@ -93,4 +94,5 @@ EDITORIAL view, with drafts, needs an account.
 | Regions, arrangements (`views.regions`, `views.arrangements`) | yes |
 | Blocks (`views.blocks`) | yes |
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
+| References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
 | People, accounts, controls, references, ontology, germplasm | not yet reviewed |
