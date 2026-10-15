@@ -133,7 +133,7 @@ type AnalysisRecordGroupAssignment {
   Identifier of the level, unique within the dimension.
 
   The label of a shared level, otherwise an identifier
-  composed of grouping, scope and code.
+  composed of grouping, scope, code and, for WITHIN_UNIT groupings, the base unit.
   """
   level: String!
 
@@ -158,4 +158,9 @@ type AnalysisRecordGroupAssignment {
   Code of a nested level.
   """
   code: String
+
+  """
+  Base unit of a nested level of a WITHIN_UNIT grouping, whose codes are only comparable within a unit.
+  """
+  unitId: ID
 }

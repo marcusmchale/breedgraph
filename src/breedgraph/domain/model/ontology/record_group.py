@@ -10,12 +10,18 @@ from dataclasses import dataclass
 from breedgraph.domain.model.ontology.entries import (
     OntologyEntryBase, OntologyEntryInput, OntologyEntryStored
 )
-from breedgraph.domain.model.ontology.enums import OntologyEntryLabel
+from breedgraph.domain.model.ontology.enums import OntologyEntryLabel, RecordGroupExtent
 from typing import ClassVar
 
 @dataclass
 class RecordGroupTypeBase(OntologyEntryBase):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.RECORD_GROUP_TYPE
+
+    extent: RecordGroupExtent | None = None  # required, see RecordGroupExtent
+
+    def __post_init__(self):
+        if self.extent is None:
+            raise ValueError("A record group type requires an extent")
 
 @dataclass
 class RecordGroupTypeInput(RecordGroupTypeBase, OntologyEntryInput):

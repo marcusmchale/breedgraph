@@ -7,7 +7,7 @@ from breedgraph.domain.model.ontology import (
     Version,
     LifecyclePhase,
     OntologyEntryLabel, OntologyRelationshipLabel,
-    ObservationMethodType, ControlMethodType,
+    ObservationMethodType, ControlMethodType, RecordGroupExtent,
     ScaleType,
     AxisType
 )
@@ -81,6 +81,8 @@ class OntologyEntryOutput(ABC):
             dump['control_type'] = dump['control_type'].value
         if 'axes' in dump:
             dump['axes'] = [a.value for a in dump['axes']]
+        if 'extent' in dump:
+            dump['extent'] = dump['extent'].value
         return dump
 
 
@@ -200,6 +202,8 @@ class DesignOutput(OntologyEntryOutput):
 class RecordGroupTypeOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.RECORD_GROUP_TYPE
     terms: tuple[int, ...] = ()
+
+    extent: RecordGroupExtent = None
 
 @dataclass(frozen=True)
 class EventOutput(OntologyEntryOutput):

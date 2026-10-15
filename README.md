@@ -172,6 +172,10 @@ Examples: "Grid", "Row"
 ##### Design
 Design entries describe statistical designs for a [study](#study) in a [program](#program).
 Examples: "Split-plot", "Randomized block"
+##### Record Group Type
+Record group types describe the codes that group [records](#data-record) within a [study](#study), with an extent:
+SHARED codes name a group of many units (e.g. "Block", "Batch"), WITHIN_UNIT codes only distinguish
+readings of one unit at one time (e.g. "Replicate"), and are nested in the unit in analysis.
 ##### Role
 Role entries describe roles for [people](#people).
 Examples: "Post-doctoral researcher", "Principal Investigator"

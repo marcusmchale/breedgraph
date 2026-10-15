@@ -4,6 +4,7 @@ from .enums import (
     ObservationMethodType, ControlMethodType,
     ScaleType,
     AxisType,
+    RecordGroupExtent,
     VersionChange
 )
 from .version import Version, OntologyCommit
@@ -50,6 +51,7 @@ __all__ = [
     'ScaleType',
     'OntologyRelationshipLabel',
     'AxisType',
+    'RecordGroupExtent',
     'VersionChange',
     'OntologyEntryLabel',
 

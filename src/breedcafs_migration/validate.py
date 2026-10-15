@@ -30,7 +30,7 @@ from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.datasets import DatasetPlan
 from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
-from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS
+from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES
 from breedcafs_migration.persons import read_persons, contributor_names
 from breedcafs_migration.programs import STUDIES
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -283,8 +283,18 @@ async def validate_ontology(validation, uow_factory, context) -> tuple[OntologyI
             entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.SUBJECT)
             if entry is not None:
                 subjects[name] = entry.id
+        extents = {}
+        for name, _, _ in RECORD_GROUP_TYPES:
+            entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.RECORD_GROUP_TYPE)
+            if entry is not None:
+                extents[name] = entry.extent
     validation.same("Design factors in the ontology", [f['Factor'] for f in DESIGN_FACTORS], ontology.design_factors)
     validation.same("Subjects in the ontology", set(SUBJECTS.values()), subjects)
+    validation.same(
+        "Record group types in the ontology, with their extents",
+        {(name, extent.value) for name, _, extent in RECORD_GROUP_TYPES},
+        {(name, extent.value) for name, extent in extents.items()}
+    )
     return ontology, subjects
 
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from numpy import datetime64
+from numpy import datetime64, timedelta64
+import pandas as pd
 
 from breedgraph.domain.model.blocks import Position
 
@@ -247,15 +248,49 @@ class RecordGroupLevelKey:
     Codes are only comparable within the same grouping and scope:
     scope is None for study-wide groupings, otherwise the dataset IDs
     of the DatasetScope as resolved when the analysis is processed.
+    Codes of WITHIN_UNIT groupings are also only comparable within the base unit.
     """
     grouping_id: int
     scope: frozenset[int]|None
     code: str
+    unit: int|None = None  # base unit, for WITHIN_UNIT groupings only
 
     @property
     def key(self) -> str:
         scope = "*" if self.scope is None else ",".join(map(str, sorted(self.scope)))
+        if self.unit is not None:
+            return f"{self.grouping_id}|{scope}|{self.unit}|{self.code}"
         return f"{self.grouping_id}|{scope}|{self.code}"
+
+
+@dataclass
+class ReplicateAggregation:
+    """
+    Combines the replicates of each reading (codes of WITHIN_UNIT groupings) before a term's aggregation.
+    A reading starts at its first record and spans window (an ISO 8601 duration) from there.
+    Without a window, a reading's records have the same start and end.
+    """
+    aggregation: TermAggregation
+    window: str|None = None
+
+    def __post_init__(self):
+        if self.window is not None:
+            self.window = self.window.strip()
+            if self.span <= timedelta64(0, 's'):
+                raise ValueError(f"Window '{self.window}' must be longer than zero")
+
+    @property
+    def span(self) -> timedelta64|None:
+        """The window as a duration"""
+        if self.window is None:
+            return None
+        message = f"Window '{self.window}' must be an ISO 8601 duration, e.g. PT5M or P1D"
+        if not self.window.startswith('P'):
+            raise ValueError(message)
+        try:
+            return pd.Timedelta(self.window).to_timedelta64()
+        except ValueError:
+            raise ValueError(message)
 
 
 @dataclass
@@ -267,6 +302,7 @@ class AnalysisTerm:
     level_order: list[str]|None = None
     transformations: list[TermTransformation] = field(default_factory=list)
     aggregation: TermAggregation = TermAggregation.NONE
+    replicate_aggregation: ReplicateAggregation|None = None
     effect: TermEffect|None = None
     random_slope_terms: list[AnalysisTermReference] = field(default_factory=list)
 
@@ -517,6 +553,7 @@ class AnalysisWarningCode(str, Enum):
     MISSING_VALUES = "MISSING_VALUES"
     DATASET_FULLY_EXCLUDED = "DATASET_FULLY_EXCLUDED"
     RECORD_GROUP_LEVEL_UNMATCHED = "RECORD_GROUP_LEVEL_UNMATCHED"
+    REPLICATES_POOLED = "REPLICATES_POOLED"
     SINGLE_LEVEL_TERM = "SINGLE_LEVEL_TERM"  # descriptive
     MODEL_NOT_CONVERGED = "MODEL_NOT_CONVERGED"
 

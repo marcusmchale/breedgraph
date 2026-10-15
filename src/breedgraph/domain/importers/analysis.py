@@ -14,7 +14,7 @@ from breedgraph.domain.model.analysis import (
     AnalysisType, AnalysisTermType, TermRepresentationType, TermTransformation, TermAggregation, TermEffect,
     TimeAssignment, BinningBoundary, DistanceMetric, CorrelationMethod, OutlierDetectionMethod, ClusteringMethod,
     SumOfSquaresType, DdfMethod, EstimatedMeansContrast, PValueAdjustment,
-    AnalysisTermReference, Binning, AnalysisTerm, InteractionTerm,
+    AnalysisTermReference, Binning, ReplicateAggregation, AnalysisTerm, InteractionTerm,
     TimeSpecification, GermplasmGrouping, UnitGrouping, PositionGrouping, AnalysisGrouping,
     RecordGroupMember, RecordGroupLevel, RecordGroupDimension,
     AxisValue, PositionExclusion, AnalysisExclusion,
@@ -58,6 +58,13 @@ class BinningImport(DomainCheckedModel):
     def to_domain(self) -> Binning:
         return Binning(boundaries=self.boundaries, labels=self.labels, boundary=self.boundary)
 
+class ReplicateAggregationImport(DomainCheckedModel):
+    aggregation: TermAggregation
+    window: str | None = None
+
+    def to_domain(self) -> ReplicateAggregation:
+        return ReplicateAggregation(aggregation=self.aggregation, window=self.window)
+
 class AnalysisTermImport(ImportModel):
     reference: AnalysisTermReferenceImport
     representation: TermRepresentationType | None = None
@@ -65,6 +72,7 @@ class AnalysisTermImport(ImportModel):
     level_order: list[str] | None = None
     transformations: list[TermTransformation] | None = None
     aggregation: TermAggregation | None = None
+    replicate_aggregation: ReplicateAggregationImport | None = None
     effect: TermEffect | None = None
     random_slope_terms: list[AnalysisTermReferenceImport] | None = None
 
@@ -76,6 +84,7 @@ class AnalysisTermImport(ImportModel):
             level_order=self.level_order,
             transformations=list(self.transformations or []),
             aggregation=self.aggregation or TermAggregation.NONE,
+            replicate_aggregation=self.replicate_aggregation.to_domain() if self.replicate_aggregation else None,
             effect=self.effect,
             random_slope_terms=[t.to_domain() for t in self.random_slope_terms or []]
         )

@@ -2,6 +2,7 @@
 Data loaded to prepare an analysis, as readable by the requesting user.
 """
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Iterator
 
 from numpy import datetime64
@@ -9,7 +10,7 @@ from numpy import datetime64
 from breedgraph.domain.model.analysis import AnalysisRequest, AnalysisTermType
 from breedgraph.domain.model.blocks import Position
 from breedgraph.domain.model.datasets import DatasetStored, RecordGroup
-from breedgraph.domain.model.ontology import ScaleType
+from breedgraph.domain.model.ontology import ScaleType, RecordGroupExtent
 from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
 
 
@@ -50,6 +51,8 @@ class AnalysisContext:
     studies: dict[int, StudyStored]
     # selected germplasm ID -> IDs of its descendants, for germplasm grouping
     germplasm_descendants: dict[int, set[int]] = field(default_factory=dict)
+    # record group type ID -> extent, for the types of the groupings of the studies
+    record_group_extents: dict[int, RecordGroupExtent] = field(default_factory=dict)
 
     @property
     def dataset_studies(self) -> dict[int, int]:
@@ -71,6 +74,28 @@ class AnalysisContext:
             for grouping in study.groupings
             if isinstance(grouping, RecordGroupingStored)
         }
+
+    @cached_property
+    def within_unit_groupings(self) -> dict[int, RecordGroupingStored]:
+        """Groupings whose type has the WITHIN_UNIT extent: their codes distinguish replicates of a unit."""
+        return {
+            grouping_id: grouping for grouping_id, grouping in self.groupings.items()
+            if self.record_group_extents.get(grouping.type) == RecordGroupExtent.WITHIN_UNIT
+        }
+
+    def replicate_key(self, record: AnalysisRecord) -> tuple | None:
+        """
+        Records with the same key can be replicates of one reading, depending on their times:
+        the same base unit, with codes of the same WITHIN_UNIT groupings and scopes.
+        None if the record has no such codes.
+        """
+        scopes = tuple(sorted(
+            (group.id, self.within_unit_groupings[group.id].scope_key(record.dataset_id) or frozenset())
+            for group in record.groups if group.id in self.within_unit_groupings
+        ))
+        if not scopes:
+            return None
+        return record.unit_id, scopes
 
     def records(self) -> Iterator[AnalysisRecord]:
         """

@@ -12,7 +12,7 @@ from breedgraph.domain.model.archive import ArchiveState
 from breedgraph.domain.model.datasets import DatasetInput
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, ScaleType, ObservationMethodType, SubjectInput, TraitInput, ObservationMethodInput, ScaleInput,
-    VariableInput, RecordGroupTypeInput
+    VariableInput, RecordGroupTypeInput, RecordGroupExtent
 )
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGroupingInput, GroupingScope
 from breedgraph.domain.model.references import DataFileStored, DataFormat
@@ -72,7 +72,7 @@ async def curves_context(isolated_state, uow_factory) -> dict:
         variable = await ontology.create_variable(VariableInput(name="Fluorescence ~ Time (PocketPEA)"), trait.id, method.id, scale.id)
         other_scale = await ontology.create_scale(ScaleInput(name="Ratio", scale_type=ScaleType.NUMERICAL))
         other = await ontology.create_variable(VariableInput(name="Fv/Fm (PocketPEA)"), trait.id, method.id, other_scale.id)
-        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate"))
+        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:

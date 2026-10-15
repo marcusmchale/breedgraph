@@ -50,6 +50,8 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             entry_dict['control_type'] = ControlMethodType(entry_dict['control_type'])
         if 'axes' in entry_dict:
             entry_dict['axes'] = [AxisType(a) for a in entry_dict['axes']]
+        if 'extent' in entry_dict:
+            entry_dict['extent'] = RecordGroupExtent(entry_dict['extent'])
 
         # Extract the label from the record
         label_str: str|None = entry_dict.pop('label')

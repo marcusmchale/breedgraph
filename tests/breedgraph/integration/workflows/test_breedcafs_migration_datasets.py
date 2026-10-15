@@ -8,7 +8,7 @@ from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, ScaleType, ObservationMethodType, ControlMethodType, SubjectInput, TraitInput,
     ObservationMethodInput, ScaleInput, ScaleCategoryInput, VariableInput, ConditionInput, ControlMethodInput,
-    FactorInput, RecordGroupTypeInput
+    FactorInput, RecordGroupTypeInput, RecordGroupExtent
 )
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGroupingInput, GroupingScope
 
@@ -100,7 +100,7 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             ("5CQA", ''): (variable, await concept(ontology, subject.id, "5CQA", ScaleType.NUMERICAL)),
         }
         stratum = await concept(ontology, subject.id, "Stratum", ScaleType.ORDINAL, ["Lower", "Middle", "Upper"], factor=True)
-        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate"))
+        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:

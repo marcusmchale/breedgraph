@@ -335,6 +335,7 @@ async def create_record_group_type(cmd: commands.ontologies.CreateRecordGroupTyp
         ontology_service = uow.ontology
         entry_input = RecordGroupTypeInput(
             name=cmd.name,
+            extent=cmd.extent,
             description=cmd.description,
             abbreviation=cmd.abbreviation,
             synonyms=cmd.synonyms or [],
@@ -522,6 +523,8 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
         entry.control_type = cmd.control_type
     if hasattr(cmd, 'axes') and cmd.axes is not None:
         entry.axes = cmd.axes
+    if hasattr(cmd, 'extent') and cmd.extent is not None:
+        entry.extent = cmd.extent
 
 async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:

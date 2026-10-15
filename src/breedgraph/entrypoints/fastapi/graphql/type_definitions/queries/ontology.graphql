@@ -213,6 +213,21 @@ enum AxisType {
     CARTESIAN
 }
 
+"""
+Whether the codes of a record group type are meaningful across units.
+"""
+enum RecordGroupExtent {
+    """
+    A code names a group of many units, e.g. a block, batch or session.
+    """
+    SHARED
+    """
+    A code only distinguishes records of one unit at one time, e.g. replicate readings or subsamples.
+    In analysis such codes are nested in the unit, and can be collapsed by a term's replicateAggregation.
+    """
+    WITHIN_UNIT
+}
+
 enum ObservationMethodType{
     MEASUREMENT
     COUNTING
@@ -863,10 +878,12 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
 
     references: [ReferenceInterface!]
 
-    parents: [Design!]
-    children: [Design!]
+    parents: [RecordGroupType!]
+    children: [RecordGroupType!]
 
     terms: [Term!]
+
+    extent: RecordGroupExtent!
 }
 
 

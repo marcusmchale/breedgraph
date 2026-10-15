@@ -23,7 +23,15 @@ Everything below is run from the repository root.
 4. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type),
    your account exists, and `scripts/import_germplasm.py` has loaded the production germplasm,
    so BreedCAFS varieties are matched to it rather than created again.
-5. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),
+5. **Record group types have an extent.** Since record group types gained a required `extent` (SHARED or WITHIN_UNIT),
+   one stored without it can't be read, and the ontology phase fails on it. In a copy of production older than that change,
+   list any without one, and set each from what its codes mean (README §2.4):
+   ```cypher
+   MATCH (t:RecordGroupType) WHERE t.extent IS NULL RETURN t.id, t.name, t.description;
+   MATCH (t:RecordGroupType {id: <id>}) SET t.extent = 'WITHIN_UNIT';   // or 'SHARED'
+   ```
+   The migration reuses an existing type named Replicate only if it is WITHIN_UNIT, and stops otherwise.
+6. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),
    and your account is an admin of it through a heritable affiliation.
 
 ## 2. Bootstrap

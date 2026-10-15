@@ -11,6 +11,7 @@ from breedgraph.domain.model.ontology import (
     OntologyEntryLabel,
     ControlMethodType,
     ObservationMethodType,
+    RecordGroupExtent,
     ScaleType,
     AxisType,
     OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle, LifecyclePhase
@@ -137,6 +138,8 @@ class Neo4jOntologyView(AbstractOntologyView):
             entry_dict['control_type'] = ControlMethodType(entry_dict['control_type'])
         if 'axes' in entry_dict:
             entry_dict['axes'] = tuple(AxisType(a) for a in entry_dict['axes'])
+        if 'extent' in entry_dict:
+            entry_dict['extent'] = RecordGroupExtent(entry_dict['extent'])
 
     @staticmethod
     def filter_dict(entry_dict: dict, node_class):

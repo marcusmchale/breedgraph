@@ -123,7 +123,10 @@ Blocks are units (6.4), not layouts.
 
 ## 2.4 Record Group Types
 
-* Replicate, for replicate codes (7.6)
+* Replicate, for replicate codes (7.6), with extent `WITHIN_UNIT`: a code only distinguishes readings of one item at one time.
+  In analysis, its codes are nested in their unit, and a term's `replicateAggregation` combines each reading's replicates
+  (with a `window` for readings recorded minutes apart, like the curves of 7.1); see docs/analysis.md §2.
+  If a type named Replicate already exists, it is reused only with this extent; otherwise the ontology phase stops.
 
 ---
 
@@ -476,7 +479,7 @@ It only reads. It works out again, from the extracted and curated files, what sh
 that with the mapping files written by the run and with what is stored. It writes validation_report.md, a table of the
 checks, to the data directory, and exits with 3 if any check fails. The checks:
 
-* Every input maps to a stored variable or factor, and the design factors and subjects are in the ontology.
+* Every input maps to a stored variable or factor, and the design factors, subjects and record group types (with their extents) are in the ontology.
 * Every field and sample location maps to a stored location, every planned layout to a stored layout,
   and every variety to stored germplasm.
 * Every item maps to a unit, except the skipped items, the duplicates (§6.5) and the blocks named after a treatment (§6.4).

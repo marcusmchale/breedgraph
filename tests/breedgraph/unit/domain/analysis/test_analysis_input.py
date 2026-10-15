@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -127,6 +128,30 @@ def test_domain_term_options():
         ('anova', 'terms', '2', 'transformations'),
         ('anova', 'terms', '2', 'aggregation'),
     }
+
+def test_replicate_aggregation_options():
+    analysis = anova()
+    analysis['anova']['terms'][0].update(replicate_aggregation={'aggregation': 'MEAN', 'window': 'PT5M'})
+    analysis['anova']['terms'][1].update(replicate_aggregation={'aggregation': 'SUM'})
+    analysis['anova']['terms'][2].update(replicate_aggregation={'aggregation': 'MEAN'})
+    assert paths(analysis) == {
+        ('anova', 'terms', '1', 'replicateAggregation', 'aggregation'),
+        ('anova', 'terms', '2', 'replicateAggregation'),
+    }
+    analysis['anova']['terms'][1].update(replicate_aggregation={'aggregation': 'MODE'}, aggregation='COUNT')
+    assert ('anova', 'terms', '1', 'replicateAggregation') in paths(analysis)
+
+@pytest.mark.parametrize('window', ['5 minutes', 'PT0S', 'P', 'PTXM'])
+def test_replicate_window_must_be_a_positive_iso_duration(window):
+    analysis = anova()
+    analysis['anova']['terms'][0].update(replicate_aggregation={'aggregation': 'MEAN', 'window': window})
+    assert paths(analysis) == {('anova', 'terms', '0', 'replicateAggregation')}
+
+def test_replicate_window_span():
+    analysis = anova()
+    analysis['anova']['terms'][0].update(replicate_aggregation={'aggregation': 'MEAN', 'window': 'P1DT2H'})
+    replicate_aggregation = AnalysisInputImport(**analysis).to_domain().spec.terms[0].replicate_aggregation
+    assert replicate_aggregation.span == np.timedelta64(26, 'h')
 
 
 @pytest.mark.asyncio

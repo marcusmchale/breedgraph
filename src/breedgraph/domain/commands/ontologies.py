@@ -4,7 +4,7 @@ from breedgraph.domain.commands import Command
 from pydantic import BaseModel
 
 from breedgraph.domain.model.ontology.enums import ScaleType, ObservationMethodType, AxisType, VersionChange, \
-    ControlMethodType
+    ControlMethodType, RecordGroupExtent
 
 
 class CommitOntologyVersion(Command):
@@ -110,6 +110,7 @@ class CreateLayoutType(Command, CreateEntryBase):
     term_ids: List[int] | None = None
 
 class CreateRecordGroupType(Command, CreateEntryBase):
+    extent: RecordGroupExtent
     term_ids: List[int] | None = None
 
 class UpdateEntryBase(BaseModel):

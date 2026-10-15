@@ -8,6 +8,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
+from numpy import timedelta64
 import pandas as pd
 
 from breedgraph.domain.model.analysis import (
@@ -21,6 +22,8 @@ from breedgraph.domain.services.analysis_binning import Binner, parse_datetime, 
 from breedgraph.domain.services.analysis_dimensions import DimensionResolver, DimensionLevel
 
 NUMERIC_AGGREGATIONS = (TermAggregation.MEAN, TermAggregation.MEDIAN, TermAggregation.SUM)
+# aggregations giving the same result whether or not replicates are combined first (or that count records)
+UNWEIGHTED_AGGREGATIONS = (TermAggregation.NONE, TermAggregation.MIN, TermAggregation.MAX, TermAggregation.COUNT)
 
 # representations of concept terms supported by each analysis, where restricted
 CONCEPT_REPRESENTATIONS = {
@@ -85,6 +88,23 @@ class _ObservationRecords:
         return [r for records in self.records.values() for r in records]
 
 
+def _split_by_window(records: list[AnalysisRecord], window: timedelta64) -> list[list[AnalysisRecord]]:
+    """
+    Replicates as readings: each reading starts at its first record (by start, or end without a start)
+    and takes the records up to window later. Records without a time are one reading.
+    """
+    time = lambda r: r.start if r.start is not None else r.end
+    untimed = [r for r in records if time(r) is None]
+    readings = [untimed] if untimed else []
+    anchor = None
+    for record in sorted((r for r in records if time(r) is not None), key=lambda r: (time(r), r.record_id)):
+        if anchor is None or time(record) - anchor > window:
+            anchor = time(record)
+            readings.append([])
+        readings[-1].append(record)
+    return readings
+
+
 def _incompatible(message: str, path: list[str]) -> AnalysisFailed:
     return AnalysisFailed.single(AnalysisErrorCode.INCOMPATIBLE_SCALE, message, path=path)
 
@@ -120,14 +140,16 @@ def resolve_representation(term: AnalysisTerm, concept: ConceptContext, path: li
                 path + ['representation']
             )
 
-    if term.aggregation in NUMERIC_AGGREGATIONS and scale != ScaleType.NUMERICAL:
-        raise _incompatible(f"{term.aggregation.value} aggregation requires a numerical scale", path + ['aggregation'])
-    if term.aggregation in (TermAggregation.MIN, TermAggregation.MAX) and not (
-            scale in (ScaleType.NUMERICAL, ScaleType.DATE) or representation == TermRepresentationType.ORDINAL
+    replicate_aggregation = term.replicate_aggregation.aggregation if term.replicate_aggregation else None
+    for aggregation, field_name in (
+            (term.aggregation, ['aggregation']), (replicate_aggregation, ['replicateAggregation', 'aggregation'])
     ):
-        raise _incompatible(
-            f"{term.aggregation.value} aggregation requires ordered values", path + ['aggregation']
-        )
+        if aggregation in NUMERIC_AGGREGATIONS and scale != ScaleType.NUMERICAL:
+            raise _incompatible(f"{aggregation.value} aggregation requires a numerical scale", path + field_name)
+        if aggregation in (TermAggregation.MIN, TermAggregation.MAX) and not (
+                scale in (ScaleType.NUMERICAL, ScaleType.DATE) or representation == TermRepresentationType.ORDINAL
+        ):
+            raise _incompatible(f"{aggregation.value} aggregation requires ordered values", path + field_name)
     return representation
 
 
@@ -182,12 +204,32 @@ class ObservationBuilder:
         representation = resolve_representation(term, concept, path)
         check_representation(self.context.request.spec, term, representation, path)
 
-        duplicates = [
-            r.record_id for o in observations
-            for records in [o.records.get(concept.concept_id, [])] if len(records) > 1
-            for r in records
-        ]
+        # the records of each observation, as readings: replicates of WITHIN_UNIT groupings together
+        window = term.replicate_aggregation.span if term.replicate_aggregation else None
+        readings = [self._readings(o.records.get(concept.concept_id, []), window) for o in observations]
+        replicate_aggregation = term.replicate_aggregation.aggregation if term.replicate_aggregation else None
+
+        duplicates = []
+        only_replicates = True  # whether every duplicate is a replicate of a single reading
+        pooled = False  # whether replicates are pooled by the term's aggregation
+        for groups in readings:
+            values_count = len(groups) if replicate_aggregation else sum(len(g) for g in groups)
+            if values_count > 1:
+                duplicates += [r.record_id for g in groups for r in g]
+                if len(groups) > 1:
+                    only_replicates = False
+            if replicate_aggregation is None and any(len(g) > 1 for g in groups):
+                pooled = True
+
         if duplicates and term.aggregation == TermAggregation.NONE:
+            if only_replicates and replicate_aggregation is None:
+                raise AnalysisFailed.single(
+                    AnalysisErrorCode.DUPLICATE_OBSERVATION,
+                    f"Concept {concept.concept_id} has replicates (codes of WITHIN_UNIT groupings) for some observations; "
+                    f"configure a replicate aggregation, or a record group dimension to keep each replicate",
+                    path=path + ['replicateAggregation'],
+                    record_ids=sorted(duplicates)
+                )
             raise AnalysisFailed.single(
                 AnalysisErrorCode.DUPLICATE_OBSERVATION,
                 f"Concept {concept.concept_id} has more than one value for some observations; "
@@ -195,12 +237,29 @@ class ObservationBuilder:
                 path=path + ['aggregation'],
                 record_ids=sorted(duplicates)
             )
+        if pooled and term.aggregation not in UNWEIGHTED_AGGREGATIONS:
+            warnings.append(AnalysisMessage(
+                code=AnalysisWarningCode.REPLICATES_POOLED,
+                message=(
+                    f"Replicates of concept {concept.concept_id} are pooled by the {term.aggregation.value} aggregation, "
+                    f"so units and times with more replicates weigh more; configure a replicate aggregation "
+                    f"to combine the replicates of each reading first"
+                ),
+                path=path + ['replicateAggregation']
+            ))
 
         parse = self._parser(concept, term)
         values = []
-        for o in observations:
-            raw = [parse(r.value) for r in o.records.get(concept.concept_id, []) if r.value is not None]
-            values.append(self._aggregate(term, raw, concept))
+        for groups in readings:
+            if replicate_aggregation is None:
+                raw = [parse(r.value) for g in groups for r in g if r.value is not None]
+            else:
+                raw = [
+                    self._aggregate(replicate_aggregation, [parse(r.value) for r in g if r.value is not None], term, concept)
+                    for g in groups
+                ]
+                raw = [v for v in raw if v is not None]
+            values.append(self._aggregate(term.aggregation, raw, term, concept))
 
         binner = None
         if term.binning is not None:
@@ -231,21 +290,45 @@ class ObservationBuilder:
             warnings.append(AnalysisMessage(code=AnalysisWarningCode.MISSING_VALUES, message=message, path=path))
         return column, series
 
+    def _readings(self, records: list[AnalysisRecord], window: timedelta64 | None) -> list[list[AnalysisRecord]]:
+        """
+        Records grouped by reading, any record without codes of WITHIN_UNIT groupings alone.
+        Replicates (same base unit, WITHIN_UNIT groupings and scopes) are one reading if they have the same
+        start and end, or with a window, if they are within the window of the reading's first record.
+        """
+        keyed: dict[tuple, list[AnalysisRecord]] = {}
+        for i, record in enumerate(records):
+            key = self.context.replicate_key(record)
+            if key is None:
+                key = ('record', i)
+            elif window is None:
+                key = ('replicates', key, record.start, record.end)
+            else:
+                key = ('replicates', key)
+            keyed.setdefault(key, []).append(record)
+        if window is None:
+            return list(keyed.values())
+        return [
+            reading for key, group in keyed.items()
+            for reading in ([group] if key[0] == 'record' else _split_by_window(group, window))
+        ]
+
     @staticmethod
     def _parser(concept: ConceptContext, term: AnalysisTerm):
         if term.aggregation == TermAggregation.COUNT:
             return lambda value: value
         if concept.scale_type == ScaleType.NUMERICAL:
             return parse_number
+        ordered = (TermAggregation.MIN, TermAggregation.MAX)
         if concept.scale_type == ScaleType.DATE and (
-                term.binning is not None or term.aggregation in (TermAggregation.MIN, TermAggregation.MAX)
+                term.binning is not None or term.aggregation in ordered
+                or (term.replicate_aggregation is not None and term.replicate_aggregation.aggregation in ordered)
         ):
             return parse_datetime
         return str
 
     @staticmethod
-    def _aggregate(term: AnalysisTerm, values: list, concept: ConceptContext):
-        aggregation = term.aggregation
+    def _aggregate(aggregation: TermAggregation, values: list, term: AnalysisTerm, concept: ConceptContext):
         if aggregation == TermAggregation.COUNT:
             return len(values)
         if not values:

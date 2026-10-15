@@ -65,6 +65,14 @@ input AnalysisTermInput {
   aggregation: TermAggregation
 
   """
+  Combines the replicates of each reading before the term's aggregation.
+
+  Without it, replicates in one observation are duplicates,
+  which fail under NONE or are pooled by the term's aggregation.
+  """
+  replicateAggregation: ReplicateAggregationInput
+
+  """
   Statistical effect of the term when a statistical model is used.
   """
   effect: TermEffect
@@ -90,4 +98,25 @@ input InteractionTermInput {
   by the selected analysis.
   """
   terms: [AnalysisTermReferenceInput!]!
+}
+
+"""
+Combines the replicates of each reading before a term's aggregation.
+
+Replicates are records of the same base unit with codes of the same
+WITHIN_UNIT record groupings and scopes. A reading is the replicates with the
+same start and end or, with a window, those within the window of the reading's
+first record (by start, or end without a start). Readings never span observations,
+so time bins (grouping.time) still separate them.
+"""
+input ReplicateAggregationInput {
+  """
+  MEAN, MEDIAN, MIN, MAX or MODE; NONE, SUM and COUNT are not accepted.
+  """
+  aggregation: TermAggregation!
+
+  """
+  ISO 8601 duration a reading spans from its first record, e.g. PT5M or P1D.
+  """
+  window: String
 }

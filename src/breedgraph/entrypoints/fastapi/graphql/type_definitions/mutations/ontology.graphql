@@ -189,6 +189,7 @@ input DesignInput {
 
 input RecordGroupTypeInput {
     name: String!
+    extent: RecordGroupExtent!
     description: String
     abbreviation: String
     synonyms: [String!]
@@ -405,6 +406,7 @@ input DesignUpdate {
 input RecordGroupTypeUpdate {
     id: ID!
     name: String
+    extent: RecordGroupExtent!
     description: String
     abbreviation: String
     synonyms: [String!]

@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType
+from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, RecordGroupExtent
 
 from breedcafs_migration import ontology
 from breedcafs_migration.ontology import prepare_breedcafs_ontology
@@ -106,6 +106,10 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
         assert variable.name == "Boron (µg/g)"
         assert variable.description == "Total boron content (µg/g)"
         assert variable.synonyms == ["Total Boron"]
+        replicate = await uow.ontology.get_entry(
+            entry_id=ids.record_group_types["Replicate"], label=OntologyEntryLabel.RECORD_GROUP_TYPE
+        )
+        assert replicate.extent is RecordGroupExtent.WITHIN_UNIT
 
         async def targets(source_id: int, label: OntologyRelationshipLabel) -> set[int]:
             return {r.target_id async for r in uow.ontology.get_relationships(source_ids=[source_id], labels=[label])}
@@ -162,6 +166,24 @@ async def test_scale_names_must_not_clash(uow_factory, editor_id, tmp_path, monk
     monkeypatch.setattr(ontology, 'BREEDCAFS_DATA_DIR', tmp_path)
     with pytest.raises(ValueError, match="The scale Shared is COMPLEX, not NUMERICAL"):
         await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_existing_replicate_type_must_be_within_unit(uow_factory, editor_id, data_dir):
+    async def set_replicate_extent(extent: RecordGroupExtent):
+        async with uow_factory.get_uow(user_id=editor_id) as uow:
+            replicate = await uow.ontology.get_entry(name="Replicate", label=OntologyEntryLabel.RECORD_GROUP_TYPE)
+            replicate.extent = extent
+            await uow.ontology.update_entry(replicate)
+            await uow.commit()
+
+    await set_replicate_extent(RecordGroupExtent.SHARED)
+    try:
+        with pytest.raises(ValueError, match="The record group type Replicate exists with extent SHARED"):
+            await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+    finally:
+        await set_replicate_extent(RecordGroupExtent.WITHIN_UNIT)
+    await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

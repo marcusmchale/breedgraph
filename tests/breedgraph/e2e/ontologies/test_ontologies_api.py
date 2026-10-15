@@ -13,6 +13,8 @@ from tests.breedgraph.e2e.ontologies.post_methods import (
     post_to_create_scale,
     post_to_create_variable,
     post_to_create_layout_type,
+    post_to_create_record_group_type,
+    post_to_update_record_group_type,
     post_to_get_entries,
     post_to_commit_version,
     post_to_commit_history,
@@ -259,6 +261,49 @@ async def test_create_layout_type(
     layout_payload = get_verified_payload(response, "ontologyEntries")
     assert layout_payload.get('result')[0].get('id')
     assert layout_payload.get('result')[0].get('axes') == layout_type_input['axes']
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_and_update_record_group_type(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    login_token = login_token_factory(ontology_build_context['user_id'])
+    # the extent is required
+    response = await post_to_create_record_group_type(
+        client, token=login_token, record_group_type_input={'name': lorem_text_generator.new_text()}
+    )
+    assert response.json().get('errors')
+
+    async def read_types() -> dict:
+        response = await post_to_get_entries(
+            client, token=login_token, labels=[OntologyEntryLabel.RECORD_GROUP_TYPE], view=OntologyViewMode.EDITORIAL
+        )
+        return {entry['name']: entry for entry in get_verified_payload(response, "ontologyEntries").get('result')}
+
+    parent_name, child_name = lorem_text_generator.new_text(), lorem_text_generator.new_text()
+    response = await post_to_create_record_group_type(
+        client, token=login_token, record_group_type_input={'name': parent_name, 'extent': 'WITHIN_UNIT'}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCreateRecordGroupType"))
+    parent = (await read_types())[parent_name]
+    assert parent['extent'] == 'WITHIN_UNIT'
+
+    response = await post_to_create_record_group_type(
+        client, token=login_token,
+        record_group_type_input={'name': child_name, 'extent': 'SHARED', 'parentIds': [parent['id']]}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCreateRecordGroupType"))
+    child = (await read_types())[child_name]
+    assert child['extent'] == 'SHARED'
+    assert child['parents'] == [{'id': parent['id'], 'name': parent_name, 'extent': 'WITHIN_UNIT'}]
+
+    response = await post_to_update_record_group_type(
+        client, token=login_token, record_group_type_update={'id': child['id'], 'extent': 'WITHIN_UNIT'}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyUpdateRecordGroupType"))
+    assert (await read_types())[child_name]['extent'] == 'WITHIN_UNIT'
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_commit_version(

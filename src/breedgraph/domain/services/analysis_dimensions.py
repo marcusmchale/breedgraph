@@ -13,7 +13,7 @@ from numpy import datetime64
 from breedgraph.domain.model.analysis import (
     AnalysisTermType, AnalysisTermReference, AnalysisMessage, AnalysisWarningCode, AnalysisErrorCode, AnalysisFailed,
     TimeSpecification, TimeAssignment, GermplasmGrouping, UnitGrouping, PositionGrouping, RecordGroupDimension,
-    RecordGroupMember, intervals_overlap
+    RecordGroupMember, AnovaSpec, intervals_overlap
 )
 from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord
 from breedgraph.domain.model.blocks import Position
@@ -253,11 +253,39 @@ class RecordGroupResolver(DimensionResolver):
             dimension=dimension,
             studies=context.studies.values(),
             dataset_studies=context.dataset_studies,
-            path=path
+            path=path,
+            within_unit=set(context.within_unit_groupings)
         )
+        if self.resolver.nested_in_unit:
+            self._check_replicates(dimension, context, path)
+
+    @staticmethod
+    def _check_replicates(dimension: RecordGroupDimension, context: AnalysisContext, path: list[str]):
+        """
+        A dimension of WITHIN_UNIT groupings keeps each replicate as an observation, for analyses of readings.
+        Its levels are only meaningful within a unit, so it can't be a term,
+        and in a statistical model the replicates would be counted as independent observations.
+        """
+        spec = context.request.spec
+        spec_path = [context.request.analysis_type.input_field]
+        for reference_path, reference in spec.references():
+            if reference == dimension.reference:
+                raise AnalysisFailed.single(
+                    AnalysisErrorCode.CONFIG_INVALID,
+                    f"Record group dimension '{dimension.name}' has WITHIN_UNIT groupings, "
+                    f"whose codes only distinguish records within a unit, so it can't be used as a term",
+                    path=spec_path + reference_path
+                )
+        if isinstance(spec, AnovaSpec):
+            raise AnalysisFailed.single(
+                AnalysisErrorCode.CONFIG_INVALID,
+                f"Record group dimension '{dimension.name}' has WITHIN_UNIT groupings, which would keep replicates "
+                f"as independent observations in the model; remove it and set a replicateAggregation on the terms",
+                path=path
+            )
 
     def _assign(self, record: AnalysisRecord) -> DimensionLevel | None:
-        assignment = self.resolver.assign(record.dataset_id, record.groups)
+        assignment = self.resolver.assign(record.dataset_id, record.groups, record.unit_id)
         if assignment is None:
             return None
         return DimensionLevel(key=assignment.level, output=assignment.to_output(), member=assignment.member)

@@ -37,6 +37,16 @@ class AxisType(str, Enum):
     """
     CARTESIAN = "CARTESIAN"
 
+class RecordGroupExtent(str, Enum):
+    """Whether the codes of a record group type are meaningful across units."""
+
+    SHARED = "SHARED"
+    """A code names a group of many units, e.g. a block, batch or session."""
+
+    WITHIN_UNIT = "WITHIN_UNIT"
+    """A code only distinguishes records of one unit at one time, e.g. replicate readings or subsamples.
+    Replicates with an identity over time, such as a tagged branch, should be child units instead."""
+
 class ObservationMethodType(str, Enum):
     """Broad category describing how the value of a Variable is obtained."""
 

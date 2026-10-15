@@ -46,6 +46,26 @@ Every analysis operates on **observations**, not on records.
 - Aggregation defaults to `NONE`, which is strict. Several values for one observation fail the analysis with `DUPLICATE_OBSERVATION`, listing the `recordIds`. Typical fixes to offer:
   - set an `aggregation` (MEAN, MEDIAN, …), or
   - add a dimension that separates the values, e.g. time bins for repeated measurements, or a record-group dimension for replicates.
+- **Replicates.** Record group types have an `extent` in the ontology.
+  - `SHARED` codes name a group of many units, e.g. a block or batch.
+  - `WITHIN_UNIT` codes only distinguish readings of one unit at one time, e.g. replicate or subsample numbers.
+  - `replicateAggregation: { aggregation, window }` combines the replicates of each reading into one value, before `aggregation`.
+    `aggregation` is MEAN, MEDIAN, MIN, MAX or MODE.
+  - A reading is the records of one base unit with codes of the same WITHIN_UNIT grouping and scope, and:
+    - without a `window`, the same start and end;
+    - with a `window` (an ISO 8601 duration, e.g. `PT5M`, `P1D`), a time within the window of the reading's first record
+      (start, or end without a start). The next record outside the window starts a new reading, so readings don't chain.
+      Records without a time are one reading.
+    - Readings never span observations: time bins (`grouping.time`) split them.
+    `aggregation` then combines readings, e.g. units under a parent unit (`grouping.unit`) or times within a bin,
+    so each unit and time counts once whatever its number of replicates.
+  - Without `replicateAggregation`, replicates in one observation are duplicates.
+    - Under `NONE`, `DUPLICATE_OBSERVATION` has the path `replicateAggregation` when the duplicates are only replicates.
+    - Under another aggregation, they are pooled with the other values, and `REPLICATES_POOLED` warns where that changes the
+      weighting (not for MIN, MAX or COUNT).
+  - To analyse each replicate instead (descriptive statistics, outlier detection, correlation, MDS),
+    configure a record-group dimension of the WITHIN_UNIT groupings (§3). `window` doesn't apply there.
+  - A replicate with an identity over time, such as a tagged branch measured on several dates, is better recorded as a child unit.
 - Domain terms (`TIME`, `GERMPLASM`, `POSITION`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
 - Configuring a dimension changes observation identity even if no term uses it.
 - A record that can't be assigned to a configured dimension is dropped. Each dimension reports one `UNASSIGNED_<DIMENSION>` warning with the count and `recordIds`.
@@ -74,6 +94,17 @@ Every analysis operates on **observations**, not on records.
   - Levels are **nested by default**: equal codes in different groupings or scopes are different levels, keyed `groupingId|scope|code`.
   - `levels` define **shared levels** that merge exactly the members they list. Members of dataset-scoped groupings need a `datasetId`, which selects the scope.
   - A shared member matching no records produces `RECORD_GROUP_LEVEL_UNMATCHED`.
+  - **WITHIN_UNIT groupings** (§2, replicates):
+    - Their codes are also nested in the record's base unit, keyed `groupingId|scope|unitId|code`,
+      so under unit grouping each child unit's replicates stay apart.
+    - Their codes can't be members of shared `levels`.
+    - A dimension with WITHIN_UNIT groupings keeps each replicate as an observation. It can't be used as a term,
+      and can't be used in ANOVA, where the replicates would be counted as independent observations.
+      Use `replicateAggregation` instead (`CONFIG_INVALID` otherwise).
+    - Scope still applies. It sets which datasets' codes refer to the same reading, e.g. the variables of one instrument reading,
+      each in its own dataset of one submission.
+    - Time is not part of the key, as observations already have a time bin. Analysing the replicates of a study-wide
+      WITHIN_UNIT grouping across dates needs a `grouping.time`.
   - Groupings are resolved when the analysis is processed, not when it is submitted.
 
 ## 4. Terms: what is valid where
@@ -83,6 +114,7 @@ Every analysis operates on **observations**, not on records.
 | `representation` | Default comes from the scale: NUMERICAL → CONTINUOUS, ORDINAL → ORDINAL, others → CATEGORICAL; binned terms default to ORDINAL. Only NUMERICAL scales can be CONTINUOUS. Domain terms are never CONTINUOUS. COMPLEX scales can't be analysed. |
 | `binning` | Concept terms with NUMERICAL or DATE scales only. A binned term is not CONTINUOUS. |
 | `levelOrder` | Orders CATEGORICAL/ORDINAL levels. For CATEGORICAL/ORDINAL concept terms, values not in the list become missing. For ORDINAL scales without a `levelOrder`, the scale's category rank is used. |
+| `replicateAggregation` | Concept terms only. `aggregation` is MEAN, MEDIAN, MIN, MAX or MODE (NONE, SUM and COUNT are refused), with the scale rules of `aggregation`. `window` is an optional ISO 8601 duration longer than zero. Not with a COUNT `aggregation`. See §2, replicates. |
 | `aggregation` | Concept terms only. MEAN, MEDIAN and SUM need a NUMERICAL scale. MIN and MAX need numbers, dates or ordinal values. MODE breaks ties by the lowest value. COUNT always gives a CONTINUOUS count. |
 | `transformations` | Applied in order, to CONTINUOUS concept terms only, after aggregation. LOG needs values > 0, LOG1P > −1, SQRT ≥ 0, RECIPROCAL ≠ 0; otherwise the analysis fails with `INVALID_TRANSFORMATION` and `recordIds`. STANDARDIZE needs at least two distinct values. |
 | `effect`, `randomSlopeTerms` | ANOVA only. Random slopes are only allowed on RANDOM terms. |
@@ -135,7 +167,7 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 | GERMPLASM, UNIT, STUDY | IDs; resolve the names in the UI |
 | TIME | Bin labels |
 | POSITION | `location\|layout\|coordinates` key; `AnalysisGroup.position` has the structured position |
-| RECORD_GROUP | A shared level label, or a `grouping\|scope\|code` key; `AnalysisRecordGroupAssignment` has the parts |
+| RECORD_GROUP | A shared level label, or a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings); `AnalysisRecordGroupAssignment` has the parts |
 | CONCEPT | Category or bin labels |
 
 Results per analysis:
@@ -171,7 +203,7 @@ Results per analysis:
 | `CONCEPT_NOT_IN_DATASETS` | error | Add a dataset for the concept, or remove the term |
 | `INCOMPATIBLE_SCALE` | error | Change the representation, aggregation or binning at `path` |
 | `UNIT_NOT_FOUND` / `GROUPING_NOT_FOUND` | error | Fix the grouping selection at `path` |
-| `DUPLICATE_OBSERVATION` | error | Suggest an aggregation or an extra dimension; show `recordIds` |
+| `DUPLICATE_OBSERVATION` | error | Suggest an aggregation or an extra dimension; show `recordIds`. With the path `replicateAggregation`, the duplicates are replicates: suggest a replicate aggregation |
 | `INVALID_TRANSFORMATION` | error | Remove the transformation, or exclude `recordIds` |
 | `INSUFFICIENT_DATA` | error | Too few observations: relax exclusions or dimensions |
 | `SINGLE_LEVEL_TERM` | error (model terms) / warning (descriptive) | The term has one level in the analysed data; remove it |
@@ -183,4 +215,5 @@ Results per analysis:
 | `MISSING_VALUES` | warning | Some observations lack a value for the term |
 | `DATASET_FULLY_EXCLUDED` | warning | The dataset contributed no observations |
 | `RECORD_GROUP_LEVEL_UNMATCHED` | warning | A shared level member matched no records |
+| `REPLICATES_POOLED` | warning | Replicates were pooled by the term's aggregation; suggest a `replicateAggregation` |
 | `MODEL_NOT_CONVERGED` | warning | Show the result with a caveat |

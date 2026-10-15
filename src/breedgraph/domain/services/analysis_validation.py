@@ -121,6 +121,9 @@ def validate_terms(spec: AnalysisSpec, path: Path, models: bool) -> list[Analysi
     return messages
 
 
+# replicates are readings of one thing: summing or counting them doesn't give a value of that thing
+REJECTED_REPLICATE_AGGREGATIONS = (TermAggregation.NONE, TermAggregation.SUM, TermAggregation.COUNT)
+
 def _validate_term_options(term: AnalysisTerm, path: Path) -> list[AnalysisMessage]:
     messages = []
     if term.reference.type != AnalysisTermType.CONCEPT:
@@ -131,10 +134,25 @@ def _validate_term_options(term: AnalysisTerm, path: Path) -> list[AnalysisMessa
             messages.append(_invalid("Transformations only apply to concept terms", path + ['transformations']))
         if term.aggregation != TermAggregation.NONE:
             messages.append(_invalid("Aggregation only applies to concept terms", path + ['aggregation']))
+        if term.replicate_aggregation is not None:
+            messages.append(_invalid(
+                "Replicate aggregation only applies to concept terms", path + ['replicateAggregation']
+            ))
         if term.binning is not None:
             messages.append(_invalid(
                 "Binning only applies to concept terms; time is binned by grouping.time", path + ['binning']
             ))
+    replicate_aggregation = term.replicate_aggregation.aggregation if term.replicate_aggregation else None
+    if replicate_aggregation in REJECTED_REPLICATE_AGGREGATIONS:
+        messages.append(_invalid(
+            f"{replicate_aggregation.value} can't combine the replicates of a reading",
+            path + ['replicateAggregation', 'aggregation']
+        ))
+    elif term.replicate_aggregation is not None and term.aggregation == TermAggregation.COUNT:
+        messages.append(_invalid(
+            "COUNT aggregation counts the records, so it can't follow a replicate aggregation",
+            path + ['replicateAggregation']
+        ))
     if term.level_order is not None:
         if term.representation == TermRepresentationType.CONTINUOUS:
             messages.append(_invalid("Level order does not apply to CONTINUOUS terms", path + ['levelOrder']))

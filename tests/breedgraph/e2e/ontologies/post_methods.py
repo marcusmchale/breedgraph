@@ -203,6 +203,64 @@ async def post_to_create_layout_type(
     return response
 
 
+async def post_to_create_record_group_type(
+        client,
+        token: str,
+        record_group_type_input: dict
+):
+    json={
+        "query": (
+            " mutation ( $recordGroupType: RecordGroupTypeInput! ) { "
+            "  ontologyCreateRecordGroupType( "
+            "   recordGroupType: $recordGroupType  "
+            "  ) { "
+            "    status "
+            "    result "
+            "    errors { name message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "recordGroupType" : record_group_type_input
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
+async def post_to_update_record_group_type(
+        client,
+        token: str,
+        record_group_type_update: dict
+):
+    json={
+        "query": (
+            " mutation ( $recordGroupType: RecordGroupTypeUpdate! ) { "
+            "  ontologyUpdateRecordGroupType( "
+            "   recordGroupType: $recordGroupType  "
+            "  ) { "
+            "    status "
+            "    result "
+            "    errors { name message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "recordGroupType" : record_group_type_update
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
 async def post_to_get_entries(
         client,
         token: str,
@@ -239,6 +297,7 @@ async def post_to_get_entries(
             "       ... on Factor { condition { id name } controlMethod { id name } scale { id name } } "
             "       ... on Event { variables { id name } factors { id name } } "
             "       ... on LayoutType { axes } "
+            "       ... on RecordGroupType { extent parents { id name extent } } "
             "   } "
             "    errors { name message } "
             "  } "

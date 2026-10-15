@@ -6,7 +6,7 @@ from numpy import datetime64
 
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.ontology import RecordGroupTypeInput
+from breedgraph.domain.model.ontology import RecordGroupTypeInput, RecordGroupExtent
 from breedgraph.domain.model.programs import GroupingScope
 
 from breedcafs_migration import programs
@@ -50,7 +50,7 @@ def write_csv(path, rows):
 async def programs_context(isolated_state, uow_factory) -> dict:
     migration = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
     async with uow_factory.get_uow(user_id=migration['user_id']) as uow:
-        replicate = await uow.ontology.create_entry(RecordGroupTypeInput(name="Replicate"))
+        replicate = await uow.ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
         await uow.commit()
     return {
         'context': MigrationContext(user_id=migration['user_id'], team_id=migration['team_id']),

@@ -42,6 +42,7 @@ in this repository lists the operations that no longer validate (§10).
 5. Contacts on Programs and Trials, with messaging (§5).
 6. Claim requests for admins (§6).
 7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
+8. Record group extent and replicate aggregation (§11): the ontology form first, as creating a record group type fails without it.
 
 New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 
@@ -59,6 +60,7 @@ New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a 
 | Germplasm | `GermplasmEntry.authors` and `authorIds` in inputs are removed | Cite authors through references |
 | Programs | `contactIds` must name Persons linked to an account and released widely enough | Show the errors (§5) |
 | Teams | `organisationsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
+| Ontology | `RecordGroupTypeInput` and `RecordGroupTypeUpdate` require `extent` | Add it to the form (§11) |
 
 Nothing else was renamed. Everything below that is not listed here is new.
 
@@ -214,6 +216,8 @@ Admins of the recipient team are emailed about new offers.
 - Password reset with a token works again (it always failed before).
 - Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `organisationsDataProcessingTerms`. Everything else still requires login.
 
+- Record group types have an `extent`, and analysis terms have a `replicateAggregation` (§11).
+
 ## 9. Migrated BreedCAFS data
 
 The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end has not shown at this scale. Nothing in the API changes for it, but expect:
@@ -238,3 +242,128 @@ set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
 It builds the API's schema and validates every operation in the front end's `.graphql` files, with the fragments each uses, and exits with 1 if any fails.
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
+
+## 11. Record group extent and replicate aggregation
+
+Record group types now say whether their codes mean anything across units, and analyses can combine replicates before
+aggregating. Background and rules: `docs/analysis.md` §2 (replicates) and §3 (record groups). Paths below are in `breedview/src`.
+
+**The concepts, for help text:**
+- **`SHARED`**: a code names a group of many units, e.g. Block 2 or Batch 3. Records of different units with the same
+  code belong together.
+- **`WITHIN_UNIT`**: a code only tells apart the readings of one unit at one time, e.g. replicate or subsample numbers.
+  Replicate 1 of one tree has nothing to do with replicate 1 of another.
+- A replicate with an identity over time, such as a tagged branch measured on several dates, should be a child unit, not a code.
+- Scope (study-wide or dataset-scoped) is unchanged and independent of extent. It still sets which datasets' codes can be compared.
+
+### 11.1 Ontology: record group types
+
+`RecordGroupType.extent: RecordGroupExtent!` (`SHARED` | `WITHIN_UNIT`) is **required** in `RecordGroupTypeInput` and
+`RecordGroupTypeUpdate`. Until the form sends it, creating or updating a record group type fails.
+
+- `composables/ontology/ontologyEntryConfig.js`, `RecordGroupType`:
+  - add a required single-choice `extent` field, with the two descriptions above as help text;
+  - send it in `processCreate` and `processUpdate`, prefilled from the entry on update.
+- `graphql/ontology/createRecordGroupType.graphql` and `updateRecordGroupType.graphql` take it through the input variable,
+  so they don't change. The entry queries need `... on RecordGroupType { extent }`.
+- Show the extent on the entry's view and, if useful, as a badge in lists.
+- `RecordGroupType.parents` and `children` are now typed `RecordGroupType` (they were `Design`). Regenerate the schema
+  files (§0) and check any fragment that selected Design fields on them.
+
+### 11.2 Study groupings
+
+- `graphql/programs/study.graphql`: select `type { ...OntologyEntryFields ... on RecordGroupType { extent } }` (or just
+  `extent`) on `groupings`. The curation table and the grouping list get it from there.
+- `components/programs/RecordGroupingForm.vue`, `RecordGroupingList.vue`: show the selected type's extent next to the
+  type picker and in the list, so it's clear which groupings hold replicates.
+
+### 11.3 Dataset curation
+
+`composables/datasets/useDatasetCurationTable.js` splits rows into sections by the codes of every DATASET_SCOPED grouping
+(`datasetScopedColumns`, `rowSections`). For a WITHIN_UNIT grouping this puts replicate 1 of every unit in one section,
+which is the grouping that prompted this change.
+- Carry the extent onto each grouping column in `buildGroupingColumns`.
+- Build sections only from SHARED groupings (`c.scope === 'DATASET_SCOPED' && c.extent === 'SHARED'`).
+- WITHIN_UNIT codes stay as an ordinary column. Rows are already one per (unit, start, end, codes), so a unit's replicates
+  appear as adjacent rows. Sort so that they stay together: unit, then time, then code.
+- Records referencing groupings not returned for the loaded studies (the read-only fallback columns) have no extent:
+  treat them as SHARED, as now.
+
+### 11.4 Analysis: terms
+
+The term input has a new object, for concept terms only:
+
+```graphql
+replicateAggregation: { aggregation: MEAN, window: "PT5M" }   # ReplicateAggregationInput; window optional
+```
+
+- **`aggregation`**: MEAN, MEDIAN, MIN, MAX or MODE. NONE, SUM and COUNT are refused. MEAN and MEDIAN need a numerical
+  scale; MIN and MAX need ordered values, as for `aggregation`.
+- **`window`**: an ISO 8601 duration, longer than zero (`PT5M`, `PT1H`, `P1D`). Free text such as "5 minutes" is refused.
+  - Without it, a reading is the replicates with exactly the same start and end.
+  - With it, a reading starts at its first record and takes in records up to the window later. The next record outside
+    the window starts a new reading, so a run of readings 4 minutes apart doesn't chain into one with a 5-minute window.
+  - Time bins (`grouping.time`) still split readings.
+- The term's `aggregation` then combines the readings, e.g. units under a parent unit, or dates in a time bin.
+  Without `aggregation` (NONE), each observation must have one reading.
+- `replicateAggregation` can't be combined with a COUNT `aggregation`.
+
+Changes:
+- `components/analysis/config/TermEditor.vue`: a "Replicates" block under Aggregation, shown for concept terms:
+  - an aggregation select (MEAN, MEDIAN, MIN, MAX, MODE, filtered by scale like `allowedAggregations`, plus "none" to
+    leave `replicateAggregation` null);
+  - a window input, shown when an aggregation is chosen. Offer presets (exact time, 5 min, 1 hour, 1 day) and a custom
+    number and unit, sent as an ISO duration, e.g. `PT${n}M`, `PT${n}H`, `P${n}D`;
+  - `FieldErrors` at `${path}.replicateAggregation` and `${path}.replicateAggregation.aggregation`.
+  - Help: "Combines the replicate readings of each unit (codes of WITHIN_UNIT groupings) into one value before the
+    aggregation, so units and dates count once however many replicates they have."
+  - Show it whenever the selected datasets' studies have a WITHIN_UNIT grouping; otherwise hide it, or collapse it,
+    as it has no effect.
+- `composables/analysis/useTermRules.js`: `REPLICATE_AGGREGATIONS = ['MEAN', 'MEDIAN', 'MIN', 'MAX', 'MODE']`, filtered
+  by scale. When `aggregation` is COUNT, disable or clear `replicateAggregation`.
+- `composables/analysis/useAnalysisForm.js`: carry `replicateAggregation` through form state, submission and load-back.
+  Send `null`, not `{}`, when unset.
+- The term summary line in `TermEditor.vue` (~l.144): e.g. "mean of replicates within 5 min, then mean".
+- `graphql/analysis/analysisFragments.graphql`, `AnalysisTermFields`: add `replicateAggregation { aggregation window }`
+  so stored configurations load back into the form.
+
+### 11.5 Analysis: record group dimensions
+
+A record group dimension over WITHIN_UNIT groupings keeps each replicate as its own observation. That suits
+descriptive statistics, outlier detection, correlation and MDS on individual readings. The server refuses, with
+`CONFIG_INVALID`:
+- such a dimension used as a term (path at the term's `reference`);
+- such a dimension in ANOVA (path at `grouping.recordGroups.<i>`);
+- WITHIN_UNIT codes as members of shared `levels` (path at the member).
+
+Front end:
+- `components/analysis/config/RecordGroupDimensionEditor.vue`: show each grouping's extent.
+  - When a WITHIN_UNIT grouping is selected, hide the shared-levels editor for its codes.
+  - Say that each replicate becomes an observation, and point to the term's replicate aggregation as the alternative.
+- `components/analysis/config/TermsSection.vue`: don't offer a WITHIN_UNIT dimension as a RECORD_GROUP term.
+- For ANOVA, warn when a WITHIN_UNIT dimension is configured, before submission.
+- Results: `AnalysisRecordGroupAssignment.unitId` is set for WITHIN_UNIT levels, whose `level` key is
+  `grouping|scope|unit|code`. Show the code with its unit (e.g. "Replicate 2 of Tree 15") from `code` and `unitId`;
+  don't parse `level`.
+
+### 11.6 Messages
+
+`composables/analysis/useAnalysisMessages.js`:
+- `DUPLICATE_OBSERVATION` with a path ending `replicateAggregation`: the duplicates are only replicates. Hint:
+  "These values are replicates of the same reading. Set a replicate aggregation on the term, or add a record group
+  dimension to analyse each replicate." Link to the term's replicate block, and keep offering to exclude `recordIds`.
+  With a path ending `aggregation`, keep the current hint.
+- New warning `REPLICATES_POOLED`, with a path at the term's `replicateAggregation`: "Replicates were pooled by the
+  term's aggregation, so units and dates with more replicates weigh more. Set a replicate aggregation to combine
+  each reading first." It is given for MEAN, MEDIAN, SUM and MODE, not for MIN, MAX or COUNT, whose results don't depend
+  on it.
+
+### 11.7 Checks
+
+- Regenerate the schema files and run `scripts/check_front_end_queries.py` (§10).
+- Against the test database:
+  - (a) create a record group type with each extent;
+  - (b) curate a dataset with a WITHIN_UNIT grouping: there are no sections by replicate code;
+  - (c) submit a descriptive analysis of replicate data, without and then with `replicateAggregation`. Without, it fails
+    with `DUPLICATE_OBSERVATION` at `replicateAggregation`; with, it completes.
+- The test database must be rebuilt for the record group types to have an extent.

@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 
 from breedgraph.config import GQL_API_PATH
-from breedgraph.domain.model.datasets import DataRecordInput
+from breedgraph.domain.model.datasets import DataRecordInput, RecordGroup
 from breedgraph.domain.model.submissions import SubmissionStatus
 from numpy import datetime64
 
@@ -30,6 +30,8 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
     """
     Two germplasm with four units each. Height is recorded for each unit in 2020 and 2021,
     light once per unit. The last unit has an outlying height.
+    A third dataset has replicate height readings (a WITHIN_UNIT grouping) of the first two units:
+    10 and 20 for the first, 30, 40 and 50 for the second.
     """
     user_id = dataset_build_context['user_id']
     team_id = dataset_build_context['team_id']
@@ -53,6 +55,18 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
     builder = DatasetBuilder(uow_factory)
     height_dataset = (await builder.dataset(user_id, team_id, height_id, study_id, records=height_records))['dataset_id']
     light_dataset = (await builder.dataset(user_id, team_id, light_id, study_id, records=light_records))['dataset_id']
+
+    names = dataset_build_context['grouping_names']
+    replicate_grouping = dataset_build_context['grouping_ids'][names.index('Dataset Scoped Replicate')]
+    replicate_records = [
+        DataRecordInput(
+            unit=units[u][0], value=str(value), start=datetime64("2020-06-01"),
+            groups=[RecordGroup(id=replicate_grouping, code=str(code))]
+        )
+        for u, values in enumerate([(10, 20), (30, 40, 50)])
+        for code, value in enumerate(values, start=1)
+    ]
+    replicate_dataset = (await builder.dataset(user_id, team_id, height_id, study_id, records=replicate_records))['dataset_id']
     return {
         'user_id': user_id,
         'height_id': height_id,
@@ -61,6 +75,7 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
         'unit_ids': [u[0] for u in units],
         'height_dataset': height_dataset,
         'light_dataset': light_dataset,
+        'replicate_dataset': replicate_dataset,
     }
 
 
@@ -296,3 +311,37 @@ async def test_duplicate_observations_fail_before_queueing(analysis_context, log
     assert error['code'] == 'DUPLICATE_OBSERVATION'
     assert error['path'] == ['descriptiveStatistics', 'terms', '0', 'aggregation']
     assert len(error['recordIds']) == 4 * UNITS_PER_GERMPLASM
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_replicates_need_a_replicate_aggregation(analysis_context, login_token_factory, client):
+    token = login_token_factory(analysis_context['user_id'])
+    payload = get_verified_payload(await post_to_submit_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [analysis_context['replicate_dataset']],
+        {"terms": [concept(analysis_context['height_id'])]}
+    )), "analysisSubmit")
+    analysis_id = payload['result']
+    for _ in range(30):
+        await asyncio.sleep(0.1)
+        response = await post_to_get_result(client, token, analysis_id, "__typename")
+        submission = get_verified_payload(response, "analysisSubmission")['result']
+        if submission['status'] == 'FAILED':
+            break
+    error, = submission['errors']
+    assert error['code'] == 'DUPLICATE_OBSERVATION'
+    assert error['path'] == ['descriptiveStatistics', 'terms', '0', 'replicateAggregation']
+    assert len(error['recordIds']) == 5
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_replicate_aggregation(analysis_context, login_token_factory, client):
+    token = login_token_factory(analysis_context['user_id'])
+    submission = await run_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [analysis_context['replicate_dataset']], {
+            "terms": [concept(analysis_context['height_id'], replicateAggregation={"aggregation": "MEAN", "window": "PT1H"})],
+        }
+    ), "... on DescriptiveStatisticsResult { terms { levels { level } count mean } }")
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    overall, = submission['result']['terms']
+    # one value per unit: the mean of its replicates
+    assert overall['count'] == 2
+    assert overall['mean'] == 27.5

@@ -37,6 +37,12 @@ type AnalysisTerm {
   aggregation: TermAggregation
 
   """
+  Combines the replicates of a reading (codes of WITHIN_UNIT record groupings)
+  before the term's aggregation.
+  """
+  replicateAggregation: ReplicateAggregation
+
+  """
   Statistical effect of the term when a statistical model is used.
   """
   effect: TermEffect
@@ -76,4 +82,17 @@ type InteractionTerm {
   Terms participating in the interaction.
   """
   terms: [AnalysisTermReference!]!
+}
+
+"""
+Combines the replicates of each reading before a term's aggregation.
+"""
+type ReplicateAggregation {
+  aggregation: TermAggregation!
+
+  """
+  ISO 8601 duration a reading spans from its first record, e.g. PT5M or P1D.
+  Null when the replicates of a reading have the same start and end.
+  """
+  window: String
 }
