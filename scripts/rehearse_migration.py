@@ -8,9 +8,10 @@ It sets up what the runbook expects to exist before the migration (§1), as the 
   - a root team whose organisation has declared a legal entity, the data controller of the Persons,
     of which the admin is a heritable admin (as creator of the organisation) and a writer (to load the germplasm);
   - the production germplasm (src/data/germplasm), as scripts/import_germplasm.py loads it, unless --no-germplasm.
-It then runs the runbook's own commands: bootstrap, migrate and validate (python -m breedcafs_migration.main),
-on a copy of the BreedCAFS data directory without the mapping files of earlier runs (--rehearsal-dir),
-and exits with the validation's status. Every step finds what an earlier run created, so it can be run again.
+It then runs the runbook's own commands (python -m breedcafs_migration.main): bundle the data directory and unbundle
+it into --rehearsal-dir, as it will be carried to the server, then bootstrap, migrate and validate there, and exits
+with the validation's status. Every step finds what an earlier run created, so it can be run again: an existing
+rehearsal directory is used as it is, with its mapping files.
 
 The result holds BreedCAFS data, including Person data: dump it under its own name and keep it private.
 Never dump it as the public test database.
@@ -23,7 +24,6 @@ import asyncio
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -48,8 +48,6 @@ LEGAL_NAME = "BreedCAFS Rehearsal University (not a real organisation)"
 PRIVACY_CONTACT = "privacy@example.org"
 
 DATA_DIR = ROOT / 'src' / 'data'
-# written by the migration phases and the validation; a run reads them back as already created (RUNBOOK §1.2)
-MAPPING_FILES = re.compile(r'.*_ids\.csv|factor_records\.csv|validation_report\.md')
 
 
 async def get_or_create_rehearsal_team(uow_factory: Neo4jUnitOfWorkFactory, admin_id: int) -> int:
@@ -126,15 +124,6 @@ async def prepare(admin_id: int, germplasm_dir: Path | None) -> int:
         await driver.close()
 
 
-def copy_data_dir(source: Path, target: Path) -> None:
-    """The extracted and curated files, without mapping files from runs on other databases"""
-    if target.exists():
-        logger.info(f"Using the existing rehearsal data directory {target}, with its mapping files")
-        return
-    shutil.copytree(source, target, ignore=lambda _, names: [n for n in names if MAPPING_FILES.fullmatch(n)])
-    logger.info(f"Copied {source} to {target}, without mapping files")
-
-
 def run_step(env: dict, step: str, *args: str) -> subprocess.CompletedProcess:
     """A runbook step, with its output passed through as it runs and also returned"""
     logger.info(f"Running: breedcafs_migration.main {step} {' '.join(args)}")
@@ -170,7 +159,22 @@ def main() -> int:
         parser.error(f"No germplasm.json in {germplasm_dir}; give --germplasm-dir, or --no-germplasm")
 
     team_id = asyncio.run(prepare(admin_id, germplasm_dir))
-    copy_data_dir(args.data_dir, args.rehearsal_dir)
+
+    if args.rehearsal_dir.exists():
+        logger.info(f"Using the existing rehearsal data directory {args.rehearsal_dir}, with its mapping files")
+    else:
+        # the bundle holds Person data: it is kept only while it is unpacked
+        archive = args.rehearsal_dir.with_name(args.rehearsal_dir.name + '.tar.gz')
+        try:
+            for step in (
+                    ('bundle', '--data-dir', str(args.data_dir), '--out', str(archive)),
+                    ('unbundle', str(archive), '--data-dir', str(args.rehearsal_dir))
+            ):
+                if run_step(dict(os.environ), *step).returncode != 0:
+                    logger.error(f"The {step[0]} step failed")
+                    return 2
+        finally:
+            archive.unlink(missing_ok=True)
 
     env = {
         **os.environ,

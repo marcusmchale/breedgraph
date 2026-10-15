@@ -30,11 +30,14 @@ To run the migration, follow [RUNBOOK.md](RUNBOOK.md).
    * The migration administrator gives the informed attestation for each Person.
    * `submitted_at` is not carried over, as BreedGraph sets the submission time when records are created.
    * Person data (extracted values, the curated mapping, and the BreedCAFS → Person id mapping)
-     is kept only in the untracked `src/data/breedcafs_migration/` directory, never in git.
+     is kept only in the untracked `src/data/breedcafs_migration/` directory, never in git or in a wheel.
+     It reaches the server only as the bundle (bundle.py): the input files with their checksums,
+     readable by their owner, copied securely and deleted once the artefacts are kept (§13).
 
 Broadly we will follow the follow phases:
   
-1. Extract and dump all data required for the migration to csv.
+1. Extract and dump all data required for the migration to csv, where the legacy database is,
+   and bundle it for the server (RUNBOOK §1).
 2. Create the migration user account and context
 2. Prepare ontology entries
 3. Create germplasm
@@ -472,7 +475,7 @@ so a second run creates only the Datasets not yet created.
 Before transferring control from the migration team, run the validation (validate.py) as the migration user:
 
 ```bash
-python -m breedcafs_migration.main validate --user-id <id> --team-id <id>
+breedcafs-migration validate --user-id <id> --team-id <id>
 ```
 
 It only reads. It works out again, from the extracted and curated files, what should have been migrated, and compares
@@ -561,6 +564,8 @@ BreedCAFS ID → BreedGraph ID
 These mappings provide the identifiers required by subsequent migration stages and provide a persistent record of the migration.
 
 The migration artefacts, with the validation report (§8), should be retained after migration for audit, troubleshooting and provenance purposes.
+The data directory on the server holds them, with the bundle's MANIFEST.json recording which inputs were loaded;
+the bundle itself is deleted from the server once they are kept.
 
 The BreedCAFS Migration Team should likewise not be removed immediately after migration;
 it can remain as historical provenance for data that was initially migrated under its control.

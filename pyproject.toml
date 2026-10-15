@@ -80,6 +80,8 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# built as its own wheel, with only its code: scripts/build_migration_wheel.py
+exclude = ["breedcafs_migration*"]
 
 [tool.setuptools.package-data]
 breedgraph = [
