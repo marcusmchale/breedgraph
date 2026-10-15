@@ -36,19 +36,26 @@ async def ensure_empty_db(session: AsyncSession) -> None:
     if not is_empty:
         raise Exception("Database is not empty, aborting setup...")
 
-async def create_constraints(session: AsyncSession):
-    logger.info("Creating constraints...")
-    constraints = queries['infrastructure']['create_constraints']
-    try:
-        async with await session.begin_transaction() as tx:
-            for constraint in constraints.split(';\n'):
-                logger.debug(f"Creating constraint: {constraint}")
-                await tx.run(constraint)
-            await tx.commit()
-    except Exception as e:
-        logger.error(f"Error creating constraints: {e}")
-        logger.error(f"Continuing")
-        return
+async def create_schema(session: AsyncSession) -> bool:
+    """
+    Create the constraints and indexes, each in its own transaction so that one failing does not undo the others.
+    Every statement is IF NOT EXISTS, so this also brings an existing database up to date (scripts/apply_schema.py).
+    Returns whether all of them were created or already existed.
+    """
+    logger.info("Creating constraints and indexes...")
+    succeeded = True
+    for name in ('create_constraints', 'create_indexes'):
+        for statement in queries['infrastructure'][name].split(';'):
+            statement = statement.strip()
+            if not statement:
+                continue
+            try:
+                logger.debug(f"Running: {statement}")
+                await (await session.run(statement)).consume()
+            except Exception as e:
+                logger.error(f"Failed to run {statement}: {e}")
+                succeeded = False
+    return succeeded
 
 async def create_system_account(uow: AbstractUnitOfWorkFactory) -> AccountStored:
     async with uow.get_uow() as uow_holder:
@@ -96,7 +103,7 @@ async def main():
         driver = Neo4jAsyncDriver()
         async with driver.session() as session:
             await ensure_empty_db(session)
-            await create_constraints(session)
+            await create_schema(session)
 
         logger.debug("Build uow holder")
         uow = Neo4jUnitOfWorkFactory(driver)
