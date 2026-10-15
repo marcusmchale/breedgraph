@@ -1,6 +1,6 @@
 from ariadne import ObjectType
 
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_units_map,
     update_ontology_map,
@@ -26,7 +26,6 @@ graphql_resolvers.register_type_resolvers(unit, position, subject_units)
 
 @graphql_query.field("blocks")
 @graphql_payload
-@require_authentication
 async def get_blocks(_, info, location_ids: List[int]|None = None) -> List[UnitOutput]:
     await update_units_map(info.context, location_ids=location_ids)
     units_map = info.context.get('units_map')
@@ -35,7 +34,6 @@ async def get_blocks(_, info, location_ids: List[int]|None = None) -> List[UnitO
 
 @graphql_query.field("blocksUnits")
 @graphql_payload
-@require_authentication
 async def get_units(_, info, ids: List[int]) -> List[UnitOutput]:
     await update_units_map(info.context, unit_ids=ids)
     units_map = info.context.get('units_map')
@@ -43,7 +41,6 @@ async def get_units(_, info, ids: List[int]) -> List[UnitOutput]:
 
 @graphql_query.field("blocksDescendantsBySubject")
 @graphql_payload
-@require_authentication
 async def get_descendants_by_subject(_, info, unit_ids: List[int]) -> List[dict]:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:

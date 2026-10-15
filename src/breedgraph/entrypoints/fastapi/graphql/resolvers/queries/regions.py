@@ -4,7 +4,7 @@ from breedgraph.service_layer.queries.read_models import OntologyViewMode
 from breedgraph.service_layer.queries.views import regions, AbstractRegionsView
 
 from breedgraph.domain.model.regions import LocationInput, LocationOutput
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
@@ -25,7 +25,6 @@ graphql_resolvers.register_type_resolvers(location, location_template, location_
 
 @graphql_query.field("regionsCountries")
 @graphql_payload
-@require_authentication
 async def get_countries(_, info) -> List[LocationInput]:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id = info.context.get('user_id')) as views:
@@ -33,19 +32,16 @@ async def get_countries(_, info) -> List[LocationInput]:
 
 @graphql_query.field("regions")
 @graphql_payload
-@require_authentication
 async def get_regions(_, info) -> List[LocationOutput]:
     return await update_locations_map(info.context)
 
 @graphql_query.field("regionsLocations")
 @graphql_payload
-@require_authentication
 async def get_locations(_, info, ids: List[int]) -> List[LocationOutput]:
     return await update_locations_map(info.context, location_ids=ids)
 
 @graphql_query.field("regionsLocationsByType")
 @graphql_payload
-@require_authentication
 async def get_locations_by_type(_, info, location_type_id: int | None = None) -> List[LocationOutput]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
@@ -71,7 +67,6 @@ async def resolve_children(obj, info):
 
 @graphql_query.field("regionsDescendantsByType")
 @graphql_payload
-@require_authentication
 async def get_descendants_by_type(_, info, location_ids: List[int]) -> List[dict]:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:

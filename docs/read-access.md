@@ -82,6 +82,11 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
 
 ## 4. Status
 
+Reads of the domains below that follow this note are open to anonymous users (no `require_authentication`), who
+see what is released to the public; writes, and every other domain, still need an account. The ontology's reads are
+open too, as it is not controlled by teams, but anonymous users get the PUBLISHED and REFERENTIAL views only: the
+EDITORIAL view, with drafts, needs an account.
+
 | Domain | Follows this note |
 |---|---|
 | Programs (`views.programs`) | yes |

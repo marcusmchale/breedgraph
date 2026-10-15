@@ -87,9 +87,13 @@ def resolve_ontology_node_interface_type(obj, *_):
     else:
         raise ValueError(f"Could not determine type for object: {obj}")
 
+def _check_view(info, view: OntologyViewMode) -> None:
+    """Anonymous users may read the published ontology and entries as referenced, not the editorial view of drafts"""
+    if view == OntologyViewMode.EDITORIAL and info.context.get('user_id') is None:
+        raise UnauthorisedOperationError("Sign in to see the editorial view of the ontology")
+
 @graphql_query.field("ontologyVersion")
 @graphql_payload
-@require_authentication
 async def get_ontology_version(
     _,
     info
@@ -101,13 +105,13 @@ async def get_ontology_version(
 
 @graphql_query.field("ontology")
 @graphql_payload
-@require_authentication
 async def get_ontology(
     _,
     info,
     version_id: str|None = None,
     view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> Ontology:
+    _check_view(info, view)
     if view == OntologyViewMode.REFERENTIAL:
         raise ValueError("Referential view is not supported for the whole ontology, only for resolved entries")
 
@@ -133,7 +137,6 @@ async def get_ontology(
 
 @graphql_query.field("ontologyEntries")
 @graphql_payload
-@require_authentication
 async def get_ontology_entries(
         _,
         info,
@@ -142,6 +145,7 @@ async def get_ontology_entries(
         version_id: int|None = None,
         view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> List[OntologyEntryOutput]:
+    _check_view(info, view)
     bus = info.context.get('bus')
     async with bus.views_factory.get_views() as views:
         if version_id is None:
@@ -160,7 +164,6 @@ async def get_ontology_entries(
 
 @graphql_query.field("ontologyRelationships")
 @graphql_payload
-@require_authentication
 async def get_ontology_relationships(
         _,
         info,
@@ -168,6 +171,7 @@ async def get_ontology_relationships(
         version_id: int|None = None,
         view: OntologyViewMode = OntologyViewMode.PUBLISHED
 ) -> List[OntologyRelationshipOutput]:
+    _check_view(info, view)
     if view == OntologyViewMode.REFERENTIAL:
         raise ValueError("Referential view is not supported for relationships, only for resolved entries")
 

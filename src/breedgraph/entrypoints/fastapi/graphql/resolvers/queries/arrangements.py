@@ -2,7 +2,7 @@ from ariadne import ObjectType
 
 from breedgraph.service_layer.queries.read_models.ontology import OntologyEntryOutput, OntologyViewMode
 from breedgraph.domain.model.regions import LocationOutput
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_layouts_map,
     update_ontology_map,
@@ -23,13 +23,11 @@ graphql_resolvers.register_type_resolvers(layout)
 
 @graphql_query.field("arrangements")
 @graphql_payload
-@require_authentication
 async def get_arrangements(_, info, location_id: int) -> list[LayoutOutput]:
     return await update_layouts_map(info.context, location_id=location_id)
 
 @graphql_query.field("arrangementsLayouts")
 @graphql_payload
-@require_authentication
 async def get_layouts(_, info, ids: list[int]) -> list[LayoutOutput]:
     return await update_layouts_map(info.context, layout_ids=ids)
 

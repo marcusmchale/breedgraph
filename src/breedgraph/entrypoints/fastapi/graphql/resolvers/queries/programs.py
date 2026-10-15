@@ -7,7 +7,7 @@ from breedgraph.service_layer.queries.read_models.ontology import (
     OntologyViewMode
 )
 from breedgraph.domain.model import LegalReferenceStored
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_ontology_map,
     update_reference_map,
@@ -33,7 +33,6 @@ graphql_resolvers.register_type_resolvers(program, trial, study, record_grouping
 
 @graphql_query.field("programs")
 @graphql_payload
-@require_authentication
 async def get_programs(
         _,
         info
@@ -45,7 +44,6 @@ async def get_programs(
 
 @graphql_query.field("programsProgram")
 @graphql_payload
-@require_authentication
 async def get_program(
         _,
         info,
@@ -63,7 +61,6 @@ async def get_program(
 
 @graphql_query.field("programsTrial")
 @graphql_payload
-@require_authentication
 async def get_trial(
         _,
         info,
@@ -80,7 +77,6 @@ async def get_trial(
 
 @graphql_query.field("programsStudy")
 @graphql_payload
-@require_authentication
 async def get_study(
         _,
         info,

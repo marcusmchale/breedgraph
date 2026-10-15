@@ -42,7 +42,6 @@ graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, d
 """Datasets resolver"""
 @graphql_query.field("datasets")
 @graphql_payload
-@require_authentication
 async def get_datasets(
         _,
         info,
@@ -64,7 +63,6 @@ async def _readable_dataset_ids(views, dataset_ids: List[int]) -> List[int]:
 
 @graphql_query.field("datasetsUnits")
 @graphql_payload
-@require_authentication
 async def get_datasets_units(_, info, dataset_ids: List[int], parent_ids: List[int]|None = None, start=None, end=None):
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
@@ -86,7 +84,6 @@ def resolve_datasets_unit_unit(obj, info):
 
 @graphql_query.field("datasetsUnitsBySubject")
 @graphql_payload
-@require_authentication
 async def get_datasets_units_by_subject(_, info, dataset_ids: List[int], unit_ids: List[int]|None = None, start=None, end=None):
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
@@ -267,7 +264,6 @@ def selected_field_names(info, path: List[str]) -> set[str]:
 
 @graphql_query.field("datasetsSummaries")
 @graphql_payload
-@require_authentication
 async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[DatasetSummary]:
     user_id = info.context.get('user_id')
     bus = info.context.get('bus')
