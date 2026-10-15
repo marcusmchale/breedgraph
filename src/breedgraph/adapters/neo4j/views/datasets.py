@@ -5,6 +5,7 @@ from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders import datasets as dataset_queries
 from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
     SUMMARY_FIELDS,
     UNIT_FIELDS,
@@ -21,11 +22,20 @@ from typing import List, Dict, AbstractSet
 
 
 class Neo4jDatasetsView(AbstractDatasetsView):
+    """The read checks and placeholders are in the Cypher (see query_builders.datasets)"""
 
     def __init__(self, session: AsyncSession, user_id: int|None, read_teams: List[int]):
         self.session = session
         self.user_id = user_id
         self.read_teams = read_teams
+
+    @property
+    def _access(self) -> dict:
+        """The parameters of the read checks"""
+        return {
+            'read_teams': self.read_teams,
+            'minimum_release': int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+        }
 
     @staticmethod
     def record_to_dict(record: dict) -> dict:
@@ -49,12 +59,11 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> List[DatasetRead]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_datasets_for_read_teams'],
+                dataset_queries.read_datasets(),
                 dataset_ids=dataset_ids,
                 study_ids=study_ids,
                 concept_ids=concept_ids,
-                read_teams=self.read_teams,
-                minimum_release=int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+                **self._access
             )
             return [DatasetRead(**record['dataset']) async for record in result]
 
@@ -69,13 +78,14 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> List[dict]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_dataset_records'],
+                dataset_queries.read_records(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
                 start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
                 end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
                 offset=offset,
-                limit=limit if limit is not None else 2 ** 31 - 1
+                limit=limit if limit is not None else 2 ** 31 - 1,
+                **self._access
             )
             return [self.record_to_dict(record['record']) async for record in result]
 
@@ -88,11 +98,12 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> List[int]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_dataset_unit_ids'],
+                dataset_queries.read_unit_ids(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
                 start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._access
             )
             record = await result.single()
             return list(record['unit_ids']) if record else []
@@ -106,11 +117,12 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> int:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['count_dataset_records'],
+                dataset_queries.count_records(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
                 start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._access
             )
             record = await result.single()
             return record['record_count'] if record else 0
@@ -124,11 +136,12 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> List[DatasetsUnit]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_datasets_unit_level'],
+                dataset_queries.read_unit_level(),
                 dataset_ids=dataset_ids,
                 parent_ids=parent_ids,
                 start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None
+                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._access
             )
             return [
                 DatasetsUnit(
@@ -148,13 +161,12 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     ) -> Dict[int | None, List[UnitOutput]]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_datasets_units_by_subject'],
+                dataset_queries.read_units_by_subject(),
                 dataset_ids=dataset_ids,
                 unit_ids=unit_ids,
                 start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
                 end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
-                read_teams=self.read_teams,
-                minimum_release=int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+                **self._access
             )
             return {
                 record['subject']: [
@@ -196,12 +208,11 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             result: AsyncResult = await tx.run(
                 dataset_summaries_query(fields),
                 study_id=study_id,
-                read_teams = self.read_teams,
-                minimum_release = ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED
+                **self._access
             )
             summaries = {record['dataset_summary']['id']: record['dataset_summary'] async for record in result}
             if summaries and fields & UNIT_FIELDS:
-                result = await tx.run(dataset_unit_summaries_query(fields), dataset_ids=list(summaries))
+                result = await tx.run(dataset_unit_summaries_query(fields), dataset_ids=list(summaries), **self._access)
                 async for record in result:
                     unit_summary = record['unit_summary']
                     summaries[unit_summary['id']].update(unit_summary)

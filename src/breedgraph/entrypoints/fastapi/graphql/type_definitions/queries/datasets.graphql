@@ -41,15 +41,18 @@ type DatasetDimensions {
     groups: [GroupingCodes!]!
 }
 
+"""
+A dataset. One the user cannot read, asked for by id, is a placeholder: its id, with no study or concept, and no records.
+"""
 type Dataset {
     id: ID!
-    studyId: ID!
+    studyId: ID
     # concept is either a Factor or Variable in the ontology
-    concept: OntologyNodeInterface!
+    concept: OntologyNodeInterface
     """
     The dataset's records, in submission order. Without arguments, all of them.
-    unitIds narrows them to the records of those units and of every unit below them (a block or a plot selects
-    what it contains); start and end to records whose own period overlaps the window;
+    unitIds narrows them to the records of those units and of every unit below the readable ones (a block or a plot
+    selects what it contains; a hidden unit only its own records); start and end to records whose own period overlaps the window;
     offset and limit page through the result.
     """
     records(unitIds: [ID!], start: DateTime, end: DateTime, offset: Int, limit: Int): [Record]

@@ -159,15 +159,18 @@ type Query {
     """ Get a summary of datasets for a study """
     datasetsSummaries(studyId: ID!): DatasetSummariesPayload!
     """
-    One level of the tree of units the given datasets have records for: the children of parentIds that have records
-    at or below them, or, without parentIds, the roots of the blocks that do. start and end narrow the records
-    counted to those whose own period overlaps the window, as for Dataset.records. Datasets the user cannot read
-    contribute nothing. For offering only the units that matter to the datasets when narrowing their records.
+    One level of the tree of units the given datasets have records for: the children of parentIds, or, without
+    parentIds, the roots. The tree holds the recorded units, those the user cannot read as placeholders, and the
+    readable units above them; each hangs from its nearest readable ancestor, and a hidden unit holds nothing below it.
+    start and end narrow the records counted to those whose own period overlaps the window, as for Dataset.records.
+    Datasets the user cannot read contribute nothing. For offering only the units that matter to the datasets when
+    narrowing their records.
     """
     datasetsUnits(datasetIds: [ID!]!, parentIds: [ID!], start: DateTime, end: DateTime): DatasetsUnitsPayload!
     """
-    Every readable unit the given datasets have records for, grouped by subject as id and name, narrowed like
-    Dataset.records: unitIds to those units and everything below them, start and end to a time window.
+    Every unit the given datasets have records for, grouped by subject as id and name, narrowed like
+    Dataset.records: unitIds to those units and everything below the readable ones, start and end to a time window.
+    Units the user cannot read are placeholders in one group without a subject.
     For selecting all the recorded units of a subject at once, e.g. every measured tree of a field.
     """
     datasetsUnitsBySubject(datasetIds: [ID!]!, unitIds: [ID!], start: DateTime, end: DateTime): SubjectUnitsPayload!

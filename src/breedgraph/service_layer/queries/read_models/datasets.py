@@ -28,14 +28,21 @@ class DatasetSummary:
 
 @dataclass
 class DatasetRead:
-    """A dataset as the datasets view returns it: the header without its records, which are paged separately"""
+    """
+    A dataset as the datasets view returns it: the header without its records, which are paged separately. A dataset
+    the user cannot read, asked for by id, is a placeholder: its id, with no study, concept or records
+    """
     id: int
     study: int | None
     concept: int | None
     contributors: List[int]
     references: List[int]
     record_count: int
-    readable: bool
+
+    @property
+    def redacted(self) -> bool:
+        """Whether this is a placeholder: every stored dataset has a concept"""
+        return self.concept is None
 
 
 @dataclass

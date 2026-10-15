@@ -38,8 +38,8 @@ class AbstractDatasetsView(ABC):
     ) -> List[DatasetRead]:
         """
         Dataset headers selected by any combination of ids, studies and concepts (no selection means all of them),
-        read without building the aggregate. Datasets the user cannot read come back with readable False and no
-        contributors or references, as the repository returns them to registered users; their records are not read.
+        read without building the aggregate. A dataset the user cannot read is a placeholder (DatasetRead.redacted)
+        when asked for by id alone, and is otherwise left out (see docs/read-access.md).
         """
         return await self._get_datasets(dataset_ids=dataset_ids, study_ids=study_ids, concept_ids=concept_ids)
 
@@ -94,8 +94,9 @@ class AbstractDatasetsView(ABC):
     ) -> List[DatasetsUnit]:
         """
         One level of the tree of units readable datasets have records for, narrowed by time the same way as
-        get_records: the children of parent_ids that have records at or below them, or the roots of the blocks
-        that do when parent_ids is None. In name order.
+        get_records: the children of parent_ids, or the roots when parent_ids is None. The tree holds the recorded
+        units, hidden ones as placeholders, and the readable units above them; each hangs from its nearest readable
+        ancestor, and a hidden unit holds nothing below it. Readable units in name order, then placeholders.
         """
         dataset_ids = [dataset_id for dataset_id in dict.fromkeys(dataset_ids) if dataset_id is not None]
         if not dataset_ids:
@@ -114,9 +115,9 @@ class AbstractDatasetsView(ABC):
             end: datetime64 | None = None
     ) -> Dict[int | None, List[UnitOutput]]:
         """
-        Every readable unit readable datasets have records for, narrowed the same way as get_records (unit_ids to
-        those units and everything below them), as id, name and subject keyed by subject id.
-        For selecting all the recorded units of a subject at once.
+        Every unit readable datasets have records for, narrowed the same way as get_records (unit_ids to those
+        units and, for readable ones, everything below them), as id, name and subject keyed by subject id; hidden
+        units are placeholders keyed by None. For selecting all the recorded units of a subject at once.
         """
         dataset_ids = [dataset_id for dataset_id in dict.fromkeys(dataset_ids) if dataset_id is not None]
         if not dataset_ids:

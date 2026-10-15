@@ -60,7 +60,7 @@ async def _readable_dataset_ids(views, dataset_ids: List[int]) -> List[int]:
     if not dataset_ids:
         return []
     datasets = await views.datasets.get_datasets(dataset_ids=[int(dataset_id) for dataset_id in dataset_ids])
-    return [dataset.id for dataset in datasets if dataset.readable]
+    return [dataset.id for dataset in datasets if not dataset.redacted]
 
 @graphql_query.field("datasetsUnits")
 @graphql_payload
@@ -113,7 +113,7 @@ async def resolve_concept(obj, info):
 @dataset.field('records')
 async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset=None, limit=None):
     """A page of the dataset's records, read through the datasets view; nothing for a dataset the user cannot read"""
-    if not obj.readable:
+    if obj.redacted:
         return []
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
@@ -138,7 +138,7 @@ async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset
 @dataset.field('unitIds')
 async def resolve_unit_ids(obj, info, unit_ids=None, start=None, end=None):
     # the units with records under the same narrowing as records, so a client can page by unit; nothing if unreadable
-    if not obj.readable:
+    if obj.redacted:
         return []
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
@@ -151,7 +151,7 @@ async def resolve_unit_ids(obj, info, unit_ids=None, start=None, end=None):
 @dataset.field('recordCount')
 async def resolve_record_count(obj, info, unit_ids=None, start=None, end=None):
     # as with the records themselves, nothing for a dataset the user cannot read
-    if not obj.readable:
+    if obj.redacted:
         return 0
     # the header carries the full count; a narrowed count is read when the records' filters are given
     if unit_ids is None and start is None and end is None:
@@ -167,7 +167,7 @@ async def resolve_record_count(obj, info, unit_ids=None, start=None, end=None):
 @dataset.field('dimensions')
 async def resolve_dimensions(obj, info):
     # what the records span, read without them; nothing for a dataset the user cannot read
-    if not obj.readable:
+    if obj.redacted:
         return None
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
