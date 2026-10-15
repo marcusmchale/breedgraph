@@ -3,6 +3,8 @@ pydantic==2.13.4
 ariadne==1.1.0
 
 neo4j==6.2.0
+# the driver's compiled result decoder, used when installed; its version follows the driver's
+neo4j-rust-ext==6.2.0.0
 redis==8.0.0
 
 bcrypt~=5.0.0
