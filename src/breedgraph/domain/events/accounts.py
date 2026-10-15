@@ -16,6 +16,7 @@ class EmailVerified(Event):
 class AccountDeleted(Event):
     user_id: int
     deleted_at: datetime
+    created_at: datetime | None = None  # when the account was created, so a replay deletes this account and no other
 
 class AffiliationRequested(Event):
     user_id: int

@@ -18,7 +18,9 @@ async def log_person_erasure(
 ):
     """Erasures are logged after they are committed, so a logged erasure always happened."""
     try:
-        await erasure_log.append(ErasureLogEntry(person_id=event.person_id, erased_at=event.erased_at))
+        await erasure_log.append(ErasureLogEntry(
+            person_id=event.person_id, erased_at=event.erased_at, created_at=event.recorded_at
+        ))
     except Exception:
         logger.critical(
             f"Failed to log the erasure of Person {event.person_id}. "

@@ -199,13 +199,19 @@ Who can erase: admins of the teams that control the record, and the linked User.
 Backups and logs:
 - Backups (e.g. `instance/neo4j_archive/`) are kept for a documented retention period.
 - The erasure log is a JSON-lines file at `PERSON_ERASURE_LOG_PATH` (default `instance/person_erasure_log.jsonl`), outside the database, so restoring a backup does not roll it back.
-  It has one line per erased Person, `{"person_id", "erased_at"}`, and per deleted account, `{"user_id", "deleted_at"}`.
+  There is one log, and it is only ever appended to: nothing in it is changed or removed.
+  It has one line per erased Person, `{"person_id", "erased_at", "created_at"}`, and per deleted account, `{"user_id", "deleted_at", "created_at"}`,
+  where `created_at` is when the Person or account was created (`recorded_at`, `time`).
   It is appended to by the `PersonErased` and `AccountDeleted` event handlers after the change is committed, so every logged erasure happened.
   The setting and file keep their Person names, so existing deployments need no change.
 - `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/sync_database_backups.sh` (cron on the archive server, settings as in `instance/backup_sync.env`) copies new dumps and the erasure log.
   It is unrelated to the file archive worker. The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the copy. Run it at least as often as dumps are made.
   `BACKUP_RETENTION_DAYS` optionally removes old dumps on the archive server; the erasure log is never removed.
-- `scripts/restore.sh` loads a dump and then runs `scripts/apply_erasures.py`, which applies the whole log again: Persons are erased and accounts tombstoned again, with their logged times. Replaying is idempotent.
+- `scripts/restore.sh` loads a dump and then runs `scripts/apply_erasures.py`, which applies the log again: Persons are erased and accounts tombstoned again, with their logged times, including those logged after the dump was taken. Replaying is idempotent.
+- **Ids issued again after a restore.** Ids come from counters in the database, so a restored backup has the counters of its time: a Person or account created after the restore can be given the id of one erased after the backup, which a replay would then erase. Two guards:
+  - A replay erases or deletes only the record with the logged id *and* creation time (to the millisecond). A record holding the id but created at another time is left alone, and reported as reissued. This also covers ids issued again before the replay ran, and a log replayed onto another database's dump, e.g. a test database on a development machine, whose records were created at other times. Entries without a creation time, which only a log written before they were logged has, can't be matched to their record, so are skipped and reported.
+  - A replay advances the Person and account id counters past every id in the log, so after a restore and replay no logged id is issued again.
+  - Restores should still be followed by the replay before the API takes requests, as `restore.sh` does.
 - Personal data is not written to application logs. Log ids and actions, not mutation payloads.
 
 ## 6. Linking a User to a Person (claiming)

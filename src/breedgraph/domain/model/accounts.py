@@ -35,6 +35,7 @@ class UserBase(ABC):
         dump = asdict(self)
         dump['ontology_role'] = dump['ontology_role'].value
         dump['ontology_role_requested'] = dump['ontology_role_requested'].value if 'ontology_role_requested' in dump and dump['ontology_role_requested'] else None
+        dump.pop('created_at', None)  # set by the database, never written
         return dump
 
     def __post_init__(self):
@@ -56,6 +57,7 @@ class UserStored(UserBase, StoredModel):
     email: str = ''
     email_verified: bool = False
     default_write_team: int | None = None
+    created_at: datetime | None = field(default=None, compare=False)  # set by the database; read only
 
 @dataclass
 class UserOutput(UserBase, LabeledModel):
@@ -135,7 +137,7 @@ class AccountStored(Aggregate, AccountBase):
     def delete(self):
         """Mark the account for deletion. Removing it from the repository then tombstones it."""
         self.deleted_at = datetime.now(timezone.utc)
-        self.events.append(AccountDeleted(user_id=self.user.id, deleted_at=self.deleted_at))
+        self.events.append(AccountDeleted(user_id=self.user.id, deleted_at=self.deleted_at, created_at=self.user.created_at))
 
     def verify_email(self):
         self.user.email_verified = True

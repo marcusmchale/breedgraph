@@ -171,7 +171,9 @@ async def delete_account(
             admin_teams = uow.controls.access_teams[Access.ADMIN]
             if cmd.erase_person:
                 person.erase(agent_id=cmd.user_id, controller=controller, admin_teams=admin_teams)
-                person.events.append(events.people.PersonErased(person_id=person.id, erased_at=person.erased_at))
+                person.events.append(events.people.PersonErased(
+                    person_id=person.id, erased_at=person.erased_at, recorded_at=person.recorded_at
+                ))
             else:
                 person.unlink(cmd.user_id, controller, admin_teams)
             # Stored before the account is removed, as the repository authorises it by the stored link

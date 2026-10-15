@@ -133,15 +133,17 @@ async def test_delete_account_erases_person_by_default(
     [deletion] = [e for e in log if isinstance(e, AccountDeletionLogEntry) and e.user_id == user_id]
     assert [e for e in log if isinstance(e, ErasureLogEntry) and e.person_id == person_id]
     assert deletion.deleted_at == node['props']['deleted_at'].to_native()
+    # the account's creation time is logged, so a replay deletes this account and no other given its id
+    assert deletion.created_at is not None
 
-    # Simulate restoring a backup taken before the deletion
+    # Simulate restoring a backup taken before the deletion, with the account as it was then
     async with uow_factory.get_uow() as uow:
         await uow.tx.run(
             "MATCH (user:DeletedUser {id: $user_id}), (team:Team {id: $team_id}) "
             "REMOVE user:DeletedUser SET user:User, user.name = 'Restored', user.email = 'restored@example.org', "
-            "user.deleted_at = null "
+            "user.deleted_at = null, user.time = datetime($created_at) "
             "CREATE (user)-[:READ {authorisation: 'AUTHORISED', heritable: false}]->(team)",
-            user_id=user_id, team_id=delete_context['team_id']
+            user_id=user_id, team_id=delete_context['team_id'], created_at=deletion.created_at.isoformat()
         )
         await uow.commit()
     assert (await deleted_user_node(uow_factory, user_id))['labels'] == ['User']

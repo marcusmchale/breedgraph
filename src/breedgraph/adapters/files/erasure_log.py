@@ -24,12 +24,18 @@ class JsonLinesErasureLog(AbstractErasureLog):
     def path(self) -> Path:
         return Path(self._path or config.PERSON_ERASURE_LOG_PATH)
 
-    async def append(self, entry: LogEntry) -> None:
+    @staticmethod
+    def _line(entry: LogEntry) -> str:
         if isinstance(entry, AccountDeletionLogEntry):
-            line = json.dumps({'user_id': entry.user_id, 'deleted_at': entry.deleted_at.isoformat()})
+            record = {'user_id': entry.user_id, 'deleted_at': entry.deleted_at.isoformat()}
         else:
-            line = json.dumps({'person_id': entry.person_id, 'erased_at': entry.erased_at.isoformat()})
-        await asyncio.to_thread(self._append_line, line)
+            record = {'person_id': entry.person_id, 'erased_at': entry.erased_at.isoformat()}
+        if entry.created_at is not None:
+            record['created_at'] = entry.created_at.isoformat()
+        return json.dumps(record)
+
+    async def append(self, entry: LogEntry) -> None:
+        await asyncio.to_thread(self._append_line, self._line(entry))
 
     def _append_line(self, line: str) -> None:
         path = self.path
@@ -47,14 +53,17 @@ class JsonLinesErasureLog(AbstractErasureLog):
             for line in log_file:
                 if line.strip():
                     record = json.loads(line)
+                    created_at = datetime.fromisoformat(record['created_at']) if record.get('created_at') else None
                     if 'user_id' in record:
                         entries.append(AccountDeletionLogEntry(
                             user_id=int(record['user_id']),
-                            deleted_at=datetime.fromisoformat(record['deleted_at'])
+                            deleted_at=datetime.fromisoformat(record['deleted_at']),
+                            created_at=created_at
                         ))
                     else:
                         entries.append(ErasureLogEntry(
                             person_id=int(record['person_id']),
-                            erased_at=datetime.fromisoformat(record['erased_at'])
+                            erased_at=datetime.fromisoformat(record['erased_at']),
+                            created_at=created_at
                         ))
         return entries

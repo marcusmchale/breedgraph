@@ -33,15 +33,14 @@ which has the BreedCAFS Migration team under it, so it reads the migrated data.
 
 Restoring needs `sudo`, as Neo4j is stopped while the dump is loaded.
 
-1. **Restore**, without the erasure log:
+1. **Restore:**
    ```bash
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-   PERSON_ERASURE_LOG_PATH=/dev/null/none scripts/restore.sh test_database.dump
+   scripts/restore.sh test_database.dump
    ```
-   `restore.sh` otherwise replays `instance/person_erasure_log.jsonl` afterwards, so that Persons erased since a
-   backup stay erased. That log belongs to the database it was written for: its entries are matched by id, so
-   replayed on a test dump they would erase unrelated Persons and delete scenario accounts (user 3 is
-   `readpolicy_writer`). With the path pointing nowhere, it warns that there is no log, which is right here.
+   `restore.sh` then replays the erasure log. Each entry is applied only to the record with its id and creation time
+   (docs/person.md §5), and the test database's Persons and accounts were created at other times, so the log's
+   erasures, logged for another database, leave them alone; they are reported as reissued ids.
 2. **Load the state store** (the countries read model):
    ```bash
    python scripts/load_state_store.py

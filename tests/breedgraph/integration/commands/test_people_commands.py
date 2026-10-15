@@ -149,6 +149,7 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
         if isinstance(entry, ErasureLogEntry) and entry.person_id == person_id
     ]
     assert entry.erased_at == person.erased_at
+    assert entry.created_at == person.recorded_at
 
     with pytest.raises(IllegalOperationError, match="erased"):
         await bus.handle(UpdatePerson(agent_id=account['user_id'], person_id=person_id, name='Restored'))

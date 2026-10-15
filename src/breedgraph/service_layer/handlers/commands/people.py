@@ -119,7 +119,7 @@ async def erase_person(
             controller=controller,
             admin_teams=uow.controls.access_teams[Access.ADMIN]
         )
-        person.events.append(PersonErased(person_id=person.id, erased_at=person.erased_at))
+        person.events.append(PersonErased(person_id=person.id, erased_at=person.erased_at, recorded_at=person.recorded_at))
         await uow.commit()
 
 

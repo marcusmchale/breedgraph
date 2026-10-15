@@ -195,7 +195,9 @@ async def log_account_deletion(
 ):
     """Deletions are logged after they are committed, so a logged deletion always happened."""
     try:
-        await erasure_log.append(AccountDeletionLogEntry(user_id=event.user_id, deleted_at=event.deleted_at))
+        await erasure_log.append(AccountDeletionLogEntry(
+            user_id=event.user_id, deleted_at=event.deleted_at, created_at=event.created_at
+        ))
     except Exception:
         logger.critical(
             f"Failed to log the deletion of account {event.user_id}. "
