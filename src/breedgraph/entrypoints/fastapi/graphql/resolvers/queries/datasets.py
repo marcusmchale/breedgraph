@@ -170,21 +170,34 @@ async def resolve_dimensions(obj, info):
         views = await get_context_views(info.context)
         return await views.datasets.get_dimensions(dataset_id=obj.id)
 
+# The record resolvers answer synchronously from what resolve_records preloaded, and return an awaitable only when
+# something is missing: an async resolver costs an asyncio task per record, which dominates a page of 25,000 records
+
 @record.field('unit')
-async def resolve_unit(obj: dict, info):
+def resolve_unit(obj: dict, info):
     # Records credit units by id, name and germplasm; the names map is filled when the records are resolved
     unit_id = obj.get('unit')
     names_map = info.context.get('unit_names_map', {})
     if unit_id in names_map:
         return names_map[unit_id]
+    return _load_unit(info, unit_id)
+
+async def _load_unit(info, unit_id):
     await update_units_map(info.context, unit_ids=[unit_id])
     return info.context.get('units_map', {}).get(unit_id)
 
 @record.field('references')
-async def resolve_references(obj: dict, info):
-    await update_reference_map(info.context, reference_ids=obj.get('references'))
+def resolve_references(obj: dict, info):
+    reference_ids = obj.get('references')
+    reference_map = info.context.get('reference_map', {})
+    if all(ref_id in reference_map for ref_id in reference_ids):
+        return [reference_map.get(ref_id) for ref_id in reference_ids]
+    return _load_references(info, reference_ids)
+
+async def _load_references(info, reference_ids):
+    await update_reference_map(info.context, reference_ids=reference_ids)
     reference_map = info.context.get('reference_map')
-    return [reference_map.get(ref_id) for ref_id in obj.get('references')]
+    return [reference_map.get(ref_id) for ref_id in reference_ids]
 
 
 """Submission resolver"""

@@ -16,7 +16,7 @@ from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDim
 from breedgraph.domain.model.blocks import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
 from numpy import datetime64
-from breedgraph.service_layer.repositories.base import BaseRepository
+from datetime import datetime
 
 from typing import List, Dict, AbstractSet
 
@@ -38,17 +38,25 @@ class Neo4jDatasetsView(AbstractDatasetsView):
         }
 
     @staticmethod
-    def record_to_dict(record: dict) -> dict:
-        BaseRepository.deserialize_dt64(record)
+    def _record_time(text: str | None, unit: str | None, step: int | None) -> datetime64 | None:
+        """A record's start or end, read as UTC text (see query_builders.datasets.read_records), at its precision"""
+        if text is None:
+            return None
+        return datetime64(text, (unit, step))
+
+    @classmethod
+    def record_to_dict(cls, record: dict) -> dict:
+        submitted = record.get('submitted')
         return {
             'id': record.get('id'),
             'unit': record.get('unit'),
             'value': record.get('value'),
-            'start': record.get('start'),
-            'end': record.get('end'),
+            'start': cls._record_time(record.get('start'), record.get('start_unit'), record.get('start_step')),
+            'end': cls._record_time(record.get('end'), record.get('end_unit'), record.get('end_step')),
             'groups': [{'id': group['id'], 'code': group['code']} for group in record.get('groups') or []],
             'references': record.get('references') or [],
-            'submitted': record.get('submitted')
+            # the transaction's timestamp, timezone aware
+            'submitted': datetime.fromisoformat(submitted) if submitted is not None else None
         }
 
     async def _get_datasets(

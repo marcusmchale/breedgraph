@@ -203,6 +203,11 @@ def _dataset_records() -> str:
     """
 
 
+def _utc_text(time: str) -> str:
+    """A stored time as its UTC wall-clock time in ISO text, without an offset, as numpy parses it; null stays null"""
+    return f"CASE WHEN {time} IS NULL THEN null ELSE toString(localdatetime(datetime({{datetime: {time}, timezone: 'UTC'}}))) END"
+
+
 def read_records():
     """A page of a readable dataset's records in submission order, narrowed as _dataset_records"""
     return f"""
@@ -212,7 +217,11 @@ def read_records():
         SKIP $offset
         LIMIT $limit
         RETURN record {{
-          .*,
+          .id, .value, .start_unit, .start_step, .end_unit, .end_step,
+          // times as text: hydrating the driver's DateTimes is the slowest part of reading many records
+          start: {_utc_text('record.start')},
+          end: {_utc_text('record.end')},
+          submitted: toString(record.submitted),
           unit: unit.id,
           references: [(record)<-[:REFERENCE_FOR]-(reference:Reference) | reference.id],
           groups: [

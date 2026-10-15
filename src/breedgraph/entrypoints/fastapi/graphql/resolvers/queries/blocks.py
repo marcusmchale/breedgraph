@@ -61,10 +61,16 @@ async def resolve_subject(obj, info):
     return ontology_map.get(obj.subject)
 
 @unit.field("germplasm")
-async def resolve_germplasm(obj, info):
-    await update_germplasm_map(info.context, entry_ids=[obj.germplasm])
-    germplasm_map = info.context.get('germplasm_map')
-    return germplasm_map.get(obj.germplasm)
+def resolve_germplasm(obj, info):
+    # synchronous when already mapped (as for records' units, preloaded per page): an async resolver costs a task per unit
+    germplasm_map = info.context.get('germplasm_map', {})
+    if obj.germplasm is None or obj.germplasm in germplasm_map:
+        return germplasm_map.get(obj.germplasm)
+    return _load_germplasm(info, obj.germplasm)
+
+async def _load_germplasm(info, entry_id):
+    await update_germplasm_map(info.context, entry_ids=[entry_id])
+    return info.context.get('germplasm_map').get(entry_id)
 
 @unit.field("parents")
 async def resolve_parents(obj, info):
