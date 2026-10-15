@@ -36,6 +36,7 @@ from breedcafs_migration.programs import STUDIES
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.units import UnitPlan, read_items, SUBJECTS
 from breedcafs_migration.germplasm import read_varieties
+from breedcafs_migration.writes import models_with_extra_stamps
 
 import logging
 logger = logging.getLogger(__name__)
@@ -347,6 +348,12 @@ async def validate_breedcafs_migration(uow_factory: Neo4jUnitOfWorkFactory, cont
             (ControlledModelLabel.PERSON, persons),
     ):
         await validate_controls(validation, uow_factory, context, label, ids, private)
+
+    extra = await models_with_extra_stamps(uow_factory, context.user_id)
+    validation.all(
+        "Models with one write stamp by the migration user (README §14), by label",
+        [(label.value, models) for label, models in extra.items() if models], len(extra)
+    )
 
     path = write_report(validation)
     failed = [check.name for check in validation.checks if not check.passed]

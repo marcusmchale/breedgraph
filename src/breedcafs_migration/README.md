@@ -496,6 +496,7 @@ checks, to the data directory, and exits with 3 if any check fails. The checks:
   exactly the Persons who recorded it (§7.6).
 * The fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets, curve data files
   and Persons are controlled by the migration team alone, and `PRIVATE`.
+* No model has more than one write stamp by the migration user (§14).
 
 The dry run (`BREEDCAFS_DRY_RUN=1`) runs the validation after the migration and fails if any check fails.
 
@@ -569,3 +570,15 @@ the bundle itself is deleted from the server once they are kept.
 
 The BreedCAFS Migration Team should likewise not be removed immediately after migration;
 it can remain as historical provenance for data that was initially migrated under its control.
+
+---
+# 14. Write Stamps
+
+BreedGraph stamps each write to a controlled model with its user and time, shown as the model's writes, created and
+updated. The migration writes many models in several transactions (records in batches, then contributors; units,
+then positions), which would leave many stamps by the migration user for what is one act of migration.
+The last migrate phase (writes.py) keeps only the earliest of the migration user's stamps on each model:
+`created` is when it was migrated, and `updated` equals it until someone changes it.
+Stamps by other users are kept, e.g. on the production germplasm the migration linked varieties to.
+The validation checks that no model is left with more than one stamp by the migration user.
+

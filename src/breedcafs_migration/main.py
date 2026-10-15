@@ -35,6 +35,7 @@ from breedcafs_migration.datasets import prepare_breedcafs_datasets
 from breedcafs_migration.curves import prepare_breedcafs_curves
 from breedcafs_migration.persons import prepare_breedcafs_persons
 from breedcafs_migration.validate import validate_breedcafs_migration
+from breedcafs_migration.writes import consolidate_write_stamps
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -82,6 +83,9 @@ async def migrate(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext
     await prepare_breedcafs_persons(
         uow_factory=uow_factory, context=context, ontology=ontology_ids, datasets=dataset_ids, curves=curve_ids
     )
+    logger.info("Consolidate the migration's write stamps")
+    removed = await consolidate_write_stamps(uow_factory=uow_factory, user_id=context.user_id)
+    logger.info(f"Removed {removed} extra write stamps, keeping the earliest on each model")
 
 
 def files_step(args: argparse.Namespace) -> None:

@@ -84,7 +84,8 @@ It exits with an error saying what to set if a setting is missing or the parent 
 breedcafs-migration migrate --user-id <migration user id> --team-id <migration team id> 2>&1 | tee migration.log
 ```
 
-The phases run in order: ontology, germplasm, locations, layouts, units, program, datasets, curves, Persons.
+The phases run in order: ontology, germplasm, locations, layouts, units, program, datasets, curves, Persons,
+and last the consolidation of the migration's write stamps (README §14).
 Each writes its mapping file to the data directory as it goes. The run takes about 20–25 minutes on a laptop.
 Expected, from the dry run:
 
