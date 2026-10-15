@@ -30,7 +30,7 @@ async def create_account(
         auth_service: AbstractAuthService
 ):
     # Registration requires an invitation to the email address used, once a verified account exists
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         invitation = None
         if await uow.constraints.accounts_exist():
             if not cmd.invitation_token:
@@ -46,9 +46,8 @@ async def create_account(
             raise IllegalOperationError("This invitation does not offer a Person to link")
 
     # What the invitation offers is granted with the inviter's authority, which is checked again here.
-    # Unredacted, to check the inviter still administers the teams offered.
     inviter_id = invitation.invited_by if invitation is not None else None
-    async with uow_factory.get_uow(user_id=inviter_id, redacted=False) as uow:
+    async with uow_factory.get_uow(user_id=inviter_id) as uow:
         if invitation is not None:
             invitation = await uow.repositories.invitations.get(invitation_id=invitation.id)
             if invitation is None:
@@ -346,7 +345,8 @@ async def request_affiliation(
 ):
     async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
         organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
-        if organisation is None:
+        # Teams below the root are visible only to their affiliates, so are not offered to others
+        if organisation is None or not organisation.is_visible(cmd.team_id, cmd.user_id):
             raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
         organisation.request_affiliation(
             agent_id=cmd.user_id,

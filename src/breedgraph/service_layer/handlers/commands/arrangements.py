@@ -1,6 +1,7 @@
 from asyncio import Queue
 from breedgraph.domain import commands
 from breedgraph.domain.model.arrangements import LayoutInput
+from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
 
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
@@ -41,6 +42,9 @@ async def create_layout(
             axes=cmd.axes or []
         )
 
+        if layout_input.location:
+            # You can only link to what you can read
+            await uow.controls.require_access(ControlledModelLabel.LOCATION, [layout_input.location], Access.READ)
         if cmd.parent:
             arrangement = await uow.repositories.arrangements.get(layout_id=cmd.parent)
             if layout_input.location:
@@ -73,6 +77,7 @@ async def update_layout(
         if cmd.location_id and not cmd.location_id == layout.location:
             if not arrangement.root.location == cmd.location_id:
                 raise ValueError("Cannot set location of layout that is not the root of the arrangement")
+            await uow.controls.require_access(ControlledModelLabel.LOCATION, [cmd.location_id], Access.READ)
             layout.location = cmd.location_id
 
         # Other changes to layout are validated against the ontology

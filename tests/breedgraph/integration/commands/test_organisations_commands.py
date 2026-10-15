@@ -202,7 +202,8 @@ async def test_legal_entity_visible_to_others_without_declared_by(bus, uow_facto
     ))
 
     for user_id in (other_user_id, None):
-        organisation = await get_organisation(uow_factory, user_id, account['team_id'])
+        # Repositories return whole organisations, reads redact them for the user
+        organisation = (await get_organisation(uow_factory, user_id, account['team_id'])).redacted(user_id)
         assert organisation.legal_entity.legal_name == 'Test University'
         assert organisation.legal_entity.declared_by is None
 

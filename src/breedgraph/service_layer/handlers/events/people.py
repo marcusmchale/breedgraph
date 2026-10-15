@@ -35,7 +35,7 @@ async def notify_person_claim_requested(
         notifications: AbstractNotifications
 ):
     """Email the admins of the teams controlling the Person"""
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         controller = await uow.controls.get_controller(ControlledModelLabel.PERSON, event.person_id)
         if controller is None:
             return

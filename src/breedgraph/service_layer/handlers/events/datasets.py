@@ -14,6 +14,7 @@ from breedgraph.domain.model.submissions import SubmissionStatus
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.domain.model.programs import GroupingScope
+from breedgraph.domain.model.controls import Access, ControlledModelLabel
 
 from breedgraph.domain.importers import DatasetImport, DatasetUpdateImport, RecordImport
 
@@ -44,6 +45,8 @@ async def handle_dataset_submitted(
 
             dataset_import = DatasetImport(**submission)
             dataset_input = dataset_import.to_input_for_create()
+            # Programs are loaded whole, so check the study can be read before linking to it
+            await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_input.study], Access.READ)
 
             # we want to create the dataset without records first so that we can begin locking them in
             # and return errors only for those that need to be corrected before storing.
@@ -108,7 +111,8 @@ async def dataset_update_submitted(
 
             scale, categories = await get_scale_and_categories(dataset.concept, uow.ontology)
 
-            if dataset_import.study_id is not None:
+            if dataset_import.study_id is not None and dataset_import.study_id != dataset.study:
+                await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_import.study_id], Access.READ)
                 dataset.study = dataset_import.study_id
             if dataset_import.contributor_ids is not None:
                 dataset.contributors = dataset_import.contributor_ids

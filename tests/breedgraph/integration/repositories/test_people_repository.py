@@ -55,14 +55,17 @@ async def test_name_search_is_not_a_pattern(uow_factory, person_build_context):
 async def test_unregistered_and_without_read_access(uow_factory, person_build_context):
     person_id, name = await create_person(uow_factory, person_build_context)
 
+    # The repository returns whole aggregates by id, for writes; reads redact explicitly.
     # Unregistered users get nothing
     async with uow_factory.get_uow() as uow:
-        assert await uow.repositories.people.get(person_id=person_id) is None
+        person = await uow.repositories.people.get(person_id=person_id)
+        assert person.name == name
+        assert await uow.repositories.people.redacted(person) is None
         assert await uow.repositories.people.get(name=name) is None
 
     # Registered users without read access see the ID only, and cannot find it by name
     async with uow_factory.get_uow(user_id=person_build_context['user_id_2']) as uow:
-        person = await uow.repositories.people.get(person_id=person_id)
+        person = await uow.repositories.people.redacted(await uow.repositories.people.get(person_id=person_id))
         assert person.id == person_id
         assert person.name is None
         assert person.teams == []
@@ -86,7 +89,7 @@ async def test_release(uow_factory, person_build_context, release, anonymous_rea
         assert (await uow.repositories.people.get(name=name)).id == person_id
 
     async with uow_factory.get_uow() as uow:
-        person = await uow.repositories.people.get(person_id=person_id)
+        person = await uow.repositories.people.redacted(await uow.repositories.people.get(person_id=person_id))
         assert (person is not None) == anonymous_reads
 
 

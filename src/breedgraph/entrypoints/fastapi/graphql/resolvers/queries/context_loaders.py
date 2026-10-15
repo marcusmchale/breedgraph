@@ -135,6 +135,7 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
             # if called with teams = None, retrieve all organisations
             if team_ids is None:
                 async for org in uow.repositories.organisations.get_all():
+                    org = org.redacted(user_id)
                     teams_map.update(org.to_output_map())
                     organisation_roots.append(org.root.id)
             else:
@@ -144,6 +145,7 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
                     n = 0
                     async for org in uow.repositories.organisations.get_all(team_ids=team_ids):
                         if org is not None:
+                            org = org.redacted(user_id)
                             n+=1
                             logger.debug(f"Updating teams map with {org.root.id} for {user_id} at {n}")
                             logger.debug(f"Teams map: {teams_map}")

@@ -31,7 +31,7 @@ async def _visible_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None
         return set()
     found = set()
     async for organisation in uow.repositories.organisations.get_all(team_ids=team_ids):
-        found.update(team.id for team in organisation.teams)
+        found.update(organisation.visible_team_ids(uow.controls.user_id))
     return team_ids & found
 
 

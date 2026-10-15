@@ -159,7 +159,7 @@ async def create_test_user() -> tuple[str, str]:
             organisation = await uow.repositories.organisations.create(TeamInput(name=f"{name} team"))
             await uow.commit()
         team_id = organisation.root.id
-        async with uow_factory.get_uow(user_id=user_id, redacted=False) as uow:
+        async with uow_factory.get_uow(user_id=user_id) as uow:
             team = (await uow.repositories.organisations.get(team_id=team_id)).get_team(team_id)
             for access in Access:
                 team.affiliations.set_by_access(access, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))

@@ -349,8 +349,9 @@ class TrackedObject(ObjectProxy):
 
         return base_controlled_models + removed_controlled_models
 
-    def __deepcopy__(self, *args, **kwargs):
-        self.__wrapped__ = copy.deepcopy(self.__wrapped__, *args, **kwargs)
+    def __deepcopy__(self, memo):
+        # A deep copy is an untracked copy of the wrapped value, e.g. for redacting a tracked aggregate
+        return copy.deepcopy(self.__wrapped__, memo)
 
 
 class TrackedList(ObjectProxy):
@@ -555,8 +556,9 @@ class TrackedList(ObjectProxy):
     def silent_append(self, value):
         self.__wrapped__.append(self._get_tracked(len(self), value))
 
-    def __deepcopy__(self, *args, **kwargs):
-        self.__wrapped__ = copy.deepcopy(self.__wrapped__, *args, **kwargs)
+    def __deepcopy__(self, memo):
+        # A deep copy is an untracked copy of the wrapped value, e.g. for redacting a tracked aggregate
+        return copy.deepcopy(self.__wrapped__, memo)
 
 class TrackableDefaultDict(defaultdict):
     def __missing__(self, key):
@@ -739,8 +741,9 @@ class TrackedDict(ObjectProxy):
         self.silent_remove(old_id)
         self.silent_set(new_model.id, new_model)
 
-    def __deepcopy__(self, *args, **kwargs):
-        self.__wrapped__ = copy.deepcopy(self.__wrapped__, *args, **kwargs)
+    def __deepcopy__(self, memo):
+        # A deep copy is an untracked copy of the wrapped value, e.g. for redacting a tracked aggregate
+        return copy.deepcopy(self.__wrapped__, memo)
 
 
 class TrackedGraph(ObjectProxy):
@@ -890,5 +893,6 @@ class TrackedGraph(ObjectProxy):
         self._node.reset_tracking()
         self._adj.reset_tracking()
 
-    def __deepcopy__(self, *args, **kwargs):
-        self.__wrapped__ = copy.deepcopy(self.__wrapped__, *args, **kwargs)
+    def __deepcopy__(self, memo):
+        # A deep copy is an untracked copy of the wrapped value, e.g. for redacting a tracked aggregate
+        return copy.deepcopy(self.__wrapped__, memo)

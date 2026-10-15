@@ -497,28 +497,33 @@ class Organisation(TreeAggregate):
             if curate_affiliation is not None and curate_affiliation.authorisation is Authorisation.AUTHORISED:
                 curate_affiliation.authorisation = Authorisation.REVOKED
 
+    def is_visible(self, team_id: int, user_id: int|None = None) -> bool:
+        """The root is visible to everyone, other teams only to their authorised affiliates"""
+        if team_id == self.get_root_id():
+            return True
+        return user_id is not None and user_id in self.get_affiliates(team_id)
+
+    def visible_team_ids(self, user_id: int|None = None) -> set[int]:
+        return {team_id for team_id in self._graph.nodes if self.is_visible(team_id, user_id)}
+
     def redacted(self, user_id: int|None = None) -> 'Organisation':
+        """
+        A copy for reading: affiliations other than the user's are removed except for admins,
+        and teams hidden from the user are removed, reconnecting their children to their parent.
+        Repositories return whole organisations, so reads must call this explicitly.
+        """
         g = deepcopy(self._graph)
-        root_id = self.get_root_id()
 
         redaction_mapping = dict()
 
         for node_id in list(g.nodes):
             entry: TeamStored = g.nodes[node_id]['model']
-            readers = self.get_affiliates(node_id, access=Access.READ)
-            writers = self.get_affiliates(node_id, access=Access.WRITE)
-            admins =  self.get_affiliates(node_id, access=Access.ADMIN)
-            curators = self.get_affiliates(node_id, access=Access.CURATE)
-            if not user_id in admins:
+            if not user_id in self.get_affiliates(node_id, access=Access.ADMIN):
                 g.nodes[node_id]['model'] = entry.redacted(user_id=user_id)
 
-            if not user_id in readers | admins | writers | curators:
-                if node_id == root_id:
-                    pass
-                else:
-                    parent_id = self.get_parent_id(node_id)
-                    redaction_mapping[node_id] = parent_id
-                    self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
+            if not self.is_visible(node_id, user_id):
+                redaction_mapping[node_id] = self.get_parent_id(node_id)
+                self.remove_node_and_reconnect(g, node_id, label=self.default_edge_label)
 
         org = self.__class__()
         org._graph = g

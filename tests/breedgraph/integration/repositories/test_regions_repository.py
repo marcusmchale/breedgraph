@@ -113,10 +113,11 @@ async def test_make_location_visible_to_registered(
         ontology_location_field=field_type_id,
         ontology_location_lab=lab_type_id
     )
-    # Ensure registered can't see field in aggregate
+    # Ensure registered can't see field in aggregate: the repository returns it whole, redaction is explicit
     async with uow_factory.get_uow(user_id=user_id_2) as uow:
         region = await uow.repositories.regions.get(location_id=region_ids['location_country_id'])
-        assert region.size == 1
+        assert region.size == 4
+        assert (await uow.repositories.regions.redacted(region)).size == 1
 
     # Change access to registered
     async with uow_factory.get_uow(user_id=user_id_1) as uow:
@@ -135,4 +136,4 @@ async def test_make_location_visible_to_registered(
     # Ensure registered now have visibility of a redacted graph (only root and field)
     async with uow_factory.get_uow(user_id=user_id_2) as uow:
         region = await uow.repositories.regions.get(location_id=region_ids['location_field_id'])
-        assert region.size == 2
+        assert (await uow.repositories.regions.redacted(region)).size == 2

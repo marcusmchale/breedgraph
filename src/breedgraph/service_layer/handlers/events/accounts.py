@@ -29,7 +29,7 @@ async def send_invitation(
         auth_service: AbstractAuthService,
         notifications: AbstractNotifications
 ):
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         invitation = await uow.repositories.invitations.get(invitation_id=event.invitation_id)
         if invitation is None:
             return
@@ -122,7 +122,7 @@ async def process_affiliation_request(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         organisation = await uow.repositories.organisations.get(team_id = event.team_id)
         if organisation is None:
             return
@@ -166,7 +166,7 @@ async def notify_user_approved(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         organisation = await uow.repositories.organisations.get(team_id = event.team_id)
         team = organisation.get_team(event.team_id)
         if team is None or isinstance(team, TeamInput):

@@ -26,7 +26,7 @@ class OrganisationBuilder:
             return organisation.root.id
 
     async def authorise_access(self, user_id: int, team_id: int, access: Access, heritable = None ):
-        async with self.uow_factory.get_uow(redacted=False, user_id=user_id) as uow:
+        async with self.uow_factory.get_uow(user_id=user_id) as uow:
             organisation = await uow.repositories.organisations.get(team_id=team_id)
             if not organisation:
                 raise ValueError("Organisation not found for team")

@@ -1,10 +1,9 @@
-from multiprocessing.managers import rebuild_as_list
-
 from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
 from breedgraph.domain.model.blocks import UnitInput, Position
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
+from breedgraph.domain.model.controls import Access, ControlledModelLabel
 
 
 from ..registry import handlers
@@ -88,6 +87,8 @@ async def update_unit(
             if len(cmd.parents) == 0:
                 if block.get_parent_ids(cmd.unit_id):
                     # this node is a child of this block, so removing its parents will make it the root of a new block
+                    await uow.controls.require_access(ControlledModelLabel.UNIT, [cmd.unit_id], Access.CURATE)
+                    await uow.controls.require_access(ControlledModelLabel.UNIT, block.get_parent_ids(cmd.unit_id), Access.READ)
                     await uow.restructuring.split_block(block, cmd.unit_id)
                 else:
                     logger.debug('Updating a block root unit to empty parents, doing nothing')
@@ -132,8 +133,10 @@ async def add_position(
         await uow.commit()
 
 async def _validate_position_layout(uow: AbstractUnitHolder, position: Position):
-
+    # A position links the unit to a location and layout, so the user must be able to read them
+    await uow.controls.require_access(ControlledModelLabel.LOCATION, [position.location_id], Access.READ)
     if position.layout_id:
+        await uow.controls.require_access(ControlledModelLabel.LAYOUT, [position.layout_id], Access.READ)
         if not position.coordinates:
             raise ValueError("Coordinates required if a layout is specified")
 

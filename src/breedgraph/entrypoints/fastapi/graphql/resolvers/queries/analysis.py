@@ -1,6 +1,7 @@
 from ariadne import ObjectType, UnionType
 
 from breedgraph.domain.model.analysis import AnalysisType
+from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 import logging
@@ -199,7 +200,13 @@ async def resolve_record_grouping_study(record_grouping: dict, info):
         if program is None:
             return None
         study = program.get_study(grouping_id=grouping_id)
-        return study.id if study is not None else None
+        if study is None:
+            return None
+        # The repository returns the whole program, so check the study can be read
+        controller = await uow.controls.get_controller(ControlledModelLabel.STUDY, study.id)
+        if controller is None or not controller.has_access(Access.READ, user_id, uow.controls.access_teams[Access.READ]):
+            return None
+        return study.id
 
 @analysis_group.field('recordGroups')
 def resolve_group_record_groups(group: dict, info):

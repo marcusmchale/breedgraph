@@ -74,6 +74,8 @@ class AnalysisContextLoader:
                     message=f"Dataset {dataset_id} is not readable",
                     path=path
                 ))
+                # The repository returns whole datasets, so nothing of an unreadable one may be used
+                datasets.pop(dataset_id)
                 continue
             if not dataset.records:
                 self.warnings.append(AnalysisMessage(
@@ -133,6 +135,8 @@ class AnalysisContextLoader:
         studies = {}
         for study_id in study_ids:
             program = await self.uow.repositories.programs.get(study_id=study_id)
+            if program is not None:
+                program = await self.uow.repositories.programs.redacted(program)
             study = program.get_study(study_id=study_id) if program is not None else None
             if study is not None:
                 studies[study_id] = study
@@ -156,6 +160,8 @@ class AnalysisContextLoader:
         units = {}
         if unit_ids:
             async for block in self.uow.repositories.blocks.get_all(unit_ids=list(unit_ids)):
+                # Units the user cannot read are left out, and ancestors are those the user can read
+                block = await self.uow.repositories.blocks.redacted(block)
                 for unit_id, unit in block.entries.items():
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,

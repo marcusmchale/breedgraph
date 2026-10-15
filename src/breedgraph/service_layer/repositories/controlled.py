@@ -1,3 +1,4 @@
+import copy
 from abc import abstractmethod
 from typing import Dict, Set, AsyncGenerator, TypeVar, Generic
 from dataclasses import dataclass
@@ -12,7 +13,8 @@ from breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOper
 from breedgraph.domain.model.controls import Access
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from breedgraph.domain.model.controls import (
-    ReadRelease, ControlledAggregate, ControlledModel, ControlledModelLabel, DiscoveryMatch, Controller
+    ReadRelease, ControlledAggregate, ControlledRootedAggregate, ControlledModel, ControlledModelLabel,
+    DiscoveryMatch, Controller
 )
 
 TControlledAggregate = TypeVar("TControlledAggregate", bound=ControlledAggregate)
@@ -27,6 +29,12 @@ class ControlledRepository(
     Generic[TAggregateInput, TControlledAggregate],
     BaseRepository[TAggregateInput, TControlledAggregate]
 ):
+    """
+    Returns whole aggregates, so that writes and their integrity checks see every member, including those the user
+    cannot read. Reads that show aggregates to users go through the views, which check access in Cypher.
+    A hidden aggregate cannot be found by a filter other than its id.
+    On update, changing or removing a model requires curate access, and linking requires read access to both ends.
+    """
 
     def __init__(
             self,
@@ -118,8 +126,16 @@ class ControlledRepository(
             control_teams={write_team},
             release=self.release
         )
-        controllers = await self.controls.get_controllers_for_aggregate(aggregate)
         await self.controls.record_writes(aggregate)
+        return aggregate
+
+    async def redacted(self, aggregate: TControlledAggregate) -> TControlledAggregate | None:
+        """
+        A copy of an aggregate redacted for the user, for the few reads that use the repository instead of the views.
+        """
+        controllers = await self.controls.get_controllers_for_aggregate(aggregate)
+        # Redaction may change the aggregate in place, so redact an untracked copy
+        aggregate = copy.deepcopy(aggregate)
         return aggregate.redacted(
             controllers=controllers,
             user_id=self.user_id,
@@ -149,11 +165,7 @@ class ControlledRepository(
             ):
                 return None
 
-            return aggregate.redacted(
-                controllers=controllers,
-                user_id=self.user_id,
-                read_teams=self.access_teams[Access.READ]
-            )
+            return aggregate
 
     @abstractmethod
     async def _get_controlled(self, **kwargs) -> ControlledQueryResult[TControlledAggregate]|None:
@@ -179,17 +191,7 @@ class ControlledRepository(
                     if not self._any_read_access(controllers=controllers):
                         # and the user has no read access return nothing
                         continue
-                # Returned objects may still need to be redacted
-                aggregate = aggregate.redacted(
-                    controllers=controllers,
-                    user_id=self.user_id,
-                    read_teams=self.access_teams[Access.READ]
-                )
-
-                # If on redaction there is no object then return nothing
-                if aggregate is not None:
-                    # otherwise yield the redacted object
-                    yield aggregate
+                yield aggregate
 
     @abstractmethod
     def _get_all_controlled(self, **kwargs) -> AsyncGenerator[ControlledQueryResult[TControlledAggregate], None]:
@@ -233,6 +235,9 @@ class ControlledRepository(
                     raise UnauthorisedOperationError(
                         f"Editing requires curate permission")
 
+        if isinstance(aggregate, ControlledRootedAggregate):
+            await self._check_links(aggregate, controllers)
+
         await self._update_controlled(aggregate)
 
         controlled_added = [i for i in aggregate.added_models if isinstance(i, ControlledModel)]
@@ -244,6 +249,39 @@ class ControlledRepository(
             )
         controlled_updates = [i for i in aggregate.changed_models if isinstance(i, ControlledModel)]
         await self.controls.record_writes(controlled_updates + controlled_added)
+
+    async def _check_links(
+            self,
+            aggregate: ControlledRootedAggregate | TrackableProtocol,
+            controllers: Dict[ControlledModelLabel, Dict[int, Controller]]
+    ):
+        """
+        You can only link to what you can read: each added or removed edge requires read access to its stored ends.
+        A new model takes the read check on its parent, and edges of a removed model need only the curate access
+        checked for its removal. Stored models added to the graph (merging another aggregate) bring their own edges,
+        and attaching the merged root changes it, as moving a model does.
+        """
+        graph = aggregate._graph
+        added_nodes = graph.added_nodes
+        removed_nodes = graph.removed_nodes.keys()
+        added_edges = graph.added_edges
+        for edge in added_edges ^ graph.removed_edges:
+            if any(node_id in removed_nodes for node_id in edge):
+                continue
+            for node_id in edge:
+                if node_id in added_nodes:
+                    continue
+                model = graph.nodes[node_id]['model']
+                controller = controllers[model.label][model.id]
+                if not controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
+                    raise UnauthorisedOperationError(
+                        f"Linking requires read access to both {model.label.plural.casefold()}"
+                    )
+            source_id, sink_id = edge
+            sink = graph.nodes[sink_id]['model']
+            if edge in added_edges and source_id not in added_nodes and sink_id in added_nodes and isinstance(sink, ControlledModel):
+                if not await self._can_change(sink, controllers[sink.label][sink.id]):
+                    raise UnauthorisedOperationError("Editing requires curate permission")
 
     @abstractmethod
     async def _update_controlled(self, aggregate: TControlledAggregate | TrackableProtocol):

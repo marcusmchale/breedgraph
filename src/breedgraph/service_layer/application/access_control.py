@@ -179,6 +179,20 @@ class AbstractAccessControlService(ABC):
         """
         return await self._get_controllers(label, model_ids)
 
+    async def require_access(self, label: ControlledModelLabel, model_ids: Iterable[int], access: Access) -> None:
+        """
+        For links and changes the repositories do not check: the user must have the given access to each model.
+        A model the user cannot read is reported as not found.
+        """
+        model_ids = list(model_ids)
+        controllers = await self.get_controllers(label, model_ids)
+        for model_id in model_ids:
+            controller = controllers.get(model_id)
+            if controller is None or not controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
+                raise NoResultFoundError(f"{label.value} {model_id} was not found")
+            if not controller.has_access(access, self.user_id, self.access_teams[access]):
+                raise UnauthorisedOperationError(f"This change requires {access.value.casefold()} access")
+
     async def get_controllers_for_aggregate(self, aggregate: ControlledAggregate) -> Dict[ControlledModelLabel, Dict[int, Controller]]:
         """
         :param aggregate:

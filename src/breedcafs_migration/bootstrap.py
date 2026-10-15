@@ -48,7 +48,7 @@ class MigrationContext:
 
 
 async def get_or_create_migration_account(uow_factory: Neo4jUnitOfWorkFactory) -> AccountStored:
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(name=BREEDCAFS_USER_NAME)
         if account is not None:
             if account.user.password_hash:

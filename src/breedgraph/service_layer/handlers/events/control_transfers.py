@@ -17,7 +17,7 @@ async def notify_control_transfer_offered(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    async with uow_factory.get_uow(redacted=False) as uow:
+    async with uow_factory.get_uow() as uow:
         organisation = await uow.repositories.organisations.get(team_id=event.recipient_team)
         if organisation is None:
             return

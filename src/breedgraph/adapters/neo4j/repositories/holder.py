@@ -30,7 +30,6 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             tx: AsyncTransaction,
             controls: AbstractAccessControlService,
             release: ReadRelease = ReadRelease.PRIVATE,
-            redacted: bool = True,
             write_team: int | None = None
     ):
         self.tx = tx
@@ -43,11 +42,7 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         self.invitations = Neo4jInvitationsRepository(self.tx, expiry_days=INVITATION_EXPIRY_DAYS)
         # Similarly, the access control for organisations is via internally described affiliations
 
-        self.organisations = Neo4jOrganisationsRepository(
-            self.tx,
-            user_id=controls.user_id,
-            redacted=redacted
-        )
+        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=controls.user_id)
         """
         The below repositories are controlled in a common pattern that determine access
          to the values of models within an aggregate

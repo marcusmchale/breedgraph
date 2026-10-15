@@ -219,3 +219,29 @@ async def test_hidden_teams_map_to_the_nearest_visible_team(root_team, lorem_tex
     organisation = Organisation(nodes=[root_team, grandchild, child], edges=[(1, 2, {}), (2, 3, {})])
     output_map = organisation.redacted(user_id=2).to_output_map()
     assert {team_id: team.id for team_id, team in output_map.items()} == {1: 1, 2: 1, 3: 1}
+
+
+@pytest.mark.asyncio
+async def test_teams_below_the_root_are_visible_only_to_affiliates(root_team, lorem_text_generator):
+    reader = Affiliations()
+    reader.set_by_access(Access.READ, 2, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True))
+    child = TeamStored(id=2, affiliations=reader, **get_team_input(lorem_text_generator).model_dump())
+    grandchild = TeamStored(id=3, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    hidden = TeamStored(id=4, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    organisation = Organisation(nodes=[root_team, child, grandchild, hidden], edges=[(1, 2, {}), (2, 3, {}), (1, 4, {})])
+
+    assert organisation.visible_team_ids(None) == {1}
+    assert organisation.visible_team_ids(2) == {1, 2, 3}  # the grandchild by heritable read on the child
+    assert organisation.visible_team_ids(1) == {1, 2, 3, 4}  # heritable admin on the root
+    # the repository returns whole organisations, redaction is only for reading
+    assert {team.id for team in organisation.redacted(user_id=2).teams} == {1, 2, 3}
+    assert {team.id for team in organisation.teams} == {1, 2, 3, 4}
+
+
+@pytest.mark.asyncio
+async def test_whole_organisation_refuses_removing_a_team_with_hidden_children(root_team, lorem_text_generator):
+    child = TeamStored(id=2, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    grandchild = TeamStored(id=3, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    organisation = Organisation(nodes=[root_team, child, grandchild], edges=[(1, 2, {}), (2, 3, {})])
+    with pytest.raises(IllegalOperationError):
+        organisation.remove_team(2)

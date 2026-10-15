@@ -78,8 +78,20 @@ In detail:
    organisation's root, with its legal entity, by everyone, anonymous users included, as whom personal data is held
    by is public. Hidden teams are skipped within an organisation (rule 3), stood in for where referred to (rule 7),
    and a placeholder when asked for by id (rule 2).
-10. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
-   repositories, where redaction keeps hidden members present. Making them independent of redaction is open.
+10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
+   aggregates, organisations included, so write handlers and integrity checks see members the writer cannot read:
+   deleting a location with hidden children, or a region, layout or block root with hidden members, is refused, and
+   removal needs curate access to hidden members too. A hidden aggregate still cannot be found by a filter other than
+   its id. Where redaction used to hide a member from the writer, one rule now applies: **you can only link to what
+   you can read.** Each added or removed edge in a rooted aggregate (regions, arrangements, blocks) needs read access
+   to both stored ends, a new member needs read access to its parent, and attaching a merged block's root needs curate
+   access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
+   checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
+   layout to its location, a dataset to its study, and splitting a block (curate on the unit, read on its parents).
+   Changing or removing a controlled model needs curate access, which includes read. The few reads that still use a
+   repository redact explicitly: organisations with `Organisation.redacted` (the teams map, and the teams a user may
+   give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused
+   for a team the user cannot see.
 
 ## 3. Datasets under this policy
 
@@ -116,4 +128,4 @@ EDITORIAL view, with drafts, needs an account.
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
 | People (`views.people`, `query_builders/people.py`) | yes; the linked user also sees their own Person in full (docs/person.md) |
 | Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
-| Accounts and organisations | yes; organisations are read through the repository and redacted in Python (small, and already following the note) |
+| Accounts and organisations | yes; organisations are read through the repository and redacted explicitly in Python (small, and already following the note) |

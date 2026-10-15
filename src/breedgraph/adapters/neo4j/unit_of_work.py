@@ -72,7 +72,6 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             cls,
             tx: AsyncTransaction,
             user_id: int | None = None,
-            redacted: bool = True,
             write_team: int | None = None,
             release: ReadRelease = ReadRelease.PRIVATE
     ) -> "Neo4jUnitHolder":
@@ -106,7 +105,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         restructuring = Neo4jAggregateRestructuringService(tx)
         guards = Neo4jDependencyGuards(tx)
         constraints = Neo4jConstraintsHandler(tx, user_id)
-        repositories = Neo4jRepoHolder(tx, access_control_service, release=release, redacted=redacted, write_team=write_team)
+        repositories = Neo4jRepoHolder(tx, access_control_service, release=release, write_team=write_team)
 
         return cls(
             tx=tx,
@@ -157,7 +156,6 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
     async def _get_uow(
             self,
             user_id: int | None = None,
-            redacted: bool = True,
             write_team: int | None = None,
             release: ReadRelease = ReadRelease.PRIVATE
     ) -> AsyncGenerator[Neo4jUnitHolder, None]:
@@ -168,7 +166,6 @@ class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):
         unit_holder = await Neo4jUnitHolder.create(
             tx=tx,
             user_id=user_id,
-            redacted=redacted,
             release=release,
             write_team=write_team
         )

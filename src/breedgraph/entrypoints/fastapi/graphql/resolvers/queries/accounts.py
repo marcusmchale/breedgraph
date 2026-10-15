@@ -124,7 +124,7 @@ async def get_invitation_preview(_, info, token: str) -> dict:
     """The token from the invitation link is the authorisation to see what the invitation offers"""
     token_data = info.context['auth_service'].validate_invitation_token(token)
     bus = info.context.get('bus')
-    async with bus.uow_factory.get_uow(redacted=False) as uow:
+    async with bus.uow_factory.get_uow() as uow:
         invitation_stored = await uow.repositories.invitations.get(invitation_id=token_data['invitation_id'])
         if invitation_stored is None or invitation_stored.is_expired():
             raise NoResultFoundError("This invitation is no longer valid")
