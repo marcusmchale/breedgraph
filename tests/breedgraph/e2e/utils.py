@@ -1,3 +1,4 @@
+from breedgraph.config import GQL_API_PATH
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 
@@ -25,10 +26,21 @@ def with_auth(csrf_token: str, auth_token: str | None = None) -> dict:
 def get_verified_payload(response, query_name):
     assert response.status_code == 200
     assert response.headers['content-type'] == 'application/json'
-    payload = response.json()['data'][query_name]
+    body = response.json()
+    assert body.get('data') is not None, body.get('errors')
+    payload = body['data'][query_name]
     return payload
 
 def assert_payload_success(payload):
     assert payload['status'] == GQLStatus.SUCCESS.name
     assert payload['errors'] is None
     assert payload['result']
+
+
+async def post_as(client, login_token_factory, user_id: int | None, query: str, variables: dict | None = None):
+    """Post a GraphQL query as the user, or anonymously when user_id is None"""
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=login_token_factory(user_id) if user_id is not None else None
+    )
+    return await client.post(GQL_API_PATH, json={"query": query, "variables": variables or {}}, headers=headers)

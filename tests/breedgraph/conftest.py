@@ -32,6 +32,7 @@ from tests.breedgraph.scenarios import (
     DatasetBuilder,
     OrganisationBuilder
 )
+from tests.breedgraph.scenarios.read_policy_scenario import ReadPolicyScenario, ReadPolicyScenarioBuilder
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.organisations import TeamInput
 
@@ -40,7 +41,8 @@ from typing import Dict, cast, AsyncGenerator, Any
 from breedgraph.config import (
     SECRET_KEY, CSRF_SALT,
     MAIL_USERNAME, MAIL_HOST,
-    get_base_url, get_redis_host_and_port
+    get_base_url, get_redis_host_and_port,
+    FILE_STORAGE_PATH
 )
 
 import logging
@@ -451,3 +453,10 @@ async def control_transfer_context(isolated_state, uow_factory) -> dict:
         'child_team_id': child_team_id,
         'user_id_3': user_id_3
     }
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def read_policy(isolated_state, bus, uow_factory, state_store) -> ReadPolicyScenario:
+    """The read-policy scenario: see tests/breedgraph/scenarios/read_policy_scenario.py"""
+    return await ReadPolicyScenarioBuilder(
+        uow_factory, state_store, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
+    ).build()
