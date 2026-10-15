@@ -504,6 +504,12 @@ checks, to the data directory, and exits with 3 if any check fails. The checks:
 * No record has replicate code 0 (§7.6).
 * No model has more than one write stamp by the migration user (§14).
 
+Below the checks, the report has a table of the replicate codes migrated for each input, for auditing: records, those
+with a code, readings (one submission, unit and time) with several replicates, the most in a reading, and the range of
+codes. In the extracted data, the photosynthesis inputs (CIRAS3) have codes 1–36, numbered through a session rather
+than per tree, with at most 3 replicates in a reading; most of their replicates were recorded minutes apart, so are
+separate readings by time alone, and are combined in analysis with a replicate aggregation window.
+
 The dry run (`BREEDCAFS_DRY_RUN=1`) runs the validation after the migration and fails if any check fails.
 
 Resolve any migration errors before proceeding to handover.

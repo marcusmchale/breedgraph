@@ -27,7 +27,7 @@ from breedgraph.service_layer.infrastructure import archival_service
 from breedcafs_migration.curves import planned_curves
 
 from breedcafs_migration.bootstrap import MigrationContext
-from breedcafs_migration.datasets import DatasetPlan
+from breedcafs_migration.datasets import DatasetPlan, replicate_code
 from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
 from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES
@@ -52,8 +52,18 @@ class Check:
 
 
 @dataclass
+class Section:
+    """A table in the report for reading, not checked"""
+    title: str
+    note: str
+    header: list[str]
+    rows: list[list]
+
+
+@dataclass
 class Validation:
     checks: list[Check] = field(default_factory=list)
+    sections: list[Section] = field(default_factory=list)
 
     def check(self, name: str, passed: bool, detail: str = '') -> None:
         self.checks.append(Check(name, passed, detail))
@@ -214,6 +224,7 @@ async def validate_datasets(validation, uow_factory, ontology: OntologyIds):
         "No record has replicate code 0, BreedCAFS's code for a reading not replicated",
         zero['records'] == 0, f"{zero['records']} with code 0"
     )
+    validation.sections.append(replicate_summary(plan, ontology))
     return mapped, list(studies.values())
 
 
@@ -335,7 +346,51 @@ def write_report(validation: Validation) -> Path:
         f.write(f"# Migration validation: {'PASSED' if validation.passed else 'FAILED'}\n\n| Check | Result | Detail |\n|---|---|---|\n")
         for check in validation.checks:
             f.write(f"| {check.name} | {'pass' if check.passed else 'FAIL'} | {check.detail.replace('|', '/')} |\n")
+        for section in validation.sections:
+            f.write(f"\n## {section.title}\n\n{section.note}\n\n| {' | '.join(section.header)} |\n")
+            f.write(f"|{'---|' * len(section.header)}\n")
+            for row in section.rows:
+                f.write(f"| {' | '.join(str(value).replace('|', '/') for value in row)} |\n")
     return path
+
+
+def replicate_summary(plan: DatasetPlan, ontology: OntologyIds) -> Section:
+    """
+    The replicate codes migrated for each input, after code 0 is dropped (README §7.6), for auditing:
+    records, records with a code, readings (same submission, unit and time) with several replicates,
+    the most replicates in a reading, and the range of codes.
+    """
+    names = {}
+    for (input_name, apparatus), (_, concept_id) in ontology.inputs.items():
+        names.setdefault(concept_id, set()).add(f"{input_name} ({apparatus})" if apparatus else input_name)
+    by_concept: dict[int, list] = {}
+    for (study, concept_id, submission_time, submitter_id), records in plan.datasets.items():
+        for record in records:
+            by_concept.setdefault(concept_id, []).append(((study, submission_time, submitter_id), record))
+    rows = []
+    for concept_id, entries in by_concept.items():
+        coded = [(submission, r) for submission, r in entries if replicate_code(r.replicate)]
+        readings: dict[tuple, list[str]] = {}
+        for submission, r in coded:
+            readings.setdefault((submission, r.item_uid, r.start, r.end), []).append(replicate_code(r.replicate))
+        replicated = [codes for codes in readings.values() if len(codes) > 1]
+        numbers = sorted({int(c) for codes in readings.values() for c in codes if c.isdigit()})
+        rows.append([
+            ', '.join(sorted(names.get(concept_id, {str(concept_id)}))), len(entries), len(coded), len(replicated),
+            max((len(codes) for codes in readings.values()), default=0),
+            f"{numbers[0]}–{numbers[-1]}" if numbers else ''
+        ])
+    rows.sort(key=lambda row: (-row[2], row[0]))
+    return Section(
+        title="Replicate codes by input",
+        note=(
+            "What was migrated for each input, code 0 having been dropped (README §7.6). A reading is the records of one "
+            "submission, unit and time; replicates recorded minutes apart are separate readings here, and are combined "
+            "in analysis with a replicate aggregation window."
+        ),
+        header=["Input", "Records", "With a code", "Readings with several replicates", "Most in a reading", "Codes"],
+        rows=rows
+    )
 
 
 async def validate_breedcafs_migration(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext) -> Validation:
