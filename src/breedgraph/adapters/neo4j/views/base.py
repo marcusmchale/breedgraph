@@ -7,6 +7,7 @@ from breedgraph.adapters.neo4j.views.units import Neo4jUnitsView
 from breedgraph.adapters.neo4j.views.programs import Neo4jProgramsView
 from breedgraph.adapters.neo4j.views.arrangements import Neo4jArrangementsView
 from breedgraph.adapters.neo4j.views.references import Neo4jReferencesView
+from breedgraph.adapters.neo4j.views.people import Neo4jPeopleView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
 
@@ -29,7 +30,8 @@ class Neo4jViewsHolder(AbstractViewsHolder):
             units: Neo4jUnitsView,
             programs: Neo4jProgramsView,
             arrangements: Neo4jArrangementsView,
-            references: Neo4jReferencesView
+            references: Neo4jReferencesView,
+            people: Neo4jPeopleView
     ):
         self.units = units
         self.programs = programs
@@ -40,6 +42,7 @@ class Neo4jViewsHolder(AbstractViewsHolder):
         self.datasets = datasets
         self.germplasm = germplasm
         self.references = references
+        self.people = people
 
 
 class Neo4jViewsFactory(AbstractViewsFactory):
@@ -65,5 +68,6 @@ class Neo4jViewsFactory(AbstractViewsFactory):
                 units = Neo4jUnitsView(session=session, user_id=user_id, read_teams=read_teams),
                 programs = Neo4jProgramsView(session=session, user_id=user_id, read_teams=read_teams),
                 arrangements = Neo4jArrangementsView(session=session, user_id=user_id, read_teams=read_teams),
-                references = Neo4jReferencesView(session=session, user_id=user_id, read_teams=read_teams)
+                references = Neo4jReferencesView(session=session, user_id=user_id, read_teams=read_teams),
+                people = Neo4jPeopleView(session=session, user_id=user_id, read_teams=read_teams)
             )

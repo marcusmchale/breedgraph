@@ -24,14 +24,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def _verify_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None) -> None:
+async def _visible_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None) -> set[int]:
+    """Those of the given teams that the agent can see"""
     team_ids = set(team_ids or [])
     if not team_ids:
-        return
+        return set()
     found = set()
     async for organisation in uow.repositories.organisations.get_all(team_ids=team_ids):
         found.update(team.id for team in organisation.teams)
-    missing = team_ids - found
+    return team_ids & found
+
+
+async def _verify_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None) -> None:
+    """Only teams the agent can see may be given"""
+    missing = set(team_ids or []) - await _visible_teams(uow, team_ids)
     if missing:
         raise NoResultFoundError(f"Teams not found: {sorted(missing)}")
 
@@ -92,7 +98,9 @@ async def update_person(
             person.institution = cmd.institution.strip() or None
         if cmd.teams is not None:
             await _verify_teams(uow, cmd.teams)
-            person.teams = list(cmd.teams)
+            # The curator sets the teams they can see; those hidden from them are kept, as they could not see them
+            hidden = set(person.teams) - await _visible_teams(uow, person.teams)
+            person.teams = list(dict.fromkeys([*cmd.teams, *(team for team in person.teams if team in hidden)]))
         if cmd.basis is not None:
             person.basis = cmd.basis
         await uow.commit()

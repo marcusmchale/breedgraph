@@ -139,8 +139,15 @@ has the same visibility as the name, and is cleared on erasure.
 | Viewer | Sees |
 |---|---|
 | Has read access, or is the linked User | The full record |
-| Registered, without read access | `id` only. The id can be used to look up who controls access to the record. |
-| Anonymous | Nothing |
+| Anyone else, anonymous users included | `id` only (`restricted`), where the Person is referred to (a contact, a contributor) or asked for by id. The id can be used to look up who controls access to the record. |
+
+Searches (`people`, by name or not) return only the Persons the viewer can read or is linked to, so a name does not
+reveal that a hidden Person has it. A Person's teams the viewer cannot see are shown as the nearest team they can see
+that includes them, marked as standing in (`TeamReference.standIn`), as for controllers (docs/read-access.md, rule 7).
+A Person's teams are affiliation for attribution (`(Person)-[:IN_TEAM]->(Team)`), separate from the linked user's
+access affiliations, and only curators change them. A curator can only give teams they can see, and saving keeps the
+teams hidden from them, so curators who see different teams do not drop each other's.
+Reads go through the people view (`query_builders/people.py`); the repository and `PersonStored.redacted` serve writes.
 
 An erased Person shows as "Erased person" with its `id` to everyone who could see it before.
 

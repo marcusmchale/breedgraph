@@ -60,9 +60,10 @@ In detail:
 7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is
    shown as the nearest team they can see that includes it, at furthest its organisation's root, which is never
    hidden. This is a stand-in rather than a placeholder: its purpose is that a user can always follow a reference to
-   a responsible party and ask there for an affiliation. Stand-ins are marked as such (`Controller.standInTeams`,
-   `Control.teamHidden`), never mixed with the controlling teams the user can see (`Controller.teams`), so a reader
-   can tell "Galway controls this" from "a team within Galway that you can't see controls this". Because a
+   a responsible party and ask there for an affiliation. A team is always referred to through a `TeamReference`
+   (`Controller.teams`, `Control.team`, `Person.teams`): the team and whether it stands in (`standIn`), so a reader can
+   tell "Galway controls this" from "a team within Galway that you can't see controls this". The flag belongs to the
+   reference, not the team, as the same team can be itself in one place and a stand-in in another. Because a
    stand-in's id is not the controlling team's, access is never decided by comparing team ids on the client: the
    server answers it (`Controller.access`) from the user's affiliations.
 8. **Write paths are separate.** Write handlers and integrity checks still load whole aggregates through the
@@ -101,4 +102,5 @@ EDITORIAL view, with drafts, needs an account.
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
 | References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
-| People, accounts, controls | not yet reviewed |
+| People (`views.people`, `query_builders/people.py`) | yes; the linked user also sees their own Person in full (docs/person.md) |
+| Accounts, controls | not yet reviewed |

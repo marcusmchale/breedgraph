@@ -302,26 +302,40 @@ async def update_reference_map(
 
 async def update_people_map(context, person_ids: Iterable[int] | None = None):
     """
-    Load Persons by id into context['people_map'], for resolving references to Persons.
-    Registered users without read access get the id only. Anonymous users get nothing.
+    Load Persons by id into context['people_map'], for resolving references to Persons, through the people view:
+    a Person the user cannot read is a placeholder, its id with no name (see docs/read-access.md)
     """
     async with _get_lock(context, '_people_lock'):
-        bus = context.get('bus')
-        user_id = context.get('user_id')
         people_map = context.setdefault('people_map', dict())
         unmapped = set(person_ids or []) - set(people_map.keys())
         if not unmapped:
             return
-        async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            async for person in uow.repositories.people.get_all(person_ids=sorted(unmapped)):
-                people_map[person.id] = person.to_output()
+        async with get_context_lock(context):
+            views = await get_context_views(context)
+            for person in await views.people.get_people(sorted(unmapped)):
+                people_map[person.id] = person
 
 async def resolve_people(context, person_ids: Iterable[int] | None) -> list:
-    """
-    Resolve references to Persons, in order. Registered users without read access get the id only;
-    Persons that cannot be shown at all, e.g. to anonymous users, are omitted.
-    """
+    """Resolve references to Persons, in order, placeholders for those the user cannot read"""
     person_ids = list(person_ids or [])
     await update_people_map(context, person_ids=person_ids)
     people_map = context.get('people_map', {})
     return [people_map[person_id] for person_id in person_ids if person_id in people_map]
+
+
+async def team_references(context, team_ids) -> list[dict]:
+    """
+    References to these teams as the user sees them, for GraphQL's TeamReference: the team, or for a team hidden from
+    the user, the nearest team they can see that includes it, its organisation's root at the furthest, marked as a
+    stand-in (see docs/read-access.md, rule 7). In order, each team once as itself and once as a stand-in at most.
+    """
+    team_ids = list(team_ids or [])
+    await update_teams_map(context=context, team_ids=team_ids)
+    teams_map = context.get('teams_map', {})
+    references = {}
+    for team_id in team_ids:
+        team = teams_map.get(team_id)
+        if team is not None:
+            stand_in = team.id != team_id
+            references.setdefault((team.id, stand_in), {'team': team, 'stand_in': stand_in})
+    return list(references.values())

@@ -7,9 +7,11 @@ from breedgraph.domain.model.people import PersonOutput, LawfulBasis
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_people_map,
-    update_teams_map,
     update_users_map,
-    resolve_people
+    resolve_people,
+    team_references,
+    get_context_views,
+    get_context_lock
 )
 from breedgraph.domain.model.controls import Access
 
@@ -28,17 +30,14 @@ graphql_resolvers.register_enums(EnumType("LawfulBasis", LawfulBasis))
 
 @graphql_query.field("people")
 @graphql_payload
-@require_authentication
 async def get_people(_, info, name: str | None = None) -> List[PersonOutput]:
-    user_id = info.context.get('user_id')
-    bus = info.context.get('bus')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        people = uow.repositories.people.get_all(name=name) if name else uow.repositories.people.get_all()
-        return [p.to_output() async for p in people]
+    """The Persons the user can read, or is linked to, by name or all of them; hidden ones are left out"""
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.people.search_people(name)
 
 @graphql_query.field("peoplePeople")
 @graphql_payload
-@require_authentication
 async def get_people_by_ids(_, info, ids: List[int]) -> List[PersonOutput]:
     await update_people_map(info.context, person_ids=ids)
     people_map = info.context.get('people_map')
@@ -46,7 +45,6 @@ async def get_people_by_ids(_, info, ids: List[int]) -> List[PersonOutput]:
 
 @graphql_query.field("peoplePerson")
 @graphql_payload
-@require_authentication
 async def get_person(_, info, id: int) -> PersonOutput:
     await update_people_map(info.context, person_ids=[id])
     person_output = info.context.get('people_map').get(id)
@@ -56,9 +54,8 @@ async def get_person(_, info, id: int) -> PersonOutput:
 
 @person.field("teams")
 async def resolve_teams(obj: PersonOutput, info):
-    await update_teams_map(info.context, team_ids=obj.teams)
-    teams_map = info.context.get('teams_map', {})
-    return [teams_map[team_id] for team_id in obj.teams if team_id in teams_map]
+    """The Person's teams, those hidden from the user stood in for by the nearest team they can see"""
+    return await team_references(info.context, obj.teams)
 
 async def _resolve_user(info, user_id: int | None):
     if user_id is None:

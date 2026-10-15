@@ -14,6 +14,17 @@ type Affiliations {
     curate: [Affiliation!]
 }
 
+"""
+A reference to a team, as the viewer may see it: the team itself, or, when the team referred to is hidden from them,
+the nearest team they can see that includes it, at furthest its organisation's root (standIn). A stand-in says whom
+to ask for an affiliation to see more. It is a property of the reference, not of the team, so it is not on Team,
+which the client caches by id: the same team can be referred to as itself in one place and as a stand-in in another.
+"""
+type TeamReference {
+    team: Team!
+    standIn: Boolean!
+}
+
 type Team {
     id: ID!
     name: String!

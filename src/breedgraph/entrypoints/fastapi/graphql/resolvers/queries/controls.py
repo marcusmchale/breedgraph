@@ -4,7 +4,8 @@ from breedgraph.domain.model.time_descriptors import WriteStamp
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_teams_map,
-    update_users_map
+    update_users_map,
+    team_references
 )
 
 from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access
@@ -40,21 +41,6 @@ async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_id
         info.context['access_teams'] = {access: set(teams) for access, teams in uow.controls.access_teams.items()}
         return [controllers.get(entity_id) for entity_id in entity_ids]
 
-async def _team_outputs(context, team_ids) -> dict:
-    """
-    The teams the user sees for these team ids, as {team id: (team, hidden)}. A team hidden from the user is shown as
-    the nearest team they can see that includes it, its organisation's root at the furthest: the party to contact
-    for access (see docs/read-access.md)
-    """
-    await update_teams_map(context=context, team_ids=team_ids)
-    teams_map = context.get('teams_map', {})
-    return {
-        team_id: (teams_map[team_id], teams_map[team_id].id != team_id)
-        for team_id in team_ids if teams_map.get(team_id) is not None
-    }
-
-def _distinct(teams) -> list:
-    return list({team.id: team for team in teams}.values())
 
 @controller.field("access")
 def resolve_access(obj: Controller, info) -> List[Access]:
@@ -82,13 +68,9 @@ def resolve_write_count(obj: Controller, info) -> int:
 
 @control.field("team")
 async def resolve_team(obj: Control, info):
-    team, _ = (await _team_outputs(info.context, [obj.team_id])).get(obj.team_id, (None, False))
-    return team
-
-@control.field("teamHidden")
-async def resolve_team_hidden(obj: Control, info) -> bool:
-    _, hidden = (await _team_outputs(info.context, [obj.team_id])).get(obj.team_id, (None, True))
-    return hidden
+    """The controlling team, or the team standing in for it when it is hidden from the user"""
+    references = await team_references(info.context, [obj.team_id])
+    return references[0] if references else None
 
 @control.field("time")
 async def resolve_time(obj: WriteStamp, info) -> str:
@@ -96,15 +78,8 @@ async def resolve_time(obj: WriteStamp, info) -> str:
 
 @controller.field("teams")
 async def resolve_teams(obj: Controller, info):
-    """The controlling teams the user can see"""
-    outputs = await _team_outputs(info.context, obj.teams)
-    return _distinct(team for team, hidden in outputs.values() if not hidden)
-
-@controller.field("standInTeams")
-async def resolve_stand_in_teams(obj: Controller, info):
-    """For the controlling teams hidden from the user, the nearest teams they can see that include them"""
-    outputs = await _team_outputs(info.context, obj.teams)
-    return _distinct(team for team, hidden in outputs.values() if hidden)
+    """The controlling teams, those hidden from the user stood in for by the nearest team they can see"""
+    return await team_references(info.context, obj.teams)
 
 @write_stamp.field("user")
 async def resolve_user(obj: WriteStamp, info):

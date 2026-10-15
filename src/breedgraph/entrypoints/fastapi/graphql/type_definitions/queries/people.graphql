@@ -4,7 +4,8 @@ enum LawfulBasis { PUBLIC_TASK, LEGITIMATE_INTEREST }
 """
 Someone who took part in research, for attribution. See docs/person.md.
 Users who can read the record, and the linked user, see all fields.
-Other registered users see the id only (restricted), which can be used to look up who controls the record.
+Others, anonymous users too, see the id only (restricted) where the Person is referred to or asked for by id, which
+can be used to look up who controls the record; searches leave such Persons out (docs/read-access.md).
 An erased Person keeps its id only, so contributions stay attributed to an anonymous person.
 """
 type Person {
@@ -13,8 +14,11 @@ type Person {
     name: String
     """The institution the person did the work with, for attribution. Null when restricted or erased"""
     institution: String
-    """Affiliation"""
-    teams: [Team!]!
+    """
+    Affiliation, for attribution: the teams the person worked in, which grant no access (the linked user's
+    affiliations do). Those hidden from the viewer are stood in for by the nearest team they can see
+    """
+    teams: [TeamReference!]!
     basis: LawfulBasis
     """The creator confirmed the person was informed that this record is held"""
     informedAttestation: Boolean
