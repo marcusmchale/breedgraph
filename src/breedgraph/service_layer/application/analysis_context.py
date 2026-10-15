@@ -7,7 +7,7 @@ from breedgraph.domain.model.analysis import (
 from breedgraph.domain.model.analysis_context import AnalysisContext, ConceptContext, UnitContext
 from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
-from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, RecordGroupExtent
+from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, RecordGroupExtent, FactorStored
 from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder
 
@@ -131,7 +131,8 @@ class AnalysisContextLoader:
                 category = await ontology.get_entry(category_id)
                 if isinstance(category, ScaleCategoryStored):
                     categories.append(category.name)
-        return ConceptContext(concept_id=concept_id, scale_type=scale.scale_type, categories=categories)
+        factor = isinstance(await ontology.get_entry(concept_id), FactorStored)
+        return ConceptContext(concept_id=concept_id, scale_type=scale.scale_type, categories=categories, factor=factor)
 
     async def _load_studies(self, study_ids: set[int]) -> dict[int, StudyStored]:
         studies = {}

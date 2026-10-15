@@ -311,3 +311,25 @@ def build_dimension_resolvers(context: AnalysisContext) -> list[DimensionResolve
     if any(t.reference.type == AnalysisTermType.STUDY for t in spec.terms):
         resolvers.append(StudyResolver([context.request.analysis_type.input_field, 'terms']))
     return resolvers
+
+
+def context_levels(resolvers: list[DimensionResolver], record: AnalysisRecord) -> dict[str, DimensionLevel | None] | None:
+    """
+    The levels of a factor record describing the observations of variable records, by dimension name.
+    None for a dimension it applies across: time when it has none, record groups it has no code for,
+    and germplasm and position, which come from the observed unit. The unit level is its own unit or the selected
+    parent unit it rolls up to, or None when it is above the selected units (it may still apply to their descendants).
+    Returns None, and reports the record as unassigned to a unit, if it has no unit.
+    """
+    unit_resolver = resolvers[0]
+    if record.unit is None:
+        unit_resolver.assign(record)
+        return None
+    levels = {}
+    for resolver in resolvers:
+        if isinstance(resolver, (GermplasmResolver, PositionResolver)):
+            levels[resolver.name] = None
+        else:
+            # unlike assign, a level the record has none of is not reported: the record applies across it
+            levels[resolver.name] = resolver._assign(record)
+    return levels

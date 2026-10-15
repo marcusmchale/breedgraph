@@ -43,6 +43,19 @@ Every analysis operates on **observations**, not on records.
   - **the level of every configured dimension:** time bin, germplasm, position, and each record-group dimension, and
   - **the study**, only when a `STUDY` term is used. Otherwise records of a unit from different studies are pooled.
 - Each `CONCEPT` term contributes **one value per observation**. Records come from the selected datasets whose concept is the term's concept.
+- **Factors describe the observations of variables.** When an analysis has a term for a variable concept,
+  only variable records form observations. Each factor record is added to the observations it describes:
+  - **unit:** observations of its own unit, or of a selected parent unit it rolls up into; otherwise those of the
+    unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its block's treatment
+    unless it has its own);
+  - **time:** its time bin, or **every** time bin when it has no start or end (a design factor holds throughout);
+  - **record groups:** its level, or every level when it has no code for the dimension;
+  - germplasm and position come from the observed unit, so they don't constrain it.
+  - A factor record that describes no observation is unused, and can leave its dataset `DATASET_FULLY_EXCLUDED`.
+  - Several factor records of the same unit and level are duplicates as for any term: aggregate them, e.g. `MODE`.
+  - An observation's exclusion rule (`OutlierResult.exclusion`) is built from its own records' units, not from the
+    units of the factor records describing it.
+  - Analyses whose concept terms are all factors are unchanged: factor records form the observations.
 - Aggregation defaults to `NONE`, which is strict. Several values for one observation fail the analysis with `DUPLICATE_OBSERVATION`, listing the `recordIds`. Typical fixes to offer:
   - set an `aggregation` (MEAN, MEDIAN, …), or
   - add a dimension that separates the values, e.g. time bins for repeated measurements, or a record-group dimension for replicates.

@@ -160,6 +160,11 @@ to form a single entry for a [dataset](#dataset).
 Examples:
 - "Controlled lighting" where condition = "Light level", method = "Fluorescent lighting", scale = "Micro Einsteins"
 - "Controlled water availability" where condition = "Water availability", method = "Controlled water application", scale = "L/m2/day"
+
+Parameters are called factors in the code and the API. Variables and factors differ in what their records mean:
+a variable's record is an observation of a unit at a time; a factor's record describes the conditions of a unit,
+e.g. a treatment or a stratum. In analysis, factor records describe the observations of variables: they hold for the
+unit's descendants (the nearest record applies), and for all time when they have none (docs/analysis.md §2).
 ##### Event
 Event entries link  variables](#variable) and [factors](#factor).
 This is to support the definition of details that may be recorded in association with an event. 

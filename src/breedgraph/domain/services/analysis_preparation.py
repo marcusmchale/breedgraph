@@ -2,7 +2,7 @@ from collections import Counter
 
 from breedgraph.domain.model.analysis import AnalysisMessage, AnalysisWarningCode
 from breedgraph.domain.model.analysis_context import AnalysisContext
-from breedgraph.domain.services.analysis_dimensions import build_dimension_resolvers
+from breedgraph.domain.services.analysis_dimensions import build_dimension_resolvers, context_levels
 from breedgraph.domain.services.analysis_exclusions import ExclusionApplier
 from breedgraph.domain.services.observation_builder import ObservationBuilder, ObservationFrame
 
@@ -20,9 +20,16 @@ def prepare_observations(context: AnalysisContext, warnings: list[AnalysisMessag
 
     record_counts: Counter[int] = Counter()
     included_counts: Counter[int] = Counter()
+    context_datasets: dict[int, int] = {}  # factor record -> dataset, counted when it describes an observation
     for record in context.records():
         record_counts[record.dataset_id] += 1
         if exclusions.is_excluded(record):
+            continue
+        if context.is_context(record):
+            levels = context_levels(resolvers, record)
+            if levels is not None:
+                builder.add_context(record, levels)
+                context_datasets[record.record_id] = record.dataset_id
             continue
         # assign every dimension, so each warning reports all records it could not assign
         levels = {resolver.name: resolver.assign(record) for resolver in resolvers}
@@ -30,6 +37,8 @@ def prepare_observations(context: AnalysisContext, warnings: list[AnalysisMessag
             continue
         builder.add(record, levels)
         included_counts[record.dataset_id] += 1
+    for record_id in builder.attach_context():
+        included_counts[context_datasets[record_id]] += 1
 
     warnings.extend(exclusions.warnings())
     for resolver in resolvers:

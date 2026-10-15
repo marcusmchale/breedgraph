@@ -413,6 +413,102 @@ def test_replicate_codes_cannot_be_shared_levels():
     assert e.value.errors[0].path == ['descriptiveStatistics', 'grouping', 'recordGroups', '0', 'levels', '0', 'members', '0']
 
 
+
+""" Factors describe the observations of variables """
+FACTOR_CONCEPTS = {
+    10: ConceptContext(10, ScaleType.NUMERICAL),
+    20: ConceptContext(20, ScaleType.NOMINAL, categories=['Lower', 'Upper', 'Shade', 'Sun'], factor=True),
+}
+
+def factor_values(frame):
+    return list(frame.data['concept:20'])
+
+def test_undated_factor_applies_to_every_time_bin():
+    ctx = context(
+        descriptive([concept_term(10), concept_term(20), domain_term('TIME')], grouping={'time': TIME}, dataset_ids=[1, 2]),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1', start='2020-06-01'), record(2, 100, '2', start='2021-06-01')]),
+            dataset(2, 1, 20, [record(3, 100, 'Upper')]),
+        ],
+        concepts=FACTOR_CONCEPTS
+    )
+    frame, warnings = prepare(ctx)
+    assert list(frame.data['time']) == ['2020', '2021']
+    assert factor_values(frame) == ['Upper', 'Upper']
+    assert AnalysisWarningCode.UNASSIGNED_TIME not in codes(warnings)
+    # the factor record contributes to both observations
+    assert [o.record_ids for o in frame.observations] == [[1, 3], [2, 3]]
+
+def test_dated_factor_applies_to_its_time_bin():
+    ctx = context(
+        descriptive([concept_term(10), concept_term(20)], grouping={'time': TIME}, dataset_ids=[1, 2]),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1', start='2020-06-01'), record(2, 100, '2', start='2021-06-01')]),
+            dataset(2, 1, 20, [record(3, 100, 'Shade', start='2021-02-01')]),
+        ],
+        concepts=FACTOR_CONCEPTS
+    )
+    frame, _ = prepare(ctx)
+    assert factor_values(frame)[0] is None and factor_values(frame)[1] == 'Shade'
+
+def test_factor_of_the_closest_unit_applies():
+    units = {
+        1: UnitContext(1),  # a block
+        100: UnitContext(100, ancestor_ids=[1]),
+        101: UnitContext(101, ancestor_ids=[1]),
+    }
+    ctx = context(
+        descriptive([concept_term(10), concept_term(20)], dataset_ids=[1, 2]),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '2')]),
+            dataset(2, 1, 20, [record(3, 1, 'Shade'), record(4, 101, 'Sun')]),
+        ],
+        units=units, concepts=FACTOR_CONCEPTS
+    )
+    frame, warnings = prepare(ctx)
+    # tree 100 takes its block's treatment; tree 101 has its own
+    assert factor_values(frame) == ['Shade', 'Sun']
+    # the block's record does not widen the exclusion rule of the tree's observation to the block
+    assert frame.observations[0].exclusion['unit_ids'] == [100]
+    assert AnalysisWarningCode.DATASET_FULLY_EXCLUDED not in codes(warnings)
+
+def test_factors_alone_are_the_observations():
+    ctx = context(
+        descriptive([concept_term(20)], dataset_ids=[2]),
+        [dataset(2, 1, 20, [record(3, 100, 'Upper'), record(4, 101, 'Lower')])],
+        concepts={20: FACTOR_CONCEPTS[20]}
+    )
+    frame, _ = prepare(ctx)
+    assert factor_values(frame) == ['Upper', 'Lower']
+
+def test_factor_without_a_code_applies_to_every_replicate():
+    studies = {1: study(1, [grouping(7, type_id=REPLICATE_TYPE)])}
+    ctx = context(
+        descriptive(
+            [concept_term(10), concept_term(20)], dataset_ids=[1, 2],
+            grouping={'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
+        ),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1', groups={7: '1'}), record(2, 100, '2', groups={7: '2'})]),
+            dataset(2, 1, 20, [record(3, 100, 'Upper')]),
+        ],
+        studies=studies, concepts=FACTOR_CONCEPTS, record_group_extents=EXTENTS
+    )
+    frame, warnings = prepare(ctx)
+    assert factor_values(frame) == ['Upper', 'Upper']
+    assert AnalysisWarningCode.UNASSIGNED_RECORD_GROUP not in codes(warnings)
+
+def test_factor_describing_no_observation_leaves_its_dataset_unused():
+    ctx = context(
+        descriptive([concept_term(10), concept_term(20)], dataset_ids=[1, 2]),
+        [dataset(1, 1, 10, [record(1, 100, '1')]), dataset(2, 1, 20, [record(3, 999, 'Upper')])],
+        concepts=FACTOR_CONCEPTS
+    )
+    frame, warnings = prepare(ctx)
+    assert factor_values(frame) == [None]
+    assert [w.path for w in warnings if w.code == AnalysisWarningCode.DATASET_FULLY_EXCLUDED] == [['datasetIds', '1']]
+
+
 """ Exclusions """
 def exclusion_context(exclusions, units=None, studies=None):
     return context(

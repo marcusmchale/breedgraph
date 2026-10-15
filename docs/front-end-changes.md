@@ -358,7 +358,15 @@ Front end:
   each reading first." It is given for MEAN, MEDIAN, SUM and MODE, not for MIN, MAX or COUNT, whose results don't depend
   on it.
 
-### 11.7 Checks
+### 11.7 Factors in analysis
+
+When an analysis has a variable term, factor records now describe the observations rather than forming them:
+undated factor records apply to every time bin, factors on a parent unit apply to its descendants (the nearest
+applies), and a factor without a code applies to every record-group level (`docs/analysis.md` §2). Nothing in the
+schema changes. Help text in the term editor can say so: "Factors apply to the units they were recorded on and
+their descendants, and, without a date, to every time bin."
+
+### 11.8 Checks
 
 - Regenerate the schema files and run `scripts/check_front_end_queries.py` (§10).
 - Against the test database:

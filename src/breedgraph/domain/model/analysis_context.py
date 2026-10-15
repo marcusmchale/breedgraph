@@ -26,6 +26,7 @@ class ConceptContext:
     concept_id: int
     scale_type: ScaleType
     categories: list[str] | None = None  # category names, ordered by rank for ordinal scales
+    factor: bool = False  # a factor describes the conditions of units, a variable is observed on them
 
 @dataclass
 class AnalysisRecord:
@@ -57,6 +58,18 @@ class AnalysisContext:
     @property
     def dataset_studies(self) -> dict[int, int]:
         return {dataset_id: dataset.study for dataset_id, dataset in self.datasets.items()}
+
+    @property
+    def factors_describe_observations(self) -> bool:
+        """
+        Whether factor records describe the observations of variable records, rather than being observations:
+        when any concept term is a variable.
+        """
+        return any(not concept.factor for concept in self.concepts.values())
+
+    def is_context(self, record: AnalysisRecord) -> bool:
+        """Whether the record is a factor record describing the observations of variable records"""
+        return self.concepts[record.concept_id].factor and self.factors_describe_observations
 
     @property
     def concept_ids(self) -> set[int]:

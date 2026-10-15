@@ -3,6 +3,11 @@ Builds analytical observations from assigned records.
 
 An observation is identified by the levels of all dimensions (the observation unit first).
 Each term is a column of a wide frame with one row per observation.
+
+When an analysis has variable terms, variable records form the observations, and factor records describe them
+(attach_context): a factor record applies to an observation of its own unit, a unit rolled up into it, or failing
+those of the nearest ancestor unit with a record of that factor, in its time bin (or every bin when it has no time)
+and its record group levels (or every level when it has no code).
 """
 from collections import Counter
 from dataclasses import dataclass, field
@@ -62,7 +67,7 @@ class ObservationColumn:
 class Observation:
     group: dict  # AnalysisGroup
     record_ids: list[int]
-    unit_ids: list[int]  # base units of contributing records
+    unit_ids: list[int]  # base units of the records forming the observation, not the factor records describing it
     exclusion: dict  # AnalysisExclusion excluding the records of the observation
 
 @dataclass
@@ -78,14 +83,31 @@ class _ObservationRecords:
     records: dict[int, list[AnalysisRecord]] = field(default_factory=dict)  # concept ID -> records
     members: set[RecordGroupMember] = field(default_factory=set)  # record group codes of the records
 
+    context_ids: set[int] = field(default_factory=set)  # factor records describing the observation
+
     def add(self, record: AnalysisRecord, levels: dict[str, DimensionLevel]):
         self.records.setdefault(record.concept_id, []).append(record)
         # records of a shared level may have different codes
         self.members.update(level.member for level in levels.values() if level.member is not None)
 
+    def add_context(self, record: AnalysisRecord):
+        self.records.setdefault(record.concept_id, []).append(record)
+        self.context_ids.add(record.record_id)
+
     @property
     def all_records(self) -> list[AnalysisRecord]:
         return [r for records in self.records.values() for r in records]
+
+    @property
+    def own_records(self) -> list[AnalysisRecord]:
+        """The records that form the observation, not those describing it"""
+        return [r for r in self.all_records if r.record_id not in self.context_ids]
+
+
+@dataclass
+class _ContextRecord:
+    record: AnalysisRecord
+    levels: dict[str, DimensionLevel | None]  # None: applies across the dimension
 
 
 def _split_by_window(records: list[AnalysisRecord], window: timedelta64) -> list[list[AnalysisRecord]]:
@@ -160,12 +182,60 @@ class ObservationBuilder:
         self.resolvers = resolvers
         self.spec_path = [context.request.analysis_type.input_field]
         self._observations: dict[tuple[str, ...], _ObservationRecords] = {}
+        self._context: list[_ContextRecord] = []
 
     def add(self, record: AnalysisRecord, levels: dict[str, DimensionLevel]):
         key = tuple(levels[r.name].key for r in self.resolvers)
         if key not in self._observations:
             self._observations[key] = _ObservationRecords(levels=levels)
         self._observations[key].add(record, levels)
+
+    def add_context(self, record: AnalysisRecord, levels: dict[str, DimensionLevel | None]):
+        """A factor record, attached to the observations it describes by attach_context"""
+        self._context.append(_ContextRecord(record, levels))
+
+    def attach_context(self) -> set[int]:
+        """
+        Adds each factor record to the observations it describes. For each observation and factor, the records of
+        the closest unit apply: the observation's unit (or one rolled up into it), else its nearest ancestor with any.
+        Returns the IDs of the factor records that describe an observation.
+        """
+        if not self._context:
+            return set()
+        unit_name = self.resolvers[0].name
+        by_unit: dict[str, list[_ContextRecord]] = {}  # the observation unit a record rolls up to
+        by_base: dict[int, list[_ContextRecord]] = {}  # the record's own unit
+        for entry in self._context:
+            unit_level = entry.levels[unit_name]
+            if unit_level is not None:
+                by_unit.setdefault(unit_level.key, []).append(entry)
+            by_base.setdefault(entry.record.unit_id, []).append(entry)
+
+        attached = set()
+        for observation in self._observations.values():
+            unit_level = observation.levels[unit_name]
+            unit = self.context.units.get(unit_level.output)
+            candidates = [by_unit.get(unit_level.key, [])] + [
+                by_base.get(ancestor, []) for ancestor in (unit.ancestor_ids if unit is not None else [])
+            ]
+            described: set[int] = set()  # concepts found at a closer unit
+            for entries in candidates:
+                found = set()
+                for entry in entries:
+                    concept_id = entry.record.concept_id
+                    if concept_id in described or not self._describes(entry, observation, unit_name):
+                        continue
+                    observation.add_context(entry.record)
+                    attached.add(entry.record.record_id)
+                    found.add(concept_id)
+                described |= found
+        return attached
+
+    def _describes(self, entry: _ContextRecord, observation: _ObservationRecords, unit_name: str) -> bool:
+        return all(
+            level is None or level.key == observation.levels[name].key
+            for name, level in entry.levels.items() if name != unit_name
+        )
 
     def build(self, warnings: list[AnalysisMessage]) -> ObservationFrame:
         observations = list(self._observations.values())
@@ -459,7 +529,8 @@ class ObservationBuilder:
                 group['record_groups'].append(level.output)
 
         records = observation.all_records
-        unit_ids = sorted({r.unit_id for r in records if r.unit_id is not None})
+        # the exclusion rule matches the observation's own records, not the factor records describing it
+        unit_ids = sorted({r.unit_id for r in observation.own_records if r.unit_id is not None})
         exclusion = {
             'unit_ids': unit_ids,
             'start': str(exclusion_start) if exclusion_start is not None else None,
