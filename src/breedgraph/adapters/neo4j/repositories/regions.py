@@ -1,5 +1,4 @@
 import logging
-import re
 
 from neo4j import AsyncResult, Record
 
@@ -12,6 +11,7 @@ from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.domain.model.controls import DiscoveryMatch
 from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 
 from typing import Set, AsyncGenerator, Tuple, List
 
@@ -80,9 +80,9 @@ class Neo4jRegionsRepository(Neo4jControlledRepository[LocationInput, Region]):
         else:
             result = await self.tx.run(
                 queries['regions']['get_regions_by_root_name_or_code'],
-                name_regex=f"(?i)^{re.escape(name)}$" if name is not None else None,
+                name_regex=exact_text_regex(name) if name is not None else None,
                 # case insensitive matching won't use indices, so use sparingly
-                code_regex=f"(?i)^{re.escape(code)}$" if code is not None else None
+                code_regex=exact_text_regex(code) if code is not None else None
             )
             async for record in result:
                 yield ControlledQueryResult(self.record_to_region(record), matches=tuple(DiscoveryMatch(**m) for m in record.get('matches')))

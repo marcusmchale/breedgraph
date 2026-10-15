@@ -1,5 +1,4 @@
 import logging
-import re
 
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.custom_exceptions import ProtectedNodeError
@@ -7,6 +6,7 @@ from breedgraph.custom_exceptions import ProtectedNodeError
 from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.service_layer.repositories.controlled import ControlledQueryResult
 from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
+from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 
 from typing import AsyncGenerator, List
 
@@ -77,7 +77,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         else:
             result = await self.tx.run(
                 queries['people']['get_people_by_name'],
-                name_regex=f"(?i)^{re.escape(name)}$"
+                name_regex=exact_text_regex(name)
             )
             async for record in result:
                 person = self.record_to_person(record['person'])

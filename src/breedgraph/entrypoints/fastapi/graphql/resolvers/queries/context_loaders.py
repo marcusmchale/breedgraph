@@ -133,11 +133,13 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
         logger.debug('Updating teams map for user ' + str(user_id) + ' with team ids: ' + str(team_ids) + '')
         async with bus.uow_factory.get_uow(user_id=user_id) as uow:
             # if called with teams = None, retrieve all organisations
+            # organisation_roots holds root ids, each once, in the order first loaded
             if team_ids is None:
                 async for org in uow.repositories.organisations.get_all():
                     org = org.redacted(user_id)
                     teams_map.update(org.to_output_map())
-                    organisation_roots.append(org.root.id)
+                    if org.root.id not in organisation_roots:
+                        organisation_roots.append(org.root.id)
             else:
                 team_ids = set(team_ids)
                 unmapped = team_ids - set(teams_map.keys())
@@ -151,9 +153,8 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
                             logger.debug(f"Teams map: {teams_map}")
                             teams_map.update(org.to_output_map())
                             logger.debug(f"Teams map after update: {teams_map}")
-                            org_root = org.root
-                            if not org_root in organisation_roots:
-                                organisation_roots.append(org_root)
+                            if org.root.id not in organisation_roots:
+                                organisation_roots.append(org.root.id)
 
             context['teams_map'] = teams_map
             context['organisation_roots'] = organisation_roots

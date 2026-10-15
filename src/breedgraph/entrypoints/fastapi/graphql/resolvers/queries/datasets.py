@@ -315,6 +315,12 @@ async def resolve_summary_blocks(obj, info):
 async def resolve_contributors(obj, info):
     return await resolve_people(info.context, obj.contributors)
 
+@dataset.field("references")
+async def resolve_dataset_references(obj, info):
+    await update_reference_map(info.context, reference_ids=obj.references)
+    reference_map = info.context.get('reference_map')
+    return [reference_map.get(reference_id) for reference_id in obj.references]
+
 @submitted_data.field("contributors")
 async def resolve_submitted_contributors(obj: dict, info):
     return await resolve_people(info.context, obj.get('contributor_ids'))

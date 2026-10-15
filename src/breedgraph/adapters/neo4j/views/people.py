@@ -1,9 +1,8 @@
-import re
-
 from neo4j import AsyncSession
 
 from breedgraph.adapters.neo4j.cypher.query_builders import people as people_queries
 from breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
+from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.people import PersonOutput
 from breedgraph.service_layer.queries.views.people import AbstractPeopleView
@@ -45,5 +44,5 @@ class Neo4jPeopleView(AbstractPeopleView):
     async def _search_people(self, name: str | None) -> List[PersonOutput]:
         return await self._run(
             people_queries.search_people(),
-            name_regex=f"(?i)^{re.escape(name)}$" if name else None
+            name_regex=exact_text_regex(name) if name else None
         )
