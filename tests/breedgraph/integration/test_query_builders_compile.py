@@ -1,0 +1,88 @@
+"""
+Every query the query builders compose compiles: each variant is planned with EXPLAIN, which neither reads nor writes
+data, so syntax and scoping errors in the composed text show here rather than in the first request that reaches them.
+
+Needs a running Neo4j, with credentials in the environment or in instance/private.breedgraph.env. The autouse
+fixture under tests/breedgraph flushes the database, so to check against a database you want to keep, run this
+module alone with: python -m pytest --noconftest -p no:cacheprovider tests/breedgraph/integration/test_query_builders_compile.py
+"""
+import os
+import re
+from itertools import combinations
+from pathlib import Path
+
+import pytest
+from neo4j import GraphDatabase
+
+from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.adapters.neo4j.cypher.query_builders import (
+    arrangements, blocks, controls, datasets, programs, regions
+)
+
+ENV_FILE = Path(__file__).parents[3] / 'instance' / 'private.breedgraph.env'
+
+
+def _load_env():
+    if 'NEO4J_USERNAME' in os.environ or not ENV_FILE.exists():
+        return
+    for line in ENV_FILE.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            key, value = line.split('=', 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _summary_field_sets():
+    """Every single field, every field, none, and the fields the front end asks for together"""
+    fields = sorted(datasets.SUMMARY_FIELDS)
+    sets = [frozenset(), frozenset(fields)] + [frozenset(combo) for combo in combinations(fields, 1)]
+    sets += [frozenset({'record_count', 'start', 'end'}), frozenset(datasets.UNIT_FIELDS)]
+    return sets
+
+
+QUERIES = {
+    'arrangements.read_layouts': arrangements.read_layouts(),
+    'arrangements.read_arrangements': arrangements.read_arrangements(),
+    'blocks.read_units': blocks.read_units(),
+    'blocks.read_block_roots': blocks.read_block_roots(),
+    'blocks.read_unit_names': blocks.read_unit_names(),
+    'regions.read_locations': regions.read_locations(),
+    'regions.read_regions': regions.read_regions(),
+    'regions.read_locations_by_type': regions.read_locations_by_type(),
+    'programs.read_programs': programs.read_programs(),
+    **{f'programs.read_program({by})': programs.read_program(by) for by in ('program', 'trial', 'study')},
+    **{f'programs.read_trial({by})': programs.read_trial(by) for by in ('trial', 'study')},
+    'programs.read_study': programs.read_study(),
+    'datasets.read_datasets': datasets.read_datasets(),
+    'datasets.read_records': datasets.read_records(),
+    'datasets.count_records': datasets.count_records(),
+    'datasets.read_unit_ids': datasets.read_unit_ids(),
+    'datasets.read_unit_level': datasets.read_unit_level(),
+    'datasets.read_units_by_subject': datasets.read_units_by_subject(),
+    **{f'datasets.dataset_summaries({sorted(fields)})': datasets.dataset_summaries(fields) for fields in _summary_field_sets()},
+    **{f'datasets.dataset_unit_summaries({sorted(fields)})': datasets.dataset_unit_summaries(fields) for fields in _summary_field_sets()},
+    **{
+        f'controls.{builder.__name__}({label.name})': builder(label)
+        for label in ControlledModelLabel
+        for builder in (controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes, controls.get_controllers)
+    },
+}
+
+
+@pytest.fixture(scope='module')
+def session():
+    _load_env()
+    if 'NEO4J_USERNAME' not in os.environ:
+        pytest.skip('no Neo4j credentials')
+    from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
+    driver = GraphDatabase.driver(get_bolt_url(), auth=get_graphdb_auth())
+    with driver.session(database=DATABASE_NAME) as session:
+        yield session
+    driver.close()
+
+
+@pytest.mark.parametrize('name', list(QUERIES))
+def test_query_compiles(session, name):
+    query = QUERIES[name]
+    parameters = {parameter: None for parameter in set(re.findall(r'\$(\w+)', query))}
+    session.run('EXPLAIN ' + query, **parameters).consume()

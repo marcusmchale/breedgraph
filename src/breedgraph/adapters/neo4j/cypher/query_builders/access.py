@@ -1,5 +1,11 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
 
+# The query builders compose Cypher text so that read checks like these are written once. The rule that keeps that
+# safe and cacheable: interpolate only code constants (variable names, labels from enums, relationship types, field
+# names checked against a fixed set) and the output of other builders, never a value from a request. Every value is a
+# $parameter. Then each builder gives the same text on every call, Neo4j caches its plan, and nothing a user sends
+# can change the query. tests/breedgraph/integration/test_query_builders_compile.py plans every builder's output.
+
 
 def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
     """
