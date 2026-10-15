@@ -137,6 +137,8 @@ The linked user can change the name and institution only; other changes need cur
 
 **Erasing:** `peopleErasePerson(id)`, by admins of the controlling teams or the linked user.
 It cannot be undone: identifying data is removed and the id kept. Ask for confirmation.
+An erasure also survives restoring a backup, and its id is never given to a new Person afterwards
+(`docs/person.md` §5). Nothing in the API changes for this, so the front end needs no work for it.
 
 ## 5. Contacts and messaging
 
@@ -210,7 +212,9 @@ Admins of the recipient team are emailed about new offers.
 - `accountsDeleteAccount(password, erasePerson)` deletes the user's own account and logs them out. Ask for the password, and ask whether to erase their linked Person as well, ticked by default.
   Errors explain when it is refused: the only ontology admin, or the only admin of a team (the message lists the teams).
   Deleted users show as null wherever a user is shown, like users the viewer can't see.
-  The deletion takes effect at once: the user's login no longer works, and their username is free to register again. It stays deleted if a backup is restored.
+  The deletion takes effect at once: the user's login no longer works, and their username is free to register again. It stays deleted if a backup is restored,
+  and its id is never given to a new account afterwards, so an id cached by the front end never comes to mean another user (`docs/person.md` §5).
+  Nothing in the API changes for this.
 
 - `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
 - Password reset with a token works again (it always failed before).
