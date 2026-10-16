@@ -1,3 +1,4 @@
+from breedgraph.domain.model.contributions import ContributionInput
 from breedgraph.domain.model.references import DataFormat
 from breedgraph.domain.model.controls import ReadRelease
 
@@ -35,6 +36,10 @@ class CreateExternalDataReference(Command):
     format: DataFormat | None = None
     json_schema: str | None = None
 
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
+
+
 class CreateFileReference(Command):
     agent_id: int
     write_team: int
@@ -46,6 +51,11 @@ class CreateFileReference(Command):
     content_type: str
     uuid: str
     
+
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
+
+
 class CreateDataFileReference(Command):
     agent_id: int
     write_team: int
@@ -59,6 +69,9 @@ class CreateDataFileReference(Command):
 
     format: DataFormat | None = None
     json_schema: str | None = None
+
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
 
 
 class UpdateLegalReference(Command):
@@ -92,6 +105,9 @@ class UpdateExternalDataReference(Command):
     format: DataFormat | None = None
     json_schema: str | None = None
 
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
+
 
 class UpdateFileReference(Command):
     agent_id: int
@@ -102,6 +118,10 @@ class UpdateFileReference(Command):
     filename: str | None = None
     content_type: str | None = None
     uuid: str | None = None
+
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
+
 
 class UpdateDataFileReference(Command):
     agent_id: int
@@ -115,6 +135,9 @@ class UpdateDataFileReference(Command):
 
     format: DataFormat | None = None
     json_schema: str | None = None
+
+    # the Persons credited, with the roles they had; on update, replaces them all
+    contributions: list[ContributionInput] | None = None
 
 
 class DeleteReferences(Command):

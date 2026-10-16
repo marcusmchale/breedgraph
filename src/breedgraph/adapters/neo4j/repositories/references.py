@@ -3,6 +3,7 @@ import json
 from neo4j import Record
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
 from breedgraph.service_layer.repositories.controlled import ControlledQueryResult, DiscoveryMatch
@@ -43,9 +44,17 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             reference: ReferenceBase,
     ) -> ReferenceStoredBase:
         params = reference.model_dump()
+        contributions = params.pop('contributions', None)
         result = await self.tx.run(queries['references']['create_reference'], params=params)
         record = await result.single()
-        return self.record_to_reference(record.get('reference'))
+        stored = self.record_to_reference(record.get('reference'))
+        if contributions:
+            await self._set_contributions(stored.id, contributions)
+            stored.contributions = contributions_from(contributions)
+        return stored
+
+    async def _set_contributions(self, reference_id: int, contributions: list[dict]) -> None:
+        await self.tx.run(queries['references']['set_contributions'], reference_id=reference_id, contributions=contributions)
 
     @staticmethod
     def record_to_reference(record: Record|dict) -> ReferenceStoredBase:
@@ -67,6 +76,10 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             raise ValueError("Reference type not found")
         else:
             reference_class = REFERENCE_TYPE_MAP.get(reference_type)
+            # only files, data files and external data credit Persons; the reads give the others none
+            contributions = record.pop('contributions', None)
+            if 'contributions' in reference_class.__dataclass_fields__:
+                record['contributions'] = contributions_from(contributions)
             return reference_class(**record)
 
 
@@ -147,4 +160,7 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
     async def _update_reference(self, reference: ReferenceStoredBase):
         params = reference.model_dump()
         reference_id = params.pop('id')
+        contributions = params.pop('contributions', None)
         await self.tx.run(queries['references']['set_reference'], reference_id=reference_id, params=params)
+        if contributions is not None:
+            await self._set_contributions(reference_id, contributions)

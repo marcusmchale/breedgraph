@@ -189,7 +189,6 @@ async def create_external_data_reference(
         json_schema=json_schema,
         **reference
     )
-    await info.context['bus'].handle(cmd)
     reference_id: int = await info.context['bus'].handle(cmd)
     return reference_id
 
@@ -228,7 +227,8 @@ async def create_file_reference(
         description=reference.get('description'),
         filename=file.filename,
         content_type=file.content_type,
-        uuid=key
+        uuid=key,
+        contributions=reference.get('contributions')
     )
     await bus.handle(cmd)
     # get the reference id from the state store
@@ -281,7 +281,8 @@ async def create_data_file_reference(
         content_type=file.content_type,
         format=reference.get('format'),
         json_schema=reference.get('schema'),
-        uuid=key
+        uuid=key,
+        contributions=reference.get('contributions')
     )
 
     await bus.handle(cmd)
@@ -364,6 +365,7 @@ async def update_file_reference(
         description=reference.get('description'),
         filename=file.filename if file else None,
         content_type = file.content_type if file else None,
+        contributions=reference.get('contributions')
     )
     key = await start_file_ref_update(
         user_id=user_id,
@@ -394,7 +396,8 @@ async def update_file_data_reference(
         filename=file.filename if file else None,
         content_type=file.content_type if file else None,
         format=reference.get('format'),
-        json_schema=reference.get('schema')
+        json_schema=reference.get('schema'),
+        contributions=reference.get('contributions')
     )
     key = await start_file_ref_update(
         user_id=user_id,

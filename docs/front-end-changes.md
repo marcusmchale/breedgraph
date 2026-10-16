@@ -502,10 +502,13 @@ new fields.
 Design background is in `contributions.md`.
 
 **Contributions.** Datasets, Programs and Trials credit Persons with the roles they had:
-- `Dataset.contributions`, `Program.contributions`, `Trial.contributions` and submitted-data `contributions`
+- `Dataset.contributions`, `Program.contributions`, `Trial.contributions`, `FileReference.contributions`,
+  `DataFileReference.contributions`, `ExternalDataReference.contributions` and submitted-data `contributions`
   are `[Contribution]`, where `Contribution { person: Person, roles: [Role!] }`. `Dataset.contributors` is removed.
 - Inputs take `contributions: [ContributionInput!]`, where `ContributionInput { personId: ID!, roleIds: [ID!] }`:
-  dataset create and update (in place of `contributorIds`), and Program and Trial create and update. On update the list replaces all contributions.
+  dataset create and update (in place of `contributorIds`), Program and Trial create and update, and the file, data file and
+  external data reference create and update inputs. On update the list replaces all contributions.
+  For a file or data file update with a new file, the update, contributions included, is applied once the file is saved.
 - Roles are declared, not exhaustive: a contribution may have none, and roles can be added later. A Person is credited once per dataset, Program or Trial.
 - Crediting a Person needs read access to them (others already credited stay), and each role must be a `Role` entry.
 - Suggested display: "Name (Institution) — Investigation, Data curation". A role picker lists `Role` entries; the CRediT roles fit as below.
@@ -514,6 +517,7 @@ Design background is in `contributions.md`.
 |---|---|
 | Datasets | Investigation, Data curation, Methodology, Resources, Validation, Supervision |
 | Programs and Trials | Conceptualization, Funding acquisition, Project administration, Supervision |
+| File and data references | Formal analysis, Visualization, Writing – original draft, Writing – review & editing, Software, Data curation |
 
 **Role entries.** `ROLE` is an ontology label again, with a `Role` type (in `OntologyEntryUnion`), `ontologyCreateRole`, `ontologyUpdateRole`,
 and `Term.roles` / `roleIds` on terms. A Role describes what a Person did in a contribution, never the Person.
@@ -526,6 +530,8 @@ settable in every entry input and update. Show them with the entry: the CRediT r
 `ontologyLockEntries(ids)` and `ontologyUnlockEntries(ids)`. A locked entry keeps its name, abbreviation, description and source,
 and the relationships that define it (e.g. a scale's categories), and cannot be deprecated; synonyms, references, children and terms stay editable.
 Disable those fields in the editing forms, and show a lock.
+
+`referencesCreateExternalData` created each reference twice; it now creates one.
 
 **References.** Citing a reference (in any input with `referenceIds`, or a study's or the ontology's licence) needs read access to it.
 A reference's release cannot be lowered below the release of what cites it: `controlsSetRelease` returns an error saying so.

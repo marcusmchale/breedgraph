@@ -51,7 +51,13 @@ Validation: each role must be an existing `Role` entry in the ontology. A Person
 Programs and Trials get contributions in the same way, besides their contacts, for the roles that fit them better
 than datasets (Conceptualization, Funding acquisition, Project administration, Supervision).
 
-Contributions are recorded per dataset, Program or Trial, not per record. A dataset is the unit that is cited, and per-record
+File, data file and external data references get contributions too: they are often made in the project,
+e.g. a data summary cited by a study, a figure or report, or the project's data deposited elsewhere, and the CRediT roles
+that rarely fit a dataset fit them (Formal analysis, Visualization, Writing, Software). External references (papers,
+web pages) and legal references do not: the authors of a cited work are part of its citation, and are not Persons
+(`person.md` §1). The contributions are set in the references' create and update inputs.
+
+Contributions are recorded per dataset, Program, Trial or reference, not per record. A dataset is the unit that is cited, and per-record
 attribution would multiply the graph for little gain.
 
 ## 3. Seeded CRediT roles
@@ -161,6 +167,7 @@ The Data curation Role is seeded (§3), so the migration finds it by name.
 | BreedCAFS | Every submitter gets Data curation, becoming a Person where not already one; Persons named in `person` get no roles. |
 | Degree | Not recorded. CRediT allows lead / equal / supporting, but it is ambiguous, and BreedGraph should not be asked to settle disagreements over it. |
 | Programs and Trials | Get contributions as datasets do, besides their contacts. |
+| References | File, data file and external data references get contributions; external and legal references do not (§2). |
 | Removing a cited reference | Refused. A reference in use cannot be deleted: cited (`REFERENCE_FOR`, kept for earlier ontology versions after an entry drops it) or used as a licence or copyright (`USES_LICENCE`, `USES_COPYRIGHT`). |
 | Lowering a cited reference's release | Refused below the release of what cites it; the ontology counts as `PUBLIC` (§6). |
 | Citing a reference | Requires read access to it (`docs/read-access.md`, rule 10); on updates, only references added are checked. |
@@ -185,3 +192,4 @@ None.
    The test database dumps are to be rebuilt (`docs/test-databases.md`).
 7. **Migration.** Done in code: Data curation for submitters, mapped to Persons in `submitter_persons.csv`; no roles for Persons named in `person` (§7).
    `submitter_persons.csv` is to be drafted and curated for the BreedCAFS data and the rehearsal data.
+8. **References.** Done: contributions on file, data file and external data references, in their create and update inputs.

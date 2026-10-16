@@ -13,7 +13,9 @@ from tests.breedgraph.e2e.references.post_methods import (
     post_to_file_submission,
     post_to_file_download
 )
-from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
+from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success, with_auth, GQL_API_PATH
+from tests.breedgraph.scenarios.person_builder import PersonBuilder
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_legal(
@@ -35,10 +37,14 @@ async def test_create_legal(
 async def test_create_file(
         reference_build_context,
         login_token_factory,
-        client
+        client,
+        uow_factory
 ):
     user_id = reference_build_context['user_id']
     login_token = login_token_factory(user_id)
+    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id, team_id=reference_build_context['team_id'])
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        analysis = (await uow.ontology.get_entry(name='Formal analysis', label=OntologyEntryLabel.ROLE)).id
     # 1. Create a dummy file in memory
     test_file_content = b"fake file content"
     test_file_path = Path(FILE_STORAGE_PATH, "test_document.pdf")
@@ -47,7 +53,8 @@ async def test_create_file(
     with test_file_path.open("rb") as test_file:
         file_reference = {
             'description': 'Test file upload',
-            'file': test_file
+            'file': test_file,
+            'contributions': [{'personId': person_id, 'roleIds': [analysis]}]
         }
 
         create_file_response = await post_to_create_file_reference(
@@ -73,6 +80,20 @@ async def test_create_file(
     file_content = file_path.read_bytes()
     assert len(file_content) > 0, f"File {key} is empty"
     assert file_content == test_file_content
+
+    # the file credits the Person, with their role
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        reference_id = (await uow.repositories.references.get(file_id=key)).id
+    response = await client.post(GQL_API_PATH, json={
+        "query": (
+            " query ( $ids: [ID!] ) { references( ids: $ids ) { status result { "
+            "  ... on FileReference { contributions { person { id } roles { name } } } "
+            " } errors { name message } } } "
+        ),
+        "variables": {"ids": [reference_id]}
+    }, headers=with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=login_token))
+    payload = get_verified_payload(response, "references")
+    assert payload['result'][0]['contributions'] == [{'person': {'id': str(person_id)}, 'roles': [{'name': 'Formal analysis'}]}]
 
 
 @pytest.mark.asyncio(loop_scope="session")

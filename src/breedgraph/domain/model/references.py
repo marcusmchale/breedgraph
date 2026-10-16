@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
 from enum import Enum
 import json
 
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import StoredModel, EnumLabeledModel, LabeledModel
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 )
@@ -134,6 +135,8 @@ class FileReferenceBase(ReferenceBase):
     filename: str = None  # filename
     file_id: str | None = None # name in file datastore.
     content_type: str | None = None
+    # the Persons credited for the file, with the roles they had (docs/contributions.md)
+    contributions: List[Contribution] = field(default_factory=list)
 
 
 @dataclass
@@ -149,7 +152,8 @@ class FileReferenceStored(FileReferenceBase, ReferenceStoredBase):
                 description = self.redacted_str,
                 filename = self.redacted_str,
                 content_type = self.redacted_str,
-                file_id = None
+                file_id = None,
+                contributions = []
             )
 
 """
@@ -177,6 +181,8 @@ class DataReferenceBase(ReferenceBase):
 @dataclass(eq=False)
 class ExternalDataBase(DataReferenceBase, ExternalReferenceBase):
     type: ReferenceType = ReferenceType.EXTERNAL_DATA
+    # the Persons credited for the data, e.g. the project's own data deposited elsewhere, with the roles they had
+    contributions: List[Contribution] = field(default_factory=list)
 
 @dataclass
 class ExternalDataInput(ExternalDataBase, EnumLabeledModel):
@@ -184,7 +190,9 @@ class ExternalDataInput(ExternalDataBase, EnumLabeledModel):
 
 @dataclass(eq=False)
 class ExternalDataStored(ExternalDataBase, ExternalReferenceStored):
-    pass
+
+    def _redacted(self):
+        return replace(super()._redacted(), contributions=[])
 
 @dataclass(eq=False)
 class DataFileBase(DataReferenceBase, FileReferenceBase):

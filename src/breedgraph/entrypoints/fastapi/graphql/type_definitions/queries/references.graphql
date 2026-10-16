@@ -33,6 +33,8 @@ type FileReference implements ReferenceInterface {
     filename: String
     fileId: ID
     contentType: String
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
 }
 
 type ExternalDataReference implements ReferenceInterface {
@@ -44,6 +46,8 @@ type ExternalDataReference implements ReferenceInterface {
 
     format: DataFormat
     schema: String
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
 }
 
 type DataFileReference implements ReferenceInterface {
@@ -56,6 +60,8 @@ type DataFileReference implements ReferenceInterface {
 
     format: DataFormat
     schema: String
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
 }
 
 type FileSubmission {

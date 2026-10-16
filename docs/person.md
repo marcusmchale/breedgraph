@@ -160,6 +160,7 @@ An erased Person shows as "Erased person" with its `id` to everyone who could se
 |---|---|
 | `Dataset.contributors` | Replaced by contributions, `(Person)-[:CONTRIBUTED_TO {roles}]->(Dataset)`, with optional roles (`contributions.md`). Resolved through `people_map`. |
 | `Program/Trial.contact_ids` | Resolved through `people_map`. Contacts are described below. |
+| Contributions to Programs, Trials and file, data file and external data references | As for datasets (`contributions.md`). |
 | `OntologyEntry.authors` | Removed. External authors are cited through `references`; contributors to the ontology are recorded by its edit history. |
 | `GermplasmEntry.authors` | Removed, cited through `references`. Older entries may keep an `authors` property, which is ignored. |
 

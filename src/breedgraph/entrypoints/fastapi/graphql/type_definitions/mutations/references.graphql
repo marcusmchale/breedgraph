@@ -25,11 +25,15 @@ input ExternalDataReferenceInput {
 
     format: DataFormat!
     schema: String
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 input FileReferenceInput {
     description: String
     file: Upload!
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 input DataFileReferenceInput {
@@ -38,6 +42,8 @@ input DataFileReferenceInput {
 
     format: DataFormat!
     schema: String
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 
@@ -63,12 +69,16 @@ input ExternalDataReferenceUpdate {
 
     format: DataFormat!
     schema: String
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 input FileReferenceUpdate {
     id: ID!
     description: String
     file: Upload
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 input DataFileReferenceUpdate {
@@ -78,6 +88,8 @@ input DataFileReferenceUpdate {
 
     format: DataFormat!
     schema: String
+    """ The Persons credited, with the roles they had; on update, replaces them all """
+    contributions: [ContributionInput!]
 }
 
 extend type Mutation {

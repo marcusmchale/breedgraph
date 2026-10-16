@@ -10,7 +10,9 @@ REFERENCE = ControlledModelLabel.REFERENCE
 
 
 def _reference(reference: str = 'reference', visible: str = 'reference_visible') -> str:
-    return f"""CASE WHEN {visible} THEN {reference} {{ .* }}
+    return f"""CASE WHEN {visible} THEN {reference} {{ .*,
+            contributions: [({reference})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}]
+          }}
           ELSE {reference} {{ .id, .type, description: 'REDACTED' }} END"""
 
 

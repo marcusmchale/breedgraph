@@ -2,6 +2,8 @@ import json
 from zipfile import compressor_names
 
 from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.contributions import Contribution, contributions_from
+from breedgraph.service_layer.application.contributions import verify_contributions
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder, AbstractStateStore
 from breedgraph.service_layer.application.aggregate_restructuring import AbstractAggregateRestructuringService
 
@@ -30,6 +32,11 @@ def parse_json_schema(schema: str | None) -> Dict:
             return json.loads(schema)
         except:
             raise ValueError("Invalid JSON schema provided for external data reference")
+
+def _contributions(cmd) -> list[Contribution] | None:
+    if cmd.contributions is None:
+        return None
+    return contributions_from(contribution.to_contribution() for contribution in cmd.contributions)
 
 @handlers.command_handler(commands.references.CreateLegalReference)
 async def create_legal_reference(
@@ -70,12 +77,15 @@ async def create_external_data(
     logger.debug(f'f"Creating external data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        contributions = _contributions(cmd)
+        await verify_contributions(uow, contributions or [])
         reference = ExternalDataInput(
             description=cmd.description,
             url=cmd.url,
             external_id=cmd.external_id,
             format=cmd.format,
-            schema=schema
+            schema=schema,
+            contributions=contributions or []
         )
         stored_reference: ExternalDataStored = await uow.repositories.references.create(reference)
         await uow.commit()
@@ -89,12 +99,15 @@ async def create_file_reference(
 ) -> int:
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        contributions = _contributions(cmd)
+        await verify_contributions(uow, contributions or [])
         reference_input = FileReferenceInput(
             description=cmd.description,
             filename=cmd.filename,
-            content_type=cmd.content_type
+            content_type=cmd.content_type,
             #uuid=cmd.uuid
-            # don't set the uuid yet, wait for the file management service to complete the upload
+            # don't set the uuid yet, wait for the file management service to complete the upload,
+            contributions=contributions or []
         )
         stored_reference: FileReferenceStored = await uow.repositories.references.create(reference_input)
         await state_store.set_file_reference_id(cmd.uuid, stored_reference.id)
@@ -110,13 +123,16 @@ async def create_data_file_reference(
     logger.debug(f'f"Creating local data reference for user {cmd.agent_id}')
     schema = parse_json_schema(cmd.json_schema)
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        contributions = _contributions(cmd)
+        await verify_contributions(uow, contributions or [])
         reference_input = DataFileInput(
             description=cmd.description,
             filename=cmd.filename,
             content_type=cmd.content_type,
             #uuid=cmd.uuid,
             format=cmd.format,
-            schema=schema
+            schema=schema,
+            contributions=contributions or []
         )
         stored_reference: DataFileStored = await uow.repositories.references.create(reference_input)
         await state_store.set_file_reference_id(cmd.uuid, stored_reference.id)
@@ -162,6 +178,10 @@ async def update_external_data(
         reference.external_id = cmd.external_id or reference.external_id
         reference.schema = schema or reference.schema
         reference.format = cmd.format or reference.format
+        if cmd.contributions is not None:
+            contributions = _contributions(cmd)
+            await verify_contributions(uow, contributions, stored=reference.contributions)
+            reference.contributions = contributions
         await uow.commit()
 
 @handlers.command_handler(commands.references.UpdateFileReference)
@@ -176,6 +196,10 @@ async def update_file_reference(
         reference.filename = cmd.filename or reference.filename
         reference.content_type = cmd.content_type or reference.content_type
         reference.file_id = cmd.uuid or reference.file_id
+        if cmd.contributions is not None:
+            contributions = _contributions(cmd)
+            await verify_contributions(uow, contributions, stored=reference.contributions)
+            reference.contributions = contributions
         await uow.commit()
 
 @handlers.command_handler(commands.references.UpdateDataFileReference)
@@ -193,6 +217,10 @@ async def update_data_file_reference(
         reference.file_id = cmd.uuid or reference.file_id
         reference.schema = schema or reference.schema
         reference.format = cmd.format or reference.format
+        if cmd.contributions is not None:
+            contributions = _contributions(cmd)
+            await verify_contributions(uow, contributions, stored=reference.contributions)
+            reference.contributions = contributions
         await uow.commit()
 
 @handlers.command_handler(commands.references.DeleteReferences)

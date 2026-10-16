@@ -128,3 +128,48 @@ async def test_a_reference_cannot_be_released_below_what_cites_it(bus, uow_facto
     await bus.handle(CreateDesign(agent_id=user_id, name=lorem_text_generator.new_text(), reference_ids=[ontology_citation]))
     with pytest.raises(IllegalOperationError):
         await bus.handle(set_release(context, ontology_citation, ReadRelease.REGISTERED))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_references_credit_persons_with_roles(bus, uow_factory, views_factory, program_build_context):
+    from breedgraph.domain.commands.references import CreateExternalDataReference, UpdateExternalDataReference
+    from breedgraph.domain.model.contributions import Contribution
+    from breedgraph.domain.model.ontology import OntologyEntryLabel
+    from breedgraph.domain.model.references import DataFormat
+    from tests.breedgraph.scenarios.person_builder import PersonBuilder
+
+    context = program_build_context
+    user_id, team_id = context['user_id'], context['team_id']
+    person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id, team_id=team_id)
+    other = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations()
+    hidden_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=other['user_id'], team_id=other['team_id'])
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        analysis, visualization = [
+            (await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.ROLE)).id
+            for name in ('Formal analysis', 'Visualization')
+        ]
+
+    reference_id = await bus.handle(CreateExternalDataReference(
+        agent_id=user_id, write_team=team_id, url='https://example.org/summary', format=DataFormat.CSV,
+        contributions=[{'person_id': person_id, 'role_ids': [analysis]}]
+    ))
+    async with views_factory.get_views(user_id=user_id) as views:
+        [reference] = await views.references.get_references([reference_id])
+    assert reference.contributions == [Contribution(person=person_id, roles=[analysis])]
+
+    # an update replaces them; a Person the user cannot read is refused
+    await bus.handle(UpdateExternalDataReference(
+        agent_id=user_id, reference_id=reference_id, contributions=[{'person_id': person_id, 'role_ids': [visualization]}]
+    ))
+    with pytest.raises(NoResultFoundError):
+        await bus.handle(UpdateExternalDataReference(
+            agent_id=user_id, reference_id=reference_id, contributions=[{'person_id': hidden_id}]
+        ))
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        reference = await uow.repositories.references.get(reference_id=reference_id)
+    assert reference.contributions == [Contribution(person=person_id, roles=[visualization])]
+
+    # a reader who cannot read the reference gets a placeholder, crediting no one
+    async with views_factory.get_views(user_id=other['user_id']) as views:
+        [placeholder] = await views.references.get_references([reference_id])
+    assert placeholder.contributions == []
