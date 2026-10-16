@@ -7,7 +7,7 @@ from breedgraph.domain.commands.ontologies import (
     LockOntologyEntries, UnlockOntologyEntries, DeprecateOntologyEntries
 )
 from breedgraph.domain.commands.references import CreateExternalReference
-from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType
+from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, credit_roles, CREDIT_ATTRIBUTION
 
 
 async def private_reference(bus, user_id: int, team_id: int) -> int:
@@ -116,3 +116,14 @@ async def test_a_locked_entry_keeps_its_attributes_and_defining_relationships(
     async with uow_factory.get_uow(user_id=admin) as uow:
         role = await uow.ontology.get_entry(entry_id=role_id)
         assert (role.locked, role.description) == (False, 'Changed')
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_credit_roles_are_seeded_locked_and_active(views_factory, ontology_build_context):
+    async with views_factory.get_views(user_id=ontology_build_context['user_id']) as views:
+        roles = {role.name: role for role in await views.ontology.get_entries(labels=[OntologyEntryLabel.ROLE])}
+    for credit_role in credit_roles():
+        role = roles[credit_role.name]
+        assert role.locked
+        assert role.description == credit_role.definition
+        assert (role.source_url, role.source_attribution) == (credit_role.url, CREDIT_ATTRIBUTION)

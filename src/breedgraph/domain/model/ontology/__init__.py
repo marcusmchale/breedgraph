@@ -41,6 +41,7 @@ from .event_type import (
 from .location_type import LocationTypeBase, LocationTypeInput, LocationTypeStored
 from .designs import DesignBase, DesignInput, DesignStored
 from .roles import RoleBase, RoleInput, RoleStored
+from .credit import CreditRole, credit_roles, CREDIT_ATTRIBUTION
 from .layout_type import LayoutTypeBase, LayoutTypeInput, LayoutTypeStored
 from .record_group import RecordGroupTypeBase, RecordGroupTypeInput, RecordGroupTypeStored
 
@@ -98,6 +99,7 @@ __all__ = [
     'LocationTypeBase', 'LocationTypeInput', 'LocationTypeStored',
     'DesignBase', 'DesignInput', 'DesignStored',
     'RoleBase', 'RoleInput', 'RoleStored',
+    'CreditRole', 'credit_roles', 'CREDIT_ATTRIBUTION',
     'LayoutTypeBase', 'LayoutTypeInput', 'LayoutTypeStored',
 
     # People-related entries

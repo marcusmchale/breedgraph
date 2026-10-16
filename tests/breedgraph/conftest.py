@@ -19,6 +19,7 @@ from breedgraph.adapters.neo4j import Neo4jViewsFactory
 from breedgraph.adapters.neo4j import queries
 
 from breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.service_layer.application.ontology_seed import seed_ontology
 
 from tests.breedgraph.utilities.inputs import UserInputGenerator, LoremTextGenerator
 from tests.breedgraph.scenarios import (
@@ -125,11 +126,7 @@ async def init_neo4j(uow_factory) -> None:
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=system_account.user.id) as uow:
-        country_type_input = LocationTypeInput(
-            name='Country',
-            description='Country and three digit code according to ISO 3166-1 alpha-3'
-        )
-        await uow.ontology.create_entry(entry=country_type_input)
+        await seed_ontology(uow.ontology)
         await uow.ontology.commit_version(version_change=None, comment='Initial version')
         await uow.commit()
 

@@ -56,12 +56,12 @@ attribution would multiply the graph for little gain.
 
 ## 3. Seeded CRediT roles
 
-CRediT is a fixed external standard, so its roles are **seeded**, as the "Country" location type is,
+CRediT is a fixed external standard, so its roles are **seeded** with the "Country" location type,
 rather than created by each deployment:
 - The roles are a packaged data file, `src/breedgraph/data/credit_roles.csv` (name, external id, role URL, definition),
   with the definitions as published by NISO.
-- They are created when the ontology read model is built (`scripts/load_state_store.py` on first setup, and the test database build),
-  where no Role of the same name exists.
+- They are created by `seed_ontology` (`service_layer/application/ontology_seed.py`) as the system user, in the initial version:
+  `scripts/setup_initial_data.py` for a deployment, and the test setup. It creates only entries missing by name.
 - Each is created **locked** (§4), with the CRediT definition as its description and a `source` (§5) giving its CRediT URL and attribution.
 
 | CRediT role | Fits datasets? |
@@ -168,7 +168,7 @@ None.
 1. **Ontology.** Done: `RoleBase/Input/Stored`, `OntologyEntryLabel.ROLE`, create and update commands, links to terms, and the GraphQL `Role` type.
 2. **Locking and sources.** Done: `locked` and `source` on ontology entries; lock and unlock commands for ontology admins;
    updates, deprecation and defining relationships of locked entries refused (§4, §5).
-2b. **Seeding.** `credit_roles.csv` seeded as locked Roles with their source when the ontology read model is built (§3).
+2b. **Seeding.** Done: `credit_roles.csv` seeded as locked Roles with their source, with the initial data (§3).
 2c. **Reference releases.** Lowering a reference's release below that of what cites it is refused (§6).
 3. **Domain.** `Contribution`; `Dataset.contributions` replacing `contributors`, and `contributions` on Program and Trial,
    with validation of the role ids in the handlers.

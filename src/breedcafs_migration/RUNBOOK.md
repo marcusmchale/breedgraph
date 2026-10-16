@@ -42,7 +42,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
    ```
    `FILE_STORAGE_PATH` must be the API's file store, where the curve data files are written.
-3. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type),
+3. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type and the CRediT roles),
    your account exists, and `scripts/import_germplasm.py` has loaded the production germplasm,
    so BreedCAFS varieties are matched to it rather than created again.
 4. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),

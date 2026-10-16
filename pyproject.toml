@@ -87,6 +87,7 @@ exclude = ["breedcafs_migration*"]
 breedgraph = [
     "entrypoints/fastapi/graphql/type_definitions/**/*.graphql",
     "adapters/neo4j/cypher/**/*.cypher",
+    "data/*.csv",
 ]
 archive_worker = []
 analysis_worker = []

@@ -14,7 +14,7 @@ from neo4j import AsyncTransaction, AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.ontology import LocationTypeInput, VersionChange
+from breedgraph.service_layer.application.ontology_seed import seed_ontology
 
 
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
@@ -78,16 +78,9 @@ async def create_initial_ontology_entries(
     system_account: AccountStored,
     uow: AbstractUnitOfWorkFactory
 ):
-    """Create essential ontology entries needed for the application."""
+    """Create essential ontology entries needed for the application: Country, and the CRediT roles."""
     async with uow.get_uow(user_id=system_account.user.id) as uow_holder:
-        logger.info("Creating Country LocationType...")
-        country_type_input = LocationTypeInput(
-            name='Country',
-            description='Country and three digit code according to ISO 3166-1 alpha-3'
-        )
-        await uow_holder.ontology.create_entry(
-            entry=country_type_input
-        )
+        await seed_ontology(uow_holder.ontology)
         await uow_holder.ontology.commit_version(version_change=None, comment="Initial system commit")
         await uow_holder.commit()
         logger.info("Initial ontology setup completed successfully")
