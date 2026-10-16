@@ -6,8 +6,10 @@ Each record in records.csv is assigned:
     the Photosynthetic Analysis Apparatus recorded for its item at the same time, or the only apparatus of its input,
     or else PocketPEA where JIP-test parameters, only measured by PocketPEA, were recorded with it;
   - its study, by study_for (README §7.5);
-  - its unit (unit_ids.csv). Branches are not units: a branch's records are on the item it was taken from,
-    with the branch uid as its code in the study's Branch grouping, and its stratum as its code in the Stratum grouping (README §6.1);
+  - its unit (unit_ids.csv). Branches and leaves are not units: their records are on the item they were taken from,
+    with their uid as a code in the study's Branch or Leaf grouping, and a branch's stratum in its Stratum grouping
+    (README §6.1). Records of what is in a BreedCAFS block, or was taken from one, have the block's name as a code
+    in the study's Block grouping (README §6.4);
   - its value, as parsed against the scale of its variable or factor ("True" and "False" as Yes and No);
   - its time: observations start and end at their time, conditions at their start and end where given,
     to the minute where a time of day was entered (text_time), and otherwise as the date alone,
@@ -22,7 +24,7 @@ The Replicate grouping of each study is scoped to the datasets of each submissio
 so replicate codes are only compared within the records submitted together.
 The factor records of factor_records.csv (block treatments) are one dataset per factor and study.
 
-Left out: the records of duplicate items (units.DUPLICATE_ITEMS), the apparatus records (used to choose the variable), "Set harvest time" records (all the default "12:00",
+Left out: the records of duplicate items (units.DUPLICATE_ITEMS) and of the samples left out (units.LeftOut), the apparatus records (used to choose the variable), "Set harvest time" records (all the default "12:00",
 the harvest date being recorded), and curves (curves.py), whose complex scale needs a data file.
 
 Each study and submission is one transaction, recorded in dataset_ids.csv as it completes,
@@ -41,7 +43,7 @@ from breedgraph.service_layer.handlers.events.datasets import get_scale_and_cate
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds, study_for, input_terms, field_countries
-from breedcafs_migration.units import DUPLICATE_ITEMS, read_items, read_branches
+from breedcafs_migration.units import DUPLICATE_ITEMS, UnitPlan, read_items, BLOCK
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 import logging
@@ -65,9 +67,10 @@ class RecordPlan:
     start: datetime64 | None = None
     end: datetime64 | None = None
     replicate: str | None = None
-    # the uid of the branch it was recorded for, on the item_uid it was taken from, and the branch's stratum
-    branch: str | None = None
-    stratum: str | None = None
+    # the uid of the branch or leaf it was recorded for, on the item_uid it was taken from
+    sample: str | None = None
+    # record grouping name -> code: of the branch or leaf, and of the block its unit is in (units.CodedSample, block_of)
+    codes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -93,18 +96,12 @@ def record_groups(record: RecordPlan, programs: ProgramIds, study: str) -> list[
     groups = []
     if code := replicate_code(record.replicate):
         groups.append(RecordGroup(id=programs.replicate_groupings[study], code=code))
-    if record.branch is not None:
-        groups.append(RecordGroup(id=programs.branch_groupings[study], code=record.branch))
-        groups.append(RecordGroup(id=programs.stratum_groupings[study], code=record.stratum))
+    groups.extend(RecordGroup(id=programs.code_groupings[study][name], code=code) for name, code in record.codes.items())
     return groups or None
 
 
 def study_groupings(programs: ProgramIds, study: str) -> list[int]:
-    return [
-        groupings[study]
-        for groupings in (programs.replicate_groupings, programs.branch_groupings, programs.stratum_groupings)
-        if study in groupings
-    ]
+    return [programs.replicate_groupings[study], *programs.code_groupings.get(study, {}).values()]
 
 
 def epoch_ms(value: str) -> datetime64 | None:
@@ -133,7 +130,7 @@ class DatasetPlan:
         self.apparatus_options: dict[str, set[str]] = {}
         for input_name, apparatus in ontology.inputs:
             self.apparatus_options.setdefault(input_name, set()).add(apparatus)
-        self.branches = read_branches(read_items())
+        self.units = UnitPlan(read_items())
         self.datasets: dict[DatasetKey, list[RecordPlan]] = {}
         self.label: dict[int, OntologyEntryLabel] = {}
         self.repeats_left_out = 0
@@ -166,7 +163,7 @@ class DatasetPlan:
         repeat_key = lambda r: (r['item_uid'], r['input'], r['value'], r['replicate'])
         submitted = {repeat_key(r) for r in rows if r['submission_time']}
         for row in rows:
-            if row['input'] in LEFT_OUT_INPUTS or row['item_uid'] in DUPLICATE_ITEMS:
+            if row['input'] in LEFT_OUT_INPUTS or row['item_uid'] in DUPLICATE_ITEMS or row['item_uid'] in self.units.left_out:
                 continue
             if not row['submission_time'] and repeat_key(row) in submitted:
                 self.repeats_left_out += 1
@@ -180,8 +177,10 @@ class DatasetPlan:
                 start = end = entered_time(row['time'], row['text_time'])
             key = (self.study(row['input'], row['item_uid']), concept, row['submission_time'], row['submitter_id'])
             record = RecordPlan(item_uid=row['item_uid'], value=row['value'], start=start, end=end, replicate=row['replicate'] or None)
-            if (branch := self.branches.get(row['item_uid'])) is not None:
-                record.item_uid, record.branch, record.stratum = branch.parent, row['item_uid'], branch.stratum
+            if (coded := self.units.coded.get(row['item_uid'])) is not None:
+                record.item_uid, record.sample, record.codes = coded.parent, row['item_uid'], dict(coded.codes)
+            if (block := self.units.block_of(record.item_uid)) is not None:
+                record.codes[BLOCK] = self.units.design_blocks[block]
             self.add(key, record)
 
     def read_factor_records(self) -> None:
@@ -267,7 +266,7 @@ async def prepare_breedcafs_datasets(
                     for record in plan.datasets[key]
                 ]
                 errors = [
-                    (record.branch or record.item_uid, record.value, error)
+                    (record.sample or record.item_uid, record.value, error)
                     for record, error in zip(plan.datasets[key], dataset.add_records(records, scale, categories, groupings))
                     if error
                 ]

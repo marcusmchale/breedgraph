@@ -4,15 +4,16 @@ The BreedCAFS program, its trials and studies (README.md §7.5).
 One BreedCAFS program, with trials by the kind of data and studies by where it was recorded (STUDIES).
 Each study has a dataset-scoped Replicate grouping, scoped in the datasets phase to the datasets of each submission
 (README §7.6), so replicate codes are only compared within the records submitted together.
-The studies with records of branches (Nicaragua and Vietnam) also have study-wide Branch and Stratum groupings,
-for the branch each record was taken from and its stratum, as branches are not units (README §6.1).
+Studies also have the study-wide groupings of the codes their records carry (code_grouping_studies):
+Branch and Stratum for records of branches, Leaf for records of leaves, as these are not units (README §6.1),
+and Block for records of what is in a BreedCAFS block or was taken from one (README §6.4).
 study_for gives the study a record belongs to.
 Each study's start and end are the first and last times of its records (records.csv and curves.csv):
-record times, and condition start and end times where given.
+record times, and condition start and end times where given, without the records of the samples left out.
 
 The program, trials, studies and groupings are matched by name, or created, `PRIVATE` and controlled by the migration team,
 so running this again creates nothing new.
-Writes study_ids.csv, mapping each study to its id and the ids of its Replicate, Branch and Stratum groupings.
+Writes study_ids.csv, mapping each study to its id and the ids of its Replicate grouping and code groupings.
 """
 import csv
 import json
@@ -27,7 +28,7 @@ from breedgraph.domain.model.programs import (
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
-from breedcafs_migration.units import read_items, BRANCH
+from breedcafs_migration.units import UnitPlan, read_items, BLOCK, BRANCH, LEAF, STRATUM
 
 import logging
 logger = logging.getLogger(__name__)
@@ -60,9 +61,8 @@ TERM_STUDIES = {
     "Elements": "Mineral analysis",
 }
 REPLICATE = "Replicate"
-STRATUM = "Stratum"
-# Study-wide groupings of the studies with records of branches
-BRANCH_GROUPINGS = (BRANCH, STRATUM)
+# Study-wide groupings of the codes of BreedCAFS blocks, branches and leaves, which are not units
+CODE_GROUPINGS = (BLOCK, BRANCH, STRATUM, LEAF)
 
 
 def study_for(terms: set[str], country: str) -> str:
@@ -97,15 +97,18 @@ def field_countries() -> dict[str, str]:
     return {clean(row['field_uid']): clean(row['country']) for row in read_csv('field_farm_region_country.csv')}
 
 
-def study_dates() -> dict[str, tuple[datetime64, datetime64]]:
-    """The dates of the first and last record times of each study (BreedCAFS times are milliseconds since the epoch)"""
+def study_dates(left_out: set[str]) -> dict[str, tuple[datetime64, datetime64]]:
+    """
+    The dates of the first and last record times of each study (BreedCAFS times are milliseconds since the epoch),
+    without the records of the items left out
+    """
     terms = input_terms()
     countries = field_countries()
     times: dict[str, list[int]] = {}
     for name, columns in (('records.csv', ('time', 'start', 'end')), ('curves.csv', ('time',))):
         for row in read_csv(name):
             values = [int(row[column]) for column in columns if row[column].lstrip('-').isdigit()]
-            if values:
+            if values and row['item_uid'] not in left_out:
                 study = study_for(terms.get(row['input'], set()), countries[row['item_uid'].split('_')[0]])
                 times.setdefault(study, []).extend(values)
     return {
@@ -114,26 +117,32 @@ def study_dates() -> dict[str, tuple[datetime64, datetime64]]:
     }
 
 
-def branch_studies() -> set[str]:
-    """The studies with records of branches"""
-    branches = {uid for uid, item in read_items().items() if item.subject == BRANCH}
+def code_grouping_studies(plan: UnitPlan) -> dict[str, set[str]]:
+    """The code groupings each study needs, for the codes its records carry"""
     terms = input_terms()
     countries = field_countries()
-    return {
-        study_for(terms.get(row['input'], set()), countries[row['item_uid'].split('_')[0]])
-        for row in read_csv('records.csv') if row['item_uid'] in branches
-    }
+    needed: dict[str, set[str]] = {}
+    for uid, rows in plan.records.items():
+        if uid in plan.left_out:
+            continue
+        coded = plan.coded.get(uid)
+        names = set(coded.codes) if coded else set()
+        if plan.block_of(coded.parent if coded else uid):
+            names.add(BLOCK)
+        if names:
+            for row in rows:
+                needed.setdefault(study_for(terms.get(row['input'], set()), countries[uid.split('_')[0]]), set()).update(names)
+    return needed
 
 
 @dataclass
 class ProgramIds:
     program_id: int | None = None
     trials: dict[str, int] = field(default_factory=dict)
-    # Study key -> study id, and the ids of its Replicate grouping and of its Branch and Stratum groupings if it has them
+    # Study key -> study id, the id of its Replicate grouping, and the ids of its code groupings by name
     studies: dict[str, int] = field(default_factory=dict)
     replicate_groupings: dict[str, int] = field(default_factory=dict)
-    branch_groupings: dict[str, int] = field(default_factory=dict)
-    stratum_groupings: dict[str, int] = field(default_factory=dict)
+    code_groupings: dict[str, dict[str, int]] = field(default_factory=dict)
     created: int = 0
 
 
@@ -147,8 +156,9 @@ async def prepare_breedcafs_programs(
         record_group_types: dict[str, int]
 ) -> ProgramIds:
     ids = ProgramIds()
-    dates = study_dates()
-    with_branches = branch_studies()
+    plan = UnitPlan(read_items())
+    dates = study_dates(set(plan.left_out))
+    code_groupings = code_grouping_studies(plan)
     async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
         programs = uow.repositories.programs
         program = await programs.get(name=PROGRAM.name)
@@ -174,8 +184,8 @@ async def prepare_breedcafs_programs(
                 study = find_by_name(trial.studies.values(), name)
             elif (study.start, study.end) != (start, end):
                 study.start, study.end = start, end
-            if key in with_branches:
-                for grouping_name in BRANCH_GROUPINGS:
+            for grouping_name in CODE_GROUPINGS:
+                if grouping_name in code_groupings.get(key, set()):
                     if study.get_grouping(name=grouping_name) is None:
                         study.add_grouping(record_group_types[grouping_name], grouping_name, GroupingScope.STUDY_WIDE)
                         ids.created += 1
@@ -191,12 +201,13 @@ async def prepare_breedcafs_programs(
                 raise ValueError(f"The study {name} has no stored dataset-scoped {REPLICATE} grouping")
             ids.studies[key] = study.id
             ids.replicate_groupings[key] = grouping.id
-            if key in with_branches:
-                for grouping_name, grouping_ids in zip(BRANCH_GROUPINGS, (ids.branch_groupings, ids.stratum_groupings)):
+            ids.code_groupings[key] = {}
+            for grouping_name in CODE_GROUPINGS:
+                if grouping_name in code_groupings.get(key, set()):
                     grouping = study.get_grouping(name=grouping_name)
                     if not isinstance(grouping, RecordGroupingStored) or grouping.scope is not GroupingScope.STUDY_WIDE:
                         raise ValueError(f"The study {name} has no stored study-wide {grouping_name} grouping")
-                    grouping_ids[key] = grouping.id
+                    ids.code_groupings[key][grouping_name] = grouping.id
         await uow.commit()
 
     logger.info(f"Prepared the program: {ids.created} created, {len(ids.studies)} studies")
@@ -207,8 +218,8 @@ async def prepare_breedcafs_programs(
 def write_study_mapping(ids: ProgramIds) -> None:
     with open(BREEDCAFS_DATA_DIR / 'study_ids.csv', 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['study', 'study_id', 'replicate_grouping_id', 'branch_grouping_id', 'stratum_grouping_id'])
+        writer.writerow(['study', 'study_id', 'replicate_grouping_id', *(f'{name.lower()}_grouping_id' for name in CODE_GROUPINGS)])
         for key, study_id in ids.studies.items():
             writer.writerow([
-                key, study_id, ids.replicate_groupings[key], ids.branch_groupings.get(key, ''), ids.stratum_groupings.get(key, '')
+                key, study_id, ids.replicate_groupings[key], *(ids.code_groupings[key].get(name, '') for name in CODE_GROUPINGS)
             ])

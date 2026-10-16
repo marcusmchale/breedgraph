@@ -225,11 +225,13 @@ Admins of the recipient team are emailed about new offers.
 ## 9. Migrated BreedCAFS data
 
 The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end has not shown at this scale. Nothing in the API changes for it, but expect:
-- **Size.** 41 fields with up to about 3,700 units each (field → trees → leaves, cherries and samples), 1,177 datasets of up to about 6,900 records,
-  48,259 units and 214,171 records in all, besides the curves. Block, dataset and analysis views should page or virtualise rather than load a whole field.
-- **Branches as record groups.** Branches are not units: a branch's records are on its tree, with the branch as a code in the
-  study's Branch grouping (`WITHIN_UNIT`) and its canopy stratum in the Stratum grouping (`SHARED`), in Nicaragua and Vietnam.
-  Record and analysis views should show record group codes beside the unit, or a tree's branches look like repeated readings.
+- **Size.** 41 fields with up to about 3,300 units each (field → trees → cherries and samples), 1,176 datasets of up to about 6,900 records,
+  35,665 units and 213,761 records in all, besides the curves. Block, dataset and analysis views should page or virtualise rather than load a whole field.
+- **Blocks, branches and leaves as record groups.** None is a unit. A branch's or leaf's records are on its tree, with the
+  branch or leaf as a code in the study's Branch or Leaf grouping (`WITHIN_UNIT`), and a branch's canopy stratum in the
+  Stratum grouping (`SHARED`). Records of what is in a BreedCAFS block carry its name in the Block grouping (`WITHIN_GRAPH`, §12),
+  and the trees and samples hang from the field. Record and analysis views should show record group codes beside the unit,
+  or a tree's branches look like repeated readings.
 - **Persons as contributors.** Dataset contributors are Persons with an institution, `PRIVATE` until handover, so most users see them restricted (§4).
 - **Curves.** The four fluorescence curve datasets (Fluorescence ~ Time, PocketPEA) have records with no value: each references its dataset's CSV data file,
   whose schema gives the index columns (`item_uid, unit_id, time, replicate`) that find a record's row. The existing complex-scale cells show the reference count.

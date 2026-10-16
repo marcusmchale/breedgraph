@@ -91,7 +91,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
     assert set(ids.subjects) == {s[0] for s in ontology.SUBJECTS}
     assert set(ids.location_types) == {"Country", "Region", "Farm", "Field", "Research Center"}
     assert set(ids.layout_types) == {"Row and Tree"}
-    assert set(ids.record_group_types) == {"Replicate", "Branch", "Stratum"}
+    assert set(ids.record_group_types) == {"Replicate", "Branch", "Stratum", "Leaf", "Block"}
     assert set(ids.inputs) == {
         ("Total Boron", ""), ("Tree rust symptoms", ""), ("Set planting date", ""),
         ("Fᵥ / Fₘ", "PocketPEA"), ("Fᵥ / Fₘ", "MiniPAM")
@@ -106,9 +106,11 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
         assert variable.name == "Boron (µg/g)"
         assert variable.description == "Total boron content (µg/g)"
         assert variable.synonyms == ["Total Boron"]
-        # Branches are not units, but codes nested in the tree; their strata are shared across trees
+        # Branches and leaves are not units, but codes nested in the tree; their strata are shared across trees,
+        # and blocks are shared by the units of a field
         for name, extent in (
-                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED)
+                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED),
+                ("Leaf", RecordGroupExtent.WITHIN_UNIT), ("Block", RecordGroupExtent.WITHIN_GRAPH),
         ):
             record_group_type = await uow.ontology.get_entry(
                 entry_id=ids.record_group_types[name], label=OntologyEntryLabel.RECORD_GROUP_TYPE

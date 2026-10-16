@@ -156,6 +156,11 @@ async def prepare_breedcafs_curves(
     by_dataset, left_out = planned_curves(ontology)
     if left_out:
         logger.info(f"Left out {left_out} curves loaded without a submission, repeating submitted curves")
+    # Curves are on units only: none is of a branch, leaf or sample left out. None is in a BreedCAFS block either,
+    # so no curve has a Block code (README §6.4)
+    unmapped = sorted({curve['item_uid'] for curves in by_dataset.values() for curve in curves} - units.keys())
+    if unmapped:
+        raise ValueError(f"Curves of items that are not units: {unmapped}")
     ids = read_mapping()
     archival = Neo4jFileArchivalService(driver=uow_factory.driver, queue=asyncio.Queue())
 

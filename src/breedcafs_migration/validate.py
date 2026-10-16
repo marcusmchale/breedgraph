@@ -6,7 +6,9 @@ and with what is stored, read directly from the database (controls through the a
   - every expected item, variety, field, layout, input, study, dataset and Person is mapped, and every mapped id is stored;
   - units have the expected subject, parents, germplasm and tree positions;
   - datasets have their study, variable or factor, and the expected number of records;
-  - the records of each branch are on the unit of the item it was taken from, with its Branch and Stratum codes;
+  - the records of each branch and leaf are on the unit of the item it was taken from, with its codes,
+    and the records of what is in a BreedCAFS block, or was taken from one, have the block's code;
+  - the samples left out are listed, with their records, in unmigrated_samples.csv;
   - curve data files are stored and match the hash recorded for archival;
   - Persons have the curated names and institutions, and each dataset has the Persons who recorded it as contributors;
   - the migrated fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets,
@@ -33,7 +35,7 @@ from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
 from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES
 from breedcafs_migration.persons import read_persons, contributor_names
-from breedcafs_migration.programs import STUDIES
+from breedcafs_migration.programs import STUDIES, CODE_GROUPINGS
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.units import UnitPlan, read_items, SUBJECTS
 from breedcafs_migration.germplasm import read_varieties
@@ -132,9 +134,11 @@ async def validate_controls(validation, uow_factory, context, label: ControlledM
 
 async def validate_units(validation, uow_factory, ontology_subjects: dict[str, int]):
     plan = UnitPlan(read_items())
-    expected = {uid for uid in plan.items if uid not in plan.treatment_blocks and uid not in plan.branches}
+    expected = {uid for uid in plan.items if plan.is_unit(uid)}
     unit_ids = {row['item_uid']: int(row['unit_id']) for row in read_mapping('unit_ids.csv')}
     validation.same("Items mapped to units (unit_ids.csv)", expected, unit_ids)
+    unmigrated = {row['item_uid']: row['reason'] for row in read_mapping('unmigrated_samples.csv')}
+    validation.same("Samples left out, listed with their records (unmigrated_samples.csv)", plan.left_out.items(), unmigrated.items())
 
     germplasm = {row['variety']: int(row['germplasm_id']) for row in read_mapping('germplasm_ids.csv')}
     layouts = {(row['field_uid'], row['group'], row['layout_type']): int(row['layout_id']) for row in read_mapping('layout_ids.csv')}
@@ -225,42 +229,41 @@ async def validate_datasets(validation, uow_factory, ontology: OntologyIds):
         "No record has replicate code 0, BreedCAFS's code for a reading not replicated",
         zero['records'] == 0, f"{zero['records']} with code 0"
     )
-    await validate_branch_records(validation, uow_factory, plan)
+    await validate_record_codes(validation, uow_factory, plan)
     validation.sections.append(replicate_summary(plan, ontology))
     return mapped, list(studies.values())
 
 
-async def validate_branch_records(validation, uow_factory, plan: DatasetPlan):
-    """Each branch's records are on the unit of the item it was taken from, each with its stratum (README §6.1)"""
+async def validate_record_codes(validation, uow_factory, plan: DatasetPlan):
+    """
+    The records of each branch and leaf are on the unit of the item it was taken from, with its codes (README §6.1),
+    and the records of what is in a BreedCAFS block, or was taken from one, have the block's code (README §6.4):
+    compared as the number of records with each code on each unit, for each code grouping.
+    """
     unit_ids = {row['item_uid']: int(row['unit_id']) for row in read_mapping('unit_ids.csv')}
     rows = read_mapping('study_ids.csv')
-    expected: dict[str, int] = {}
+    expected: dict[tuple[str, str, int | None], int] = {}
     for records in plan.datasets.values():
         for record in records:
-            if record.branch is not None:
-                expected[record.branch] = expected.get(record.branch, 0) + 1
-    stored = {}
-    for row in await query(uow_factory, """
-        MATCH (grouping:RecordGrouping)-[:HAS_GROUP]->(branch:RecordGroup)<-[:IN_GROUP]-(record:Record)-[:FOR_UNIT]->(unit:Unit)
-        WHERE grouping.id IN $branch_groupings
-        OPTIONAL MATCH (record)-[:IN_GROUP]->(stratum:RecordGroup)<-[:HAS_GROUP]-(stratum_grouping:RecordGrouping)
-        WHERE stratum_grouping.id IN $stratum_groupings
-        RETURN branch.code AS branch, collect(DISTINCT unit.id) AS units, collect(stratum.code) AS strata,
-               count(DISTINCT record) AS records
-    """,
-        branch_groupings=[int(row['branch_grouping_id']) for row in rows if row['branch_grouping_id']],
-        stratum_groupings=[int(row['stratum_grouping_id']) for row in rows if row['stratum_grouping_id']]
-    ):
-        stored[row['branch']] = row
-    validation.same("Branches with records, by their Branch codes", expected, stored)
-    misplaced = []
-    for uid, count in expected.items():
-        row, branch = stored.get(uid), plan.branches[uid]
-        if row is None:
-            continue
-        if (row['records'], row['units'], row['strata']) != (count, [unit_ids.get(branch.parent)], [branch.stratum] * count):
-            misplaced.append(uid)
-    validation.all("Branch records are on the item it was taken from, each with its stratum", misplaced, len(expected))
+            for name, code in record.codes.items():
+                key = (name, code, unit_ids.get(record.item_uid))
+                expected[key] = expected.get(key, 0) + 1
+    for name in CODE_GROUPINGS:
+        column = f'{name.lower()}_grouping_id'
+        stored = {
+            (name, row['code'], row['unit']): row['records']
+            for row in await query(uow_factory, """
+                MATCH (grouping:RecordGrouping)-[:HAS_GROUP]->(group:RecordGroup)<-[:IN_GROUP]-(record:Record)-[:FOR_UNIT]->(unit:Unit)
+                WHERE grouping.id IN $ids
+                RETURN group.code AS code, unit.id AS unit, count(record) AS records
+            """, ids=[int(row[column]) for row in rows if row.get(column)])
+        }
+        planned = {key: count for key, count in expected.items() if key[0] == name}
+        validation.same(f"{name} codes on units", planned, stored)
+        validation.all(
+            f"Records with each {name} code on each unit",
+            [key for key, count in planned.items() if key in stored and stored[key] != count], len(planned)
+        )
 
 
 async def validate_curves(validation, uow_factory, ontology: OntologyIds):
@@ -407,7 +410,7 @@ def replicate_summary(plan: DatasetPlan, ontology: OntologyIds) -> Section:
         coded = [(submission, r) for submission, r in entries if replicate_code(r.replicate)]
         readings: dict[tuple, list[str]] = {}
         for submission, r in coded:
-            readings.setdefault((submission, r.item_uid, r.branch, r.start, r.end), []).append(replicate_code(r.replicate))
+            readings.setdefault((submission, r.item_uid, r.sample, r.start, r.end), []).append(replicate_code(r.replicate))
         replicated = [codes for codes in readings.values() if len(codes) > 1]
         numbers = sorted({int(c) for codes in readings.values() for c in codes if c.isdigit()})
         rows.append([

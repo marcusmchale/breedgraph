@@ -1,7 +1,8 @@
 """
 A dry run of the BreedCAFS migration on the extracted and curated data, against the test database.
 It takes a while, so runs only with BREEDCAFS_DRY_RUN=1.
-The data directory is copied, so the mapping files written by the run do not replace those in the data directory.
+Only the input files of the data directory are copied (bundle.INPUT_FILES), as the server gets them: mapping files
+left by an earlier run would be resumed from, and the files written by this run don't replace those in the data directory.
 """
 import csv
 import os
@@ -16,6 +17,7 @@ from breedgraph.service_layer.infrastructure import archival_service
 
 from breedcafs_migration import ontology, germplasm, locations, layouts, units, programs, datasets, curves, persons, validate
 from breedcafs_migration.bootstrap import MigrationContext
+from breedcafs_migration.bundle import INPUT_FILES
 from breedcafs_migration.main import migrate
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
@@ -30,7 +32,9 @@ pytestmark = pytest.mark.skipif(
 @pytest.mark.asyncio(loop_scope="session")
 async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     data_dir = tmp_path / 'data'
-    shutil.copytree(BREEDCAFS_DATA_DIR, data_dir)
+    data_dir.mkdir()
+    for name in INPUT_FILES:
+        shutil.copyfile(BREEDCAFS_DATA_DIR / name, data_dir / name)
     for module in (ontology, germplasm, locations, layouts, units, programs, datasets, curves, persons, validate):
         monkeypatch.setattr(module, 'BREEDCAFS_DATA_DIR', data_dir)
     monkeypatch.setattr(archival_service, 'FILE_STORAGE_PATH', str(tmp_path / 'files'))
@@ -60,18 +64,19 @@ async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     with open(data_dir / 'item_name_subject_sources_sinks.csv', encoding='utf-8-sig') as f:
         items = {row['item_uid'].strip('"') for row in csv.DictReader(f)}
     with open(data_dir / 'factor_records.csv') as f:
-        treatment_trees = {row['item_uid'] for row in csv.DictReader(f) if row['factor'] != 'Stratum'}
-    # Every item is a unit, except skipped items, duplicates and the blocks named after a treatment
+        treatment_trees = {row['item_uid'] for row in csv.DictReader(f)}
+    # Every item is a unit, except skipped items, duplicates, blocks, branches, leaves and the samples left out
     skipped |= set(units.DUPLICATE_ITEMS)
-    treatment_blocks = {uid for uid in items - skipped - set(unit_ids) if '_B' in uid}
-    assert items - skipped - set(unit_ids) == treatment_blocks
-    assert len(treatment_blocks) == 12
+    plan = units.UnitPlan(units.read_items())
+    not_units = set(plan.treatment_blocks) | set(plan.design_blocks) | set(plan.coded) | set(plan.left_out)
+    assert items - skipped - set(unit_ids) == not_units
+    assert (len(plan.treatment_blocks), len(plan.design_blocks), len(plan.left_out)) == (12, 96, 563)
     assert treatment_trees <= set(unit_ids)
     assert len(set(unit_ids.values())) == len(unit_ids)
 
     with open(data_dir / 'dataset_ids.csv') as f:
         dataset_ids = [row['dataset_id'] for row in csv.DictReader(f)]
-    assert len(dataset_ids) == len(set(dataset_ids)) == 1175
+    assert len(dataset_ids) == len(set(dataset_ids)) == 1172
 
     with open(data_dir / 'curve_ids.csv') as f:
         curve_rows = list(csv.DictReader(f))

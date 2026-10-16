@@ -68,6 +68,16 @@ RECORD_GROUP_TYPES = [
         "Stratum", "The canopy stratum (Lower, Middle or Upper) of the tree a reading was taken from, as set by the sampling design",
         RecordGroupExtent.SHARED
     ),
+    # Leaves measured once are not units either (README §6.1)
+    (
+        "Leaf", "The leaf of a tree (or tree sample) a reading was taken from, as a code distinguishing its leaves",
+        RecordGroupExtent.WITHIN_UNIT
+    ),
+    # BreedCAFS blocks are not units: the records of what is in them, or was taken from them, have a code (README §6.4)
+    (
+        "Block", "The design block of a field a reading was taken in, named as in BreedCAFS (block names recur across fields)",
+        RecordGroupExtent.WITHIN_GRAPH
+    ),
 ]
 
 # name, description, axes, parent names

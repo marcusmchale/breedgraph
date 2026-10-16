@@ -102,7 +102,7 @@ Create Subjects:
 * Green Beans
 
 `Trees` represents a group of trees within a field whose individual trees are not identified,
-e.g. a block (6.4), or the trees of one germplasm in a field (6.2).
+e.g. the trees of one germplasm in a field (6.2). No migrated unit has it: BreedCAFS blocks are codes (6.4).
 
 The ontology preparation (ontology.py) also creates the variables and factors of the curated inputs (1.5),
 and the treatment factors for blocks named after a treatment (6.4).
@@ -134,7 +134,11 @@ Blocks are units (6.4), not layouts.
   the branches of one tree.
 * Stratum, for the canopy stratum (Lower, Middle or Upper) of a branch (6.1), with extent `SHARED`:
   a stratum is the same across the trees, so analysis can compare strata.
-  Branch and Stratum, like Replicate, are reused only with these extents.
+* Leaf, for the leaf a reading was taken from (6.1), with extent `WITHIN_UNIT`, as for Branch.
+* Block, for the design block of a field a reading was taken in (6.4), with extent `WITHIN_GRAPH`: a block code is
+  shared by the units of one field (each field being its own block of units), so "Block 1" of one field is another level
+  from "Block 1" of the next, without naming the field in the code.
+  These, like Replicate, are reused only with these extents.
 
 ---
 
@@ -242,12 +246,12 @@ and following discussions with Partner organisations.
 ## 6.1 Ordinary Units
 
 Each Field is a block, rooted at a Field unit positioned at the Field's location (units.py).
-For each other Item, but branches, a unit in its Field's block, `PRIVATE` and controlled by the migration team:
+For each other Item, but blocks (6.4), branches and leaves (below) and the samples left out (6.5), a unit in its Field's block, `PRIVATE` and controlled by the migration team:
 
 * Its name is the Item `name`, or its uid where it has none, and its description "BreedCAFS item <uid>",
   by which a second run finds the units created before.
-* Its Subject is the Item type, or the sample `unit` for samples (blocks are `Trees`, 6.4).
-* Its parents are the Items it is in or was taken from, or else its Field.
+* Its Subject is the Item type, or the sample `unit` for samples.
+* Its parents are the Items it is in or was taken from, BreedCAFS blocks replaced by the Field (6.4), or else its Field.
 * Its germplasm is set where a single variety is known (item_variety.csv, 5). No sample has more than one variety.
   A sample pooled from parents of different varieties (only 42_S161, 1.3.2) is left without germplasm,
   its parents saying what it contains.
@@ -257,12 +261,18 @@ For each other Item, but branches, a unit in its Field's block, `PRIVATE` and co
 Branches (51,480, in Nicaragua and Vietnam) are not units. Each was taken from one tree, or tree sample,
 and none is referenced over time or has samples taken from it,
 so a unit per branch would only repeat its tree. Instead, a branch's records are on the unit of the item it was
-taken from, with two record group codes (`read_branches` in units.py, 7.6):
+taken from, with two record group codes (`read_coded_samples` in units.py, 7.6):
 
 * its uid in the Study's Branch grouping, telling the branches of a tree apart;
 * its stratum (branch_strata.csv) in the Study's Stratum grouping, as the stratum was set by the sampling design.
 
-The units phase stops if any item was taken from a branch, as such an item would have no unit to be under.
+Leaves (11,935 `Leaf` samples, two from most of 6,160 trees and tree samples, in Vietnam and Nicaragua) are
+treated the same way: each is unnamed, was measured once (Length and Width, on one day, in one submission) and has
+nothing taken from it, so its records are on its tree with its uid in the Study's Leaf grouping. The `Leaves` samples
+(plural) stay units: those of field 42 are named lab samples with results from later submissions, and those of
+fields 25–27 are pooled from several trees, so they have no one tree to be a code on.
+
+The units phase stops if any unit would be taken from a branch, a leaf or a sample left out, as it would have no unit to be under.
 Factor records for units, the block treatments (6.4), are saved in factor_records.csv for the datasets phase.
 Saved unit_ids.csv: each Item and its unit.
 
@@ -270,7 +280,7 @@ Saved unit_ids.csv: each Item and its unit.
 
 Some BreedCAFS Fields contain multiple varieties, and samples were taken from the Field (or a block) as a whole,
 e.g. 2,310 tree samples in fields 18–24 and about 150 green bean samples.
-These samples stay under their Field (or block), with their variety as their germplasm:
+These samples stay under their Field (blocks being codes, 6.4), with their variety as their germplasm:
 no `Trees` unit per variety is created, as the variety already says which population a sample represents.
 
 ## 6.3 Location Aggregation
@@ -282,13 +292,22 @@ Assign the corresponding location   as a position for each unit.
 
 ## 6.4 Blocks
 
-BreedCAFS Blocks group the trees of a Field, and have no data of their own.
+BreedCAFS Blocks group the trees of a Field, and have no data of their own. They are not units (units.py):
+what is in a block, or was taken from one, is placed directly under the Field.
 
-* Blocks named as numbered blocks ("Block 1", "Block A", and the "Bulk" block of field 22) become `Trees` units under their Field,
-  named as the block is in BreedCAFS (block names are only unique within a Field).
-  Their trees are their children, and samples taken from the block (about 12,750 with data, e.g. most cherry and green bean samples)
-  keep the block as their parent.
-* Blocks named after a treatment are not units. Their trees are placed directly under the Field,
+* The 96 numbered blocks ("Block 1", "Block A", and the "Bulk" block of field 22) are the blocks of a design:
+  in 28 of the 31 fields with them, every block holds the same set of varieties (2 blocks of 4 varieties in 17 fields,
+  4 of 10 in 5, 5 of 11 in Nicaragua). Each record of what is in a block, or was taken from one, gets the block's name
+  as its code in the Study's Block grouping (`block_of` in units.py, 2.4): 159,794 records, of 71,646 items, in the
+  Nicaragua, Vietnam, Cameroon, French Guiana and Metabolomics Studies. The code is the name alone, block names
+  recurring across Fields: the Block type's `WITHIN_GRAPH` extent keeps the blocks of each Field apart.
+  With the block as a code, analysis can estimate a block effect with trees as observations, which a block unit
+  only allows by aggregating its trees. The trees keep their positions, including field 29's layouts per block (4).
+  In Nicaragua (fields 18–24), samples were taken from a block rather than from an identified tree: 6,655 tree samples
+  (each about 20 per variety and block, as many as the block's positioned trees, which they may be),
+  5,005 Cherry, 1,001 Cherries and 97 Green Beans samples. They stay units, as each has its own variety
+  (records carry no germplasm), under the Field, and their records carry the block's code like any other.
+* Blocks named after a treatment are not units either. Their trees are placed directly under the Field,
   and each tree gets a record of the treatment, with the block name as the category:
   * "Full Sun" and "Shade" in fields 25–27 (La Hilda, Costa Rica): the "Shade Treatment" factor (shade cloth).
   * "Shade Level 1" to "Shade Level 5" and "2 Years Low Light Acclimation" in field 35 (Copenhagen greenhouse):
@@ -313,8 +332,17 @@ Also left out are three trees registered twice in field 24 (row 29, block 24_B5)
 repeat 24_T1079, 24_T1089 and 24_T1099 in name, variety, block, position and their one record (planting date),
 and have no samples. The second of each pair is left out with its record (`DUPLICATE_ITEMS` in units.py).
 
-Branches are not units (6.1), so the 14,202 branches with no records leave no trace: their only data was their stratum,
-which is now a code on a branch's records. The other 37,278 branches are codes on the records of their tree.
+Branches and leaves are not units (6.1), so those with no records leave no trace: 14,202 branches, whose only data
+was their stratum, and 7,106 leaves. The other 37,278 branches and 4,829 leaves are codes on the records of their tree.
+
+These samples are left out too (`LeftOut` in units.py), each with its details and records written to
+unmigrated_samples.csv in the data directory, so they can be migrated later if data comes in for them:
+
+* 410 `Leaves` samples of field 34 (La Tomatera, Nicaragua) whose only records are their harvest date and time:
+  collected, but nothing more was recorded for them, and the project is finished.
+* 153 tree samples taken from a Nicaraguan block (6.4) with no records, on themselves or on their branches.
+
+The datasets phase leaves out their records (the 410 harvest dates).
 
 ---
 
@@ -434,10 +462,11 @@ and one covers fields in two countries.
 The Program ("BreedCAFS", Breeding Coffee for Agroforestry Systems), Trials and Studies are created `PRIVATE`,
 controlled by the migration team, or matched by name (programs.py, with `study_for` for the rule above).
 Each Study has a dataset-scoped Replicate grouping, of the Replicate record group type in the ontology,
-scoped in the datasets phase (7.6). The Studies with records of branches (Nicaragua and Vietnam) also have
-study-wide Branch and Stratum groupings (6.1). Saved study_ids.csv: each Study, its id and the ids of its groupings.
+scoped in the datasets phase (7.6). Studies also have study-wide groupings for the codes their records carry:
+Branch, Stratum and Leaf (6.1) in Nicaragua and Vietnam, and Block (6.4) in Nicaragua, Vietnam, Cameroon, French Guiana
+and Metabolomics. Saved study_ids.csv: each Study, its id and the ids of its groupings.
 Each Study's start and end are the first and last times of its records: record times, and condition starts and ends
-where given (BreedCAFS stores False for most). French Guiana has no timed records, so no dates.
+where given (BreedCAFS stores False for most), without the records of the samples left out (6.5). French Guiana has no timed records, so no dates.
 Nicaragua starts in August 2015, before BreedCAFS: data recorded earlier was submitted within BreedCAFS,
 and a Study may start before its Program.
 
@@ -473,8 +502,9 @@ though two of the three sessions are dated differently (29 rather than 25 Novemb
 They look like a manual submission script, run before the users uploaded their own versions of the same data.
 So records and curves loaded without a submission are left out where they repeat a submitted one, whatever the date,
 as the submitted dates are trusted; any that repeat none would be kept, in Datasets of their own. None are left.
-The plan is then 1,173 Datasets with 214,171 records, without the 3 records of the duplicate trees (§6.5).
-Of these, 43,962 records are of 37,278 branches (6.1), on 6,499 trees, in Nicaragua and Vietnam; none has a replicate code.
+The plan is then 1,172 Datasets with 213,761 records, without the 3 records of the duplicate trees and the 410 harvest
+dates of the samples left out (§6.5). Of these, 43,962 records are of 37,278 branches (6.1), on 6,499 trees, in Nicaragua
+and Vietnam, and 9,657 of 4,829 leaves; none has a replicate code. 159,794 records have a Block code (6.4).
 
 Each Study and submission is one transaction, recorded in dataset_ids.csv as it completes,
 so a second run creates only the Datasets not yet created.
@@ -568,7 +598,9 @@ Once migrated data has been reviewed:
    and what the tree codes (e.g. "7-ED6-1D2") mean beyond the field they cite. Review the per-block layouts of field 29 too.
 2. The records and curves loaded without a submission (7.6) are left out, as all repeat submitted records;
    the submitted dates are kept where they differ (e.g. 25 rather than 29 November 2018 for La Hilda).
-3. Review the blocks migrated as `Trees` units: some may be replicate blocks of a design, better described by a Design.
+3. The numbered blocks are migrated as Block codes (6.4), as the blocks of a design. Review with the partners whether
+   a Design should describe each study, and whether the Nicaraguan tree samples taken from a block are its positioned
+   trees, which would let their records move to those trees.
 
 Blocks named after a treatment are already migrated as factor records (6.4).
 

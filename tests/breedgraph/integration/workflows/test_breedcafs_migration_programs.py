@@ -36,13 +36,26 @@ FILES = {
         {'input': 'Shade level', 'item_uid': '22_T2', 'time': '', 'start': 'False', 'end': 'False'},
         {'input': 'Set planting date', 'item_uid': '22_T1', 'time': '', 'start': '', 'end': ''},
         {'input': 'Fruit count', 'item_uid': '22_S2', 'time': '1558310400000', 'start': '', 'end': ''},  # a branch
+        # the harvest of a sample left out, not counted in the study's dates
+        {'input': 'Set harvest date', 'item_uid': '22_S3', 'time': '1735689600000', 'start': '', 'end': ''},  # 2025-01-01
     ],
     'curves.csv': [{'input': 'Fluorescence ~ Time', 'item_uid': '22_S1', 'time': '1574899200000'}],  # 2019-11-28
     'item_name_subject_sources_sinks.csv': [
         {'item_uid': f'"""{uid}"""', 'name': 'null', 'subject': f'"""{subject}"""', 'source_items': json.dumps(sources), 'sink_items': '[]'}
-        for uid, subject, sources in (('22', 'Field', []), ('22_T1', 'Tree', [22]), ('22_S2', 'Branch', ['22_T1']))
+        for uid, subject, sources in (
+            ('22', 'Field', []), ('22_B1', 'Block', [22]), ('22_T1', 'Tree', ['22_B1', 22]), ('22_S2', 'Branch', ['22_T1']),
+            ('22_S3', 'Leaves', ['22_T1']),
+        )
     ],
     'skipped_items.csv': [{'item_uid': '1_S9', 'reason': ''}],
+    'branch_strata.csv': [{'item_uid': '22_S2', 'strata': '["Upper"]'}],
+    # read for the unit plan, but not needed here
+    'item_variety.csv': [{'item_uid': '"""22_T9"""', 'variety': '"""Catimor"""'}],
+    'unit_positions.csv': [{
+        'field_uid': '22', 'item_uid': '"""22_T9"""', 'layout_type': '"""row_and_tree"""', 'layout_level': '"""field"""',
+        'layout_name': '""""""', 'row': '1.0', 'column': '1.0', 'stratum': 'null'
+    }],
+    'sample_positions.csv': [{'item_uid': '"""22_S9"""', 'location': '"""Montpellier/ IRD"""', 'date': '"""2019-03-25"""'}],
 }
 
 
@@ -60,7 +73,8 @@ async def programs_context(isolated_state, uow_factory) -> dict:
         record_group_types = {
             name: (await uow.ontology.create_entry(RecordGroupTypeInput(name=name, extent=extent))).id
             for name, extent in (
-                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED)
+                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED),
+                ("Leaf", RecordGroupExtent.WITHIN_UNIT), ("Block", RecordGroupExtent.WITHIN_GRAPH),
             )
         }
         await uow.commit()
@@ -92,9 +106,11 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
 
     assert set(ids.trials) == set(TRIALS)
     assert set(ids.studies) == set(STUDIES)
-    # and the Branch and Stratum groupings of Nicaragua, the only study with records of branches
-    assert ids.created == 1 + len(TRIALS) + len(STUDIES) + 2
-    assert set(ids.branch_groupings) == set(ids.stratum_groupings) == {"Nicaragua"}
+    # and the Block, Branch and Stratum groupings of Nicaragua, the only study with records of branches or in blocks
+    assert ids.created == 1 + len(TRIALS) + len(STUDIES) + 3
+    assert {key: set(groupings) for key, groupings in ids.code_groupings.items() if groupings} == {
+        "Nicaragua": {"Block", "Branch", "Stratum"}
+    }
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         program = await uow.repositories.programs.get(program_id=ids.program_id)
@@ -104,11 +120,9 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
             study = trial.studies[ids.studies[key]]
             assert study.name == name
             expected = {(ids.replicate_groupings[key], "Replicate", GroupingScope.DATASET_SCOPED, types["Replicate"])}
-            if key == "Nicaragua":
-                expected |= {
-                    (ids.branch_groupings[key], "Branch", GroupingScope.STUDY_WIDE, types["Branch"]),
-                    (ids.stratum_groupings[key], "Stratum", GroupingScope.STUDY_WIDE, types["Stratum"]),
-                }
+            expected |= {
+                (grouping_id, name, GroupingScope.STUDY_WIDE, types[name]) for name, grouping_id in ids.code_groupings[key].items()
+            }
             assert {(g.id, g.name, g.scope, g.type) for g in study.groupings} == expected
         def study(key):
             return program.trials[ids.trials[STUDIES[key][0]]].studies[ids.studies[key]]
@@ -125,11 +139,12 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
     with open(tmp_path / 'study_ids.csv') as f:
         rows = list(csv.DictReader(f))
     assert {row['study']: int(row['study_id']) for row in rows} == ids.studies
-    assert {row['study']: int(row['branch_grouping_id']) for row in rows if row['branch_grouping_id']} == ids.branch_groupings
-    assert {row['study']: int(row['stratum_grouping_id']) for row in rows if row['stratum_grouping_id']} == ids.stratum_groupings
+    nicaragua = next(row for row in rows if row['study'] == "Nicaragua")
+    assert {name: int(nicaragua[f'{name.lower()}_grouping_id']) for name in ("Block", "Branch", "Stratum")} == ids.code_groupings["Nicaragua"]
+    assert nicaragua['leaf_grouping_id'] == ''
 
     again = await prepare_breedcafs_programs(uow_factory, context, programs_context['record_group_types'])
     assert again.created == 0
-    assert (again.program_id, again.trials, again.studies, again.replicate_groupings, again.branch_groupings, again.stratum_groupings) == (
-        ids.program_id, ids.trials, ids.studies, ids.replicate_groupings, ids.branch_groupings, ids.stratum_groupings
+    assert (again.program_id, again.trials, again.studies, again.replicate_groupings, again.code_groupings) == (
+        ids.program_id, ids.trials, ids.studies, ids.replicate_groupings, ids.code_groupings
     )

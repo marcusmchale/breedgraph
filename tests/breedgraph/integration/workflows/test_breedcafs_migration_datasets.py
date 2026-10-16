@@ -53,6 +53,10 @@ RECORDS = [
     record(B, '22_S1', 'Fruit count', '4', T1, '0'),
     record(B, '22_S2', 'Fruit count', '6', T1, '0'),
     record(B, '22_S1', 'Node count', '9', T1, '0'),
+    # Leaves measured once are not units either: on their tree, with a leaf code
+    record(B, '22_S4', 'Leaf length', '7', T1, '0'),
+    # The harvest of a Leaves sample left out, as nothing more was recorded for it
+    record(B, '22_S5', 'Set harvest date', '2019-05-20', T1),
     # Loaded without a submission: one repeating a record of submission A (same item, input, value and replicate),
     # left out whatever its date; one not, kept in a dataset of its own
     record(NONE, '1_T1', 'Tree height', '12.5', T3, '0'),
@@ -62,11 +66,22 @@ FILES = {
     'records.csv': RECORDS,
     'factor_records.csv': [{'item_uid': '22_T1', 'factor': 'Shade Treatment', 'category': 'Shade'}],
     'item_name_subject_sources_sinks.csv': [
-        {'item_uid': f'"""{uid}"""', 'name': 'null', 'subject': f'"""{subject}"""', 'source_items': json.dumps(sources), 'sink_items': '[]'}
+        {
+            'item_uid': f'"""{uid}"""', 'name': '"""Block 1"""' if subject == 'Block' else 'null', 'subject': f'"""{subject}"""',
+            'source_items': json.dumps(sources), 'sink_items': '[]'
+        }
         for uid, subject, sources in (
-            ('22', 'Field', []), ('22_T1', 'Tree', [22]), ('22_S1', 'Branch', ['22_T1']), ('22_S2', 'Branch', ['22_T1'])
+            ('22', 'Field', []), ('22_B1', 'Block', [22]), ('22_T1', 'Tree', ['22_B1', 22]),
+            ('22_S1', 'Branch', ['22_T1']), ('22_S2', 'Branch', ['22_T1']), ('22_S4', 'Leaf', ['22_T1']), ('22_S5', 'Leaves', ['22_T1']),
         )
     ],
+    # read for the unit plan, but not needed here
+    'item_variety.csv': [{'item_uid': '"""22_T9"""', 'variety': '"""Catimor"""'}],
+    'unit_positions.csv': [{
+        'field_uid': '22', 'item_uid': '"""22_T9"""', 'layout_type': '"""row_and_tree"""', 'layout_level': '"""field"""',
+        'layout_name': '""""""', 'row': '1.0', 'column': '1.0', 'stratum': 'null'
+    }],
+    'sample_positions.csv': [{'item_uid': '"""22_S9"""', 'location': '"""Montpellier/ IRD"""', 'date': '"""2019-03-25"""'}],
     'skipped_items.csv': [{'item_uid': '1_S9', 'reason': ''}],
     'branch_strata.csv': [{'item_uid': '22_S1', 'strata': '["Upper"]'}, {'item_uid': '22_S2', 'strata': '["Lower"]'}],
     'input_details_curated.csv': [
@@ -113,11 +128,14 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             ("5CQA", ''): (variable, await concept(ontology, subject.id, "5CQA", ScaleType.NUMERICAL)),
             ("Fruit count", ''): (variable, await concept(ontology, subject.id, "Fruit count", ScaleType.NUMERICAL)),
             ("Node count", ''): (variable, await concept(ontology, subject.id, "Node count", ScaleType.NUMERICAL)),
+            ("Leaf length", ''): (variable, await concept(ontology, subject.id, "Leaf length", ScaleType.NUMERICAL)),
         }
         shade_treatment = await concept(ontology, subject.id, "Shade Treatment", ScaleType.NOMINAL, ["Full Sun", "Shade"], factor=True)
         replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
         branch_type = await ontology.create_entry(RecordGroupTypeInput(name="Branch", extent=RecordGroupExtent.WITHIN_UNIT))
         stratum_type = await ontology.create_entry(RecordGroupTypeInput(name="Stratum", extent=RecordGroupExtent.SHARED))
+        leaf_type = await ontology.create_entry(RecordGroupTypeInput(name="Leaf", extent=RecordGroupExtent.WITHIN_UNIT))
+        block_type = await ontology.create_entry(RecordGroupTypeInput(name="Block", extent=RecordGroupExtent.WITHIN_GRAPH))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
@@ -129,8 +147,8 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             groupings = [RecordGroupingInput(type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED)]
             if name == "Nicaragua":
                 groupings += [
-                    RecordGroupingInput(type=branch_type.id, name="Branch", scope=GroupingScope.STUDY_WIDE),
-                    RecordGroupingInput(type=stratum_type.id, name="Stratum", scope=GroupingScope.STUDY_WIDE),
+                    RecordGroupingInput(type=group_type.id, name=group_type.name, scope=GroupingScope.STUDY_WIDE)
+                    for group_type in (block_type, branch_type, stratum_type, leaf_type)
                 ]
             trial.add_study(StudyInput(name=name, groupings=groupings))
         await uow.repositories.programs.update_seen()
@@ -139,8 +157,9 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             program_ids.studies[study.name] = study.id
             program_ids.replicate_groupings[study.name] = study.get_grouping(name="Replicate").id
         nicaragua = next(study for study in next(iter(program.trials.values())).studies.values() if study.name == "Nicaragua")
-        program_ids.branch_groupings["Nicaragua"] = nicaragua.get_grouping(name="Branch").id
-        program_ids.stratum_groupings["Nicaragua"] = nicaragua.get_grouping(name="Stratum").id
+        program_ids.code_groupings["Nicaragua"] = {
+            name: nicaragua.get_grouping(name=name).id for name in ("Block", "Branch", "Stratum", "Leaf")
+        }
         await uow.commit()
 
     block_builder = BlockBuilder(uow_factory=uow_factory)
@@ -189,9 +208,10 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         ('Nicaragua', concept_of('Tree height'), *B),
         ('Nicaragua', concept_of('Fruit count'), *B),
         ('Nicaragua', concept_of('Node count'), *B),
+        ('Nicaragua', concept_of('Leaf length'), *B),
         ('Nicaragua', datasets_context['ontology'].design_factors['Shade Treatment'], DESIGN, ''),
     }
-    assert ids.records == 14
+    assert ids.records == 15
     assert ids.repeats_left_out == 1
 
     async with uow_factory.get_uow(user_id=datasets_context['context'].user_id) as uow:
@@ -228,16 +248,21 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         [treatment] = (await dataset('Nicaragua', datasets_context['ontology'].design_factors['Shade Treatment'], (DESIGN, ''))).records
         assert (treatment.unit, treatment.value) == (units['22_T1'], 'Shade')
 
-        branch = datasets_context['programs'].branch_groupings['Nicaragua']
-        stratum = datasets_context['programs'].stratum_groupings['Nicaragua']
+        codes = datasets_context['programs'].code_groupings['Nicaragua']
+        block, branch, stratum, leaf = (codes[name] for name in ("Block", "Branch", "Stratum", "Leaf"))
         groups = lambda r: {(g.id, g.code) for g in r.groups}
+        # what is in a BreedCAFS block, or was taken from one, has its code
+        [tree_height] = (await dataset('Nicaragua', concept_of('Tree height'), B)).records
+        assert groups(tree_height) == {(block, 'Block 1')}
         fruit = (await dataset('Nicaragua', concept_of('Fruit count'), B)).records
         assert sorted((r.unit, r.value, frozenset(groups(r))) for r in fruit) == [
-            (units['22_T1'], '4', frozenset({(branch, '22_S1'), (stratum, 'Upper')})),
-            (units['22_T1'], '6', frozenset({(branch, '22_S2'), (stratum, 'Lower')})),
+            (units['22_T1'], '4', frozenset({(branch, '22_S1'), (stratum, 'Upper'), (block, 'Block 1')})),
+            (units['22_T1'], '6', frozenset({(branch, '22_S2'), (stratum, 'Lower'), (block, 'Block 1')})),
         ]
         [nodes] = (await dataset('Nicaragua', concept_of('Node count'), B)).records
-        assert (nodes.unit, groups(nodes)) == (units['22_T1'], {(branch, '22_S1'), (stratum, 'Upper')})
+        assert (nodes.unit, groups(nodes)) == (units['22_T1'], {(branch, '22_S1'), (stratum, 'Upper'), (block, 'Block 1')})
+        [leaf_length] = (await dataset('Nicaragua', concept_of('Leaf length'), B)).records
+        assert (leaf_length.unit, groups(leaf_length)) == (units['22_T1'], {(leaf, '22_S4'), (block, 'Block 1')})
 
         # Replicate codes are compared only within the datasets of a submission in a study
         program = await uow.repositories.programs.get(study_id=studies['Vietnam'])
@@ -246,7 +271,8 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         ]
         assert {dataset_id for key, dataset_id in ids.datasets.items() if key[0] == 'Vietnam' and key[2] == A[0]} in scopes('Vietnam')
         assert scopes('Nicaragua') == [{
-            ids.datasets[('Nicaragua', concept_of(name), *B)] for name in ('Shade level', 'Tree height', 'Fruit count', 'Node count')
+            ids.datasets[('Nicaragua', concept_of(name), *B)]
+            for name in ('Shade level', 'Tree height', 'Fruit count', 'Node count', 'Leaf length')
         }]
 
     with open(data_dir / 'dataset_ids.csv') as f:

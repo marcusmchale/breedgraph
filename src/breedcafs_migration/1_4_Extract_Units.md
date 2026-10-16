@@ -60,7 +60,8 @@ They are not migrated, and are listed in skipped_items.csv (README §6.5).
 ### Blocks
 
 Blocks have no data of their own (README §6.4):
-  - Numbered blocks become `Trees` units, keeping their BreedCAFS names, with their trees and samples beneath them.
+  - Numbered blocks are not units either: what is in them, or was taken from them, is placed under the Field,
+    and its records get the block's name as a Block code.
   - Blocks named after a treatment (shade treatments in fields 25–27 and 35) are not units:
     their trees are placed under the Field and get a record of the treatment.
   - The two blocks without trees or samples (field 35) are skipped.

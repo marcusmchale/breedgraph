@@ -16,7 +16,7 @@ from breedcafs_migration import units
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.layouts import LayoutIds, ROW_AND_TREE
 from breedcafs_migration.locations import LocationIds
-from breedcafs_migration.units import prepare_breedcafs_units, description, read_items, read_branches, Branch
+from breedcafs_migration.units import prepare_breedcafs_units, description, read_items, read_coded_samples, CodedSample, LeftOut
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 
@@ -35,8 +35,13 @@ ITEMS = [
     item('1_T1', 'Tree', 'Catimor', ['1_B1', 1]),
     item('1_T2', 'Tree', None, ['1_B1', 1]),
     item('1_S1', 'Branch', None, ['1_T1']),
-    item('1_S2', 'Tree', None, ['1_B1']),           # a tree sample taken from the block
+    item('1_S2', 'Tree', None, ['1_B1']),           # a tree sample taken from the block, recorded through its branch
     item('1_S3', 'Branch', None, ['1_S2']),
+    item('1_S7', 'Leaf', None, ['1_T1']),
+    item('1_S8', 'Leaves', '12-1', ['1_T2']),       # only its harvest was recorded: left out
+    item('1_S10', 'Tree', None, ['1_B1']),          # a tree sample with no records, nor on its branch: left out
+    item('1_S11', 'Branch', None, ['1_S10']),
+    item('1_S12', 'Cherry', None, ['1_B1']),        # a sample taken from the block
     item('1_S4', 'Green Beans', '384-1', ['1_T1', '1_T2']),
     item('1_S6', 'Green Beans', '384-2', ['1_T1', '1_T3']),   # pooled from trees of different varieties
     item('1_T3', 'Tree', None, ['1_B1', 1]),
@@ -58,7 +63,16 @@ FILES = {
          'layout_name': '"""ED1"""', 'row': '1.0', 'column': f'{i}.0', 'stratum': 'null'}
         for i in (1, 2)
     ],
-    'branch_strata.csv': [{'item_uid': '1_S1', 'strata': '["Upper"]'}, {'item_uid': '1_S3', 'strata': '["Lower"]'}],
+    'branch_strata.csv': [
+        {'item_uid': '1_S1', 'strata': '["Upper"]'}, {'item_uid': '1_S3', 'strata': '["Lower"]'}, {'item_uid': '1_S11', 'strata': '["Upper"]'}
+    ],
+    'records.csv': [
+        {'item_uid': uid, 'input': input_name, 'value': value}
+        for uid, input_name, value in (
+            ('1_T1', 'Tree height', '2'), ('1_S3', 'Fruit count', '4'), ('1_S12', 'Height', '9'),
+            ('1_S8', 'Set harvest date', '2019-01-01'), ('1_S8', 'Set harvest time', '12:00'),
+        )
+    ],
     'sample_positions.csv': [{'item_uid': '"""1_S4"""', 'location': '"""Montpellier/ IRD"""', 'date': '"""2019-03-25"""'}],
 }
 
@@ -77,7 +91,7 @@ async def units_context(isolated_state, uow_factory) -> dict:
     async with uow_factory.get_uow(user_id=user_id) as uow:
         subjects = {
             name: (await uow.ontology.create_entry(SubjectInput(name=name))).id
-            for name in ("Field", "Trees", "Tree", "Branch", "Green Beans")
+            for name in ("Field", "Tree", "Cherry", "Green Beans")
         }
         country_type = await uow.ontology.get_entry(name="Country", label=OntologyEntryLabel.LOCATION_TYPE)
         field_type = await uow.ontology.create_entry(LocationTypeInput(name="Field"))
@@ -140,12 +154,22 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
 
     ids = await prepare(uow_factory, units_context)
 
-    # Not the skipped sample, the block named after a treatment, nor the branches
-    assert set(ids.units) == {'1', '1_B1', '1_T1', '1_T2', '1_T3', '1_S2', '1_S4', '1_S6', '25', '25_T1'}
+    # Not the skipped sample, the blocks, the branches and leaves, nor the samples left out
+    assert set(ids.units) == {'1', '1_T1', '1_T2', '1_T3', '1_S2', '1_S4', '1_S6', '1_S12', '25', '25_T1'}
     assert ids.created == 10
     assert ids.factor_records == [('25_T1', 'Shade Treatment', 'Shade')]
-    # Their records are on the tree, or tree sample, they were taken from, with their stratum
-    assert read_branches(read_items()) == {'1_S1': Branch(parent='1_T1', stratum='Upper'), '1_S3': Branch(parent='1_S2', stratum='Lower')}
+    # Their records are on the tree, or tree sample, they were taken from, with their codes
+    assert read_coded_samples(read_items()) == {
+        '1_S1': CodedSample(parent='1_T1', codes={'Branch': '1_S1', 'Stratum': 'Upper'}),
+        '1_S3': CodedSample(parent='1_S2', codes={'Branch': '1_S3', 'Stratum': 'Lower'}),
+        '1_S7': CodedSample(parent='1_T1', codes={'Leaf': '1_S7'}),
+        '1_S11': CodedSample(parent='1_S10', codes={'Branch': '1_S11', 'Stratum': 'Upper'}),
+    }
+    with open(data_dir / 'unmigrated_samples.csv') as f:
+        unmigrated = {row['item_uid']: row for row in csv.DictReader(f)}
+    assert {uid: row['reason'] for uid, row in unmigrated.items()} == {'1_S8': LeftOut.HARVEST_ONLY, '1_S10': LeftOut.NO_RECORDS}
+    assert [r['input'] for r in json.loads(unmigrated['1_S8']['records'])] == ['Set harvest date', 'Set harvest time']
+    assert (unmigrated['1_S10']['block'], json.loads(unmigrated['1_S10']['parents'])) == ('Block 1', ['1_B1'])
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=ids.units['1'])
@@ -157,9 +181,9 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
         assert (field_unit.name, field_unit.subject, field_unit.description) == ("ED1", subjects["Field"], "BreedCAFS item 1")
         assert [p.location_id for p in field_unit.positions] == [units_context['locations'].fields['1']]
 
-        assert unit('1_B1').subject == subjects["Trees"]
-        assert parents('1_B1') == {ids.units['1']}
-        assert parents('1_T1') == {ids.units['1_B1']}
+        # what is in a block, or was taken from one, hangs from the field
+        assert parents('1_T1') == {ids.units['1']}
+        assert parents('1_S12') == {ids.units['1']}
         assert parents('1_S4') == {ids.units['1_T1'], ids.units['1_T2']}
 
         tree = unit('1_T1')
@@ -167,7 +191,7 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
         assert [(p.layout_id, p.coordinates) for p in tree.positions] == [(layouts[('1', '', ROW_AND_TREE)], ["1", "1"])]
         assert unit('1_T2').name == '1_T2'
 
-        assert parents('1_S2') == {ids.units['1_B1']}
+        assert parents('1_S2') == {ids.units['1']}
 
         # Pooled from trees of one variety: its own; of different varieties: none, as its parents say what it contains
         assert unit('1_S4').germplasm == units_context['germplasm']["Catimor"]
