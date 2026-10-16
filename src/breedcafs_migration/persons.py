@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 from breedgraph.domain.model.contributions import Contribution
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
-from breedgraph.domain.model.ontology import OntologyEntryLabel
+from breedgraph.service_layer.application.ontology_seed import credit_seed_key_for
 from breedgraph.domain.model.people import PersonInput, LawfulBasis
 
 from breedcafs_migration.bootstrap import MigrationContext, MigrationSettingsError
@@ -181,7 +181,7 @@ async def set_contributions(
     if unknown:
         raise ValueError(f"attribution_persons.csv or {SUBMITTER_PERSONS} names Persons not in persons.csv: {unknown}")
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
-        curation = await uow.ontology.get_entry(name=DATA_CURATION, label=OntologyEntryLabel.ROLE)
+        curation = await uow.ontology.get_seeded_entry(credit_seed_key_for(DATA_CURATION))
         if curation is None:
             raise MigrationSettingsError(f"The {DATA_CURATION} Role is seeded by setup_initial_data.py, but is missing")
     dataset_ids = sorted(dataset_id for dataset_id, names in contributions.items() if names)

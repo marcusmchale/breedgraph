@@ -73,6 +73,15 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
+    async def get_entry_id_by_seed_key(self, seed_key: str) -> int | None:
+        """The id of the entry seeded with this key, which finds it whatever its name"""
+        ...
+
+    @abstractmethod
+    async def set_seed_key(self, entry_id: int, seed_key: str) -> None:
+        ...
+
+    @abstractmethod
     async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
         """Lock or unlock entries, recording who did it and when"""
         ...

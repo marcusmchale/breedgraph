@@ -63,6 +63,11 @@ rather than created by each deployment:
 - They are created by `seed_ontology` (`service_layer/application/ontology_seed.py`) as the system user, in the initial version:
   `scripts/setup_initial_data.py` for a deployment, and the test setup. It creates only entries missing by name.
 - Each is created **locked** (§4), with the CRediT definition as its description and a `source` (§5) giving its CRediT URL and attribution.
+- Every seeded entry, Country included, is also given a **seed key** (`country`, `credit:data-curation`, ...), set only by seeding.
+  Code finds a seeded entry by its key, never by name, as an admin may unlock and rename it; once found it is referred to by id,
+  which the referential view resolves in any phase. Seeding creates only entries whose key is missing.
+  Country was protected before by a lifecycle quirk (version 0.0.0, before the first commit, read back as no version,
+  so its entry seemed never drafted and could not be deprecated); the lock replaces it.
 
 | CRediT role | Fits datasets? |
 |---|---|

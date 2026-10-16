@@ -124,10 +124,10 @@ class BaseLifecycle(ABC):
         if isinstance(record, Record):
             record = dict(record)
 
-        record['drafted'] = Version.from_packed(record.get('drafted')) if record.get('drafted') else None
-        record['activated'] = Version.from_packed(record.get('activated')) if record.get('activated') else None
-        record['deprecated'] = Version.from_packed(record.get('deprecated')) if record.get('deprecated') else None
-        record['removed'] = Version.from_packed(record.get('removed')) if record.get('removed') else None
+        # version 0.0.0, before the first commit, packs to 0, so test for None rather than truth
+        for field_name in cls.version_fields:
+            value = record.get(field_name)
+            record[field_name] = Version.from_packed(value) if value is not None else None
         return cls(**record)
 
 @dataclass

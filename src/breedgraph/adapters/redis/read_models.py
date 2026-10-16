@@ -15,7 +15,8 @@ from neo4j import AsyncResult
 
 from breedgraph.config import COUNTRY_CODES_PATH, get_redis_host_and_port
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
+from breedgraph.domain.model.ontology import OntologyEntryLabel
+from breedgraph.service_layer.application.ontology_seed import COUNTRY
 from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
@@ -82,10 +83,9 @@ class RedisReadModels(AbstractReadModels):
         async with self.driver.session() as session:
             async with await session.begin_transaction() as tx:
                 ontology_service = Neo4jOntologyPersistenceService(tx=tx)
-                country_type = await ontology_service.get_entry(label=OntologyEntryLabel.LOCATION_TYPE, name="Country")
-                if country_type is None:
-                    country_type = await ontology_service.create_entry(LocationTypeInput(name="Country"), user_id=1)  # system user
-                country_type_id = country_type.id
+                country_type_id = await ontology_service.get_entry_id_by_seed_key(COUNTRY)
+                if country_type_id is None:
+                    raise ValueError("The Country location type is missing: it is seeded by scripts/setup_initial_data.py")
 
                 result: AsyncResult = await tx.run(
                     location_tree_queries.read_locations_by_type(),

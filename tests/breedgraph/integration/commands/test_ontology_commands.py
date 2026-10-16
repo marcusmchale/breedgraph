@@ -4,8 +4,10 @@ from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperati
 from breedgraph.domain.commands.ontologies import (
     CreateDesign, UpdateDesign, CommitOntologyVersion,
     CreateRole, UpdateRole, CreateTerm, CreateScale, UpdateScale, CreateScaleCategory,
-    LockOntologyEntries, UnlockOntologyEntries, DeprecateOntologyEntries
+    LockOntologyEntries, UnlockOntologyEntries, DeprecateOntologyEntries, UpdateLocationType
 )
+from breedgraph.domain.commands.setup import RefreshReadModels
+from breedgraph.service_layer.application.ontology_seed import COUNTRY, credit_seed_key_for
 from breedgraph.domain.commands.references import CreateExternalReference
 from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, credit_roles, CREDIT_ATTRIBUTION
 
@@ -127,3 +129,27 @@ async def test_the_credit_roles_are_seeded_locked_and_active(views_factory, onto
         assert role.locked
         assert role.description == credit_role.definition
         assert (role.source_url, role.source_attribution) == (credit_role.url, CREDIT_ATTRIBUTION)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_seeded_entries_are_found_by_key_whatever_their_name(bus, uow_factory, state_store, ontology_build_context):
+    admin = ontology_build_context['user_id']
+    async with uow_factory.get_uow(user_id=admin) as uow:
+        country = await uow.ontology.get_seeded_entry(COUNTRY)
+        curation = await uow.ontology.get_seeded_entry(credit_seed_key_for('Data curation'))
+    assert (country.name, country.locked) == ('Country', True)
+    assert (curation.name, curation.label) == ('Data curation', OntologyEntryLabel.ROLE)
+
+    # locked, it cannot be deprecated; unlocked and renamed, it is still found
+    with pytest.raises(UnauthorisedOperationError):
+        await bus.handle(DeprecateOntologyEntries(agent_id=admin, entry_ids=[country.id]))
+    await bus.handle(UnlockOntologyEntries(agent_id=admin, entry_ids=[country.id]))
+    await bus.handle(UpdateLocationType(agent_id=admin, ontology_entry_id=country.id, name='Nation'))
+    try:
+        async with uow_factory.get_uow(user_id=admin) as uow:
+            assert (await uow.ontology.get_seeded_entry(COUNTRY)).name == 'Nation'
+        await bus.handle(RefreshReadModels(names=['countries']))
+        assert (await state_store.get_country('VNM')).type == country.id
+    finally:
+        await bus.handle(UpdateLocationType(agent_id=admin, ontology_entry_id=country.id, name='Country'))
+        await bus.handle(LockOntologyEntries(agent_id=admin, entry_ids=[country.id]))

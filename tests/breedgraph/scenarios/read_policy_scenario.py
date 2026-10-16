@@ -68,7 +68,7 @@ People
 Datasets (concept: the tree height variable)
     dataset_public               child PUBLIC      writer    study_public; records on tree_public, leaf_private,
                                                              rhizosphere_public, tree_registered;
-                                                             contributions person_public (Investigation),
+                                                             contributions person_public (Data curation),
                                                              person_private (no roles);
                                                              references reference_public
     dataset_private              child PRIVATE     writer    study_public; a record on tree_public
@@ -154,7 +154,7 @@ DATASETS = {
         'records': [('tree_public', '1', []), ('leaf_private', '2', []), ('rhizosphere_public', '3', []),
                     ('tree_registered', '4', [])],
         # the Persons credited and the names of their roles, from the seeded CRediT roles
-        'contributions': [('person_public', ['Investigation']), ('person_private', [])],
+        'contributions': [('person_public', ['Data curation']), ('person_private', [])],
         'references': ['reference_public'],
     },
     'dataset_private': {

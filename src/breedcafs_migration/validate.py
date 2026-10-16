@@ -36,6 +36,7 @@ from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
 from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES, RECORD_GROUP_EXTENTS
 from breedcafs_migration.persons import read_persons, contribution_names, DATA_CURATION
+from breedgraph.service_layer.application.ontology_seed import credit_seed_key_for
 from breedcafs_migration.programs import STUDIES, CODE_GROUPINGS, REPLICATE
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.units import UnitPlan, read_items, SUBJECTS
@@ -330,7 +331,7 @@ async def validate_persons(validation, uow_factory, ontology: OntologyIds, datas
                     [(row['name'], row['institution'] or '') for row in rows])
 
     curation = [row['id'] for row in await query(
-        uow_factory, "MATCH (role:Role:OntologyEntry {name_lower: $name}) RETURN role.id AS id", name=DATA_CURATION.casefold()
+        uow_factory, "MATCH (role:Role:OntologyEntry {seed_key: $seed_key}) RETURN role.id AS id", seed_key=credit_seed_key_for(DATA_CURATION)
     )]
     validation.same(f"The {DATA_CURATION} Role is seeded", [DATA_CURATION], [DATA_CURATION] if curation else [])
     expected = {

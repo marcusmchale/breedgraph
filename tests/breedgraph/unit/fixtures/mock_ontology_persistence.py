@@ -12,6 +12,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
     """Mock implementation for testing ontology application service."""
 
     def __init__(self):
+        self.seed_keys: Dict[str, int] = {}
         # for testing
         self.ontology_role = OntologyRole.ADMIN
 
@@ -105,6 +106,12 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             else:
                 entry = None
         return entry
+
+    async def get_entry_id_by_seed_key(self, seed_key: str) -> int | None:
+        return self.seed_keys.get(seed_key)
+
+    async def set_seed_key(self, entry_id: int, seed_key: str) -> None:
+        self.seed_keys[seed_key] = entry_id
 
     async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
         for entry_id in entry_ids:

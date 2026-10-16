@@ -1,5 +1,4 @@
-from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError, \
-    ProtectedNodeError
+from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
 
 from breedgraph.domain.model.ontology import (
     OntologyEntryInput, OntologyEntryStored,
@@ -79,6 +78,18 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only ontology admins can lock or unlock entries")
         await self._validate_entries_exist(entry_ids)
         await self.persistence.set_entries_locked(list(entry_ids), locked, self.user_id)
+
+    async def get_seeded_entry(self, seed_key: str) -> OntologyEntryStored | None:
+        """An entry seeded with this key (ontology_seed.py), found whatever its name"""
+        entry_id = await self.persistence.get_entry_id_by_seed_key(seed_key)
+        return await self.persistence.get_entry(entry_id=entry_id) if entry_id is not None else None
+
+    async def seed_entry(self, entry: OntologyEntryInput, seed_key: str) -> OntologyEntryStored:
+        """Create an entry every deployment starts with, locked and keyed so code can find it whatever its name"""
+        created = await self.create_entry(entry)
+        await self.persistence.set_seed_key(created.id, seed_key)
+        await self.lock_entries([created.id])
+        return created
 
     async def _require_unlocked(self, entry_ids) -> None:
         for entry_id in set(entry_ids):
@@ -167,9 +178,6 @@ class OntologyApplicationService:
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
             if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
-                if lifecycle.drafted is None:
-                    # protect ontology entries constructed during initialization
-                    raise ProtectedNodeError(f"This ontology entry is protected")
                 lifecycle.set_version_deprecated(current_version)
         await self._save_entry_lifecycles()
 

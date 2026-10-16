@@ -39,8 +39,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         for patch in patches:
             entry_dict.update(patch)
 
-        # remove lowercase name from record
+        # remove lowercase name and the seed key, set only by seeding, from record
         entry_dict.pop('name_lower')
+        entry_dict.pop('seed_key', None)
         # replace strings with enums
         if 'scale_type' in entry_dict:
             entry_dict['scale_type'] = ScaleType(entry_dict['scale_type'])
@@ -150,6 +151,14 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             user_id=user_id,
             version=version.packed_version
         )
+
+    async def get_entry_id_by_seed_key(self, seed_key: str) -> int | None:
+        result = await self.tx.run(queries['ontology']['get_entry_id_by_seed_key'], seed_key=seed_key)
+        record = await result.single()
+        return record['id'] if record else None
+
+    async def set_seed_key(self, entry_id: int, seed_key: str) -> None:
+        await self.tx.run(queries['ontology']['set_seed_key'], entry_id=entry_id, seed_key=seed_key)
 
     async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
         await self.tx.run(queries['ontology']['set_entries_locked'], entry_ids=entry_ids, locked=locked, user_id=user_id)

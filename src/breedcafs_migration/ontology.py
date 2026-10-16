@@ -18,6 +18,7 @@ import csv
 import json
 from dataclasses import dataclass, field
 
+from breedgraph.service_layer.application.ontology_seed import COUNTRY
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, VersionChange, AxisType, ScaleType, ObservationMethodType, ControlMethodType,
@@ -178,9 +179,9 @@ class OntologyPreparation:
             )
 
     async def location_types(self):
-        country = await self.ontology.get_entry(name="Country", label=OntologyEntryLabel.LOCATION_TYPE)
+        country = await self.ontology.get_seeded_entry(COUNTRY)
         if country is None:
-            raise ValueError("Country location type not found")
+            raise ValueError("Country location type not found: it is seeded by setup_initial_data.py")
         self.ids.location_types["Country"] = country.id
         for name, description, parents in LOCATION_TYPES:
             self.ids.location_types[name], _ = await self.get_or_create(
