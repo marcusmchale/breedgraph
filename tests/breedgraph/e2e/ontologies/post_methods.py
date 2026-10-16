@@ -287,6 +287,16 @@ async def post_to_update_role(client, token: str, role_update: dict):
     return await client.post(GQL_API_PATH, json=json, headers=headers)
 
 
+async def post_to_lock_entries(client, token: str, ids: list, lock: bool = True):
+    field = "ontologyLockEntries" if lock else "ontologyUnlockEntries"
+    json={
+        "query": f" mutation ( $ids: [ID!]! ) {{ {field}( ids: $ids ) {{ status result errors {{ name message }} }} }} ",
+        "variables": {"ids": ids}
+    }
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    return await client.post(GQL_API_PATH, json=json, headers=headers)
+
+
 async def post_to_get_entries(
         client,
         token: str,
@@ -308,7 +318,7 @@ async def post_to_get_entries(
             "  ) { "
             "    status "
             "    result { "
-            "       ... on OntologyNodeInterface { id name description } "
+            "       ... on OntologyNodeInterface { id name description sourceUrl sourceAttribution locked } "
             "       ... on OntologyRelationships { parents { id name } } "
             "       ... on OntologyRelationships { children { id name } } "
             "       ... on RelatedToTerms { terms { id name } }"

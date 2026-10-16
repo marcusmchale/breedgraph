@@ -106,6 +106,10 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
                 entry = None
         return entry
 
+    async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
+        for entry_id in entry_ids:
+            self.entries[entry_id].locked = locked
+
     async def update_entry(self, entry: OntologyEntryStored, user_id: int) -> None:
         """Update an existing ontology entry."""
         if entry.id not in self.entries:

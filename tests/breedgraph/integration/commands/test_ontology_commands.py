@@ -1,9 +1,13 @@
 import pytest
 
-from breedgraph.custom_exceptions import NoResultFoundError
-from breedgraph.domain.commands.ontologies import CreateDesign, UpdateDesign, CommitOntologyVersion
+from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from breedgraph.domain.commands.ontologies import (
+    CreateDesign, UpdateDesign, CommitOntologyVersion,
+    CreateRole, UpdateRole, CreateTerm, CreateScale, UpdateScale, CreateScaleCategory,
+    LockOntologyEntries, UnlockOntologyEntries, DeprecateOntologyEntries
+)
 from breedgraph.domain.commands.references import CreateExternalReference
-from breedgraph.domain.model.ontology import OntologyEntryLabel
+from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType
 
 
 async def private_reference(bus, user_id: int, team_id: int) -> int:
@@ -38,3 +42,77 @@ async def test_committing_with_an_unreadable_licence_is_refused(bus, ontology_bu
         await bus.handle(CommitOntologyVersion(agent_id=context['user_id'], licence=hidden_id))
     with pytest.raises(NoResultFoundError):
         await bus.handle(CommitOntologyVersion(agent_id=context['user_id'], copyright=hidden_id))
+
+
+async def entry_id(uow_factory, context, name: str, label: OntologyEntryLabel) -> int:
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        return (await uow.ontology.get_entry(name=name, label=label)).id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_only_ontology_admins_lock_entries(bus, uow_factory, ontology_build_context, lorem_text_generator):
+    context = ontology_build_context
+    name = lorem_text_generator.new_text()
+    await bus.handle(CreateRole(agent_id=context['user_id_2'], name=name))
+    role_id = await entry_id(uow_factory, context, name, OntologyEntryLabel.ROLE)
+    with pytest.raises(UnauthorisedOperationError):
+        await bus.handle(LockOntologyEntries(agent_id=context['user_id_2'], entry_ids=[role_id]))
+    await bus.handle(LockOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    with pytest.raises(UnauthorisedOperationError):
+        await bus.handle(UnlockOntologyEntries(agent_id=context['user_id_2'], entry_ids=[role_id]))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_locked_entry_keeps_its_attributes_and_defining_relationships(
+        bus, uow_factory, ontology_build_context, lorem_text_generator
+):
+    context = ontology_build_context
+    admin = context['user_id']
+    names = [lorem_text_generator.new_text() for _ in range(6)]
+    role_name, child_name, term_name, scale_name, category_name, other_category_name = names
+
+    await bus.handle(CreateRole(
+        agent_id=admin, name=role_name, description='A standard role',
+        source_url='https://example.org/roles/standard', source_attribution='Example (2026). Roles.'
+    ))
+    role_id = await entry_id(uow_factory, context, role_name, OntologyEntryLabel.ROLE)
+    await bus.handle(CreateTerm(agent_id=admin, name=term_name))
+    term_id = await entry_id(uow_factory, context, term_name, OntologyEntryLabel.TERM)
+    await bus.handle(CreateScaleCategory(agent_id=admin, name=category_name))
+    await bus.handle(CreateScaleCategory(agent_id=admin, name=other_category_name))
+    category_id = await entry_id(uow_factory, context, category_name, OntologyEntryLabel.CATEGORY)
+    other_category_id = await entry_id(uow_factory, context, other_category_name, OntologyEntryLabel.CATEGORY)
+    await bus.handle(CreateScale(agent_id=admin, name=scale_name, scale_type=ScaleType.NOMINAL, category_ids=[category_id]))
+    scale_id = await entry_id(uow_factory, context, scale_name, OntologyEntryLabel.SCALE)
+
+    await bus.handle(LockOntologyEntries(agent_id=admin, entry_ids=[role_id, scale_id]))
+
+    # attributes fixed by the lock, and deprecation, are refused, even for admins
+    for update in (
+        UpdateRole(agent_id=admin, ontology_entry_id=role_id, description='Changed'),
+        UpdateRole(agent_id=admin, ontology_entry_id=role_id, name=lorem_text_generator.new_text()),
+        UpdateRole(agent_id=admin, ontology_entry_id=role_id, source_url='https://example.org/other'),
+        # a scale's categories define it
+        UpdateScale(agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL, category_ids=[category_id, other_category_id]),
+        UpdateScale(agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL, category_ids=[]),
+        DeprecateOntologyEntries(agent_id=admin, entry_ids=[role_id]),
+    ):
+        with pytest.raises(UnauthorisedOperationError):
+            await bus.handle(update)
+
+    # synonyms, children and terms stay open
+    await bus.handle(UpdateRole(agent_id=admin, ontology_entry_id=role_id, synonyms=['DataCurator'], term_ids=[term_id]))
+    await bus.handle(CreateRole(agent_id=context['user_id_2'], name=child_name, parent_ids=[role_id]))
+    async with uow_factory.get_uow(user_id=admin) as uow:
+        role = await uow.ontology.get_entry(entry_id=role_id)
+        assert role.locked
+        assert (role.description, role.source_url, role.synonyms) == ('A standard role', 'https://example.org/roles/standard', ['DataCurator'])
+        child = await uow.ontology.get_entry(name=child_name, label=OntologyEntryLabel.ROLE)
+        parents = [rel.source_id async for rel in uow.ontology.get_relationships(target_ids=[child.id], labels=[OntologyRelationshipLabel.PARENT_OF])]
+        assert parents == [role_id]
+
+    await bus.handle(UnlockOntologyEntries(agent_id=admin, entry_ids=[role_id]))
+    await bus.handle(UpdateRole(agent_id=admin, ontology_entry_id=role_id, description='Changed'))
+    async with uow_factory.get_uow(user_id=admin) as uow:
+        role = await uow.ontology.get_entry(entry_id=role_id)
+        assert (role.locked, role.description) == (False, 'Changed')

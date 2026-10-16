@@ -73,6 +73,29 @@ class OntologyApplicationService:
         while self.events:
             yield self.events.pop(0)
 
+    async def lock_entries(self, entry_ids: List[int], locked: bool = True) -> None:
+        """Lock or unlock entries, so they stay stable (docs/contributions.md §4); for ontology admins"""
+        if not self.role == OntologyRole.ADMIN:
+            raise UnauthorisedOperationError("Only ontology admins can lock or unlock entries")
+        await self._validate_entries_exist(entry_ids)
+        await self.persistence.set_entries_locked(list(entry_ids), locked, self.user_id)
+
+    async def _require_unlocked(self, entry_ids) -> None:
+        for entry_id in set(entry_ids):
+            entry = await self.persistence.get_entry(entry_id=entry_id)
+            if entry is not None and entry.locked:
+                raise UnauthorisedOperationError(f"{entry.label.value} {entry.name} is locked")
+
+    async def _require_unlocked_sources(self, relationships: List[OntologyRelationshipBase]) -> None:
+        """
+        A locked entry keeps the relationships that define it: those from it, other than to its children and terms.
+        Relationships to it from other entries stay open.
+        """
+        await self._require_unlocked([
+            relationship.source_id for relationship in relationships
+            if relationship.label not in (OntologyRelationshipLabel.PARENT_OF, OntologyRelationshipLabel.HAS_TERM)
+        ])
+
     async def _require_readable_references(self, reference_ids) -> None:
         """You can only cite what you can read; a reference the user cannot read is reported as not found"""
         if not any(reference_id is not None for reference_id in reference_ids or []):
@@ -137,6 +160,7 @@ class OntologyApplicationService:
     async def deprecate_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can deprecate entries")
+        await self._require_unlocked(entry_ids)
 
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
@@ -162,6 +186,7 @@ class OntologyApplicationService:
     async def remove_entries(self, entry_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can remove entries")
+        await self._require_unlocked(entry_ids)
         await self._load_entry_lifecycles(entry_ids)
         current_version = await self.get_current_version()
         for entry_id in entry_ids:
@@ -585,6 +610,12 @@ class OntologyApplicationService:
         await self._validate_entry_uniqueness(entry)
         # only references added need checking: the entry may keep citing references others added that this user cannot read
         stored = await self.persistence.get_entry(entry_id=entry.id)
+        if stored is not None and stored.locked:
+            changed = [attr for attr in entry.LOCKED_ATTRIBUTES if getattr(entry, attr) != getattr(stored, attr)]
+            if changed:
+                raise UnauthorisedOperationError(
+                    f"{stored.label.value} {stored.name} is locked, so its {', '.join(changed)} cannot change"
+                )
         await self._require_readable_references(set(entry.references) - set(stored.references if stored else []))
 
         lifecycle = await self._get_entry_lifecycle(entry.id)
@@ -675,6 +706,7 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         logger.debug(f"Creating relationship: {relationship}")
         await self._validate_entry_types_for_relationship(relationship)
+        await self._require_unlocked_sources([relationship])
         await self._validate_no_circular_dependency(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
 
@@ -714,7 +746,13 @@ class OntologyApplicationService:
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
             if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
                 raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
+        await self._require_unlocked_sources([relationship])
         await self.persistence.update_relationship(relationship, user_id=self.user_id)
+
+    async def deprecate_entry_relationships(self, relationships: List[OntologyRelationshipBase]) -> None:
+        """Deprecate relationships an entry update dropped, keeping those that define a locked entry"""
+        await self._require_unlocked_sources(relationships)
+        await self.deprecate_relationships([relationship.id for relationship in relationships])
 
     # Lifecycle management
     async def activate_entry(

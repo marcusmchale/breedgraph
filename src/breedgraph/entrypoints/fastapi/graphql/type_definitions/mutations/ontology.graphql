@@ -7,6 +7,8 @@ input TermInput {
     synonyms: [String!]
     """References for additional details, (Reference ID) e.g. a link to another ontology."""
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     """
     To establish a hierarchy and relationships among terms.
     Parents or children may be defined for any entry.
@@ -36,6 +38,8 @@ input SubjectInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -49,6 +53,8 @@ input TraitInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -61,6 +67,8 @@ input ConditionInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -72,6 +80,8 @@ input ScaleInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -88,6 +98,8 @@ input CategoryInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -103,6 +115,8 @@ input ObservationMethodInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -115,6 +129,8 @@ input VariableInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -130,6 +146,8 @@ input ControlMethodInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -143,6 +161,8 @@ input FactorInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -158,6 +178,8 @@ input EventInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     variableIds: [ID!]
@@ -171,6 +193,8 @@ input LocationTypeInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -182,6 +206,8 @@ input DesignInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -194,6 +220,8 @@ input RoleInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -206,6 +234,8 @@ input RecordGroupTypeInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -217,6 +247,8 @@ input LayoutTypeInput {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -230,6 +262,8 @@ input TermUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     subjectIds: [ID!]
@@ -255,6 +289,8 @@ input SubjectUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -267,6 +303,8 @@ input TraitUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -281,6 +319,8 @@ input ConditionUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -295,6 +335,8 @@ input ScaleUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -310,6 +352,8 @@ input CategoryUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -324,6 +368,8 @@ input ObservationMethodUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -338,6 +384,8 @@ input VariableUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -354,6 +402,8 @@ input ControlMethodUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -368,6 +418,8 @@ input FactorUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -384,6 +436,8 @@ input EventUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
 
@@ -399,6 +453,8 @@ input LocationTypeUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -411,6 +467,8 @@ input DesignUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -423,6 +481,8 @@ input RoleUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -436,6 +496,8 @@ input RecordGroupTypeUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -449,6 +511,8 @@ input LayoutTypeUpdate {
     abbreviation: String
     synonyms: [String!]
     referenceIds: [ID!]
+    sourceUrl: String
+    sourceAttribution: String
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
@@ -491,6 +555,9 @@ extend type Mutation {
     ontologyUpdateRecordGroupType(recordGroupType: RecordGroupTypeUpdate!): BooleanPayload!
     ontologyUpdateLayoutType(layoutType: LayoutTypeUpdate!): BooleanPayload!
 
+    """ Lock entries so they stay stable, or unlock them; for ontology admins """
+    ontologyLockEntries(ids: [ID!]!): BooleanPayload!
+    ontologyUnlockEntries(ids: [ID!]!): BooleanPayload!
     ontologyDeprecateEntries(ids: [ID!]!): BooleanPayload!
     ontologyCancelDeprecateEntries(ids: [ID!]!): BooleanPayload!
 

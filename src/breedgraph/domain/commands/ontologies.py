@@ -16,6 +16,14 @@ class CommitOntologyVersion(Command):
     copyright: int|None = None
 
 
+class LockOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
+class UnlockOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
 class DeprecateOntologyEntries(Command):
     agent_id: int
     entry_ids: List[int]
@@ -35,6 +43,10 @@ class CreateEntryBase(BaseModel):
     reference_ids: List[int] | None = None
     parent_ids: List[int] | None = None
     child_ids: List[int] | None = None
+
+    # for an entry taken from an external standard or ontology
+    source_url: str | None = None
+    source_attribution: str | None = None
 
 class CreateTerm(Command, CreateEntryBase):
     subject_ids: List[int] | None = None

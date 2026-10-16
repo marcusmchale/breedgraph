@@ -55,6 +55,9 @@ class OntologyEntryOutput(ABC):
     
     synonyms: tuple[str, ...] = ()
     references: tuple[int, ...] = ()
+    source_url: str | None = None
+    source_attribution: str | None = None
+    locked: bool = False
 
     parents: tuple[int, ...] = ()
     children: tuple[int, ...] = ()

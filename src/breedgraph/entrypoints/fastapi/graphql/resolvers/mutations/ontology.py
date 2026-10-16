@@ -2,6 +2,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.domain.commands.ontologies import (
     CommitOntologyVersion,
     DeprecateOntologyEntries, CancelDeprecateOntologyEntries,
+    LockOntologyEntries, UnlockOntologyEntries,
 
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
     CreateScale, CreateScaleCategory, CreateObservationMethod, CreateVariable,
@@ -42,6 +43,24 @@ async def commit_version(
         copyright=copyright_id
     )
     await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("ontologyLockEntries")
+@graphql_payload
+@require_authentication
+async def lock_entries(_, info, ids: List[int]) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} locks entries {ids}")
+    await info.context['bus'].handle(LockOntologyEntries(agent_id=user_id, entry_ids=ids))
+    return True
+
+@graphql_mutation.field("ontologyUnlockEntries")
+@graphql_payload
+@require_authentication
+async def unlock_entries(_, info, ids: List[int]) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} unlocks entries {ids}")
+    await info.context['bus'].handle(UnlockOntologyEntries(agent_id=user_id, entry_ids=ids))
     return True
 
 @graphql_mutation.field("ontologyDeprecateEntries")

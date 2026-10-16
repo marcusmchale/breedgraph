@@ -166,7 +166,7 @@ None.
 ## 11. Implementation plan
 
 1. **Ontology.** Done: `RoleBase/Input/Stored`, `OntologyEntryLabel.ROLE`, create and update commands, links to terms, and the GraphQL `Role` type.
-2. **Locking and sources.** `locked` and `source` on ontology entries; lock and unlock commands for ontology admins;
+2. **Locking and sources.** Done: `locked` and `source` on ontology entries; lock and unlock commands for ontology admins;
    updates, deprecation and defining relationships of locked entries refused (§4, §5).
 2b. **Seeding.** `credit_roles.csv` seeded as locked Roles with their source when the ontology read model is built (§3).
 2c. **Reference releases.** Lowering a reference's release below that of what cites it is refused (§6).

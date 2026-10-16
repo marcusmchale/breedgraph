@@ -17,6 +17,7 @@ from tests.breedgraph.e2e.ontologies.post_methods import (
     post_to_update_record_group_type,
     post_to_create_role,
     post_to_update_role,
+    post_to_lock_entries,
     post_to_get_entries,
     post_to_commit_version,
     post_to_commit_history,
@@ -347,6 +348,21 @@ async def test_create_and_update_role(
     )
     assert_payload_success(get_verified_payload(response, "ontologyUpdateRole"))
     assert (await read_entries(OntologyEntryLabel.ROLE))[child_name]['description'] == 'Collecting samples in the field'
+
+    # a source, and locking
+    response = await post_to_update_role(client, token=login_token, role_update={
+        'id': parent['id'], 'sourceUrl': 'https://example.org/role', 'sourceAttribution': 'Example roles'
+    })
+    assert_payload_success(get_verified_payload(response, "ontologyUpdateRole"))
+    response = await post_to_lock_entries(client, token=login_token, ids=[parent['id']])
+    assert_payload_success(get_verified_payload(response, "ontologyLockEntries"))
+    parent = (await read_entries(OntologyEntryLabel.ROLE))[parent_name]
+    assert (parent['sourceUrl'], parent['sourceAttribution'], parent['locked']) == ('https://example.org/role', 'Example roles', True)
+    response = await post_to_update_role(client, token=login_token, role_update={'id': parent['id'], 'description': 'Changed'})
+    assert get_verified_payload(response, "ontologyUpdateRole").get('errors')
+    response = await post_to_lock_entries(client, token=login_token, ids=[parent['id']], lock=False)
+    assert_payload_success(get_verified_payload(response, "ontologyUnlockEntries"))
+    assert (await read_entries(OntologyEntryLabel.ROLE))[parent_name]['locked'] is False
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_commit_version(

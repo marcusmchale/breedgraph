@@ -135,6 +135,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             diff['name_lower'] = diff['name'].casefold()
 
         diff.pop('references', None)
+        diff.pop('locked', None)  # set only through set_entries_locked
         references_added = list(set(entry.references) - set(stored_entry.references))
         references_removed = list(set(stored_entry.references) - set(entry.references))
 
@@ -149,6 +150,9 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             user_id=user_id,
             version=version.packed_version
         )
+
+    async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
+        await self.tx.run(queries['ontology']['set_entries_locked'], entry_ids=entry_ids, locked=locked, user_id=user_id)
 
     async def create_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""

@@ -325,6 +325,11 @@ interface OntologyNodeInterface {
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     """
     External relationships attributes are also handled with versioned change tracking like intrinsic attributes.
@@ -376,6 +381,11 @@ type Term implements OntologyNodeInterface & OntologyRelationships & TermRelatio
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -428,6 +438,11 @@ type Subject implements OntologyNodeInterface & OntologyRelationships & RelatedT
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -463,6 +478,11 @@ type Trait implements OntologyNodeInterface & OntologyRelationships & RelatedToT
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -497,6 +517,11 @@ type Condition implements OntologyNodeInterface & OntologyRelationships & Relate
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -545,6 +570,11 @@ type Scale implements OntologyNodeInterface & ScaleInterface & OntologyRelations
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -581,6 +611,11 @@ type Category implements OntologyNodeInterface & OntologyRelationships & Related
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -618,6 +653,11 @@ type ObservationMethod implements OntologyNodeInterface & ObservationMethodInter
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -662,6 +702,11 @@ type Variable implements OntologyNodeInterface & OntologyRelationships & Related
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -700,6 +745,11 @@ type ControlMethod implements OntologyNodeInterface & ControlMethodInterface & O
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -743,6 +793,11 @@ type Factor implements OntologyNodeInterface & OntologyRelationships & RelatedTo
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -778,6 +833,11 @@ type Event implements OntologyNodeInterface & OntologyRelationships & RelatedToT
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -808,6 +868,11 @@ type LocationType implements OntologyNodeInterface & OntologyRelationships & Rel
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -838,6 +903,11 @@ type LayoutType implements OntologyNodeInterface & LayoutTypeInterface & Ontolog
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -867,6 +937,11 @@ type Design implements OntologyNodeInterface & OntologyRelationships & RelatedTo
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -893,6 +968,11 @@ type Role implements OntologyNodeInterface & OntologyRelationships & RelatedToTe
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 
@@ -918,6 +998,11 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
     description: String
     abbreviation: String
     synonyms: [String!]
+    """ For an entry taken from an external standard or ontology: its URL, and how to attribute it """
+    sourceUrl: String
+    sourceAttribution: String
+    """ A locked entry keeps its name, abbreviation, description, source and defining relationships, and cannot be deprecated """
+    locked: Boolean!
 
     references: [ReferenceInterface!]
 

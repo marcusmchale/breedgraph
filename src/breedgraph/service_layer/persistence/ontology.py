@@ -73,6 +73,11 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
+    async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
+        """Lock or unlock entries, recording who did it and when"""
+        ...
+
+    @abstractmethod
     async def create_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> OntologyRelationshipBase:
         """Create a new relationship between entries."""
         ...

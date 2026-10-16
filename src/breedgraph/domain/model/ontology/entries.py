@@ -26,6 +26,12 @@ class OntologyEntryBase(EnumLabeledModel, ABC):
     description: str | None = None
     synonyms: List[str] = field(default_factory=list)  # these don't have to be unique
     references: List[int] = field(default_factory=list)  # internal reference ID
+    # for an entry taken from an external standard or ontology: not a controlled reference, as the ontology is shared
+    source_url: str | None = None
+    source_attribution: str | None = None
+
+    # attributes a lock fixes (docs/contributions.md §4)
+    LOCKED_ATTRIBUTES: ClassVar[tuple[str, ...]] = ('name', 'abbreviation', 'description', 'source_url', 'source_attribution')
 
     @property
     def names(self):
@@ -66,7 +72,8 @@ class OntologyEntryStored(OntologyEntryBase, StoredModel, ABC):
     Combine with a concrete *Base class, e.g.:
       class DesignStored(DesignBase, OntologyEntryStored): ...
     """
-    pass
+    # set and cleared by ontology admins, not by updates (OntologyApplicationService.lock_entries)
+    locked: bool = False
 
 @dataclass
 class TermBase(OntologyEntryBase):
