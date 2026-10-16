@@ -153,3 +153,61 @@ async def test_seeded_entries_are_found_by_key_whatever_their_name(bus, uow_fact
     finally:
         await bus.handle(UpdateLocationType(agent_id=admin, ontology_entry_id=country.id, name='Country'))
         await bus.handle(LockOntologyEntries(agent_id=admin, entry_ids=[country.id]))
+
+
+async def lock_records(uow_factory, context, entry_id: int) -> list:
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        result = await uow.tx.run(
+            "MATCH (:User)-[:LOCKED]->(:UserOntologyLocks)-[lock:LOCKED]->(:OntologyEntry {id: $entry_id}) "
+            "RETURN lock.locked AS locked ORDER BY lock.time",
+            entry_id=entry_id
+        )
+        return [record['locked'] async for record in result]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_locking_is_attributed_only_when_the_lock_changes(bus, uow_factory, ontology_build_context, lorem_text_generator):
+    context = ontology_build_context
+    name = lorem_text_generator.new_text()
+    await bus.handle(CreateRole(agent_id=context['user_id'], name=name))
+    role_id = await entry_id(uow_factory, context, name, OntologyEntryLabel.ROLE)
+
+    await bus.handle(LockOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    await bus.handle(LockOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    assert await lock_records(uow_factory, context, role_id) == [True]
+    await bus.handle(UnlockOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    assert await lock_records(uow_factory, context, role_id) == [True, False]
+
+    # a lock is not a contribution to the entry
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        result = await uow.tx.run(
+            "MATCH (:UserOntologyContributions)-[:CONTRIBUTED]->(:OntologyEntryLock) RETURN count(*) AS locks"
+        )
+        assert (await result.single())['locks'] == 0
+
+
+async def managed_phases(uow_factory, context, entry_id: int) -> list:
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        result = await uow.tx.run(
+            "MATCH (:OntologyEntry {id: $entry_id})-[:HAS_LIFECYCLE]->(lifecycle)<-[managed:MANAGED]-() "
+            "RETURN managed.phases AS phases, managed.times AS times",
+            entry_id=entry_id
+        )
+        record = await result.single()
+        assert len(record['phases']) == len(record['times'])
+        return record['phases']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_lifecycle_history_records_only_changes(bus, uow_factory, ontology_build_context, lorem_text_generator):
+    context = ontology_build_context
+    name = lorem_text_generator.new_text()
+    await bus.handle(CreateRole(agent_id=context['user_id'], name=name))
+    role_id = await entry_id(uow_factory, context, name, OntologyEntryLabel.ROLE)
+    assert await managed_phases(uow_factory, context, role_id) == ['DRAFT']
+
+    await bus.handle(DeprecateOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    assert await managed_phases(uow_factory, context, role_id) == ['DRAFT', 'DEPRECATED']
+    # deprecating it again changes nothing, so records nothing
+    await bus.handle(DeprecateOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
+    assert await managed_phases(uow_factory, context, role_id) == ['DRAFT', 'DEPRECATED']

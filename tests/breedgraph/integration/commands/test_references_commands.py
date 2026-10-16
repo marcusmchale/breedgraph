@@ -173,3 +173,25 @@ async def test_references_credit_persons_with_roles(bus, uow_factory, views_fact
     async with views_factory.get_views(user_id=other['user_id']) as views:
         [placeholder] = await views.references.get_references([reference_id])
     assert placeholder.contributions == []
+
+
+async def control_count(uow_factory, context, reference_id: int) -> int:
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        result = await uow.tx.run(
+            "MATCH (control:Control)-[:CONTROLS]->(:Reference {id: $reference_id}) RETURN count(control) AS controls",
+            reference_id=reference_id
+        )
+        return (await result.single())['controls']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_setting_an_unchanged_release_records_no_control(bus, uow_factory, program_build_context):
+    context = program_build_context
+    reference_id = await create_public_reference(uow_factory, context)
+    controls = await control_count(uow_factory, context, reference_id)
+
+    await bus.handle(set_release(context, reference_id, ReadRelease.PUBLIC))
+    assert await control_count(uow_factory, context, reference_id) == controls
+
+    await bus.handle(set_release(context, reference_id, ReadRelease.REGISTERED))
+    assert await control_count(uow_factory, context, reference_id) == controls + 1

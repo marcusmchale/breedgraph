@@ -109,7 +109,8 @@ Still open on a locked entry: synonyms, references, children (e.g. "Sample colle
 and relationships from other entries to it (e.g. variables using a locked scale).
 
 The lock is a property of the entry, not of a version: it applies from when it is set, and is shown as `locked` in GraphQL.
-Locking and unlocking are recorded with the user and time, as other ontology changes are.
+Locking and unlocking are recorded with the user and time, as `(User)-[:LOCKED]->(:UserOntologyLocks)-[:LOCKED {time, locked}]->(entry)`.
+A lock is attributed but is not a contribution to the entry, and a lock or unlock that leaves the entry as it was records nothing.
 
 ## 5. Sources of ontology entries
 

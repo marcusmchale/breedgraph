@@ -248,7 +248,7 @@ The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end ha
 - **Curves.** The four fluorescence curve datasets (Fluorescence ~ Time, PocketPEA) have records with no value: each references its dataset's CSV data file,
   whose schema gives the index columns (`item_uid, unit_id, time, replicate`) that find a record's row. The existing complex-scale cells show the reference count.
 - **Times as entered.** Record times are to the minute where a time of day was entered, and to the day otherwise. `DateTime` values keep their precision,
-  e.g. `2018-11-25` or `2018-11-25T10:30`; show them as given rather than parsing a date alone into midnight in the browser's time zone.
+  e.g. `2018-11-25` or `2018-11-25T10:30`; show them as given rather than parsing a date alone into midnight in the browser's time zone. They are local times, without a time zone (§15).
 - **Layouts.** Fields have "Row and Tree" layouts with ordinal Row and Tree axes, some per block, and Field 5 has a second layout for a later planting.
 - **Studies** may start before their program (Nicaragua, 2015).
 - Branch stratum and the shade treatments are factor records (Stratum, Shade Treatment, Shade Level Treatment), not unit properties.
@@ -536,3 +536,23 @@ Disable those fields in the editing forms, and show a lock.
 **References.** Citing a reference (in any input with `referenceIds`, or a study's or the ontology's licence) needs read access to it.
 A reference's release cannot be lowered below the release of what cites it: `controlsSetRelease` returns an error saying so.
 
+## 15. Times
+
+**Observation times are local.** The times of records, studies, trials, positions and germplasm are the wall-clock time at the
+location, at the precision entered (`2021`, `2021-05`, `2021-05-03`, `2021-05-03T10:30`). They carry no time zone, and an input
+with `Z` or an offset (e.g. `2021-05-03T10:30+02:00`) is refused with an error; previously the offset was converted to UTC
+and dropped. Send times as the user entered them, and never build them with `Date.toISOString()`, which adds `Z`.
+
+**A time stands for its whole period.** As a start a time means the start of its period, as an end the end of it: a record
+ending `2021-05-03` runs through that day, and one dated `2021` through the year.
+- The `start` and `end` arguments of `records`, `recordCount`, `unitIds`, `datasetsUnits` and `datasetsUnitsBySubject` select
+  records whose period overlaps the window, so `end: "2021"` includes all of 2021, and a record dated `2021` is found by a
+  June 2021 window. A date picker for an end can send the day itself, not the next day.
+- An end may now be given to a coarser precision than its start on the same day or month, e.g. start `2021-05-03T10:30`, end `2021-05-03`.
+- `DatasetSummary.start` / `end` and the dataset dimensions' `start` / `end` are the first start and last end as entered, at their
+  precision (they were cut to the day).
+
+**Timestamps carry an offset.** Times the server sets (`Control.time`, `WriteStamp.time`, `Controller.created` / `updated`,
+`referencesFileDownload.expiresAt`, `submitted`, ...) are ISO 8601 with an offset, e.g. `2026-10-16T09:30:00+00:00`;
+the control times had a space in place of the `T`. `FileRecovery.startedAt` is when retrieval was first requested, or null
+while a file is archived and no retrieval has been requested (it was the time of the query).

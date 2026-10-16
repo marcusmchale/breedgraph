@@ -2,6 +2,7 @@ from typing import AbstractSet
 
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable_as
+from breedgraph.adapters.neo4j.cypher.query_builders.times import upper as _upper, entered as _entered
 
 # Datasets as the user may see them (see docs/read-access.md). A readable dataset is returned in full, all its records
 # included; a hidden one only as a placeholder when asked for by id, and not at all from a search. A record's unit is a
@@ -13,9 +14,21 @@ DATASET = ControlledModelLabel.DATASET
 UNIT = ControlledModelLabel.UNIT
 EDGE = 'INCLUDES_UNIT'
 
-# A record is in the window when its own period (start to end, either standing in for a missing other) overlaps it
-IN_WINDOW = """($start IS NULL OR coalesce(record.end, record.start) >= $start)
-  AND ($end IS NULL OR coalesce(record.start, record.end) <= $end)"""
+# A record's period runs from the start of the period of its start to the end of the period of its end, either standing
+# in for a missing other: a record of 2021-05 runs from 2021-05-01 up to 2021-06-01
+RECORD_START = "coalesce(record.start, record.end)"
+RECORD_END = f"coalesce({_upper('record.end')}, {_upper('record.start')})"
+
+# A record is in the window when its period overlaps it; the window ends at $end, exclusive (see the datasets view)
+IN_WINDOW = f"""($start IS NULL OR {RECORD_END} > $start)
+  AND ($end IS NULL OR {RECORD_START} < $end)"""
+
+# For the time range of records: the first record start and the last record end, as [time, unit, step] as entered,
+# ordered by where their periods start and end. The last is preceded by the end of its period. Untimed records are null
+FIRST_TIME = f"""CASE WHEN record.start IS NOT NULL THEN {_entered('record.start')}
+  WHEN record.end IS NOT NULL THEN {_entered('record.end')} END"""
+LAST_TIME = f"""CASE WHEN record.start IS NOT NULL OR record.end IS NOT NULL THEN [{RECORD_END}] +
+  CASE WHEN record.end IS NOT NULL THEN {_entered('record.end')} ELSE {_entered('record.start')} END END"""
 
 
 def _readable(unit: str) -> str:
@@ -44,15 +57,13 @@ def dataset_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
     if 'record_count' in fields:
         returns.append('record_count: COUNT { (dataset)-[:INCLUDES_RECORD]->(:Record) }')
     if fields & {'start', 'end'} and not fields & UNIT_FIELDS:
-        parts.append("""
-            CALL (dataset) {
+        parts.append(f"""
+            CALL (dataset) {{
               MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)
-              RETURN
-                min(coalesce(record.start, record.end)) AS start,
-                max(coalesce(record.end, record.start)) AS end
-            }
+              RETURN min({FIRST_TIME}) AS start, max({LAST_TIME}) AS last
+            }}
         """)
-        returns.extend(['start: start', 'end: end'])
+        returns.extend(['start: start', 'end: last[1..]'])
 
     return f"""
         MATCH (study: Study {{id: $study_id}})
@@ -87,21 +98,21 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
         MATCH (dataset:Dataset {id: dataset_id})-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit)
     """]
     if spans:
-        query.append("""
-        WITH unit, dataset_id,
-          min(coalesce(record.start, record.end)) AS first, max(coalesce(record.end, record.start)) AS last
+        # first and last are [time, unit, step] and [end of period, time, unit, step] (see FIRST_TIME and LAST_TIME)
+        query.append(f"""
+        WITH unit, dataset_id, min({FIRST_TIME}) AS first, max({LAST_TIME}) AS last
         """)
         use.extend(['first: first', 'last: last'])
     else:
         query.append("WITH DISTINCT unit, dataset_id")
     if locations:
-        query.append("""
-        CALL (unit, first, last) {
+        query.append(f"""
+        CALL (unit, first, last) {{
           OPTIONAL MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
-          WHERE (position.start IS NULL OR last IS NULL OR position.start <= last)
-          AND (position.end IS NULL OR first IS NULL OR position.end >= first)
+          WHERE (position.start IS NULL OR last IS NULL OR position.start < last[0])
+          AND (position.end IS NULL OR first IS NULL OR {_upper('position.end')} > first[0])
           RETURN collect(DISTINCT location.id) AS location_ids
-        }
+        }}
         """)
         use.append('location_ids: location_ids')
 
@@ -133,7 +144,7 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
         returns.append('unit_count: unit_count')
     if timed:
         aggregates.extend(['min(use.first) AS start', 'max(use.last) AS end'])
-        returns.extend(['start: start', 'end: end'])
+        returns.extend(['start: start', 'end: end[1..]'])
     for name, values in [
         ('subject_ids', 'subject_ids'),
         ('unit_root_ids', 'unit_root_ids'),
@@ -203,11 +214,6 @@ def _dataset_records() -> str:
     """
 
 
-def _utc_text(time: str) -> str:
-    """A stored time as its UTC wall-clock time in ISO text, without an offset, as numpy parses it; null stays null"""
-    return f"CASE WHEN {time} IS NULL THEN null ELSE toString(localdatetime(datetime({{datetime: {time}, timezone: 'UTC'}}))) END"
-
-
 def read_records():
     """A page of a readable dataset's records in submission order, narrowed as _dataset_records"""
     return f"""
@@ -219,8 +225,8 @@ def read_records():
         RETURN record {{
           .id, .value, .start_unit, .start_step, .end_unit, .end_step,
           // times as text: hydrating the driver's DateTimes is the slowest part of reading many records
-          start: {_utc_text('record.start')},
-          end: {_utc_text('record.end')},
+          start: toString(record.start),
+          end: toString(record.end),
           submitted: toString(record.submitted),
           unit: unit.id,
           references: [(record)<-[:REFERENCE_FOR]-(reference:Reference) | reference.id],
@@ -336,4 +342,65 @@ def read_units_by_subject():
         WITH subject.id AS subject, unit, unit_readable
         ORDER BY unit.name, unit.id
         RETURN subject, collect(CASE WHEN unit_readable THEN {{id: unit.id, name: unit.name}} ELSE {{id: unit.id, name: 'REDACTED'}} END) AS units
+    """
+
+
+def read_dataset_dimensions():
+    """
+    What a dataset's records span, read without the records themselves: counts, the time range (the first record
+    start and the last record end as entered, see FIRST_TIME and LAST_TIME), the record times and values at each
+    percentile from 0 to 100, and the record group codes present by grouping. The percentile times take each
+    record's start and the end of the period of its end; the values are in numeric order when every value is a
+    number and in text order otherwise. The caller has checked that the dataset is readable.
+    """
+    return f"""
+        MATCH (dataset:Dataset {{id: $dataset_id}})
+        CALL (dataset) {{
+          MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit)
+          RETURN
+            count(record) AS record_count,
+            count(DISTINCT unit) AS unit_count,
+            min({FIRST_TIME}) AS start,
+            max({LAST_TIME})[1..] AS end,
+            count(record.value) AS value_count,
+            count(toFloatOrNull(record.value)) AS number_count
+        }}
+        CALL (dataset) {{
+          MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)
+          UNWIND [record.start, {_upper('record.end')}] AS time
+          WITH time WHERE time IS NOT NULL
+          WITH time ORDER BY time
+          WITH collect(time) AS times
+          RETURN CASE WHEN size(times) = 0 THEN []
+            ELSE [p IN range(0, 100) | times[toInteger(round(p * (size(times) - 1) / 100.0))]]
+            END AS time_percentiles
+        }}
+        WITH dataset, record_count, unit_count, start, end, time_percentiles,
+          value_count > 0 AND value_count = number_count AS numeric
+        CALL (dataset, numeric) {{
+          MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)
+          WITH record.value AS value, numeric WHERE value IS NOT NULL
+          WITH value ORDER BY CASE WHEN numeric THEN toFloat(value) END, value
+          WITH collect(value) AS values
+          RETURN CASE WHEN size(values) = 0 THEN []
+            ELSE [p IN range(0, 100) | values[toInteger(round(p * (size(values) - 1) / 100.0))]]
+            END AS value_percentiles
+        }}
+        CALL (dataset) {{
+          MATCH (dataset)-[:INCLUDES_RECORD]->(:Record)
+            -[:IN_GROUP]->(group:RecordGroup)<-[:HAS_GROUP]-(grouping:RecordGrouping)
+          WITH DISTINCT grouping.id AS grouping_id, group.code AS code
+          ORDER BY grouping_id, code
+          WITH grouping_id, collect(code) AS codes
+          RETURN collect({{grouping_id: grouping_id, codes: codes}}) AS groups
+        }}
+        RETURN {{
+          record_count: record_count,
+          unit_count: unit_count,
+          start: start,
+          end: end,
+          time_percentiles: time_percentiles,
+          value_percentiles: value_percentiles,
+          groups: groups
+        }} AS dimensions
     """

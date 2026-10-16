@@ -228,7 +228,7 @@ class FileRetrievalSuccess(Email):
          
          Filename: {reference.filename}
          Download URL: {url}
-         Expires: {expires.strftime(format="%Y-%m-%d %H:%M:%S")} 
+         Expires: {expires.strftime(format="%Y-%m-%d %H:%M:%S %Z")} 
         """
         self.message.set_content(body)
 

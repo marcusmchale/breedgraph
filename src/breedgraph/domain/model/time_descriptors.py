@@ -1,4 +1,4 @@
-import warnings
+import re
 from pydantic import (
     GetCoreSchemaHandler,
     GetJsonSchemaHandler, BaseModel
@@ -10,14 +10,59 @@ from dataclasses import dataclass
 import numpy as np
 from typing import Any, Annotated, TypeAlias, Dict
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from neo4j.time import DateTime as Neo4jDateTime
 from pydantic_core.core_schema import ValidationInfo
 
 @dataclass
 class WriteStamp:
     user: int  # user id
-    time: np.datetime64
+    time: datetime | None  # the transaction time, None where hidden
+
+# Observation times (of records, studies, trials, positions and germplasm) are the wall-clock time at the location,
+# at the precision they were given: numpy datetime64 values, stored as Neo4j LocalDateTime with their unit and step.
+# A time given to a unit stands for that whole period, so as an end it reaches the start of the next (see upper).
+
+# A trailing Z or offset on a time of day, e.g. 2021-05-03T10:30Z or 2021-05-03T10:30+02:00
+_OFFSET = re.compile(r'[T ]\d[^Z+-]*(Z|[+-]\d{2}(:?\d{2})?)$')
+
+class TimeZoneGivenError(ValueError):
+    pass
+
+def parse_local_datetime(value: str) -> np.datetime64:
+    """A time as entered, at the precision given, e.g. '2021', '2021-05' or '2021-05-03T10:30'; offsets are refused"""
+    if _OFFSET.search(value.strip()):
+        raise TimeZoneGivenError(
+            f"Times are local to the location, so are given without a time zone or offset: {value}"
+        )
+    return np.datetime64(value.strip())
+
+def local_datetime64(value: np.datetime64 | datetime | str) -> np.datetime64:
+    """A local time as datetime64, refusing time zone aware input"""
+    if isinstance(value, np.datetime64):
+        return value
+    if isinstance(value, str):
+        return parse_local_datetime(value)
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            raise TimeZoneGivenError(
+                f"Times are local to the location, so are given without a time zone or offset: {value.isoformat()}"
+            )
+        return np.datetime64(value)
+    if isinstance(value, date):
+        return np.datetime64(value)
+    raise TypeError(f"Cannot read a time from {type(value)}")
+
+def upper(dt64: np.datetime64) -> np.datetime64:
+    """The end (exclusive) of the period a time stands for: 2021 -> 2022, 2021-05 -> 2021-06, 2021-05-03 -> 2021-05-04"""
+    unit, step = np.datetime_data(dt64)
+    return dt64 + np.timedelta64(step, unit)
+
+def same_time(time: np.datetime64 | None, other: np.datetime64 | None) -> bool:
+    """Whether two times are the same as entered: numpy counts 2021-05 and 2021-05-01 as equal, this does not"""
+    if time is None or other is None:
+        return time is None and other is None
+    return time == other and np.datetime_data(time) == np.datetime_data(other)
 
 def serialize_npdt64(dt64: np.datetime64|None, to_neo4j:bool = False) -> Dict[str, str|int|None]:
     if dt64 is None:
@@ -28,21 +73,22 @@ def serialize_npdt64(dt64: np.datetime64|None, to_neo4j:bool = False) -> Dict[st
         }
     else:
         return (
-            {'time': npdt64_to_neo4j(dt64) if to_neo4j else str(np.datetime_as_string(dt64))} |
+            {'time': npdt64_to_local(dt64) if to_neo4j else str(np.datetime_as_string(dt64))} |
             {i: j for i, j in zip(('unit', 'step'), np.datetime_data(dt64))}
         )
 
 def deserialize_time(time: Neo4jDateTime | str | None, unit:str = None, step:str = None) -> np.datetime64 | datetime | None:
+    """
+    A stored time: an observation time (a LocalDateTime with its unit and step) as datetime64 at its precision,
+    or a timestamp, e.g. of a transaction, as a timezone aware datetime
+    """
     if time is None:
         return None
     elif isinstance(time, Neo4jDateTime):
         if unit is None:
-            # should be a timezone aware transaction timestamp
             return time.to_native()
         else:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', UserWarning)
-                return np.datetime64(time.isoformat(), (unit, step))
+            return np.datetime64(time.isoformat(), (unit, step))
     elif isinstance(time, str):
         return datetime.fromisoformat(time)
     else:
@@ -50,35 +96,12 @@ def deserialize_time(time: Neo4jDateTime | str | None, unit:str = None, step:str
 
 
 
-def npdt64_to_neo4j(ts: np.datetime64, tzinfo=timezone.utc):
-    py_obj = ts.astype('O')  # could be datetime, date, or int
-    # Defaults
-    year = 1
-    month = 1
-    day = 1
-    hour = 0
-    minute = 0
-    second = 0
-    microsecond = 0
-    if isinstance(py_obj, int):
-        # year-only precision
-        year = py_obj
-    elif isinstance(py_obj, date) and not isinstance(py_obj, datetime):
-        # date object (year, month, day)
-        year = py_obj.year
-        month = py_obj.month
-        day = py_obj.day
-    elif isinstance(py_obj, datetime):
-        # full datetime object
-        year = py_obj.year
-        month = py_obj.month
-        day = py_obj.day
-        hour = py_obj.hour
-        minute = py_obj.minute
-        second = py_obj.second
-        microsecond = py_obj.microsecond
-    nanosecond = microsecond * 1000
-    return Neo4jDateTime(year, month, day, hour, minute, second, nanosecond, tzinfo=tzinfo)
+def npdt64_to_local(ts: np.datetime64) -> Neo4jDateTime:
+    """A local time as a Neo4j LocalDateTime (a DateTime without a time zone), to the microsecond"""
+    py_obj = ts.astype('datetime64[us]').astype(object)
+    return Neo4jDateTime(
+        py_obj.year, py_obj.month, py_obj.day, py_obj.hour, py_obj.minute, py_obj.second, py_obj.microsecond * 1000
+    )
 
 # https://docs.pydantic.dev/latest/concepts/types/#handling-third-party-types
 class _DT64PydanticAnnotation:
@@ -91,7 +114,7 @@ class _DT64PydanticAnnotation:
     ) -> core_schema.CoreSchema:
 
         def validate_from_datetime(value: datetime) -> np.datetime64:
-            return np.datetime64(value)
+            return local_datetime64(value)
 
         from_datetime_schema = core_schema.chain_schema(
             [
@@ -101,7 +124,7 @@ class _DT64PydanticAnnotation:
         )
 
         def validate_from_str(value: str) -> np.datetime64:
-            return np.datetime64(value)
+            return parse_local_datetime(value)
 
         from_str_schema = core_schema.chain_schema(
             [
@@ -121,8 +144,7 @@ class _DT64PydanticAnnotation:
         )
 
         def validate_from_neo4j(value: Neo4jDateTime, _: ValidationInfo) -> np.datetime64:
-            iso = value.isoformat()
-            return np.datetime64(iso)
+            return local_datetime64(value.to_native())
 
         from_neo4j_schema = core_schema.chain_schema(
             [

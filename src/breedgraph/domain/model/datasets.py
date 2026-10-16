@@ -2,6 +2,7 @@ from dataclasses import dataclass, field, replace, InitVar
 from abc import ABC
 from typing import List, ClassVar, Set, Dict, Self, Generator, overload
 from numpy import datetime64
+from breedgraph.domain.model.time_descriptors import local_datetime64, upper, same_time
 
 from breedgraph.domain.model.contributions import Contribution, contributions_from
 
@@ -57,11 +58,11 @@ class DataRecordInput(DataRecordBase, LabeledModel):
         if reference_ids is not None:
             self.references = reference_ids
         if self.start:
-            self.start = datetime64(self.start)
+            self.start = local_datetime64(self.start)
         if self.end:
-            self.end = datetime64(self.end)
+            self.end = local_datetime64(self.end)
         if self.start and self.end:
-            if self.start > self.end:
+            if self.start >= upper(self.end):
                 raise ValueError("Start date cannot be after end date")
         if not self.unit:
             raise ValueError("Unit is required for new records")
@@ -81,11 +82,11 @@ class DataRecordUpdate(DataRecordBase, StoredModel):
         if reference_ids is not None:
             self.references = reference_ids
         if self.start is not None:
-            self.start = datetime64(self.start)
+            self.start = local_datetime64(self.start)
         if self.end is not None:
-            self.end = datetime64(self.end)
+            self.end = local_datetime64(self.end)
         if self.start is not None and self.end is not None:
-            if self.start > self.end:
+            if self.start >= upper(self.end):
                 raise ValueError("Start date cannot be after end date")
 
 
@@ -161,10 +162,10 @@ class DatasetBase(ABC):
                 stored_record = self.records[record_index]
                 if record.value is not None and stored_record.value != record.value:
                     stored_record.value = record.value
-                if record.start is not None and stored_record.start != record.start:
-                    stored_record.start = datetime64(record.start)
-                if record.end is not None and stored_record.end != record.end:
-                    stored_record.end = datetime64(record.end)
+                if record.start is not None and not same_time(stored_record.start, record.start):
+                    stored_record.start = record.start
+                if record.end is not None and not same_time(stored_record.end, record.end):
+                    stored_record.end = record.end
                 if record.unit is not None and stored_record.unit != record.unit:
                     stored_record.unit = record.unit
                 if record.references is not None and stored_record.references != record.references:

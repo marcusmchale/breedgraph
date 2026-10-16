@@ -3,6 +3,7 @@ from numpy import datetime64
 from datetime import datetime
 
 from .registry import graphql_resolvers
+from breedgraph.domain.model.time_descriptors import parse_local_datetime
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.controls import ReadRelease, Access
 from breedgraph.domain.model.ontology import (
@@ -23,8 +24,9 @@ datetime_scalar = ScalarType("DateTime")
 
 @datetime_scalar.value_parser
 def parse_datetime(value):
+    """A time as entered, local to the location, at the precision given"""
     if isinstance(value, str):
-        return datetime64(value)
+        return parse_local_datetime(value)
     else:
         raise ValueError(f"Invalid datetime string: {value}")
 

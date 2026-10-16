@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from breedgraph.domain import events
 
@@ -60,7 +59,6 @@ async def upload_completed(
         file_id=event.uuid,
         file_size=event.file_size,
         file_hash=event.file_hash,
-        last_accessed=datetime.now(),
         archive_state=ArchiveState.ARCHIVAL_PENDING,
         local_state=LocalState.LOCAL
     )

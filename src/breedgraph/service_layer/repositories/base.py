@@ -3,7 +3,7 @@ from typing import Dict, AsyncGenerator, TypeVar, Generic, Union, List, cast
 from neo4j import Record
 
 from breedgraph.service_layer.tracking import TrackableProtocol, TrackedObject, tracked
-from breedgraph.domain.model.time_descriptors import deserialize_time, serialize_npdt64, npdt64_to_neo4j
+from breedgraph.domain.model.time_descriptors import deserialize_time, serialize_npdt64
 from breedgraph.custom_exceptions import ProtectedNodeError
 from breedgraph.domain.model.base import Aggregate
 

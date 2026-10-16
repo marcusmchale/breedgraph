@@ -1,5 +1,5 @@
 from itsdangerous import URLSafeTimedSerializer
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 
 from breedgraph.domain import events
@@ -67,7 +67,7 @@ async def retrieval_succeeded(
                         requestor=requestor,
                         reference=reference,
                         url= f'{get_download_endpoint()}{token}',
-                        expires=datetime.now() + timedelta(minutes=FILE_DOWNLOAD_EXPIRES)
+                        expires=datetime.now(timezone.utc) + timedelta(minutes=FILE_DOWNLOAD_EXPIRES)
                     )
                     await notifications.send([requestor], message)
                     logger.info(f"Sent retrieval success notification to user {requestor.id}")

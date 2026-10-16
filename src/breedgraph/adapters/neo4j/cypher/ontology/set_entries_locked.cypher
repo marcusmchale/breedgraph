@@ -1,8 +1,6 @@
 MATCH (user: User {id: $user_id})
-MERGE (user)-[:CONTRIBUTED]->(contributions: UserOntologyContributions)
-WITH contributions
-MATCH (entry: OntologyEntry) WHERE entry.id IN $entry_ids
+MERGE (user)-[:LOCKED]->(locks: UserOntologyLocks)
+WITH locks
+MATCH (entry: OntologyEntry) WHERE entry.id IN $entry_ids AND coalesce(entry.locked, false) <> $locked
 SET entry.locked = $locked
-CREATE (contributions)
-  -[:CONTRIBUTED {time: datetime.transaction()}]->(:OntologyEntryLock {locked: $locked})
-  -[:FOR_ENTRY {time: datetime.transaction()}]->(entry)
+CREATE (locks)-[:LOCKED {time: datetime.transaction(), locked: $locked}]->(entry)

@@ -188,8 +188,8 @@ class PositionResolver(DimensionResolver):
         if grouping.layout_id is not None and position.layout_id != grouping.layout_id:
             return False
         if grouping.time is not None:
-            # the position is occupied at the time: start <= time < end
-            return intervals_overlap(position.start, position.end, grouping.time, grouping.time + 1)
+            # the position is occupied at some point in the period of the time
+            return intervals_overlap(position.start, position.end, grouping.time, grouping.time)
         return True
 
     @staticmethod

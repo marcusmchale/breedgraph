@@ -4,7 +4,6 @@ from breedgraph.service_layer.queries.views import AbstractDatasetsView
 from breedgraph.service_layer.queries.read_models import DatasetSummary
 
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.adapters.neo4j.cypher.query_builders import datasets as dataset_queries
 from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
     SUMMARY_FIELDS,
@@ -14,7 +13,7 @@ from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
 )
 from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit
 from breedgraph.domain.model.unit_graphs import UnitOutput
-from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
+from breedgraph.domain.model.time_descriptors import npdt64_to_local, local_datetime64, upper, deserialize_time
 from numpy import datetime64
 from datetime import datetime
 
@@ -38,8 +37,24 @@ class Neo4jDatasetsView(AbstractDatasetsView):
         }
 
     @staticmethod
+    def _window(start: datetime64 | str | None, end: datetime64 | str | None) -> dict:
+        """
+        The parameters of a time window: from the start of the period of start to the end (exclusive) of the
+        period of end, so an end of 2021 includes all of 2021
+        """
+        return {
+            'start': npdt64_to_local(local_datetime64(start)) if start is not None else None,
+            'end': npdt64_to_local(upper(local_datetime64(end))) if end is not None else None
+        }
+
+    @staticmethod
+    def _entered_time(time: list | None) -> datetime64 | None:
+        """A time read as [time, unit, step] (see query_builders.datasets.FIRST_TIME), at its precision"""
+        return deserialize_time(*time) if time is not None else None
+
+    @staticmethod
     def _record_time(text: str | None, unit: str | None, step: int | None) -> datetime64 | None:
-        """A record's start or end, read as UTC text (see query_builders.datasets.read_records), at its precision"""
+        """A record's start or end, read as text (see query_builders.datasets.read_records), at its precision"""
         if text is None:
             return None
         return datetime64(text, (unit, step))
@@ -89,8 +104,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 dataset_queries.read_records(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
-                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._window(start, end),
                 offset=offset,
                 limit=limit if limit is not None else 2 ** 31 - 1,
                 **self._access
@@ -109,8 +123,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 dataset_queries.read_unit_ids(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
-                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._window(start, end),
                 **self._access
             )
             record = await result.single()
@@ -128,8 +141,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 dataset_queries.count_records(),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
-                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._window(start, end),
                 **self._access
             )
             record = await result.single()
@@ -147,8 +159,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 dataset_queries.read_unit_level(),
                 dataset_ids=dataset_ids,
                 parent_ids=parent_ids,
-                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._window(start, end),
                 **self._access
             )
             return [
@@ -172,8 +183,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 dataset_queries.read_units_by_subject(),
                 dataset_ids=dataset_ids,
                 unit_ids=unit_ids,
-                start=npdt64_to_neo4j(datetime64(start)) if start is not None else None,
-                end=npdt64_to_neo4j(datetime64(end)) if end is not None else None,
+                **self._window(start, end),
                 **self._access
             )
             return {
@@ -186,7 +196,7 @@ class Neo4jDatasetsView(AbstractDatasetsView):
     async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['datasets']['read_dataset_dimensions'],
+                dataset_queries.read_dataset_dimensions(),
                 dataset_id=dataset_id
             )
             record = await result.single()
@@ -196,12 +206,10 @@ class Neo4jDatasetsView(AbstractDatasetsView):
         return DatasetDimensions(
             record_count=dimensions['record_count'],
             unit_count=dimensions['unit_count'],
-            start=dimensions['start'],
-            end=dimensions['end'],
-            # percentile times have no stored precision, so they are given to the second, as naive UTC like the records
-            time_percentiles=[
-                datetime64(deserialize_time(time).replace(tzinfo=None), 's') for time in dimensions['time_percentiles']
-            ],
+            start=self._entered_time(dimensions['start']),
+            end=self._entered_time(dimensions['end']),
+            # percentile times have no stored precision, so they are given to the second
+            time_percentiles=[datetime64(time.to_native(), 's') for time in dimensions['time_percentiles']],
             value_percentiles=list(dimensions['value_percentiles']),
             groups=[GroupingCodes(grouping_id=group['grouping_id'], codes=list(group['codes'])) for group in dimensions['groups']]
         )
@@ -228,4 +236,8 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 if 'unit_count' in fields:
                     for summary in summaries.values():
                         summary.setdefault('unit_count', 0)
+            for summary in summaries.values():
+                for time in ('start', 'end'):
+                    if time in summary:
+                        summary[time] = self._entered_time(summary[time])
             return [DatasetSummary(**summary) for summary in summaries.values()]

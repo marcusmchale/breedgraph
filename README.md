@@ -258,7 +258,7 @@ Units have attributes for:
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)
-- start: a start date and time for this position
+- start: a start date and time for this position (see [times](#times))
 - Optional:
   - layout: an ID for a [layout](#layout) within a [layout tree](#layout-tree)
   - coordinates: a coordinate list that should correspond to the axes in a layout
@@ -276,8 +276,15 @@ Data records have attributes for:
 - value: a string, integer or float value
 - start: the date and time the value for this record is known to be relevant to this unit 
 - end: the date and time that the value for this record is no longer known to be relevant to this unit  
+- start and end are [times](#times) as entered: either may be missing, standing in for the other
 - references: a list of [references](#reference).
   - References may be used to link supporting data files, e.g. library sequencing data
+#### Times
+The times of records, positions, studies, trials and germplasm are the local wall-clock time at the location, stored at the
+precision they were entered to (a year, month, day, hour, minute, ...), without a time zone: a time with an offset is refused.
+A time stands for its whole period: as a start, the start of the period, and as an end, the end of it,
+so a record ending on 2021-05-03 runs through that day, and a record of 2021 overlaps any window in 2021.
+Times the system sets, such as when data was submitted, are timestamps in UTC.
 ### Germplasm
 Germplasm is a directed acyclic graph with a single root node, composed of [germplasm entries](#germplasm-entry).
 Relationships among these entries form a "pedigree" of source to sink relationships:

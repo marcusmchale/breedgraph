@@ -85,7 +85,7 @@ async def resolve_team(obj: Control, info):
 
 @control.field("time")
 async def resolve_time(obj: Control, info) -> str | None:
-    return str(obj.time) if obj.time is not None else None
+    return obj.time.isoformat() if obj.time is not None else None
 
 @controller.field("teams")
 async def resolve_teams(obj: Controller, info):
@@ -104,17 +104,17 @@ async def resolve_write_person(obj: WriteStamp, info):
     return await resolve_user_person(info.context, obj.user)
 
 @write_stamp.field("time")
-async def resolve_time(obj: WriteStamp, info) -> str:
-    return str(obj.time)
+async def resolve_time(obj: WriteStamp, info) -> str | None:
+    return obj.time.isoformat() if obj.time is not None else None
 
 @controller.field("created")
 async def resolve_created(obj: Controller, info):
-    # none for a placeholder controller, which has no writes
-    return str(obj.created) if obj.writes else None
+    # none for a placeholder controller, which has no writes, or where write times are hidden
+    return obj.created.isoformat() if obj.created is not None else None
 
 @controller.field("updated")
 async def resolve_updated(obj: Controller, info):
-    return str(obj.updated) if obj.writes else None
+    return obj.updated.isoformat() if obj.updated is not None else None
 
 @graphql_query.field("controlsTransfers")
 @graphql_payload

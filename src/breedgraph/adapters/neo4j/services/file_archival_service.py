@@ -1,5 +1,4 @@
 from neo4j import Record
-from datetime import datetime
 from pathlib import Path
 
 from neo4j.exceptions import ResultNotSingleError
@@ -44,26 +43,23 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
             record['local_completion'] = int(100 * file_path.stat().st_size / file_size)
 
         # Convert timestamps
-        if record.get('last_attempt_at'):
-            record['last_attempt_at'] = deserialize_time(record['last_attempt_at'])
-        if record.get('last_accessed'):
-            record['last_accessed'] = deserialize_time(record['last_accessed'])
+        for time_field in ('last_attempt_at', 'last_accessed', 'retrieval_requested_at'):
+            if record.get(time_field):
+                record[time_field] = deserialize_time(record[time_field])
 
 
         return FileArchivalRecord(**record)
 
     @staticmethod
     def archival_record_to_props(record: FileArchivalRecord) -> dict:
-        """Convert FileArchivalRecord to Neo4j properties"""
+        """Convert FileArchivalRecord to Neo4j properties; the times are set by the database"""
         props = {
             'file_id': record.file_id,
             'file_size': record.file_size,
             'file_hash': record.file_hash,
-            'last_accessed': record.last_accessed.isoformat(),
             'archive_state': record.archive_state.value,
             'local_state': record.local_state.value,
             'attempts': record.attempts,
-            'last_attempt_at': record.last_attempt_at.isoformat() if record.last_attempt_at else None,
         }
         return props
 
@@ -155,11 +151,10 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
                 archival_record = self.record_to_archival_record(record)
                 archival_record.archive_state = self.COLLECTION_TRANSITIONS[state]
                 archival_record.attempts += 1
-                archival_record.last_attempt_at = datetime.now()
                 props = self.archival_record_to_props(archival_record)
                 props.pop('file_id')
                 result = await tx.run(
-                    queries['archive']['update_record'],
+                    queries['archive']['start_attempt'],
                     file_id=archival_record.file_id,
                     updates=props
                 )

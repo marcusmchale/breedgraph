@@ -67,6 +67,9 @@ class OntologyApplicationService:
         # in memory store for lifecycle management
         self._entry_lifecycles: Dict[int, EntryLifecycle] = {}
         self._relationship_lifecycles: Dict[int, RelationshipLifecycle] = {}
+        # versions of each lifecycle as last loaded or saved, so only lifecycles that changed are saved
+        self._stored_entry_versions: Dict[int, Dict[str, int]] = {}
+        self._stored_relationship_versions: Dict[int, Dict[str, int]] = {}
 
     def collect_events(self):
         while self.events:
@@ -905,11 +908,13 @@ class OntologyApplicationService:
         """Load entry lifecycles for a list of entry ids to perform update operations."""
         lifecycles = await self.persistence.get_entry_lifecycles(entry_ids)
         self._entry_lifecycles.update(lifecycles)
+        self._stored_entry_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in lifecycles.items()})
 
     async def _load_relationship_lifecycles(self, relationship_ids: List[int]) -> None:
         """Load entry lifecycles for a list of entry ids to perform update operations."""
         lifecycles = await self.persistence.get_relationship_lifecycles(relationship_ids)
         self._relationship_lifecycles.update(lifecycles)
+        self._stored_relationship_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in lifecycles.items()})
 
     async def _create_relationship_lifecycle(
             self,
@@ -944,17 +949,31 @@ class OntologyApplicationService:
                 raise ValueError(f"No lifecycle found for relationship {relationship_id}")
         return lifecycle
 
+    @staticmethod
+    def _changed_lifecycles(lifecycles: Dict[int, EntryLifecycle | RelationshipLifecycle], stored_versions: Dict[int, Dict[str, int]]) -> Dict:
+        """The lifecycles whose versions differ from those last loaded or saved"""
+        return {
+            i: lifecycle for i, lifecycle in lifecycles.items()
+            if stored_versions.get(i) != lifecycle.serialize_versions()
+        }
+
     async def _save_entry_lifecycles(self) -> None:
-        """Save entry lifecycles to persistence."""
+        """Save the entry lifecycles that changed to persistence."""
         if not self.user_id:
             raise UnauthorisedOperationError("Only registered users can affect changes")
-        await self.persistence.save_entry_lifecycles(self._entry_lifecycles, user_id=self.user_id)
+        changed = self._changed_lifecycles(self._entry_lifecycles, self._stored_entry_versions)
+        if changed:
+            await self.persistence.save_entry_lifecycles(changed, user_id=self.user_id)
+            self._stored_entry_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in changed.items()})
 
     async def _save_relationship_lifecycles(self) -> None:
-        """Save relationship lifecycles to persistence."""
+        """Save the relationship lifecycles that changed to persistence."""
         if not self.user_id:
             raise UnauthorisedOperationError("Only registered users can affect changes")
-        await self.persistence.save_relationship_lifecycles(self._relationship_lifecycles, user_id=self.user_id)
+        changed = self._changed_lifecycles(self._relationship_lifecycles, self._stored_relationship_versions)
+        if changed:
+            await self.persistence.save_relationship_lifecycles(changed, user_id=self.user_id)
+            self._stored_relationship_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in changed.items()})
 
     # Persistence-dependent validation methods
     async def _validate_entry_uniqueness(

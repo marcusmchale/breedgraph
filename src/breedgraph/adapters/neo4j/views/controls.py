@@ -36,7 +36,7 @@ class Neo4jControlsView(AbstractControlsView):
             }
             # in the order they were made
             writes = [
-                WriteStamp(user=write['user'], time=write['time'])
+                WriteStamp(user=write['user'], time=deserialize_time(write['time']))
                 for write in sorted(record['writes'], key=lambda write: write['time'])
             ]
             controllers[record['entity_id']] = Controller(controls=controls, writes=writes)

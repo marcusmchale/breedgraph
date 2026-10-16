@@ -29,10 +29,10 @@ CALL (unit) {
   OPTIONAL MATCH (layout: Layout {id: position_map['layout_id']})
   CREATE (unit)-[:IN_POSITION]->(position:Position {
     coordinates: position_map['coordinates'],
-    start: datetime(position_map['start']),
+    start: position_map['start'],
     start_unit: coalesce(position_map['start_unit'], NULL),
     start_step: coalesce(position_map['start_step'], NULL),
-    end:   datetime(position_map['end']),
+    end:   position_map['end'],
     end_unit:   coalesce(position_map['end_unit'], NULL),
     end_step:   coalesce(position_map['end_step'], NULL)
   })-[:AT_LOCATION]->(location)

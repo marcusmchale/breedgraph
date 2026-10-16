@@ -1,6 +1,6 @@
 from ariadne import ObjectType, UnionType, InterfaceType, EnumType
 from itsdangerous import URLSafeTimedSerializer
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from breedgraph.adapters.redis.state_store import SubmissionStatus
 
@@ -191,14 +191,15 @@ async def get_file_download_state(_, info, file_id: str):
     else:
         if record.archive_state == ArchiveState.ARCHIVED:
             status = "ARCHIVED"
+            # no retrieval has been requested
             recovery = {
-                "startedAt": datetime.now(),
+                "startedAt": None,
                 "progress": 0
             }
         elif record.archive_state == ArchiveState.RETRIEVAL_PENDING:
             status = "RETRIEVING"
             recovery = {
-                "startedAt": datetime.now(),
+                "startedAt": record.retrieval_requested_at,
                 "progress": 0
             }
         elif record.archive_state == ArchiveState.RETRIEVING:
@@ -250,6 +251,6 @@ async def get_file_download(_, info, file_id: str):
     )
 
     return {
-        'expires_at': datetime.now() + timedelta(minutes=FILE_DOWNLOAD_EXPIRES),
+        'expires_at': datetime.now(timezone.utc) + timedelta(minutes=FILE_DOWNLOAD_EXPIRES),
         'url': f'{get_download_endpoint()}{token}'
     }

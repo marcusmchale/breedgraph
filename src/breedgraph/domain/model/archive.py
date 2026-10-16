@@ -37,7 +37,7 @@ class FileArchivalRecord:
     file_id: str  # UUID used as filename in file storage, unique identifier
     file_size: int  # size in bytes
     file_hash: str  # SHA256 hash for integrity verification
-    last_accessed: datetime  # when this file was last accessed (for pruning of local files)
+    last_accessed: datetime | None = None  # when this file was last accessed (for pruning of local files), set by the database
 
     # State tracking
     archive_state: ArchiveState = ArchiveState.ARCHIVAL_PENDING
@@ -46,7 +46,9 @@ class FileArchivalRecord:
 
     # Attempt tracking (infer which operation from state)
     attempts: int = 0
-    last_attempt_at: Optional[datetime] = None
+    last_attempt_at: Optional[datetime] = None  # set by the database
+    # when retrieval was first requested by a current requestor
+    retrieval_requested_at: Optional[datetime] = None
 
 
 @dataclass

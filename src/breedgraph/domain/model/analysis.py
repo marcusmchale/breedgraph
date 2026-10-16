@@ -4,6 +4,7 @@ from numpy import datetime64, timedelta64
 import pandas as pd
 
 from breedgraph.domain.model.unit_graphs import Position
+from breedgraph.domain.model.time_descriptors import upper
 
 class AnalysisType(str, Enum):
     """Matching GraphQL AnalysisType"""
@@ -354,12 +355,12 @@ def intervals_overlap(
         other_end: datetime64|None
 ) -> bool:
     """
-    Half-open interval overlap: start < other_end AND end > other_start.
-    None values are unbounded.
+    Whether two periods overlap, each from the start of the period of its start to the end of the period of its end
+    (see time_descriptors.upper), so an end of 2021-05-03 includes that day. None values are unbounded.
     """
-    if start is not None and other_end is not None and start >= other_end:
+    if start is not None and other_end is not None and start >= upper(other_end):
         return False
-    if end is not None and other_start is not None and end <= other_start:
+    if end is not None and other_start is not None and upper(end) <= other_start:
         return False
     return True
 
@@ -409,7 +410,7 @@ class AnalysisExclusion:
     end: datetime64|None = None
 
     def __post_init__(self):
-        if self.start is not None and self.end is not None and self.start >= self.end:
+        if self.start is not None and self.end is not None and self.start >= upper(self.end):
             raise ValueError(f"Exclusion start ({self.start}) must be before end ({self.end})")
         if not self.has_record_criteria and not self.positions and not self.is_time_bounded:
             raise ValueError("An exclusion rule requires at least one criterion")

@@ -1,4 +1,4 @@
-from numpy import datetime64
+from breedgraph.domain.model.time_descriptors import local_datetime64
 from pydantic import BaseModel, Field
 
 from breedgraph.domain.model.contributions import Contribution, ContributionInput
@@ -37,8 +37,8 @@ class DatasetImportBase(BaseModel):
         return [
             DataRecordInput(
                 unit=r.unit_id if hasattr(r, 'unit_id') else None,
-                start=datetime64(r.start) if r.start else None,
-                end=datetime64(r.end) if r.end else None,
+                start=local_datetime64(r.start) if r.start else None,
+                end=local_datetime64(r.end) if r.end else None,
                 value=r.value,
                 groups=r.groups,
                 references=r.reference_ids
@@ -56,8 +56,8 @@ class DatasetImportBase(BaseModel):
                 DataRecordUpdate(
                     id=r.id,
                     unit=r.unit_id if hasattr(r, 'unit_id') else None,
-                    start=datetime64(r.start) if r.start else None,
-                    end=datetime64(r.end) if r.end else None,
+                    start=local_datetime64(r.start) if r.start else None,
+                    end=local_datetime64(r.end) if r.end else None,
                     value=r.value if r.value is not None else None,
                     groups=r.groups if r.groups is not None else None,
                     references=r.reference_ids if r.reference_ids is not None else None
@@ -80,8 +80,8 @@ class DatasetImport(DatasetImportBase):
             records=[
                 DataRecordInput(
                     unit = r.unit_id,
-                    start = datetime64(r.start) if r.start else None,
-                    end = datetime64(r.end) if r.end else None,
+                    start = local_datetime64(r.start) if r.start else None,
+                    end = local_datetime64(r.end) if r.end else None,
                     value = r.value,
                     groups = r.groups,
                     references  = r.reference_ids

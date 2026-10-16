@@ -44,6 +44,7 @@ from dataclasses import dataclass, field, replace
 
 import networkx as nx
 from numpy import datetime64
+from breedgraph.domain.model.time_descriptors import upper
 
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
@@ -198,5 +199,5 @@ class UnitGraph(ControlledRootedAggregate):
             raise ValueError("Positions require location_id")
 
         if position.start and position.end:
-            if position.start > position.end:
+            if position.start >= upper(position.end):
                 raise ValueError("Start cannot be after end")

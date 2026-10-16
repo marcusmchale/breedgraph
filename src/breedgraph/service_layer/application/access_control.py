@@ -99,6 +99,7 @@ class AbstractAccessControlService(ABC):
         if not control_teams:
             raise IllegalOperationError("Control teams required to set controls")
 
+        model_ids = list(model_ids)
         controllers = await self.get_controllers(label, model_ids)
 
         for model_id, controller in controllers.items():
@@ -106,6 +107,14 @@ class AbstractAccessControlService(ABC):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
 
         await self._require_release_floor(label, model_ids, release)
+
+        # A model whose controlling teams already have this release needs no new Control
+        model_ids = [
+            model_id for model_id in model_ids
+            if not self._release_unchanged(controllers.get(model_id), control_teams, release)
+        ]
+        if not model_ids:
+            return
 
         # for models with existing controllers we need to filter out control teams provided that are not already in the controller.
         # this is per model so if we want to batch process we need to either split or do it in the query.
@@ -116,6 +125,14 @@ class AbstractAccessControlService(ABC):
             release=release,
             user_id=self.user_id
         )
+
+    @staticmethod
+    def _release_unchanged(controller: Controller | None, control_teams: set[int], release: ReadRelease) -> bool:
+        """Whether each of these teams that controls the model already has this release"""
+        if controller is None:
+            return False
+        teams = control_teams & controller.teams
+        return bool(teams) and all(controller.controls[team_id].release == release for team_id in teams)
 
     async def set_controls_by_id_and_label(
             self,

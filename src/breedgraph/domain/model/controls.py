@@ -4,7 +4,7 @@ import copy
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field, asdict
 from enum import IntEnum, Enum
-from numpy import datetime64
+from datetime import datetime
 from functools import lru_cache
 
 from typing import Dict, List, ClassVar, Set, Type
@@ -67,7 +67,7 @@ class Control:
     user_id: int
     team_id: int
     release: ReadRelease
-    time: datetime64
+    time: datetime
 
     def model_dump(self):
         return asdict(self)
@@ -94,12 +94,13 @@ class Controller:
         return min([c.release for c in self.controls.values()])
 
     @property
-    def created(self) -> datetime64:
-        return min([w.time for w in self.writes])
+    def created(self) -> datetime | None:
+        # write times are hidden (None) from those who cannot read the model
+        return min([w.time for w in self.writes if w.time is not None], default=None)
 
     @property
-    def updated(self) -> datetime64:
-        return max([w.time for w in self.writes])
+    def updated(self) -> datetime | None:
+        return max([w.time for w in self.writes if w.time is not None], default=None)
 
     def set_release(self, team_id: int, release: ReadRelease):
         self.controls[team_id].release = release

@@ -1,8 +1,9 @@
 import re
 
-from numpy import datetime64, float64
+from numpy import float64
 
 from breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.domain.model.time_descriptors import parse_local_datetime
 
 from breedgraph.domain.model.ontology import  ScaleStored, ScaleType, ScaleCategoryStored
 
@@ -49,8 +50,9 @@ class ValueParser:
 
     @staticmethod
     def _parse_datetime(value:str) -> str:
+        """A date or time as entered, local like record times, so without an offset"""
         value = value.strip()
-        datetime64(value)
+        parse_local_datetime(value)
         return value
 
     @staticmethod

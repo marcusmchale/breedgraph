@@ -20,13 +20,6 @@ class DatasetSummary:
     end: datetime64|None = None
 
 
-    def __post_init__(self):
-        if self.start is not None:
-            self.start = datetime64(self.start)
-        if self.end is not None:
-            self.end = datetime64(self.end)
-
-
 @dataclass
 class DatasetRead:
     """
@@ -84,8 +77,3 @@ class DatasetDimensions:
     value_percentiles: List[str] = field(default_factory=list)
     groups: List[GroupingCodes] = field(default_factory=list)
 
-    def __post_init__(self):
-        if self.start is not None:
-            self.start = datetime64(self.start)
-        if self.end is not None:
-            self.end = datetime64(self.end)

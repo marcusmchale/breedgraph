@@ -9,8 +9,8 @@ OPTIONAL CALL (unit) {
   WITH
     position,
     location,
-    coalesce(position.start, datetime('0001-01-01T00:00:00')) AS effectiveStart,
-    coalesce(position.end, datetime('9999-12-31T23:59:59')) AS effectiveEnd
+    coalesce(position.start, localdatetime('0001-01-01T00:00:00')) AS effectiveStart,
+    coalesce(position.end, localdatetime('9999-12-31T23:59:59')) AS effectiveEnd
     ORDER BY effectiveStart ASC, effectiveEnd ASC
   RETURN
     collect(
