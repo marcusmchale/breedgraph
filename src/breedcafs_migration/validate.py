@@ -10,7 +10,8 @@ and with what is stored, read directly from the database (controls through the a
     and the records of what is in a BreedCAFS block, or was taken from one, have the block's code;
   - the samples left out are listed, with their records, in unmigrated_samples.csv;
   - curve data files are stored and match the hash recorded for archival;
-  - Persons have the curated names and institutions, and each dataset has the Persons who recorded it as contributors;
+  - Persons have the curated names and institutions, and each dataset credits the Persons who recorded it, without roles,
+    and its submitter with Data curation;
   - the migrated fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets,
     curve data files and Persons are controlled by the migration team alone, and `PRIVATE`.
 
@@ -34,7 +35,7 @@ from breedcafs_migration.datasets import DatasetPlan, replicate_code
 from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
 from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES, RECORD_GROUP_EXTENTS
-from breedcafs_migration.persons import read_persons, contributor_names
+from breedcafs_migration.persons import read_persons, contribution_names, DATA_CURATION
 from breedcafs_migration.programs import STUDIES, CODE_GROUPINGS, REPLICATE
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.units import UnitPlan, read_items, SUBJECTS
@@ -328,21 +329,26 @@ async def validate_persons(validation, uow_factory, ontology: OntologyIds, datas
     validation.same("Persons stored with their name and institution", mapped,
                     [(row['name'], row['institution'] or '') for row in rows])
 
+    curation = [row['id'] for row in await query(
+        uow_factory, "MATCH (role:Role:OntologyEntry {name_lower: $name}) RETURN role.id AS id", name=DATA_CURATION.casefold()
+    )]
+    validation.same(f"The {DATA_CURATION} Role is seeded", [DATA_CURATION], [DATA_CURATION] if curation else [])
     expected = {
-        dataset_id: {mapped.get(persons.get(name)) for name in names}
-        for dataset_id, names in contributor_names(ontology, datasets).items()
+        dataset_id: {(mapped.get(persons.get(name)), tuple(curation[:1]) if curator else ()) for name, curator in names.items()}
+        for dataset_id, names in contribution_names(ontology, datasets).items()
     }
     stored = {}
     for batch in batches(list(datasets.values())):
         for row in await query(uow_factory, """
-            MATCH (d:Dataset) WHERE d.id IN $ids RETURN d.id AS id, [(p:Person)-[:CONTRIBUTED_TO]->(d) | p.id] AS contributors
+            MATCH (d:Dataset) WHERE d.id IN $ids
+            RETURN d.id AS id, [(p:Person)-[c:CONTRIBUTED_TO]->(d) | [p.id, coalesce(c.roles, [])]] AS contributions
         """, ids=batch):
-            stored[row['id']] = set(row['contributors'])
+            stored[row['id']] = {(person, tuple(roles)) for person, roles in row['contributions']}
     problems = [
-        (dataset_id, sorted(stored.get(dataset_id, set())), sorted(contributors, key=str))
-        for dataset_id, contributors in expected.items() if stored.get(dataset_id, set()) != contributors
+        (dataset_id, sorted(stored.get(dataset_id, set())), sorted(contributions, key=str))
+        for dataset_id, contributions in expected.items() if stored.get(dataset_id, set()) != contributions
     ]
-    validation.all("Datasets have the Persons who recorded them as contributors", problems, len(expected))
+    validation.all("Datasets credit their recorders, and their submitters with Data curation", problems, len(expected))
     return list(mapped.values())
 
 

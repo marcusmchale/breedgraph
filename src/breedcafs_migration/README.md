@@ -21,8 +21,10 @@ To run the migration, follow [RUNBOOK.md](RUNBOOK.md).
 **Attribute data to the people who recorded it.**
 
    * Each BreedCAFS Record has a free-text `person` field naming who recorded it.
-     These values are curated into BreedGraph Persons and set as `contributors` of the datasets their records fall into.
-     The BreedCAFS user who submitted a record is used only where `person` is empty.
+     These values are curated into BreedGraph Persons, credited without roles on the datasets their records fall into.
+     The BreedCAFS user who submitted a record stands in only where `person` is empty.
+   * The BreedCAFS user who submitted a dataset's records is credited with the Data curation role, as the one role known
+     with confidence (docs/contributions.md §7).
    * A Person stores only a name and an institution, the full name of the BreedCAFS Partner,
      with no team affiliation, email or username. Names can be refined later, but must be unique per Person.
    * Persons are created `PRIVATE` with the migration team as write team, and stay `PRIVATE` until handover;

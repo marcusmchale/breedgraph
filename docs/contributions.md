@@ -125,8 +125,9 @@ BreedCAFS records give two sources of attribution (`breedcafs_migration/1_7_Extr
 
 Only the submitter's role is known with confidence: they curated and uploaded the data, so every submitter is credited
 with **Data curation**, to acknowledge that work. They may have had other roles, which are not recorded.
-Submitters not yet mapped to a Person in `attribution_persons.csv` are added to the curation files, so they become Persons
-like the others: `PRIVATE`, with the migration team as write team and the migration administrator's attestation.
+Submitters are mapped to Persons in a third curation file, `submitter_persons.csv`, drafted from the submissions;
+any not yet in `persons.csv` are added there, so they become Persons like the others: `PRIVATE`, with the migration team
+as write team and the migration administrator's attestation.
 The Persons named in `person` are credited **without roles**. Most of them recorded the data, but some values
 name a supervisor or a group, and the migration does not try to tell them apart.
 Roles can be added after the handover by the teams that receive control.
@@ -170,10 +171,12 @@ None.
    updates, deprecation and defining relationships of locked entries refused (§4, §5).
 2b. **Seeding.** Done: `credit_roles.csv` seeded as locked Roles with their source, with the initial data (§3).
 2c. **Reference releases.** Done: lowering a reference's release below that of what cites it is refused (§6).
-3. **Domain.** `Contribution`; `Dataset.contributions` replacing `contributors`, and `contributions` on Program and Trial,
+3. **Domain.** Done: `Contribution`; `Dataset.contributions` replacing `contributors`, and `contributions` on Program and Trial,
    with validation of the role ids in the handlers.
-4. **Cypher and repository.** Roles on `CONTRIBUTED_TO` in the dataset, program and trial queries.
-5. **GraphQL.** `ContributionInput { personId, roleIds }` replacing `contributorIds`; `Contribution { person, roles }` replacing `contributors: [Person]`;
+4. **Cypher and repository.** Done: roles on `CONTRIBUTED_TO` in the dataset, program and trial queries.
+5. **GraphQL.** Done: `ContributionInput { personId, roleIds }` replacing `contributorIds`; `Contribution { person, roles }` replacing `contributors: [Person]`;
    the same on Program and Trial. Dataset importer likewise.
-6. **Tests.** The seeded CRediT roles in the test fixtures, contributions with and without roles in the synthetic test database, which is rebuilt.
-7. **Migration.** Submitters added to the Person curation files; Data curation for submitters, no roles for Persons named in `person` (§7).
+6. **Tests.** Done: the seeded CRediT roles in the test fixtures, and contributions with and without roles in the read-policy scenario.
+   The test database dumps are to be rebuilt (`docs/test-databases.md`).
+7. **Migration.** Done in code: Data curation for submitters, mapped to Persons in `submitter_persons.csv`; no roles for Persons named in `person` (§7).
+   `submitter_persons.csv` is to be drafted and curated for the BreedCAFS data and the rehearsal data.

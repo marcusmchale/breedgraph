@@ -45,7 +45,7 @@ Saved this as partners.csv
 
 ### 1.7.5 Curate
 
-Curation is in two files.
+Curation is in three files.
 
 attribution_persons.csv maps each attribution value to the Persons it refers to.
 The same value submitted through different Partners may be different people,
@@ -64,10 +64,19 @@ persons.csv defines each Person once, by `Name`, with its `institution`.
   - `other_institutions` lists other institutions found for the name, to be resolved and then cleared.
   - No other personal data (username, email, role) is kept.
 
+submitter_persons.csv maps each BreedCAFS user who submitted records to the Person they are, to credit them with Data curation.
+Draft it with `python -m breedcafs_migration.persons --draft-submitters`, which writes one row per submitter and Partner
+in submissions.csv, with the Name suggested from the submitter's fallback attribution ("submitter: <user name>") where there is one.
+It does not overwrite an existing file.
+
+  - `Name` is the Person in persons.csv; add the Person there if they are not yet. Leave it empty to leave the submitter uncredited.
+  - Keep `submitter_id` unchanged: it is the key back to the submissions. `submitter` and `partner` are for reference.
+
 ### 1.7.6 Use during creation
 
 Each row of persons.csv becomes a `PRIVATE` Person with its name and institution,
 with the migration team as write team and the informed attestation given by the migration administrator.
-Datasets are built from the rows of submissions.csv, and each dataset's contributors are the Persons
-named for its rows' attribution value and Partner in attribution_persons.csv.
+Datasets are built from the rows of submissions.csv. Each dataset credits, without roles, the Persons
+named for its rows' attribution value and Partner in attribution_persons.csv, and credits its submitter's Person
+in submitter_persons.csv with Data curation.
 The mapping from name to Person id is saved as person_ids.csv, alongside the other Person files.

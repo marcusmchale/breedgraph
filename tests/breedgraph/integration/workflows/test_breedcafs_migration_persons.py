@@ -41,6 +41,11 @@ FILES = {
         {'submission_time': '100', 'submitter_id': '7', 'partner': 'CIRAD', 'attribution': 'Ana', 'input': 'Other input'},
         {'submission_time': '200', 'submitter_id': '8', 'partner': 'CIRAD', 'attribution': 'unknown', 'input': 'Tree height'},
     ],
+    # submitter 7 is J. Smith, who also recorded data; submitter 8 is not credited
+    'submitter_persons.csv': [
+        {'submitter_id': '7', 'submitter': 'jsmith', 'partner': 'CIRAD', 'Name': 'J. Smith'},
+        {'submitter_id': '8', 'submitter': 'other', 'partner': 'CIRAD', 'Name': ''},
+    ],
 }
 
 
@@ -142,7 +147,8 @@ async def test_prepare_persons(uow_factory, persons_context, data_dir):
         assert set(controller.controls) == {context.team_id}
 
         submitted = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, '100', '7')])
-        assert sorted(contribution.person for contribution in submitted.contributions) == sorted([ana, smith])
+        curation = (await uow.ontology.get_entry(name='Data curation', label=OntologyEntryLabel.ROLE)).id
+        assert sorted((c.person, c.roles) for c in submitted.contributions) == sorted([(ana, []), (smith, [curation])])
         unattributed = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, '200', '8')])
         assert unattributed.contributions == []
         design = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, DESIGN, '')])
@@ -154,4 +160,20 @@ async def test_prepare_persons(uow_factory, persons_context, data_dir):
     again = await prepare(uow_factory, persons_context)
     assert again.created == 0
     assert again.persons == ids.persons
-    assert again.contributors == ids.contributors
+    assert again.contributions == ids.contributions
+
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_submitter_persons_are_drafted_for_curation(data_dir):
+    (data_dir / 'submitter_persons.csv').unlink()
+    write_csv(data_dir / 'attribution_persons.csv', FILES['attribution_persons.csv'] + [
+        {'attribution': 'submitter: jsmith', 'partner': 'CIRAD', 'Name': 'J. Smith', 'record_count': '1', 'submission_count': '1', 'input_count': '1'}
+    ])
+    write_csv(data_dir / 'submissions.csv', [{**row, 'submitter': {'7': 'jsmith', '8': 'other'}[row['submitter_id']]} for row in FILES['submissions.csv']])
+    with pytest.raises(MigrationSettingsError, match="submitter_persons.csv is missing"):
+        persons.read_submitter_persons()
+    assert persons.draft_submitter_persons()
+    assert persons.read_submitter_persons() == {'7': ['J. Smith'], '8': []}
+    # a curated file is left as it is
+    assert not persons.draft_submitter_persons()
