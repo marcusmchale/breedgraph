@@ -553,7 +553,9 @@ class ReadPolicyScenarioBuilder:
                 await ontology.layout_types(user_id=admin),
                 await ontology.subject_types(user_id=admin),
                 await ontology.record_group_types(user_id=admin),
-                await ontology.variable_tree_height(user_id=admin)
+                await ontology.variable_tree_height(user_id=admin),
+                await ontology.variable_canopy_width(user_id=admin),
+                await ontology.factor_light_intensity(user_id=admin)
         ):
             self.scenario.ids.update(types)
 

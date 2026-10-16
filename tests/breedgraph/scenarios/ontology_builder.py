@@ -226,13 +226,15 @@ class OntologyBuilder:
         async with self.uow_factory.get_uow(user_id=user_id) as uow:
             ontology_service = uow.ontology
             field_subject = await ontology_service.create_entry(SubjectInput(name="Field"))
-            tree_subject = await ontology_service.create_entry(SubjectInput(name="Tree"), parents=[field_subject.id])
+            plot_subject = await ontology_service.create_entry(SubjectInput(name="Plot"), parents=[field_subject.id])
+            tree_subject = await ontology_service.create_entry(SubjectInput(name="Tree"), parents=[field_subject.id, plot_subject.id])
             leaf_subject = await ontology_service.create_entry(SubjectInput(name="Leaf"), parents=[tree_subject.id])
             rhizosphere_subject = await ontology_service.create_entry(SubjectInput(name="Rhizosphere"), parents=[tree_subject.id])
             await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added subject types")
             await uow.commit()
             return {
                 'ontology_subject_field': field_subject.id,
+                'ontology_subject_plot': plot_subject.id,
                 'ontology_subject_tree': tree_subject.id,
                 'ontology_subject_leaf': leaf_subject.id,
                 'ontology_subject_rhizosphere': rhizosphere_subject.id
@@ -271,6 +273,32 @@ class OntologyBuilder:
                 'ontology_method_tape': method.id,
                 'ontology_scale_mm': scale.id,
                 'ontology_variable_height': variable.id
+            }
+
+    async def variable_canopy_width(self, user_id: int) -> Dict[str, int]:
+        """A second numerical variable of trees, with the method and scale of tree height, which must exist."""
+        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+            ontology_service = uow.ontology
+            tree_subject = await ontology_service.get_entry(name='Tree', label=OntologyEntryLabel.SUBJECT)
+            method = await ontology_service.get_entry(name='Tape measure', label=OntologyEntryLabel.OBSERVATION_METHOD)
+            scale = await ontology_service.get_entry(name='Millimeters', label=OntologyEntryLabel.SCALE)
+            if not (tree_subject and method and scale):
+                raise ValueError("Canopy width needs the subject, method and scale of tree height")
+
+            trait = await ontology_service.create_trait(TraitInput(name="Canopy Width"), subjects=[tree_subject.id])
+            variable = await ontology_service.create_variable(
+                VariableInput(
+                    name="Canopy Width (mm)"
+                ),
+                trait_id=trait.id,
+                observation_method_id=method.id,
+                scale_id=scale.id
+            )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added variable canopy width")
+            await uow.commit()
+            return {
+                'ontology_trait_width': trait.id,
+                'ontology_variable_width': variable.id
             }
 
     async def factor_light_intensity(self, user_id: int) -> Dict[str, int]:
@@ -326,11 +354,15 @@ class OntologyBuilder:
             )
             batch_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Batch", default_extent=RecordGroupExtent.SHARED))
             plate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Plate"), parents=[batch_group_type.id])
+            block_group_type = await ontology_service.create_entry(
+                RecordGroupTypeInput(name="Block", default_extent=RecordGroupExtent.WITHIN_GRAPH)
+            )
             await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added record group types")
             await uow.commit()
             return {
                 'ontology_record_group_replicate': replicate_group_type.id,
                 'ontology_record_group_biorep': biorep_group_type.id,
                 'ontology_record_group_batch': batch_group_type.id,
-                'ontology_record_group_plate': plate_group_type.id
+                'ontology_record_group_plate': plate_group_type.id,
+                'ontology_record_group_block': block_group_type.id
             }
