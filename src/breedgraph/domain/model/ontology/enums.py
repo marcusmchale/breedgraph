@@ -38,14 +38,17 @@ class AxisType(str, Enum):
     CARTESIAN = "CARTESIAN"
 
 class RecordGroupExtent(str, Enum):
-    """Whether the codes of a record group type are meaningful across units."""
+    """How analysis groups records with the same code across units.
+    A code can mean the same on every unit (e.g. a canopy stratum "Lower"); the extent decides whether analysis uses that."""
 
     SHARED = "SHARED"
-    """A code names a group of many units, e.g. a block, batch or session."""
+    """Records of different units with the same code are one group, a level that can be estimated across units,
+    e.g. a block, batch, session or canopy stratum."""
 
     WITHIN_UNIT = "WITHIN_UNIT"
-    """A code only distinguishes records of one unit at one time, e.g. replicate readings or subsamples.
-    Replicates with an identity over time, such as a tagged branch, should be child units instead."""
+    """Codes are nested in each record's unit: records of one unit with the same code at one time, or within the
+    replicate aggregation window, are one reading, e.g. replicate readings, subsamples or the branches of a tree.
+    Something followed over time, sampled or positioned is better recorded as a child unit."""
 
 class ObservationMethodType(str, Enum):
     """Broad category describing how the value of a Variable is obtained."""

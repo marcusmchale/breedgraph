@@ -178,9 +178,12 @@ Examples: "Grid", "Row"
 Design entries describe statistical designs for a [study](#study) in a [program](#program).
 Examples: "Split-plot", "Randomized block"
 ##### Record Group Type
-Record group types describe the codes that group [records](#data-record) within a [study](#study), with an extent:
-SHARED codes name a group of many units (e.g. "Block", "Batch"), WITHIN_UNIT codes only distinguish
-readings of one unit at one time (e.g. "Replicate"), and are nested in the unit in analysis.
+Record group types describe the codes that group [records](#data-record) within a [study](#study).
+A code can mean the same on every unit, e.g. a canopy stratum "Lower"; the type's extent decides whether analysis uses that.
+With SHARED, records of different units with the same code are one group, a level that can be estimated across units
+(e.g. "Block", "Batch", "Stratum"). With WITHIN_UNIT, codes are nested in each record's unit: records of one unit
+with the same code at one time, or within the replicate aggregation window, are one reading (e.g. "Replicate",
+or "Branch" for the branches of a tree). Something followed over time, sampled or positioned is better recorded as a child unit.
 ##### Role
 Role entries describe roles for [people](#people).
 Examples: "Post-doctoral researcher", "Principal Investigator"

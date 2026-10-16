@@ -78,7 +78,7 @@ Every analysis operates on **observations**, not on records.
       weighting (not for MIN, MAX or COUNT).
   - To analyse each replicate instead (descriptive statistics, outlier detection, correlation, MDS),
     configure a record-group dimension of the WITHIN_UNIT groupings (§3). `window` doesn't apply there.
-  - A replicate with an identity over time, such as a tagged branch measured on several dates, is better recorded as a child unit.
+  - A replicate followed over time, such as a tagged branch measured on dates further apart than any window, is better recorded as a child unit.
 - Domain terms (`TIME`, `GERMPLASM`, `POSITION`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
 - Configuring a dimension changes observation identity even if no term uses it.
 - A record that can't be assigned to a configured dimension is dropped. Each dimension reports one `UNASSIGNED_<DIMENSION>` warning with the count and `recordIds`.

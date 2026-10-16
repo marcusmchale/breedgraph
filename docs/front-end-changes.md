@@ -252,15 +252,17 @@ Rerun it after changing the front end, and after any API change, before releasin
 
 ## 11. Record group extent and replicate aggregation
 
-Record group types now say whether their codes mean anything across units, and analyses can combine replicates before
+Record group types now say how analysis groups records with the same code across units, and analyses can combine replicates before
 aggregating. Background and rules: `docs/analysis.md` §2 (replicates) and §3 (record groups). Paths below are in `breedview/src`.
 
 **The concepts, for help text:**
-- **`SHARED`**: a code names a group of many units, e.g. Block 2 or Batch 3. Records of different units with the same
-  code belong together.
-- **`WITHIN_UNIT`**: a code only tells apart the readings of one unit at one time, e.g. replicate or subsample numbers.
-  Replicate 1 of one tree has nothing to do with replicate 1 of another.
-- A replicate with an identity over time, such as a tagged branch measured on several dates, should be a child unit, not a code.
+- A code can mean the same on every unit, e.g. a canopy stratum "Lower". The extent decides whether analysis uses that.
+- **`SHARED`**: records of different units with the same code are one group, e.g. Block 2, Batch 3 or the Lower stratum,
+  a level that can be estimated across units.
+- **`WITHIN_UNIT`**: codes are nested in each record's unit. Records of one unit with the same code at one time, or within
+  the replicate aggregation window, are one reading, e.g. replicate numbers or the branches of a tree.
+  Replicate 1 of one tree is not grouped with replicate 1 of another.
+- Something followed over time, sampled or positioned is better recorded as a child unit than as a code.
 - Scope (study-wide or dataset-scoped) is unchanged and independent of extent. It still sets which datasets' codes can be compared.
 
 ### 11.1 Ontology: record group types

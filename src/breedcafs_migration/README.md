@@ -313,6 +313,9 @@ Also left out are three trees registered twice in field 24 (row 29, block 24_B5)
 repeat 24_T1079, 24_T1089 and 24_T1099 in name, variety, block, position and their one record (planting date),
 and have no samples. The second of each pair is left out with its record (`DUPLICATE_ITEMS` in units.py).
 
+Branches are not units (6.1), so the 14,202 branches with no records leave no trace: their only data was their stratum,
+which is now a code on a branch's records. The other 37,278 branches are codes on the records of their tree.
+
 ---
 
 # 7. Inputs, Variables, Factors and Records
