@@ -19,7 +19,7 @@ no invitations, transfers, legal entities, account deletion or ORCID. The region
 (`OntologyEntryUnion` no longer includes `Role` and `Title`). Then `python scripts/check_front_end_queries.py ../breedview/src`
 in this repository lists the operations that no longer validate (§10).
 
-**What breaks now** (seven operations, and code the check does not see):
+**What breaks now** (seven operations before the renames, 29 more from them, and code the check does not see):
 
 | File | Problem | Fix |
 |---|---|---|
@@ -29,22 +29,23 @@ in this repository lists the operations that no longer validate (§10).
 | `graphql/ontology/entries.graphql`, `ontology.graphql`, `graphql/programs/study.graphql` | query `Term.roles`, `Term.titles` | Remove them |
 | `composables/ontology/createOntologyEntries.js`, `updateOntologyEntries.js` | send `roleIds`, `titleIds` (not caught by the check, as they are variables) | Remove the fields and their form inputs |
 | `composables/ontology/nodeColorMap.js` | `ROLE` and `TITLE` labels | Remove |
+| `graphql/blocks/`, `graphql/regions/`, `graphql/arrangements/`, `graphql/organisations/`, `graphql/datasets/datasetSummaries.graphql` | the areas and three fields are renamed (29 operations) | Rename them, and the response keys read in JavaScript (§13) |
 | `graphql/datasets/submissionWithData.graphql` | spreads `RecordFields` (on `Record`) on `SubmittedRecord`, whose fields differ (`unitId`, `referenceIds`). Older than these changes, and unused | Delete it, or give it its own fields |
 
 `authors` / `authorIds` (§1) are not used by the front end, so need no change.
 
 **Then, new work, in a suggested order:**
+0. The area renames (§13), with the fixes above: every units, locations, layouts and teams operation fails until
+   it is renamed, so nothing else on those pages can be checked before.
 1. Registration by invitation (§2): `/register` reads `token`, and the invite modal. Needed before anyone else can register.
 2. Persons (§4): a Person display component ("Name (Institution)", restricted and erased forms), used for contacts and dataset contributors,
    then create, edit and erase forms, and a people list.
-3. Organisation legal entity (§3), needed before Persons can be created.
+3. Declaring a team tree's legal entity (§3), needed before Persons can be created.
 4. Profile page from `peopleMyPerson`: edit, ORCID (with a new `/orcid` route), claims, unlink, erase, and account deletion (§6, §8).
 5. Contacts on Programs and Trials, with messaging (§5).
 6. Claim requests for admins (§6).
 7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
 8. Record group extent and replicate aggregation (§11): the grouping form first, as creating a record grouping fails without it.
-9. The area renames (§13): every units, locations, layouts and teams operation fails until it is renamed, so do this
-   first, with step 8's grouping form, before the rest.
 
 New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 
@@ -56,17 +57,17 @@ New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a 
 | Registration | After the first account, `accountsCreateAccount` requires `invitationToken`, and the email must be the invited address | Read the token from the invitation link (§2) |
 | Person | `Person.fullname` is removed; `Person.name` can be null | Handle restricted and erased Persons (§4) |
 | Person | `PersonInput` and `PersonUpdate` change; `peopleDeletePerson` is replaced by `peopleErasePerson` | Update the forms (§4) |
-| Person | `peopleCreatePerson` needs the control team's organisation to have a legal entity, and `informedAttestation: true` | §3, §4 |
+| Person | `peopleCreatePerson` needs the control team's team tree to have a declared legal entity, and `informedAttestation: true` | §3, §4 |
 | Ontology | `authors` / `authorIds` are removed from every entry type and input | Remove from forms and views |
 | Ontology | `Role` and `Title` entries are removed: the `ROLE` and `TITLE` labels, the `Role` and `Title` types, `Term.roles`, `Term.titles`, and `roleIds` / `titleIds` in inputs | Remove from forms and views |
 | Germplasm | `GermplasmEntry.authors` and `authorIds` in inputs are removed | Cite authors through references |
 | Programs | `contactIds` must name Persons linked to an account and released widely enough | Show the errors (§5) |
-| Teams | `organisationsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
+| Teams | `teamsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
 | Programs | `GroupingInput` requires `extent` | Add it to the grouping form (§11.2) |
 | Units, locations, layouts, teams | The `blocks`, `regions`, `arrangements` and `organisations` areas are renamed `units`, `locations`, `layouts` and `teams`; `Location.region` and `Layout.arrangement` become `root`, `DatasetSummary.blocks` becomes `unitRoots` | Rename the operations and the response keys (§13) |
 
 Nothing else was renamed. Everything below that is not listed here is new.
-Sections before §13 still use the old area names, e.g. `organisationsDeclareLegalEntity` for `teamsDeclareLegalEntity`: §13 maps them.
+Every section uses the new names; §13 maps them from the old ones, which breedview still uses.
 
 ## 2. Registration and invitations
 
@@ -94,21 +95,25 @@ Allowed emails are replaced by invitations, which hold the invited address only 
 
 The first account on a new deployment still registers without an invitation.
 
-## 3. Organisations: legal entity
+## 3. Team trees: legal entity
 
-An organisation must declare the legal entity responsible for it before it can record Persons.
+The root team of a team tree (the teams under one root, from `teamsRoots`) may declare the legal entity responsible
+for it, e.g. a university, which is the data controller for the tree's Persons. Only team trees with a declared legal
+entity can record Persons; others only model collaboration. Show the legal entity on the root team
+("Legal entity: University of Galway") rather than labelling the tree as an organisation: an organisation need not be
+a legal entity, and a department's team tree may declare its university.
 
-- `Team.legalEntity` (organisation roots only): `legalName, privacyContact, termsVersion, declaredAt, declaredBy`.
+- `Team.legalEntity` (root teams only): `legalName, privacyContact, termsVersion, declaredAt, declaredBy`.
   `declaredBy` is only resolved for admins of the team.
-- `organisationsDataProcessingTerms` (no login needed) returns `version` and `url` of the current data processing terms.
+- `teamsDataProcessingTerms` (no login needed) returns `version` and `url` of the current data processing terms.
   When `version` is null, no terms are configured and declaring is not possible; hide the option.
 - Declaring, by admins of the root team only:
-  - when creating an organisation: `TeamInput.legalEntity { legalName, privacyContact, termsVersion }`, with no `parentId`;
-  - later: `organisationsDeclareLegalEntity(teamId, legalEntity)`.
+  - when creating a root team: `TeamInput.legalEntity { legalName, privacyContact, termsVersion }`, with no `parentId`;
+  - later: `teamsDeclareLegalEntity(teamId, legalEntity)`.
   Show the terms (link to `url`) and require the user to accept them; send the `version` shown as `termsVersion`.
   Declaring again replaces the current declaration, accepting the current terms again.
 - `privacyContact` should be a role address, such as `dataprotection@…`, not a person's own.
-- `organisationsWithdrawLegalEntity(teamId)` withdraws the declaration, by root admins. It is refused while the organisation controls any Person, including erased ones: they must be transferred first.
+- `teamsWithdrawLegalEntity(teamId)` withdraws the declaration, by root admins. It is refused while the team tree controls any Person, including erased ones: they must be transferred first.
 
 ## 4. Persons
 
@@ -134,7 +139,7 @@ Anonymous users get nothing; Persons they cannot see are omitted from lists.
 **Creating:** `peopleCreatePerson(person: PersonInput!, controlTeamId, release)` with `PersonInput { name, institution, teamIds, basis, informedAttestation }`.
 - `informedAttestation` must be true: ask the user to confirm the person has been informed that the record is held.
 - `basis` is `PUBLIC_TASK` (default) or `LEGITIMATE_INTEREST`.
-- Refused unless the control team's organisation has a legal entity (§3).
+- Refused unless the control team's team tree has a declared legal entity (§3).
 
 **Updating:** `peopleUpdatePerson(person: PersonUpdate!)` with `PersonUpdate { id, name, institution, teamIds, basis }`. An empty `institution` removes it.
 The linked user can change the name and institution only; other changes need curate access.
@@ -196,18 +201,18 @@ The `…By` users are often null, as user details are only shown to admins who c
 
 **Mutations:**
 - `controlsOfferTransfer(offer: { entities, fromTeamIds, recipientTeamId, keepFromTeams, toTeamIds, release })`.
-  The user must administer every team in `fromTeamIds`. `recipientTeamId` is often another organisation's root team.
+  The user must administer every team in `fromTeamIds`. `recipientTeamId` is often the root team of another team tree.
   `keepFromTeams: true` shares control instead of handing it over.
   If the user also administers the recipient team, giving `toTeamIds` (and `release`) accepts at once.
 - `controlsAcceptTransfer(id, toTeamIds, release)`: by admins of the recipient team. `toTeamIds` are the recipient team or teams below it that the user administers; `release` defaults to `PRIVATE`.
 - `controlsRejectTransfer(id)` (recipient side), `controlsCancelTransfer(id)` (offering side).
 - `controlsRenounceControl(entities, teamIds)`: give up control where other teams also control the entities.
 
-Persons can only be transferred to an organisation with a legal entity (§3), and shared only within one organisation.
+Persons can only be transferred to a team tree with a declared legal entity (§3), and shared only within one team tree.
 Admins of the recipient team are emailed about new offers.
 
 **Teams:**
-- `organisationsDeleteTeam` is refused while the team controls anything: transfer or renounce its control first.
+- `teamsDeleteTeam` is refused while the team controls anything: transfer or renounce its control first.
 - Deleting a team cancels pending transfers to or from it. Deleted teams no longer appear anywhere.
 - Offers may become impossible to accept if the offering team loses control in the meantime; accepting then returns an error.
 
@@ -222,7 +227,7 @@ Admins of the recipient team are emailed about new offers.
 
 - `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
 - Password reset with a token works again (it always failed before).
-- Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `organisationsDataProcessingTerms`. Everything else still requires login.
+- Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `teamsDataProcessingTerms`. Everything else still requires login.
 
 - Record groupings have an `extent` (record group types an optional `defaultExtent`), and analysis terms have a `replicateAggregation` (§11).
 
@@ -230,7 +235,7 @@ Admins of the recipient team are emailed about new offers.
 
 The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end has not shown at this scale. Nothing in the API changes for it, but expect:
 - **Size.** 41 fields with up to about 3,300 units each (field → trees → cherries and samples), 1,176 datasets of up to about 6,900 records,
-  35,665 units and 213,761 records in all, besides the curves. Block, dataset and analysis views should page or virtualise rather than load a whole field.
+  35,665 units and 213,761 records in all, besides the curves. Unit graph (the blocks page), dataset and analysis views should page or virtualise rather than load a whole field.
 - **Blocks, branches and leaves as record groups.** None is a unit. A branch's or leaf's records are on its tree, with the
   branch or leaf as a code in the study's Branch or Leaf grouping (`WITHIN_UNIT`), and a branch's canopy stratum in the
   Stratum grouping (`SHARED`). Records of what is in a BreedCAFS block carry its name in the Block grouping (`WITHIN_GRAPH`, §12),
@@ -462,3 +467,28 @@ The check does not see the response keys read in JavaScript: `result.data.region
 `composables/analysis/useAnalysisDataContext.js`, `components/regions/`, `components/blocks/`,
 `components/arrangements/ArrangementTree.vue`, `components/programs/DatasetScopeForm.vue` and
 `components/datasets/StudyDatasetsPanel.vue`; search for them too. The Apollo `Query` field policy for `blocksUnits` (`graphql/apollo.js`) becomes `unitsUnits`.
+
+**What each roots query returns** (unchanged, only renamed):
+- `unitsRoots(locationIds)`: the root units of the unit graphs positioned at those locations that the user can read a
+  unit in; a hidden root holding readable units is a placeholder (id, `REDACTED` name). Children load through
+  `Unit.children` or `unitsUnits`.
+- `locationsRoots`: the root location (a country) of every location tree the user can read a location in, not the
+  whole trees; `Location.children` and `locationsLocations(ids)` give the rest. `Location.root` is the root of the
+  location's tree (itself for a root).
+- `layoutsRoots(locationId)`: the root layout of every layout tree at that location (the argument is required).
+  `Layout.root` is the root of the layout's tree.
+- `teamsRoots`: every team tree's root, with the teams the user is affiliated with below it; anonymous users see the
+  roots only, with their legal entities.
+- `DatasetSummary.unitRoots`: the roots of the unit graphs of a dataset's units, a placeholder when hidden.
+
+**Access is unchanged**: the same fields work without login as before (`test_anonymous_queries.py` lists them), so the
+anonymous pages for regions, arrangements and blocks keep working once renamed; `teamsDataProcessingTerms` is still open.
+
+**Naming in the pages** is up to the front end. Routes, components and composables (`/regions`, `RegionsManagement`,
+`BlockManagement`, `blocksQuery.js`, ...) need not change, but if they are renamed: the API's "unit graph" is not a
+design block, which is now a `WITHIN_GRAPH` record group code (§12), so a page of unit graphs is better not called
+"Blocks"; show the legal entity on a root team rather than calling the tree an organisation (§3).
+
+**Order**: rename the operations, rerun `scripts/check_front_end_queries.py` until only real errors are left, then
+search the JavaScript for the response keys. Regenerate `src/graphql/schema.graphql` first (§0), so tooling sees the
+new fields.

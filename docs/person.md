@@ -28,23 +28,23 @@ A Person is **not**:
 
 BreedGraph is operated by a team within the university. Partner organisations enter data, including Person records about their own staff.
 
-Here an organisation is a team tree (the `TeamTree` aggregate, GraphQL area `teams`) whose root team has declared a legal entity.
-A team tree without a declaration is not an organisation; withdrawing the declaration makes it a plain team tree again.
+Teams form team trees (the `TeamTree` aggregate, GraphQL area `teams`), each under one root team. "Organisation" is used below
+only in its everyday sense: a team tree may stand for one, but what the rules depend on is whether its root has declared a legal entity.
 
-- **Each organisation has exactly one legal entity, declared on its root team.**
+- **Each team tree has at most one legal entity, declared on its root team.**
   Child teams never declare a legal entity of their own.
-  An organisation's team tree can model a collaborative network for data registration, but a Person always has one definite responsible party.
-  Partners in a consortium who are separate legal entities are separate organisations.
-- **The data controller of a Person is the legal entity of the organisation containing the record's write team.**
+  A team tree can model a collaborative network for data registration, but a Person always has one definite responsible party.
+  Partners in a consortium who are separate legal entities need separate team trees.
+- **The data controller of a Person is the legal entity of the team tree containing the record's write team.**
   The write team comes from the creating user's write affiliation.
-  The user acts on behalf of that organisation; the user is not the data controller.
-- **The agreement is made when a root team declares its legal entity**, which makes its team tree an organisation: when the root is created (a team without a parent, or a team moved to become a root), or later.
+  The user acts on behalf of that legal entity; the user is not the data controller.
+- **The agreement is made when a root team declares its legal entity**: when the root is created (a team without a parent, or a team moved to become a root), or later.
   The creating admin gives the legal entity's name and a privacy contact (a role address such as `dataprotection@partner.org`, not an individual's), and accepts the BreedGraph data processing terms.
   The terms set out the university's role as host, and the partner's responsibilities as data controller: informing staff, handling requests from people about their data, and erasure.
   The terms text comes from the university's DPO or legal office. The software records who accepted which version, and when.
 - The formal arrangement between the university and partners (joint controllers under Art. 26, or processor under Art. 28) is set by those terms or a consortium agreement, not by the software.
 - Release decisions follow the existing access-control pattern: admins of the controlling team decide who can read the record, up to public release.
-  Releasing a Person publicly is a disclosure decision, so the organisation's privacy notice must cover public attribution.
+  Releasing a Person publicly is a disclosure decision, so the legal entity's privacy notice must cover public attribution.
 
 #### Legal entity declarations
 
@@ -61,38 +61,38 @@ A team tree without a declaration is not an organisation; withdrawing the declar
 - Declaring again creates a new declaration and accepts the current terms again. Earlier declarations are kept, and only the latest is current.
 - Visibility follows the team: the legal name, privacy contact, terms version and time are visible wherever the root team is.
   Who declared is visible to admins of the root team only, as for affiliations.
-- `teamsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the organisation controls a Person, including erased Persons; transfer them first.
+- `teamsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the team tree controls a Person, including erased Persons; transfer them first.
   The declaration is kept, marked with who withdrew it and when.
 
 #### Declaring is optional
 
-Declaring a legal entity is optional for a team tree. Team trees that only model collaboration can exist without one, and are not organisations.
-**Creating a Person requires the write team to be in an organisation**, i.e. its team tree to have a declared legal entity.
+Declaring a legal entity is optional for a team tree. Team trees that only model collaboration can exist without one.
+**Creating a Person requires the write team's team tree to have a declared legal entity.**
 Root admins of team trees created without a declaration can declare one later and accept the terms at that point.
 
-#### One organisation per Person
+#### One team tree per Person
 
-A Person's access controls may only name teams in a single organisation.
-`Controller.controls` can otherwise hold teams from several organisations, which would leave the data controller ambiguous.
-`set_controls` for a Person refuses control teams from another organisation.
+A Person's access controls may only name teams in a single team tree.
+`Controller.controls` can otherwise hold teams from several team trees, which would leave the data controller ambiguous.
+`set_controls` for a Person refuses control teams from another team tree.
 
 #### Changing the data controller
 
-Any change that would put a Person under a different organisation is a **transfer of data controller**.
+Any change that would put a Person under a different team tree is a **transfer of data controller**.
 This can happen in several ways:
 
 | Change | Effect on Persons controlled by the moved teams |
 |---|---|
-| Move a team within its organisation | None |
-| Split: a team becomes the root of a new organisation | Would move to the new organisation |
-| Merge: a root becomes a child of a team in another organisation | Would move to the other organisation. The merged root's declaration ends, since only roots declare |
-| Move a team to another organisation | Would move to the other organisation |
-| Set a Person's control teams to teams in another organisation | Would move to the other organisation |
+| Move a team within its team tree | None |
+| Split: a team becomes the root of a new team tree | Would move to the new team tree |
+| Merge: a root becomes a child of a team in another team tree | Would move to the other team tree. The merged root's declaration ends, since only roots declare |
+| Move a team to another team tree | Would move to the other team tree |
+| Set a Person's control teams to teams in another team tree | Would move to the other team tree |
 | Delete a team that controls Persons | Would leave Persons without a controlling team |
 
 All of these go through the control transfer mechanism in `control-transfer.md`, which applies to every controlled entity:
 an admin on the giving side offers, an admin on the receiving side accepts, and the transfer is recorded.
-For Persons, the receiving organisation must have a declared legal entity, and this applies to erased Persons too.
+For Persons, the receiving team tree must have a declared legal entity, and this applies to erased Persons too.
 
 As for every controlled entity, a Person is created with an explicit write team (`control-transfer.md` §6).
 
@@ -100,7 +100,7 @@ Declarations are kept as history when a root stops being a root, so it remains p
 
 **Terminology.** In GDPR, a *data controller* is the legal organisation responsible for the data.
 In BreedGraph, `Controller` is the access-control object on a model.
-They are connected through the controlling team's organisation, but are not the same thing.
+They are connected through the controlling team's team tree, but are not the same thing.
 Documents about data protection should say "data controller" for the legal sense.
 
 ## 3. Model
@@ -328,10 +328,10 @@ The user is asked whether to erase their Person record as well. Erasure is the d
 
 | Question | Decision |
 |---|---|
-| Data controllers | The legal entity declared on the root of the organisation containing the record's write team (see §2). One legal entity per organisation. |
-| Agreement | Accepted when a root team declares its legal entity, making its team tree an organisation: when the root is created, or later. No separate operator approval. |
-| Declaring a legal entity | Optional for a team tree, which is an organisation once declared; required to create a Person. Can be declared after the root is created. |
-| Changing the data controller | Through the general control transfer mechanism (`control-transfer.md`), with the receiving organisation required to have a declared legal entity (§2). |
+| Data controllers | The legal entity declared on the root of the team tree containing the record's write team (see §2). At most one legal entity per team tree. |
+| Agreement | Accepted when a root team declares its legal entity: when the root is created, or later. No separate operator approval. |
+| Declaring a legal entity | Optional for a team tree, required to create a Person. Can be declared after the root is created. |
+| Changing the data controller | Through the general control transfer mechanism (`control-transfer.md`), with the receiving team tree required to have a declared legal entity (§2). |
 | ORCID | Set only by the linked User through ORCID sign-in. Not recorded for unlinked Persons. |
 | Public attribution | Follows the existing release pattern. Admins of the controlling team decide, up to public release. |
 | User and Person names | The Person keeps its own `name`, so people choose how they are credited, separate from their account name. |
@@ -344,15 +344,15 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 
 ## 9. Implementation plan
 
-0. **Organisation legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `teamsDeclareLegalEntity`, `teamsDataProcessingTerms`).
-   The check that the write team's organisation has a legal entity is added with Person (`TeamTree.legal_entity`).
+0. **Team tree legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `teamsDeclareLegalEntity`, `teamsDataProcessingTerms`).
+   The check that the write team's team tree has a legal entity is added with Person (`TeamTree.legal_entity`).
    Builds on the control transfer mechanism (`control-transfer.md`), which is implemented first. The Person rule (§2) is added to its entity-specific rules.
 1. **Domain.** Done: `PersonInput` requires a name and the informed attestation; `PersonStored` adds `orcid`, `user`, provenance and `erased_at`, `redacted()` gives readers and the linked user the full record and other registered users the ID only, and `erase()` clears identifying data for admins of the controlling teams or the linked user. `LawfulBasis` enumerates the bases.
 2. **Commands.** Done: `CreatePerson`, `UpdatePerson`, `ErasePerson`, replacing `DeletePerson`.
 3. **Cypher and repository.** Done: queries rewritten for the reduced model, fixing the wrong `teams` match, the role and title labels (both removed), the unescaped name search, and the error on a missing ID.
    Persons cannot be removed. `ControlledRepository._can_change` lets the linked user store changes to their own record, and admins of the controlling teams store an erasure, besides curators.
-4. **Handlers.** Done: creating requires the write team's organisation to have a declared legal entity and the referenced teams to exist; updating an erased Person is refused, and the linked user can change only the name; erasing raises `PersonErased`, which is written to the erasure log. Replay script and backup scripts as in §5.
-   Person rules for control transfers: the receiving organisation must have a declared legal entity, and shared control stays within one organisation.
+4. **Handlers.** Done: creating requires the write team's team tree to have a declared legal entity and the referenced teams to exist; updating an erased Person is refused, and the linked user can change only the name; erasing raises `PersonErased`, which is written to the erasure log. Replay script and backup scripts as in §5.
+   Person rules for control transfers: the receiving team tree must have a declared legal entity, and shared control stays within one team tree.
 5. **GraphQL.** Done: `Person` type with `restricted` (id only) and `erased` flags, queries `people(name)`, `peoplePeople(ids)` and `peoplePerson(id)`, mutations `peopleCreatePerson`, `peopleUpdatePerson` and `peopleErasePerson`.
    `update_people_map` loads Persons by id into the request context; lookups by id return the id-only form to registered users without read access.
    Mutation resolvers log IDs and actions only.

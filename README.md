@@ -212,9 +212,9 @@ There is currently no facility to request an invitation.
 ### Team tree
 A team tree is a tree of [teams](#team) with a single root team.
 These form the foundation of [access control](#access-control) logic.
-A team tree whose root team has declared a legal entity is an organisation, such as a university: the data controller
-for the Persons its teams record. Only organisations can record Persons. Withdrawing the declaration, which is refused
-while the tree controls any Person, makes it a plain team tree again.
+Its root team may declare a legal entity, such as a university, which is the data controller for the Persons the
+tree's teams record. Only team trees with a declared legal entity can record Persons. The declaration can be withdrawn
+while the tree controls no Person.
 
 In the GraphQL interface, the teamsCreateTeam mutation will create a team.
 If the optional "parent" parameter is not supplied then the created team 
