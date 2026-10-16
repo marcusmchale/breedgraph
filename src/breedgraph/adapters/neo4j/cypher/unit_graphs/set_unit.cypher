@@ -17,19 +17,19 @@ CALL (unit) {
 }
 
 // Update germplasm
-OPTIONAL CALL (unit) {
+CALL (unit) {
   MATCH (unit)-[of_germplasm:OF_GERMPLASM]->(germplasm:Germplasm)
     WHERE NOT germplasm.id = $germplasm
   DELETE of_germplasm
 }
-OPTIONAL CALL (unit) {
+CALL (unit) {
   MATCH (germplasm:Germplasm {id: $germplasm})
   MERGE (unit)-[of_germplasm:OF_GERMPLASM]->(germplasm)
   ON CREATE SET of_germplasm.time = datetime.transaction()
 }
 
 // Update positions
-OPTIONAL CALL (unit ){
+CALL (unit ){
   MATCH (unit)-[:IN_POSITION]->(position:Position)
   DETACH DELETE position
 }

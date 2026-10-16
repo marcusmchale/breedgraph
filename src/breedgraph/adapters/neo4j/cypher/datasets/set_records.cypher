@@ -28,7 +28,7 @@ ORDER BY cnt
     WHERE NOT reference.id in record_data['references']
     DELETE reference_for
   }
-  OPTIONAL CALL (record_data, record)  {
+  CALL (record_data, record)  {
     MATCH (reference: Reference) WHERE reference.id in record_data['references']
     MERGE (reference)-[ref_for:REFERENCE_FOR]->(record)
   }
@@ -37,7 +37,7 @@ ORDER BY cnt
     OPTIONAL MATCH (record)-[group_rel:IN_GROUP]->(:RecordGroup)
     DELETE group_rel
   }
-  OPTIONAL CALL (record, record_data) {
+  CALL (record, record_data) {
     UNWIND record_data.groups AS group_data
     MATCH (grouping:RecordGrouping {id: group_data.id})
     MERGE (grouping)-[:HAS_GROUP]->(group:RecordGroup {code: group_data.code})

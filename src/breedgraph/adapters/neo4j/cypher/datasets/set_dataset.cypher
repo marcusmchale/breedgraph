@@ -27,7 +27,7 @@ CALL (dataset) {
   WHERE NOT person.id IN [contribution IN $contributions | contribution.person]
   DELETE contributed
 }
-OPTIONAL CALL (dataset) {
+CALL (dataset) {
   UNWIND $contributions AS contribution
   MATCH (person: Person {id: contribution.person})
   MERGE (person)-[contributed:CONTRIBUTED_TO]->(dataset)
@@ -39,7 +39,7 @@ CALL (dataset) {
   WHERE NOT reference.id in $references
   DELETE reference_for
 }
-OPTIONAL CALL (dataset) {
+CALL (dataset) {
   MATCH (reference: Reference) WHERE reference.id in $references
   MERGE (reference)-[ref_for:REFERENCE_FOR]->(dataset)
 }

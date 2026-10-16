@@ -10,9 +10,9 @@ All API changes since the snapshot are listed here.
 
 ## 0. Starting point and work list
 
-**Where the front end is.** It is up to date with the API up to the analysis and record grouping work.
-It has none of the changes below: no Person pages or forms (contacts and contributors are only read, as `{ id }` and `{ id name }`),
-no invitations, transfers, legal entities, account deletion or ORCID. The regions components had uncommitted changes on 2026-10-13.
+**Where the front end is (2026-10-16).** §1–§10 are done (Persons, invitations, legal entities, claims, ORCID, transfers,
+account deletion). Most of §11 is done on breedview's `record_group_extent` branch, not merged. §12 (WITHIN_GRAPH), §13 (renames),
+§14 (contributions, roles, sources, locks) and §15 (times) are not started.
 
 **First:** regenerate the schema files with the API running, so tooling and the Apollo cache know the new types:
 `node scripts/fetchGraphqlSchema.js` writes `src/graphql/schema.graphql`; regenerate `possibleTypes.json` and `unionTypes.json` the same way
@@ -47,6 +47,9 @@ in this repository lists the operations that no longer validate (§10).
 6. Claim requests for admins (§6).
 7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
 8. Record group extent and replicate aggregation (§11): the grouping form first, as creating a record grouping fails without it.
+9. The WITHIN_GRAPH extent (§12).
+10. Contributions with roles, Role entries, sources and locked entries (§14).
+11. Times (§15): observation times are local, partial times are periods, server timestamps carry an offset.
 
 New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 

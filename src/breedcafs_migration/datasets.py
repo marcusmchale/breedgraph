@@ -241,7 +241,8 @@ async def prepare_breedcafs_datasets(
         logger.info(f"Left out {plan.repeats_left_out} records loaded without a submission, repeating submitted records")
     scales = {}
 
-    for (study, submission_time, submitter_id), keys in plan.submissions().items():
+    submissions = plan.submissions()
+    for number, ((study, submission_time, submitter_id), keys) in enumerate(submissions.items(), start=1):
         if all(key in ids.datasets for key in keys):
             continue
         async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
@@ -282,6 +283,11 @@ async def prepare_breedcafs_datasets(
         ids.datasets.update(created)
         ids.created += len(created)
         write_mapping(ids)
+        # one line per submission, as each is a transaction and the slow part: progress for a long migration
+        logger.info(
+            f"Submission {number} of {len(submissions)} ({study}, {submission_time}): {len(created)} datasets, "
+            f"{sum(len(plan.datasets[key]) for key in created)} records"
+        )
 
     logger.info(f"Prepared datasets: {ids.created} created with {ids.records} records, {len(ids.datasets)} in all")
     return ids

@@ -7,7 +7,7 @@ CREATE (commit: OntologyCommit {
   comment: $comment
 })
 WITH latest_commit, commit
-OPTIONAL CALL (latest_commit, commit) {
+CALL (latest_commit, commit) {
   WITH commit, latest_commit WHERE latest_commit IS NOT NULL
   CREATE (latest_commit)-[:PRECEDES_COMMIT]->(commit)
 }

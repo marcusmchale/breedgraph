@@ -5,7 +5,7 @@ Two Neo4j dumps for development, kept in `test_databases/` under `NEO4J_ARCHIVE_
 
 | Dump | What it holds | Sharing |
 |---|---|---|
-| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests and its replicates study, generated, optionally with data at scale | **Public**: synthetic, with known credentials. breedview's e2e and performance tests run against it |
+| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests and its replicates study, generated, optionally with data at scale | **Public** when built from a fresh store (below): synthetic, with known credentials. breedview's e2e and performance tests run against it |
 | `test_database_breedcafs.dump`, `test_database_breedcafs.manifest.json`, `test_database_breedcafs_files/` | The same scenario plus a rehearsal of the BreedCAFS migration | **Private**: BreedCAFS data and Person data, `PRIVATE` under the migration team. Never share it or publish it like the public dump |
 
 There is one Neo4j instance (Community allows one active database). The dev database is switched between dumps
@@ -55,7 +55,21 @@ Then start the API (`uvicorn src.breedgraph.main:app`) and log in with an accoun
 
 ## Building the public dump
 
-The build runs on an empty Neo4j and Redis, which a run of the test suite leaves:
+**Start from a fresh store**, not just an empty database, if the dump may be shared. A dump holds every transaction
+log Neo4j keeps (`db.tx_log.rotation.retention_policy`, by default 2 days or 2 GB) as well as the store, and the store
+keeps the bytes of deleted records until they are overwritten. An emptied dev database still holds, in both, whatever
+was written before: the test suite's BreedCAFS migration tests write real BreedCAFS data. The dumps of 2026-10-16
+were built without this step, and each holds about 2.5 GB of such logs (uncompressed). With Neo4j stopped, remove the
+database's store and logs, and Neo4j creates an empty database when it starts (`sudo`):
+
+```bash
+sudo service neo4j stop
+sudo rm -r /var/lib/neo4j/data/databases/neo4j /var/lib/neo4j/data/transactions/neo4j
+sudo service neo4j start
+```
+
+(The paths are `server.directories.data` in `/etc/neo4j/neo4j.conf` and `DATABASE_NAME`. Dump anything you want to keep
+first.) The build also needs an empty Redis: flush it if the test suite has not just run. Then build:
 
 ```bash
 set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
@@ -132,7 +146,8 @@ The BreedCAFS dump is a rehearsal of the migration (`src/breedcafs_migration/RUN
 build. It needs the extracted BreedCAFS data in `src/data/breedcafs_migration/`, and the production germplasm in
 `src/data/germplasm/`.
 
-1. Build the public database as above, or restore it. A build to another manifest path leaves the public dump's
+1. Build the public database as above, or restore it, or rehearse straight after dumping the public build, on the
+   same database and with its manifest (as on 2026-10-16). A build to another manifest path leaves the public dump's
    files alone:
    ```bash
    python scripts/build_test_database.py --manifest <scratch>/rehearsal_base.manifest.json --scale

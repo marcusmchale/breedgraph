@@ -8,7 +8,7 @@ CALL (study) {
     WHERE NOT reference.id IN $reference_ids
   DELETE reference_for
 }
-OPTIONAL CALL (study) {
+CALL (study) {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
   MERGE (reference)-[reference_for:REFERENCE_FOR]->(study)
 }
@@ -18,7 +18,7 @@ CALL (study) {
     WHERE NOT design.id = $design_id
   DELETE has_design
 }
-OPTIONAL CALL (study) {
+CALL (study) {
   MATCH (design: Design {id :$design_id})
   MERGE (study)-[:USES_DESIGN]->(design)
 }
@@ -28,7 +28,7 @@ CALL (study) {
     WHERE NOT licence.id = $licence_id
   DELETE uses_licence
 }
-OPTIONAL CALL (study) {
+CALL (study) {
   MATCH (licence: Reference {id: $licence_id})
   MERGE (study)-[:USES_LICENCE]->(licence)
 }

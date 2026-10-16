@@ -19,7 +19,7 @@ CALL (location) {
   RETURN collect(type.id)[0] as type
 }
 // Remove existing coordinates
-OPTIONAL CALL (location) {
+CALL (location) {
   MATCH (location)<-[coordinate_of:COORDINATE_OF]-(coordinate: Coordinate)
   DETACH DELETE coordinate
 }
