@@ -7,7 +7,7 @@ import pytest_asyncio
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import LocationTypeInput, OntologyEntryLabel
-from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 
 from breedcafs_migration import locations
 from breedcafs_migration.bootstrap import MigrationContext
@@ -52,7 +52,7 @@ async def locations_context(isolated_state, uow_factory) -> dict:
 
     # A country another team has already registered
     async with uow_factory.get_uow(user_id=others['user_id'], write_team=others['team_id'], release=ReadRelease.PUBLIC) as uow:
-        region = await uow.repositories.regions.create(
+        location_tree = await uow.repositories.location_trees.create(
             LocationInput(name="Nicaragua", code="NIC", type=location_types["Country"])
         )
         await uow.commit()
@@ -60,7 +60,7 @@ async def locations_context(isolated_state, uow_factory) -> dict:
     return {
         'context': MigrationContext(user_id=migration['user_id'], team_id=migration['team_id']),
         'location_types': location_types,
-        'nicaragua_id': region.get_root_id()
+        'nicaragua_id': location_tree.get_root_id()
     }
 
 
@@ -83,7 +83,7 @@ async def test_prepare_locations(uow_factory, state_store, locations_context, tm
     assert len(set(ids.fields.values())) == 3
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
-        nicaragua = await uow.repositories.regions.get(location_id=ids.countries["Nicaragua"])
+        nicaragua = await uow.repositories.location_trees.get(location_id=ids.countries["Nicaragua"])
         field_a = nicaragua.get_location(ids.fields['1'])
         assert field_a.name == "Field A"
         assert field_a.type == locations_context['location_types']["Field"]
@@ -98,7 +98,7 @@ async def test_prepare_locations(uow_factory, state_store, locations_context, tm
         denmark = await uow.controls.get_controller(field_a.label, ids.countries["Denmark"])
         assert denmark.release is ReadRelease.PUBLIC
 
-        france = await uow.repositories.regions.get(location_id=ids.countries["France"])
+        france = await uow.repositories.location_trees.get(location_id=ids.countries["France"])
         assert france.root.code == "FRA"
         ird = france.get_location(ids.sample_locations["Montpellier/ IRD"])
         assert ird.name == "IRD Montpellier"

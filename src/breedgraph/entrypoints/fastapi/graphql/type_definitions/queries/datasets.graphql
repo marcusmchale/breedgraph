@@ -51,7 +51,7 @@ type Dataset {
     concept: OntologyNodeInterface
     """
     The dataset's records, in submission order. Without arguments, all of them.
-    unitIds narrows them to the records of those units and of every unit below the readable ones (a block or a plot
+    unitIds narrows them to the records of those units and of every unit below the readable ones (a unit graph or a plot
     selects what it contains; a hidden unit only its own records); start and end to records whose own period overlaps the window;
     offset and limit page through the result.
     """
@@ -126,7 +126,7 @@ type DatasetSummary {
     concept: OntologyNodeInterface!,
     subjects: [Subject]
     locations: [Location]
-    blocks: [Unit]
+    unitRoots: [Unit]
     unit_count: Int!
     record_count: Int!
     start: DateTime

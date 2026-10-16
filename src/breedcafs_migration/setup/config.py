@@ -12,7 +12,7 @@ BREEDCAFS_TEAM_NAME = os.getenv('BREEDCAFS_TEAM_NAME', 'BreedCAFS Migration')
 
 # The BreedGraph user that runs the migration: an admin, through a heritable affiliation, of the parent team
 BREEDCAFS_ADMIN_USER_ID = os.getenv('BREEDCAFS_ADMIN_USER_ID')
-# The team the migration team is created under, in an organisation with a declared legal entity (University of Galway)
+# The team the migration team is created under, in a team tree with a declared legal entity (University of Galway)
 BREEDCAFS_PARENT_TEAM_ID = os.getenv('BREEDCAFS_PARENT_TEAM_ID')
 
 # The extracted and curated CSV files, and the mappings written by each phase. Not in git.

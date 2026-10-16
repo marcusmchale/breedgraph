@@ -6,11 +6,11 @@ import pytest_asyncio
 from numpy import datetime64
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.arrangements import LayoutInput
+from breedgraph.domain.model.layout_trees import LayoutInput
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.germplasm import GermplasmInput
 from breedgraph.domain.model.ontology import SubjectInput, LocationTypeInput, LayoutTypeInput, OntologyEntryLabel, AxisType
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.location_trees import LocationInput
 
 from breedcafs_migration import units
 from breedcafs_migration.bootstrap import MigrationContext
@@ -99,21 +99,21 @@ async def units_context(isolated_state, uow_factory) -> dict:
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id, release=ReadRelease.PUBLIC) as uow:
-        region = await uow.repositories.regions.create(LocationInput(name="Viet Nam", code="VNM", type=country_type.id))
+        location_tree = await uow.repositories.location_trees.create(LocationInput(name="Viet Nam", code="VNM", type=country_type.id))
         for name in ("ED1", "Parcel 1", "IRD Montpellier"):
-            region.add_location(LocationInput(name=name, type=field_type.id), parent_id=region.get_root_id())
+            location_tree.add_location(LocationInput(name=name, type=field_type.id), parent_id=location_tree.get_root_id())
         await uow.commit()
-        location_ids = {location.name: location.id for location in region.yield_locations_by_type(field_type.id)}
+        location_ids = {location.name: location.id for location in location_tree.yield_locations_by_type(field_type.id)}
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
         layout_ids = {}
         for key, type_id, axes in (
                 (('1', '', ROW_AND_TREE), row_and_tree.id, ["Row", "Tree"]),
         ):
-            arrangement = await uow.repositories.arrangements.create(
+            layout_tree = await uow.repositories.layout_trees.create(
                 LayoutInput(name=str(key), type=type_id, location=location_ids["ED1"], axes=axes)
             )
-            layout_ids[key] = arrangement.get_root_id()
+            layout_ids[key] = layout_tree.get_root_id()
         catimor = await uow.germplasm.create_entry(GermplasmInput(name="Catimor"))
         caturra = await uow.germplasm.create_entry(GermplasmInput(name="Caturra"))
         await uow.commit()
@@ -172,11 +172,11 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
     assert (unmigrated['1_S10']['block'], json.loads(unmigrated['1_S10']['parents'])) == ('Block 1', ['1_B1'])
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
-        block = await uow.repositories.blocks.get(unit_id=ids.units['1'])
-        unit = lambda uid: block.get_unit(ids.units[uid])
-        parents = lambda uid: set(block.get_parent_ids(ids.units[uid]))
+        unit_graph = await uow.repositories.unit_graphs.get(unit_id=ids.units['1'])
+        unit = lambda uid: unit_graph.get_unit(ids.units[uid])
+        parents = lambda uid: set(unit_graph.get_parent_ids(ids.units[uid]))
 
-        assert block.get_root_id() == ids.units['1']
+        assert unit_graph.get_root_id() == ids.units['1']
         field_unit = unit('1')
         assert (field_unit.name, field_unit.subject, field_unit.description) == ("ED1", subjects["Field"], "BreedCAFS item 1")
         assert [p.location_id for p in field_unit.positions] == [units_context['locations'].fields['1']]
@@ -207,7 +207,7 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
         assert controller.release is ReadRelease.PRIVATE
         assert set(controller.controls) == {context.team_id}
 
-        shade = await uow.repositories.blocks.get(unit_id=ids.units['25'])
+        shade = await uow.repositories.unit_graphs.get(unit_id=ids.units['25'])
         assert set(shade.get_parent_ids(ids.units['25_T1'])) == {ids.units['25']}
         assert shade.get_unit(ids.units['25_T1']).description == description('25_T1')
 

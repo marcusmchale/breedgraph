@@ -19,7 +19,7 @@ from analysis_worker.service_layer.runner import run_job
 
 from tests.breedgraph.e2e.analysis.post_methods import post_to_submit_analysis, worker_headers
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success, with_auth
-from tests.breedgraph.scenarios.block_builder import BlockBuilder
+from tests.breedgraph.scenarios.unit_graph_builder import UnitGraphBuilder
 from tests.breedgraph.scenarios.dataset_builder import DatasetBuilder
 from tests.breedgraph.scenarios.germplasm_builder import GermplasmBuilder
 from tests.breedgraph.scenarios.ontology_builder import OntologyBuilder
@@ -45,7 +45,7 @@ async def analysis_context(dataset_build_context, uow_factory) -> dict:
     units = []
     for g, germplasm_id in enumerate(germplasm_ids):
         for u in range(UNITS_PER_GERMPLASM):
-            units.append((await BlockBuilder(uow_factory).unit(user_id, team_id, germplasm_id=germplasm_id), g, u))
+            units.append((await UnitGraphBuilder(uow_factory).unit(user_id, team_id, germplasm_id=germplasm_id), g, u))
 
     height_records, light_records = [], []
     for i, (unit_id, g, u) in enumerate(units):

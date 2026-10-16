@@ -26,10 +26,10 @@ def test_counts(scale):
 async def test_admin_reads_it_all(views_factory, read_policy, scale):
     p = PARAMETERS
     async with views_factory.get_views(user_id=read_policy['admin']) as views:
-        locations = await views.regions.get_locations([scale.ids[field_key(n)] for n in range(1, p.fields + 1)])
+        locations = await views.location_trees.get_locations([scale.ids[field_key(n)] for n in range(1, p.fields + 1)])
         assert {location.name for location in locations.values()} == {scale.names[field_key(n)] for n in range(1, p.fields + 1)}
 
-        roots = await views.units.get_block_roots([scale.ids[field_key(1)]])
+        roots = await views.units.get_unit_graph_roots([scale.ids[field_key(1)]])
         assert [root.id for root in roots] == [scale.ids['scale_field_unit_01']]
         by_subject = await views.units.get_descendants_by_subject([roots[0].id])
         assert sorted(len(units) for units in by_subject.values()) == sorted([p.trees_per_field, p.trees_per_field * p.leaves_per_tree])
@@ -46,6 +46,6 @@ async def test_admin_reads_it_all(views_factory, read_policy, scale):
 async def test_outsider_reads_none_of_it(views_factory, read_policy, scale):
     async with views_factory.get_views(user_id=read_policy['outsider']) as views:
         assert await views.datasets.get_datasets(study_ids=[scale.ids[study_key(1)]]) == []
-        assert await views.units.get_block_roots([scale.ids[field_key(1)]]) == []
+        assert await views.units.get_unit_graph_roots([scale.ids[field_key(1)]]) == []
         study = await views.programs.get_study(scale.ids[study_key(1)])
         assert study.name == 'REDACTED'

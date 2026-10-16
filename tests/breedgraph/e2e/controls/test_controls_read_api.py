@@ -30,7 +30,7 @@ QUERY = (
     "}"
 )
 WRITERS = {'root': 'admin', 'child': 'writer', 'other': 'stranger'}
-# a team other than an organisation's root is visible only to its affiliates; the root stands in for it
+# a team other than a team tree's root is visible only to its affiliates; the root stands in for it
 STAND_INS = {'child': 'root'}
 
 

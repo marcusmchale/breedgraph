@@ -89,7 +89,7 @@ async def test_dataset_summaries(client, login_token_factory, read_policy, viewe
     result = await query(
         client, login_token_factory, read_policy, viewer, 'datasetsSummaries',
         "query ($studyId: ID!) { datasetsSummaries(studyId: $studyId) { "
-        "  status result { id record_count unit_count subjects { id } blocks { id name } locations { id name } } "
+        "  status result { id record_count unit_count subjects { id } unitRoots { id name } locations { id name } } "
         "  errors { name message } } }",
         {'studyId': read_policy['study_public']}
     )
@@ -99,10 +99,10 @@ async def test_dataset_summaries(client, login_token_factory, read_policy, viewe
     for name in expected:
         summary = summaries[read_policy[name]]
         assert summary['record_count'] == len(DATASETS[name]['records'])
-        # the block root is linked even though the viewer may not read it, as a placeholder
-        for block in summary['blocks']:
-            assert int(block['id']) == read_policy['field_unit']
-            assert (block['name'] != REDACTED) == read_policy.readable(viewer, 'field_unit')
+        # the unit graph root is linked even though the viewer may not read it, as a placeholder
+        for unit_graph in summary['unitRoots']:
+            assert int(unit_graph['id']) == read_policy['field_unit']
+            assert (unit_graph['name'] != REDACTED) == read_policy.readable(viewer, 'field_unit')
         # tree_public is at the private state
         for location in summary['locations']:
             assert int(location['id']) == read_policy['state']

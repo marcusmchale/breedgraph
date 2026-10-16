@@ -8,7 +8,7 @@ from typing import Iterator
 from numpy import datetime64
 
 from breedgraph.domain.model.analysis import AnalysisRequest, AnalysisTermType
-from breedgraph.domain.model.blocks import Position
+from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.model.datasets import DatasetStored, RecordGroup
 from breedgraph.domain.model.ontology import ScaleType, RecordGroupExtent
 from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
@@ -20,7 +20,7 @@ class UnitContext:
     germplasm_id: int | None = None
     positions: list[Position] = field(default_factory=list)
     ancestor_ids: list[int] = field(default_factory=list)  # closest first
-    root_id: int | None = None  # root of its graph (block), even if hidden from the user, for WITHIN_GRAPH codes
+    root_id: int | None = None  # root of its graph, even if hidden from the user, for WITHIN_GRAPH codes
 
 @dataclass
 class ConceptContext:

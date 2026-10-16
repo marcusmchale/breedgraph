@@ -1,12 +1,12 @@
 from .commands import (
     accounts as accounts_commands,
-    arrangements,
-    blocks,
+    layout_trees,
+    unit_graphs,
     datasets,
     ontologies,
-    organisations,
+    team_trees,
     people,
-    regions,
+    location_trees,
     setup,
     controls
 )

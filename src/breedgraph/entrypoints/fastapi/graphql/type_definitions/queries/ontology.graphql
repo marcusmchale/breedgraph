@@ -43,7 +43,7 @@ enum OntologyNodeLabel {
     """
     TERM
     """
-    Subject entries describe Units (see Blocks) being observed in a study.
+    Subject entries describe Units (see Unit graphs) being observed in a study.
     These are linked to Unit and Trait.
     Examples: "Leaf", "Tree", "Field", "Rhizosphere"
     """
@@ -127,13 +127,13 @@ enum OntologyNodeLabel {
     EVENT
     """
     LocationType entries describe types of locations.
-    These are linked to Location (see Regions).
+    These are linked to Location (see Location trees).
     Examples: "Country", "State", "Field"
     """
     LOCATION_TYPE
     """
-    LayoutType entries describe types of arrangements.
-    These are linked to Layout (see Arrangements).
+    LayoutType entries describe types of layout trees.
+    These are linked to Layout (see Layout trees).
     Examples: "Grid", "Rows"
     """
     LAYOUT_TYPE
@@ -152,7 +152,7 @@ enum OntologyNodeLabel {
     Note: Record groups are intended for grouping records according to study-specific or
     process-specific contexts, such as replication or laboratory processing.
     Long-term shared entities and their relationships should instead be represented as
-    Units within Blocks. Likewise, factors in a study should be represented as records
+    Units within Unit graphs. Likewise, factors in a study should be represented as records
     in a dataset rather than as record groups.
     """
     RECORD_GROUP_TYPE
@@ -220,7 +220,7 @@ A code can mean the same on every unit (e.g. a canopy stratum "Lower"); the exte
 enum RecordGroupExtent {
     """
     Records of different units with the same code are one group, a level that can be estimated across units,
-    e.g. a block, batch, session or canopy stratum.
+    e.g. a unit graph, batch, session or canopy stratum.
     """
     SHARED
     """
@@ -230,7 +230,7 @@ enum RecordGroupExtent {
     """
     WITHIN_UNIT
     """
-    Codes are nested in the root of each record unit's graph (block): records of units of one graph with the same
+    Codes are nested in the root of each record unit's graph: records of units of one graph with the same
     code are one group, a level that can be estimated across those units, e.g. the design blocks of a field,
     whose names recur in other fields. Otherwise as SHARED.
     """
@@ -399,7 +399,7 @@ interface RelatedToTerms {
 }
 
 """
-Subject entries describe Units (see Blocks) being observed in a study.
+Subject entries describe Units (see Unit graphs) being observed in a study.
 These are linked to Unit and Trait.
 Examples: "Leaf", "Tree", "Field", "Rhizosphere"
 """
@@ -784,7 +784,7 @@ type Event implements OntologyNodeInterface & OntologyRelationships & RelatedToT
 
 """
 LocationType entries describe types of locations.
-These are linked to Location (see Regions).
+These are linked to Location (see Location trees).
 Examples: "Country", "State", "Field"
 """
 
@@ -810,8 +810,8 @@ type LocationType implements OntologyNodeInterface & OntologyRelationships & Rel
 }
 
 """
-LayoutType entries describe types of arrangements.
-These are linked to Layout (see Arrangements).
+LayoutType entries describe types of layout trees.
+These are linked to Layout (see Layout trees).
 Examples: "Grid", "Rows"
 """
 interface LayoutTypeInterface {
@@ -870,7 +870,7 @@ type Design implements OntologyNodeInterface & OntologyRelationships & RelatedTo
 
 """
 Record Group Type entries describe transient identifiers like replicate, batch
-to complement the more permanent identifiers in the block/unit structure
+to complement the more permanent identifiers in the unit graph/unit structure
 """
 type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
     id: ID!

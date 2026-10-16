@@ -11,7 +11,7 @@ from breedgraph.domain.commands.programs import MergeDatasetScope
 from tests.breedgraph.scenarios.program_builder import ProgramBuilder
 from tests.breedgraph.scenarios.ontology_builder import OntologyBuilder
 from tests.breedgraph.scenarios.dataset_builder import DatasetBuilder
-from tests.breedgraph.scenarios.block_builder import BlockBuilder
+from tests.breedgraph.scenarios.unit_graph_builder import UnitGraphBuilder
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -34,7 +34,7 @@ async def test_submit_datasets_with_shared_grouping_scopes(
     batch_grouping_id = grouping_ids[batch_grouping_index]
     replicate_grouping_id = grouping_ids[replicate_grouping_index]
 
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
+    unit_id = await UnitGraphBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
 
     variable1_ids = await OntologyBuilder(uow_factory=uow_factory).variable(user_id=user_id)
     variable2_ids = await OntologyBuilder(uow_factory=uow_factory).variable(user_id=user_id)

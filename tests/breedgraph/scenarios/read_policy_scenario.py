@@ -1,7 +1,7 @@
 """
 The read-policy scenario: one world for the read tests (docs/read-access.md) and for the synthetic test database.
 
-Viewers and teams. "root" is an organisation root with a child team "child"; "other" is a second organisation.
+Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree.
 
     admin     WRITE, READ, CURATE, ADMIN on root; ADMIN and READ on child (no WRITE, no CURATE)
     writer    READ, WRITE, CURATE on child
@@ -12,25 +12,25 @@ Viewers and teams. "root" is an organisation root with a child team "child"; "ot
 Each entity below is listed with its controlling team, release and writer. Hidden members sit between readable ones,
 so each viewer sees a skip, a placeholder or a reconnection somewhere (rules 2 to 4).
 
-Regions
+Location trees
     country                      root  PUBLIC      admin
     └── state                    child PRIVATE     writer
         ├── field                child PUBLIC      writer
         │   └── centre           other PRIVATE     stranger
         │       └── lab          other REGISTERED  stranger
         └── field_registered     child REGISTERED  writer
-    country_private              child PRIVATE     writer    (a hidden region root)
+    country_private              child PRIVATE     writer    (a hidden location tree root)
     └── state_public             child PUBLIC      writer
 
-Arrangements
+Layout trees
     facility                     root  PUBLIC      admin     (at field)
     └── chamber                  child PRIVATE     writer
         └── shelf                child PUBLIC      writer
-    facility_private             child PRIVATE     writer    (at state; a hidden arrangement root)
+    facility_private             child PRIVATE     writer    (at state; a hidden layout tree root)
     └── room_public              child PUBLIC      writer
 
 Units
-    field_unit                   child PRIVATE     writer    (a hidden block root, at field)
+    field_unit                   child PRIVATE     writer    (a hidden unit graph root, at field)
     ├── tree_public              child PUBLIC      writer    (also at state; germplasm crop_leaf)
     │   ├── leaf_private         child PRIVATE     writer
     │   │   └── rhizosphere_public  child PUBLIC   writer
@@ -100,16 +100,16 @@ from breedgraph import config
 from breedgraph.domain.model.accounts import OntologyRole, AccountInput, UserInput
 from breedgraph.domain.model.ontology import VersionChange
 from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
-from breedgraph.domain.model.arrangements import LayoutInput
-from breedgraph.domain.model.blocks import UnitInput, Position
+from breedgraph.domain.model.layout_trees import LayoutInput
+from breedgraph.domain.model.unit_graphs import UnitInput, Position
 from breedgraph.domain.model.controls import Access, ReadRelease, ControlledModelLabel
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmRelationship, GermplasmSourceType
-from breedgraph.domain.model.organisations import TeamInput
+from breedgraph.domain.model.team_trees import TeamInput
 from breedgraph.domain.model.people import PersonInput
 from breedgraph.domain.model.programs import TrialInput
 from breedgraph.domain.model.references import FileReferenceInput, LegalReferenceInput
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.service_layer.infrastructure.archival_service import AbstractFileArchivalService
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
@@ -119,9 +119,9 @@ from tests.breedgraph.utilities.inputs import LoremTextGenerator, UserInputGener
 from .account_builder import AccountBuilder
 from .authorisation_manager import AuthorisationManager
 from .ontology_builder import OntologyBuilder
-from .organisation_builder import OrganisationBuilder
+from .team_tree_builder import TeamTreeBuilder
 from .program_builder import ProgramBuilder
-from .region_builder import RegionBuilder
+from .location_tree_builder import LocationTreeBuilder
 
 PUBLIC, REGISTERED, PRIVATE = ReadRelease.PUBLIC, ReadRelease.REGISTERED, ReadRelease.PRIVATE
 
@@ -492,8 +492,8 @@ class ReadPolicyScenarioBuilder:
     async def build(self) -> ReadPolicyScenario:
         await self._teams()
         await self._ontology()
-        await self._regions()
-        await self._arrangements()
+        await self._location_trees()
+        await self._layout_trees()
         await self._germplasm()
         await self._units()
         await self._references()
@@ -504,23 +504,23 @@ class ReadPolicyScenarioBuilder:
         return self.scenario
 
     async def _teams(self):
-        organisations = OrganisationBuilder(uow_factory=self.uow_factory)
+        team_trees = TeamTreeBuilder(uow_factory=self.uow_factory)
         s = self.scenario.ids
 
         s['admin'] = await self._account('admin', ontology_role=OntologyRole.ADMIN)
-        s['root'] = await organisations.organisation(user_id=s['admin'])
+        s['root'] = await team_trees.team_tree(user_id=s['admin'])
         for access in Access:
-            await organisations.authorise_access(user_id=s['admin'], team_id=s['root'], access=access)
+            await team_trees.authorise_access(user_id=s['admin'], team_id=s['root'], access=access)
 
         async with self.uow_factory.get_uow(user_id=s['admin']) as uow:
-            organisation = await uow.repositories.organisations.get(team_id=s['root'])
-            organisation.add_team(TeamInput(name=OrganisationBuilder.team_input().name), parent_id=s['root'])
+            team_tree = await uow.repositories.team_trees.get(team_id=s['root'])
+            team_tree.add_team(TeamInput(name=TeamTreeBuilder.team_input().name), parent_id=s['root'])
             await uow.commit()
         async with self.uow_factory.get_uow(user_id=s['admin']) as uow:
-            organisation = await uow.repositories.organisations.get(team_id=s['root'])
-            s['child'] = organisation.get_children_ids(s['root'])[0]
+            team_tree = await uow.repositories.team_trees.get(team_id=s['root'])
+            s['child'] = team_tree.get_children_ids(s['root'])[0]
             if config.DATA_PROCESSING_TERMS_VERSION is not None:
-                organisation.declare_legal_entity(
+                team_tree.declare_legal_entity(
                     agent_id=s['admin'],
                     team_id=s['root'],
                     legal_name=text.new_text(10),
@@ -530,7 +530,7 @@ class ReadPolicyScenarioBuilder:
                 )
                 await uow.commit()
         for access in (Access.ADMIN, Access.READ):
-            await organisations.authorise_access(user_id=s['admin'], team_id=s['child'], access=access)
+            await team_trees.authorise_access(user_id=s['admin'], team_id=s['child'], access=access)
 
         s['writer'] = await self._account('writer')
         for access in (Access.READ, Access.WRITE, Access.CURATE):
@@ -539,9 +539,9 @@ class ReadPolicyScenarioBuilder:
             )
 
         s['stranger'] = await self._account('stranger')
-        s['other'] = await organisations.organisation(user_id=s['stranger'])
+        s['other'] = await team_trees.team_tree(user_id=s['stranger'])
         for access in Access:
-            await organisations.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
+            await team_trees.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
 
         s['outsider'] = await self._account('outsider')
 
@@ -574,28 +574,28 @@ class ReadPolicyScenarioBuilder:
             await uow.commit()
         self.scenario.ids['ontology_subject_draft'] = draft.id
 
-    async def _regions(self):
+    async def _location_trees(self):
         s = self.scenario.ids
-        regions = RegionBuilder(self.uow_factory, self.state_store)
+        location_trees = LocationTreeBuilder(self.uow_factory, self.state_store)
 
         async def root(name: str, team: str, release: ReadRelease):
             async with self._uow(team, release) as uow:
-                region = await regions.region_from_country(uow)
+                location_tree = await location_trees.location_tree_from_country(uow)
                 await uow.commit()
-            self._set(name, region.get_root_id(), team, release)
+            self._set(name, location_tree.get_root_id(), team, release)
 
         async def location(name: str, team: str, release: ReadRelease, parent: str, type_key: str):
             async with self._uow(team, release) as uow:
-                region = await uow.repositories.regions.get(location_id=s[parent])
-                before = set(region._graph.nodes)
-                region.add_location(
+                location_tree = await uow.repositories.location_trees.get(location_id=s[parent])
+                before = set(location_tree._graph.nodes)
+                location_tree.add_location(
                     LocationInput(name=text.new_text(10), type=s[type_key]),
                     parent_id=s[parent]
                 )
                 await uow.commit()
             async with self.uow_factory.get_uow() as uow:
-                region = await uow.repositories.regions.get(location_id=s[parent])
-                (location_id,) = set(region._graph.nodes) - before
+                location_tree = await uow.repositories.location_trees.get(location_id=s[parent])
+                (location_id,) = set(location_tree._graph.nodes) - before
             self._set(name, location_id, team, release)
 
         await root('country', 'root', PUBLIC)
@@ -607,28 +607,28 @@ class ReadPolicyScenarioBuilder:
         await root('country_private', 'child', PRIVATE)
         await location('state_public', 'child', PUBLIC, 'country_private', 'ontology_location_state')
 
-    async def _arrangements(self):
+    async def _layout_trees(self):
         s = self.scenario.ids
 
         async with self._uow('root', PUBLIC) as uow:
-            arrangement = await uow.repositories.arrangements.create(LayoutInput(
+            layout_tree = await uow.repositories.layout_trees.create(LayoutInput(
                 name=text.new_text(10),
                 type=s['ontology_layout_named'],
                 location=s['field'],
                 axes=['Chamber']
             ))
             await uow.commit()
-        self._set('facility', arrangement.root.id, 'root', PUBLIC)
+        self._set('facility', layout_tree.root.id, 'root', PUBLIC)
 
         async def layout(name: str, team: str, release: ReadRelease, parent: str, layout_input: LayoutInput, position: list[str]):
             async with self._uow(team, release) as uow:
-                arrangement = await uow.repositories.arrangements.get(layout_id=s[parent])
-                before = set(arrangement._graph.nodes)
-                arrangement.add_layout(layout_input, parent_id=s[parent], position=position)
+                layout_tree = await uow.repositories.layout_trees.get(layout_id=s[parent])
+                before = set(layout_tree._graph.nodes)
+                layout_tree.add_layout(layout_input, parent_id=s[parent], position=position)
                 await uow.commit()
             async with self.uow_factory.get_uow() as uow:
-                arrangement = await uow.repositories.arrangements.get(layout_id=s[parent])
-                (layout_id,) = set(arrangement._graph.nodes) - before
+                layout_tree = await uow.repositories.layout_trees.get(layout_id=s[parent])
+                (layout_id,) = set(layout_tree._graph.nodes) - before
             self._set(name, layout_id, team, release)
 
         await layout('chamber', 'child', PRIVATE, 'facility', LayoutInput(
@@ -639,14 +639,14 @@ class ReadPolicyScenarioBuilder:
         ), position=['rear', 'top', 'right'])
 
         async with self._uow('child', PRIVATE) as uow:
-            arrangement = await uow.repositories.arrangements.create(LayoutInput(
+            layout_tree = await uow.repositories.layout_trees.create(LayoutInput(
                 name=text.new_text(10),
                 type=s['ontology_layout_named'],
                 location=s['state'],
                 axes=['Room']
             ))
             await uow.commit()
-        self._set('facility_private', arrangement.root.id, 'child', PRIVATE)
+        self._set('facility_private', layout_tree.root.id, 'child', PRIVATE)
         await layout('room_public', 'child', PUBLIC, 'facility_private', LayoutInput(
             name=text.new_text(10), type=s['ontology_layout_grid'], axes=['Column', 'Row']
         ), position=['1'])
@@ -656,22 +656,22 @@ class ReadPolicyScenarioBuilder:
 
         async def root(name: str, team: str, release: ReadRelease, location: str):
             async with self._uow(team, release) as uow:
-                block = await uow.repositories.blocks.create(UnitInput(
+                unit_graph = await uow.repositories.unit_graphs.create(UnitInput(
                     name=text.new_text(10),
                     subject=s['ontology_subject_field'],
                     positions=[Position(location_id=s[location])]
                 ))
                 await uow.commit()
-            self._set(name, block.root.id, team, release)
+            self._set(name, unit_graph.root.id, team, release)
 
         async def unit(
                 name: str, team: str, release: ReadRelease, parent: str, subject_key: str,
                 location: str | None = None, germplasm: str | None = None
         ):
             async with self._uow(team, release) as uow:
-                block = await uow.repositories.blocks.get(unit_id=s[parent])
-                before = set(block._graph.nodes)
-                block.add_unit(UnitInput(
+                unit_graph = await uow.repositories.unit_graphs.get(unit_id=s[parent])
+                before = set(unit_graph._graph.nodes)
+                unit_graph.add_unit(UnitInput(
                     name=text.new_text(10),
                     subject=s[subject_key],
                     germplasm=s[germplasm] if germplasm else None,
@@ -679,8 +679,8 @@ class ReadPolicyScenarioBuilder:
                 ), parents=[s[parent]])
                 await uow.commit()
             async with self.uow_factory.get_uow() as uow:
-                block = await uow.repositories.blocks.get(unit_id=s[parent])
-                (unit_id,) = set(block._graph.nodes) - before
+                unit_graph = await uow.repositories.unit_graphs.get(unit_id=s[parent])
+                (unit_id,) = set(unit_graph._graph.nodes) - before
             self._set(name, unit_id, team, release)
 
         await root('field_unit', 'child', PRIVATE, 'field')

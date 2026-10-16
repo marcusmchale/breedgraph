@@ -1,7 +1,7 @@
 """
 Locations for the BreedCAFS country/region/farm/field hierarchy (README.md §3, 1_1_Extract_Locations.md).
 
-Each BreedCAFS country is the root location of a BreedGraph region, found by its ISO 3166-1 alpha-3 code,
+Each BreedCAFS country is the root location of a BreedGraph location tree, found by its ISO 3166-1 alpha-3 code,
 or created, publicly released as countries are. Under it, the regions, farms and fields of field_farm_region_country.csv
 are matched by name and type under their parent, or created, `PRIVATE` and controlled by the migration team.
 Fields are given their coordinates from field_lat_long.csv when created.
@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.regions import Region, LocationInput, GeoCoordinate
+from breedgraph.domain.model.location_trees import LocationTree, LocationInput, GeoCoordinate
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -90,9 +90,9 @@ def read_sample_locations() -> set[str]:
         return {clean(row['location']) for row in csv.DictReader(f)}
 
 
-def find_child(region: Region, parent_id: int, name: str, type_id: int) -> int | None:
-    for child_id in region.get_children_ids(parent_id):
-        child = region.get_location(child_id)
+def find_child(location_tree: LocationTree, parent_id: int, name: str, type_id: int) -> int | None:
+    for child_id in location_tree.get_children_ids(parent_id):
+        child = location_tree.get_location(child_id)
         if child.type == type_id and child.name.casefold() == name.casefold():
             return child_id
     return None
@@ -110,21 +110,21 @@ class LocationPreparation:
         async with self.uow_factory.get_uow(
                 user_id=self.context.user_id, write_team=self.context.team_id, release=ReadRelease.PUBLIC
         ) as uow:
-            region = await uow.repositories.regions.get(code=code)
-            if region is None:
-                region = await uow.repositories.regions.create(
+            location_tree = await uow.repositories.location_trees.get(code=code)
+            if location_tree is None:
+                location_tree = await uow.repositories.location_trees.create(
                     LocationInput(name=country_name, code=code, type=self.location_types["Country"])
                 )
                 await uow.commit()
                 self.ids.countries_created.add(name)
                 self.ids.created += 1
-            return region.get_root_id()
+            return location_tree.get_root_id()
 
-    def child(self, region: Region, parent_id: int, name: str, type_name: str, **details) -> int:
+    def child(self, location_tree: LocationTree, parent_id: int, name: str, type_name: str, **details) -> int:
         type_id = self.location_types[type_name]
-        child_id = find_child(region, parent_id, name, type_id)
+        child_id = find_child(location_tree, parent_id, name, type_id)
         if child_id is None:
-            child_id = region.add_location(LocationInput(name=name, type=type_id, **details), parent_id=parent_id)
+            child_id = location_tree.add_location(LocationInput(name=name, type=type_id, **details), parent_id=parent_id)
             self.ids.created += 1
         return child_id
 
@@ -132,21 +132,21 @@ class LocationPreparation:
         """The location at the end of each path under the country, creating what is missing. Returns their ids."""
         country_id = self.ids.countries[country]
         async with self.uow_factory.get_uow(user_id=self.context.user_id, write_team=self.context.team_id) as uow:
-            region = await uow.repositories.regions.get(location_id=country_id)
+            location_tree = await uow.repositories.location_trees.get(location_id=country_id)
             for path in paths:
                 parent_id = country_id
                 for name, type_name, details in path:
-                    parent_id = self.child(region, parent_id, name, type_name, **details)
+                    parent_id = self.child(location_tree, parent_id, name, type_name, **details)
             await uow.commit()
 
         # Read again for the ids of locations created above
         async with self.uow_factory.get_uow(user_id=self.context.user_id) as uow:
-            region = await uow.repositories.regions.get(location_id=country_id)
+            location_tree = await uow.repositories.location_trees.get(location_id=country_id)
             ids = []
             for path in paths:
                 location_id = country_id
                 for name, type_name, _ in path:
-                    location_id = find_child(region, location_id, name, self.location_types[type_name])
+                    location_id = find_child(location_tree, location_id, name, self.location_types[type_name])
                 ids.append(location_id)
             return ids
 

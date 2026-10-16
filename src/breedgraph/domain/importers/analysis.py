@@ -9,7 +9,7 @@ in a model validator, so their errors are reported with the field path.
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from breedgraph.domain.model.time_descriptors import PyDT64
-from breedgraph.domain.model.blocks import Position
+from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.model.analysis import (
     AnalysisType, AnalysisTermType, TermRepresentationType, TermTransformation, TermAggregation, TermEffect,
     TimeAssignment, BinningBoundary, DistanceMetric, CorrelationMethod, OutlierDetectionMethod, ClusteringMethod,

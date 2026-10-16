@@ -1,0 +1,64 @@
+input PositionInput {
+    """
+    ID of Location in a LocationTree
+    """
+    locationId: ID!
+    """
+    ID of Layout in and LayoutTree
+    """
+    layoutId: ID
+    """
+    Coordinates should be a list of values corresponding to the stored layout axes.
+    """
+    coordinates: [String]
+    start: DateTime
+    end: DateTime
+}
+
+input UnitInput {
+    """
+    ID of Subject in the ontology
+    """
+    subjectId: ID!
+    germplasmId: ID
+
+    name: String
+    description: String
+    """
+    IDs of parent Units, of which this unit forms a component
+    """
+    parentIds: [ID]
+    """
+    IDs of child Units, which represent a component of this unit.
+    """
+    childrenIds: [ID]
+}
+
+input UnitUpdate {
+    id: ID!
+    subjectId: ID
+    germplasmId: ID
+    name: String
+    description: String
+    parentIds: [ID!]
+    childrenIds: [ID!]
+}
+
+extend type Mutation {
+    unitsCreateUnit(
+        unit: UnitInput!
+        controlTeamId: ID!
+        release:ReadRelease
+        position: PositionInput
+    ): BooleanPayload!
+    unitsUpdateUnit(unit: UnitUpdate!): BooleanPayload!
+    unitsDeleteUnit(id: ID!): BooleanPayload!
+    unitsAddPosition(
+        id: ID!
+        position: PositionInput!
+    ): BooleanPayload!
+    unitsRemovePosition(
+        id: ID!
+        position: PositionInput!
+    ): BooleanPayload!
+}

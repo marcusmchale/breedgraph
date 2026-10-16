@@ -8,7 +8,7 @@ Units under the read policy (docs/read-access.md), on the read-policy scenario:
     plot_private (child, private, at field), holding nothing
 
 Hidden units are skipped and their readable descendants joined to the nearest readable ancestor (rule 3); a hidden
-block root is kept as a placeholder holding them (rule 4); any other hidden unit asked for by id is a bare placeholder
+unit graph root is kept as a placeholder holding them (rule 4); any other hidden unit asked for by id is a bare placeholder
 (rule 2); searches leave hidden units out (rule 5).
 """
 import pytest
@@ -65,7 +65,7 @@ def assert_unit(read_policy, viewer: str, name: str, unit):
 
 
 def test_expected_shapes(read_policy):
-    """The scenario gives the viewers different blocks, so the tests below are not vacuous"""
+    """The scenario gives the viewers different unit graphs, so the tests below are not vacuous"""
     assert read_policy.shown_roots('admin', UNIT_PARENTS) == {'field_unit', 'plot_public', 'plot_private'}
     assert read_policy.shown_roots('outsider', UNIT_PARENTS) == {'field_unit', 'plot_public'}
     assert read_policy.tree_member('outsider', UNIT_PARENTS, 'tree_public').children == {'rhizosphere_public', 'rhizosphere_other'}
@@ -86,14 +86,14 @@ async def test_units_by_id(views_factory, read_policy, viewer):
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 @pytest.mark.parametrize('location', ('field', 'field_registered', 'state'))
-async def test_block_roots(views_factory, read_policy, viewer, location):
-    """Roots positioned at a location, kept where the viewer can read a unit in the block; only roots count"""
+async def test_unit_graph_roots(views_factory, read_policy, viewer, location):
+    """Roots positioned at a location, kept where the viewer can read a unit in the unit graph; only roots count"""
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
-        roots = {unit.id: unit for unit in await views.units.get_block_roots([read_policy[location]])}
+        roots = {unit.id: unit for unit in await views.units.get_unit_graph_roots([read_policy[location]])}
     expected = {
         name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) == location
     }
-    assert set(roots) == ids(read_policy, expected), f"{viewer}: block roots at {location}"
+    assert set(roots) == ids(read_policy, expected), f"{viewer}: unit graph roots at {location}"
     for name in expected:
         assert_unit(read_policy, viewer, name, roots[read_policy[name]])
 
@@ -135,5 +135,5 @@ async def test_missing_ids_are_left_out(views_factory, read_policy):
     async with views_factory.get_views(user_id=read_policy.user('admin')) as views:
         assert (await views.units.get_units([missing, read_policy['tree_public']])).keys() == {read_policy['tree_public']}
         assert await views.units.get_unit_names([missing]) == {}
-        assert await views.units.get_block_roots([missing]) == []
+        assert await views.units.get_unit_graph_roots([missing]) == []
         assert await views.units.get_descendants_by_subject([missing]) == {}

@@ -5,8 +5,8 @@ copy of production (src/breedcafs_migration/RUNBOOK.md): on a database that alre
 germplasm.
 
 It sets up what the runbook expects to exist before the migration (§1), as the test database's admin account:
-  - a root team whose organisation has declared a legal entity, the data controller of the Persons,
-    of which the admin is a heritable admin (as creator of the organisation) and a writer (to load the germplasm);
+  - a root team whose team tree has declared a legal entity, the data controller of the Persons,
+    of which the admin is a heritable admin (as creator of the team tree) and a writer (to load the germplasm);
   - the production germplasm (src/data/germplasm), as scripts/import_germplasm.py loads it, unless --no-germplasm.
 It then runs the runbook's own commands (python -m breedcafs_migration.main): bundle the data directory and unbundle
 it into --rehearsal-dir, as it will be carried to the server, then bootstrap, migrate and validate there, and exits
@@ -37,7 +37,7 @@ from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model import ReadRelease
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmRelationship, GermplasmSourceType
 from breedgraph.domain.model.controls import Access
-from breedgraph.domain.model.organisations import TeamInput
+from breedgraph.domain.model.team_trees import TeamInput
 
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -51,38 +51,38 @@ DATA_DIR = ROOT / 'src' / 'data'
 
 
 async def get_or_create_rehearsal_team(uow_factory: Neo4jUnitOfWorkFactory, admin_id: int) -> int:
-    """The root team of an organisation with a declared legal entity, created by the admin, who can also write to it"""
+    """The root team of a team tree with a declared legal entity, created by the admin, who can also write to it"""
     team_id = await create_rehearsal_team(uow_factory, admin_id)
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=team_id)
-        if admin_id not in organisation.get_affiliates(team_id, Access.WRITE, inheritance=False):
+        team_tree = await uow.repositories.team_trees.get(team_id=team_id)
+        if admin_id not in team_tree.get_affiliates(team_id, Access.WRITE, inheritance=False):
             logger.info("Affiliating the admin with WRITE access")
-            organisation.request_affiliation(agent_id=admin_id, user_id=admin_id, team_id=team_id, access=Access.WRITE)
-            organisation.authorise_affiliation(agent_id=admin_id, user_id=admin_id, team_id=team_id, access=Access.WRITE)
+            team_tree.request_affiliation(agent_id=admin_id, user_id=admin_id, team_id=team_id, access=Access.WRITE)
+            team_tree.authorise_affiliation(agent_id=admin_id, user_id=admin_id, team_id=team_id, access=Access.WRITE)
             await uow.commit()
     return team_id
 
 
 async def create_rehearsal_team(uow_factory: Neo4jUnitOfWorkFactory, admin_id: int) -> int:
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        async for organisation in uow.repositories.organisations.get_all():
-            if organisation.root.name == REHEARSAL_TEAM:
-                logger.info(f"Using the existing {REHEARSAL_TEAM} team {organisation.get_root_id()}")
-                return organisation.get_root_id()
+        async for team_tree in uow.repositories.team_trees.get_all():
+            if team_tree.root.name == REHEARSAL_TEAM:
+                logger.info(f"Using the existing {REHEARSAL_TEAM} team {team_tree.get_root_id()}")
+                return team_tree.get_root_id()
 
         if config.DATA_PROCESSING_TERMS_VERSION is None:
             raise RuntimeError("DATA_PROCESSING_TERMS_VERSION is not set, so a legal entity cannot be declared")
         logger.info(f"Creating the {REHEARSAL_TEAM} team, with a legal entity")
-        organisation = await uow.repositories.organisations.create(TeamInput(name=REHEARSAL_TEAM, fullname=REHEARSAL_TEAM))
-        organisation.declare_legal_entity(
+        team_tree = await uow.repositories.team_trees.create(TeamInput(name=REHEARSAL_TEAM, fullname=REHEARSAL_TEAM))
+        team_tree.declare_legal_entity(
             agent_id=admin_id,
-            team_id=organisation.get_root_id(),
+            team_id=team_tree.get_root_id(),
             legal_name=LEGAL_NAME,
             privacy_contact=PRIVACY_CONTACT,
             terms_version=config.DATA_PROCESSING_TERMS_VERSION,
             current_terms_version=config.DATA_PROCESSING_TERMS_VERSION
         )
-        team_id = organisation.get_root_id()
+        team_id = team_tree.get_root_id()
         await uow.commit()
     return team_id
 

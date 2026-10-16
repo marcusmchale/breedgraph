@@ -8,10 +8,10 @@ graphql_resolvers.register_query_resolvers(graphql_query)
 # Import ALL query modules to register their field resolvers
 # These imports need to happen AFTER graphql_query is created
 from . import ontology
-from . import organisations
-from . import regions
-from . import arrangements
-from . import blocks
+from . import teams
+from . import locations
+from . import layouts
+from . import units
 from . import datasets
 from . import programs
 from . import controls

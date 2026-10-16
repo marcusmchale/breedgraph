@@ -140,14 +140,14 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         logger.debug("Update seen aggregates across all repositories")
         await self.repositories.accounts.update_seen()
         await self.repositories.invitations.update_seen()
-        await self.repositories.organisations.update_seen()
-        await self.repositories.arrangements.update_seen()
+        await self.repositories.team_trees.update_seen()
+        await self.repositories.layout_trees.update_seen()
         await self.repositories.datasets.update_seen()
         await self.repositories.people.update_seen()
         await self.repositories.programs.update_seen()
         await self.repositories.references.update_seen()
-        await self.repositories.regions.update_seen()
-        await self.repositories.blocks.update_seen()
+        await self.repositories.location_trees.update_seen()
+        await self.repositories.unit_graphs.update_seen()
 
 
 class Neo4jUnitOfWorkFactory(AbstractUnitOfWorkFactory):

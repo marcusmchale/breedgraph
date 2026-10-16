@@ -21,7 +21,7 @@ from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.persons import prepare_breedcafs_persons
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-from tests.breedgraph.scenarios.organisation_builder import OrganisationBuilder
+from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 
 TERMS_VERSION = "test"
 CIRAD = "Centre de Coopération Internationale en Recherche Agronomique pour le Développement"
@@ -51,15 +51,15 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
-async def declared_organisation(uow_factory) -> dict:
-    """An account with write access to a team under the root of an organisation with a declared legal entity"""
+async def declared_team_tree(uow_factory) -> dict:
+    """An account with write access to a team under the root of a team tree with a declared legal entity"""
     account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
-    await OrganisationBuilder(uow_factory=uow_factory).authorise_access(
+    await TeamTreeBuilder(uow_factory=uow_factory).authorise_access(
         user_id=account['user_id'], team_id=account['team_id'], access=Access.ADMIN, heritable=True
     )
     async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=account['team_id'])
-        organisation.declare_legal_entity(
+        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
+        team_tree.declare_legal_entity(
             agent_id=account['user_id'], team_id=account['team_id'], legal_name="University",
             privacy_contact="dataprotection@example.org", terms_version=TERMS_VERSION, current_terms_version=TERMS_VERSION
         )
@@ -69,7 +69,7 @@ async def declared_organisation(uow_factory) -> dict:
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def persons_context(isolated_state, uow_factory) -> dict:
-    account = await declared_organisation(uow_factory)
+    account = await declared_team_tree(uow_factory)
     user_id, team_id = account['user_id'], account['team_id']
     async with uow_factory.get_uow(user_id=user_id) as uow:
         ontology = uow.ontology

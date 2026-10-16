@@ -3,7 +3,7 @@ from breedgraph.domain.model.accounts import (
     AccountInput, AccountStored,
     OntologyRole
 )
-from breedgraph.domain.model.organisations import Authorisation
+from breedgraph.domain.model.team_trees import Authorisation
 from breedgraph.domain.model.controls import Access
 
 from breedgraph.adapters.neo4j.cypher import queries

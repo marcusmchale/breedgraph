@@ -1,12 +1,12 @@
 """
 Data at scale for breedview's performance scripts, added to a built read-policy scenario (read_policy_scenario.py):
-generated, not migrated, and built through the repositories as the BreedCAFS migration was, one block per unit of work.
+generated, not migrated, and built through the repositories as the BreedCAFS migration was, one unit graph per unit of work.
 
 Everything is controlled by the child team and PRIVATE, as the migrated data was, so the admin reads it through their
 READ affiliation and the scripts measure the same access checks.
 
     scale_field_01 .. scale_field_NN       fields (location type Field) below state
-    each field: a block rooted at a field unit (subject Field) positioned at the field,
+    each field: a unit graph rooted at a field unit (subject Field) positioned at the field,
         holding trees (subject Tree), each holding leaves (subject Leaf)
     scale_program > scale_trial > scale_study_01 .. scale_study_NN, one study per field
     scale_study_01: datasets_per_concept datasets of the height variable, each recording every tree of field 01
@@ -20,11 +20,11 @@ from dataclasses import dataclass, field
 
 from numpy import datetime64, timedelta64
 
-from breedgraph.domain.model.blocks import UnitInput, Position
+from breedgraph.domain.model.unit_graphs import UnitInput, Position
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.domain.model.programs import ProgramInput, TrialInput
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from .program_builder import ProgramBuilder
@@ -84,7 +84,7 @@ class ScaleScenarioBuilder:
         await self._fields()
         tree_ids = {}
         for number in range(1, self.scale.parameters.fields + 1):
-            tree_ids[number] = await self._block(number)
+            tree_ids[number] = await self._unit_graph(number)
             logger.info(f"Field {number}: {self.scale.unit_count} units so far")
         await self._program()
         for number in range(1, self.scale.parameters.fields + 1):
@@ -96,45 +96,45 @@ class ScaleScenarioBuilder:
         b = self.base
         names = {field_key(n): f"Readpolicy scale field {n:02d}" for n in range(1, self.scale.parameters.fields + 1)}
         async with self._uow() as uow:
-            region = await uow.repositories.regions.get(location_id=b['state'])
+            location_tree = await uow.repositories.location_trees.get(location_id=b['state'])
             for name in names.values():
-                region.add_location(LocationInput(name=name, type=b['ontology_location_field']), parent_id=b['state'])
+                location_tree.add_location(LocationInput(name=name, type=b['ontology_location_field']), parent_id=b['state'])
             await uow.commit()
         async with self.uow_factory.get_uow() as uow:
-            region = await uow.repositories.regions.get(location_id=b['state'])
-            by_name = {location.name: location.id for location in region.entries.values()}
+            location_tree = await uow.repositories.location_trees.get(location_id=b['state'])
+            by_name = {location.name: location.id for location in location_tree.entries.values()}
         for key, name in names.items():
             self._name(key, name)
             self.scale.ids[key] = by_name[name]
 
-    async def _block(self, number: int) -> list[int]:
-        """The field's block; the ids of its trees, in order"""
+    async def _unit_graph(self, number: int) -> list[int]:
+        """The field's unit graph; the ids of its trees, in order"""
         b, p = self.base, self.scale.parameters
         prefix = f"F{number:02d}"
         async with self._uow() as uow:
-            block = await uow.repositories.blocks.create(UnitInput(
+            unit_graph = await uow.repositories.unit_graphs.create(UnitInput(
                 name=f"Readpolicy scale field unit {number:02d}",
                 subject=b['ontology_subject_field'],
                 positions=[Position(location_id=self.scale.ids[field_key(number)])]
             ))
-            root_id = block.get_root_id()
+            root_id = unit_graph.get_root_id()
             for tree in range(1, p.trees_per_field + 1):
-                tree_temp = block.add_unit(
+                tree_temp = unit_graph.add_unit(
                     UnitInput(name=f"{prefix} T{tree:04d}", subject=b['ontology_subject_tree']), parents=[root_id]
                 )
                 for leaf in range(1, p.leaves_per_tree + 1):
-                    block.add_unit(
+                    unit_graph.add_unit(
                         UnitInput(name=f"{prefix} T{tree:04d} L{leaf}", subject=b['ontology_subject_leaf']),
                         parents=[tree_temp]
                     )
             await uow.commit()
-            root_id = block.get_root_id()
+            root_id = unit_graph.get_root_id()
         self.scale.ids[f"scale_field_unit_{number:02d}"] = root_id
         self.scale.unit_count += 1 + p.trees_per_field * (1 + p.leaves_per_tree)
 
         async with self.uow_factory.get_uow() as uow:
-            block = await uow.repositories.blocks.get(unit_id=root_id)
-            trees = {unit.name: unit.id for unit in block.entries.values() if unit.subject == b['ontology_subject_tree']}
+            unit_graph = await uow.repositories.unit_graphs.get(unit_id=root_id)
+            trees = {unit.name: unit.id for unit in unit_graph.entries.values() if unit.subject == b['ontology_subject_tree']}
         return [trees[f"{prefix} T{tree:04d}"] for tree in range(1, p.trees_per_field + 1)]
 
     async def _program(self):

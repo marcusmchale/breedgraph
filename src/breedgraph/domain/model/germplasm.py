@@ -69,7 +69,7 @@ class GermplasmBase(ABC):
         hybrids, e.g. Centramericano (H1)
         etc.
         
-    Origin should be a reference to a Location in Regions
+    Origin should be a reference to a Location in Location trees
         where this Germplasm was sourced or created.
         
     Time should be the time of sourcing/creation at origin.

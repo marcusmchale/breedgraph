@@ -6,7 +6,7 @@ from breedgraph.adapters.files import JsonLinesErasureLog
 from breedgraph.adapters.neo4j.erasures import apply_erasures
 from breedgraph.service_layer.infrastructure.erasure_log import ErasureLogEntry
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError, UnauthorisedOperationError
-from breedgraph.domain.commands.organisations import DeclareLegalEntity, LegalEntity
+from breedgraph.domain.commands.team_trees import DeclareLegalEntity, LegalEntity
 from breedgraph.domain.commands.people import CreatePerson, UpdatePerson, ErasePerson
 from breedgraph.domain.model.control_transfers import ControlledEntity
 from breedgraph.domain.model.controls import ControlledModelLabel
@@ -24,7 +24,7 @@ def terms_version(monkeypatch):
 
 
 async def declared_account(bus, uow_factory) -> dict:
-    """An account administering an organisation with a declared legal entity"""
+    """An account administering a team tree with a declared legal entity"""
     account = await AccountBuilder(uow_factory).account_with_affiliations()
     await bus.handle(DeclareLegalEntity(
         agent_id=account['user_id'],
@@ -194,7 +194,7 @@ async def test_person_transfer_requires_recipient_legal_entity(bus, uow_factory,
             await uow.controls.offer_transfer(
                 entities=[person], from_teams={account['team_id']}, recipient_team=undeclared['team_id']
             )
-        with pytest.raises(IllegalOperationError, match="same organisation"):
+        with pytest.raises(IllegalOperationError, match="same team tree"):
             await uow.controls.offer_transfer(
                 entities=[person], from_teams={account['team_id']}, recipient_team=declared['team_id'],
                 keep_from_teams=True

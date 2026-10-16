@@ -38,7 +38,7 @@ Refs.  [Architecture patterns with Python](https://www.cosmicpython.com/book/pre
 ## Access Control
 Most [aggregates](#domain-aggregates) are "controlled", meaning that access is restricted.
 
-To contribute to these aggregates, users must have a WRITE affiliation with a [team](#organisation).
+To contribute to these aggregates, users must have a WRITE affiliation with a [team](#team).
 Access to READ and CURATE these contributions is then controlled 
 by users with an ADMIN affiliation to that team.
 
@@ -53,7 +53,7 @@ CURATE and ADMIN affiliations include READ: authorising either also authorises R
 and READ cannot be revoked from an authorised ADMIN (revoke ADMIN first). Existing deployments can
 grant READ to current admins with `scripts/grant_admin_read.py`.
 READ/CURATE and ADMIN affiliations may be heritable,
-meaning that the same authorisation is applied to all teams in that branch of the [organisation](#organisation). 
+meaning that the same authorisation is applied to all teams in that branch of the [team tree](#team-tree). 
 
 Multiple write affiliations should be discouraged, 
 though in these situations the following rules apply:
@@ -71,7 +71,7 @@ The aggregate types in BreedGraph and their constituent parts are defined in thi
 Established API specifications (e.g. BrAPI), ontologies (e.g. Planteome, CropOntology) and standards (e.g. MIAPPE)
 all informed domain modeling for BreedGraph.
 These were extended and adapted, particularly with the inclusion of a [subject](#subject) concept
-and representation of observation units in flexible [blocks](#block) 
+and representation of observation units in flexible [unit graphs](#unit-graph) 
 to ease modeling of more complex relationships among observation units.
 The CropOntology [trait](#trait)/[method](#observationmethod)/[scale](#scale) definition of a [variable](#variable) 
 was also adapted to the definition of factors in a [study](#study)
@@ -169,10 +169,10 @@ unit's descendants (the nearest record applies), and for all time when they have
 Event entries link  variables](#variable) and [factors](#factor).
 This is to support the definition of details that may be recorded in association with an event. 
 ##### LocationType
-Location entries describe types of locations within a [region](#region).
+Location entries describe types of locations within a [location tree](#location-tree).
 Examples: "Country", "State", "Field"
 ##### LayoutType
-Layout entries describe types of [layout](#layout) within an [arrangement](#arrangement).
+Layout entries describe types of [layout](#layout) within a [layout tree](#layout-tree).
 Examples: "Grid", "Row"
 ##### Design
 Design entries describe statistical designs for a [study](#study) in a [program](#program).
@@ -184,7 +184,7 @@ A code can mean the same on every unit, e.g. a canopy stratum "Lower"; the group
 uses that. A type can have a default extent, which a new grouping of it starts with.
 With SHARED, records of different units with the same code are one group, a level that can be estimated across units
 (e.g. "Batch", "Plate", "Stratum"). With WITHIN_GRAPH, codes are shared in the same way, but only by the units of one
-[block](#block) (the graph of units, e.g. a field): the design blocks of a field (e.g. "Block"), whose names recur in
+[unit graph](#unit-graph) (e.g. a field and the units in it): the design blocks of a field (e.g. "Block"), whose names recur in
 other fields, are one level per field. With WITHIN_UNIT, codes are nested in each record's unit: records of one unit
 with the same code at one time, or within the replicate aggregation window, are one reading (e.g. "Replicate",
 or "Branch" for the branches of a tree).
@@ -194,8 +194,8 @@ Whether to record something as a unit, a code or a factor:
   or other units hang from it (a tree, a sample sent for analysis);
 * a WITHIN_UNIT code, for repeated readings or one-off parts of one unit (replicates, the branches or leaves of a tree
   each measured once);
-* a WITHIN_GRAPH code, for a group of units within one block (the design blocks of a field);
-* a SHARED code, for a group across blocks (a batch, a plate, a session, a canopy stratum);
+* a WITHIN_GRAPH code, for a group of units within one unit graph (the design blocks of a field);
+* a SHARED code, for a group across unit graphs (a batch, a plate, a session, a canopy stratum);
 * a [factor](#factor), for a level the design sets that is to be estimated (a treatment).
 ##### Role
 Role entries describe roles for [people](#people).
@@ -209,13 +209,16 @@ Access to most functions of BreedGraph through the GraphQL API require an accoun
 The add_email mutation in the GraphQL interface sends an invitation to register a new user. 
 There is currently no facility to request an invitation.
 
-### Organisation
-Organisations are directed acyclic graphs of teams with a single root node. 
+### Team tree
+A team tree is a tree of [teams](#team) with a single root team.
 These form the foundation of [access control](#access-control) logic.
+A team tree whose root team has declared a legal entity is an organisation, such as a university: the data controller
+for the Persons its teams record. Only organisations can record Persons. Withdrawing the declaration, which is refused
+while the tree controls any Person, makes it a plain team tree again.
 
-In the GraphQL interface, the add_team mutation will create a team.
+In the GraphQL interface, the teamsCreateTeam mutation will create a team.
 If the optional "parent" parameter is not supplied then the created team 
-becomes the root of a new organisation. When more teams are required for an organisation, 
+becomes the root of a new team tree. When more teams are required for a team tree, 
 this parameter results in the new team being a child of the parent.
 The user that creates a team is automatically given a heritable ADMIN affiliation to that team, 
 allowing them to approve further affiliations. 
@@ -224,26 +227,26 @@ All root teams are visible to all users,
 though child teams are visible only to affiliates in that branch.
 Other users may request READ,WRITE,ADMIN or CURATE affiliations,
 with ADMIN affiliates receiving an email to approve this request. 
-Such requests are heritable, such that a user may request an affiliation to the root of an organisation, 
+Such requests are heritable, such that a user may request an affiliation to the root of a team tree, 
 and ADMIN affiliates may approve the affiliation only to a chosen child team.
 #### Team
 Teams have name and fullname attributes.
-### Arrangement
-Arrangements are directed acyclic graphs with a single root, composed of layouts.
-These are used to describe positions for [units](#unit) within [blocks](#block).
+### Layout tree
+A layout tree is a tree of [layouts](#layout) with a single root.
+These are used to describe positions for [units](#unit) within [unit graphs](#unit-graph).
 #### Layout
 Layouts have attributes for:
   - type, an ID for [layout type](#layouttype) in the ontology
-  - location: an ID for a [location](#location) within a [region](#region)
+  - location: an ID for a [location](#location) within a [location tree](#location-tree)
   - axes: labels for the axes (a list of strings). 
     - The order of axes must be preserved when describing positions for a [unit](#unit).
   - Optional:
     - name: a string to describe this specific layout
 
-### Block
-Blocks are directed acyclic graphs with a single root, composed of [units](#unit), e.g. a field and the trees and
-samples in it. A block here is this graph of units, not a block of a statistical design: design blocks are best
-recorded as WITHIN_GRAPH [record group](#record-group-type) codes.
+### Unit graph
+A unit graph is a directed acyclic graph with a single root, composed of [units](#unit), e.g. a field and the trees
+and samples in it. A unit may have several parents, e.g. a sample taken from two trees. Design blocks are not unit
+graphs: they are best recorded as WITHIN_GRAPH [record group](#record-group-type) codes.
 #### Unit
 Units have attributes for:
 - subject, an ID for [subject](#subject) in the ontology
@@ -254,10 +257,10 @@ Units have attributes for:
   - positions: a list of [positions](#position)
 ##### Position
 Positions have attributes for:
-- location: an ID for a [location](#location) within a [region](#region)
+- location: an ID for a [location](#location) within a [location tree](#location-tree)
 - start: a start date and time for this position
 - Optional:
-  - layout: an ID for a [layout](#layout) within an [arrangement](#arrangement)
+  - layout: an ID for a [layout](#layout) within a [layout tree](#layout-tree)
   - coordinates: a coordinate list that should correspond to the axes in a layout
   - end: an end date and time for this position
 ### Dataset
@@ -291,7 +294,7 @@ This allows the construction of a graph of any broad relationship categories,
 though further details may be specified on the individual entries.
 #### Germplasm Entry
 Germplasm entries have attributes for:
-- origin: an ID for a [location](#location) within a [region](#region)
+- origin: an ID for a [location](#location) within a [location tree](#location-tree)
 - time: to describe when this germplasm was sourced from origin.
 - reproduction: one of CLONAL, ASEXUAL or APOMIXIS used to describe the maintainence of this germplasm
 - methods: a list of [germplasm methods](#germplasmmethod) in the ontology, describing the protocol for the generation of this germplasm
@@ -349,8 +352,8 @@ Studies collect [datasets](#dataset) with attributes for:
 - design: a reference to the [design](#design) in the ontology
 - licence: a [reference](#reference) that describes legal terms for usage of datasets (factors/observations) from this experiment
 - references: a list of other supporting [references](#reference)
-### Region
-A region is a directed acyclic graph with a single root node, composed of [locations](#location). 
+### Location tree
+A location tree is a tree of [locations](#location) with a single root, typically a country. 
 #### Location
 A location has attributes for:
 - name

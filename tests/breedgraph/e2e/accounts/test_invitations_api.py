@@ -65,8 +65,8 @@ async def register(client, user_input, invitation_token=None, accept_team_ids=No
 async def user_affiliated(uow_factory, user_name: str, team_id: int, access: Access) -> bool:
     async with uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(name=user_name)
-        organisation = await uow.repositories.organisations.get(team_id=team_id)
-        return account.user.id in organisation.get_affiliates(team_id, access=access)
+        team_tree = await uow.repositories.team_trees.get(team_id=team_id)
+        return account.user.id in team_tree.get_affiliates(team_id, access=access)
 
 
 @pytest.mark.asyncio(loop_scope="session")

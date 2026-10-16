@@ -197,7 +197,7 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
     if not FILE_STORAGE_PATH:
         raise RuntimeError("FILE_STORAGE_PATH is not set: load the instance environment first")
     if not Path(COUNTRY_CODES_PATH).is_file():
-        # the scenario's regions are countries from this file, which the state store holds
+        # the scenario's location trees are countries from this file, which the state store holds
         raise RuntimeError(f"No country codes at COUNTRY_CODES_PATH ({COUNTRY_CODES_PATH}), e.g. src/data/country_codes.csv")
     Faker.seed(seed)
 

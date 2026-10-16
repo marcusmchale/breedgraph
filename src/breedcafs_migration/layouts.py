@@ -5,7 +5,7 @@ From field_layout_types.csv, each field has, at its location:
   - where trees have row and column positions, a "Row and Tree" layout,
     or one per block where rows and trees are numbered per block (field 29),
     and one for each separate planting in the field with its own rows (PLANTINGS);
-Each layout is the root of its own arrangement. Branch strata are record group codes, not positions (units.py).
+Each layout is the root of its own layout tree. Branch strata are record group codes, not positions (units.py).
 Layouts are matched by name and type at the field's location, or created, `PRIVATE` and controlled by the migration team.
 
 Running this again matches the layouts created before.
@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
-from breedgraph.domain.model.arrangements import LayoutInput
+from breedgraph.domain.model.layout_trees import LayoutInput
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
@@ -104,21 +104,21 @@ async def prepare_breedcafs_layouts(
     ids = LayoutIds()
     planned = planned_layouts()
     async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
-        arrangements = uow.repositories.arrangements
+        layout_trees = uow.repositories.layout_trees
         for key, (name, type_name) in planned.items():
             location_id = field_locations[key[0]]
             type_id = layout_types[type_name]
             existing = [
-                arrangement.root async for arrangement in arrangements.get_all(location_id=location_id)
-                if arrangement.root.type == type_id and arrangement.root.name == name
+                layout_tree.root async for layout_tree in layout_trees.get_all(location_id=location_id)
+                if layout_tree.root.type == type_id and layout_tree.root.name == name
             ]
             if existing:
                 ids.layouts[key] = existing[0].id
                 continue
-            arrangement = await arrangements.create(
+            layout_tree = await layout_trees.create(
                 LayoutInput(name=name, type=type_id, location=location_id, axes=AXES[type_name])
             )
-            ids.layouts[key] = arrangement.get_root_id()
+            ids.layouts[key] = layout_tree.get_root_id()
             ids.created += 1
         await uow.commit()
 

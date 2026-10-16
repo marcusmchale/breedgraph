@@ -41,7 +41,7 @@ class ControlTransferBase(ABC):
 
     entities: List[ControlledEntity] = field(default_factory=list)
     from_teams: List[int] = field(default_factory=list)  # current control teams giving up control
-    recipient_team: int = None  # chosen by the offering side, often an organisation root
+    recipient_team: int = None  # chosen by the offering side, often a team tree root
     keep_from_teams: bool = False  # shared control: from_teams keep control as well
     offered_by: int = None
 

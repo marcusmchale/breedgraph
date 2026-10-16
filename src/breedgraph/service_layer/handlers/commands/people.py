@@ -30,8 +30,8 @@ async def _visible_teams(uow: AbstractUnitHolder, team_ids: Iterable[int] | None
     if not team_ids:
         return set()
     found = set()
-    async for organisation in uow.repositories.organisations.get_all(team_ids=team_ids):
-        found.update(organisation.visible_team_ids(uow.controls.user_id))
+    async for team_tree in uow.repositories.team_trees.get_all(team_ids=team_ids):
+        found.update(team_tree.visible_team_ids(uow.controls.user_id))
     return team_ids & found
 
 
@@ -55,11 +55,11 @@ async def create_person(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
-        # The organisation of the write team is the data controller for the Person
-        organisation = await uow.repositories.organisations.get(team_id=cmd.write_team)
-        if organisation is None or organisation.legal_entity is None:
+        # The team tree of the write team is the data controller for the Person
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.write_team)
+        if team_tree is None or team_tree.legal_entity is None:
             raise IllegalOperationError(
-                "Recording a Person requires the write team's organisation to have declared its legal entity"
+                "Recording a Person requires the write team's team tree to have declared its legal entity"
             )
         await _verify_teams(uow, cmd.teams)
 

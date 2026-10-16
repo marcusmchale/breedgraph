@@ -1,8 +1,8 @@
 """
 Units for the BreedCAFS items (README.md §6, 1_4_Extract_Units.md).
 
-Each BreedCAFS field is a block (graph of units), rooted at a Field unit positioned at the field's location.
-Every other item, but BreedCAFS blocks, branches, leaves and the samples left out, is a unit in its field's block,
+Each BreedCAFS field is a unit graph, rooted at a Field unit positioned at the field's location.
+Every other item, but BreedCAFS blocks, branches, leaves and the samples left out, is a unit in its field's unit graph,
 `PRIVATE` and controlled by the migration team, with:
   - its subject, from item_name_subject_sources_sinks.csv: the item type, or the sample unit for samples;
   - its parents, the items it is in or was taken from, BreedCAFS blocks replaced by the field, or else its field;
@@ -34,7 +34,7 @@ from functools import cache
 from numpy import datetime64
 
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
-from breedgraph.domain.model.blocks import Block, UnitInput, Position
+from breedgraph.domain.model.unit_graphs import UnitGraph, UnitInput, Position
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.layouts import LayoutIds, tree_group, ROW_AND_TREE
@@ -347,8 +347,8 @@ def unit_input(plan: UnitPlan, item: Item, subjects: dict[str, int], germplasm: 
     )
 
 
-def units_by_description(block: Block) -> dict[str, int]:
-    return {unit.description: unit_id for unit_id, unit in block.entries.items() if unit.description}
+def units_by_description(unit_graph: UnitGraph) -> dict[str, int]:
+    return {unit.description: unit_id for unit_id, unit in unit_graph.entries.items() if unit.description}
 
 
 async def prepare_breedcafs_units(
@@ -370,36 +370,36 @@ async def prepare_breedcafs_units(
         field_location = locations.fields[field_uid]
         root = plan.items[field_uid]
         async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
-            blocks = uow.repositories.blocks
-            block = None
-            async for found in blocks.get_all(location_ids=[field_location]):
+            unit_graphs = uow.repositories.unit_graphs
+            unit_graph = None
+            async for found in unit_graphs.get_all(location_ids=[field_location]):
                 if found.root.description == description(field_uid):
-                    block = found
+                    unit_graph = found
                     break
-            if block is None:
-                block = await blocks.create(unit_input(
+            if unit_graph is None:
+                unit_graph = await unit_graphs.create(unit_input(
                     plan, root, subjects, germplasm, plan.positions(root, field_location, layouts, locations.sample_locations)
                 ))
                 ids.created += 1
-            existing = units_by_description(block)
+            existing = units_by_description(unit_graph)
             unit_ids = {field_uid: existing[description(field_uid)]}
             for item in plan.ordered(field_uid):
                 if description(item.uid) in existing:
                     unit_ids[item.uid] = existing[description(item.uid)]
                     continue
                 positions = plan.positions(item, field_location, layouts, locations.sample_locations)
-                unit_ids[item.uid] = block.add_unit(
+                unit_ids[item.uid] = unit_graph.add_unit(
                     unit_input(plan, item, subjects, germplasm, positions),
                     parents=[unit_ids[parent] for parent in plan.parents(item)]
                 )
                 ids.created += 1
             await uow.commit()
-            root_id = block.get_root_id()
+            root_id = unit_graph.get_root_id()
 
         # Read again for the ids of units created above
         async with uow_factory.get_uow(user_id=context.user_id) as uow:
-            block = await uow.repositories.blocks.get(unit_id=root_id)
-            stored = units_by_description(block)
+            unit_graph = await uow.repositories.unit_graphs.get(unit_id=root_id)
+            stored = units_by_description(unit_graph)
             for uid in [field_uid, *(item.uid for item in plan.ordered(field_uid))]:
                 ids.units[uid] = stored[description(uid)]
         logger.info(f"Field {field_uid}: {len(ids.units)} units so far, {ids.created} created")

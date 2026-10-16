@@ -20,7 +20,7 @@ from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-from tests.breedgraph.scenarios.block_builder import BlockBuilder
+from tests.breedgraph.scenarios.unit_graph_builder import UnitGraphBuilder
 
 # As BreedCAFS stored dates: at 12:00 where no time of day was entered
 T1, T2, T3 = '1558353600000', '1558440000000', '1558526400000'  # 2019-05-20, 21 and 22 at 12:00
@@ -168,8 +168,8 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
         }
         await uow.commit()
 
-    block_builder = BlockBuilder(uow_factory=uow_factory)
-    units = {uid: await block_builder.unit(user_id=user_id, team_id=team_id) for uid in ('1_T1', '1_T2', '1_S1', '22_T1')}
+    unit_graph_builder = UnitGraphBuilder(uow_factory=uow_factory)
+    units = {uid: await unit_graph_builder.unit(user_id=user_id, team_id=team_id) for uid in ('1_T1', '1_T2', '1_S1', '22_T1')}
     return {
         'context': MigrationContext(user_id=user_id, team_id=team_id),
         'ontology': OntologyIds(inputs=inputs, design_factors={"Shade Treatment": shade_treatment}),

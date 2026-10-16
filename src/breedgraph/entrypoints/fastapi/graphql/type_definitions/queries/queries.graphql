@@ -6,21 +6,21 @@ type Query {
     """
     accountsUserAccess: UserAccessPayload!
     """
-    Get a list of organisation "root" teams.
-    These are top-level team in the organisation hierarchy.
-    Visibility of teams within an organisation is dependent on controls, read-release and affiliations.
-    Navigation of the organisation graph is achieved by resolvers on the parent/children attributes.
+    Get a list of team tree "root" teams.
+    These are the top-level teams of the team trees.
+    Visibility of teams within a team tree is dependent on controls, read-release and affiliations.
+    Navigation of the team tree graph is achieved by resolvers on the parent/children attributes.
     """
-    organisations: TeamsPayload!
+    teamsRoots: TeamsPayload!
     """
     Get a single team details
-    As with organisations, the organisation can be explored from this node.
+    As with team trees, the team tree can be explored from this node.
     """
-    organisationsTeam(id: ID!): TeamPayload! # see team
+    teamsTeam(id: ID!): TeamPayload! # see team
     """
     Get a multiple team details
     """
-    organisationsTeams(ids: [ID!]): TeamsPayload! # see team
+    teamsTeams(ids: [ID!]): TeamsPayload! # see team
     """ What an invitation offers, for the registration form. Requires the token from the invitation link, not login """
     accountsInvitation(token: String!): InvitationPreviewPayload!
     """ Persons the user can read, optionally by exact name (case insensitive) """
@@ -36,7 +36,7 @@ type Query {
     """ Pending requests to be linked to Persons controlled by teams the current user administers """
     peopleClaimRequests: PersonClaimRequestsPayload!
     """ The current data processing terms, to show when declaring a legal entity """
-    organisationsDataProcessingTerms: DataProcessingTermsPayload!
+    teamsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """
@@ -98,41 +98,41 @@ type Query {
     Only available to Users with the admin ontology role.
     """
     ontologyAdmins: UsersPayload!
-    """Get a list of country templates for use in top level region creation"""
-    regionsCountries: LocationTemplatesPayload!
-    """Get a list of region "root" locations.
-    These are all countries that form the top-level location in the region.
+    """Get a list of country templates for use in top level location tree creation"""
+    locationsCountries: LocationTemplatesPayload!
+    """Get a list of location tree "root" locations.
+    These are all countries that form the top-level location in the location tree.
     """
-    regions: LocationsPayload!
+    locationsRoots: LocationsPayload!
     """ Get locations by locationId """
-    regionsLocations (ids: [ID!]!): LocationsPayload!
+    locationsLocations (ids: [ID!]!): LocationsPayload!
     """ Search for locations by ontology Location type """
-    regionsLocationsByType (locationTypeId: ID!): LocationsPayload!
+    locationsLocationsByType (locationTypeId: ID!): LocationsPayload!
     """
     Every readable location below the given locations, grouped by location type, as id and name.
     For selecting all the locations of a type at once.
     """
-    regionsDescendantsByType (locationIds: [ID!]!): LocationTypeLocationsPayload!
+    locationsDescendantsByType (locationIds: [ID!]!): LocationTypeLocationsPayload!
     """
-    Get a list of arrangement roots.
-    These are all layouts that form the top-level layout in an arrangement.
+    Get a list of layout tree roots.
+    These are all layouts that form the top-level layout in a layout tree.
     Optionally retrieve only those at a given location by supplying locationId.
     """
-    arrangements(locationId: ID!): LayoutsPayload!
+    layoutsRoots(locationId: ID!): LayoutsPayload!
     """ Get a layout details by ID """
-    arrangementsLayouts(ids: [ID!]): LayoutsPayload! # see team
+    layoutsLayouts(ids: [ID!]): LayoutsPayload! # see team
     """
-    Get a list of block "root" units.
-    These are top-level unit in the block hierarchy.
+    Get a list of unit graph "root" units.
+    These are the top-level units of the unit graphs.
     """
-    blocks(locationIds: [ID!]): UnitsPayload!
+    unitsRoots(locationIds: [ID!]): UnitsPayload!
     """ Get units by ID. """
-    blocksUnits(ids: [ID!]): UnitsPayload!
+    unitsUnits(ids: [ID!]): UnitsPayload!
     """
     Every readable unit below the given units, grouped by subject, as id and name.
     For selecting all the units of a subject at once, e.g. every tree of a field.
     """
-    blocksDescendantsBySubject(unitIds: [ID!]!): SubjectUnitsPayload!
+    unitsDescendantsBySubject(unitIds: [ID!]!): SubjectUnitsPayload!
     """ Get a list of all programs """
     programs: ProgramsPayload!
     """Get a program by Id of program, trial or study """

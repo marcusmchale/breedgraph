@@ -1,0 +1,49 @@
+input TeamInput {
+    """ Required name for the team """
+    name: String!
+    """ Optional full name for the team """
+    fullname: String
+    """ Optional parent team to extend a team tree"""
+    parentId: ID
+    """ Optional legal entity for a new team tree, i.e. without a parent """
+    legalEntity: LegalEntityInput
+}
+
+input LegalEntityInput {
+    legalName: String!
+    """ A role address for requests about personal data, not an individual's """
+    privacyContact: String!
+    """ The version of the data processing terms shown and accepted, see teamsDataProcessingTerms """
+    termsVersion: String!
+}
+
+input TeamUpdate {
+    id: ID!
+    name: String
+    fullname: String
+}
+
+extend type Mutation {
+    teamsCreateTeam(
+        team: TeamInput!
+    ): BooleanPayload!
+    teamsDeleteTeam(
+        id: ID!
+    ): BooleanPayload!
+    teamsUpdateTeam(
+        team: TeamUpdate!
+    ): BooleanPayload!
+    """
+    Declare the legal entity responsible for a team tree, accepting the current data processing terms.
+    Only on the root team, by its admins. A new declaration replaces the current one, which is kept as history.
+    """
+    teamsDeclareLegalEntity(
+        teamId: ID!
+        legalEntity: LegalEntityInput!
+    ): BooleanPayload!
+    """
+    Withdraw the legal entity declared for a team tree, by admins of its root team.
+    Refused while the team tree controls any Person, including erased Persons. The declaration is kept as history.
+    """
+    teamsWithdrawLegalEntity(teamId: ID!): BooleanPayload!
+}

@@ -10,15 +10,15 @@ class AuthorisationManager:
 
     async def authorise_affiliation(self, agent_id: int, user_id: int, team_id: int, access: Access, heritable: bool = False):
         async with self.uow_factory.get_uow(user_id=agent_id) as uow:
-            organisation = await uow.repositories.organisations.get(team_id = team_id)
-            assert organisation
-            organisation.request_affiliation(
+            team_tree = await uow.repositories.team_trees.get(team_id = team_id)
+            assert team_tree
+            team_tree.request_affiliation(
                 agent_id=user_id,
                 user_id=user_id,
                 team_id=team_id,
                 access=access
             )
-            organisation.authorise_affiliation(
+            team_tree.authorise_affiliation(
                 agent_id=agent_id,
                 user_id=user_id,
                 team_id=team_id,

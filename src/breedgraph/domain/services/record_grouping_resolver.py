@@ -37,7 +37,7 @@ class RecordGroupDimensionResolver:
     Each (grouping, scope, code) is a distinct level unless combined
     into a shared level by the dimension's level definitions.
     Codes of WITHIN_UNIT groupings are also nested in the base unit, and can't be shared.
-    Codes of WITHIN_GRAPH groupings are nested in the root of the base unit's graph (block);
+    Codes of WITHIN_GRAPH groupings are nested in the root of the base unit's graph;
     a shared level definition combines a code across graphs.
     Groupings are resolved live, as readable by the requesting user.
     """

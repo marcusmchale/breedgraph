@@ -13,7 +13,7 @@ from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
     dataset_unit_summaries as dataset_unit_summaries_query
 )
 from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit
-from breedgraph.domain.model.blocks import UnitOutput
+from breedgraph.domain.model.unit_graphs import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_neo4j, deserialize_time
 from numpy import datetime64
 from datetime import datetime

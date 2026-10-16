@@ -3,7 +3,7 @@ from typing import Self, List, AsyncGenerator
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
 from breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
-from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.domain.model.errors import ItemError
 
 

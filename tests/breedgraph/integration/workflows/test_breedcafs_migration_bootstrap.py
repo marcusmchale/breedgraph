@@ -2,24 +2,24 @@ import pytest
 import pytest_asyncio
 
 from breedgraph.domain.model.controls import Access
-from breedgraph.domain.model.organisations import Organisation
+from breedgraph.domain.model.team_trees import TeamTree
 
 from breedcafs_migration import bootstrap
 from breedcafs_migration.bootstrap import setup_breedcafs_migration_account, MigrationSettingsError
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-from tests.breedgraph.scenarios.organisation_builder import OrganisationBuilder
+from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 
 TERMS_VERSION = "test"
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def university_context(isolated_state, uow_factory) -> dict[str, int]:
-    """An admin with heritable admin access to the root team of an organisation"""
+    """An admin with heritable admin access to the root team of a team tree"""
     admin_id = await AccountBuilder(uow_factory=uow_factory).account()
-    organisation_builder = OrganisationBuilder(uow_factory=uow_factory)
-    root_id = await organisation_builder.organisation(user_id=admin_id)
-    await organisation_builder.authorise_access(user_id=admin_id, team_id=root_id, access=Access.ADMIN, heritable=True)
+    team_tree_builder = TeamTreeBuilder(uow_factory=uow_factory)
+    root_id = await team_tree_builder.team_tree(user_id=admin_id)
+    await team_tree_builder.authorise_access(user_id=admin_id, team_id=root_id, access=Access.ADMIN, heritable=True)
     return {'admin_id': admin_id, 'root_id': root_id}
 
 
@@ -31,8 +31,8 @@ def migration_config(monkeypatch, university_context):
 
 async def declare_legal_entity(uow_factory, admin_id: int, root_id: int):
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=root_id)
-        organisation.declare_legal_entity(
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.declare_legal_entity(
             agent_id=admin_id,
             team_id=root_id,
             legal_name="University",
@@ -71,13 +71,13 @@ async def test_bootstrap_creates_migration_team_and_user(uow_factory, university
     context = await setup_breedcafs_migration_account(uow_factory)
 
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation: Organisation = await uow.repositories.organisations.get(team_id=context.team_id)
-        assert organisation.get_root_id() == root_id
-        assert organisation.get_parent_id(context.team_id) == root_id
+        team_tree: TeamTree = await uow.repositories.team_trees.get(team_id=context.team_id)
+        assert team_tree.get_root_id() == root_id
+        assert team_tree.get_parent_id(context.team_id) == root_id
         for access in [Access.READ, Access.WRITE, Access.CURATE]:
-            assert context.user_id in organisation.get_affiliates(context.team_id, access, inheritance=False)
-        assert context.user_id not in organisation.get_affiliates(context.team_id, Access.ADMIN)
-        assert context.user_id not in organisation.get_affiliates(root_id)
+            assert context.user_id in team_tree.get_affiliates(context.team_id, access, inheritance=False)
+        assert context.user_id not in team_tree.get_affiliates(context.team_id, Access.ADMIN)
+        assert context.user_id not in team_tree.get_affiliates(root_id)
 
         account = await uow.repositories.accounts.get(user_id=context.user_id)
         assert account.user.password_hash == ''
@@ -92,5 +92,5 @@ async def test_bootstrap_reuses_existing_migration_team_and_user(uow_factory, un
     assert first == second
 
     async with uow_factory.get_uow(user_id=university_context['admin_id']) as uow:
-        organisation: Organisation = await uow.repositories.organisations.get(team_id=university_context['root_id'])
-        assert len(organisation.get_children(university_context['root_id'])) == 1
+        team_tree: TeamTree = await uow.repositories.team_trees.get(team_id=university_context['root_id'])
+        assert len(team_tree.get_children(university_context['root_id'])) == 1

@@ -122,7 +122,7 @@ Create, with ordinal axes (1.2):
 
 * Row and Tree
 
-Blocks are units (6.4), not layouts.
+Blocks are record group codes (6.4), not layouts.
 
 ## 2.4 Record Group Types
 
@@ -183,7 +183,7 @@ Branch strata are not positions: branches are not units, and their stratum is a 
 In fields 18–24 (Nicaragua) the branches were taken from tree samples taken from a block or the field,
 with no row or tree recorded, so a stratum layout could not have placed them anyway.
 
-Each layout is the root of its own arrangement (layouts.py).
+Each layout is the root of its own layout tree (layouts.py).
 Layouts are named after their Field (and Block or planting), e.g. "ED1: Row and Tree", with axes Row and Tree.
 They are matched by name and type at the Field's location, or created `PRIVATE`, controlled by the migration team.
 
@@ -246,8 +246,8 @@ and following discussions with Partner organisations.
 
 ## 6.1 Ordinary Units
 
-Each Field is a block, rooted at a Field unit positioned at the Field's location (units.py).
-For each other Item, but blocks (6.4), branches and leaves (below) and the samples left out (6.5), a unit in its Field's block, `PRIVATE` and controlled by the migration team:
+Each Field is a unit graph, rooted at a Field unit positioned at the Field's location (units.py).
+For each other Item, but blocks (6.4), branches and leaves (below) and the samples left out (6.5), a unit in its Field's unit graph, `PRIVATE` and controlled by the migration team:
 
 * Its name is the Item `name`, or its uid where it has none, and its description "BreedCAFS item <uid>",
   by which a second run finds the units created before.

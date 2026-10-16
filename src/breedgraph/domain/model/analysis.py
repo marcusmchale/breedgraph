@@ -3,7 +3,7 @@ from enum import Enum
 from numpy import datetime64, timedelta64
 import pandas as pd
 
-from breedgraph.domain.model.blocks import Position
+from breedgraph.domain.model.unit_graphs import Position
 
 class AnalysisType(str, Enum):
     """Matching GraphQL AnalysisType"""
@@ -249,7 +249,7 @@ class RecordGroupLevelKey:
     scope is None for study-wide groupings, otherwise the dataset IDs
     of the DatasetScope as resolved when the analysis is processed.
     Codes of WITHIN_UNIT groupings are also only comparable within the base unit,
-    and codes of WITHIN_GRAPH groupings within the root of the base unit's graph (block).
+    and codes of WITHIN_GRAPH groupings within the root of the base unit's graph.
     """
     grouping_id: int
     scope: frozenset[int]|None

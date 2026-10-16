@@ -46,7 +46,7 @@ Every analysis operates on **observations**, not on records.
 - **Factors describe the observations of variables.** When an analysis has a term for a variable concept,
   only variable records form observations. Each factor record is added to the observations it describes:
   - **unit:** observations of its own unit, or of a selected parent unit it rolls up into; otherwise those of the
-    unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its block's treatment
+    unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its design block's treatment
     unless it has its own);
   - **time:** its time bin, or **every** time bin when it has no start or end (a design factor holds throughout);
   - **record groups:** its level, or every level when it has no code for the dimension;
@@ -61,7 +61,7 @@ Every analysis operates on **observations**, not on records.
   - add a dimension that separates the values, e.g. time bins for repeated measurements, or a record-group dimension for replicates.
 - **Replicates.** Record groupings have an `extent`, set on each grouping of a study (its type may give a default).
   - `SHARED` codes name a group of many units, e.g. a batch or plate.
-  - `WITHIN_GRAPH` codes name a group of the units of one block (graph of units), e.g. the design blocks of a field.
+  - `WITHIN_GRAPH` codes name a group of the units of one unit graph, e.g. the design blocks of a field.
   - `WITHIN_UNIT` codes only distinguish readings of one unit at one time, e.g. replicate or subsample numbers.
   - `replicateAggregation: { aggregation, window }` combines the replicates of each reading into one value, before `aggregation`.
     `aggregation` is MEAN, MEDIAN, MIN, MAX or MODE.
@@ -109,12 +109,12 @@ Every analysis operates on **observations**, not on records.
   - `levels` define **shared levels** that merge exactly the members they list. Members of dataset-scoped groupings need a `datasetId`, which selects the scope.
   - A shared member matching no records produces `RECORD_GROUP_LEVEL_UNMATCHED`.
   - **WITHIN_GRAPH groupings**:
-    - Their codes are also nested in the root of the base unit's block (graph of units), keyed `groupingId|scope|rootId|code`,
+    - Their codes are also nested in the root of the base unit's unit graph, keyed `groupingId|scope|rootId|code`,
       so "Block 1" of one field is a different level from "Block 1" of another.
-    - The root is the block's root whether or not the user can read it, so the levels don't depend on access;
+    - The root is the unit graph's root whether or not the user can read it, so the levels don't depend on access;
       only its id is given, as for any hidden root.
     - Otherwise they are as SHARED groupings: a dimension of them can be a term and be used in ANOVA, and their codes
-      can be members of shared `levels`, which merge a code across blocks (a member names the code in every block).
+      can be members of shared `levels`, which merge a code across unit graphs (a member names the code in every unit graph).
   - **WITHIN_UNIT groupings** (§2, replicates):
     - Their codes are also nested in the record's base unit, keyed `groupingId|scope|unitId|code`,
       so under unit grouping each child unit's replicates stay apart.

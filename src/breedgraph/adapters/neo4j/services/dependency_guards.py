@@ -31,6 +31,6 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
         record = await result.single()
         return bool(record and record.get('in_use'))
 
-    async def organisation_controls_persons(self, team_id: int) -> bool:
-        result = await self.tx.run(queries['guards']['organisation_controls_persons'], team_id=team_id)
+    async def team_tree_controls_persons(self, team_id: int) -> bool:
+        result = await self.tx.run(queries['guards']['team_tree_controls_persons'], team_id=team_id)
         return any([record.get('in_use') async for record in result])

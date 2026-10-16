@@ -130,7 +130,7 @@ async def test_offer_requires_from_teams_to_control_entities(uow_factory, contro
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_immediate_acceptance_for_admin_of_both_sides(uow_factory, control_transfer_context):
-    # user 2 administers both the root and the child team of the second organisation
+    # user 2 administers both the root and the child team of the second team tree
     program = await create_program(uow_factory, control_transfer_context['user_id_2'], control_transfer_context['team_id_2'])
     async with uow_factory.get_uow(user_id=control_transfer_context['user_id_2']) as uow:
         transfer = await uow.controls.offer_transfer(

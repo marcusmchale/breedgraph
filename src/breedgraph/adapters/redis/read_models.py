@@ -16,10 +16,10 @@ from neo4j import AsyncResult
 from breedgraph.config import COUNTRY_CODES_PATH, get_redis_host_and_port
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import OntologyEntryLabel, LocationTypeInput
-from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
-from breedgraph.adapters.neo4j.cypher.query_builders import regions as region_queries
+from breedgraph.adapters.neo4j.cypher.query_builders import location_trees as location_tree_queries
 from breedgraph.service_layer.infrastructure.read_models import AbstractReadModels
 
 import logging
@@ -88,7 +88,7 @@ class RedisReadModels(AbstractReadModels):
                 country_type_id = country_type.id
 
                 result: AsyncResult = await tx.run(
-                    region_queries.read_locations_by_type(),
+                    location_tree_queries.read_locations_by_type(),
                     location_type=country_type_id,
                     read_teams=[],
                     minimum_release=ReadRelease.PUBLIC

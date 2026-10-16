@@ -1,13 +1,13 @@
 from .base import Command
 from . import (
     accounts,
-    regions,
-    arrangements,
-    organisations,
+    location_trees,
+    layout_trees,
+    team_trees,
     setup,
     ontologies,
     people,
-    blocks,
+    unit_graphs,
     datasets,
     programs,
     controls,

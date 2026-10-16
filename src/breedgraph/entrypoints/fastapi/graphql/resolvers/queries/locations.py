@@ -1,0 +1,91 @@
+from ariadne import ObjectType
+
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
+from breedgraph.service_layer.queries.views import location_trees, AbstractLocationTreesView
+
+from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+    update_locations_map,
+    update_ontology_map
+)
+
+from typing import List
+
+import logging
+logger = logging.getLogger(__name__)
+
+from . import graphql_query
+from ..registry import graphql_resolvers
+location = ObjectType("Location")
+location_template = ObjectType("LocationTemplate")
+location_type_locations = ObjectType("LocationTypeLocations")
+graphql_resolvers.register_type_resolvers(location, location_template, location_type_locations)
+
+@graphql_query.field("locationsCountries")
+@graphql_payload
+async def get_countries(_, info) -> List[LocationInput]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id = info.context.get('user_id')) as views:
+        return await views.location_trees.countries()
+
+@graphql_query.field("locationsRoots")
+@graphql_payload
+async def get_location_trees(_, info) -> List[LocationOutput]:
+    return await update_locations_map(info.context)
+
+@graphql_query.field("locationsLocations")
+@graphql_payload
+async def get_locations(_, info, ids: List[int]) -> List[LocationOutput]:
+    return await update_locations_map(info.context, location_ids=ids)
+
+@graphql_query.field("locationsLocationsByType")
+@graphql_payload
+async def get_locations_by_type(_, info, location_type_id: int | None = None) -> List[LocationOutput]:
+    user_id = info.context.get('user_id')
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        locations = await views.location_trees.get_locations_by_type(location_type = location_type_id)
+    info.context.setdefault('locations_map', dict()).update({location_.id: location_ for location_ in locations})
+    return locations
+
+@location.field("root")
+async def resolve_location_tree(obj, info) -> LocationOutput:
+    await update_locations_map(info.context, location_ids=[obj.root])
+    return info.context.get('locations_map').get(obj.root)
+
+@location.field("parent")
+async def resolve_parent(obj, info) -> LocationOutput:
+    await update_locations_map(info.context, location_ids=[obj.parent])
+    return info.context.get('locations_map').get(obj.parent)
+
+@location.field("children")
+async def resolve_children(obj, info):
+    await update_locations_map(info.context, location_ids=obj.children)
+    return [info.context.get('locations_map').get(child) for child in obj.children]
+
+@graphql_query.field("locationsDescendantsByType")
+@graphql_payload
+async def get_descendants_by_type(_, info, location_ids: List[int]) -> List[dict]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:
+        by_type = await views.location_trees.get_descendants_by_type(location_ids=location_ids)
+    return [{'type': type_id, 'locations': locations} for type_id, locations in by_type.items()]
+
+@location_type_locations.field("type")
+async def resolve_location_type_locations_type(obj, info):
+    if obj.get('type') is None:
+        return None
+    await update_ontology_map(info.context, entry_ids=[obj['type']], view=OntologyViewMode.REFERENTIAL)
+    return info.context.get('ontology_map').get(obj['type'])
+
+@location.field("type")
+async def resolve_type(obj, info):
+    await update_ontology_map(info.context, entry_ids=[obj.type], view=OntologyViewMode.REFERENTIAL)
+    ontology_map = info.context.get('ontology_map')
+    return ontology_map.get(obj.type)
+
+@location_template.field("typeId")
+async def resolve_type(obj, _):
+    return obj.type

@@ -12,7 +12,7 @@ class DatasetSummary:
     concept_id: int
     subject_ids: List[int] = field(default_factory=list)
     location_ids: List[int] = field(default_factory=list)
-    block_ids: List[int] = field(default_factory=list)
+    unit_root_ids: List[int] = field(default_factory=list)
     unit_count: int|None = None
     record_count: int|None = None
     start: datetime64|None = None

@@ -1,6 +1,6 @@
 from breedgraph.domain import commands, events
 from breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
-from breedgraph.domain.model.organisations import Authorisation, Affiliation
+from breedgraph.domain.model.team_trees import Authorisation, Affiliation
 from breedgraph.domain.model.invitations import InvitationInput, TeamInvitation
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph import config
@@ -112,13 +112,13 @@ async def _link_invited_person(uow, person_id: int, user_id: int):
 
 
 async def _grant_invited_affiliation(uow, inviter_id: int, user_id: int, team: TeamInvitation):
-    organisation = await uow.repositories.organisations.get(team_id=team.team_id)
-    if organisation is None or inviter_id not in organisation.get_affiliates(team.team_id, access=Access.ADMIN):
+    team_tree = await uow.repositories.team_trees.get(team_id=team.team_id)
+    if team_tree is None or inviter_id not in team_tree.get_affiliates(team.team_id, access=Access.ADMIN):
         raise IllegalOperationError(
             f"Team {team.team_id} offered with this invitation is no longer administered by the inviter, "
             f"please register without it"
         )
-    affiliations = organisation.get_team(team.team_id).affiliations
+    affiliations = team_tree.get_team(team.team_id).affiliations
     affiliations.set_by_access(team.access, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
     # As for approved requests, curate and admin access include read access
     if team.access in (Access.CURATE, Access.ADMIN):
@@ -346,11 +346,11 @@ async def request_affiliation(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.user_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.team_id)
         # Teams below the root are visible only to their affiliates, so are not offered to others
-        if organisation is None or not organisation.is_visible(cmd.team_id, cmd.user_id):
-            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
-        organisation.request_affiliation(
+        if team_tree is None or not team_tree.is_visible(cmd.team_id, cmd.user_id):
+            raise NoResultFoundError(f"Team tree not found with team id {cmd.team_id}")
+        team_tree.request_affiliation(
             agent_id=cmd.user_id,
             user_id=cmd.user_id,
             team_id=cmd.team_id,
@@ -365,11 +365,11 @@ async def approve_affiliation(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
-        if organisation is None:
-            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.team_id)
+        if team_tree is None:
+            raise NoResultFoundError(f"Team tree not found with team id {cmd.team_id}")
 
-        organisation.authorise_affiliation(
+        team_tree.authorise_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,
             user_id = cmd.user_id,
@@ -384,10 +384,10 @@ async def remove_affiliation(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
-        if organisation is None:
-            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
-        organisation.remove_affiliation(
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.team_id)
+        if team_tree is None:
+            raise NoResultFoundError(f"Team tree not found with team id {cmd.team_id}")
+        team_tree.remove_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,
             user_id = cmd.user_id,
@@ -401,10 +401,10 @@ async def revoke_affiliation(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=cmd.team_id)
-        if organisation is None:
-            raise NoResultFoundError(f"Organisation not found with team id {cmd.team_id}")
-        organisation.revoke_affiliation(
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.team_id)
+        if team_tree is None:
+            raise NoResultFoundError(f"Team tree not found with team id {cmd.team_id}")
+        team_tree.revoke_affiliation(
             agent_id = cmd.agent_id,
             team_id = cmd.team_id,
             user_id = cmd.user_id,

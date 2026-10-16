@@ -1,11 +1,11 @@
 """
 Set up the identity the migration runs as (README.md, Migration Bootstrap):
 a BreedCAFS Migration user, affiliated with a BreedCAFS Migration team
-under an existing team of an organisation that has declared a legal entity (University of Galway).
+under an existing team of a team tree that has declared a legal entity (University of Galway).
 
 The migration user is a system account. It has no email or password, so it cannot log in,
 and it is created directly rather than through CreateAccount, which requires an invitation.
-The team and affiliations are created by an admin of the parent team, through the Organisation aggregate.
+The team and affiliations are created by an admin of the parent team, through the TeamTree aggregate.
 
 Every step finds what an earlier run created, so the bootstrap can be run again.
 """
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 
 from breedgraph.domain.model.accounts import AccountInput, UserInput, OntologyRole, AccountStored
-from breedgraph.domain.model.organisations import Organisation, TeamInput, TeamStored
+from breedgraph.domain.model.team_trees import TeamTree, TeamInput, TeamStored
 from breedgraph.domain.model.controls import Access
 
 from breedcafs_migration.setup.config import (
@@ -73,8 +73,8 @@ async def get_or_create_migration_account(uow_factory: Neo4jUnitOfWorkFactory) -
         return account
 
 
-def get_child_team(organisation: Organisation, parent_id: int, name: str) -> TeamStored | None:
-    for team in organisation.get_sinks(parent_id).values():
+def get_child_team(team_tree: TeamTree, parent_id: int, name: str) -> TeamStored | None:
+    for team in team_tree.get_sinks(parent_id).values():
         if team.name.casefold() == name.casefold():
             return team
     return None
@@ -82,40 +82,40 @@ def get_child_team(organisation: Organisation, parent_id: int, name: str) -> Tea
 
 async def get_or_create_migration_team(uow_factory: Neo4jUnitOfWorkFactory, admin_id: int, parent_id: int) -> int:
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation: Organisation = await uow.repositories.organisations.get(team_id=parent_id)
-        if organisation is None:
+        team_tree: TeamTree = await uow.repositories.team_trees.get(team_id=parent_id)
+        if team_tree is None:
             raise MigrationSettingsError(f"Parent team {parent_id} (BREEDCAFS_PARENT_TEAM_ID) not found")
-        if organisation.legal_entity is None:
-            raise MigrationSettingsError("The parent team's organisation has not declared a legal entity, which Persons require")
-        if admin_id not in organisation.get_affiliates(parent_id, Access.ADMIN):
+        if team_tree.legal_entity is None:
+            raise MigrationSettingsError("The parent team's team tree has not declared a legal entity, which Persons require")
+        if admin_id not in team_tree.get_affiliates(parent_id, Access.ADMIN):
             raise MigrationSettingsError(f"User {admin_id} (BREEDCAFS_ADMIN_USER_ID) is not an admin of the parent team {parent_id}")
 
-        team = get_child_team(organisation, parent_id, BREEDCAFS_TEAM_NAME)
+        team = get_child_team(team_tree, parent_id, BREEDCAFS_TEAM_NAME)
         if team is not None:
             logger.info("Using the existing BreedCAFS migration team")
             return team.id
 
         logger.info("Creating the BreedCAFS migration team")
-        organisation.add_team(TeamInput(name=BREEDCAFS_TEAM_NAME, fullname=BREEDCAFS_TEAM_NAME), parent_id=parent_id)
+        team_tree.add_team(TeamInput(name=BREEDCAFS_TEAM_NAME, fullname=BREEDCAFS_TEAM_NAME), parent_id=parent_id)
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=parent_id)
-        return get_child_team(organisation, parent_id, BREEDCAFS_TEAM_NAME).id
+        team_tree = await uow.repositories.team_trees.get(team_id=parent_id)
+        return get_child_team(team_tree, parent_id, BREEDCAFS_TEAM_NAME).id
 
 
 async def affiliate_migration_user(uow_factory: Neo4jUnitOfWorkFactory, admin_id: int, user_id: int, team_id: int) -> None:
     async with uow_factory.get_uow(user_id=admin_id) as uow:
-        organisation: Organisation = await uow.repositories.organisations.get(team_id=team_id)
-        if admin_id not in organisation.get_affiliates(team_id, Access.ADMIN):
+        team_tree: TeamTree = await uow.repositories.team_trees.get(team_id=team_id)
+        if admin_id not in team_tree.get_affiliates(team_id, Access.ADMIN):
             raise MigrationSettingsError(f"User {admin_id} is not an admin of the migration team; admin of the parent team must be heritable")
 
         for access in MIGRATION_ACCESS:
-            if user_id in organisation.get_affiliates(team_id, access, inheritance=False):
+            if user_id in team_tree.get_affiliates(team_id, access, inheritance=False):
                 continue
             logger.info(f"Affiliating the migration user with {access.name} access")
-            organisation.request_affiliation(agent_id=user_id, user_id=user_id, team_id=team_id, access=access)
-            organisation.authorise_affiliation(agent_id=admin_id, user_id=user_id, team_id=team_id, access=access)
+            team_tree.request_affiliation(agent_id=user_id, user_id=user_id, team_id=team_id, access=access)
+            team_tree.authorise_affiliation(agent_id=admin_id, user_id=user_id, team_id=team_id, access=access)
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
@@ -132,7 +132,7 @@ async def setup_breedcafs_migration_account(uow_factory: Neo4jUnitOfWorkFactory)
     )
     parent_id = required_id(
         'BREEDCAFS_PARENT_TEAM_ID', BREEDCAFS_PARENT_TEAM_ID,
-        "the id of the team to create the migration team under, in an organisation with a declared legal entity"
+        "the id of the team to create the migration team under, in a team tree with a declared legal entity"
     )
 
     account = await get_or_create_migration_account(uow_factory)

@@ -3,7 +3,7 @@ The people queries under the read policy, through GraphQL, on the read-policy sc
 (see tests/breedgraph/integration/views/test_people_view.py for the view underneath).
 
 They answer anonymous requests, except those about the viewer's own Person and requests. A Person's teams hidden
-from the viewer are stood in for by the nearest team they can see (rule 7): an organisation's root is visible to
+from the viewer are stood in for by the nearest team they can see (rule 7): a team tree's root is visible to
 everyone, its other teams only to their affiliates.
 """
 import pytest

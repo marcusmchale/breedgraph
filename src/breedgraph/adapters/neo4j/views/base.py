@@ -5,14 +5,14 @@ from breedgraph.adapters.neo4j.views.germplasm import Neo4jGermplasmView
 from breedgraph.adapters.neo4j.views.ontology import Neo4jOntologyView
 from breedgraph.adapters.neo4j.views.units import Neo4jUnitsView
 from breedgraph.adapters.neo4j.views.programs import Neo4jProgramsView
-from breedgraph.adapters.neo4j.views.arrangements import Neo4jArrangementsView
+from breedgraph.adapters.neo4j.views.layout_trees import Neo4jLayoutTreesView
 from breedgraph.adapters.neo4j.views.references import Neo4jReferencesView
 from breedgraph.adapters.neo4j.views.people import Neo4jPeopleView
 from breedgraph.adapters.neo4j.views.controls import Neo4jControlsView
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 from breedgraph.service_layer.queries.views.views import AbstractViewsHolder, AbstractViewsFactory
 
-from breedgraph.adapters.neo4j.views.regions import Neo4jRegionsView
+from breedgraph.adapters.neo4j.views.location_trees import Neo4jLocationTreesView
 from breedgraph.adapters.neo4j.views.accounts import Neo4jAccountsView
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
@@ -25,22 +25,22 @@ class Neo4jViewsHolder(AbstractViewsHolder):
             self,
             accounts: Neo4jAccountsView,
             germplasm: Neo4jGermplasmView,
-            regions: Neo4jRegionsView,
+            location_trees: Neo4jLocationTreesView,
             datasets: Neo4jDatasetsView,
             ontology: Neo4jOntologyView,
             units: Neo4jUnitsView,
             programs: Neo4jProgramsView,
-            arrangements: Neo4jArrangementsView,
+            layout_trees: Neo4jLayoutTreesView,
             references: Neo4jReferencesView,
             people: Neo4jPeopleView,
             controls: Neo4jControlsView
     ):
         self.units = units
         self.programs = programs
-        self.arrangements = arrangements
+        self.layout_trees = layout_trees
         self.ontology = ontology
         self.accounts = accounts
-        self.regions = regions
+        self.location_trees = location_trees
         self.datasets = datasets
         self.germplasm = germplasm
         self.references = references
@@ -66,11 +66,11 @@ class Neo4jViewsFactory(AbstractViewsFactory):
                 ontology = Neo4jOntologyView(session=session),
                 accounts = accounts_view,
                 germplasm = Neo4jGermplasmView(session=session, user_id=user_id, read_teams=read_teams),
-                regions = Neo4jRegionsView(state_store=self.state_store, user_id = user_id, read_teams=read_teams, session=session),
+                location_trees = Neo4jLocationTreesView(state_store=self.state_store, user_id = user_id, read_teams=read_teams, session=session),
                 datasets = Neo4jDatasetsView(user_id=user_id, read_teams=read_teams, session=session),
                 units = Neo4jUnitsView(session=session, user_id=user_id, read_teams=read_teams),
                 programs = Neo4jProgramsView(session=session, user_id=user_id, read_teams=read_teams),
-                arrangements = Neo4jArrangementsView(session=session, user_id=user_id, read_teams=read_teams),
+                layout_trees = Neo4jLayoutTreesView(session=session, user_id=user_id, read_teams=read_teams),
                 references = Neo4jReferencesView(session=session, user_id=user_id, read_teams=read_teams),
                 people = Neo4jPeopleView(session=session, user_id=user_id, read_teams=read_teams),
                 controls = Neo4jControlsView(session=session, user_id=user_id, read_teams=read_teams)

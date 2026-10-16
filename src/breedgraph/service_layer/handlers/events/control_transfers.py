@@ -1,6 +1,6 @@
 from breedgraph.domain import events
 from breedgraph.domain.model.controls import Access
-from breedgraph.domain.model.organisations import TeamInput
+from breedgraph.domain.model.team_trees import TeamInput
 
 from ...infrastructure.notifications import email_templates
 from breedgraph.service_layer.infrastructure import AbstractNotifications, AbstractUnitOfWorkFactory
@@ -18,15 +18,15 @@ async def notify_control_transfer_offered(
         notifications: AbstractNotifications
 ):
     async with uow_factory.get_uow() as uow:
-        organisation = await uow.repositories.organisations.get(team_id=event.recipient_team)
-        if organisation is None:
+        team_tree = await uow.repositories.team_trees.get(team_id=event.recipient_team)
+        if team_tree is None:
             return
-        team = organisation.get_team(event.recipient_team)
+        team = team_tree.get_team(event.recipient_team)
         if team is None or isinstance(team, TeamInput):
             return
 
         offering_account = await uow.repositories.accounts.get(user_id=event.offered_by)
-        admins = organisation.get_affiliates(team_id=event.recipient_team, access=Access.ADMIN)
+        admins = team_tree.get_affiliates(team_id=event.recipient_team, access=Access.ADMIN)
         admin_users = [(await uow.repositories.accounts.get(user_id=admin)).user for admin in admins]
         if not admin_users:
             return

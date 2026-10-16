@@ -8,7 +8,7 @@ input ControlTransferOffer {
     entities: [ControlledEntityInput!]!
     """Teams giving up control. The user must be an admin of each, and each must control every entity"""
     fromTeamIds: [ID!]!
-    """The team offered control, e.g. the root of another organisation"""
+    """The team offered control, e.g. the root of another team tree"""
     recipientTeamId: ID!
     """Keep control for the teams giving it, sharing control with the teams taking it"""
     keepFromTeams: Boolean

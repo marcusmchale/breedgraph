@@ -39,8 +39,8 @@ In detail:
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
    study's or ontology entry's reference, a hidden entity asked for directly by id. A reference placeholder keeps its
    type as well (legal, external, file and so on), as GraphQL needs it to choose the reference's type. References to teams are the exception (rule 7).
-3. **Within an aggregate, hidden members are skipped.** A tree or graph (a block of units, a region of locations, an
-   arrangement of layouts, a crop's pedigree of germplasm) is shown with its hidden members left out and their
+3. **Within an aggregate, hidden members are skipped.** A tree or graph (a unit graph, a location tree, a
+   layout tree, a crop's pedigree of germplasm) is shown with its hidden members left out and their
    readable descendants joined to the nearest readable ancestor. Nothing about the hidden members is shown: not their
    number, nor how the readable members were grouped under them. Where joining loses the kind of link, the joined
    link says so (a germplasm relationship through hidden entries is UNKNOWN).
@@ -50,7 +50,7 @@ In detail:
 4. **Except where the shape requires a placeholder.** A hidden member is kept as a placeholder when its readable
    members cannot be reached otherwise:
    - fixed depth: a hidden trial between a readable program and study, a hidden program above a readable trial;
-   - a hidden root holding readable members (a block root, a region root, a crop), so the tree has a root to hang
+   - a hidden root holding readable members (a unit graph root, a location tree root, a crop), so the tree has a root to hang
      from; a readable entry can then name the hidden root as its parent or source.
 5. **Searches leave hidden entities out.** Listing by a filter (datasets by study or concept, programs, units by
    subject) returns only readable entities, and placeholders only where rule 4 needs them. A search is not a
@@ -58,7 +58,7 @@ In detail:
 6. **Counts follow what is released.** A count of things a readable entity holds counts them all (a released dataset's
    records); a count over a tree counts what rules 2 to 4 would show.
 7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is
-   shown as the nearest team they can see that includes it, at furthest its organisation's root, which is never
+   shown as the nearest team they can see that includes it, at furthest its team tree's root, which is never
    hidden. This is a stand-in rather than a placeholder: its purpose is that a user can always follow a reference to
    a responsible party and ask there for an affiliation. A team is always referred to through a `TeamReference`
    (`Controller.teams`, `Control.team`, `Person.teams`): the team and whether it stands in (`standIn`), so a reader can
@@ -75,36 +75,36 @@ In detail:
    admins of its teams. What an account did, a write or an ontology commit, is attributed to its linked Person
    (`WriteStamp.person`, `OntologyCommit.person`), which follows the people rules: in full, restricted, or none if the
    account has no Person. Teams are not controlled entities: a team is seen by those affiliated with it, and an
-   organisation's root, with its legal entity, by everyone, anonymous users included, as whom personal data is held
-   by is public. Hidden teams are skipped within an organisation (rule 3), stood in for where referred to (rule 7),
+   team tree's root, with its legal entity, by everyone, anonymous users included, as whom personal data is held
+   by is public. Hidden teams are skipped within a team tree (rule 3), stood in for where referred to (rule 7),
    and a placeholder when asked for by id (rule 2).
 10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
-   aggregates, organisations included, so write handlers and integrity checks see members the writer cannot read:
-   deleting a location with hidden children, or a region, layout or block root with hidden members, is refused, and
+   aggregates, team trees included, so write handlers and integrity checks see members the writer cannot read:
+   deleting a location with hidden children, or a location tree, layout tree or unit graph root with hidden members, is refused, and
    removal needs curate access to hidden members too. A hidden aggregate still cannot be found by a filter other than
    its id. Where redaction used to hide a member from the writer, one rule now applies: **you can only link to what
-   you can read.** Each added or removed edge in a rooted aggregate (regions, arrangements, blocks) needs read access
-   to both stored ends, a new member needs read access to its parent, and attaching a merged block's root needs curate
+   you can read.** Each added or removed edge in a rooted aggregate (location trees, layout trees, unit graphs) needs read access
+   to both stored ends, a new member needs read access to its parent, and attaching a merged unit graph's root needs curate
    access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
-   layout to its location, a dataset to its study, and splitting a block (curate on the unit, read on its parents).
+   layout to its location, a dataset to its study, and splitting a unit graph (curate on the unit, read on its parents).
    Changing or removing a controlled model needs curate access, which includes read. The few reads that still use a
-   repository redact explicitly: organisations with `Organisation.redacted` (the teams map, and the teams a user may
+   repository redact explicitly: team trees with `TeamTree.redacted` (the teams map, and the teams a user may
    give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused
    for a team the user cannot see.
 
 ## 3. Datasets under this policy
 
 A dataset's records belong to the dataset aggregate and have no controls of their own, so a released dataset's
-records are all readable. Each record's unit is a reference into a block, another aggregate, so a hidden unit is a
+records are all readable. Each record's unit is a reference into a unit graph, another aggregate, so a hidden unit is a
 placeholder (rule 2). Releasing a dataset therefore publishes its values and the ids of the units they are for, but
-not those units' names, subjects, germplasm, positions or how they are grouped in their blocks.
+not those units' names, subjects, germplasm, positions or how they are grouped in their unit graphs.
 
 - `datasets(ids)`: readable datasets in full; hidden ones asked for by id as placeholders (id, no concept, no counts).
 - `datasets(studyIds, conceptIds)`: readable datasets only (rule 5).
 - `Dataset.records`, `recordCount`, `datasetsSummaries` counts: every record of a readable dataset; units as
   placeholders where hidden.
-- `datasetsUnits`, the units the records are for as a tree from their blocks: each recorded unit as itself or a
+- `datasetsUnits`, the units the records are for as a tree from their unit graphs: each recorded unit as itself or a
   placeholder (rule 2), joined to its nearest readable ancestor, hidden ancestors skipped (rule 3). A recorded unit
   with no readable ancestor is a root itself; no hidden root is kept for it, since it is reachable without one.
   Counts are of the recorded units and records below each shown unit.
@@ -121,11 +121,11 @@ EDITORIAL view, with drafts, needs an account.
 | Domain | Follows this note |
 |---|---|
 | Programs (`views.programs`) | yes |
-| Regions, arrangements (`views.regions`, `views.arrangements`) | yes |
-| Blocks (`views.blocks`) | yes |
+| Location trees, layout trees (`views.location_trees`, `views.layout_trees`) | yes |
+| Units (`views.units`) | yes |
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
 | References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
 | People (`views.people`, `query_builders/people.py`) | yes; the linked user also sees their own Person in full (docs/person.md) |
 | Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
-| Accounts and organisations | yes; organisations are read through the repository and redacted explicitly in Python (small, and already following the note) |
+| Accounts and team trees | yes; team trees are read through the repository and redacted explicitly in Python (small, and already following the note) |

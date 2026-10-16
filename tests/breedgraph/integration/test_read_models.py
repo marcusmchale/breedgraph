@@ -1,7 +1,7 @@
 import pytest
 
 from breedgraph.adapters.redis.read_models import RedisReadModels, COUNTRY_KEY
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.location_trees import LocationInput
 
 
 @pytest.mark.asyncio(loop_scope="session")

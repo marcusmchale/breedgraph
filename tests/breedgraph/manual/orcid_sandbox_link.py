@@ -33,7 +33,7 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model import Access
 from breedgraph.domain.model.accounts import AccountInput, UserInput
-from breedgraph.domain.model.organisations import TeamInput, Affiliation, Authorisation
+from breedgraph.domain.model.team_trees import TeamInput, Affiliation, Authorisation
 from breedgraph.domain.model.people import PersonInput
 
 BASE_URL = get_base_url()
@@ -156,11 +156,11 @@ async def create_test_user() -> tuple[str, str]:
             await uow.commit()
         user_id = account.user.id
         async with uow_factory.get_uow(user_id=user_id) as uow:
-            organisation = await uow.repositories.organisations.create(TeamInput(name=f"{name} team"))
+            team_tree = await uow.repositories.team_trees.create(TeamInput(name=f"{name} team"))
             await uow.commit()
-        team_id = organisation.root.id
+        team_id = team_tree.root.id
         async with uow_factory.get_uow(user_id=user_id) as uow:
-            team = (await uow.repositories.organisations.get(team_id=team_id)).get_team(team_id)
+            team = (await uow.repositories.team_trees.get(team_id=team_id)).get_team(team_id)
             for access in Access:
                 team.affiliations.set_by_access(access, user_id, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
             await uow.commit()

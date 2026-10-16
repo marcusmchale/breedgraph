@@ -7,7 +7,7 @@ import pytest_asyncio
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import LayoutTypeInput, LocationTypeInput, OntologyEntryLabel, AxisType
-from breedgraph.domain.model.regions import LocationInput
+from breedgraph.domain.model.location_trees import LocationInput
 
 from breedcafs_migration import layouts
 from breedcafs_migration.bootstrap import MigrationContext
@@ -64,13 +64,13 @@ async def layouts_context(isolated_state, uow_factory) -> dict:
     async with uow_factory.get_uow(
             user_id=migration['user_id'], write_team=migration['team_id'], release=ReadRelease.PUBLIC
     ) as uow:
-        region = await uow.repositories.regions.create(LocationInput(name="Nicaragua", code="NIC", type=country_type.id))
+        location_tree = await uow.repositories.location_trees.create(LocationInput(name="Nicaragua", code="NIC", type=country_type.id))
         for row in FIELDS:
-            region.add_location(LocationInput(name=row['field'].strip('"'), type=field_type.id), parent_id=region.get_root_id())
+            location_tree.add_location(LocationInput(name=row['field'].strip('"'), type=field_type.id), parent_id=location_tree.get_root_id())
         await uow.commit()
         field_locations = {
             row['field_uid']: next(
-                location.id for location in region.yield_locations_by_type(field_type.id)
+                location.id for location in location_tree.yield_locations_by_type(field_type.id)
                 if location.name == row['field'].strip('"')
             )
             for row in FIELDS
@@ -109,7 +109,7 @@ async def test_prepare_layouts(uow_factory, layouts_context, data_dir):
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         async def layout(key):
-            return (await uow.repositories.arrangements.get(layout_id=ids.layouts[key])).root
+            return (await uow.repositories.layout_trees.get(layout_id=ids.layouts[key])).root
 
         ed1 = await layout(('1', '', ROW_AND_TREE))
         assert (ed1.name, ed1.type, ed1.location, ed1.axes) == (

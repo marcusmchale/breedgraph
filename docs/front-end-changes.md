@@ -43,6 +43,8 @@ in this repository lists the operations that no longer validate (§10).
 6. Claim requests for admins (§6).
 7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
 8. Record group extent and replicate aggregation (§11): the grouping form first, as creating a record grouping fails without it.
+9. The area renames (§13): every units, locations, layouts and teams operation fails until it is renamed, so do this
+   first, with step 8's grouping form, before the rest.
 
 New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 
@@ -61,8 +63,10 @@ New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a 
 | Programs | `contactIds` must name Persons linked to an account and released widely enough | Show the errors (§5) |
 | Teams | `organisationsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
 | Programs | `GroupingInput` requires `extent` | Add it to the grouping form (§11.2) |
+| Units, locations, layouts, teams | The `blocks`, `regions`, `arrangements` and `organisations` areas are renamed `units`, `locations`, `layouts` and `teams`; `Location.region` and `Layout.arrangement` become `root`, `DatasetSummary.blocks` becomes `unitRoots` | Rename the operations and the response keys (§13) |
 
 Nothing else was renamed. Everything below that is not listed here is new.
+Sections before §13 still use the old area names, e.g. `organisationsDeclareLegalEntity` for `teamsDeclareLegalEntity`: §13 maps them.
 
 ## 2. Registration and invitations
 
@@ -399,19 +403,62 @@ their descendants, and, without a date, to every time bin."
 ## 12. The WITHIN_GRAPH extent
 
 `RecordGroupExtent` has a third value, `WITHIN_GRAPH`. Its codes are shared like SHARED codes, but only by the units of
-one block (graph of units, e.g. a field), so the design blocks of different fields, which reuse the same names
+one unit graph (e.g. a field), so the design blocks of different fields, which reuse the same names
 ("Block 1"), stay apart without the code having to name the field. Background: `docs/analysis.md` §3 and the README's
 "Record Group Type", which also gives the rule for choosing between a unit, a code and a factor. The BreedCAFS migration
 uses it for the blocks of its fields.
 
 **Help text** (with §11's concepts):
-- **`WITHIN_GRAPH`**: records of units of one block with the same code are one group, e.g. the design blocks of a field.
+- **`WITHIN_GRAPH`**: records of units of one unit graph with the same code are one group, e.g. the design blocks of a field.
   Block 1 of one field is not grouped with Block 1 of another.
 
 Front end:
 - §11.1, §11.2: the extent fields offer the third value, with this help text; badges and lists show it.
 - §11.3: curation sections may be built from WITHIN_GRAPH groupings as from SHARED ones (`c.extent !== 'WITHIN_UNIT'`).
 - §11.5: a WITHIN_GRAPH dimension can be a term and be used in ANOVA, and its codes can be members of shared levels
-  (a member merges the code across blocks). `AnalysisRecordGroupAssignment.unitId` is the block's root for WITHIN_GRAPH
+  (a member merges the code across unit graphs). `AnalysisRecordGroupAssignment.unitId` is the unit graph's root for WITHIN_GRAPH
   levels (`level` key `grouping|scope|root|code`): show the code with its root, e.g. "Block 1 of ED1". The root may be a
   placeholder the user can't read; show its id only.
+
+## 13. Units, locations, layouts and teams: renamed areas
+
+The aggregates were renamed for the shape of what they hold: `Block` is now `UnitGraph` (a rooted graph of units, which
+also stops it being confused with a design block, now a WITHIN_GRAPH code, §12), `Region` is `LocationTree`,
+`Arrangement` is `LayoutTree` and `Organisation` is `TeamTree`. The GraphQL areas take the plural of the member type, as
+`people` already does: `units`, `locations`, `layouts` and `teams`. The pages can keep showing whatever names suit users
+("Regions", "Organisations"); only the operations change. Arguments, payloads and types are unchanged, except for the three
+fields at the end of the table.
+
+| Old | New |
+|---|---|
+| `blocks(locationIds)` | `unitsRoots(locationIds)` |
+| `blocksUnits(ids)` | `unitsUnits(ids)` |
+| `blocksDescendantsBySubject(unitIds)` | `unitsDescendantsBySubject(unitIds)` |
+| `blocksCreateUnit`, `blocksUpdateUnit`, `blocksDeleteUnit` | `unitsCreateUnit`, `unitsUpdateUnit`, `unitsDeleteUnit` |
+| `blocksAddPosition`, `blocksRemovePosition` | `unitsAddPosition`, `unitsRemovePosition` |
+| `regions` | `locationsRoots` |
+| `regionsLocations(ids)` | `locationsLocations(ids)` |
+| `regionsLocationsByType(locationTypeId)` | `locationsLocationsByType(locationTypeId)` |
+| `regionsDescendantsByType(locationIds)` | `locationsDescendantsByType(locationIds)` |
+| `regionsCountries` | `locationsCountries` |
+| `regionsCreateLocation`, `regionsUpdateLocation`, `regionsDeleteLocation` | `locationsCreateLocation`, `locationsUpdateLocation`, `locationsDeleteLocation` |
+| `arrangements(locationId)` | `layoutsRoots(locationId)` |
+| `arrangementsLayouts(ids)` | `layoutsLayouts(ids)` |
+| `arrangementsCreateLayout`, `arrangementsUpdateLayout`, `arrangementsDeleteLayout` | `layoutsCreateLayout`, `layoutsUpdateLayout`, `layoutsDeleteLayout` |
+| `organisations` | `teamsRoots` |
+| `organisationsTeam(id)`, `organisationsTeams(ids)` | `teamsTeam(id)`, `teamsTeams(ids)` |
+| `organisationsDataProcessingTerms` | `teamsDataProcessingTerms` (still open without login) |
+| `organisationsCreateTeam`, `organisationsUpdateTeam`, `organisationsDeleteTeam` | `teamsCreateTeam`, `teamsUpdateTeam`, `teamsDeleteTeam` |
+| `organisationsDeclareLegalEntity`, `organisationsWithdrawLegalEntity` | `teamsDeclareLegalEntity`, `teamsWithdrawLegalEntity` |
+| `Location.region` (the root location) | `Location.root` |
+| `Layout.arrangement` (the root layout) | `Layout.root` |
+| `DatasetSummary.blocks` (the root units) | `DatasetSummary.unitRoots` |
+
+Front end (`breedview` at `7636479`): `scripts/check_front_end_queries.py` (§10) finds 29 operations to rename, all in
+`graphql/blocks/`, `graphql/regions/`, `graphql/arrangements/` and `graphql/organisations/`, plus
+`graphql/datasets/datasetSummaries.graphql` (`blocks`) and `graphql/regions/locationFragment.graphql` (`region`).
+The check does not see the response keys read in JavaScript: `result.data.regions`, `data.blocks`, `location.region`,
+`layout.arrangement`, `summary.blocks` and the like, e.g. in `composables/regions/`, `composables/blocks/blocksQuery.js`,
+`composables/analysis/useAnalysisDataContext.js`, `components/regions/`, `components/blocks/`,
+`components/arrangements/ArrangementTree.vue`, `components/programs/DatasetScopeForm.vue` and
+`components/datasets/StudyDatasetsPanel.vue`; search for them too. The Apollo `Query` field policy for `blocksUnits` (`graphql/apollo.js`) becomes `unitsUnits`.

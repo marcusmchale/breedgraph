@@ -40,10 +40,10 @@ async def test_dry_run(uow_factory, isolated_state, tmp_path, monkeypatch):
     monkeypatch.setattr(archival_service, 'FILE_STORAGE_PATH', str(tmp_path / 'files'))
 
     account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
-    # Persons require the organisation to have declared its legal entity, as the bootstrap checks
+    # Persons require the team tree to have declared its legal entity, as the bootstrap checks
     async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=account['team_id'])
-        organisation.declare_legal_entity(
+        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
+        team_tree.declare_legal_entity(
             agent_id=account['user_id'], team_id=account['team_id'], legal_name="University",
             privacy_contact="dataprotection@example.org", terms_version="test", current_terms_version="test"
         )

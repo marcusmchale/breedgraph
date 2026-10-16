@@ -43,7 +43,7 @@ class RecordGroupExtent(str, Enum):
 
     SHARED = "SHARED"
     """Records of different units with the same code are one group, a level that can be estimated across units,
-    e.g. a block, batch, session or canopy stratum."""
+    e.g. a unit graph, batch, session or canopy stratum."""
 
     WITHIN_UNIT = "WITHIN_UNIT"
     """Codes are nested in each record's unit: records of one unit with the same code at one time, or within the
@@ -51,7 +51,7 @@ class RecordGroupExtent(str, Enum):
     Something followed over time, sampled or positioned is better recorded as a child unit."""
 
     WITHIN_GRAPH = "WITHIN_GRAPH"
-    """Codes are nested in the root of each record unit's graph (block): records of units of one graph with the same
+    """Codes are nested in the root of each record unit's graph: records of units of one graph with the same
     code are one group, a level that can be estimated across those units, e.g. the design blocks of a field,
     whose names recur in other fields. Otherwise as SHARED."""
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit
 from numpy import datetime64
-from breedgraph.domain.model.blocks import UnitOutput
+from breedgraph.domain.model.unit_graphs import UnitOutput
 
 from typing import List, Dict, AsyncGenerator, AbstractSet
 
@@ -17,7 +17,7 @@ class AbstractDatasetsView(ABC):
     ) -> List[DatasetSummary]:
         """
         The summaries of a study's readable datasets. Pass the DatasetSummary fields to read beyond id and
-        concept_id (subject_ids, location_ids, block_ids, unit_count, record_count, start, end) to skip the
+        concept_id (subject_ids, location_ids, unit_root_ids, unit_count, record_count, start, end) to skip the
         rest, which keep their defaults; None reads them all.
         """
         return await self._get_dataset_summaries(study_id=study_id, fields=fields)

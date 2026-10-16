@@ -6,7 +6,7 @@ from numpy import datetime64
 
 from breedgraph.domain.model.analysis import AnalysisFailed, AnalysisErrorCode, AnalysisWarningCode
 from breedgraph.domain.model.analysis_context import UnitContext, ConceptContext
-from breedgraph.domain.model.blocks import Position
+from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.model.ontology import ScaleType, RecordGroupExtent
 from breedgraph.domain.model.programs import RecordGroupingStored, GroupingScope, DatasetScope
 from breedgraph.domain.services.analysis_job import build_job_payload

@@ -16,7 +16,7 @@ from breedgraph.domain.model.analysis import (
     RecordGroupMember, AnovaSpec, intervals_overlap
 )
 from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord
-from breedgraph.domain.model.blocks import Position
+from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime
 from breedgraph.domain.services.record_grouping_resolver import RecordGroupDimensionResolver
 

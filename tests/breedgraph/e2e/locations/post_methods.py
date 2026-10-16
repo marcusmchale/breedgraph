@@ -1,0 +1,152 @@
+from breedgraph.config import GQL_API_PATH
+from tests.breedgraph.e2e.utils import with_auth
+from typing import List
+
+async def post_to_countries(client, token:str):
+    json = {
+        "query": (
+            " query { "
+            "  locationsCountries { "
+            "    status, "
+            "    result { "
+            "       name, "
+            "       code, "  
+            "       typeId "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        )
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_create_location(
+    client,
+    token:str,
+    location: dict,
+    control_team_id: int
+):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $location: LocationInput! "
+            "  $controlTeamId: ID! "
+            " ) { "
+            "  locationsCreateLocation( "
+            "    location: $location "
+            "    controlTeamId: $controlTeamId "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "location": location,
+            "controlTeamId": control_team_id
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_locations_roots(client, token:str):
+    json = {
+        "query": (
+            " query { "
+            "  locationsRoots { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name } "
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        )
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_locations(client, location_ids: List[int],  token:str = None):
+    json = {
+        "query": (
+            " query ("
+            "   $ids : [ID!]!"
+            " ) { "
+            "  locationsLocations ( "
+            "    ids: $ids"
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name }"
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "ids": location_ids
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_locations_by_type(client, location_type_id: int, token:str = None):
+    json = {
+        "query": (
+            " query ("
+            "   $locationTypeId : ID! "
+            " ) { "
+            "  locationsLocationsByType ( "
+            "    locationTypeId: $locationTypeId "
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       code, "  
+            "       type { id, name }"
+            "       parent {id, name, code, type {id, name} } "
+            "       children {id, name, code, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "locationTypeId": location_type_id
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response

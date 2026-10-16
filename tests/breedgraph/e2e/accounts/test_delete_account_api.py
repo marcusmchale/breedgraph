@@ -13,7 +13,7 @@ from tests.breedgraph.e2e.accounts.post_methods import _post
 from tests.breedgraph.e2e.people.post_methods import post_to_person
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-from tests.breedgraph.scenarios.organisation_builder import OrganisationBuilder
+from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 from tests.breedgraph.scenarios.person_builder import PersonBuilder
 from tests.breedgraph.utilities.inputs import UserInputGenerator
 
@@ -44,9 +44,9 @@ async def verified_account(uow_factory, ontology_role=OntologyRole.CONTRIBUTOR) 
 async def member_with_person(uow_factory, context) -> tuple[int, str, int]:
     """A team member who has written a Person record, linked to their account"""
     user_id, password = await verified_account(uow_factory)
-    organisation_builder = OrganisationBuilder(uow_factory)
+    team_tree_builder = TeamTreeBuilder(uow_factory)
     for access in [Access.READ, Access.WRITE]:
-        await organisation_builder.authorise_access(user_id=user_id, team_id=context['team_id'], access=access)
+        await team_tree_builder.authorise_access(user_id=user_id, team_id=context['team_id'], access=access)
     person_id = await PersonBuilder(uow_factory).person(user_id=user_id, team_id=context['team_id'])
     async with uow_factory.get_uow(user_id=context['user_id']) as uow:
         person = await uow.repositories.people.get(person_id=person_id)
@@ -176,7 +176,7 @@ async def test_delete_account_can_keep_person(client, login_token_factory, uow_f
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_account_refused_for_sole_team_admin(client, login_token_factory, uow_factory, delete_context):
     user_id, password = await verified_account(uow_factory)
-    team_id = await OrganisationBuilder(uow_factory).organisation(user_id=user_id)
+    team_id = await TeamTreeBuilder(uow_factory).team_tree(user_id=user_id)
     token = login_token_factory(user_id=user_id)
 
     response, payload = await delete_account(client, token, password)
@@ -186,7 +186,7 @@ async def test_delete_account_refused_for_sole_team_admin(client, login_token_fa
 
     # Another admin lets them go
     other_id, _ = await verified_account(uow_factory)
-    await OrganisationBuilder(uow_factory).authorise_access(user_id=other_id, team_id=team_id, access=Access.ADMIN)
+    await TeamTreeBuilder(uow_factory).authorise_access(user_id=other_id, team_id=team_id, access=Access.ADMIN)
     response, payload = await delete_account(client, token, password)
     assert_payload_success(payload)
 

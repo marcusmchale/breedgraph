@@ -131,12 +131,12 @@ async def get_invitation_preview(_, info, token: str) -> dict:
         inviter = await uow.repositories.accounts.get(user_id=invitation_stored.invited_by)
         teams = []
         for offered in invitation_stored.teams:
-            organisation = await uow.repositories.organisations.get(team_id=offered.team_id)
-            if organisation is None:
+            team_tree = await uow.repositories.team_trees.get(team_id=offered.team_id)
+            if team_tree is None:
                 continue
             teams.append({
                 'team_id': offered.team_id,
-                'team_name': organisation.get_team(offered.team_id).name,
+                'team_name': team_tree.get_team(offered.team_id).name,
                 'access': offered.access
             })
     return {

@@ -5,15 +5,15 @@ from neo4j import AsyncTransaction
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 from breedgraph.adapters.neo4j.repositories.accounts import Neo4jAccountRepository
-from breedgraph.adapters.neo4j.repositories.arrangements import Neo4jArrangementsRepository
-from breedgraph.adapters.neo4j.repositories.blocks import Neo4jBlocksRepository
+from breedgraph.adapters.neo4j.repositories.layout_trees import Neo4jLayoutTreesRepository
+from breedgraph.adapters.neo4j.repositories.unit_graphs import Neo4jUnitGraphsRepository
 from breedgraph.adapters.neo4j.repositories.invitations import Neo4jInvitationsRepository
 from breedgraph.adapters.neo4j.repositories.datasets import Neo4jDatasetsRepository
-from breedgraph.adapters.neo4j.repositories.organisations import Neo4jOrganisationsRepository
+from breedgraph.adapters.neo4j.repositories.team_trees import Neo4jTeamTreesRepository
 from breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
 from breedgraph.adapters.neo4j.repositories.programs import Neo4jProgramsRepository
 from breedgraph.adapters.neo4j.repositories.references import Neo4jReferencesRepository
-from breedgraph.adapters.neo4j.repositories.regions import Neo4jRegionsRepository
+from breedgraph.adapters.neo4j.repositories.location_trees import Neo4jLocationTreesRepository
 
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.config import INVITATION_EXPIRY_DAYS
@@ -40,16 +40,16 @@ class Neo4jRepoHolder(AbstractRepoHolder):
         self.accounts = Neo4jAccountRepository(self.tx)
         # Access to invitations is checked by handlers: inviters manage their own, invited users present a token
         self.invitations = Neo4jInvitationsRepository(self.tx, expiry_days=INVITATION_EXPIRY_DAYS)
-        # Similarly, the access control for organisations is via internally described affiliations
+        # Similarly, the access control for team trees is via internally described affiliations
 
-        self.organisations = Neo4jOrganisationsRepository(self.tx, user_id=controls.user_id)
+        self.team_trees = Neo4jTeamTreesRepository(self.tx, user_id=controls.user_id)
         """
         The below repositories are controlled in a common pattern that determine access
          to the values of models within an aggregate
          - controllers load the controlling teams and their determined release level (private/registered/public)
          - if a user is registered they have a user_id
          - authorised read/write/curate/admin affiliations to each team (access teams) are determined 
-         by the affiliations in the organisations repo
+         by the affiliations in the team trees repo
          - Read access is determined by the release status (set by the admins for controlling teams)
            - Private = only with read affiliation
            - Registered = has user_id
@@ -62,23 +62,23 @@ class Neo4jRepoHolder(AbstractRepoHolder):
             'release': release,
             'write_team': write_team
         }
-        self.arrangements = Neo4jArrangementsRepository(**repo_params)
+        self.layout_trees = Neo4jLayoutTreesRepository(**repo_params)
         self.datasets = Neo4jDatasetsRepository(**repo_params)
         self.people = Neo4jPeopleRepository(**repo_params)
         self.programs = Neo4jProgramsRepository(**repo_params)
         self.references = Neo4jReferencesRepository(**repo_params)
-        self.regions = Neo4jRegionsRepository(**repo_params)
-        self.blocks = Neo4jBlocksRepository(**repo_params)
+        self.location_trees = Neo4jLocationTreesRepository(**repo_params)
+        self.unit_graphs = Neo4jUnitGraphsRepository(**repo_params)
 
     async def update_all_seen(self):
         logger.debug("Update seen by all repositories")
         await self.accounts.update_seen()
         await self.invitations.update_seen()
-        await self.organisations.update_seen()
-        await self.arrangements.update_seen()
+        await self.team_trees.update_seen()
+        await self.layout_trees.update_seen()
         await self.datasets.update_seen()
         await self.people.update_seen()
         await self.programs.update_seen()
         await self.references.update_seen()
-        await self.regions.update_seen()
-        await self.blocks.update_seen()
+        await self.location_trees.update_seen()
+        await self.unit_graphs.update_seen()

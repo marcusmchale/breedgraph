@@ -25,7 +25,7 @@ input GermplasmInput {
     synonyms: [String!]
 
     """
-    Place of origin, a reference to a Location stored in Regions
+    Place of origin, a reference to a Location stored in Location trees
     """
     originId: ID
     """

@@ -119,10 +119,10 @@ async def test_dataset_summaries(views_factory, read_policy, viewer, study):
         shown = {unit for unit in units if read_policy.readable(viewer, unit)}
         assert summary.concept_id == read_policy['ontology_variable_height']
         assert summary.record_count == len(DATASETS[name]['records'])
-        # hidden units count, as their records are readable, but add no subjects, blocks or locations
+        # hidden units count, as their records are readable, but add no subjects, unit graphs or locations
         assert summary.unit_count == len(units)
         assert set(summary.subject_ids) == {read_policy[UNIT_SUBJECTS[unit]] for unit in shown}
-        assert set(summary.block_ids) == ({read_policy['field_unit']} if shown else set())
+        assert set(summary.unit_root_ids) == ({read_policy['field_unit']} if shown else set())
         assert set(summary.location_ids) == {read_policy[UNIT_LOCATIONS[unit]] for unit in shown if unit in UNIT_LOCATIONS}
 
 

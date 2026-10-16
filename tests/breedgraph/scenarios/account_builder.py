@@ -4,7 +4,7 @@ from tests.breedgraph.utilities.inputs import UserInputGenerator
 
 from breedgraph.domain.model.accounts import UserInput, AccountInput
 
-from .organisation_builder import OrganisationBuilder
+from .team_tree_builder import TeamTreeBuilder
 
 from typing import Dict
 
@@ -35,10 +35,10 @@ class AccountBuilder:
 
     async def account_with_affiliations(self, ontology_role: OntologyRole = OntologyRole.EDITOR) -> Dict[str, int]:
         user_id = await self.account(ontology_role=ontology_role)
-        organisation_builder = OrganisationBuilder(uow_factory=self.uow_factory)
-        team_id = await organisation_builder.organisation(user_id=user_id)
+        team_tree_builder = TeamTreeBuilder(uow_factory=self.uow_factory)
+        team_id = await team_tree_builder.team_tree(user_id=user_id)
         for a in Access:
-            await organisation_builder.authorise_access(user_id=user_id, team_id=team_id, access=a)
+            await team_tree_builder.authorise_access(user_id=user_id, team_id=team_id, access=a)
         return {
             'user_id': user_id,
             'team_id': team_id

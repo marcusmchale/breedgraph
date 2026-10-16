@@ -5,7 +5,7 @@ from breedgraph.service_layer.infrastructure.state_store import AbstractStateSto
 
 from breedgraph.config import get_redis_host_and_port, LOCAL_STORAGE_DURATION
 
-from breedgraph.domain.model.regions import LocationInput, LocationOutput
+from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys, ArchiveKeys
 

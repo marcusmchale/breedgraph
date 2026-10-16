@@ -28,6 +28,9 @@ A Person is **not**:
 
 BreedGraph is operated by a team within the university. Partner organisations enter data, including Person records about their own staff.
 
+Here an organisation is a team tree (the `TeamTree` aggregate, GraphQL area `teams`) whose root team has declared a legal entity.
+A team tree without a declaration is not an organisation; withdrawing the declaration makes it a plain team tree again.
+
 - **Each organisation has exactly one legal entity, declared on its root team.**
   Child teams never declare a legal entity of their own.
   An organisation's team tree can model a collaborative network for data registration, but a Person always has one definite responsible party.
@@ -35,7 +38,7 @@ BreedGraph is operated by a team within the university. Partner organisations en
 - **The data controller of a Person is the legal entity of the organisation containing the record's write team.**
   The write team comes from the creating user's write affiliation.
   The user acts on behalf of that organisation; the user is not the data controller.
-- **The agreement is made when an organisation root is created**, i.e. when a team is created without a parent, or a team is moved to become the root of an organisation.
+- **The agreement is made when a root team declares its legal entity**, which makes its team tree an organisation: when the root is created (a team without a parent, or a team moved to become a root), or later.
   The creating admin gives the legal entity's name and a privacy contact (a role address such as `dataprotection@partner.org`, not an individual's), and accepts the BreedGraph data processing terms.
   The terms set out the university's role as host, and the partner's responsibilities as data controller: informing staff, handling requests from people about their data, and erasure.
   The terms text comes from the university's DPO or legal office. The software records who accepted which version, and when.
@@ -58,14 +61,14 @@ BreedGraph is operated by a team within the university. Partner organisations en
 - Declaring again creates a new declaration and accepts the current terms again. Earlier declarations are kept, and only the latest is current.
 - Visibility follows the team: the legal name, privacy contact, terms version and time are visible wherever the root team is.
   Who declared is visible to admins of the root team only, as for affiliations.
-- `organisationsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the organisation controls a Person, including erased Persons; transfer them first.
+- `teamsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the organisation controls a Person, including erased Persons; transfer them first.
   The declaration is kept, marked with who withdrew it and when.
 
 #### Declaring is optional
 
-Declaring a legal entity is optional for an organisation. Organisations that only model collaboration can exist without one.
-**Creating a Person requires the write team's organisation to have a declared legal entity.**
-Root admins of existing organisations, or organisations created without a declaration, can declare one later and accept the terms at that point.
+Declaring a legal entity is optional for a team tree. Team trees that only model collaboration can exist without one, and are not organisations.
+**Creating a Person requires the write team to be in an organisation**, i.e. its team tree to have a declared legal entity.
+Root admins of team trees created without a declaration can declare one later and accept the terms at that point.
 
 #### One organisation per Person
 
@@ -326,8 +329,8 @@ The user is asked whether to erase their Person record as well. Erasure is the d
 | Question | Decision |
 |---|---|
 | Data controllers | The legal entity declared on the root of the organisation containing the record's write team (see §2). One legal entity per organisation. |
-| Agreement | Accepted when an organisation root is created or a team is moved to become a root. No separate operator approval. |
-| Declaring a legal entity | Optional for an organisation, required to create a Person. Can be declared after the organisation is created. |
+| Agreement | Accepted when a root team declares its legal entity, making its team tree an organisation: when the root is created, or later. No separate operator approval. |
+| Declaring a legal entity | Optional for a team tree, which is an organisation once declared; required to create a Person. Can be declared after the root is created. |
 | Changing the data controller | Through the general control transfer mechanism (`control-transfer.md`), with the receiving organisation required to have a declared legal entity (§2). |
 | ORCID | Set only by the linked User through ORCID sign-in. Not recorded for unlinked Persons. |
 | Public attribution | Follows the existing release pattern. Admins of the controlling team decide, up to public release. |
@@ -341,8 +344,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 
 ## 9. Implementation plan
 
-0. **Organisation legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `organisationsDeclareLegalEntity`, `organisationsDataProcessingTerms`).
-   The check that the write team's organisation has a legal entity is added with Person (`Organisation.legal_entity`).
+0. **Organisation legal entity.** Done: declarations on roots with history, terms acceptance when creating a root or later, and GraphQL (`Team.legalEntity`, `teamsDeclareLegalEntity`, `teamsDataProcessingTerms`).
+   The check that the write team's organisation has a legal entity is added with Person (`TeamTree.legal_entity`).
    Builds on the control transfer mechanism (`control-transfer.md`), which is implemented first. The Person rule (§2) is added to its entity-specific rules.
 1. **Domain.** Done: `PersonInput` requires a name and the informed attestation; `PersonStored` adds `orcid`, `user`, provenance and `erased_at`, `redacted()` gives readers and the linked user the full record and other registered users the ID only, and `erase()` clears identifying data for admins of the controlling teams or the linked user. `LawfulBasis` enumerates the bases.
 2. **Commands.** Done: `CreatePerson`, `UpdatePerson`, `ErasePerson`, replacing `DeletePerson`.

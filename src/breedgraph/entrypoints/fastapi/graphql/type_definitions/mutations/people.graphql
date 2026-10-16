@@ -23,7 +23,7 @@ input PersonUpdate {
 
 extend type Mutation {
     """
-    Record a Person. The organisation of the control team must have declared its legal entity,
+    Record a Person. The team tree of the control team must have declared its legal entity,
     and becomes the data controller for the record.
     """
     peopleCreatePerson(

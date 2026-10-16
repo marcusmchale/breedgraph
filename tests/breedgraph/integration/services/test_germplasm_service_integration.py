@@ -289,10 +289,10 @@ async def test_referenced_germplasm_is_protected(
     crop_id = await GermplasmBuilder(uow_factory).germplasm(user_id=user_id, team_id=germplasm_build_context['team_id'])
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
-        block = await uow.repositories.blocks.get(unit_id=unit_id)
-        if not block:
-            raise ValueError("Block not found")
-        unit = block.get_unit(unit_id=unit_id)
+        unit_graph = await uow.repositories.unit_graphs.get(unit_id=unit_id)
+        if not unit_graph:
+            raise ValueError("UnitGraph not found")
+        unit = unit_graph.get_unit(unit_id=unit_id)
         unit.germplasm = crop_id
         await uow.commit()
 

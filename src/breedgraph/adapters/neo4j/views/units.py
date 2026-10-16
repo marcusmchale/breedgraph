@@ -2,8 +2,8 @@ from neo4j import AsyncResult, AsyncSession
 from typing import List, Dict
 
 from breedgraph.adapters.neo4j.cypher import queries
-from breedgraph.adapters.neo4j.cypher.query_builders import blocks as block_queries
-from breedgraph.domain.model.blocks import UnitOutput, Position
+from breedgraph.adapters.neo4j.cypher.query_builders import unit_graphs as unit_graph_queries
+from breedgraph.domain.model.unit_graphs import UnitOutput, Position
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.time_descriptors import deserialize_time
 from breedgraph.service_layer.queries.views.units import AbstractUnitsView
@@ -11,9 +11,9 @@ from breedgraph.service_layer.queries.views.units import AbstractUnitsView
 
 class Neo4jUnitsView(AbstractUnitsView):
     """
-    Units read by id or by location, with the read check and redaction in Cypher rather than by loading the block
-    (see query_builders.blocks): readable units in full, their parents and children the nearest readable units, as
-    Block.redacted reconnects them, and placeholders for hidden units asked for by id and hidden block roots holding
+    Units read by id or by location, with the read check and redaction in Cypher rather than by loading the unit graph
+    (see query_builders.unit_graphs): readable units in full, their parents and children the nearest readable units, as
+    UnitGraph.redacted reconnects them, and placeholders for hidden units asked for by id and hidden unit graph roots holding
     readable units.
     """
 
@@ -47,13 +47,13 @@ class Neo4jUnitsView(AbstractUnitsView):
         return [self._to_unit(dict(record['unit'])) async for record in result]
 
     async def _get_unit_names(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
-        units = await self._read(block_queries.read_unit_names(), unit_ids=unit_ids)
+        units = await self._read(unit_graph_queries.read_unit_names(), unit_ids=unit_ids)
         return {unit.id: unit for unit in units}
 
     async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['blocks']['get_descendants_by_subject_for_read_teams'],
+                queries['unit_graphs']['get_descendants_by_subject_for_read_teams'],
                 unit_ids=unit_ids,
                 read_teams=self.read_teams,
                 minimum_release=self.minimum_release
@@ -66,8 +66,8 @@ class Neo4jUnitsView(AbstractUnitsView):
             }
 
     async def _get_units(self, unit_ids: List[int]) -> Dict[int, UnitOutput]:
-        units = await self._read(block_queries.read_units(), unit_ids=unit_ids)
+        units = await self._read(unit_graph_queries.read_units(), unit_ids=unit_ids)
         return {unit.id: unit for unit in units}
 
-    async def _get_block_roots(self, location_ids: List[int]) -> List[UnitOutput]:
-        return await self._read(block_queries.read_block_roots(), location_ids=location_ids)
+    async def _get_unit_graph_roots(self, location_ids: List[int]) -> List[UnitOutput]:
+        return await self._read(unit_graph_queries.read_unit_graph_roots(), location_ids=location_ids)

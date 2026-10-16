@@ -22,7 +22,7 @@ def _readable(unit: str) -> str:
     return _readable_as(unit, UNIT)
 
 # The summary fields read from the datasets' units rather than from their records alone
-UNIT_FIELDS = frozenset({'unit_count', 'subject_ids', 'block_ids', 'location_ids'})
+UNIT_FIELDS = frozenset({'unit_count', 'subject_ids', 'unit_root_ids', 'location_ids'})
 SUMMARY_FIELDS = UNIT_FIELDS | {'record_count', 'start', 'end'}
 
 
@@ -69,13 +69,13 @@ def dataset_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
 def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
     """
     What the units of the datasets with ids $dataset_ids add to their summaries, for the given fields, one row per
-    dataset with records. Datasets of a study share most of their units, so each unit's subjects and block are read
+    dataset with records. Datasets of a study share most of their units, so each unit's subjects and unit graph are read
     once, then credited to every dataset it has records in. A unit's locations are those of its positions that
     overlap the time span of its records in the dataset, or all of them when either is untimed. The time range of
     each dataset comes from the same pass.
     """
     _check_fields(fields)
-    # Hidden units count, as the records for them are readable, but their subjects, blocks and locations are not shown
+    # Hidden units count, as the records for them are readable, but their subjects, unit graphs and locations are not shown
     locations = 'location_ids' in fields
     timed = bool(fields & {'start', 'end'})
     spans = timed or locations
@@ -107,7 +107,7 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
 
     # one row per unit, with what it was in each dataset
     query.append(f"WITH unit, collect({{ {', '.join(use)} }}) AS uses")
-    if fields & {'subject_ids', 'block_ids', 'location_ids'}:
+    if fields & {'subject_ids', 'unit_root_ids', 'location_ids'}:
         query.append(f"WITH unit, uses {_visible('unit', UNIT, 'unit_readable')}")
     if 'subject_ids' in fields:
         query.append("""
@@ -116,12 +116,12 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
           RETURN collect(DISTINCT subject.id) AS subject_ids
         }
         """)
-    if 'block_ids' in fields:
-        # a readable unit's block root, a placeholder if hidden, as the blocks view keeps it
+    if 'unit_root_ids' in fields:
+        # a readable unit's unit graph root, a placeholder if hidden, as the unit graphs view keeps it
         query.append("""
         CALL (unit, unit_readable) {
           OPTIONAL MATCH (root:Unit)-[:INCLUDES_UNIT*0..]->(unit) WHERE unit_readable AND NOT (:Unit)-[:INCLUDES_UNIT]->(root)
-          RETURN collect(DISTINCT root.id) AS block_ids
+          RETURN collect(DISTINCT root.id) AS unit_root_ids
         }
         """)
 
@@ -136,7 +136,7 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
         returns.extend(['start: start', 'end: end'])
     for name, values in [
         ('subject_ids', 'subject_ids'),
-        ('block_ids', 'block_ids'),
+        ('unit_root_ids', 'unit_root_ids'),
         ('location_ids', 'CASE WHEN unit_readable THEN use.location_ids ELSE [] END')
     ]:
         if name in fields:

@@ -160,17 +160,17 @@ class AnalysisContextLoader:
 
         units = {}
         if unit_ids:
-            async for block in self.uow.repositories.blocks.get_all(unit_ids=list(unit_ids)):
+            async for unit_graph in self.uow.repositories.unit_graphs.get_all(unit_ids=list(unit_ids)):
                 # Units the user cannot read are left out, and ancestors are those the user can read
-                block = await self.uow.repositories.blocks.redacted(block)
-                for unit_id, unit in block.entries.items():
+                unit_graph = await self.uow.repositories.unit_graphs.redacted(unit_graph)
+                for unit_id, unit in unit_graph.entries.items():
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
                         germplasm_id=unit.germplasm,
                         positions=list(unit.positions or []),
-                        ancestor_ids=block.get_ancestors(unit_id),
+                        ancestor_ids=unit_graph.get_ancestors(unit_id),
                         # Redaction keeps a hidden root as a placeholder, so this is the root whatever the user reads
-                        root_id=block.get_root_id()
+                        root_id=unit_graph.get_root_id()
                     )
 
         for i, unit_id in enumerate(selected):

@@ -43,9 +43,9 @@ async def notify_person_claim_requested(
             return
         admin_ids = set()
         for team_id in controller.teams:
-            organisation = await uow.repositories.organisations.get(team_id=team_id)
-            if organisation is not None:
-                admin_ids |= organisation.get_affiliates(team_id, access=Access.ADMIN)
+            team_tree = await uow.repositories.team_trees.get(team_id=team_id)
+            if team_tree is not None:
+                admin_ids |= team_tree.get_affiliates(team_id, access=Access.ADMIN)
         requester = await uow.repositories.accounts.get(user_id=event.user_id)
         admins = [(await uow.repositories.accounts.get(user_id=admin_id)).user for admin_id in sorted(admin_ids)]
     if admins and requester is not None:

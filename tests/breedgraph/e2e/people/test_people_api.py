@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 
 from breedgraph import config
-from breedgraph.domain.commands.organisations import DeclareLegalEntity, LegalEntity
+from breedgraph.domain.commands.team_trees import DeclareLegalEntity, LegalEntity
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 from tests.breedgraph.e2e.people.post_methods import (

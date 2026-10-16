@@ -16,7 +16,7 @@ from neo4j import GraphDatabase
 
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders import (
-    arrangements, blocks, controls, datasets, germplasm, people, programs, references, regions
+    layout_trees, unit_graphs, controls, datasets, germplasm, people, programs, references, location_trees
 )
 
 ENV_FILE = Path(__file__).parents[3] / 'instance' / 'private.breedgraph.env'
@@ -41,14 +41,14 @@ def _summary_field_sets():
 
 
 QUERIES = {
-    'arrangements.read_layouts': arrangements.read_layouts(),
-    'arrangements.read_arrangements': arrangements.read_arrangements(),
-    'blocks.read_units': blocks.read_units(),
-    'blocks.read_block_roots': blocks.read_block_roots(),
-    'blocks.read_unit_names': blocks.read_unit_names(),
-    'regions.read_locations': regions.read_locations(),
-    'regions.read_regions': regions.read_regions(),
-    'regions.read_locations_by_type': regions.read_locations_by_type(),
+    'layout_trees.read_layouts': layout_trees.read_layouts(),
+    'layout_trees.read_layout_trees': layout_trees.read_layout_trees(),
+    'unit_graphs.read_units': unit_graphs.read_units(),
+    'unit_graphs.read_unit_graph_roots': unit_graphs.read_unit_graph_roots(),
+    'unit_graphs.read_unit_names': unit_graphs.read_unit_names(),
+    'location_trees.read_locations': location_trees.read_locations(),
+    'location_trees.read_location_trees': location_trees.read_location_trees(),
+    'location_trees.read_locations_by_type': location_trees.read_locations_by_type(),
     'programs.read_programs': programs.read_programs(),
     **{f'programs.read_program({by})': programs.read_program(by) for by in ('program', 'trial', 'study')},
     **{f'programs.read_trial({by})': programs.read_trial(by) for by in ('trial', 'study')},

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class TeamOrganisation:
+class TeamTreeRoot:
     root_id: int
     legal_entity_declared: bool
 
@@ -414,25 +414,25 @@ class AbstractAccessControlService(ABC):
     async def _verify_entity_rules(self, transfer: ControlTransferInput | ControlTransferStored) -> None:
         """
         Rules for particular kinds of entity, checked at offer and at acceptance. See docs/control-transfer.md §5.
-        Person: the organisation receiving control is the data controller, so it must have declared a legal entity,
-        and a Person's control teams must stay within one organisation.
+        Person: the team tree receiving control is the data controller, so it must have declared a legal entity,
+        and a Person's control teams must stay within one team tree.
         """
         if not any(entity.label is ControlledModelLabel.PERSON for entity in transfer.entities):
             return
 
-        recipient_organisation = await self._get_team_organisation(transfer.recipient_team)
-        if recipient_organisation is None:
+        recipient_team_tree = await self._get_team_tree(transfer.recipient_team)
+        if recipient_team_tree is None:
             raise NoResultFoundError(f"Recipient team {transfer.recipient_team} not found")
-        if not recipient_organisation.legal_entity_declared:
+        if not recipient_team_tree.legal_entity_declared:
             raise IllegalOperationError(
-                "Persons can only be transferred to an organisation that has declared its legal entity"
+                "Persons can only be transferred to a team tree that has declared its legal entity"
             )
         if transfer.keep_from_teams:
             for team_id in transfer.from_teams:
-                from_organisation = await self._get_team_organisation(team_id)
-                if from_organisation is None or from_organisation.root_id != recipient_organisation.root_id:
+                from_team_tree = await self._get_team_tree(team_id)
+                if from_team_tree is None or from_team_tree.root_id != recipient_team_tree.root_id:
                     raise IllegalOperationError(
-                        "Control of a Person can only be shared between teams of the same organisation"
+                        "Control of a Person can only be shared between teams of the same team tree"
                     )
 
     async def reject_transfer(self, transfer_id: int) -> ControlTransferStored:
@@ -518,8 +518,8 @@ class AbstractAccessControlService(ABC):
         return [transfers[transfer_id] for transfer_id in sorted(transfers)]
 
     @abstractmethod
-    async def _get_team_organisation(self, team_id: int) -> TeamOrganisation | None:
-        """The root of the team's organisation and whether it has declared a legal entity"""
+    async def _get_team_tree(self, team_id: int) -> TeamTreeRoot | None:
+        """The root of the team's team tree and whether it has declared a legal entity"""
         ...
 
     @abstractmethod

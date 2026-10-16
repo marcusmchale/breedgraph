@@ -1,0 +1,12 @@
+type Layout {
+    id: ID!
+    type: LayoutType
+    name: String
+    axes: [String!]
+    root: Layout
+    parent: Layout
+    """Position within parent layout"""
+    position: [String!]
+    children: [Layout!]
+    location: Location
+}

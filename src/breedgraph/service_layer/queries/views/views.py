@@ -6,12 +6,12 @@ from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 
 from .ontology import AbstractOntologyView
 from .accounts import AbstractAccountsView
-from .regions import AbstractRegionsView
+from .location_trees import AbstractLocationTreesView
 from .datasets import AbstractDatasetsView
 from .germplasm import AbstractGermplasmView
 from .units import AbstractUnitsView
 from .programs import AbstractProgramsView
-from .arrangements import AbstractArrangementsView
+from .layout_trees import AbstractLayoutTreesView
 from .references import AbstractReferencesView
 from .people import AbstractPeopleView
 from .controls import AbstractControlsView
@@ -26,11 +26,11 @@ class AbstractViewsHolder(ABC):
     ontology: AbstractOntologyView
     germplasm: AbstractGermplasmView
     accounts: AbstractAccountsView
-    regions: AbstractRegionsView
+    location_trees: AbstractLocationTreesView
     datasets: AbstractDatasetsView
     units: AbstractUnitsView
     programs: AbstractProgramsView
-    arrangements: AbstractArrangementsView
+    layout_trees: AbstractLayoutTreesView
     references: AbstractReferencesView
     people: AbstractPeopleView
     controls: AbstractControlsView

@@ -8,7 +8,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 
 from breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DatasetOutput, DataRecordStored
 from breedgraph.domain.model.errors import ItemError
-from breedgraph.service_layer.handlers.commands.regions import update_location
+from breedgraph.service_layer.handlers.commands.location_trees import update_location
 from breedgraph.service_layer.queries.read_models import DatasetSummary, OntologyViewMode
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -252,7 +252,7 @@ async def resolve_submission_item_errors(submission_id: str, info) -> List[ItemE
 SUMMARY_FIELDS_BY_GRAPHQL_FIELD = {
     'subjects': 'subject_ids',
     'locations': 'location_ids',
-    'blocks': 'block_ids',
+    'unitRoots': 'unit_root_ids',
     'unit_count': 'unit_count',
     'record_count': 'record_count',
     'start': 'start',
@@ -292,8 +292,8 @@ async def get_dataset_summaries(_, info, study_id: int|None = None) -> List[Data
         ],
         view=OntologyViewMode.REFERENTIAL
     )
-    if 'block_ids' in fields:
-        await update_units_map(info.context, unit_ids=[block_id for summary in summaries for block_id in summary.block_ids])
+    if 'unit_root_ids' in fields:
+        await update_units_map(info.context, unit_ids=[unit_root_id for summary in summaries for unit_root_id in summary.unit_root_ids])
     if 'location_ids' in fields:
         await update_locations_map(info.context, location_ids={
             location_id for summary in summaries for location_id in summary.location_ids
@@ -318,11 +318,11 @@ async def resolve_summary_locations(obj, info):
     locations_map = info.context.get('locations_map')
     return [locations_map.get(location_id) for location_id in obj.location_ids]
 
-@dataset_summary.field("blocks")
-async def resolve_summary_blocks(obj, info):
-    await update_units_map(info.context, unit_ids=obj.block_ids)
+@dataset_summary.field("unitRoots")
+async def resolve_summary_unit_graphs(obj, info):
+    await update_units_map(info.context, unit_ids=obj.unit_root_ids)
     units_map = info.context.get('units_map')
-    return [units_map.get(unit_id) for unit_id in obj.block_ids]
+    return [units_map.get(unit_id) for unit_id in obj.unit_root_ids]
 
 @dataset.field("contributors")
 async def resolve_contributors(obj, info):

@@ -8,9 +8,9 @@ import logging
 from breedgraph.domain.model import Version
 
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
-from breedgraph.domain.model.regions import LocationOutput
-from breedgraph.domain.model.arrangements import LayoutOutput
-from breedgraph.domain.model.blocks import UnitOutput
+from breedgraph.domain.model.location_trees import LocationOutput
+from breedgraph.domain.model.layout_trees import LayoutOutput
+from breedgraph.domain.model.unit_graphs import UnitOutput
 
 logger = logging.getLogger(__name__)
 
@@ -129,23 +129,23 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
         bus = context.get('bus')
         user_id = context.get('user_id')  # This might be None for unauthenticated requests
         teams_map = context.get('teams_map', dict())
-        organisation_roots = context.get('organisation_roots', list())
+        team_tree_roots = context.get('team_tree_roots', list())
         logger.debug('Updating teams map for user ' + str(user_id) + ' with team ids: ' + str(team_ids) + '')
         async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-            # if called with teams = None, retrieve all organisations
-            # organisation_roots holds root ids, each once, in the order first loaded
+            # if called with teams = None, retrieve all team trees
+            # team_tree_roots holds root ids, each once, in the order first loaded
             if team_ids is None:
-                async for org in uow.repositories.organisations.get_all():
+                async for org in uow.repositories.team_trees.get_all():
                     org = org.redacted(user_id)
                     teams_map.update(org.to_output_map())
-                    if org.root.id not in organisation_roots:
-                        organisation_roots.append(org.root.id)
+                    if org.root.id not in team_tree_roots:
+                        team_tree_roots.append(org.root.id)
             else:
                 team_ids = set(team_ids)
                 unmapped = team_ids - set(teams_map.keys())
                 if unmapped:
                     n = 0
-                    async for org in uow.repositories.organisations.get_all(team_ids=team_ids):
+                    async for org in uow.repositories.team_trees.get_all(team_ids=team_ids):
                         if org is not None:
                             org = org.redacted(user_id)
                             n+=1
@@ -153,11 +153,11 @@ async def update_teams_map(context, team_ids: Iterable[int] | None = None):
                             logger.debug(f"Teams map: {teams_map}")
                             teams_map.update(org.to_output_map())
                             logger.debug(f"Teams map after update: {teams_map}")
-                            if org.root.id not in organisation_roots:
-                                organisation_roots.append(org.root.id)
+                            if org.root.id not in team_tree_roots:
+                                team_tree_roots.append(org.root.id)
 
             context['teams_map'] = teams_map
-            context['organisation_roots'] = organisation_roots
+            context['team_tree_roots'] = team_tree_roots
 
 async def update_users_map(context, user_ids: Iterable[int] | None = None):
     """
@@ -186,60 +186,60 @@ async def update_users_map(context, user_ids: Iterable[int] | None = None):
 
 async def update_locations_map(context, location_ids: Iterable[int] | None = None) -> List[LocationOutput]:
     """
-    Load locations into the request's locations map through the regions view, by id, or, with no ids, the root of
-    every region the user can read a location in, which are returned. Hidden locations asked for come back as the
+    Load locations into the request's locations map through the location trees view, by id, or, with no ids, the root of
+    every location tree the user can read a location in, which are returned. Hidden locations asked for come back as the
     view's placeholders; ids of locations that do not exist are not mapped.
     """
     async with _get_lock(context, '_views_lock'):
         locations_map = context.setdefault('locations_map', dict())
         views = await get_context_views(context)
         if location_ids is None:
-            roots = await views.regions.get_regions()
+            roots = await views.location_trees.get_location_trees()
             locations_map.update({root.id: root for root in roots})
             return roots
 
         location_ids = list(location_ids)
         unmapped = [location_id for location_id in dict.fromkeys(location_ids) if location_id is not None and location_id not in locations_map]
         if unmapped:
-            locations_map.update(await views.regions.get_locations(unmapped))
+            locations_map.update(await views.location_trees.get_locations(unmapped))
         return [locations_map[location_id] for location_id in location_ids if location_id in locations_map]
 
 async def update_layouts_map(context, location_id: int | None = None, layout_ids: Iterable[int] | None = None) -> List[LayoutOutput]:
     """
-    Load layouts into the request's layouts map through the arrangements view, by id, or the roots of the
-    arrangements at a location the user can read a layout in, which are returned. Hidden layouts asked for come back
+    Load layouts into the request's layouts map through the layout trees view, by id, or the roots of the
+    layout trees at a location the user can read a layout in, which are returned. Hidden layouts asked for come back
     as the view's placeholders; ids of layouts that do not exist are not mapped.
     """
     async with _get_lock(context, '_views_lock'):
         layouts_map = context.setdefault('layouts_map', dict())
         views = await get_context_views(context)
         if location_id is not None:
-            roots = await views.arrangements.get_arrangements(location_id)
+            roots = await views.layout_trees.get_layout_trees(location_id)
             layouts_map.update({root.id: root for root in roots})
             return roots
 
         layout_ids = list(layout_ids or [])
         unmapped = [layout_id for layout_id in dict.fromkeys(layout_ids) if layout_id is not None and layout_id not in layouts_map]
         if unmapped:
-            layouts_map.update(await views.arrangements.get_layouts(unmapped))
+            layouts_map.update(await views.layout_trees.get_layouts(unmapped))
         return [layouts_map[layout_id] for layout_id in layout_ids if layout_id in layouts_map]
 
 async def update_units_map(context, location_ids: Iterable[int] | None = None, unit_ids: Iterable[int] | None = None):
     """
-    Load units into the request's units map through the units view, by id or as the block roots at locations.
-    Units are read individually, not by loading their whole block, so the cost follows the ids requested.
+    Load units into the request's units map through the units view, by id or as the unit graph roots at locations.
+    Units are read individually, not by loading their whole unit graph, so the cost follows the ids requested.
     Callers that resolve many objects should pass all their ids in one call (see Dataset.records).
     """
     async with _get_lock(context, '_views_lock'):
         units_map = context.setdefault('units_map', dict())
-        block_roots = context.setdefault('block_roots', list())
+        unit_graph_roots = context.setdefault('unit_graph_roots', list())
         views = await get_context_views(context)
 
         if location_ids is not None:
-            for unit in await views.units.get_block_roots(location_ids=location_ids):
+            for unit in await views.units.get_unit_graph_roots(location_ids=location_ids):
                 units_map[unit.id] = unit
-                if unit.id not in block_roots:
-                    block_roots.append(unit.id)
+                if unit.id not in unit_graph_roots:
+                    unit_graph_roots.append(unit.id)
 
         if unit_ids is not None:
             unmapped = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None and unit_id not in units_map]
@@ -359,7 +359,7 @@ async def resolve_people(context, person_ids: Iterable[int] | None) -> list:
 async def team_references(context, team_ids) -> list[dict]:
     """
     References to these teams as the user sees them, for GraphQL's TeamReference: the team, or for a team hidden from
-    the user, the nearest team they can see that includes it, its organisation's root at the furthest, marked as a
+    the user, the nearest team they can see that includes it, its team tree's root at the furthest, marked as a
     stand-in (see docs/read-access.md, rule 7). In order, each team once as itself and once as a stand-in at most.
     """
     team_ids = list(team_ids or [])

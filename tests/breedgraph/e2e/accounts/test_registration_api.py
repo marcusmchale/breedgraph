@@ -11,11 +11,11 @@ from tests.breedgraph.e2e.accounts.post_methods import (
     post_to_approve_affiliation
 )
 
-from tests.breedgraph.e2e.organisations.post_methods import (
+from tests.breedgraph.e2e.teams.post_methods import (
     post_to_create_team,
     post_to_delete_team,
     post_to_team,
-    post_to_organisations
+    post_to_teams_roots
 )
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
 from tests.breedgraph.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
@@ -97,41 +97,41 @@ async def test_first_user_creates_deletes_team(
         user_registration_context['login_token_user_1'],
         team = { "name": new_team_name }
     )
-    create_team_payload = get_verified_payload(create_team_response, "organisationsCreateTeam")
+    create_team_payload = get_verified_payload(create_team_response, "teamsCreateTeam")
     assert_payload_success(create_team_payload)
-    organisations_request_response = await post_to_organisations(
+    team_trees_request_response = await post_to_teams_roots(
         client,
         user_registration_context['login_token_user_1']
     )
-    organisations_payload = get_verified_payload(organisations_request_response, "organisations")
-    organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
+    team_trees_payload = get_verified_payload(team_trees_request_response, "teamsRoots")
+    team_tree_root_ids = [i.get('id') for i in team_trees_payload.get('result')]
 
     delete_team_response = await post_to_delete_team(
         client,
         user_registration_context['login_token_user_1'],
-        team_id= organisation_root_ids[0]
+        team_id= team_tree_root_ids[0]
     )
-    delete_team_payload = get_verified_payload(delete_team_response, "organisationsDeleteTeam")
+    delete_team_payload = get_verified_payload(delete_team_response, "teamsDeleteTeam")
     assert_payload_success(delete_team_payload)
 
     # confirm we can't see the team anymore
     team_request_response = await post_to_team(
         client,
         user_registration_context['login_token_user_1'],
-        team_id= organisation_root_ids[0]
+        team_id= team_tree_root_ids[0]
     )
-    team_payload = get_verified_payload(team_request_response, "organisationsTeam")
+    team_payload = get_verified_payload(team_request_response, "teamsTeam")
     assert team_payload.get('result') is None
 
-    organisations_request_response = await post_to_organisations(
+    team_trees_request_response = await post_to_teams_roots(
         client,
         user_registration_context['login_token_user_1']
     )
-    organisations_payload = get_verified_payload(organisations_request_response, "organisations")
-    assert not organisations_payload.get('result')
+    team_trees_payload = get_verified_payload(team_trees_request_response, "teamsRoots")
+    assert not team_trees_payload.get('result')
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_second_user_builds_organisation(
+async def test_second_user_builds_team_tree(
         user_registration_context,
         client,
         user_input_generator
@@ -139,26 +139,26 @@ async def test_second_user_builds_organisation(
     first_team_name = user_input_generator.user_inputs[0]['team_name']
     await post_to_create_team(client, user_registration_context['login_token_user_2'], { "name": first_team_name })
 
-    organisations_request_response = await post_to_organisations(client,user_registration_context['login_token_user_2'])
-    organisations_payload = get_verified_payload(organisations_request_response, "organisations")
-    organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
+    team_trees_request_response = await post_to_teams_roots(client,user_registration_context['login_token_user_2'])
+    team_trees_payload = get_verified_payload(team_trees_request_response, "teamsRoots")
+    team_tree_root_ids = [i.get('id') for i in team_trees_payload.get('result')]
 
-    parent_team_id = organisation_root_ids[0]
+    parent_team_id = team_tree_root_ids[0]
     second_team_name = user_input_generator.user_inputs[1]['team_name']
     add_child_team_response = await post_to_create_team(
         client,
         user_registration_context['login_token_user_2'],
         { "name": second_team_name, "parentId": parent_team_id}
     )
-    create_child_team_payload = get_verified_payload(add_child_team_response, "organisationsCreateTeam")
+    create_child_team_payload = get_verified_payload(add_child_team_response, "teamsCreateTeam")
     assert_payload_success(create_child_team_payload)
-    # make sure this team is now part of the organisation
+    # make sure this team is now part of the team tree
     team_request_response = await post_to_team(
         client,
         user_registration_context['login_token_user_2'],
         team_id=parent_team_id
     )
-    team_payload = get_verified_payload(team_request_response, "organisationsTeam")
+    team_payload = get_verified_payload(team_request_response, "teamsTeam")
     for c in team_payload.get('result').get('children'):
         if c.get('name')== second_team_name:
             break
@@ -172,12 +172,12 @@ async def test_first_user_requests_read_affiliation(
         client,
         user_input_generator
 ):
-    organisations_request_response = await post_to_organisations(client, user_registration_context['login_token_user_1'])
-    organisations_payload = get_verified_payload(organisations_request_response, "organisations")
-    organisation_root_ids = [i.get('id') for i in organisations_payload.get('result')]
-    organisation_root_names = [i.get('name') for i in organisations_payload.get('result')]
-    team_id = organisation_root_ids[0]
-    team_name = organisation_root_names[0]
+    team_trees_request_response = await post_to_teams_roots(client, user_registration_context['login_token_user_1'])
+    team_trees_payload = get_verified_payload(team_trees_request_response, "teamsRoots")
+    team_tree_root_ids = [i.get('id') for i in team_trees_payload.get('result')]
+    team_tree_root_names = [i.get('name') for i in team_trees_payload.get('result')]
+    team_id = team_tree_root_ids[0]
+    team_name = team_tree_root_names[0]
 
     affiliation_request_response = await post_to_request_affiliation(
         client,
@@ -203,18 +203,18 @@ async def test_second_user_approves_read_affiliation_to_child_team(
         client,
         user_input_generator
 ):
-    organisations_request_response = await post_to_organisations(client, user_registration_context['login_token_user_2'])
-    organisations_payload = get_verified_payload(organisations_request_response, "organisations")
+    team_trees_request_response = await post_to_teams_roots(client, user_registration_context['login_token_user_2'])
+    team_trees_payload = get_verified_payload(team_trees_request_response, "teamsRoots")
     request_type = Access.READ
-    read_affiliations = organisations_payload.get('result')[0].get('affiliations').get(request_type.casefold())
+    read_affiliations = team_trees_payload.get('result')[0].get('affiliations').get(request_type.casefold())
     requests = [a for a in read_affiliations if a.get('authorisation') == 'REQUESTED']
     assert requests
     request = requests[0]
     first_user_input = user_input_generator.user_inputs[0]
     assert request.get('user').get('name') == first_user_input.get('name')
     request_user_id = request.get('user').get('id')
-    child_team_id = organisations_payload.get('result')[0].get('children')[0].get('id')
-    child_team_name = organisations_payload.get('result')[0].get('children')[0].get('name')
+    child_team_id = team_trees_payload.get('result')[0].get('children')[0].get('id')
+    child_team_name = team_trees_payload.get('result')[0].get('children')[0].get('name')
     approve_read_response = await post_to_approve_affiliation(
         client,
         user_registration_context['login_token_user_2'],

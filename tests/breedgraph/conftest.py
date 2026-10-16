@@ -24,17 +24,17 @@ from tests.breedgraph.utilities.inputs import UserInputGenerator, LoremTextGener
 from tests.breedgraph.scenarios import (
     AccountBuilder,
     OntologyBuilder,
-    RegionBuilder,
+    LocationTreeBuilder,
     ProgramBuilder,
-    BlockBuilder,
+    UnitGraphBuilder,
     PersonBuilder,
-    ArrangementBuilder,
+    LayoutTreeBuilder,
     DatasetBuilder,
-    OrganisationBuilder
+    TeamTreeBuilder
 )
 from tests.breedgraph.scenarios.read_policy_scenario import ReadPolicyScenario, ReadPolicyScenarioBuilder
 from breedgraph.domain.model.controls import Access
-from breedgraph.domain.model.organisations import TeamInput
+from breedgraph.domain.model.team_trees import TeamInput
 
 from typing import Dict, cast, AsyncGenerator, Any
 
@@ -223,8 +223,8 @@ async def isolated_state(
 
 async def build_location(uow_factory: Neo4jUnitOfWorkFactory, state_store: RedisStateStore, user_id: int, team_id: int) -> int:
     ontology_location_ids = await OntologyBuilder(uow_factory).location_types(user_id=user_id)
-    region_builder = RegionBuilder(uow_factory=uow_factory, state_store=state_store)
-    location_ids = await region_builder.region(
+    location_tree_builder = LocationTreeBuilder(uow_factory=uow_factory, state_store=state_store)
+    location_ids = await location_tree_builder.location_tree(
         user_id=user_id,
         team_id=team_id,
         ontology_location_state=ontology_location_ids['ontology_location_state'],
@@ -265,7 +265,7 @@ async def layout_build_context(isolated_state, uow_factory, state_store) -> Dict
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
+async def unit_graph_build_context(isolated_state, uow_factory, state_store) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
@@ -274,7 +274,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
     layout_types = await OntologyBuilder(uow_factory=uow_factory).layout_types(user_id=user_id)
     subject_types = await OntologyBuilder(uow_factory=uow_factory).subject_types(user_id=user_id)
 
-    location_ids = await RegionBuilder(uow_factory, state_store).region(
+    location_ids = await LocationTreeBuilder(uow_factory, state_store).location_tree(
         user_id=user_id,
         team_id=account_ids['team_id'],
         ontology_location_state=location_types['ontology_location_state'],
@@ -282,7 +282,7 @@ async def block_build_context(isolated_state, uow_factory, state_store) -> Dict[
         ontology_location_lab=location_types['ontology_location_lab']
     )
     location_id = location_ids['location_field_id']
-    layout_ids = await ArrangementBuilder(uow_factory).arrangement(
+    layout_ids = await LayoutTreeBuilder(uow_factory).layout_tree(
         user_id=user_id,
         team_id=account_ids['team_id'],
         location_id=location_id,
@@ -317,7 +317,7 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     )
 
     variable_ids = await OntologyBuilder(uow_factory=uow_factory).variable_tree_height(user_id)
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=account_ids['team_id'])
+    unit_id = await UnitGraphBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=account_ids['team_id'])
     person_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=user_id, team_id=account_ids['team_id'])
     return {
         **account_ids,
@@ -329,7 +329,7 @@ async def dataset_build_context(isolated_state, uow_factory) -> Dict[str, Any]:
     }
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def organisation_build_context(isolated_state, uow_factory) -> Dict[str, int]:
+async def team_tree_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     user_id = await AccountBuilder(uow_factory=uow_factory).account()
     user_id_2 = await AccountBuilder(uow_factory=uow_factory).account()
     return {
@@ -366,7 +366,7 @@ async def reference_build_context(isolated_state, uow_factory) -> Dict[str, int]
     return account_ids
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def region_build_context(isolated_state, uow_factory) -> Dict[str, int]:
+async def location_tree_build_context(isolated_state, uow_factory) -> Dict[str, int]:
     account_builder = AccountBuilder(uow_factory=uow_factory)
     account_ids = await account_builder.account_with_affiliations(ontology_role=OntologyRole.ADMIN)
     user_id = account_ids['user_id']
@@ -390,7 +390,7 @@ async def germplasm_build_context(isolated_state, uow_factory) -> Dict[str, int]
     account_ids = await account_builder.account_with_affiliations()
     user_id = account_ids['user_id']
     team_id = account_ids['team_id']
-    unit_id = await BlockBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
+    unit_id = await UnitGraphBuilder(uow_factory=uow_factory).unit(user_id=user_id, team_id=team_id)
 
     account_ids2 = await account_builder.account_with_affiliations()
     user_id_2 = account_ids2['user_id']
@@ -424,7 +424,7 @@ async def ontology_build_context(isolated_state, uow_factory) -> Dict[str, int]:
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def control_transfer_context(isolated_state, uow_factory) -> dict:
     """
-    Two organisations. The second has a child team.
+    Two team trees. The second has a child team.
     user 2 administers the second root and its child, user 3 administers only the child.
     """
     account_builder = AccountBuilder(uow_factory=uow_factory)
@@ -433,17 +433,17 @@ async def control_transfer_context(isolated_state, uow_factory) -> dict:
     user_id_3 = await account_builder.account()
 
     async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
-        organisation.add_team(TeamInput(name=OrganisationBuilder.team_input().name), parent_id=account_2['team_id'])
+        team_tree = await uow.repositories.team_trees.get(team_id=account_2['team_id'])
+        team_tree.add_team(TeamInput(name=TeamTreeBuilder.team_input().name), parent_id=account_2['team_id'])
         await uow.commit()
     async with uow_factory.get_uow(user_id=account_2['user_id']) as uow:
-        organisation = await uow.repositories.organisations.get(team_id=account_2['team_id'])
-        child_team_id = organisation.get_children_ids(account_2['team_id'])[0]
+        team_tree = await uow.repositories.team_trees.get(team_id=account_2['team_id'])
+        child_team_id = team_tree.get_children_ids(account_2['team_id'])[0]
 
-    organisation_builder = OrganisationBuilder(uow_factory)
+    team_tree_builder = TeamTreeBuilder(uow_factory)
     for user_id in (account_2['user_id'], user_id_3):
         for access in Access:
-            await organisation_builder.authorise_access(user_id=user_id, team_id=child_team_id, access=access)
+            await team_tree_builder.authorise_access(user_id=user_id, team_id=child_team_id, access=access)
 
     return {
         'user_id_1': account_1['user_id'],

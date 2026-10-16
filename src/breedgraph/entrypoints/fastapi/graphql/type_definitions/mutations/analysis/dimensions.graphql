@@ -61,12 +61,12 @@ or both.
 """
 input PositionGroupingInput {
   """
-  ID of the Location in the Region hierarchy.
+  ID of the Location in the LocationTree hierarchy.
   """
   locationId: ID!
 
   """
-  Optional ID of the Layout in the Arrangement hierarchy.
+  Optional ID of the Layout in the LayoutTree hierarchy.
   """
   layoutId: ID
 

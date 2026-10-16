@@ -27,7 +27,7 @@ class GermplasmApplicationService:
      e.g. coffee or cocoa.
     This service manages Sourcing and Maintenance details among/for entries.
     The source/maintenance details contain references to Ontology entries for Methods,
-    and to Region (Location) entries for Locations.
+    and to LocationTree (Location) entries for Locations.
 
     e.g. Coffee <- Coffea arabica <- Marsellesa <- Centroamericano -> MSH12 ...
 

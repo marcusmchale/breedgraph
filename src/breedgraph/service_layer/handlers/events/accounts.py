@@ -7,7 +7,7 @@ from breedgraph.custom_exceptions import (
 )
 
 from ...infrastructure.notifications import email_templates
-from breedgraph.domain.model.organisations import Authorisation, TeamInput, Affiliation
+from breedgraph.domain.model.team_trees import Authorisation, TeamInput, Affiliation
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
@@ -123,11 +123,11 @@ async def process_affiliation_request(
         notifications: AbstractNotifications
 ):
     async with uow_factory.get_uow() as uow:
-        organisation = await uow.repositories.organisations.get(team_id = event.team_id)
-        if organisation is None:
+        team_tree = await uow.repositories.team_trees.get(team_id = event.team_id)
+        if team_tree is None:
             return
 
-        team = organisation.get_team(event.team_id)
+        team = team_tree.get_team(event.team_id)
         if team is None or isinstance(team, TeamInput):
             return
 
@@ -135,7 +135,7 @@ async def process_affiliation_request(
         if request is None:
             raise ValueError(f"Affiliation request for user {event.user_id} not found")
 
-        admins = organisation.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
+        admins = team_tree.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
         if event.user_id in admins:
             # Automatically approve if user is an admin, don't need to email
             request.authorisation = Authorisation.AUTHORISED
@@ -167,8 +167,8 @@ async def notify_user_approved(
         notifications: AbstractNotifications
 ):
     async with uow_factory.get_uow() as uow:
-        organisation = await uow.repositories.organisations.get(team_id = event.team_id)
-        team = organisation.get_team(event.team_id)
+        team_tree = await uow.repositories.team_trees.get(team_id = event.team_id)
+        team = team_tree.get_team(event.team_id)
         if team is None or isinstance(team, TeamInput):
             return
 

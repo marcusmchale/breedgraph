@@ -10,7 +10,7 @@ from typing import ClassVar
 class LocationTypeBase(OntologyEntryBase):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.LOCATION_TYPE
     """
-    e.g. country, region, state, city, etc.
+    e.g. country, location tree, state, city, etc.
     """
 
 @dataclass

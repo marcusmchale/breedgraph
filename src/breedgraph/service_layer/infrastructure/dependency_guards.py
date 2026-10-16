@@ -22,8 +22,8 @@ class AbstractDependencyGuards(ABC):
         ...
 
     @abstractmethod
-    async def organisation_controls_persons(self, team_id: int) -> bool:
-        """Check if any team of the organisation rooted at the team currently controls a Person"""
+    async def team_tree_controls_persons(self, team_id: int) -> bool:
+        """Check if any team of the team tree rooted at the team currently controls a Person"""
         ...
 
     @abstractmethod

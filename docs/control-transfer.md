@@ -7,11 +7,11 @@ It applies to every controlled entity. Person adds one extra rule (§5); see `pe
 ## 1. Current behaviour
 
 - Control teams are set once, when an entity is created.
-  The write team is used if one is given; otherwise **all** of the user's write teams, which may be in several organisations.
+  The write team is used if one is given; otherwise **all** of the user's write teams, which may be in several team trees.
 - After creation, `set_controls` keeps only teams that already control the entity (`cypher/query_builders/controls.py`).
   The only change possible is the release level (`SetRelease`).
 - Each change adds a `Control` node with `user`, `release`, `time` and `sequence`, so control history is kept.
-- Team structure can change (the repository has `split`, and the team tree supports adding and removing links), which moves every entity controlled by the moved teams into another organisation without any check.
+- Team structure can change (the repository has `split`, and the team tree supports adding and removing links), which moves every entity controlled by the moved teams into another team tree without any check.
 
 ## 2. Principles
 
@@ -33,7 +33,7 @@ ControlTransfer
   entities            # controlled models: (label, id) pairs
   from_teams[]        # current control teams giving up control
   keep_from_teams     # true for shared control: from_teams keep control as well
-  recipient_team      # chosen by the offering side, often an organisation root
+  recipient_team      # chosen by the offering side, often a team tree root
   to_teams[]?         # chosen by the receiving side on acceptance
   release?            # chosen by the receiving side on acceptance
   offered_by, offered_at
@@ -43,7 +43,7 @@ ControlTransfer
 ```
 
 1. **Offer.** An admin of every team in `from_teams` (directly or inherited) offers the entities to one `recipient_team`.
-   The offering side only needs to see the recipient team, e.g. the root of another organisation.
+   The offering side only needs to see the recipient team, e.g. the root of another team tree.
    Controls do not change yet.
 2. **Accept.** An admin of `recipient_team` (directly or inherited) accepts, and chooses:
    - `to_teams`: `recipient_team` or teams below it in the tree. The accepting user must be an admin of each, directly or through heritable admin affiliations.
@@ -54,10 +54,10 @@ ControlTransfer
 
 Checks at offer and at acceptance:
 - The entities still exist and every team in `from_teams` controls each of them.
-- Entity-specific rules hold (§5), against the recipient team's organisation.
+- Entity-specific rules hold (§5), against the recipient team's team tree.
 
 Only admins of `recipient_team` can accept. Admins of teams below it see the offer only if they are also admins of `recipient_team`.
-If an organisation root receives an offer meant for a child team, a root admin accepts and assigns control to that child team.
+If a team tree root receives an offer meant for a child team, a root admin accepts and assigns control to that child team.
 
 If the offering user is also an admin of `recipient_team`, they choose `to_teams` and `release` when offering, and acceptance happens immediately, as affiliation requests already do for admins.
 The record shows the same user and time for offer and acceptance.
@@ -73,14 +73,14 @@ Renouncing is refused if it would leave the model with no control team.
 ## 4. Team structure changes
 
 Teams cannot yet be moved between parents: `UpdateTeam` changes only names, and the repository's `split` is unused.
-When moving teams is added, a change to the team tree that would put entities under a different organisation is a transfer of everything controlled by the moved teams.
+When moving teams is added, a change to the team tree that would put entities under a different team tree is a transfer of everything controlled by the moved teams.
 
 | Change | Offered by | Accepted by |
 |---|---|---|
-| Move a team within its organisation | No transfer | |
-| Split: a team becomes the root of a new organisation | An admin of the current organisation's root | An admin of the team being split off |
-| Merge: a root becomes a child of a team in another organisation | An admin of the merging root | An admin of the destination organisation's root |
-| Move a team to another organisation | An admin of the current organisation's root | An admin of the destination organisation's root |
+| Move a team within its team tree | No transfer | |
+| Split: a team becomes the root of a new team tree | An admin of the current team tree's root | An admin of the team being split off |
+| Merge: a root becomes a child of a team in another team tree | An admin of the merging root | An admin of the destination team tree's root |
+| Move a team to another team tree | An admin of the current team tree's root | An admin of the destination team tree's root |
 | Delete a team that controls entities | Refused until its control is transferred or renounced | |
 
 The structure change is held as a pending change, using the same offer and accept steps as §3, and applied on acceptance together with the moved entities.
@@ -93,7 +93,7 @@ A team that currently controls entities cannot be deleted. Once it controls none
 - Affiliations to the team are removed, and it is cleared as any user's default write team.
 - Its `Control` nodes, all ended, stay attached.
 - Pending transfers to or from the team are cancelled, recorded as cancelled by the user deleting it.
-A team becoming a root triggers the legal entity declaration described in `person.md` §2, if the new organisation will control Persons.
+A team becoming a root triggers the legal entity declaration described in `person.md` §2, if the new team tree will control Persons.
 
 ## 5. Entity-specific rules
 
@@ -101,14 +101,14 @@ Rules are checked at offer and at acceptance. Initially:
 
 | Entity | Rule |
 |---|---|
-| Person | All control teams must be in one organisation, and that organisation must have a declared legal entity. A transfer to another organisation changes the data controller. |
-| Others | None. Control teams may span organisations. |
+| Person | All control teams must be in one team tree, and that team tree must have a declared legal entity. A transfer to another team tree changes the data controller. |
+| Others | None. Control teams may span team trees. |
 
 ## 6. Decisions
 
 | Question | Decision |
 |---|---|
-| Transfers within an organisation | Same offer and accept steps as between organisations. |
+| Transfers within a team tree | Same offer and accept steps as between team trees. |
 | Admin on both sides | Acceptance happens with the offer, as for affiliation requests (§3). |
 | Shared control | Adding control teams without removing any is a transfer with `keep_from_teams`. |
 | Receiving side | Offers go to one recipient team. Only its admins accept, choosing `to_teams` from the recipient team and the teams below it, and the release level. |

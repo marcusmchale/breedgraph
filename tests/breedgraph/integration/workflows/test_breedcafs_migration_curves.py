@@ -25,7 +25,7 @@ from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-from tests.breedgraph.scenarios.block_builder import BlockBuilder
+from tests.breedgraph.scenarios.unit_graph_builder import UnitGraphBuilder
 
 X = [1e-05, 2e-05, 0.5]
 T1, T2 = '1558353600000', '1558396800000'  # 2019-05-20 at 12:00 (no time of day entered), 2019-05-21 at 00:00 (entered)
@@ -93,8 +93,8 @@ async def curves_context(isolated_state, uow_factory) -> dict:
         other_dataset = await uow.repositories.datasets.create(DatasetInput(concept=other.id, study=study.id))
         await uow.commit()
 
-    block_builder = BlockBuilder(uow_factory=uow_factory)
-    units = {uid: await block_builder.unit(user_id=user_id, team_id=team_id) for uid in ('34_T1', '34_T2')}
+    unit_graph_builder = UnitGraphBuilder(uow_factory=uow_factory)
+    units = {uid: await unit_graph_builder.unit(user_id=user_id, team_id=team_id) for uid in ('34_T1', '34_T2')}
     return {
         'context': MigrationContext(user_id=user_id, team_id=team_id),
         'ontology': OntologyIds(inputs={("Fluorescence ~ Time", "PocketPEA"): (OntologyEntryLabel.VARIABLE, variable.id)}),

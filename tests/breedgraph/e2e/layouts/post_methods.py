@@ -1,0 +1,106 @@
+from breedgraph.config import GQL_API_PATH
+from tests.breedgraph.e2e.utils import with_auth
+from typing import List
+
+async def post_to_create_layout(
+    client,
+    token:str,
+    layout: dict,
+    control_team_id: int
+):
+    json = {
+        "query": (
+            " mutation ( "
+            "  $layout: LayoutInput!"
+            "  $controlTeamId: ID! "
+            " ) { "
+            "  layoutsCreateLayout( "
+            "    layout: $layout "
+            "    controlTeamId: $controlTeamId "
+            "  ) { "
+            "    status, "
+            "    result, "
+            "    errors { name, message } "
+            "  } "
+            " } "
+        ),
+        "variables": {
+            "layout": layout,
+            "controlTeamId": control_team_id
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+async def post_to_layouts_roots(client, location_id: int, token:str|None=None):
+    json = {
+        "query": (
+            " query ( "
+            "   $locationId: ID! "
+            " ) { "
+            "  layoutsRoots ( "
+            "   locationId: $locationId "
+            " ) { "
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       axes, "
+            "       type { id, name } "
+            "       parent {id, name, axes, type {id, name} } "
+            "       position, "
+            "       children {id, name, axes, type {id, name} } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "locationId": location_id
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
+
+
+async def post_to_layouts(client, layout_ids: List[int], token:str|None = None):
+    json = {
+        "query": (
+            " query ("
+            "   $ids : [ID!]!"
+            " ) { "
+            "  layoutsLayouts ( "
+            "  ids: $ids,"
+            "  ) {"
+            "    status, "
+            "    result { "
+            "       id, "
+            "       name, "
+            "       axes "     
+            "       type { id, name } "
+            "       parent { id, name, axes, type {id, name} } "
+            "       position, "
+            "       children { id, name, axes, type { id, name } } "
+            "    }, "
+            "    errors { name, message } "
+            "   } "
+            " } "
+        ),
+        "variables": {
+            "ids": layout_ids,
+        }
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, json=json, headers=headers)
+    return response
