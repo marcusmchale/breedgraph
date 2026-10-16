@@ -111,6 +111,7 @@ async def update_trial(
         start=trial.get('start'),
         end=trial.get('end'),
         contact_ids=trial.get('contact_ids'),
+        contributions=trial.get('contributions'),
         reference_ids=trial.get('reference_ids')
     )
     await info.context['bus'].handle(cmd)

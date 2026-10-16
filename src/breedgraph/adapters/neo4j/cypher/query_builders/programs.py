@@ -49,9 +49,10 @@ def _trial(trial: str = 'trial', visible: str = 'trial_visible') -> str:
     return f"""CASE WHEN {visible} THEN {trial} {{
           .*,
           contact_ids: [({trial})-[:HAS_CONTACT]->(contact:Person)|contact.id],
+          contributions: [({trial})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->({trial})|reference.id],
           studies: studies
-        }} ELSE {_placeholder(trial, contact_ids='[]', reference_ids='[]', studies='studies')} END"""
+        }} ELSE {_placeholder(trial, contact_ids='[]', contributions='[]', reference_ids='[]', studies='studies')} END"""
 
 
 def _trials(program: str = 'program') -> str:
@@ -71,9 +72,10 @@ def _program(program: str = 'program', visible: str = 'program_visible') -> str:
     return f"""CASE WHEN {visible} THEN {program} {{
           .*,
           contact_ids: [({program})-[:HAS_CONTACT]->(contact:Person)|contact.id],
+          contributions: [({program})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->({program})|reference.id],
           trials: trials
-        }} ELSE {_placeholder(program, contact_ids='[]', reference_ids='[]', trials='trials')} END"""
+        }} ELSE {_placeholder(program, contact_ids='[]', contributions='[]', reference_ids='[]', trials='trials')} END"""
 
 
 def read_programs():

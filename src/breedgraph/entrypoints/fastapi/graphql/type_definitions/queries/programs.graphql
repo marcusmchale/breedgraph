@@ -18,6 +18,8 @@ type Program {
     fullname: String
     description: String
     contacts: [Person]
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
     references: [ReferenceInterface]
     trials: [Trial]
 }
@@ -30,6 +32,8 @@ type Trial {
     start: DateTime
     end: DateTime
     contacts: [Person]
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
     references: [ReferenceInterface]
     studies: [Study]
 }

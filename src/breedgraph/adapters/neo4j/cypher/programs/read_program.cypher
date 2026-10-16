@@ -3,11 +3,15 @@ RETURN
   program {
     .*,
     contact_ids: [(program)-[:HAS_CONTACT]->(contact:Person)|contact.id],
+
+    contributions: [(program)<-[contributed:CONTRIBUTED_TO]-(person:Person) | {person: person.id, roles: coalesce(contributed.roles, [])}],
     reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->(program)|reference.id],
     trials: [
       (program)-[:HAS_TRIAL]->(trial:Trial) | trial {
         .*,
         contact_ids: [(trial)-[:HAS_CONTACT]->(contact:Person)|contact.id],
+
+        contributions: [(trial)<-[contributed:CONTRIBUTED_TO]-(person:Person) | {person: person.id, roles: coalesce(contributed.roles, [])}],
         reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->(trial)|reference.id],
         studies: [(trial)-[:HAS_STUDY]->(study:Study) | study {
           .*,

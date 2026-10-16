@@ -1,3 +1,4 @@
+from breedgraph.domain.model.contributions import ContributionInput
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.programs import GroupingScope
@@ -17,6 +18,7 @@ class CreateProgram(Command):
     description: str | None = None
 
     contact_ids: list[int] | None = None
+    contributions: list[ContributionInput] | None = None
     reference_ids: list[int] | None = None
 
 
@@ -29,6 +31,7 @@ class UpdateProgram(Command):
     description: str | None = None
 
     contact_ids: list[int] | None = None
+    contributions: list[ContributionInput] | None = None
     reference_ids: list[int] | None = None
 
 class DeleteProgram(Command):
@@ -50,6 +53,7 @@ class CreateTrial(Command):
     end: PyDT64 | None = None
 
     contact_ids: list[int] | None = None
+    contributions: list[ContributionInput] | None = None
     reference_ids: list[int] | None = None
 
 class UpdateTrial(Command):
@@ -63,6 +67,7 @@ class UpdateTrial(Command):
     end: PyDT64 | None = None
 
     contact_ids: list[int] | None = None
+    contributions: list[ContributionInput] | None = None
     reference_ids: list[int] | None = None
 
 class DeleteTrial(Command):

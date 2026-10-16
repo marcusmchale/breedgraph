@@ -12,6 +12,18 @@ CALL (program) {
   MATCH (contact: Person) WHERE contact.id in $contact_ids
   MERGE (program)-[:HAS_CONTACT]->(contact)
 }
+//Update contributions
+CALL (program) {
+  MATCH (person: Person)-[contributed:CONTRIBUTED_TO]->(program)
+    WHERE NOT person.id IN [contribution IN $contributions | contribution.person]
+  DELETE contributed
+}
+CALL (program) {
+  UNWIND $contributions AS contribution
+  MATCH (person: Person {id: contribution.person})
+  MERGE (person)-[contributed:CONTRIBUTED_TO]->(program)
+  SET contributed.roles = contribution.roles
+}
 //Update references
 CALL (program) {
   MATCH (reference:Reference)-[reference_for:REFERENCE_FOR]->(program)

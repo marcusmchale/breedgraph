@@ -1,3 +1,5 @@
+from breedgraph.domain.model.contributions import Contribution, contributions_from
+from breedgraph.service_layer.application.contributions import verify_contributions
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from breedgraph.domain import commands
@@ -46,6 +48,11 @@ async def _verify_contacts(uow, person_ids, release: ReadRelease) -> None:
 
 
 # Program Handlers
+def _contributions(cmd) -> list[Contribution] | None:
+    if cmd.contributions is None:
+        return None
+    return contributions_from(contribution.to_contribution() for contribution in cmd.contributions)
+
 @handlers.command_handler()
 async def create_program(
         cmd: commands.programs.CreateProgram,
@@ -58,12 +65,15 @@ async def create_program(
             raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
         await _verify_contacts(uow, cmd.contact_ids, cmd.release)
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
+        contributions = _contributions(cmd)
+        await verify_contributions(uow, contributions or [])
 
         program = ProgramInput(
             name=cmd.name,
             fullname=cmd.fullname if cmd.fullname else cmd.name,
             description=cmd.description,
             contact_ids=cmd.contact_ids,
+            contributions=contributions or [],
             reference_ids=cmd.reference_ids
         )
         await uow.repositories.programs.create(program)
@@ -96,6 +106,10 @@ async def update_program(
             controller = await uow.controls.get_controller(ControlledModelLabel.PROGRAM, program.id)
             await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids), controller.release)
             program.contact_ids = cmd.contact_ids
+        if cmd.contributions is not None:
+            contributions = _contributions(cmd)
+            await verify_contributions(uow, contributions, stored=program.contributions)
+            program.contributions = contributions
         if cmd.reference_ids is not None:
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(program.reference_ids or []))
             program.reference_ids = cmd.reference_ids
@@ -128,6 +142,8 @@ async def create_trial(
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
         await _verify_contacts(uow, cmd.contact_ids, cmd.release)
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
+        contributions = _contributions(cmd)
+        await verify_contributions(uow, contributions or [])
 
         trial = TrialInput(
             name=cmd.name,
@@ -136,6 +152,7 @@ async def create_trial(
             start=cmd.start,
             end=cmd.end,
             contact_ids=cmd.contact_ids,
+            contributions=contributions or [],
             reference_ids=cmd.reference_ids
         )
         program.add_trial(trial)
@@ -170,6 +187,10 @@ async def update_trial(
             controller = await uow.controls.get_controller(ControlledModelLabel.TRIAL, trial.id)
             await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids), controller.release)
             trial.contact_ids = cmd.contact_ids
+        if cmd.contributions is not None:
+            contributions = _contributions(cmd)
+            await verify_contributions(uow, contributions, stored=trial.contributions)
+            trial.contributions = contributions
         if cmd.reference_ids is not None:
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(trial.reference_ids or []))
             trial.reference_ids = cmd.reference_ids

@@ -1,6 +1,7 @@
 import pytest
 
 from breedgraph.domain.model.contributions import Contribution
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 
 from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 
@@ -24,7 +25,8 @@ async def get_program_contacts(client, token, program_id: int):
     payload = get_verified_payload(await _post(
         client, token,
         f" query ( $id: ID! ) {{ programsProgram( id: $id ) {{ status, result {{ "
-        f"  contacts {{ {PERSON_REFERENCE} }} trials {{ contacts {{ {PERSON_REFERENCE} }} }} "
+        f"  contacts {{ {PERSON_REFERENCE} }} contributions {{ person {{ {PERSON_REFERENCE} }} roles {{ name }} }} "
+        f"  trials {{ contacts {{ {PERSON_REFERENCE} }} contributions {{ person {{ {PERSON_REFERENCE} }} roles {{ name }} }} }} "
         f" }}, errors {{ name, message }} }} }} ",
         {"id": program_id}
     ), "programsProgram")
@@ -52,8 +54,11 @@ async def test_contacts_and_contributors_resolve_to_persons(client, login_token_
 
     async with uow_factory.get_uow(user_id=context['user_id']) as uow:
         program = await uow.repositories.programs.get(program_id=context['program_id'])
+        supervision = (await uow.ontology.get_entry(name='Supervision', label=OntologyEntryLabel.ROLE)).id
         program.contact_ids = [person_id]
+        program.contributions = [Contribution(person=person_id, roles=[supervision])]
         program.get_trial(context['trial_id']).contact_ids = [person_id]
+        program.get_trial(context['trial_id']).contributions = [Contribution(person=person_id)]
         person_name = (await uow.repositories.people.get(person_id=person_id)).name
         await uow.commit()
 
@@ -70,6 +75,8 @@ async def test_contacts_and_contributors_resolve_to_persons(client, login_token_
     program = await get_program_contacts(client, token, context['program_id'])
     assert program['contacts'] == [{'id': str(person_id), 'name': person_name, 'restricted': False}]
     assert program['trials'][0]['contacts'] == program['contacts']
+    assert program['contributions'] == [{'person': program['contacts'][0], 'roles': [{'name': 'Supervision'}]}]
+    assert program['trials'][0]['contributions'] == [{'person': program['contacts'][0], 'roles': []}]
     assert await get_dataset_contributors(client, token, dataset_id) == program['contacts']
 
     # Others who can read the program and dataset, but not the Person, see the id only
@@ -81,4 +88,5 @@ async def test_contacts_and_contributors_resolve_to_persons(client, login_token_
     program = await get_program_contacts(client, other_token, context['program_id'])
     assert program['contacts'] == restricted
     assert program['trials'][0]['contacts'] == restricted
+    assert program['contributions'] == [{'person': restricted[0], 'roles': [{'name': 'Supervision'}]}]
     assert await get_dataset_contributors(client, other_token, dataset_id) == restricted

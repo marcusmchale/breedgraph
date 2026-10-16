@@ -1,8 +1,8 @@
 from ariadne import ObjectType
 
 from breedgraph.domain.model.contributions import Contribution
-from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import resolve_people
-from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.ontology import resolve_ontology_entries
+from breedgraph.service_layer.queries.read_models import OntologyViewMode
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import resolve_people, update_ontology_map
 
 from ..registry import graphql_resolvers
 
@@ -18,4 +18,7 @@ async def resolve_contribution_person(obj: Contribution, info):
 
 @contribution.field("roles")
 async def resolve_contribution_roles(obj: Contribution, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.roles)
+    # as entries referred to from outside the ontology, like a study's design
+    await update_ontology_map(context=info.context, entry_ids=obj.roles, view=OntologyViewMode.REFERENTIAL)
+    ontology_map = info.context.get('ontology_map')
+    return [ontology_map[role_id] for role_id in obj.roles if role_id in ontology_map]

@@ -13,6 +13,14 @@ CALL (trial) {
   RETURN
     collect(contact.id) AS contacts
 }
+//Link contributions: the Persons credited, with the roles they had
+CALL (trial) {
+  UNWIND $contributions AS contribution
+  MATCH (person: Person {id: contribution.person})
+  CREATE (person)-[contributed:CONTRIBUTED_TO {roles: contribution.roles}]->(trial)
+  RETURN
+    collect({person: person.id, roles: contributed.roles}) AS contributions
+}
 //Link references
 CALL (trial) {
   MATCH (reference: Reference) WHERE reference.id IN $reference_ids
@@ -24,5 +32,6 @@ RETURN
   trial {
     .*,
     contact_ids: contacts,
+    contributions: contributions,
     reference_ids: references
   }

@@ -8,6 +8,8 @@ input ProgramInput {
     release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
     """
     contactIds: [ID!] = []
+    """ The Persons credited, with the roles they had; replaces all contributions on update """
+    contributions: [ContributionInput!]
     referenceIds: [ID!] = []
 }
 
@@ -21,6 +23,8 @@ input ProgramUpdate {
     release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
     """
     contactIds: [ID!]
+    """ The Persons credited, with the roles they had; replaces all contributions on update """
+    contributions: [ContributionInput!]
     referenceIds: [ID!]
 }
 
@@ -37,6 +41,8 @@ input TrialInput {
     release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
     """
     contactIds: [ID!] = []
+    """ The Persons credited, with the roles they had; replaces all contributions on update """
+    contributions: [ContributionInput!]
     referenceIds: [ID!] = []
 }
 
@@ -52,6 +58,8 @@ input TrialUpdate {
     release of this Program or Trial, and at least REGISTERED. Messages are sent through BreedGraph.
     """
     contactIds: [ID!]
+    """ The Persons credited, with the roles they had; replaces all contributions on update """
+    contributions: [ContributionInput!]
     referenceIds: [ID!]
 }
 

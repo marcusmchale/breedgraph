@@ -3,6 +3,7 @@ from encodings import charmap
 
 from neo4j import AsyncResult, Record
 
+from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.domain.model import DatasetScope, GroupingScope, RecordGroupExtent
 from breedgraph.domain.model.programs import (
     StudyInput, StudyStored,
@@ -35,10 +36,12 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         program_data['name_lower'] = program.name.casefold()
         contact_ids = program_data.pop('contact_ids')
         reference_ids = program_data.pop('reference_ids')
+        contributions = program_data.pop('contributions')
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_program'],
             program_data = program_data,
             contact_ids = contact_ids,
+            contributions = contributions,
             reference_ids = reference_ids
         )
         record: Record = await result.single(strict=True)
@@ -50,10 +53,12 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         self.serialize_dt64(trial_data, to_neo4j=True)
         contact_ids = trial_data.pop('contact_ids')
         reference_ids = trial_data.pop('reference_ids')
+        contributions = trial_data.pop('contributions')
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_trial'],
             trial_data = trial_data,
             contact_ids = contact_ids,
+            contributions = contributions,
             reference_ids = reference_ids,
             program_id=program_id
         )
@@ -102,11 +107,13 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         program_id = program_data.pop('id')
         contact_ids = program_data.pop('contact_ids')
         reference_ids = program_data.pop('reference_ids')
+        contributions = program_data.pop('contributions')
         await self.tx.run(
             queries['programs']['set_program'],
             program_id=program_id,
             program_data=program_data,
             contact_ids=contact_ids,
+            contributions=contributions,
             reference_ids=reference_ids
         )
 
@@ -118,11 +125,13 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         trial_id = trial_data.pop('id')
         contact_ids = trial_data.pop('contact_ids')
         reference_ids = trial_data.pop('reference_ids')
+        contributions = trial_data.pop('contributions')
         await self.tx.run(
             queries['programs']['set_trial'],
             trial_id=trial_id,
             trial_data=trial_data,
             contact_ids=contact_ids,
+            contributions=contributions,
             reference_ids=reference_ids
         )
 
@@ -213,6 +222,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             record['studies'] = {
                 study['id']: cls.record_to_study(study) for study in record['studies']
             }
+        record['contributions'] = contributions_from(record.get('contributions'))
         return TrialStored(**record)
 
     @classmethod
@@ -227,6 +237,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             record['trials'] = {
                 trial['id']: cls.record_to_trial(trial) for trial in record['trials']
             }
+        record['contributions'] = contributions_from(record.get('contributions'))
         return ProgramStored(**record)
 
     async def _get_controlled(

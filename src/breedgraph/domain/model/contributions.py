@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Iterable, List, Self
 
+from pydantic import BaseModel, Field
+
 
 @dataclass
 class Contribution:
@@ -28,3 +30,12 @@ def contributions_from(values: Iterable['Contribution | dict'] | None) -> List[C
     if len(persons) != len(set(persons)):
         raise ValueError("A Person is credited once, with all their roles")
     return contributions
+
+
+class ContributionInput(BaseModel):
+    """A Person to credit, as submitted, with the Role entries for what they did; the roles may be declared later"""
+    person_id: int
+    role_ids: list[int] = Field(default_factory=list)
+
+    def to_contribution(self) -> Contribution:
+        return Contribution(person=self.person_id, roles=list(self.role_ids))

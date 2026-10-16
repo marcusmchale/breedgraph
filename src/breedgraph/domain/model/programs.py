@@ -3,6 +3,7 @@ from abc import ABC
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
@@ -241,6 +242,7 @@ class TrialBase(ABC):
     end: datetime64|None = None
 
     contact_ids: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this study.
+    contributions: List[Contribution] = field(default_factory=list)  # the Persons credited, with their roles
     reference_ids: List[int] = field(default_factory=list)  # list of reference by ID
 
     def get_study(self, study_id: int) -> StudyStored | StudyInput | None:
@@ -288,6 +290,7 @@ class TrialStored(TrialBase, ControlledModel):
             description = self.description and self.redacted_str,
             start = None,
             end = None,
+            contributions = list(),
             reference_ids = list()
         )
 
@@ -308,6 +311,7 @@ class TrialOutput(TrialBase, EnumLabeledModel, StoredModel):
             start = stored.start,
             end = stored.end,
             contact_ids = stored.contact_ids,
+            contributions = stored.contributions,
             reference_ids = stored.reference_ids,
             studies={study_id: StudyOutput.from_stored(study) for study_id, study in stored.studies.items()}
         )
@@ -321,6 +325,7 @@ class ProgramBase(ABC):
     description: str|None = None
 
     contact_ids: List[int] = field(default_factory=list) # list of Person by ID suitable to contact for queries about this program.
+    contributions: List[Contribution] = field(default_factory=list)  # the Persons credited, with their roles
     reference_ids: List[int] = field(default_factory=list)  # list of reference IDs
 
     def model_dump(self):
@@ -447,6 +452,7 @@ class ProgramStored(ProgramBase, ControlledModel, ControlledAggregate):
                 fullname = None,
                 description = None,
                 contact_ids = list(),
+                contributions = list(),
                 reference_ids = list()
             )
 
@@ -492,6 +498,7 @@ class ProgramOutput(ProgramBase, StoredModel, EnumLabeledModel):
             fullname=stored_program.fullname,
             description=stored_program.description,
             contact_ids=stored_program.contact_ids,
+            contributions=stored_program.contributions,
             reference_ids=stored_program.reference_ids,
             trials={trial_id: TrialOutput.from_stored(trial) for trial_id, trial in stored_program.trials.items()},
         )
