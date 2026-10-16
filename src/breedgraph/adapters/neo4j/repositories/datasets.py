@@ -2,6 +2,7 @@ import logging
 
 from neo4j import AsyncResult, Record
 
+from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.domain.model.datasets import (
     DataRecordStored, DatasetInput, DatasetStored, RecordGroup
 )
@@ -38,6 +39,7 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
                 submitted=record.get('submitted')
             ) for record in dataset_dict['records']
         ]
+        dataset_dict['contributions'] = contributions_from(dataset_dict.get('contributions'))
         return DatasetStored(**dataset_dict)
 
     async def _create_dataset(self, dataset: DatasetInput) -> DatasetStored:

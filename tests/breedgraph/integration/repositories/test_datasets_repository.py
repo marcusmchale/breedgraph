@@ -1,5 +1,8 @@
 import pytest
 
+from breedgraph.domain.model.contributions import Contribution
+from breedgraph.domain.model.ontology import OntologyEntryLabel
+
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.custom_exceptions import NoResultFoundError
 
@@ -37,7 +40,7 @@ async def test_create_and_get(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_contributors(
+async def test_update_contributions(
         uow_factory,
         dataset_build_context
 ):
@@ -52,20 +55,32 @@ async def test_update_contributors(
     await create_dataset(uow_factory, user_id, dataset_build_context['team_id'], dataset_input)
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
+        role_ids = [
+            (await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.ROLE)).id
+            for name in ('Investigation', 'Data curation')
+        ]
         dataset = await uow.repositories.datasets.get()
-        dataset.contributors.append(person_id)
+        dataset.contributions.append(Contribution(person=person_id))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
-        assert person_id in dataset.contributors
+        assert dataset.contributions == [Contribution(person=person_id, roles=[])]
 
-        dataset.contributors.remove(person_id)
+        # roles can be declared later
+        dataset.contributions[0].roles = role_ids
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
-        assert person_id not in dataset.contributors
+        assert sorted(dataset.contributions[0].roles) == sorted(role_ids)
+
+        dataset.contributions.pop(0)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get(dataset_id=dataset.id)
+        assert dataset.contributions == []
 
 
 @pytest.mark.asyncio(loop_scope="session")

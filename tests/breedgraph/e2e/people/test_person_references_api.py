@@ -1,5 +1,7 @@
 import pytest
 
+from breedgraph.domain.model.contributions import Contribution
+
 from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 
 from tests.breedgraph.e2e.people.post_methods import _post
@@ -34,12 +36,12 @@ async def get_dataset_contributors(client, token, dataset_id: int):
     payload = get_verified_payload(await _post(
         client, token,
         f" query ( $ids: [ID!] ) {{ datasets( ids: $ids ) {{ status, result {{ "
-        f"  id contributors {{ {PERSON_REFERENCE} }} "
+        f"  id contributions {{ person {{ {PERSON_REFERENCE} }} }} "
         f" }}, errors {{ name, message }} }} }} ",
         {"ids": [dataset_id]}
     ), "datasets")
     assert_payload_success(payload)
-    return payload['result'][0]['contributors']
+    return [contribution['person'] for contribution in payload['result'][0]['contributions']]
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -60,7 +62,7 @@ async def test_contacts_and_contributors_resolve_to_persons(client, login_token_
     ))['dataset_id']
     async with uow_factory.get_uow(user_id=context['user_id']) as uow:
         dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
-        dataset.contributors = [person_id]
+        dataset.contributions = [Contribution(person=person_id)]
         await uow.commit()
 
     # Readers of the Person see it in full

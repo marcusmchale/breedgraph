@@ -21,15 +21,17 @@ CALL (dataset) {
   MATCH (concept: Variable|Factor {id: $concept})
   MERGE (dataset)-[:FOR_CONCEPT]->(concept)
 }
-//Update contributors
+//Update contributions
 CALL (dataset) {
-  OPTIONAL MATCH (contributor: Person)-[contributed:CONTRIBUTED_TO]->(dataset)
-  WHERE NOT contributor.id in $contributors
+  OPTIONAL MATCH (person: Person)-[contributed:CONTRIBUTED_TO]->(dataset)
+  WHERE NOT person.id IN [contribution IN $contributions | contribution.person]
   DELETE contributed
 }
 OPTIONAL CALL (dataset) {
-  MATCH (contributor: Person) WHERE contributor.id in $contributors
-  MERGE (contributor)-[:CONTRIBUTED_TO]->(dataset)
+  UNWIND $contributions AS contribution
+  MATCH (person: Person {id: contribution.person})
+  MERGE (person)-[contributed:CONTRIBUTED_TO]->(dataset)
+  SET contributed.roles = contribution.roles
 }
 //Update references
 CALL (dataset) {

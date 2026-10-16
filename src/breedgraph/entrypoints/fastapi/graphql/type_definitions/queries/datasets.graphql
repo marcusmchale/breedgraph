@@ -65,7 +65,8 @@ type Dataset {
     unitIds(unitIds: [ID!], start: DateTime, end: DateTime): [ID!]!
     """ What the records span, without reading them; null for a dataset the user cannot read """
     dimensions: DatasetDimensions
-    contributors: [Person]
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
     references: [ReferenceInterface]
 }
 
@@ -96,7 +97,8 @@ type SubmittedRecord {
 type SubmittedData {
     conceptId: ID!
     records: [SubmittedRecord]
-    contributors: [Person]
+    """ The Persons credited, with the roles they had """
+    contributions: [Contribution]
     references: [ReferenceInterface]
 }
 

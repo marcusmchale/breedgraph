@@ -15,7 +15,7 @@ REDACTED = 'REDACTED'
 
 DATASET_FIELDS = (
     "id studyId concept { id } recordCount unitIds dimensions { recordCount unitCount } "
-    "contributors { id } references { id } "
+    "contributions { person { id } roles { name } } references { id } "
     "records { value unit { id name } references { id } }"
 )
 
@@ -51,7 +51,10 @@ async def test_datasets_by_id(client, login_token_factory, read_policy, viewer):
             assert dataset['recordCount'] == len(expected['records'])
             assert {int(unit_id) for unit_id in dataset['unitIds']} == {read_policy[unit] for unit, _, _ in expected['records']}
             assert dataset['dimensions']['recordCount'] == len(expected['records'])
-            assert as_ids(dataset['contributors']) == {read_policy[person] for person in expected['contributors']}
+            assert {
+                (int(contribution['person']['id']), tuple(role['name'] for role in contribution['roles']))
+                for contribution in dataset['contributions']
+            } == {(read_policy[person], tuple(roles)) for person, roles in expected['contributions']}
             assert as_ids(dataset['references']) == {read_policy[reference] for reference in expected['references']}
             # each record's unit is named where the viewer can read it, a placeholder otherwise (rule 2)
             records = {record['value']: record for record in dataset['records']}
@@ -68,7 +71,7 @@ async def test_datasets_by_id(client, login_token_factory, read_policy, viewer):
             assert dataset['unitIds'] == []
             assert dataset['dimensions'] is None
             assert dataset['records'] == []
-            assert not dataset['contributors']
+            assert not dataset['contributions']
             assert not dataset['references']
 
 

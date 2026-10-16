@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from numpy import datetime64
 from typing import List
+from breedgraph.domain.model.contributions import Contribution, contributions_from
 
 @dataclass
 class DatasetSummary:
@@ -35,9 +36,12 @@ class DatasetRead:
     id: int
     study: int | None
     concept: int | None
-    contributors: List[int]
+    contributions: List[Contribution]
     references: List[int]
     record_count: int
+
+    def __post_init__(self):
+        self.contributions = contributions_from(self.contributions)
 
     @property
     def redacted(self) -> bool:

@@ -165,11 +165,11 @@ def read_datasets():
           id: dataset.id,
           study: [(dataset)-[:FOR_STUDY]->(study:Study) | study.id][0],
           concept: [(dataset)-[:FOR_CONCEPT]->(concept:Variable|Factor) | concept.id][0],
-          contributors: [(dataset)<-[:CONTRIBUTED_TO]-(contributor:Person) | contributor.id],
+          contributions: [(dataset)<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
           references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference) | reference.id],
           record_count: COUNT {{ (dataset)-[:INCLUDES_RECORD]->(:Record) }}
         }} ELSE dataset {{
-          id: dataset.id, study: null, concept: null, contributors: [], references: [], record_count: 0
+          id: dataset.id, study: null, concept: null, contributions: [], references: [], record_count: 0
         }} END AS dataset
         ORDER BY dataset.id
     """

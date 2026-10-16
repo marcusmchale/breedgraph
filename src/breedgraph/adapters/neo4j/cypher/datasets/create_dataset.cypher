@@ -16,12 +16,13 @@ CALL (dataset) {
   CREATE (dataset)-[for_concept:FOR_CONCEPT]->(concept)
   RETURN concept.id AS concept
 }
-//Link contributors
+//Link contributions: the Persons credited, with the roles they had
 OPTIONAL CALL (dataset) {
-  MATCH (contributor: Person) WHERE contributor.id IN $contributors
-  CREATE (contributor)-[contributed:CONTRIBUTED_TO]->(dataset)
+  UNWIND $contributions AS contribution
+  MATCH (person: Person {id: contribution.person})
+  CREATE (person)-[contributed:CONTRIBUTED_TO {roles: contribution.roles}]->(dataset)
   RETURN
-    collect(contributor.id) AS contributors
+    collect({person: person.id, roles: contributed.roles}) AS contributions
 }
 //Link references
 OPTIONAL CALL (dataset){
@@ -37,6 +38,6 @@ RETURN
     study: study,
     concept: concept,
     records: [],
-    contributors: contributors,
+    contributions: contributions,
     references: references
   }

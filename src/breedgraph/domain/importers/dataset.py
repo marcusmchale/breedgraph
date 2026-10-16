@@ -1,6 +1,7 @@
 from numpy import datetime64
 from pydantic import BaseModel, Field
 
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, RecordGroup, DataRecordUpdate
 
 
@@ -20,12 +21,25 @@ class RecordUpdateImport(BaseModel):
     groups: list[RecordGroup] | None = None
     reference_ids: list[int] | None = None
 
+class ContributionImport(BaseModel):
+    """A Person credited, with the Role entries for what they did; the roles may be left to be declared later"""
+    person_id: int
+    role_ids: list[int] = Field(default_factory=list)
+
+    def to_contribution(self) -> Contribution:
+        return Contribution(person=self.person_id, roles=list(self.role_ids))
+
 class DatasetImportBase(BaseModel):
     study_id: int | None = None
     concept_id: int | None = None
     records: list[RecordImport|RecordUpdateImport] = Field(default_factory=list)
-    contributor_ids: list[int] | None = None
+    contributions: list[ContributionImport] | None = None
     reference_ids: list[int] | None = None
+
+    def contributions_to_input(self) -> list[Contribution] | None:
+        if self.contributions is None:
+            return None
+        return [contribution.to_contribution() for contribution in self.contributions]
 
     def records_to_input(self) -> list[DataRecordInput]:
         return [
@@ -69,7 +83,7 @@ class DatasetImport(DatasetImportBase):
         return DatasetInput(
             study_id=self.study_id,
             concept_id=self.concept_id,
-            contributor_ids=self.contributor_ids,
+            contributions=self.contributions_to_input() or [],
             reference_ids=self.reference_ids,
             records=[
                 DataRecordInput(

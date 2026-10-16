@@ -132,3 +132,48 @@ async def test_a_reference_cited_by_a_record_keeps_the_release_of_its_dataset(
     with pytest.raises(IllegalOperationError):
         await bus.handle(set_release(ReadRelease.PRIVATE))
     await bus.handle(set_release(ReadRelease.REGISTERED))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_contributions_credit_readable_persons_with_roles(
+        bus,
+        event_queue,
+        uow_factory,
+        state_store,
+        dataset_build_context
+):
+    from breedgraph.domain.model.ontology import OntologyEntryLabel
+    from tests.breedgraph.scenarios.account_builder import AccountBuilder
+    from tests.breedgraph.scenarios.person_builder import PersonBuilder
+
+    user_id: int = dataset_build_context['user_id']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        curation_id = (await uow.ontology.get_entry(name='Data curation', label=OntologyEntryLabel.ROLE)).id
+
+    async def submit(contributions) -> str:
+        submission_id = await state_store.store_submission(agent_id=user_id, submission={
+            'study_id': dataset_build_context['study_id'],
+            'concept_id': dataset_build_context['concept_id'],
+            'contributions': contributions
+        })
+        await bus.handle(DatasetSubmitted(agent_id=user_id, write_team=dataset_build_context['team_id'], submission_id=submission_id))
+        await event_queue.join()
+        return submission_id
+
+    person_id = dataset_build_context['person_id']
+    submission_id = await submit([{'person_id': person_id, 'role_ids': [curation_id]}])
+    assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.COMPLETED
+    dataset_id = await state_store.get_submission_dataset_id(agent_id=user_id, submission_id=submission_id)
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
+        assert [(c.person, c.roles) for c in dataset.contributions] == [(person_id, [curation_id])]
+
+    # a Person the submitter cannot read, and an entry that is not a Role, are refused
+    other = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations()
+    hidden_id = await PersonBuilder(uow_factory=uow_factory).person(user_id=other['user_id'], team_id=other['team_id'])
+    for contributions in (
+        [{'person_id': hidden_id}],
+        [{'person_id': person_id, 'role_ids': [dataset_build_context['concept_id']]}]
+    ):
+        submission_id = await submit(contributions)
+        assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.FAILED

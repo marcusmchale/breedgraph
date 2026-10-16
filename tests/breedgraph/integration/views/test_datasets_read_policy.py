@@ -2,7 +2,7 @@
 Datasets under the read policy (docs/read-access.md, section 3), on the read-policy scenario:
 
     dataset_public (child, public; study_public): records for tree_public, leaf_private, rhizosphere_public,
-        tree_registered; contributors person_public, person_private; references reference_public
+        tree_registered; contributions person_public, person_private; references reference_public
     dataset_private (child, private; study_public): a record for tree_public
     dataset_registered (root, registered; study_registered): a record for tree_public citing reference_private
 
@@ -60,13 +60,14 @@ def assert_header(read_policy, viewer: str, name: str, dataset: DatasetRead):
         assert dataset.study == read_policy[expected['study']]
         assert dataset.concept == read_policy['ontology_variable_height']
         # links to people and references are kept as ids, readable or not (rule 2)
-        assert set(dataset.contributors) == ids(read_policy, expected['contributors'])
+        assert {contribution.person for contribution in dataset.contributions} == ids(read_policy, [person for person, _ in expected['contributions']])
+        assert all(isinstance(contribution.roles, list) for contribution in dataset.contributions)
         assert set(dataset.references) == ids(read_policy, expected['references'])
         assert dataset.record_count == len(expected['records'])
     else:
         assert dataset.redacted
         assert dataset.study is None
-        assert dataset.contributors == []
+        assert dataset.contributions == []
         assert dataset.references == []
         assert dataset.record_count == 0
 

@@ -1,0 +1,7 @@
+"""
+A Person to credit, with the Role entries for what they did; roles may be left out and declared later.
+"""
+input ContributionInput {
+    personId: ID!
+    roleIds: [ID!]
+}

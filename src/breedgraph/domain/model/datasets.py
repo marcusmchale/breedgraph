@@ -3,6 +3,8 @@ from abc import ABC
 from typing import List, ClassVar, Set, Dict, Self, Generator, overload
 from numpy import datetime64
 
+from breedgraph.domain.model.contributions import Contribution, contributions_from
+
 
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import LabeledModel, EnumLabeledModel, StoredModel
@@ -111,7 +113,7 @@ class DatasetBase(ABC):
     concept: int|None = None
     records: List[DataRecordStored|DataRecordInput|DataRecordUpdate] = field(default_factory=list)
 
-    contributors: List[int] = field(default_factory=list) # PersonStored that contributed to this dataset by ID
+    contributions: List[Contribution] = field(default_factory=list)  # the Persons credited, with their roles
     references: List[int] = field(default_factory=list) # to link supporting data in references repository
     # e.g. raw data or another repository with supporting data
 
@@ -252,10 +254,9 @@ class DatasetInput(DatasetBase, EnumLabeledModel):
     concept_id: InitVar[int|None] = None
     study_id: InitVar[int|None] = None
 
-    contributor_ids: InitVar[List[int] | None] = None
     reference_ids: InitVar[List[int] | None] = None
 
-    def __post_init__(self, concept_id, study_id, contributor_ids, reference_ids):
+    def __post_init__(self, concept_id, study_id, reference_ids):
         if concept_id is not None:
             self.concept = concept_id
         if self.concept is None:
@@ -264,8 +265,7 @@ class DatasetInput(DatasetBase, EnumLabeledModel):
             self.study = study_id
         if self.study is None:
             raise ValueError("Study cannot be None")
-        if contributor_ids is not None:
-            self.contributors = contributor_ids
+        self.contributions = contributions_from(self.contributions)
         if reference_ids is not None:
             self.references = reference_ids
 
@@ -289,7 +289,7 @@ class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
             'study': self.study,
             'concept': self.concept,
             'records': [record.model_dump() for record in self.records],
-            'contributors': self.contributors,
+            'contributions': [contribution.model_dump() for contribution in self.contributions],
             'references': self.references
         }
 
@@ -318,7 +318,7 @@ class DatasetStored(DatasetBase, ControlledModel, ControlledAggregate):
                 return replace(
                     self,
                     records = [],
-                    contributors = [],
+                    contributions = [],
                     references = []
                 )
 

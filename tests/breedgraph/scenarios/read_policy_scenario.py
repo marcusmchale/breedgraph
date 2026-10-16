@@ -68,11 +68,13 @@ People
 Datasets (concept: the tree height variable)
     dataset_public               child PUBLIC      writer    study_public; records on tree_public, leaf_private,
                                                              rhizosphere_public, tree_registered;
-                                                             contributors person_public, person_private;
+                                                             contributions person_public (Investigation),
+                                                             person_private (no roles);
                                                              references reference_public
     dataset_private              child PRIVATE     writer    study_public; a record on tree_public
     dataset_registered           root  REGISTERED  admin     study_registered; a record on tree_public citing
-                                                             reference_private; contributor person_private
+                                                             reference_private; contribution person_private
+                                                             (Data curation)
 
 Ontology: the builders' types and variables, all active; then a commit by the admin citing reference_registered as
 its licence and reference_legal_private as its copyright; then ontology_subject_draft, a subject left in draft
@@ -98,7 +100,8 @@ from typing import Dict, Tuple
 
 from breedgraph import config
 from breedgraph.domain.model.accounts import OntologyRole, AccountInput, UserInput
-from breedgraph.domain.model.ontology import VersionChange
+from breedgraph.domain.model.ontology import VersionChange, OntologyEntryLabel
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
 from breedgraph.domain.model.layout_trees import LayoutInput
 from breedgraph.domain.model.unit_graphs import UnitInput, Position
@@ -150,19 +153,20 @@ DATASETS = {
         'study': 'study_public',
         'records': [('tree_public', '1', []), ('leaf_private', '2', []), ('rhizosphere_public', '3', []),
                     ('tree_registered', '4', [])],
-        'contributors': ['person_public', 'person_private'],
+        # the Persons credited and the names of their roles, from the seeded CRediT roles
+        'contributions': [('person_public', ['Investigation']), ('person_private', [])],
         'references': ['reference_public'],
     },
     'dataset_private': {
         'study': 'study_public',
         'records': [('tree_public', '10', [])],
-        'contributors': [],
+        'contributions': [],
         'references': [],
     },
     'dataset_registered': {
         'study': 'study_registered',
         'records': [('tree_public', '20', ['reference_private'])],
-        'contributors': ['person_private'],
+        'contributions': [('person_private', ['Data curation'])],
         'references': [],
     },
 }
@@ -811,6 +815,10 @@ class ReadPolicyScenarioBuilder:
         ):
             dataset = DATASETS[name]
             async with self._uow(team, release) as uow:
+                role_ids = {
+                    role: (await uow.ontology.get_entry(name=role, label=OntologyEntryLabel.ROLE)).id
+                    for _, roles in dataset['contributions'] for role in roles
+                }
                 stored = await uow.repositories.datasets.create(DatasetInput(
                     concept=s['ontology_variable_height'],
                     study=s[dataset['study']],
@@ -818,7 +826,10 @@ class ReadPolicyScenarioBuilder:
                         DataRecordInput(unit=s[unit], value=value, reference_ids=[s[r] for r in references] or None)
                         for unit, value, references in dataset['records']
                     ],
-                    contributor_ids=[s[person] for person in dataset['contributors']],
+                    contributions=[
+                        Contribution(person=s[person], roles=[role_ids[role] for role in roles])
+                        for person, roles in dataset['contributions']
+                    ],
                     reference_ids=[s[reference] for reference in dataset['references']]
                 ))
                 await uow.commit()

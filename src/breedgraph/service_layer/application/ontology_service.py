@@ -968,6 +968,10 @@ class OntologyApplicationService:
                     f"Another {entry.label} is using the abbreviation {entry.abbreviation}"
                 )
 
+    async def require_entries(self, entry_ids: List[int], label: OntologyEntryLabel|None = None) -> None:
+        """For links from outside the ontology: each entry must exist, with the label if given"""
+        await self._validate_entries_exist(entry_ids, label)
+
     async def _validate_entries_exist(self, entry_ids: List[int], label: OntologyEntryLabel|None = None):
         if label:
             exist_map = await self.persistence.entries_exist_for_label(entry_ids, label = label)

@@ -27,7 +27,7 @@ input DatasetInput {
     """ concept is either a Factor or Variable in the ontology """
     conceptId: ID!
     records: [RecordInput!]!
-    contributorIds: [ID!]
+    contributions: [ContributionInput!]
     referenceIds: [ID!]
 }
 
@@ -39,7 +39,7 @@ input DatasetUpdate {
     studyId: ID
     conceptId: ID
     records: [RecordUpdate!]!
-    contributorIds: [ID!]
+    contributions: [ContributionInput!]
     referenceIds: [ID!]
 }
 

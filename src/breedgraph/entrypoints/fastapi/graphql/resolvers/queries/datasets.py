@@ -6,6 +6,7 @@ from breedgraph.adapters.redis.state_store import SubmissionStatus
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.domain.model.datasets import DatasetInput, DatasetStored, DatasetOutput, DataRecordStored
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.service_layer.handlers.commands.location_trees import update_location
@@ -19,8 +20,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     get_context_lock,
     update_germplasm_map,
     update_locations_map,
-    update_reference_map,
-    resolve_people
+    update_reference_map
 )
 
 from typing import List
@@ -324,9 +324,6 @@ async def resolve_summary_unit_graphs(obj, info):
     units_map = info.context.get('units_map')
     return [units_map.get(unit_id) for unit_id in obj.unit_root_ids]
 
-@dataset.field("contributors")
-async def resolve_contributors(obj, info):
-    return await resolve_people(info.context, obj.contributors)
 
 @dataset.field("references")
 async def resolve_dataset_references(obj, info):
@@ -334,6 +331,9 @@ async def resolve_dataset_references(obj, info):
     reference_map = info.context.get('reference_map')
     return [reference_map.get(reference_id) for reference_id in obj.references]
 
-@submitted_data.field("contributors")
-async def resolve_submitted_contributors(obj: dict, info):
-    return await resolve_people(info.context, obj.get('contributor_ids'))
+@submitted_data.field("contributions")
+async def resolve_submitted_contributions(obj: dict, info):
+    return [
+        Contribution(person=contribution['person_id'], roles=list(contribution.get('role_ids') or []))
+        for contribution in obj.get('contributions') or []
+    ]

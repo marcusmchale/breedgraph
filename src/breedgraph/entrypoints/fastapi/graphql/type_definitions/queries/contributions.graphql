@@ -1,0 +1,8 @@
+"""
+A Person credited for a dataset, Program or Trial, with the roles they had.
+The roles are Role entries, declared rather than exhaustive: a contribution may have none.
+"""
+type Contribution {
+    person: Person
+    roles: [Role!]
+}
