@@ -38,6 +38,7 @@ INPUT_FILES = (
     'sample_positions.csv',
     'skipped_items.csv',
     'submissions.csv',
+    'submitter_persons.csv',
     'unit_positions.csv',
     'varieties.csv',
 )
