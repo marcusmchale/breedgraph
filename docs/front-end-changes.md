@@ -16,7 +16,7 @@ no invitations, transfers, legal entities, account deletion or ORCID. The region
 
 **First:** regenerate the schema files with the API running, so tooling and the Apollo cache know the new types:
 `node scripts/fetchGraphqlSchema.js` writes `src/graphql/schema.graphql`; regenerate `possibleTypes.json` and `unionTypes.json` the same way
-(`OntologyEntryUnion` no longer includes `Role` and `Title`). Then `python scripts/check_front_end_queries.py ../breedview/src`
+(`OntologyEntryUnion` no longer includes `Title`; `Role` is back with a new meaning, §14). Then `python scripts/check_front_end_queries.py ../breedview/src`
 in this repository lists the operations that no longer validate (§10).
 
 **What breaks now** (seven operations before the renames, 29 more from them, and code the check does not see):
@@ -26,9 +26,10 @@ in this repository lists the operations that no longer validate (§10).
 | `graphql/account/account.graphql` | queries `allowedEmails` | Query `invitations` instead (§2) |
 | `graphql/account/addEmail.graphql`, `removeEmail.graphql` | mutations removed | Delete; use `accountsInvite`, `accountsCancelInvitation` (§2) |
 | `components/user/InviteUserModal.vue`, `composables/user/useAuthentication.js` | use allowed emails | Rewrite as invitations (§2) |
-| `graphql/ontology/entries.graphql`, `ontology.graphql`, `graphql/programs/study.graphql` | query `Term.roles`, `Term.titles` | Remove them |
-| `composables/ontology/createOntologyEntries.js`, `updateOntologyEntries.js` | send `roleIds`, `titleIds` (not caught by the check, as they are variables) | Remove the fields and their form inputs |
-| `composables/ontology/nodeColorMap.js` | `ROLE` and `TITLE` labels | Remove |
+| `graphql/ontology/entries.graphql`, `ontology.graphql`, `graphql/programs/study.graphql` | query `Term.titles` | Remove it. `Term.roles` is back, now the roles of contributions (§14) |
+| `composables/ontology/createOntologyEntries.js`, `updateOntologyEntries.js` | send `titleIds` (not caught by the check, as they are variables) | Remove the field and its form input; `roleIds` stays valid |
+| `composables/ontology/nodeColorMap.js` | `TITLE` label | Remove it; keep `ROLE` |
+| Dataset queries and forms | `Dataset.contributors` and `contributorIds` are replaced by contributions (§14) | Query `contributions { person { … } roles { id name } }`, send `contributions: [{ personId, roleIds }]` |
 | `graphql/blocks/`, `graphql/regions/`, `graphql/arrangements/`, `graphql/organisations/`, `graphql/datasets/datasetSummaries.graphql` | the areas and three fields are renamed (29 operations) | Rename them, and the response keys read in JavaScript (§13) |
 | `graphql/datasets/submissionWithData.graphql` | spreads `RecordFields` (on `Record`) on `SubmittedRecord`, whose fields differ (`unitId`, `referenceIds`). Older than these changes, and unused | Delete it, or give it its own fields |
 
@@ -59,7 +60,8 @@ New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a 
 | Person | `PersonInput` and `PersonUpdate` change; `peopleDeletePerson` is replaced by `peopleErasePerson` | Update the forms (§4) |
 | Person | `peopleCreatePerson` needs the control team's team tree to have a declared legal entity, and `informedAttestation: true` | §3, §4 |
 | Ontology | `authors` / `authorIds` are removed from every entry type and input | Remove from forms and views |
-| Ontology | `Role` and `Title` entries are removed: the `ROLE` and `TITLE` labels, the `Role` and `Title` types, `Term.roles`, `Term.titles`, and `roleIds` / `titleIds` in inputs | Remove from forms and views |
+| Ontology | `Title` entries are removed: the `TITLE` label, the `Title` type, `Term.titles`, and `titleIds` in inputs. `Role` returns as the roles of contributions (§14) | Remove titles from forms and views |
+| Contributions | `Dataset.contributors` becomes `contributions`, and `contributorIds` in dataset inputs becomes `contributions` (§14) | Update the dataset views and forms |
 | Germplasm | `GermplasmEntry.authors` and `authorIds` in inputs are removed | Cite authors through references |
 | Programs | `contactIds` must name Persons linked to an account and released widely enough | Show the errors (§5) |
 | Teams | `teamsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
@@ -225,7 +227,7 @@ Admins of the recipient team are emailed about new offers.
   and its id is never given to a new account afterwards, so an id cached by the front end never comes to mean another user (`docs/person.md` §5).
   Nothing in the API changes for this.
 
-- `Dataset.contributors` and submitted-data `contributors` resolve to Persons, restricted where needed.
+- Dataset, Program and Trial `contributions` resolve their Persons, restricted where needed (§14).
 - Password reset with a token works again (it always failed before).
 - Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `teamsDataProcessingTerms`. Everything else still requires login.
 
@@ -241,7 +243,8 @@ The BreedCAFS migration (`src/breedcafs_migration/`) loads data the front end ha
   Stratum grouping (`SHARED`). Records of what is in a BreedCAFS block carry its name in the Block grouping (`WITHIN_GRAPH`, §12),
   and the trees and samples hang from the field. Record and analysis views should show record group codes beside the unit,
   or a tree's branches look like repeated readings.
-- **Persons as contributors.** Dataset contributors are Persons with an institution, `PRIVATE` until handover, so most users see them restricted (§4).
+- **Persons as contributors.** Persons credited for datasets have an institution and are `PRIVATE` until handover, so most users see them restricted (§4).
+  Submitters are credited with the Data curation role; the people who recorded the data have no roles (§14).
 - **Curves.** The four fluorescence curve datasets (Fluorescence ~ Time, PocketPEA) have records with no value: each references its dataset's CSV data file,
   whose schema gives the index columns (`item_uid, unit_id, time, replicate`) that find a record's row. The existing complex-scale cells show the reference count.
 - **Times as entered.** Record times are to the minute where a time of day was entered, and to the day otherwise. `DateTime` values keep their precision,
@@ -493,3 +496,37 @@ design block, which is now a `WITHIN_GRAPH` record group code (§12), so a page 
 **Order**: rename the operations, rerun `scripts/check_front_end_queries.py` until only real errors are left, then
 search the JavaScript for the response keys. Regenerate `src/graphql/schema.graphql` first (§0), so tooling sees the
 new fields.
+
+## 14. Contributions, roles and locked ontology entries
+
+Design background is in `contributions.md`.
+
+**Contributions.** Datasets, Programs and Trials credit Persons with the roles they had:
+- `Dataset.contributions`, `Program.contributions`, `Trial.contributions` and submitted-data `contributions`
+  are `[Contribution]`, where `Contribution { person: Person, roles: [Role!] }`. `Dataset.contributors` is removed.
+- Inputs take `contributions: [ContributionInput!]`, where `ContributionInput { personId: ID!, roleIds: [ID!] }`:
+  dataset create and update (in place of `contributorIds`), and Program and Trial create and update. On update the list replaces all contributions.
+- Roles are declared, not exhaustive: a contribution may have none, and roles can be added later. A Person is credited once per dataset, Program or Trial.
+- Crediting a Person needs read access to them (others already credited stay), and each role must be a `Role` entry.
+- Suggested display: "Name (Institution) — Investigation, Data curation". A role picker lists `Role` entries; the CRediT roles fit as below.
+
+| Fits | Roles |
+|---|---|
+| Datasets | Investigation, Data curation, Methodology, Resources, Validation, Supervision |
+| Programs and Trials | Conceptualization, Funding acquisition, Project administration, Supervision |
+
+**Role entries.** `ROLE` is an ontology label again, with a `Role` type (in `OntologyEntryUnion`), `ontologyCreateRole`, `ontologyUpdateRole`,
+and `Term.roles` / `roleIds` on terms. A Role describes what a Person did in a contribution, never the Person.
+The 14 CRediT roles are seeded, locked, and can have children (e.g. "Sample collection" under Investigation).
+
+**Sources.** Every ontology entry has `sourceUrl` and `sourceAttribution`, for entries taken from an external standard or ontology,
+settable in every entry input and update. Show them with the entry: the CRediT roles' attribution is required by their CC BY 4.0 licence.
+
+**Locked entries.** Every ontology entry has `locked: Boolean!`. Ontology admins lock and unlock entries with
+`ontologyLockEntries(ids)` and `ontologyUnlockEntries(ids)`. A locked entry keeps its name, abbreviation, description and source,
+and the relationships that define it (e.g. a scale's categories), and cannot be deprecated; synonyms, references, children and terms stay editable.
+Disable those fields in the editing forms, and show a lock.
+
+**References.** Citing a reference (in any input with `referenceIds`, or a study's or the ontology's licence) needs read access to it.
+A reference's release cannot be lowered below the release of what cites it: `controlsSetRelease` returns an error saying so.
+
