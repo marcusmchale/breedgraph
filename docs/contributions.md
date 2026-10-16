@@ -1,6 +1,6 @@
 # Contributions: design note
 
-Status: **draft for review**.
+Status: **implemented** (2026-10-16), apart from rebuilding the test database dumps (§11, step 6).
 This note records how Persons are credited for datasets, and the roles they had in that work.
 It extends `person.md` §4, where `Dataset.contributors` was kept without a role.
 
@@ -190,6 +190,7 @@ None.
    the same on Program and Trial. Dataset importer likewise.
 6. **Tests.** Done: the seeded CRediT roles in the test fixtures, and contributions with and without roles in the read-policy scenario.
    The test database dumps are to be rebuilt (`docs/test-databases.md`).
-7. **Migration.** Done in code: Data curation for submitters, mapped to Persons in `submitter_persons.csv`; no roles for Persons named in `person` (§7).
-   `submitter_persons.csv` is to be drafted and curated for the BreedCAFS data and the rehearsal data.
+7. **Migration.** Done: Data curation for submitters, mapped to Persons in `submitter_persons.csv`, which the bundle carries;
+   no roles for Persons named in `person` (§7). `submitter_persons.csv` is curated for the BreedCAFS and rehearsal data;
+   the rehearsal is to be rerun on the rebuilt test database.
 8. **References.** Done: contributions on file, data file and external data references, in their create and update inputs.
