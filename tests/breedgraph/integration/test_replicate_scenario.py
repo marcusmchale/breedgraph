@@ -3,18 +3,12 @@ The replicates builder (tests/breedgraph/scenarios/replicate_scenario.py): what 
 back, for the outsider, who reads it only as a registered user.
 """
 import pytest
-import pytest_asyncio
 
 from breedgraph.domain.model.programs import GroupingScope
 
 from tests.breedgraph.scenarios.replicate_scenario import (
-    ReplicateScenarioBuilder, DATASETS, GROUPINGS, REPLICATE, PLATE, STUDY, TREES, PLOTS, tree_name
+    DATASETS, GROUPINGS, REPLICATE, PLATE, STUDY, TREES, PLOTS, tree_name
 )
-
-
-@pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def replicates(read_policy, uow_factory):
-    return await ReplicateScenarioBuilder(uow_factory, read_policy).build()
 
 
 def test_units(replicates):

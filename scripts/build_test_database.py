@@ -44,6 +44,7 @@ from faker import Faker
 from breedgraph.config import FILE_STORAGE_PATH, COUNTRY_CODES_PATH, get_redis_host_and_port
 from breedgraph.domain.model.accounts import UserInput, OntologyRole
 from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.domain.model.ontology import RecordGroupExtent
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.neo4j.services.file_archival_service import Neo4jFileArchivalService
@@ -54,7 +55,8 @@ from setup_initial_data import ensure_empty_db, create_schema, create_system_acc
 from load_state_store import is_redis_empty
 
 from tests.breedgraph.scenarios.replicate_scenario import (
-    ReplicateScenarioBuilder, ReplicateScenario, DATASETS as REPLICATE_DATASETS, GROUPINGS, PROGRAM, TRIAL, STUDY
+    ReplicateScenarioBuilder, ReplicateScenario, DATASETS as REPLICATE_DATASETS, GROUPINGS, PROGRAM, TRIAL, STUDY,
+    CONCEPTS, EXPECTED_CASES, EXPECTED_WINDOWED_READINGS, EXPECTED_PLOT_MEANS, BLOCK, BATCH, level_keys
 )
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
@@ -111,6 +113,18 @@ def scale_manifest(scale: ScaleScenario) -> dict:
 
 
 def replicates_manifest(replicates: ReplicateScenario, scenario: ReadPolicyScenario) -> dict:
+    """The replicates study, and what analyses of it report (tests/breedgraph/scenarios/replicate_scenario.py)"""
+    concept_names = {key: name for key, name in CONCEPTS.values()}
+    within_unit = {name for name, (_, extent, _) in GROUPINGS.items() if extent == RecordGroupExtent.WITHIN_UNIT}
+
+    def units_with_replicates(records) -> list[int]:
+        replicated = [record.unit for record in records if any(name in within_unit for name, _ in record.groups)]
+        return sorted({replicates.units[unit] for unit in replicated if replicated.count(unit) > 1})
+
+    def levels(key, records) -> dict[str, list[str]]:
+        groupings = dict.fromkeys(name for record in records for name, _ in record.groups)
+        return {name: level_keys(replicates, key, name) for name in groupings}
+
     return {
         'program': {'id': replicates.ids['program'], 'name': PROGRAM},
         'trial': {'id': replicates.ids['trial'], 'name': TRIAL},
@@ -128,11 +142,48 @@ def replicates_manifest(replicates: ReplicateScenario, scenario: ReadPolicyScena
             key: {
                 'id': replicates.datasets[key],
                 'concept': scenario[concept_key],
+                'concept_name': concept_names[concept_key],
                 'record_count': len(records),
+                'units_with_replicates': units_with_replicates(records),
             }
             for key, (concept_key, records) in REPLICATE_DATASETS.items()
         },
         'units': dict(sorted(replicates.units.items())),
+        'concepts': {concept: {'id': scenario[key], 'name': name} for concept, (key, name) in CONCEPTS.items()},
+        'expected': {
+            # an analysis of the dataset's concept as its only term, with no dimensions
+            'cases': [
+                {
+                    'dataset': case.dataset,
+                    'aggregation': case.aggregation,
+                    'replicate_aggregation': (
+                        {'aggregation': case.replicate_aggregation[0], 'window': case.replicate_aggregation[1]}
+                        if case.replicate_aggregation else None
+                    ),
+                    'error': (
+                        {'code': case.error[0], 'path_end': case.error[1], 'record_count': case.error[2]}
+                        if case.error else None
+                    ),
+                    'warnings': list(case.warnings),
+                }
+                for case in EXPECTED_CASES
+            ],
+            'windowed_readings_per_tree': {
+                window or 'none': readings for window, readings in EXPECTED_WINDOWED_READINGS.items()
+            },
+            # same_time height, grouping.unit by plot, term MEAN: without and with a MEAN replicate aggregation
+            'plot_means': {
+                plot: {'unit_id': replicates.units[plot], 'pooled': pooled, 'mean_of_tree_means': two_stage}
+                for plot, (pooled, two_stage) in EXPECTED_PLOT_MEANS.items()
+            },
+            # nested level keys of a record group dimension of each grouping, by dataset (docs/analysis.md §6)
+            'levels': {key: levels(key, records) for key, (_, records) in REPLICATE_DATASETS.items()},
+            'blocks': {
+                'block_levels': len(level_keys(replicates, 'blocks', BLOCK)),
+                'block_levels_with_block_1_shared': len(level_keys(replicates, 'blocks', BLOCK)) - 1,
+                'batch_levels': len(level_keys(replicates, 'blocks', BATCH)),
+            },
+        },
     }
 
 

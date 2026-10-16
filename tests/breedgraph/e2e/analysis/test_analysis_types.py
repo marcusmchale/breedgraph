@@ -96,7 +96,7 @@ async def post_to_get_result(client, token: str, analysis_id: str, fragment: str
 
 
 async def run_analysis(client, token: str, analysis: dict, fragment: str) -> dict:
-    """Submit an analysis, process it as the worker would and return the submission."""
+    """Submit an analysis, process it as the worker would and return the submission, or the failed submission."""
     payload = get_verified_payload(await post_to_submit_analysis(client, token, analysis), "analysisSubmit")
     assert_payload_success(payload)
     analysis_id = payload['result']
@@ -112,6 +112,8 @@ async def run_analysis(client, token: str, analysis: dict, fragment: str) -> dic
         submission = await get()
         if submission['status'] in ('QUEUED', 'FAILED'):
             break
+    if submission['status'] == 'FAILED':
+        return submission
     assert submission['status'] == SubmissionStatus.QUEUED.name, submission['errors']
 
     response = await client.get("/analysis_jobs/next", headers=worker_headers())

@@ -33,6 +33,8 @@ the first plot of a field and "Block 2" for the second, so the same codes name a
     blocks         height  each tree once, with Batch 1 for odd and Batch 2 for even trees, across fields
     regrouped      height  each tree once, with Dataset Scoped Block "Block A" for a plot's first two trees and
                            "Block B" for its third
+
+EXPECTED_CASES, EXPECTED_WINDOWED_READINGS and EXPECTED_PLOT_MEANS give what analyses of them report.
 """
 from dataclasses import dataclass, field
 
@@ -100,6 +102,12 @@ def plot_of(tree: int) -> int:
 
 TREES = [(f, tree) for f in FIELDS for tree in range(1, PLOTS_PER_FIELD * TREES_PER_PLOT + 1)]
 PLOTS = [(f, plot) for f in FIELDS for plot in range(1, PLOTS_PER_FIELD + 1)]
+
+# unit name: the name of its field, the root of its unit graph
+FIELD_OF = {
+    **{tree_name(f, tree): field_name(f) for f, tree in TREES},
+    **{plot_name(f, plot): field_name(f) for f, plot in PLOTS},
+}
 
 
 @dataclass(frozen=True)
@@ -205,9 +213,9 @@ def _regrouped() -> list[Record]:
 
 
 # dataset key: (concept key, records). Rep A6's same_time replicates are high, so its mean pulls the pooled mean
-# of plot A2 away from the mean of the tree means there.
+# of plot A2 away from the mean of the tree means there (EXPECTED_PLOT_MEANS).
 DATASETS: dict[str, tuple[str, list[Record]]] = {
-    'same_time': ('ontology_variable_height', _same_time(lambda index, code: 1000 + 100 * index + 10 * code + (600 if index == 5 else 0))),
+    'same_time': ('ontology_variable_height', _same_time(lambda index, code: 1000 + 100 * index + 10 * code + (605 if index == 5 else 0))),
     'width': ('ontology_variable_width', _same_time(lambda index, code: 2000 + 50 * index + 5 * code)),
     'windowed': ('ontology_variable_height', _windowed()),
     'dated': ('ontology_variable_height', _dated()),
@@ -216,6 +224,68 @@ DATASETS: dict[str, tuple[str, list[Record]]] = {
     'factor': ('ontology_factor_light', _factor()),
     'blocks': ('ontology_variable_height', _blocks()),
     'regrouped': ('ontology_variable_height', _regrouped()),
+}
+
+
+# concept: (scenario key, name)
+CONCEPTS = {
+    'height': ('ontology_variable_height', "Tree Height (mm)"),
+    'width': ('ontology_variable_width', "Canopy Width (mm)"),
+    'light': ('ontology_factor_light', "Light"),
+}
+
+
+@dataclass(frozen=True)
+class Case:
+    """
+    The outcome of an analysis of one dataset's concept as its only term, with no dimensions configured:
+    replicate_aggregation is None or (aggregation, window or None); error is None or (code, path end, record count).
+    """
+    dataset: str
+    aggregation: str = 'NONE'
+    replicate_aggregation: tuple[str, str | None] | None = None
+    error: tuple[str, str, int] | None = None
+    warnings: tuple[str, ...] = ()
+
+
+def _duplicates(path: str, dataset: str) -> tuple[str, str, int]:
+    return 'DUPLICATE_OBSERVATION', path, len(DATASETS[dataset][1])
+
+
+EXPECTED_CASES = [
+    # (c1) replicates at one start need a replicate aggregation, or a record group dimension
+    Case('same_time', error=_duplicates('replicateAggregation', 'same_time')),
+    Case('width', error=_duplicates('replicateAggregation', 'width')),
+    Case('biorep', error=_duplicates('replicateAggregation', 'biorep')),
+    # (c2) a replicate aggregation completes
+    Case('same_time', replicate_aggregation=('MEAN', None)),
+    Case('biorep', replicate_aggregation=('MEAN', None)),
+    # (c3) a term mean without a replicate aggregation pools the replicates
+    Case('same_time', aggregation='MEAN', warnings=('REPLICATES_POOLED',)),
+    # (c4) replicates on different dates are different readings
+    Case('dated', error=_duplicates('aggregation', 'dated')),
+    Case('dated', replicate_aggregation=('MEAN', None), error=_duplicates('aggregation', 'dated')),
+    Case('dated', aggregation='MEAN', replicate_aggregation=('MEAN', None)),
+    # (c5) a window joins replicates minutes apart: 3 readings per tree exactly, 2 within PT5M, 1 within PT1H
+    Case('windowed', replicate_aggregation=('MEAN', None), error=_duplicates('aggregation', 'windowed')),
+    Case('windowed', replicate_aggregation=('MEAN', 'PT5M'), error=_duplicates('aggregation', 'windowed')),
+    Case('windowed', replicate_aggregation=('MEAN', 'PT1H')),
+    # one record per unit
+    Case('blocks'),
+    Case('regrouped'),
+    Case('factor'),
+]
+
+# readings of each tree in windowed: replicate aggregation window -> readings
+EXPECTED_WINDOWED_READINGS = {None: 3, 'PT5M': 2, 'PT1H': 1}
+
+# same_time, height with grouping.unit by plot and term aggregation MEAN: plot -> (pooled, mean of tree means),
+# without and with a MEAN replicate aggregation
+EXPECTED_PLOT_MEANS = {
+    plot_name('A', 1): (1120, 1120),
+    plot_name('A', 2): (1557.5, 1620),
+    plot_name('B', 1): (1720, 1720),
+    plot_name('B', 2): (2020, 2020),
 }
 
 
@@ -324,3 +394,31 @@ class ReplicateScenarioBuilder:
                 for keys in scopes:
                     grouping.merge_dataset_scope([r.datasets[key] for key in keys])
             await uow.commit()
+
+
+def level_keys(replicates: ReplicateScenario, dataset: str, grouping: str) -> list[str]:
+    """
+    The nested level keys (docs/analysis.md §6) of a grouping's codes in a dataset, as a record group dimension of
+    that grouping resolves them: "grouping|scope|code", with the unit for WITHIN_UNIT and the root for WITHIN_GRAPH
+    """
+    _, extent, scope = GROUPINGS[grouping]
+    dataset_id = replicates.datasets[dataset]
+    if scope == GroupingScope.STUDY_WIDE:
+        scope_key = "*"
+    else:
+        scoped = next(
+            (keys for keys in DATASET_SCOPES.get(grouping, []) if dataset in keys), (dataset,)
+        )
+        scope_key = ",".join(str(i) for i in sorted(replicates.datasets[key] for key in scoped))
+    keys = set()
+    for record in DATASETS[dataset][1]:
+        for name, code in record.groups:
+            if name != grouping:
+                continue
+            if extent == RecordGroupExtent.WITHIN_UNIT:
+                keys.add(f"{replicates.groupings[name]}|{scope_key}|{replicates.units[record.unit]}|{code}")
+            elif extent == RecordGroupExtent.WITHIN_GRAPH:
+                keys.add(f"{replicates.groupings[name]}|{scope_key}|{replicates.units[FIELD_OF[record.unit]]}|{code}")
+            else:
+                keys.add(f"{replicates.groupings[name]}|{scope_key}|{code}")
+    return sorted(keys)

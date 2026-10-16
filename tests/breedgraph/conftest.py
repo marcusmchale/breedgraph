@@ -33,6 +33,7 @@ from tests.breedgraph.scenarios import (
     TeamTreeBuilder
 )
 from tests.breedgraph.scenarios.read_policy_scenario import ReadPolicyScenario, ReadPolicyScenarioBuilder
+from tests.breedgraph.scenarios.replicate_scenario import ReplicateScenario, ReplicateScenarioBuilder
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.team_trees import TeamInput
 
@@ -460,3 +461,9 @@ async def read_policy(isolated_state, bus, uow_factory, state_store) -> ReadPoli
     return await ReadPolicyScenarioBuilder(
         uow_factory, state_store, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
     ).build()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def replicates(read_policy, uow_factory) -> ReplicateScenario:
+    """The replicates study, on the read-policy scenario: see tests/breedgraph/scenarios/replicate_scenario.py"""
+    return await ReplicateScenarioBuilder(uow_factory, read_policy).build()
