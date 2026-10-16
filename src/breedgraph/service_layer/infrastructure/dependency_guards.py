@@ -8,7 +8,7 @@ class AbstractDependencyGuards(ABC):
 
     @abstractmethod
     async def reference_in_use(self, reference_id: int) -> bool:
-        """Check if a reference is being used by any records"""
+        """Check if a reference is cited (REFERENCE_FOR) or used as a licence or copyright, including by earlier ontology versions"""
         ...
 
     @abstractmethod
