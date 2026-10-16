@@ -3,6 +3,8 @@
 Build the public, synthetic test database on an empty Neo4j and Redis: the read-policy scenario of the breedgraph
 tests (tests/breedgraph/scenarios/read_policy_scenario.py), so the tests and this database describe the same world.
 Every name and value is generated; nothing comes from real data. breedview's e2e tests run against a dump of it.
+It also holds a study with record group codes of every extent and scope
+(tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry.
 
 Writes a manifest (JSON) with the accounts' credentials, the ids of every entity by its scenario name, the controls
 each entity was written under, what each viewer can read, and the files. The files themselves are written to
@@ -51,6 +53,9 @@ from breedgraph.adapters.redis.state_store import RedisStateStore
 from setup_initial_data import ensure_empty_db, create_schema, create_system_account, create_initial_ontology_entries
 from load_state_store import is_redis_empty
 
+from tests.breedgraph.scenarios.replicate_scenario import (
+    ReplicateScenarioBuilder, ReplicateScenario, DATASETS as REPLICATE_DATASETS, GROUPINGS, PROGRAM, TRIAL, STUDY
+)
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
     ReadPolicyScenarioBuilder, ReadPolicyScenario, VIEWERS, AFFILIATIONS, ENTITY_LABELS, DATASETS, REFERENCES
@@ -105,6 +110,32 @@ def scale_manifest(scale: ScaleScenario) -> dict:
     }
 
 
+def replicates_manifest(replicates: ReplicateScenario, scenario: ReadPolicyScenario) -> dict:
+    return {
+        'program': {'id': replicates.ids['program'], 'name': PROGRAM},
+        'trial': {'id': replicates.ids['trial'], 'name': TRIAL},
+        'study': {'id': replicates.ids['study'], 'name': STUDY},
+        'groupings': {
+            name: {
+                'id': replicates.groupings[name],
+                'type': scenario[type_key],
+                'extent': extent.name,
+                'scope': scope.name,
+            }
+            for name, (type_key, extent, scope) in GROUPINGS.items()
+        },
+        'datasets': {
+            key: {
+                'id': replicates.datasets[key],
+                'concept': scenario[concept_key],
+                'record_count': len(records),
+            }
+            for key, (concept_key, records) in REPLICATE_DATASETS.items()
+        },
+        'units': dict(sorted(replicates.units.items())),
+    }
+
+
 def perf_manifest(scale: ScaleScenario) -> dict:
     """The defaults of breedview's performance scripts (perf in its fixture): a large study, its variable, a large field"""
     return {
@@ -114,7 +145,14 @@ def perf_manifest(scale: ScaleScenario) -> dict:
     }
 
 
-def manifest(scenario: ReadPolicyScenario, seed: int, password: str, files_dir: Path, scale: ScaleScenario | None) -> dict:
+def manifest(
+        scenario: ReadPolicyScenario,
+        replicates: ReplicateScenario,
+        seed: int,
+        password: str,
+        files_dir: Path,
+        scale: ScaleScenario | None
+) -> dict:
     return {
         'description': "The breedgraph read-policy scenario: synthetic data for tests (see scripts/build_test_database.py)",
         'built_at': datetime.now(timezone.utc).isoformat(),
@@ -162,6 +200,7 @@ def manifest(scenario: ReadPolicyScenario, seed: int, password: str, files_dir: 
             }
             for name, (file_id, _) in scenario.files.items()
         },
+        'replicates': replicates_manifest(replicates, scenario),
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
 
@@ -230,6 +269,8 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
             file_storage_path=FILE_STORAGE_PATH,
             users=users(password)
         ).build()
+        logger.info("Building the replicates study")
+        replicates = await ReplicateScenarioBuilder(uow_factory, scenario).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
@@ -238,7 +279,7 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
-        contents = manifest(scenario, seed, password, files_dir, scale)
+        contents = manifest(scenario, replicates, seed, password, files_dir, scale)
         await add_names(driver, contents)
     finally:
         await connection.aclose()
