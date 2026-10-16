@@ -126,10 +126,12 @@ Blocks are units (6.4), not layouts.
 
 ## 2.4 Record Group Types
 
+Each type is created with the extent of the migration's groupings of it as its default; the groupings of each Study (7.5)
+are given that extent. An existing type of the same name is reused whatever its default.
+
 * Replicate, for replicate codes (7.6), with extent `WITHIN_UNIT`: a code only distinguishes readings of one item at one time.
   In analysis, its codes are nested in their unit, and a term's `replicateAggregation` combines each reading's replicates
   (with a `window` for readings recorded minutes apart, like the curves of 7.1); see docs/analysis.md §2.
-  If a type named Replicate already exists, it is reused only with this extent; otherwise the ontology phase stops.
 * Branch, for the branch a reading was taken from (6.1), with extent `WITHIN_UNIT`: a branch code only distinguishes
   the branches of one tree.
 * Stratum, for the canopy stratum (Lower, Middle or Upper) of a branch (6.1), with extent `SHARED`:
@@ -138,7 +140,6 @@ Blocks are units (6.4), not layouts.
 * Block, for the design block of a field a reading was taken in (6.4), with extent `WITHIN_GRAPH`: a block code is
   shared by the units of one field (each field being its own block of units), so "Block 1" of one field is another level
   from "Block 1" of the next, without naming the field in the code.
-  These, like Replicate, are reused only with these extents.
 
 ---
 
@@ -300,7 +301,7 @@ what is in a block, or was taken from one, is placed directly under the Field.
   4 of 10 in 5, 5 of 11 in Nicaragua). Each record of what is in a block, or was taken from one, gets the block's name
   as its code in the Study's Block grouping (`block_of` in units.py, 2.4): 159,794 records, of 71,646 items, in the
   Nicaragua, Vietnam, Cameroon, French Guiana and Metabolomics Studies. The code is the name alone, block names
-  recurring across Fields: the Block type's `WITHIN_GRAPH` extent keeps the blocks of each Field apart.
+  recurring across Fields: the Block grouping's `WITHIN_GRAPH` extent keeps the blocks of each Field apart.
   With the block as a code, analysis can estimate a block effect with trees as observations, which a block unit
   only allows by aggregating its trees. The trees keep their positions, including field 29's layouts per block (4).
   In Nicaragua (fields 18–24), samples were taken from a block rather than from an identified tree: 6,655 tree samples
@@ -464,7 +465,8 @@ controlled by the migration team, or matched by name (programs.py, with `study_f
 Each Study has a dataset-scoped Replicate grouping, of the Replicate record group type in the ontology,
 scoped in the datasets phase (7.6). Studies also have study-wide groupings for the codes their records carry:
 Branch, Stratum and Leaf (6.1) in Nicaragua and Vietnam, and Block (6.4) in Nicaragua, Vietnam, Cameroon, French Guiana
-and Metabolomics. Saved study_ids.csv: each Study, its id and the ids of its groupings.
+and Metabolomics. Each grouping has the extent of its type in 2.4; a Study whose grouping is stored with another
+scope or extent stops the programs phase. Saved study_ids.csv: each Study, its id and the ids of its groupings.
 Each Study's start and end are the first and last times of its records: record times, and condition starts and ends
 where given (BreedCAFS stores False for most), without the records of the samples left out (6.5). French Guiana has no timed records, so no dates.
 Nicaragua starts in August 2015, before BreedCAFS: data recorded earlier was submitted within BreedCAFS,
@@ -535,7 +537,7 @@ It only reads. It works out again, from the extracted and curated files, what sh
 that with the mapping files written by the run and with what is stored. It writes validation_report.md, a table of the
 checks, to the data directory, and exits with 3 if any check fails. The checks:
 
-* Every input maps to a stored variable or factor, and the design factors, subjects and record group types (with their extents) are in the ontology.
+* Every input maps to a stored variable or factor, and the design factors, subjects and record group types are in the ontology.
 * Every field and sample location maps to a stored location, every planned layout to a stored layout,
   and every variety to stored germplasm.
 * Every item maps to a unit, except the skipped items, the duplicates (§6.5) and the blocks named after a treatment (§6.4).
@@ -549,6 +551,7 @@ checks, to the data directory, and exits with 3 if any check fails. The checks:
   exactly the Persons who recorded it (§7.6).
 * The fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets, curve data files
   and Persons are controlled by the migration team alone, and `PRIVATE`.
+* Every grouping of the studies has the extent of its type in §2.4.
 * No record has replicate code 0 (§7.6).
 * No model has more than one write stamp by the migration user (§14).
 

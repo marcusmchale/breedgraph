@@ -110,7 +110,7 @@ class CreateLayoutType(Command, CreateEntryBase):
     term_ids: List[int] | None = None
 
 class CreateRecordGroupType(Command, CreateEntryBase):
-    extent: RecordGroupExtent
+    default_extent: RecordGroupExtent | None = None
     term_ids: List[int] | None = None
 
 class UpdateEntryBase(BaseModel):

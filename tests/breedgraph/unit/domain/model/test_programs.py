@@ -3,15 +3,18 @@ from numpy import datetime64
 
 from breedgraph.domain.model.controls import Controller, Control, ReadRelease
 from breedgraph.domain.model.programs import (
-    ProgramStored, TrialStored, StudyStored, RecordGroupingStored, GroupingScope
+    ProgramStored, TrialStored, StudyStored, RecordGroupingStored, RecordGroupingInput, GroupingScope
 )
+from breedgraph.domain.model.ontology import RecordGroupExtent
 from breedgraph.service_layer.tracking.wrappers import tracked
 
 
 @pytest.fixture
 def program() -> ProgramStored:
     """A program whose trial, study and grouping all have id 0, as the first of each in a database"""
-    grouping = RecordGroupingStored(id=0, type=1, name="Replicate", scope=GroupingScope.DATASET_SCOPED)
+    grouping = RecordGroupingStored(
+        id=0, type=1, name="Replicate", scope=GroupingScope.DATASET_SCOPED, extent=RecordGroupExtent.WITHIN_UNIT
+    )
     study = StudyStored(id=0, name="Study", groupings=[grouping])
     trial = TrialStored(id=0, name="Trial", studies={0: study})
     return ProgramStored(id=0, name="Program", trials={0: trial})
@@ -24,8 +27,21 @@ def test_get_grouping_by_id_zero(program):
     assert study.get_grouping(grouping_id=1) is None
 
 
+def test_grouping_requires_an_extent():
+    with pytest.raises(ValueError, match="A record grouping requires an extent"):
+        RecordGroupingInput(type=1, name="Replicate", scope=GroupingScope.STUDY_WIDE)
+
+
+def test_add_grouping_with_its_extent(program):
+    study = program.get_study(study_id=0)
+    study.add_grouping(2, "Block", GroupingScope.STUDY_WIDE, RecordGroupExtent.WITHIN_GRAPH)
+    assert study.get_grouping(name="Block").extent is RecordGroupExtent.WITHIN_GRAPH
+
+
 def test_merge_dataset_scope_coalesces_overlapping_scopes():
-    grouping = tracked(RecordGroupingStored(id=0, type=1, name="Replicate", scope=GroupingScope.DATASET_SCOPED))
+    grouping = tracked(RecordGroupingStored(
+        id=0, type=1, name="Replicate", scope=GroupingScope.DATASET_SCOPED, extent=RecordGroupExtent.WITHIN_UNIT
+    ))
     for scope in ([1, 2], [3], [4, 5], [2, 4], [9]):
         grouping.merge_dataset_scope(scope)
     assert [sorted(scope.dataset_ids) for scope in grouping.dataset_scopes] == [[3], [1, 2, 4, 5], [9]]

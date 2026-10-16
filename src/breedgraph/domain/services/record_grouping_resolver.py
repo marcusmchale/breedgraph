@@ -56,8 +56,8 @@ class RecordGroupDimensionResolver:
         :param studies: studies of the selected datasets, as readable by the requesting user
         :param dataset_studies: selected dataset ID -> study ID
         :param path: input path of the dimension, for messages
-        :param within_unit: IDs of the groupings whose type has the WITHIN_UNIT extent
-        :param within_graph: IDs of the groupings whose type has the WITHIN_GRAPH extent
+        :param within_unit: IDs of the groupings with the WITHIN_UNIT extent
+        :param within_graph: IDs of the groupings with the WITHIN_GRAPH extent
         """
         self.dimension = dimension
         self.dataset_studies = dataset_studies

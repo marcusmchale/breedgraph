@@ -3,7 +3,7 @@ from encodings import charmap
 
 from neo4j import AsyncResult, Record
 
-from breedgraph.domain.model import DatasetScope, GroupingScope
+from breedgraph.domain.model import DatasetScope, GroupingScope, RecordGroupExtent
 from breedgraph.domain.model.programs import (
     StudyInput, StudyStored,
     TrialInput, TrialStored,
@@ -71,6 +71,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         for grouping in groupings:
             # enums to str for neo4j
             grouping['scope'] = grouping['scope'].value
+            grouping['extent'] = grouping['extent'].value
         result: AsyncResult = await self.tx.run(
             queries['programs']['create_study'],
             study_data=study_data,
@@ -137,6 +138,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
         groupings = study_data.pop('groupings', [])
         for grouping in groupings:
             grouping['scope'] = grouping['scope'].value
+            grouping['extent'] = grouping['extent'].value
 
         await self.tx.run(
             queries['programs']['set_study'],
@@ -190,6 +192,7 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
                 type= grouping['type'],
                 name=grouping['name'],
                 scope= GroupingScope(grouping['scope']),
+                extent=RecordGroupExtent(grouping['extent']),
                 dataset_scopes= [
                     DatasetScope(dataset_ids=scope['dataset_ids'])
                     for scope in grouping['scopes'] or []

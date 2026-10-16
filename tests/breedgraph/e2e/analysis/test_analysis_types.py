@@ -356,11 +356,13 @@ async def test_within_graph_codes_are_nested_in_graph_roots(
     """Each unit of the fixture is the root of its own graph, so one WITHIN_GRAPH code is a level per unit"""
     user_id, team_id, study_id = analysis_context['user_id'], dataset_build_context['team_id'], dataset_build_context['study_id']
     async with uow_factory.get_uow(user_id=user_id) as uow:
-        block_type = await uow.ontology.create_entry(RecordGroupTypeInput(name="Field Block", extent=RecordGroupExtent.WITHIN_GRAPH))
+        block_type = await uow.ontology.create_entry(RecordGroupTypeInput(name="Field Block"))
         await uow.commit()
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
         program = await uow.repositories.programs.get(study_id=study_id)
-        program.get_study(study_id).add_grouping(block_type.id, "Field Block", GroupingScope.STUDY_WIDE)
+        program.get_study(study_id).add_grouping(
+            block_type.id, "Field Block", GroupingScope.STUDY_WIDE, RecordGroupExtent.WITHIN_GRAPH
+        )
         await uow.commit()
     async with uow_factory.get_uow(user_id=user_id) as uow:
         program = await uow.repositories.programs.get(study_id=study_id)

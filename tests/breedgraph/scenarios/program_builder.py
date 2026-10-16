@@ -4,6 +4,7 @@ from breedgraph.domain.model.programs import (
     RecordGroupingInput, RecordGroupingStored,
     GroupingScope, DatasetScope
 )
+from breedgraph.domain.model.ontology import RecordGroupExtent
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from tests.breedgraph.utilities.inputs import LoremTextGenerator
@@ -29,11 +30,14 @@ class ProgramBuilder:
         return StudyInput(
             name=cls.text_generator.new_text(10),
             groupings=[
-                RecordGroupingInput(name='Study Scoped Batch',  type=batch_type, scope=GroupingScope.STUDY_WIDE),
+                RecordGroupingInput(
+                    name='Study Scoped Batch', type=batch_type, scope=GroupingScope.STUDY_WIDE, extent=RecordGroupExtent.SHARED
+                ),
                 RecordGroupingInput(
                     name='Dataset Scoped Replicate',
                     type=replicate_type,
                     scope=GroupingScope.DATASET_SCOPED,
+                    extent=RecordGroupExtent.WITHIN_UNIT,
                     dataset_scopes=[DatasetScope(dataset_ids={dataset_id})] if dataset_id else []
                 )
             ]

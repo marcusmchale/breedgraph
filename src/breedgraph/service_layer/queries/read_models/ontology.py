@@ -81,8 +81,8 @@ class OntologyEntryOutput(ABC):
             dump['control_type'] = dump['control_type'].value
         if 'axes' in dump:
             dump['axes'] = [a.value for a in dump['axes']]
-        if 'extent' in dump:
-            dump['extent'] = dump['extent'].value
+        if dump.get('default_extent') is not None:
+            dump['default_extent'] = dump['default_extent'].value
         return dump
 
 
@@ -203,7 +203,7 @@ class RecordGroupTypeOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.RECORD_GROUP_TYPE
     terms: tuple[int, ...] = ()
 
-    extent: RecordGroupExtent = None
+    default_extent: RecordGroupExtent | None = None
 
 @dataclass(frozen=True)
 class EventOutput(OntologyEntryOutput):

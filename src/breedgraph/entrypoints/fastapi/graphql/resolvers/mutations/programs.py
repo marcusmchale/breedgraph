@@ -230,7 +230,8 @@ async def create_grouping(
         study_id=grouping.get('study_id'),
         type_id = grouping.get('type_id'),
         name=grouping.get('name'),
-        scope=GroupingScope(grouping.get('scope'))
+        scope=GroupingScope(grouping.get('scope')),
+        extent=grouping.get('extent')
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -251,6 +252,7 @@ async def update_grouping(
         grouping_id=grouping['id'],
         type_id = grouping.get('type_id'),
         name=grouping.get('name'),
+        extent=grouping.get('extent'),
         dataset_scopes=[
             set(scope.get('dataset_ids')) for scope in grouping.get('dataset_scopes', [])
         ] if grouping.get('dataset_scopes') is not None else None

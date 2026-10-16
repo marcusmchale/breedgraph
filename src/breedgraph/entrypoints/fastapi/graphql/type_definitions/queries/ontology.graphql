@@ -214,7 +214,7 @@ enum AxisType {
 }
 
 """
-How analysis groups records with the same code across units.
+How analysis groups records with the same code across units, set on each record grouping of a study.
 A code can mean the same on every unit (e.g. a canopy stratum "Lower"); the extent decides whether analysis uses that.
 """
 enum RecordGroupExtent {
@@ -892,7 +892,8 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
 
     terms: [Term!]
 
-    extent: RecordGroupExtent!
+    """ The extent a new grouping of this type starts with; each grouping sets its own """
+    defaultExtent: RecordGroupExtent
 }
 
 

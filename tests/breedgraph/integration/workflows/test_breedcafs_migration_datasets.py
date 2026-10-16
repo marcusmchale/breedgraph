@@ -131,11 +131,11 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             ("Leaf length", ''): (variable, await concept(ontology, subject.id, "Leaf length", ScaleType.NUMERICAL)),
         }
         shade_treatment = await concept(ontology, subject.id, "Shade Treatment", ScaleType.NOMINAL, ["Full Sun", "Shade"], factor=True)
-        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
-        branch_type = await ontology.create_entry(RecordGroupTypeInput(name="Branch", extent=RecordGroupExtent.WITHIN_UNIT))
-        stratum_type = await ontology.create_entry(RecordGroupTypeInput(name="Stratum", extent=RecordGroupExtent.SHARED))
-        leaf_type = await ontology.create_entry(RecordGroupTypeInput(name="Leaf", extent=RecordGroupExtent.WITHIN_UNIT))
-        block_type = await ontology.create_entry(RecordGroupTypeInput(name="Block", extent=RecordGroupExtent.WITHIN_GRAPH))
+        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", default_extent=RecordGroupExtent.WITHIN_UNIT))
+        branch_type = await ontology.create_entry(RecordGroupTypeInput(name="Branch", default_extent=RecordGroupExtent.WITHIN_UNIT))
+        stratum_type = await ontology.create_entry(RecordGroupTypeInput(name="Stratum", default_extent=RecordGroupExtent.SHARED))
+        leaf_type = await ontology.create_entry(RecordGroupTypeInput(name="Leaf", default_extent=RecordGroupExtent.WITHIN_UNIT))
+        block_type = await ontology.create_entry(RecordGroupTypeInput(name="Block", default_extent=RecordGroupExtent.WITHIN_GRAPH))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
@@ -144,10 +144,16 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
         await uow.repositories.programs.update_seen()
         trial = next(iter(program.trials.values()))
         for name in ("Vietnam", "Nicaragua", "Metabolomics"):
-            groupings = [RecordGroupingInput(type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED)]
+            groupings = [RecordGroupingInput(
+                type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED,
+                extent=RecordGroupExtent.WITHIN_UNIT
+            )]
             if name == "Nicaragua":
                 groupings += [
-                    RecordGroupingInput(type=group_type.id, name=group_type.name, scope=GroupingScope.STUDY_WIDE)
+                    RecordGroupingInput(
+                        type=group_type.id, name=group_type.name, scope=GroupingScope.STUDY_WIDE,
+                        extent=group_type.default_extent
+                    )
                     for group_type in (block_type, branch_type, stratum_type, leaf_type)
                 ]
             trial.add_study(StudyInput(name=name, groupings=groupings))

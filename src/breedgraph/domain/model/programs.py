@@ -7,6 +7,7 @@ from breedgraph.service_layer.tracking.wrappers import asdict
 from numpy import datetime64
 
 from breedgraph.domain.model.base import StoredModel, LabeledModel, EnumLabeledModel
+from breedgraph.domain.model.ontology.enums import RecordGroupExtent
 from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ControlledModelLabel, Access
 )
@@ -43,9 +44,12 @@ class RecordGroupingBase(ABC):
     type: int = None  # reference to ID of RecordGroupTypeStored
     name: str = None
     scope: GroupingScope = None
+    extent: RecordGroupExtent = None  # required, see RecordGroupExtent
     dataset_scopes: list[DatasetScope] = field(default_factory=list)
 
     def __post_init__(self):
+        if self.extent is None:
+            raise ValueError("A record grouping requires an extent")
         if self.scope == GroupingScope.STUDY_WIDE and self.dataset_scopes:
             raise ValueError(
                 "Study-wide grouping cannot have explicit scopes"
@@ -136,6 +140,7 @@ class StudyBase(ABC):
             group_type: int,
             name: str,
             scope: GroupingScope,
+            extent: RecordGroupExtent,
             dataset_scopes: List[DatasetScope|set[int]] | None = None
     ):
         dataset_scopes =[
@@ -148,6 +153,7 @@ class StudyBase(ABC):
                 type=group_type,
                 name=name,
                 scope=scope,
+                extent=extent,
                 dataset_scopes=dataset_scopes
             )
         )

@@ -14,6 +14,7 @@ WITH study, base_id
     CREATE (study)-[:USES_GROUPING]->(grouping:RecordGrouping {
       id: next_id,
       scope: grouping_data.scope,
+      extent: grouping_data.extent,
       name: grouping_data.name
     })-[:OF_TYPE]->(type)
     WITH grouping, grouping_data, type
@@ -27,4 +28,4 @@ WITH study, base_id
       RETURN collect({ dataset_ids: dataset_ids }) as scopes
     }
 
-RETURN collect({id: grouping.id, name: grouping.name, type: type.id, scope: grouping.scope, scopes: scopes}) as groupings
+RETURN collect({id: grouping.id, name: grouping.name, type: type.id, scope: grouping.scope, extent: grouping.extent, scopes: scopes}) as groupings

@@ -48,8 +48,8 @@ class OntologyEntryBase(EnumLabeledModel, ABC):
             dump['control_type'] = dump['control_type'].value
         if 'axes' in dump:
             dump['axes'] = [a.value for a in dump['axes']]
-        if 'extent' in dump:
-            dump['extent'] = dump['extent'].value
+        if dump.get('default_extent') is not None:
+            dump['default_extent'] = dump['default_extent'].value
         return dump
 
 @dataclass

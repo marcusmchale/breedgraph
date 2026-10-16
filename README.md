@@ -179,7 +179,9 @@ Design entries describe statistical designs for a [study](#study) in a [program]
 Examples: "Split-plot", "Randomized block"
 ##### Record Group Type
 Record group types describe the codes that group [records](#data-record) within a [study](#study).
-A code can mean the same on every unit, e.g. a canopy stratum "Lower"; the type's extent decides whether analysis uses that.
+A study uses a type through a record grouping, which has a scope (study-wide or dataset-scoped) and an extent.
+A code can mean the same on every unit, e.g. a canopy stratum "Lower"; the grouping's extent decides whether analysis
+uses that. A type can have a default extent, which a new grouping of it starts with.
 With SHARED, records of different units with the same code are one group, a level that can be estimated across units
 (e.g. "Batch", "Plate", "Stratum"). With WITHIN_GRAPH, codes are shared in the same way, but only by the units of one
 [block](#block) (the graph of units, e.g. a field): the design blocks of a field (e.g. "Block"), whose names recur in

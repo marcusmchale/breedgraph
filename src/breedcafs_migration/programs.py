@@ -28,6 +28,7 @@ from breedgraph.domain.model.programs import (
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
+from breedcafs_migration.ontology import RECORD_GROUP_EXTENTS
 from breedcafs_migration.units import UnitPlan, read_items, BLOCK, BRANCH, LEAF, STRATUM
 
 import logging
@@ -150,6 +151,14 @@ def find_by_name(models, name: str):
     return next((model for model in models if model.name.casefold() == name.casefold()), None)
 
 
+def stored_grouping(grouping, scope: GroupingScope, name: str) -> bool:
+    """Whether a study's grouping of this name is stored, with the scope and the extent the migration gives it"""
+    return (
+        isinstance(grouping, RecordGroupingStored)
+        and grouping.scope is scope and grouping.extent is RECORD_GROUP_EXTENTS[name]
+    )
+
+
 async def prepare_breedcafs_programs(
         uow_factory: Neo4jUnitOfWorkFactory,
         context: MigrationContext,
@@ -178,7 +187,10 @@ async def prepare_breedcafs_programs(
             start, end = dates.get(key, (None, None))
             if study is None:
                 trial.add_study(StudyInput(name=name, description=description, start=start, end=end, groupings=[
-                    RecordGroupingInput(type=record_group_types[REPLICATE], name=REPLICATE, scope=GroupingScope.DATASET_SCOPED)
+                    RecordGroupingInput(
+                        type=record_group_types[REPLICATE], name=REPLICATE, scope=GroupingScope.DATASET_SCOPED,
+                        extent=RECORD_GROUP_EXTENTS[REPLICATE]
+                    )
                 ]))
                 ids.created += 1
                 study = find_by_name(trial.studies.values(), name)
@@ -187,7 +199,10 @@ async def prepare_breedcafs_programs(
             for grouping_name in CODE_GROUPINGS:
                 if grouping_name in code_groupings.get(key, set()):
                     if study.get_grouping(name=grouping_name) is None:
-                        study.add_grouping(record_group_types[grouping_name], grouping_name, GroupingScope.STUDY_WIDE)
+                        study.add_grouping(
+                            record_group_types[grouping_name], grouping_name, GroupingScope.STUDY_WIDE,
+                            RECORD_GROUP_EXTENTS[grouping_name]
+                        )
                         ids.created += 1
         await programs.update_seen()
 
@@ -197,16 +212,22 @@ async def prepare_breedcafs_programs(
         for key, (trial_name, name, _) in STUDIES.items():
             study = find_by_name(program.trials[ids.trials[trial_name]].studies.values(), name)
             grouping = study.get_grouping(name=REPLICATE)
-            if not isinstance(grouping, RecordGroupingStored) or grouping.scope is not GroupingScope.DATASET_SCOPED:
-                raise ValueError(f"The study {name} has no stored dataset-scoped {REPLICATE} grouping")
+            if not stored_grouping(grouping, GroupingScope.DATASET_SCOPED, REPLICATE):
+                raise ValueError(
+                    f"The study {name} has no stored dataset-scoped {REPLICATE} grouping "
+                    f"with extent {RECORD_GROUP_EXTENTS[REPLICATE].value}"
+                )
             ids.studies[key] = study.id
             ids.replicate_groupings[key] = grouping.id
             ids.code_groupings[key] = {}
             for grouping_name in CODE_GROUPINGS:
                 if grouping_name in code_groupings.get(key, set()):
                     grouping = study.get_grouping(name=grouping_name)
-                    if not isinstance(grouping, RecordGroupingStored) or grouping.scope is not GroupingScope.STUDY_WIDE:
-                        raise ValueError(f"The study {name} has no stored study-wide {grouping_name} grouping")
+                    if not stored_grouping(grouping, GroupingScope.STUDY_WIDE, grouping_name):
+                        raise ValueError(
+                            f"The study {name} has no stored study-wide {grouping_name} grouping "
+                            f"with extent {RECORD_GROUP_EXTENTS[grouping_name].value}"
+                        )
                     ids.code_groupings[key][grouping_name] = grouping.id
         await uow.commit()
 

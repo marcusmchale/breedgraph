@@ -17,11 +17,8 @@ from typing import ClassVar
 class RecordGroupTypeBase(OntologyEntryBase):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.RECORD_GROUP_TYPE
 
-    extent: RecordGroupExtent | None = None  # required, see RecordGroupExtent
-
-    def __post_init__(self):
-        if self.extent is None:
-            raise ValueError("A record group type requires an extent")
+    # Prefills the extent of a grouping of this type; each grouping sets its own (RecordGroupingBase.extent)
+    default_extent: RecordGroupExtent | None = None
 
 @dataclass
 class RecordGroupTypeInput(RecordGroupTypeBase, OntologyEntryInput):

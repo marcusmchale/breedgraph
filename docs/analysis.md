@@ -59,7 +59,7 @@ Every analysis operates on **observations**, not on records.
 - Aggregation defaults to `NONE`, which is strict. Several values for one observation fail the analysis with `DUPLICATE_OBSERVATION`, listing the `recordIds`. Typical fixes to offer:
   - set an `aggregation` (MEAN, MEDIAN, …), or
   - add a dimension that separates the values, e.g. time bins for repeated measurements, or a record-group dimension for replicates.
-- **Replicates.** Record group types have an `extent` in the ontology.
+- **Replicates.** Record groupings have an `extent`, set on each grouping of a study (its type may give a default).
   - `SHARED` codes name a group of many units, e.g. a batch or plate.
   - `WITHIN_GRAPH` codes name a group of the units of one block (graph of units), e.g. the design blocks of a field.
   - `WITHIN_UNIT` codes only distinguish readings of one unit at one time, e.g. replicate or subsample numbers.

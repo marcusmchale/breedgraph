@@ -42,7 +42,7 @@ in this repository lists the operations that no longer validate (§10).
 5. Contacts on Programs and Trials, with messaging (§5).
 6. Claim requests for admins (§6).
 7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
-8. Record group extent and replicate aggregation (§11): the ontology form first, as creating a record group type fails without it.
+8. Record group extent and replicate aggregation (§11): the grouping form first, as creating a record grouping fails without it.
 
 New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
 
@@ -60,7 +60,7 @@ New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a 
 | Germplasm | `GermplasmEntry.authors` and `authorIds` in inputs are removed | Cite authors through references |
 | Programs | `contactIds` must name Persons linked to an account and released widely enough | Show the errors (§5) |
 | Teams | `organisationsDeleteTeam` is refused while the team controls anything | Explain and link to transfers (§7) |
-| Ontology | `RecordGroupTypeInput` and `RecordGroupTypeUpdate` require `extent` | Add it to the form (§11) |
+| Programs | `GroupingInput` requires `extent` | Add it to the grouping form (§11.2) |
 
 Nothing else was renamed. Everything below that is not listed here is new.
 
@@ -220,7 +220,7 @@ Admins of the recipient team are emailed about new offers.
 - Password reset with a token works again (it always failed before).
 - Fields that work without login: the account flows (register, log in, verify email, password reset), `accountsInvitation` and `organisationsDataProcessingTerms`. Everything else still requires login.
 
-- Record group types have an `extent`, and analysis terms have a `replicateAggregation` (§11).
+- Record groupings have an `extent` (record group types an optional `defaultExtent`), and analysis terms have a `replicateAggregation` (§11).
 
 ## 9. Migrated BreedCAFS data
 
@@ -254,8 +254,8 @@ Rerun it after changing the front end, and after any API change, before releasin
 
 ## 11. Record group extent and replicate aggregation
 
-Record group types now say how analysis groups records with the same code across units, and analyses can combine replicates before
-aggregating. Background and rules: `docs/analysis.md` §2 (replicates) and §3 (record groups). Paths below are in `breedview/src`.
+Record groupings now say how analysis groups records with the same code across units, and analyses can combine replicates before
+aggregating. The extent is set on each grouping of a study, beside its scope; a record group type only suggests one. Background and rules: `docs/analysis.md` §2 (replicates) and §3 (record groups). Paths below are in `breedview/src`.
 
 **The concepts, for help text:**
 - A code can mean the same on every unit, e.g. a canopy stratum "Lower". The extent decides whether analysis uses that.
@@ -266,27 +266,36 @@ aggregating. Background and rules: `docs/analysis.md` §2 (replicates) and §3 (
   Replicate 1 of one tree is not grouped with replicate 1 of another.
 - Something followed over time, sampled or positioned is better recorded as a child unit than as a code.
 - Scope (study-wide or dataset-scoped) is unchanged and independent of extent. It still sets which datasets' codes can be compared.
+- Both are set per grouping, so one type (e.g. "Block") can be used with different extents in different studies.
 
 ### 11.1 Ontology: record group types
 
-`RecordGroupType.extent: RecordGroupExtent!` (`SHARED` | `WITHIN_UNIT`) is **required** in `RecordGroupTypeInput` and
-`RecordGroupTypeUpdate`. Until the form sends it, creating or updating a record group type fails.
+`RecordGroupType.defaultExtent: RecordGroupExtent` (`SHARED` | `WITHIN_UNIT` | `WITHIN_GRAPH`, §12) is **optional** in
+`RecordGroupTypeInput` and `RecordGroupTypeUpdate`. It only prefills the extent of a new grouping of the type (§11.2);
+changing it doesn't change existing groupings. Omitting it on update leaves it unchanged.
 
 - `composables/ontology/ontologyEntryConfig.js`, `RecordGroupType`:
-  - add a required single-choice `extent` field, with the two descriptions above as help text;
+  - add an optional single-choice `defaultExtent` field, with the descriptions above as help text and a "none" choice;
   - send it in `processCreate` and `processUpdate`, prefilled from the entry on update.
 - `graphql/ontology/createRecordGroupType.graphql` and `updateRecordGroupType.graphql` take it through the input variable,
-  so they don't change. The entry queries need `... on RecordGroupType { extent }`.
-- Show the extent on the entry's view and, if useful, as a badge in lists.
+  so they don't change. The entry queries need `... on RecordGroupType { defaultExtent }` where the form is prefilled.
 - `RecordGroupType.parents` and `children` are now typed `RecordGroupType` (they were `Design`). Regenerate the schema
   files (§0) and check any fragment that selected Design fields on them.
 
 ### 11.2 Study groupings
 
-- `graphql/programs/study.graphql`: select `type { ...OntologyEntryFields ... on RecordGroupType { extent } }` (or just
-  `extent`) on `groupings`. The curation table and the grouping list get it from there.
-- `components/programs/RecordGroupingForm.vue`, `RecordGroupingList.vue`: show the selected type's extent next to the
-  type picker and in the list, so it's clear which groupings hold replicates.
+`RecordGrouping.extent: RecordGroupExtent!` is **required** in `GroupingInput`. Until the form sends it, creating a
+grouping fails. In `GroupingUpdate` it is optional: omitted, it is unchanged.
+
+- `components/programs/RecordGroupingForm.vue`:
+  - add a required single-choice `extent` field beside the scope, with the descriptions above as help text;
+  - when a type is picked, prefill it from the type's `defaultExtent` (if it has one, and the user hasn't chosen yet);
+  - send it in `programsCreateGrouping` and `programsUpdateGrouping`, prefilled from the grouping on update.
+- Changing the extent of a grouping with records changes how analysis groups their codes, not the records: say so
+  next to the field when editing.
+- `graphql/programs/study.graphql`: select `extent` on `groupings` (and the type's `defaultExtent` for the prefill).
+  The curation table and the grouping list get it from there.
+- `RecordGroupingList.vue`: show each grouping's extent, so it's clear which groupings hold replicates.
 
 ### 11.3 Dataset curation
 
@@ -381,11 +390,11 @@ their descendants, and, without a date, to every time bin."
 
 - Regenerate the schema files and run `scripts/check_front_end_queries.py` (§10).
 - Against the test database:
-  - (a) create a record group type with each extent;
+  - (a) create a grouping with each extent, of a type with a default extent and of one without;
   - (b) curate a dataset with a WITHIN_UNIT grouping: there are no sections by replicate code;
   - (c) submit a descriptive analysis of replicate data, without and then with `replicateAggregation`. Without, it fails
     with `DUPLICATE_OBSERVATION` at `replicateAggregation`; with, it completes.
-- The test database must be rebuilt for the record group types to have an extent.
+- The test database must be rebuilt for the groupings to have an extent.
 
 ## 12. The WITHIN_GRAPH extent
 
@@ -400,7 +409,7 @@ uses it for the blocks of its fields.
   Block 1 of one field is not grouped with Block 1 of another.
 
 Front end:
-- §11.1: the extent field offers the third value, with this help text; badges and lists show it.
+- §11.1, §11.2: the extent fields offer the third value, with this help text; badges and lists show it.
 - §11.3: curation sections may be built from WITHIN_GRAPH groupings as from SHARED ones (`c.extent !== 'WITHIN_UNIT'`).
 - §11.5: a WITHIN_GRAPH dimension can be a term and be used in ANOVA, and its codes can be members of shared levels
   (a member merges the code across blocks). `AnalysisRecordGroupAssignment.unitId` is the block's root for WITHIN_GRAPH

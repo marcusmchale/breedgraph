@@ -7,8 +7,8 @@ from breedgraph.domain.model.analysis import (
 from breedgraph.domain.model.analysis_context import AnalysisContext, ConceptContext, UnitContext
 from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
-from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, RecordGroupExtent, FactorStored
-from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
+from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, FactorStored
+from breedgraph.domain.model.programs import StudyStored
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder
 
 import logging
@@ -37,7 +37,6 @@ class AnalysisContextLoader:
         self._raise_errors()
 
         studies = await self._load_studies({dataset.study for dataset in datasets.values()})
-        record_group_extents = await self._load_record_group_extents(studies)
         units = await self._load_units(request, datasets, concepts, spec_path)
         germplasm_descendants = await self._load_germplasm(request, spec_path)
         self._raise_errors()
@@ -48,8 +47,7 @@ class AnalysisContextLoader:
             concepts=concepts,
             units=units,
             studies=studies,
-            germplasm_descendants=germplasm_descendants,
-            record_group_extents=record_group_extents
+            germplasm_descendants=germplasm_descendants
         )
 
     async def _load_datasets(self, request: AnalysisRequest) -> dict[int, DatasetStored]:
@@ -144,18 +142,6 @@ class AnalysisContextLoader:
             if study is not None:
                 studies[study_id] = study
         return studies
-
-    async def _load_record_group_extents(self, studies: dict[int, StudyStored]) -> dict[int, RecordGroupExtent]:
-        type_ids = {
-            grouping.type for study in studies.values() for grouping in study.groupings
-            if isinstance(grouping, RecordGroupingStored)
-        }
-        extents = {}
-        for type_id in type_ids:
-            entry = await self.uow.ontology.get_entry(type_id, label=OntologyEntryLabel.RECORD_GROUP_TYPE)
-            if entry is not None:
-                extents[type_id] = entry.extent
-        return extents
 
     async def _load_units(
             self,

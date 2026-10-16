@@ -107,7 +107,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
         assert variable.description == "Total boron content (µg/g)"
         assert variable.synonyms == ["Total Boron"]
         # Branches and leaves are not units, but codes nested in the tree; their strata are shared across trees,
-        # and blocks are shared by the units of a field
+        # and blocks are shared by the units of a field: the default extents of the types, as of their groupings
         for name, extent in (
                 ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED),
                 ("Leaf", RecordGroupExtent.WITHIN_UNIT), ("Block", RecordGroupExtent.WITHIN_GRAPH),
@@ -115,7 +115,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
             record_group_type = await uow.ontology.get_entry(
                 entry_id=ids.record_group_types[name], label=OntologyEntryLabel.RECORD_GROUP_TYPE
             )
-            assert record_group_type.extent is extent
+            assert record_group_type.default_extent is extent
 
         async def targets(source_id: int, label: OntologyRelationshipLabel) -> set[int]:
             return {r.target_id async for r in uow.ontology.get_relationships(source_ids=[source_id], labels=[label])}
@@ -169,21 +169,21 @@ async def test_scale_names_must_not_clash(uow_factory, editor_id, tmp_path, monk
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_existing_replicate_type_must_be_within_unit(uow_factory, editor_id, data_dir):
-    async def set_replicate_extent(extent: RecordGroupExtent):
+async def test_existing_record_group_type_is_reused_whatever_its_default_extent(uow_factory, editor_id, data_dir):
+    async def set_replicate_default(extent: RecordGroupExtent):
         async with uow_factory.get_uow(user_id=editor_id) as uow:
             replicate = await uow.ontology.get_entry(name="Replicate", label=OntologyEntryLabel.RECORD_GROUP_TYPE)
-            replicate.extent = extent
+            replicate.default_extent = extent
             await uow.ontology.update_entry(replicate)
             await uow.commit()
+            return replicate.id
 
-    await set_replicate_extent(RecordGroupExtent.SHARED)
+    replicate_id = await set_replicate_default(RecordGroupExtent.SHARED)
     try:
-        with pytest.raises(ValueError, match="The record group type Replicate exists with extent SHARED"):
-            await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+        ids = await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+        assert ids.record_group_types["Replicate"] == replicate_id
     finally:
-        await set_replicate_extent(RecordGroupExtent.WITHIN_UNIT)
-    await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+        await set_replicate_default(RecordGroupExtent.WITHIN_UNIT)
 
 
 @pytest.mark.asyncio(loop_scope="session")

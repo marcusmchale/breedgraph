@@ -319,13 +319,13 @@ class OntologyBuilder:
     async def record_group_types(self, user_id) -> Dict[str, int]:
         async with self.uow_factory.get_uow(user_id=user_id) as uow:
             ontology_service = uow.ontology
-            replicate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
+            replicate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Replicate", default_extent=RecordGroupExtent.WITHIN_UNIT))
             biorep_group_type = await ontology_service.create_entry(
-                RecordGroupTypeInput(name="Biological Replicate", extent=RecordGroupExtent.WITHIN_UNIT),
+                RecordGroupTypeInput(name="Biological Replicate", default_extent=RecordGroupExtent.WITHIN_UNIT),
                 parents=[replicate_group_type.id]
             )
-            batch_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Batch", extent=RecordGroupExtent.SHARED))
-            plate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Plate", extent=RecordGroupExtent.SHARED), parents=[batch_group_type.id])
+            batch_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Batch", default_extent=RecordGroupExtent.SHARED))
+            plate_group_type = await ontology_service.create_entry(RecordGroupTypeInput(name="Plate"), parents=[batch_group_type.id])
             await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added record group types")
             await uow.commit()
             return {

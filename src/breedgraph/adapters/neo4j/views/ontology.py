@@ -138,8 +138,8 @@ class Neo4jOntologyView(AbstractOntologyView):
             entry_dict['control_type'] = ControlMethodType(entry_dict['control_type'])
         if 'axes' in entry_dict:
             entry_dict['axes'] = tuple(AxisType(a) for a in entry_dict['axes'])
-        if 'extent' in entry_dict:
-            entry_dict['extent'] = RecordGroupExtent(entry_dict['extent'])
+        if entry_dict.get('default_extent') is not None:
+            entry_dict['default_extent'] = RecordGroupExtent(entry_dict['default_extent'])
 
     @staticmethod
     def filter_dict(entry_dict: dict, node_class):

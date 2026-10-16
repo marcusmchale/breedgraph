@@ -98,6 +98,7 @@ input GroupingInput {
     typeId: ID!
     name: String!
     scope: GroupingScope!
+    extent: RecordGroupExtent!
     dataset_scopes: [DatasetScopeInput!]
 }
 
@@ -106,6 +107,8 @@ input GroupingUpdate {
     typeId: ID!
     name: String!
     scope: GroupingScope!
+    """ Unchanged when omitted """
+    extent: RecordGroupExtent
     dataset_scopes: [DatasetScopeInput!]
 }
 

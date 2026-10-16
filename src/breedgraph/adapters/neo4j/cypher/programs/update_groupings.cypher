@@ -1,7 +1,7 @@
 // Create groupings and scopes
 UNWIND $groupings as grouping_data
 MATCH (grouping: RecordGrouping {id: grouping_data.id})
-SET grouping += { scope: grouping_data.scope, name: grouping_data.name }
+SET grouping += { scope: grouping_data.scope, extent: grouping_data.extent, name: grouping_data.name }
 WITH grouping, grouping_data
 
 //update type
@@ -33,7 +33,7 @@ OPTIONAL CALL (grouping, grouping_data) {
 }
 
 
-RETURN collect({id: grouping.id, name: grouping.name, type: type.id, scope: grouping.scope, scopes: scopes}) as groupings
+RETURN collect({id: grouping.id, name: grouping.name, type: type.id, scope: grouping.scope, extent: grouping.extent, scopes: scopes}) as groupings
 
 
 

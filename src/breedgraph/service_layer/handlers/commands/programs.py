@@ -295,6 +295,7 @@ async def create_grouping(
             group_type=cmd.type_id,
             name=cmd.name,
             scope=cmd.scope,
+            extent=cmd.extent,
             dataset_scopes=cmd.dataset_scopes
         )
         await uow.commit()
@@ -319,6 +320,8 @@ async def update_grouping(
             grouping.name = cmd.name
         if cmd.type_id is not None:
             grouping.type = cmd.type_id
+        if cmd.extent is not None:
+            grouping.extent = cmd.extent
         if cmd.dataset_scopes is not None:
             grouping.dataset_scopes = [DatasetScope(list(scope)) for scope in cmd.dataset_scopes]
         await uow.commit()

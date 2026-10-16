@@ -53,7 +53,7 @@ LOCATION_TYPES = [
     ("Research Center", "A research institute or laboratory, e.g. where samples were analysed", ["Country"]),
 ]
 
-# name, description, extent
+# name, description, and the extent of the migration's groupings of the type, which is also its default
 RECORD_GROUP_TYPES = [
     (
         "Replicate", "Repeated observations of the same unit at the same time, distinguished by a replicate code",
@@ -79,6 +79,8 @@ RECORD_GROUP_TYPES = [
         RecordGroupExtent.WITHIN_GRAPH
     ),
 ]
+
+RECORD_GROUP_EXTENTS = {name: extent for name, _, extent in RECORD_GROUP_TYPES}
 
 # name, description, axes, parent names
 LAYOUT_TYPES = [
@@ -201,18 +203,11 @@ class OntologyPreparation:
 
     async def record_group_types(self):
         for name, description, extent in RECORD_GROUP_TYPES:
-            self.ids.record_group_types[name], created = await self.get_or_create(
+            # an existing type is reused whatever its default extent, as the groupings set their own (programs.py)
+            self.ids.record_group_types[name], _ = await self.get_or_create(
                 OntologyEntryLabel.RECORD_GROUP_TYPE, name,
-                lambda: self.ontology.create_entry(RecordGroupTypeInput(name=name, description=description, extent=extent))
+                lambda: self.ontology.create_entry(RecordGroupTypeInput(name=name, description=description, default_extent=extent))
             )
-            if not created:
-                # analysis nests codes in their unit, or shares them across units, as the existing type says
-                existing = await self.ontology.get_entry(self.ids.record_group_types[name], label=OntologyEntryLabel.RECORD_GROUP_TYPE)
-                if existing.extent is not extent:
-                    raise ValueError(
-                        f"The record group type {name} exists with extent {existing.extent.value}, "
-                        f"but the migration needs {extent.value}"
-                    )
 
     async def scale(self, row: dict) -> int:
         name = row['Scale']

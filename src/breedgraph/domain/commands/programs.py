@@ -1,6 +1,7 @@
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.programs import GroupingScope
+from breedgraph.domain.model.ontology import RecordGroupExtent
 
 from .base import Command
 
@@ -119,6 +120,7 @@ class CreateGrouping(Command):
     type_id: int
     name: str
     scope: GroupingScope
+    extent: RecordGroupExtent
     dataset_scopes: list[set[int]] | None = None
 
 class UpdateGrouping(Command):
@@ -128,6 +130,7 @@ class UpdateGrouping(Command):
 
     type_id: int | None = None
     name: str | None = None
+    extent: RecordGroupExtent | None = None
     dataset_scopes: list[set[int]] | None = None
 
 class DeleteGrouping(Command):

@@ -297,7 +297,7 @@ async def post_to_get_entries(
             "       ... on Factor { condition { id name } controlMethod { id name } scale { id name } } "
             "       ... on Event { variables { id name } factors { id name } } "
             "       ... on LayoutType { axes } "
-            "       ... on RecordGroupType { extent parents { id name extent } } "
+            "       ... on RecordGroupType { defaultExtent parents { id name defaultExtent } } "
             "   } "
             "    errors { name message } "
             "  } "

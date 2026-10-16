@@ -13,6 +13,7 @@ from breedgraph.domain.model.programs import GroupingScope
 from breedcafs_migration import programs, units
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.programs import prepare_breedcafs_programs, study_for, STUDIES, TRIALS
+from breedcafs_migration.ontology import RECORD_GROUP_EXTENTS as EXTENTS
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 
@@ -70,12 +71,10 @@ def write_csv(path, rows):
 async def programs_context(isolated_state, uow_factory) -> dict:
     migration = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
     async with uow_factory.get_uow(user_id=migration['user_id']) as uow:
+        # without default extents: the groupings are given the migration's extents whatever the type's default
         record_group_types = {
-            name: (await uow.ontology.create_entry(RecordGroupTypeInput(name=name, extent=extent))).id
-            for name, extent in (
-                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED),
-                ("Leaf", RecordGroupExtent.WITHIN_UNIT), ("Block", RecordGroupExtent.WITHIN_GRAPH),
-            )
+            name: (await uow.ontology.create_entry(RecordGroupTypeInput(name=name))).id
+            for name in ("Replicate", "Branch", "Stratum", "Leaf", "Block")
         }
         await uow.commit()
     return {
@@ -119,11 +118,15 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
             trial = program.trials[ids.trials[trial_name]]
             study = trial.studies[ids.studies[key]]
             assert study.name == name
-            expected = {(ids.replicate_groupings[key], "Replicate", GroupingScope.DATASET_SCOPED, types["Replicate"])}
+            expected = {(
+                ids.replicate_groupings[key], "Replicate", GroupingScope.DATASET_SCOPED, RecordGroupExtent.WITHIN_UNIT,
+                types["Replicate"]
+            )}
             expected |= {
-                (grouping_id, name, GroupingScope.STUDY_WIDE, types[name]) for name, grouping_id in ids.code_groupings[key].items()
+                (grouping_id, name, GroupingScope.STUDY_WIDE, EXTENTS[name], types[name])
+                for name, grouping_id in ids.code_groupings[key].items()
             }
-            assert {(g.id, g.name, g.scope, g.type) for g in study.groupings} == expected
+            assert {(g.id, g.name, g.scope, g.extent, g.type) for g in study.groupings} == expected
         def study(key):
             return program.trials[ids.trials[STUDIES[key][0]]].studies[ids.studies[key]]
 
@@ -148,3 +151,17 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
     assert (again.program_id, again.trials, again.studies, again.replicate_groupings, again.code_groupings) == (
         ids.program_id, ids.trials, ids.studies, ids.replicate_groupings, ids.code_groupings
     )
+
+    # A stored grouping with another extent stops the phase
+    async def set_block_extent(extent: RecordGroupExtent):
+        async with uow_factory.get_uow(user_id=context.user_id) as uow:
+            program = await uow.repositories.programs.get(program_id=ids.program_id)
+            program.get_study(ids.studies["Nicaragua"]).get_grouping(name="Block").extent = extent
+            await uow.commit()
+
+    await set_block_extent(RecordGroupExtent.SHARED)
+    try:
+        with pytest.raises(ValueError, match="no stored study-wide Block grouping with extent WITHIN_GRAPH"):
+            await prepare_breedcafs_programs(uow_factory, context, programs_context['record_group_types'])
+    finally:
+        await set_block_extent(RecordGroupExtent.WITHIN_GRAPH)

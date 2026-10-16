@@ -190,9 +190,9 @@ def test_study_only_with_study_term():
 
 
 """ Record group dimensions """
-def grouping(grouping_id, scope=GroupingScope.STUDY_WIDE, dataset_scopes=(), type_id=None):
+def grouping(grouping_id, scope=GroupingScope.STUDY_WIDE, dataset_scopes=(), extent=RecordGroupExtent.SHARED):
     return RecordGroupingStored(
-        id=grouping_id, name=f'g{grouping_id}', type=type_id, scope=scope, dataset_scopes=list(dataset_scopes)
+        id=grouping_id, name=f'g{grouping_id}', type=1, scope=scope, extent=extent, dataset_scopes=list(dataset_scopes)
     )
 
 def test_record_groups_nested_and_shared():
@@ -232,7 +232,6 @@ def test_record_group_grouping_not_found():
 
 
 """ Codes of WITHIN_GRAPH groupings, nested in the root of the unit's graph """
-BLOCK_TYPE = 60
 # Trees 100 and 101 in the graph of field 1, tree 102 in the graph of field 2, whose root the user can't read
 FIELDS = {
     100: UnitContext(100, ancestor_ids=[1], root_id=1),
@@ -241,7 +240,7 @@ FIELDS = {
 }
 
 def blocks(levels=()):
-    studies = {1: study(1, [grouping(7, type_id=BLOCK_TYPE)])}
+    studies = {1: study(1, [grouping(7, extent=RecordGroupExtent.WITHIN_GRAPH)])}
     datasets = [dataset(1, 1, 10, [
         record(1, 100, '1', groups={7: 'Block 1'}), record(2, 101, '2', groups={7: 'Block 1'}),
         record(3, 102, '3', groups={7: 'Block 1'}),
@@ -251,7 +250,7 @@ def blocks(levels=()):
             [concept_term(10), domain_term('RECORD_GROUP', record_group_dimension='block')],
             grouping={'record_groups': [{'name': 'block', 'grouping_ids': [7], 'levels': list(levels)}]}
         ),
-        datasets, units=FIELDS, studies=studies, record_group_extents={BLOCK_TYPE: RecordGroupExtent.WITHIN_GRAPH}
+        datasets, units=FIELDS, studies=studies
     )
 
 def test_within_graph_codes_are_nested_in_the_graph_root():
@@ -269,13 +268,12 @@ def test_within_graph_code_combined_across_graphs_by_a_level():
 
 
 """ Replicates: codes of WITHIN_UNIT groupings """
-REPLICATE_TYPE = 50
-EXTENTS = {REPLICATE_TYPE: RecordGroupExtent.WITHIN_UNIT}
+WITHIN_UNIT = RecordGroupExtent.WITHIN_UNIT
 TREES = {100: UnitContext(100, ancestor_ids=[1]), 101: UnitContext(101, ancestor_ids=[1])}
 
-def replicates(scope=GroupingScope.STUDY_WIDE, dataset_scopes=()):
+def replicates(scope=GroupingScope.STUDY_WIDE, dataset_scopes=(), extent=WITHIN_UNIT):
     """Study 1 with replicate grouping 7: tree 100 has 2 replicates, tree 101 has 4"""
-    studies = {1: study(1, [grouping(7, scope, dataset_scopes, type_id=REPLICATE_TYPE)])}
+    studies = {1: study(1, [grouping(7, scope, dataset_scopes, extent)])}
     records = [
         record(1, 100, '1', groups={7: '1'}), record(2, 100, '3', groups={7: '2'}),
         record(3, 101, '10', groups={7: '1'}), record(4, 101, '10', groups={7: '2'}),
@@ -285,7 +283,7 @@ def replicates(scope=GroupingScope.STUDY_WIDE, dataset_scopes=()):
 
 def test_replicates_are_duplicates_without_replicate_aggregation():
     studies, datasets = replicates()
-    ctx = context(descriptive([concept_term(10)]), datasets, studies=studies, record_group_extents=EXTENTS)
+    ctx = context(descriptive([concept_term(10)]), datasets, studies=studies)
     with pytest.raises(AnalysisFailed) as e:
         prepare(ctx)
     error = e.value.errors[0]
@@ -297,7 +295,7 @@ def test_replicate_aggregation_combines_each_reading_first():
     studies, datasets = replicates()
     ctx = context(
         descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN'}, aggregation='MEAN')], grouping={'unit': {'unit_ids': [1]}}),
-        datasets, units=TREES, studies=studies, record_group_extents=EXTENTS
+        datasets, units=TREES, studies=studies
     )
     frame, warnings = prepare(ctx)
     # mean of the tree means (2 and 10), not of the 6 records
@@ -308,7 +306,7 @@ def test_replicate_aggregation_alone_gives_one_value_per_unit():
     studies, datasets = replicates()
     ctx = context(
         descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MAX'})]),
-        datasets, studies=studies, record_group_extents=EXTENTS
+        datasets, studies=studies
     )
     frame, _ = prepare(ctx)
     assert values(frame, 10) == [3.0, 10.0]
@@ -317,7 +315,7 @@ def test_pooled_replicates_warn():
     studies, datasets = replicates()
     ctx = context(
         descriptive([concept_term(10, aggregation='MEAN')], grouping={'unit': {'unit_ids': [1]}}),
-        datasets, units=TREES, studies=studies, record_group_extents=EXTENTS
+        datasets, units=TREES, studies=studies
     )
     frame, warnings = prepare(ctx)
     assert values(frame, 10) == [44 / 6]
@@ -325,10 +323,10 @@ def test_pooled_replicates_warn():
     assert pooled[0].path == ['descriptiveStatistics', 'terms', '0', 'replicateAggregation']
 
 def test_shared_grouping_codes_are_not_replicates():
-    studies, datasets = replicates()
+    studies, datasets = replicates(extent=RecordGroupExtent.SHARED)
     ctx = context(
         descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN'})]),
-        datasets, studies=studies, record_group_extents={REPLICATE_TYPE: RecordGroupExtent.SHARED}
+        datasets, studies=studies
     )
     with pytest.raises(AnalysisFailed) as e:
         prepare(ctx)
@@ -336,7 +334,7 @@ def test_shared_grouping_codes_are_not_replicates():
     assert e.value.errors[0].path == ['descriptiveStatistics', 'terms', '0', 'aggregation']
 
 def test_replicates_of_different_times_and_scopes_are_different_readings():
-    studies = {1: study(1, [grouping(7, GroupingScope.DATASET_SCOPED, type_id=REPLICATE_TYPE)])}
+    studies = {1: study(1, [grouping(7, GroupingScope.DATASET_SCOPED, extent=WITHIN_UNIT)])}
     datasets = [
         dataset(1, 1, 10, [
             record(1, 100, '1', start='2020-01-01', groups={7: '1'}), record(2, 100, '3', start='2020-01-01', groups={7: '2'}),
@@ -346,14 +344,14 @@ def test_replicates_of_different_times_and_scopes_are_different_readings():
     ]
     ctx = context(
         descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN'}, aggregation='MEAN')], dataset_ids=[1, 2]),
-        datasets, studies=studies, record_group_extents=EXTENTS
+        datasets, studies=studies
     )
     frame, _ = prepare(ctx)
     # readings: 2 (dataset 1, January), 5 (dataset 1, February), 9 (dataset 2, its own scope)
     assert values(frame, 10) == [pytest.approx(16 / 3)]
 
 def test_replicate_window_anchored_on_first_record():
-    studies = {1: study(1, [grouping(7, type_id=REPLICATE_TYPE)])}
+    studies = {1: study(1, [grouping(7, extent=WITHIN_UNIT)])}
     times = ['2020-01-01T10:00', '2020-01-01T10:03', '2020-01-01T10:06', '2020-01-01T10:08', '2020-01-02T09:00']
     datasets = [dataset(1, 1, 10, [
         record(i, 100, str(v), start=t, groups={7: str(i)}) for i, (t, v) in enumerate(zip(times, (1, 3, 10, 20, 100)), start=1)
@@ -362,7 +360,7 @@ def test_replicate_window_anchored_on_first_record():
     def mean_of_readings(window):
         ctx = context(
             descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN', 'window': window}, aggregation='MEAN')]),
-            datasets, studies=studies, record_group_extents=EXTENTS
+            datasets, studies=studies
         )
         return values(prepare(ctx)[0], 10)[0]
 
@@ -374,7 +372,7 @@ def test_replicate_window_anchored_on_first_record():
     assert mean_of_readings(None) == pytest.approx(141 / 6)
 
 def test_replicate_window_means():
-    studies = {1: study(1, [grouping(7, type_id=REPLICATE_TYPE)])}
+    studies = {1: study(1, [grouping(7, extent=WITHIN_UNIT)])}
     datasets = [dataset(1, 1, 10, [
         record(1, 100, '1', start='2020-01-01T10:00', groups={7: '1'}),
         record(2, 100, '3', start='2020-01-01T10:04', groups={7: '2'}),
@@ -382,7 +380,7 @@ def test_replicate_window_means():
     ])]
     ctx = context(
         descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN', 'window': 'PT5M'}, aggregation='MEAN')]),
-        datasets, studies=studies, record_group_extents=EXTENTS
+        datasets, studies=studies
     )
     # readings 2 and 20
     assert values(prepare(ctx)[0], 10) == [11.0]
@@ -394,7 +392,7 @@ def test_replicate_dimension_nests_codes_in_the_base_unit():
             [concept_term(10)],
             grouping={'unit': {'unit_ids': [1]}, 'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
         ),
-        datasets, units=TREES, studies=studies, record_group_extents=EXTENTS
+        datasets, units=TREES, studies=studies
     )
     frame, _ = prepare(ctx)
     # each replicate of each tree stays an observation of the parent unit
@@ -410,7 +408,7 @@ def test_replicate_dimension_cannot_be_a_term():
             [concept_term(10), domain_term('RECORD_GROUP', record_group_dimension='replicate')],
             grouping={'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
         ),
-        datasets, studies=studies, record_group_extents=EXTENTS
+        datasets, studies=studies
     )
     with pytest.raises(AnalysisFailed) as e:
         prepare(ctx)
@@ -428,7 +426,7 @@ def test_replicate_dimension_not_in_anova():
             'grouping': {'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
         }
     }
-    ctx = context(analysis, datasets, studies=studies, record_group_extents=EXTENTS)
+    ctx = context(analysis, datasets, studies=studies)
     with pytest.raises(AnalysisFailed) as e:
         prepare(ctx)
     assert e.value.errors[0].code == AnalysisErrorCode.CONFIG_INVALID
@@ -441,7 +439,7 @@ def test_replicate_codes_cannot_be_shared_levels():
     ]}
     ctx = context(
         descriptive([concept_term(10)], grouping={'record_groups': [dimension]}),
-        datasets, studies=studies, record_group_extents=EXTENTS
+        datasets, studies=studies
     )
     with pytest.raises(AnalysisFailed) as e:
         prepare(ctx)
@@ -518,7 +516,7 @@ def test_factors_alone_are_the_observations():
     assert factor_values(frame) == ['Upper', 'Lower']
 
 def test_factor_without_a_code_applies_to_every_replicate():
-    studies = {1: study(1, [grouping(7, type_id=REPLICATE_TYPE)])}
+    studies = {1: study(1, [grouping(7, extent=WITHIN_UNIT)])}
     ctx = context(
         descriptive(
             [concept_term(10), concept_term(20)], dataset_ids=[1, 2],
@@ -528,7 +526,7 @@ def test_factor_without_a_code_applies_to_every_replicate():
             dataset(1, 1, 10, [record(1, 100, '1', groups={7: '1'}), record(2, 100, '2', groups={7: '2'})]),
             dataset(2, 1, 20, [record(3, 100, 'Upper')]),
         ],
-        studies=studies, concepts=FACTOR_CONCEPTS, record_group_extents=EXTENTS
+        studies=studies, concepts=FACTOR_CONCEPTS
     )
     frame, warnings = prepare(ctx)
     assert factor_values(frame) == ['Upper', 'Upper']

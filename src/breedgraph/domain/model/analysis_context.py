@@ -53,8 +53,6 @@ class AnalysisContext:
     studies: dict[int, StudyStored]
     # selected germplasm ID -> IDs of its descendants, for germplasm grouping
     germplasm_descendants: dict[int, set[int]] = field(default_factory=dict)
-    # record group type ID -> extent, for the types of the groupings of the studies
-    record_group_extents: dict[int, RecordGroupExtent] = field(default_factory=dict)
 
     @property
     def dataset_studies(self) -> dict[int, int]:
@@ -91,18 +89,18 @@ class AnalysisContext:
 
     @cached_property
     def within_unit_groupings(self) -> dict[int, RecordGroupingStored]:
-        """Groupings whose type has the WITHIN_UNIT extent: their codes distinguish replicates of a unit."""
+        """Groupings with the WITHIN_UNIT extent: their codes distinguish replicates of a unit."""
         return {
             grouping_id: grouping for grouping_id, grouping in self.groupings.items()
-            if self.record_group_extents.get(grouping.type) == RecordGroupExtent.WITHIN_UNIT
+            if grouping.extent == RecordGroupExtent.WITHIN_UNIT
         }
 
     @cached_property
     def within_graph_groupings(self) -> dict[int, RecordGroupingStored]:
-        """Groupings whose type has the WITHIN_GRAPH extent: their codes are nested in the root of the unit's graph."""
+        """Groupings with the WITHIN_GRAPH extent: their codes are nested in the root of the unit's graph."""
         return {
             grouping_id: grouping for grouping_id, grouping in self.groupings.items()
-            if self.record_group_extents.get(grouping.type) == RecordGroupExtent.WITHIN_GRAPH
+            if grouping.extent == RecordGroupExtent.WITHIN_GRAPH
         }
 
     def replicate_key(self, record: AnalysisRecord) -> tuple | None:

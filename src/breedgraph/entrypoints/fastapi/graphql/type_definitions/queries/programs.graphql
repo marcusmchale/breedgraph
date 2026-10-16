@@ -7,6 +7,8 @@ type RecordGrouping {
     type: RecordGroupType!
     name: String!
     scope: GroupingScope!
+    """ How analysis groups records with the same code across units """
+    extent: RecordGroupExtent!
     dataset_scopes: [DatasetScope!]
 }
 

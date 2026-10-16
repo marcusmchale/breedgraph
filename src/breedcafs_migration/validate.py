@@ -33,9 +33,9 @@ from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.datasets import DatasetPlan, replicate_code
 from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
 from breedcafs_migration.locations import read_fields, read_sample_locations
-from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES
+from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES, RECORD_GROUP_EXTENTS
 from breedcafs_migration.persons import read_persons, contributor_names
-from breedcafs_migration.programs import STUDIES, CODE_GROUPINGS
+from breedcafs_migration.programs import STUDIES, CODE_GROUPINGS, REPLICATE
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.units import UnitPlan, read_items, SUBJECTS
 from breedcafs_migration.germplasm import read_varieties
@@ -229,9 +229,31 @@ async def validate_datasets(validation, uow_factory, ontology: OntologyIds):
         "No record has replicate code 0, BreedCAFS's code for a reading not replicated",
         zero['records'] == 0, f"{zero['records']} with code 0"
     )
+    await validate_grouping_extents(validation, uow_factory)
     await validate_record_codes(validation, uow_factory, plan)
     validation.sections.append(replicate_summary(plan, ontology))
     return mapped, list(studies.values())
+
+
+async def validate_grouping_extents(validation, uow_factory):
+    """The groupings of each study (study_ids.csv) have the extent the migration gives their type (README §2.4)"""
+    expected = {}
+    for row in read_mapping('study_ids.csv'):
+        expected[int(row['replicate_grouping_id'])] = (REPLICATE, RECORD_GROUP_EXTENTS[REPLICATE].value)
+        for name in CODE_GROUPINGS:
+            if grouping_id := row.get(f'{name.lower()}_grouping_id'):
+                expected[int(grouping_id)] = (name, RECORD_GROUP_EXTENTS[name].value)
+    stored = {
+        row['id']: row['extent'] for row in await query(uow_factory, """
+            MATCH (grouping:RecordGrouping) WHERE grouping.id IN $ids
+            RETURN grouping.id AS id, grouping.extent AS extent
+        """, ids=list(expected))
+    }
+    validation.all(
+        "Record groupings have their extents",
+        [(grouping_id, name) for grouping_id, (name, extent) in expected.items() if stored.get(grouping_id) != extent],
+        len(expected)
+    )
 
 
 async def validate_record_codes(validation, uow_factory, plan: DatasetPlan):
@@ -344,18 +366,14 @@ async def validate_ontology(validation, uow_factory, context) -> tuple[OntologyI
             entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.SUBJECT)
             if entry is not None:
                 subjects[name] = entry.id
-        extents = {}
+        record_group_types = set()
         for name, _, _ in RECORD_GROUP_TYPES:
             entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.RECORD_GROUP_TYPE)
             if entry is not None:
-                extents[name] = entry.extent
+                record_group_types.add(name)
     validation.same("Design factors in the ontology", [f['Factor'] for f in DESIGN_FACTORS], ontology.design_factors)
     validation.same("Subjects in the ontology", set(SUBJECTS.values()), subjects)
-    validation.same(
-        "Record group types in the ontology, with their extents",
-        {(name, extent.value) for name, _, extent in RECORD_GROUP_TYPES},
-        {(name, extent.value) for name, extent in extents.items()}
-    )
+    validation.same("Record group types in the ontology", [name for name, _, _ in RECORD_GROUP_TYPES], record_group_types)
     return ontology, subjects
 
 

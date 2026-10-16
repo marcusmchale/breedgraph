@@ -72,7 +72,7 @@ async def curves_context(isolated_state, uow_factory) -> dict:
         variable = await ontology.create_variable(VariableInput(name="Fluorescence ~ Time (PocketPEA)"), trait.id, method.id, scale.id)
         other_scale = await ontology.create_scale(ScaleInput(name="Ratio", scale_type=ScaleType.NUMERICAL))
         other = await ontology.create_variable(VariableInput(name="Fv/Fm (PocketPEA)"), trait.id, method.id, other_scale.id)
-        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
+        replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", default_extent=RecordGroupExtent.WITHIN_UNIT))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
@@ -80,7 +80,10 @@ async def curves_context(isolated_state, uow_factory) -> dict:
         program.add_trial(TrialInput(name="Field trials"))
         await uow.repositories.programs.update_seen()
         next(iter(program.trials.values())).add_study(StudyInput(name="Nicaragua", groupings=[
-            RecordGroupingInput(type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED)
+            RecordGroupingInput(
+                type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED,
+                extent=RecordGroupExtent.WITHIN_UNIT
+            )
         ]))
         await uow.repositories.programs.update_seen()
         study = next(iter(next(iter(program.trials.values())).studies.values()))

@@ -45,21 +45,13 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
 3. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type),
    your account exists, and `scripts/import_germplasm.py` has loaded the production germplasm,
    so BreedCAFS varieties are matched to it rather than created again.
-4. **Record group types have an extent.** Since record group types gained a required `extent` (SHARED or WITHIN_UNIT),
-   one stored without it can't be read, and the ontology phase fails on it. In a copy of production older than that change,
-   list any without one, and set each from what its codes mean (README §2.4):
-   ```cypher
-   MATCH (t:RecordGroupType) WHERE t.extent IS NULL RETURN t.id, t.name, t.description;
-   MATCH (t:RecordGroupType {id: <id>}) SET t.extent = 'WITHIN_UNIT';   // or 'SHARED'
-   ```
-   The migration reuses an existing type named Replicate only if it is WITHIN_UNIT, and stops otherwise.
-5. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),
+4. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),
    and your account is an admin of it through a heritable affiliation.
-6. **Install the migration** into the API's environment, without dependencies (BreedGraph is already installed):
+5. **Install the migration** into the API's environment, without dependencies (BreedGraph is already installed):
    ```bash
    python -m pip install --no-deps breedcafs_migration-<version>-py3-none-any.whl
    ```
-7. **Unpack the data** into a new, private directory, and point the migration at it:
+6. **Unpack the data** into a new, private directory, and point the migration at it:
    ```bash
    breedcafs-migration unbundle breedcafs_bundle.tar.gz --data-dir <data dir>
    export BREEDCAFS_DATA_DIR=<data dir>

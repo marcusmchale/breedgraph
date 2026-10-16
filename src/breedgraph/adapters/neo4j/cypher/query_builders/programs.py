@@ -17,6 +17,7 @@ def _study(study: str = 'study') -> str:
               type: type.id,
               name: grouping.name,
               scope: grouping.scope,
+              extent: grouping.extent,
               scopes: [
                 (grouping)-[:HAS_SCOPE]->(scope:GroupingScope) | {{
                   dataset_ids: [(scope)<-[:IN_SCOPE]-(dataset:Dataset) | dataset.id]
