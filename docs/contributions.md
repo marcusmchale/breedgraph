@@ -139,7 +139,7 @@ The Data curation Role is seeded (§3), so the migration finds it by name.
 
 - `person.md` §3, "Removed from the current model": the `Role` row says roles describing a Person stay removed, and points here for contribution roles.
 - `person.md` §4: `Dataset.contributors` is replaced by contributions with roles (this note).
-- `docs/read-access.md`: citing a reference needs read access (done), and the release rule (§6).
+- `docs/read-access.md`: citing a reference needs read access, and the release rule (§6). Done.
 - `front-end-changes.md`: the API changes in §11.
 
 ## 9. Decisions
@@ -169,7 +169,7 @@ None.
 2. **Locking and sources.** Done: `locked` and `source` on ontology entries; lock and unlock commands for ontology admins;
    updates, deprecation and defining relationships of locked entries refused (§4, §5).
 2b. **Seeding.** Done: `credit_roles.csv` seeded as locked Roles with their source, with the initial data (§3).
-2c. **Reference releases.** Lowering a reference's release below that of what cites it is refused (§6).
+2c. **Reference releases.** Done: lowering a reference's release below that of what cites it is refused (§6).
 3. **Domain.** `Contribution`; `Dataset.contributions` replacing `contributors`, and `contributions` on Program and Trial,
    with validation of the role ids in the handlers.
 4. **Cypher and repository.** Roles on `CONTRIBUTED_TO` in the dataset, program and trial queries.

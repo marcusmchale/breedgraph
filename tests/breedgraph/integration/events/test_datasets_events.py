@@ -97,3 +97,38 @@ async def test_citing_an_unreadable_reference_fails_the_submission(
         await event_queue.join()
         assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.FAILED
         assert 'NoResultFoundError' in str(await state_store.get_errors(agent_id=user_id, key=submission_id))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_reference_cited_by_a_record_keeps_the_release_of_its_dataset(
+        bus,
+        event_queue,
+        uow_factory,
+        state_store,
+        dataset_build_context
+):
+    from breedgraph.custom_exceptions import IllegalOperationError
+    from breedgraph.domain.commands.controls import SetRelease
+    from breedgraph.domain.commands.references import CreateExternalReference
+    from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
+
+    user_id: int = dataset_build_context['user_id']
+    reference_id = await bus.handle(CreateExternalReference(
+        agent_id=user_id, write_team=dataset_build_context['team_id'], release=ReadRelease.PUBLIC, url='https://example.org/method'
+    ))
+    submission_id = await state_store.store_submission(agent_id=user_id, submission={
+        'study_id': dataset_build_context['study_id'],
+        'concept_id': dataset_build_context['concept_id'],
+        'records': [{'unit_id': dataset_build_context['unit_id'], 'value': '1', 'start': '2013', 'reference_ids': [reference_id]}]
+    })
+    await bus.handle(DatasetSubmitted(
+        agent_id=user_id, write_team=dataset_build_context['team_id'], release=ReadRelease.REGISTERED, submission_id=submission_id
+    ))
+    await event_queue.join()
+    assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.COMPLETED
+
+    def set_release(release):
+        return SetRelease(agent_id=user_id, entity_ids=[reference_id], entity_label=ControlledModelLabel.REFERENCE, release=release)
+    with pytest.raises(IllegalOperationError):
+        await bus.handle(set_release(ReadRelease.PRIVATE))
+    await bus.handle(set_release(ReadRelease.REGISTERED))

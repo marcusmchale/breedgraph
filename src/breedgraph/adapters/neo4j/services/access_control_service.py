@@ -1,4 +1,5 @@
-from typing import Iterable, List, Set
+from collections import defaultdict
+from typing import Dict, Iterable, List, Set
 
 from neo4j import AsyncTransaction, AsyncResult
 
@@ -80,6 +81,25 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             entity_ids=model_ids if isinstance(model_ids, list) else list(model_ids),
             user_id=user_id,
         )
+
+    async def _get_reference_citers(
+            self, reference_ids: List[int]
+    ) -> Dict[int, tuple[bool, Dict[ControlledModelLabel, Set[int]]]]:
+        if not reference_ids:
+            return {}
+        result = await self.tx.run(
+            queries['references']['get_reference_citers'],
+            reference_ids=reference_ids,
+            labels=[label.value for label in ControlledModelLabel]
+        )
+        citers = {}
+        async for record in result:
+            by_label = defaultdict(set)
+            for citer in record['citers']:
+                if citer['label'] is not None:
+                    by_label[ControlledModelLabel(citer['label'])].add(citer['id'])
+            citers[record['reference_id']] = (record['public'], dict(by_label))
+        return citers
 
     async def _get_controllers(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> dict[int, Controller]:
         if not model_ids:

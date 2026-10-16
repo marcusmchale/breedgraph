@@ -105,6 +105,8 @@ class AbstractAccessControlService(ABC):
             if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
 
+        await self._require_release_floor(label, model_ids, release)
+
         # for models with existing controllers we need to filter out control teams provided that are not already in the controller.
         # this is per model so if we want to batch process we need to either split or do it in the query.
         await self._set_controls(
@@ -192,6 +194,32 @@ class AbstractAccessControlService(ABC):
                 raise NoResultFoundError(f"{label.value} {model_id} was not found")
             if not controller.has_access(access, self.user_id, self.access_teams[access]):
                 raise UnauthorisedOperationError(f"This change requires {access.value.casefold()} access")
+
+    async def _require_release_floor(self, label: ControlledModelLabel, model_ids: Iterable[int], release: ReadRelease) -> None:
+        """
+        A reference's release cannot be lowered below the release of what cites it, so its controllers cannot hide
+        a citation from those who can see what cites it (docs/contributions.md §6). The ontology counts as public.
+        """
+        if label != ControlledModelLabel.REFERENCE:
+            return
+        for reference_id, (public, citers) in (await self._get_reference_citers(list(model_ids))).items():
+            floor = ReadRelease.PUBLIC if public else ReadRelease.PRIVATE
+            for citer_label, citer_ids in citers.items():
+                if floor == ReadRelease.PUBLIC:
+                    break
+                for controller in (await self.get_controllers(citer_label, list(citer_ids))).values():
+                    floor = max(floor, controller.release)
+            if release < floor:
+                raise IllegalOperationError(
+                    f"Reference {reference_id} is cited by data released as {floor.name}, so its release cannot be lower"
+                )
+
+    @abstractmethod
+    async def _get_reference_citers(
+            self, reference_ids: List[int]
+    ) -> Dict[int, tuple[bool, Dict[ControlledModelLabel, Set[int]]]]:
+        """For each reference: whether the ontology cites it, and the ids of the controlled models citing it by label"""
+        ...
 
     async def require_read(self, label: ControlledModelLabel, model_ids: Iterable[int | None] | None) -> None:
         """
@@ -406,6 +434,8 @@ class AbstractAccessControlService(ABC):
         )
         await self._verify_entities_controlled_by(transfer.entities, set(transfer.from_teams))
         await self._verify_entity_rules(transfer)
+        for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
+            await self._require_release_floor(label, model_ids, transfer.release)
 
         for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
             controllers = await self.get_controllers(label, model_ids)

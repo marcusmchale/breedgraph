@@ -1,7 +1,10 @@
 import pytest
 
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
+from breedgraph.domain.commands.controls import SetRelease
 from breedgraph.domain.commands.germplasm import CreateGermplasm
+from breedgraph.domain.commands.ontologies import CreateDesign
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 from breedgraph.domain.commands.programs import CreateProgram, UpdateProgram, CreateTrial, CreateStudy, UpdateStudy
 from breedgraph.domain.commands.references import DeleteReferences
 from breedgraph.domain.model.programs import StudyInput
@@ -85,3 +88,43 @@ async def test_citing_an_unreadable_reference_is_refused(bus, uow_factory, progr
         await bus.handle(UpdateStudy(agent_id=user_id, study_id=study_id, licence_id=hidden_id))
     with pytest.raises(NoResultFoundError):
         await bus.handle(UpdateStudy(agent_id=user_id, study_id=study_id, reference_ids=[hidden_id]))
+
+
+async def create_public_reference(uow_factory, context) -> int:
+    async with uow_factory.get_uow(user_id=context['user_id'], write_team=context['team_id'], release=ReadRelease.PUBLIC) as uow:
+        reference = await uow.repositories.references.create(ReferenceBuilder.legal_reference_input())
+        await uow.commit()
+        return reference.id
+
+
+def set_release(context, reference_id: int, release: ReadRelease) -> SetRelease:
+    return SetRelease(agent_id=context['user_id'], entity_ids=[reference_id], entity_label=ControlledModelLabel.REFERENCE, release=release)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_reference_cannot_be_released_below_what_cites_it(bus, uow_factory, program_build_context, lorem_text_generator):
+    context = program_build_context
+    user_id, team_id = context['user_id'], context['team_id']
+
+    public_citation = await create_public_reference(uow_factory, context)
+    await bus.handle(CreateProgram(
+        agent_id=user_id, write_team=team_id, release=ReadRelease.PUBLIC,
+        name=ProgramBuilder.program_input().name, reference_ids=[public_citation]
+    ))
+    for release in (ReadRelease.REGISTERED, ReadRelease.PRIVATE):
+        with pytest.raises(IllegalOperationError):
+            await bus.handle(set_release(context, public_citation, release))
+
+    # a private program does not hold its reference's release up
+    private_citation = await create_public_reference(uow_factory, context)
+    await bus.handle(CreateProgram(
+        agent_id=user_id, write_team=team_id, name=ProgramBuilder.program_input().name, reference_ids=[private_citation]
+    ))
+    await bus.handle(set_release(context, private_citation, ReadRelease.PRIVATE))
+    await bus.handle(set_release(context, private_citation, ReadRelease.PUBLIC))
+
+    # the ontology counts as public
+    ontology_citation = await create_public_reference(uow_factory, context)
+    await bus.handle(CreateDesign(agent_id=user_id, name=lorem_text_generator.new_text(), reference_ids=[ontology_citation]))
+    with pytest.raises(IllegalOperationError):
+        await bus.handle(set_release(context, ontology_citation, ReadRelease.REGISTERED))

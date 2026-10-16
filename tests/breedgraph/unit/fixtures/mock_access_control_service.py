@@ -76,6 +76,10 @@ class MockAccessControlService(AbstractAccessControlService):
         for model_id in model_ids_list:
             self._writes[label][model_id].append(write_stamp)
 
+    async def _get_reference_citers(self, reference_ids: List[int]) -> Dict[int, tuple]:
+        """The mock records no citations"""
+        return {}
+
     async def _get_controllers(self, label: str, model_ids: List[int]) -> Dict[int, Controller]:
         """Get controllers for multiple model instances - key batch operation"""
         if not model_ids:
