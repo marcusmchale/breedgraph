@@ -398,12 +398,13 @@ their descendants, and, without a date, to every time bin."
 ### 11.8 Checks
 
 - Regenerate the schema files and run `scripts/check_front_end_queries.py` (§10).
-- Against the test database:
+- Against the test database's replicates study (docs/test-databases.md, "The replicates study"; its manifest entry
+  `replicates` gives the ids and the expected outcomes):
   - (a) create a grouping with each extent, of a type with a default extent and of one without;
-  - (b) curate a dataset with a WITHIN_UNIT grouping: there are no sections by replicate code;
-  - (c) submit a descriptive analysis of replicate data, without and then with `replicateAggregation`. Without, it fails
-    with `DUPLICATE_OBSERVATION` at `replicateAggregation`; with, it completes.
-- The test database must be rebuilt for the groupings to have an extent.
+  - (b) curate `same_time` and `width`: sections by Dataset Scoped Plate, none by replicate code;
+  - (c) submit a descriptive analysis of `same_time`, without and then with `replicateAggregation`. Without, it fails
+    with `DUPLICATE_OBSERVATION` at `replicateAggregation`; with, it completes. `dated`, `windowed` and the plot means
+    check windows and pooling (`expected.cases`, `expected.windowed_readings_per_tree`, `expected.plot_means`).
 
 ## 12. The WITHIN_GRAPH extent
 

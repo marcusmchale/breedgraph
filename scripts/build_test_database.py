@@ -13,14 +13,14 @@ FILE_STORAGE_PATH, as uploads would be, and copied beside the manifest so they c
 Needs the instance environment loaded, and the test extras installed (faker, for the generated names):
 
     set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-    python scripts/build_test_database.py --manifest instance/neo4j_archive/test_database.manifest.json
+    python scripts/build_test_database.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json
 
 With --scale, data at scale for breedview's performance scripts is added (tests/breedgraph/scenarios/scale_scenario.py):
 about 100,000 units and 44,000 records with the defaults, which takes a while; the manifest's "perf" entry gives the
 scripts' study, concept and field. The sizes can be set (--fields, --trees-per-field and so on) for a smaller build.
 
 Neo4j and Redis must be empty (a run of the breedgraph test suite leaves them so). Then dump the database with
-scripts/backup.sh and rename the dump to sit beside the manifest, e.g. test_database.dump.
+scripts/backup.sh and move the dump beside the manifest as test_database.dump.
 """
 import argparse
 import asyncio

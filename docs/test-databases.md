@@ -1,11 +1,11 @@
 # Test databases
 
-Two Neo4j dumps for development, kept in `NEO4J_ARCHIVE_PATH` (`instance/neo4j_archive/`, not in git), each with a
-manifest and the files its references point to:
+Two Neo4j dumps for development, kept in `test_databases/` under `NEO4J_ARCHIVE_PATH`
+(`instance/neo4j_archive/test_databases/`, not in git), each with a manifest and the files its references point to:
 
 | Dump | What it holds | Sharing |
 |---|---|---|
-| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests, generated, optionally with data at scale | **Public**: synthetic, with known credentials. breedview's e2e and performance tests run against it |
+| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests and its replicates study, generated, optionally with data at scale | **Public**: synthetic, with known credentials. breedview's e2e and performance tests run against it |
 | `test_database_breedcafs.dump`, `test_database_breedcafs.manifest.json`, `test_database_breedcafs_files/` | The same scenario plus a rehearsal of the BreedCAFS migration | **Private**: BreedCAFS data and Person data, `PRIVATE` under the migration team. Never share it or publish it like the public dump |
 
 There is one Neo4j instance (Community allows one active database). The dev database is switched between dumps
@@ -36,7 +36,7 @@ Restoring needs `sudo`, as Neo4j is stopped while the dump is loaded.
 1. **Restore:**
    ```bash
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-   scripts/restore.sh test_database.dump
+   scripts/restore.sh test_databases/test_database.dump
    ```
    `restore.sh` then replays the erasure log. Each entry is applied only to the record with its id and creation time
    (docs/person.md §5), and the test database's Persons and accounts were created at other times, so the log's
@@ -47,7 +47,7 @@ Restoring needs `sudo`, as Neo4j is stopped while the dump is loaded.
    ```
 3. **Copy the files** beside the dump into the file store, so references to them resolve:
    ```bash
-   cp instance/neo4j_archive/test_database_files/* "$FILE_STORAGE_PATH"/
+   cp instance/neo4j_archive/test_databases/test_database_files/* "$FILE_STORAGE_PATH"/
    ```
    (`test_database_breedcafs_files/` for the BreedCAFS dump.)
 
@@ -59,12 +59,13 @@ The build runs on an empty Neo4j and Redis, which a run of the test suite leaves
 
 ```bash
 set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-python scripts/build_test_database.py --manifest instance/neo4j_archive/test_database.manifest.json --scale
+python scripts/build_test_database.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json --scale
 ```
 
 - It sets the database up as `setup_initial_data.py` would, builds the read-policy scenario
   (`tests/breedgraph/scenarios/read_policy_scenario.py`) without the message bus, so no email is sent, and refreshes
   the read models.
+- It adds the replicates study (`replicate_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
   20 fields, 100,020 units and 44,000 records. The sizes can be set (`--fields`, `--trees-per-field`, …).
   The manifest's `perf` entry names the study, concept and field those scripts use.
@@ -78,7 +79,52 @@ Then dump it, with `sudo` as Neo4j is stopped:
 scripts/backup.sh
 ```
 
-and rename the dump it reports (`neo4j-<date>.dump`) to `test_database.dump`, beside the manifest.
+and move the dump it reports (`neo4j-<date>.dump`, in `NEO4J_ARCHIVE_PATH`) beside the manifest as
+`test_databases/test_database.dump`.
+
+### The replicates study
+
+A study of record group codes of every extent and scope, for checking curation and replicate aggregation
+(`tests/breedgraph/scenarios/replicate_scenario.py` has the records). It is controlled by the child team and released
+REGISTERED, so every account reads it, and `readpolicy_writer` curates it.
+
+- **Path:** "Readpolicy replicates program" → "Readpolicy replicates trial" → "Readpolicy replicates study".
+- **Units:** two unit graphs, "Rep Field A" and "Rep Field B", each a field with two plots ("Rep Plot A1", "Rep Plot
+  A2", …) of three trees ("Rep A1" to "Rep A6", "Rep B1" to "Rep B6").
+- **Groupings,** one per extent and scope:
+
+  | Grouping | Type | Extent | Scope |
+  |---|---|---|---|
+  | Dataset Scoped Replicate | Replicate | WITHIN_UNIT | dataset-scoped; `same_time` and `width` share a scope |
+  | Study Scoped Biological Replicate | Biological Replicate | WITHIN_UNIT | study-wide |
+  | Study Scoped Batch | Batch | SHARED | study-wide |
+  | Dataset Scoped Plate | Plate | SHARED | dataset-scoped; `same_time` and `width` share a scope |
+  | Study Scoped Block | Block | WITHIN_GRAPH | study-wide; "Block 1" and "Block 2" in each field |
+  | Dataset Scoped Block | Block | WITHIN_GRAPH | dataset-scoped |
+
+- **Datasets,** every record with its unit's Study Scoped Block code:
+
+  | Key | Concept | Records |
+  |---|---|---|
+  | `same_time` | Tree Height (mm) | Replicates 1–3 of each tree at one start, 1–2 of Rep A6; Plate A or B by plot |
+  | `width` | Canopy Width (mm) | The same trees, starts and codes as `same_time` |
+  | `windowed` | Tree Height (mm) | Replicates 1–3 of each tree at 10:00, 10:03 and 10:20 on one date |
+  | `dated` | Tree Height (mm) | Replicates 1–3 of each tree on three dates |
+  | `biorep`, `biorep_width` | Tree Height, Canopy Width | Biological replicates 1–2 of each tree at one start |
+  | `factor` | Light | One undated record per plot |
+  | `blocks` | Tree Height (mm) | Each tree once, with Batch 1 or 2 across the fields |
+  | `regrouped` | Tree Height (mm) | Each tree once, with Dataset Scoped Block "Block A" or "Block B" |
+
+The manifest's `replicates` entry gives the ids of the program, trial, study, groupings (with type, extent and scope),
+datasets (with concept, record count and the units with replicates), units by name and concepts. Its `expected`
+entry gives what analyses report, checked by `tests/breedgraph/e2e/analysis/test_replicate_analyses.py`:
+
+- `cases`: for an analysis of one dataset's concept with no dimensions, by aggregation and replicate aggregation, the
+  error (code, the end of its path, the number of records) or the warnings;
+- `windowed_readings_per_tree`: readings per tree in `windowed`, with no window, `PT5M` and `PT1H`;
+- `plot_means`: `same_time` by plot (`grouping.unit`) with a term MEAN, pooled and as the mean of tree means;
+- `levels`: the nested level keys (docs/analysis.md §6) of a record group dimension of each grouping, by dataset;
+- `blocks`: the Block levels of `blocks`, with "Block 1" shared, and its Batch levels.
 
 ## Building the BreedCAFS dump
 
@@ -99,8 +145,8 @@ build. It needs the extracted BreedCAFS data in `src/data/breedcafs_migration/`,
    It creates the rehearsal team with a legal entity, loads the germplasm, bundles and unbundles the data into
    `src/data/breedcafs_migration_rehearsal/`, runs bootstrap, migrate and validate, and exits with the validation's
    status. The validation report is in that directory.
-3. Dump with `scripts/backup.sh`, and rename the dump to `test_database_breedcafs.dump`.
-4. Copy the base build's manifest to `test_database_breedcafs.manifest.json`, and gather its files into
+3. Dump with `scripts/backup.sh`, and move the dump to `test_databases/test_database_breedcafs.dump`.
+4. Copy the base build's manifest to `test_databases/test_database_breedcafs.manifest.json`, and gather its files into
    `test_database_breedcafs_files/`: the base build's files (beside its manifest), and the four curve data files
    the migration wrote to `FILE_STORAGE_PATH`. Their ids are the `file_id` of the curve references, whose ids are
    in `src/data/breedcafs_migration_rehearsal/curve_ids.csv`.

@@ -4,13 +4,16 @@ report is what the scenario expects, and so what the test database manifest give
 """
 import pytest
 
-from tests.breedgraph.e2e.analysis.test_analysis_types import run_analysis, concept, analysis
+from tests.breedgraph.e2e.analysis.test_analysis_types import run_analysis, concept, analysis, ANOVA_FRAGMENT
 from tests.breedgraph.scenarios.replicate_scenario import (
     EXPECTED_CASES, EXPECTED_WINDOWED_READINGS, EXPECTED_PLOT_MEANS, CONCEPTS, TREES,
-    REPLICATE, BIOREP, BLOCK, BATCH, DATASET_BLOCK, level_keys, Case
+    REPLICATE, BIOREP, BLOCK, BATCH, DATASET_BLOCK, FIELD_OF, level_keys, Case
 )
 
-DESCRIPTIVE = "... on DescriptiveStatisticsResult { terms { levels { level } count mean } }"
+DESCRIPTIVE = (
+    "... on DescriptiveStatisticsResult { terms { levels { level } count mean "
+    " group { recordGroups { level unitId code shared } } } }"
+)
 MDS = "... on MDSResult { observations { group { recordGroups { level unitId code shared } } recordIds } }"
 
 
@@ -109,6 +112,11 @@ async def test_within_unit_levels(datasets, grouping, read_policy, replicates, l
     levels = sorted(o['group']['recordGroups'][0]['level'] for o in observations)
     assert levels == level_keys(replicates, datasets[0], grouping) == level_keys(replicates, datasets[1], grouping)
     assert all(len(o['recordIds']) == 2 for o in observations)
+    # each level is nested in its tree: the key's unit is the assignment's unitId
+    assert all(
+        g['level'].split('|')[2] == g['unitId'] and not g['shared']
+        for o in observations for g in o['group']['recordGroups']
+    )
 
 
 async def term_levels(client, token, replicates, read_policy, dataset: str, grouping: str, levels=None) -> dict[str, int]:
@@ -123,6 +131,9 @@ async def term_levels(client, token, replicates, read_policy, dataset: str, grou
     ), DESCRIPTIVE)
     assert submission['status'] == 'COMPLETED', submission['errors']
     _, *rows = submission['result']['terms']
+    for row in rows:
+        assignment, = row['group']['recordGroups']
+        assert assignment['level'] == row['levels'][0]['level']
     return {row['levels'][0]['level']: row['count'] for row in rows}
 
 
@@ -148,3 +159,36 @@ async def test_shared_block_level(read_policy, replicates, login_token_factory, 
     assert sorted(found) == sorted(["Block 1", *(key for key in nested if not key.endswith("|Block 1"))])
     assert len(found) == len(nested) - 1
     assert found["Block 1"] == len(TREES) // 2
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_within_graph_unit_is_the_root(read_policy, replicates, login_token_factory, client):
+    roots = {str(replicates.units[root]) for root in set(FIELD_OF.values())}
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['blocks']], {
+            "terms": [concept(concept_id(read_policy, 'height')), {"reference": {"type": "RECORD_GROUP", "recordGroupDimension": "block"}}],
+            "grouping": {"recordGroups": [{"name": "block", "groupingIds": [replicates.groupings[BLOCK]]}]}
+        }
+    ), DESCRIPTIVE)
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    _, *rows = submission['result']['terms']
+    assignments = [row['group']['recordGroups'][0] for row in rows]
+    assert {(a['unitId'], a['code']) for a in assignments} == {(root, f"Block {n}") for root in roots for n in (1, 2)}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_block_as_anova_term(read_policy, replicates, login_token_factory, client):
+    pytest.importorskip("rpy2")
+    height = concept_id(read_policy, 'height')
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "ANOVA", "anova", [replicates.datasets['blocks']], {
+            "terms": [concept(height), {"reference": {"type": "RECORD_GROUP", "recordGroupDimension": "block"}}],
+            "response": {"type": "CONCEPT", "conceptId": height},
+            "grouping": {"recordGroups": [{"name": "block", "groupingIds": [replicates.groupings[BLOCK]]}]}
+        }
+    ), ANOVA_FRAGMENT)
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    result = submission['result']
+    assert [t['term']['type'] for t in result['terms']] == ['RECORD_GROUP']
+    # one observation per tree, one parameter per block level
+    assert result['residual']['degreesOfFreedom'] == len(TREES) - len(level_keys(replicates, 'blocks', BLOCK))

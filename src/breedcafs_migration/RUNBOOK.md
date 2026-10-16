@@ -14,7 +14,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
 2. **Rehearse** on the synthetic test database, rebuilt (`scripts/build_test_database.py`) or restored from its dump:
    ```bash
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-   python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_database.manifest.json 2>&1 | tee rehearsal.log
+   python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json 2>&1 | tee rehearsal.log
    ```
    It sets up what §2 expects (a team with a legal entity, the production germplasm), bundles and unbundles the data
    as below, runs §3–4 and the validation, and exits with the validation's status. Dump the result privately if

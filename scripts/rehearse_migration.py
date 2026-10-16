@@ -17,7 +17,7 @@ The result holds BreedCAFS data, including Person data: dump it under its own na
 Never dump it as the public test database.
 
     set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
-    python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_database.manifest.json 2>&1 | tee rehearsal.log
+    python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json 2>&1 | tee rehearsal.log
 """
 import argparse
 import asyncio
