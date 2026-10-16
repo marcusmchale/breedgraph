@@ -142,11 +142,11 @@ async def test_prepare_persons(uow_factory, persons_context, data_dir):
         assert set(controller.controls) == {context.team_id}
 
         submitted = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, '100', '7')])
-        assert sorted(submitted.contributors) == sorted([ana, smith])
+        assert sorted(contribution.person for contribution in submitted.contributions) == sorted([ana, smith])
         unattributed = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, '200', '8')])
-        assert unattributed.contributors == []
+        assert unattributed.contributions == []
         design = await uow.repositories.datasets.get(dataset_id=datasets[("Vietnam", variable, DESIGN, '')])
-        assert design.contributors == []
+        assert design.contributions == []
 
     with open(data_dir / 'person_ids.csv') as f:
         assert {(row['Name'], row['institution']): int(row['person_id']) for row in csv.DictReader(f)} == ids.persons

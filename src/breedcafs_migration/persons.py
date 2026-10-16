@@ -17,6 +17,7 @@ Writes person_ids.csv, mapping each Person's name and institution to its id.
 import csv
 from dataclasses import dataclass, field
 
+from breedgraph.domain.model.contributions import Contribution
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.people import PersonInput, LawfulBasis
 
@@ -126,8 +127,8 @@ async def set_contributors(
             for dataset_id in dataset_ids[start:start + batch]:
                 person_ids = sorted(ids.persons[persons[name]] for name in contributors[dataset_id])
                 dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
-                if sorted(dataset.contributors) != person_ids:
-                    dataset.contributors = person_ids
+                if sorted(contribution.person for contribution in dataset.contributions) != person_ids:
+                    dataset.contributions = [Contribution(person=person_id) for person_id in person_ids]
                 ids.contributors[dataset_id] = person_ids
             await uow.commit()
 
