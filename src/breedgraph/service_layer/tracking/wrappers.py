@@ -6,6 +6,13 @@ Changes to primitive types are recorded in their parent objects Tracking wrapper
 Changes to list/set/dict/graph are recorded in the respective Tracking wrapper, i.e. added/removed/changed items.
 Changes to attributes of an object are also recorded in the wrapper, however new attributes/removed attributes are not.
 
+A tracked value notifies each owner holding it through a callback kept under the owner's key (see attach and detach):
+the attribute of an object, the key of a dict, or a list, which finds the value's index when the callback fires,
+so inserting or deleting before it doesn't misplace the change. Tracking a value again for the same owner replaces
+its callback, another owner adds its own, and an owner detaches its callback when the value is removed or replaced.
+A list or dict detached from its last owner releases its items' callbacks to it, so one that is discarded, e.g. when an
+attribute is given a new list of some of the same items, doesn't leave its callbacks on them; it attaches them again
+if it gets an owner again. Objects keep their nested values' callbacks, as one removed may be added somewhere else.
 """
 import networkx as nx
 from numpy import datetime64
@@ -33,7 +40,7 @@ primitives = (int, float, str, bool, bytes, Enum, datetime64, datetime, date, ti
 
 class TrackableProtocol(Protocol):
     """Protocol defining the common interface for all trackable objects"""
-    _self_on_changed: list[Callable]
+    _self_on_changed: dict[Hashable, Callable]
 
     @property
     def changed(self) -> Set[Union[str, int, Hashable]]:
@@ -69,6 +76,29 @@ def is_tracked_object(value: Any) -> bool:
 
 def is_tracked_collection(value: Any) -> bool:
     return type(value) in {TrackedList, TrackedDict, TrackedGraph}
+
+
+def attach(value: Any, owner_key: Hashable, callback: Callable) -> None:
+    """Notify an owner of changes to a tracked value, replacing any callback the owner set before"""
+    value._self_on_changed[owner_key] = callback
+    if getattr(value, '_self_released', False):
+        value.reacquire()
+
+
+def detach(value: Any, owner_key: Hashable) -> None:
+    """
+    Stop notifying an owner of changes to a tracked value, once it no longer holds the value.
+    A list or dict left with no owner releases its items' callbacks to it.
+    """
+    if not is_trackable(value):
+        return
+    if value._self_on_changed.pop(owner_key, None) is not None and not value._self_on_changed and hasattr(value, 'release'):
+        value.release()
+
+
+def root_callbacks(on_changed: Callable | None) -> dict[Hashable, Callable]:
+    """The callbacks of a new wrapper: the one it was created with, if any, kept under the key None"""
+    return {} if on_changed is None else {None: on_changed}
 
 
 def unwrap_tracked(value: Any) -> Any:
@@ -134,7 +164,7 @@ class TrackedFactory:
     """Factory class for creating appropriate tracking wrappers"""
 
     @staticmethod
-    def create(obj, on_changed: Callable = lambda: None) -> TrackableProtocol:
+    def create(obj, on_changed: Callable | None = None) -> TrackableProtocol:
         if isinstance(obj, list):
             return TrackedList(obj, on_changed)
         elif isinstance(obj, set):
@@ -156,18 +186,18 @@ class TrackedFactory:
 TTracked = TypeVar('TTracked')
 
 @overload
-def tracked(obj: List[TTracked], on_changed: Callable = lambda: None) -> Union['TrackedList', List[TTracked]]: ...
+def tracked(obj: List[TTracked], on_changed: Callable | None = None) -> Union['TrackedList', List[TTracked]]: ...
 
 @overload
-def tracked(obj: Dict[str, TTracked], on_changed: Callable = lambda: None) -> Union['TrackedDict', Dict[str, TTracked]]: ...
+def tracked(obj: Dict[str, TTracked], on_changed: Callable | None = None) -> Union['TrackedDict', Dict[str, TTracked]]: ...
 
 @overload
-def tracked(obj: nx.DiGraph, on_changed: Callable = lambda: None) -> Union['TrackedGraph', nx.DiGraph]: ...
+def tracked(obj: nx.DiGraph, on_changed: Callable | None = None) -> Union['TrackedGraph', nx.DiGraph]: ...
 
 @overload
-def tracked(obj: Any, on_changed: Callable = lambda: None) -> Union['TrackedObject', TTracked]: ...
+def tracked(obj: Any, on_changed: Callable | None = None) -> Union['TrackedObject', TTracked]: ...
 
-def tracked(obj: Any, on_changed: Callable = lambda: None) -> Union[TrackableProtocol, TTracked]:
+def tracked(obj: Any, on_changed: Callable | None = None) -> Union[TrackableProtocol, TTracked]:
     """
     Create a tracked version of an object that maintains the original type for type checking.
     This function acts as a type-preserving wrapper around TrackedFactory.create().
@@ -183,10 +213,10 @@ class TrackedObject(ObjectProxy):
     _private_tracked_attrs: ClassVar[List[str]] = ['_graph']
     _skip_tracking_attrs: ClassVar[List[str]] = ['id', 'events']
 
-    def __init__(self, wrapped, on_changed: Callable = lambda: None):
+    def __init__(self, wrapped, on_changed: Callable | None = None):
         super().__init__(wrapped)
         self._self_changed: Set[str] = set()
-        self._self_on_changed = [on_changed]
+        self._self_on_changed = root_callbacks(on_changed)
 
         # Track attributes
         for attr_name in dir(wrapped):
@@ -225,14 +255,16 @@ class TrackedObject(ObjectProxy):
         return super().__getattr__(name)
 
     def __setattr__(self, key, value):
-        if all([
-            key not in ('_self_changed', '_self_on_changed'),
-            hasattr(self, key) and getattr(self, key) != value
-        ]):
-            self._self_changed.add(key)
-            for callback in self._self_on_changed:
-                callback()
-            value = self._track_value(key, value)
+        if key not in ('_self_changed', '_self_on_changed') and hasattr(self, key):
+            previous = getattr(self.__wrapped__, key, None)
+            if previous is not value:
+                if previous != value:
+                    self._self_changed.add(key)
+                    for callback in list(self._self_on_changed.values()):
+                        callback()
+                # A new value is tracked even when equal to the one it replaces, which no longer belongs to this attribute
+                detach(previous, self._owner_key(key))
+                value = self._track_value(key, value)
 
         self.__wrapped__.__setattr__(key, value)
 
@@ -242,22 +274,22 @@ class TrackedObject(ObjectProxy):
     def _get_tracked(self, attr):
         return self._track_value(attr, getattr(self.__wrapped__, attr))
 
+    def _owner_key(self, attr) -> Hashable:
+        return 'attr', id(self.__wrapped__), attr
+
     def _track_value(self, attr, value):
         if attr.startswith('_') and attr not in self._private_tracked_attrs:
             return value
         if attr in self._skip_tracking_attrs or callable(value):
             return value
 
-        on_changed = lambda: self.on_changed_attr(attr)
-
         # Return primitive types unchanged - they don't require nested tracking
         if value is None or isinstance(value, primitives):
             return value
-        if is_trackable(value):
-            logger.debug("Value already tracked, appending on_changed callback")
-            value._self_on_changed.append(on_changed)
-            return value
-        return tracked(value, on_changed)
+        if not is_trackable(value):
+            value = tracked(value)
+        attach(value, self._owner_key(attr), lambda: self.on_changed_attr(attr))
+        return value
 
     @property
     def changed(self) -> Set[str]:
@@ -309,7 +341,7 @@ class TrackedObject(ObjectProxy):
     @property
     def on_changed(self) -> Callable:
         def call_all():
-            for callback in self._self_on_changed:
+            for callback in list(self._self_on_changed.values()):
                 callback()
         return call_all
 
@@ -359,7 +391,7 @@ class TrackedList(ObjectProxy):
     Tracks add, remove and changes to a list
     """
 
-    def __init__(self, d: List = None, on_changed: Callable = lambda: None):
+    def __init__(self, d: List = None, on_changed: Callable | None = None):
         if d is None:
             d = list()
         elif hasattr(d, '__iter__') and not isinstance(d, (str, bytes)):
@@ -372,10 +404,11 @@ class TrackedList(ObjectProxy):
         self._self_added: Set[int] = set() # record the index of any added element
         self._self_removed = list()
 
-        self._self_on_changed = [on_changed]
+        self._self_on_changed = root_callbacks(on_changed)
+        self._self_released = False  # released when nothing holds it (release)
 
         for i, value in enumerate(self):
-            self.__wrapped__.__setitem__(i, self._get_tracked(i, value))
+            self.__wrapped__.__setitem__(i, self._get_tracked(value))
 
     @property
     def changed(self) -> Set[int]:
@@ -415,7 +448,7 @@ class TrackedList(ObjectProxy):
     @property
     def on_changed(self) -> Callable:
         def call_all():
-            for callback in self._self_on_changed:
+            for callback in list(self._self_on_changed.values()):
                 callback()
         return call_all
 
@@ -427,9 +460,34 @@ class TrackedList(ObjectProxy):
             if is_trackable(item):
                 item.reset_tracking()
 
-    def on_changed_item(self, i: int):
-        self.changed.add(i)
-        self.on_changed()
+    def on_changed_item(self, value: Any):
+        """A value held by this list changed: marks each index it is at now, if the list still holds it"""
+        indices = [i for i, item in enumerate(self.__wrapped__) if item is value]
+        if indices:
+            self.changed.update(indices)
+            self.on_changed()
+
+    @property
+    def _owner_key(self) -> Hashable:
+        return 'list', id(self.__wrapped__)
+
+    def _release(self, value: Any) -> None:
+        """Detaches a value removed from the list, unless the list still holds it elsewhere"""
+        if not any(item is value for item in self.__wrapped__):
+            detach(value, self._owner_key)
+
+    def release(self):
+        """Removes its callback from its items, as nothing holds this list any more"""
+        self._self_released = True
+        for item in self.__wrapped__:
+            if is_trackable(item):
+                item._self_on_changed.pop(self._owner_key, None)
+
+    def reacquire(self):
+        """Attaches its items again, as something holds this list again"""
+        self._self_released = False
+        for item in self.__wrapped__:
+            self._get_tracked(item)
 
     @staticmethod
     def _shift_indices(indices: set, threshold_index: int, increment: bool = True):
@@ -441,20 +499,14 @@ class TrackedList(ObjectProxy):
                 else:
                     indices.add(j - 1)
 
-    def _get_tracked(self, i: int, value: Any):
+    def _get_tracked(self, value: Any):
         # Return primitive types unchanged - they don't require nested tracking
         if value is None or isinstance(value, primitives):
             return value
-
-        if is_trackable(value):
-            logger.debug("Value already tracked, adding to its callback")
-            def on_changed():
-                self.on_changed_item(i)
-            value._self_on_changed.append(on_changed)
-            return value
-
-        on_changed = lambda: self.on_changed_item(i)
-        return tracked(value, on_changed)
+        if not is_trackable(value):
+            value = tracked(value)
+        attach(value, self._owner_key, lambda: self.on_changed_item(value))
+        return value
 
     def insert(self, i: int, value):  # insert is also called by append
         self._shift_indices(self.added, i, True)
@@ -462,7 +514,7 @@ class TrackedList(ObjectProxy):
 
         self.added.add(i)
 
-        self.__wrapped__.insert(i, self._get_tracked(i, value))
+        self.__wrapped__.insert(i, self._get_tracked(value))
         self.on_changed()
 
     def append(self, value):
@@ -511,11 +563,10 @@ class TrackedList(ObjectProxy):
             old_values = [self.__wrapped__.__getitem__(j) for j in old_indices]
             self.removed.extend(old_values)
 
-            tracked_values = [
-                self._get_tracked(start + offset, item)
-                for offset, item in enumerate(value)
-            ]
+            tracked_values = [self._get_tracked(item) for item in value]
             self.__wrapped__.__setitem__(i, tracked_values)
+            for old_value in old_values:
+                self._release(old_value)
 
             self.changed.update(range(start, min(start + len(tracked_values), len(self))))
             if len(tracked_values) > len(old_values):
@@ -526,7 +577,10 @@ class TrackedList(ObjectProxy):
         if i < 0:
             i += len(self)
 
-        self.__wrapped__.__setitem__(i, self._get_tracked(i, value))
+        previous = self.__wrapped__.__getitem__(i)
+        self.__wrapped__.__setitem__(i, self._get_tracked(value))
+        if previous is not value:
+            self._release(previous)
         self.changed.add(i)
         self.on_changed()
 
@@ -547,14 +601,17 @@ class TrackedList(ObjectProxy):
         self.removed.append(value)
 
         self.__wrapped__.__delitem__(i)
+        self._release(value)
         self.on_changed()
 
     def silent_remove(self, value):
         i = self.__wrapped__.index(value)
+        value = self.__wrapped__.__getitem__(i)
         self.__wrapped__.__delitem__(i)
+        self._release(value)
 
     def silent_append(self, value):
-        self.__wrapped__.append(self._get_tracked(len(self), value))
+        self.__wrapped__.append(self._get_tracked(value))
 
     def __deepcopy__(self, memo):
         # A deep copy is an untracked copy of the wrapped value, e.g. for redacting a tracked aggregate
@@ -575,7 +632,7 @@ class TrackedDict(ObjectProxy):
     Tracks add, remove and changes to values in a dictionary
     Including dictionaries of tracked items, tracked lists or nested tracked dicts
     """
-    def __init__(self, d: dict|defaultdict|Generator = None, on_changed: Callable = lambda: None):
+    def __init__(self, d: dict|defaultdict|Generator = None, on_changed: Callable | None = None):
         if d is None:
             d = dict()
         elif hasattr(d, '__iter__') and not isinstance(d, (dict, defaultdict, str, bytes)):
@@ -600,7 +657,8 @@ class TrackedDict(ObjectProxy):
         self._self_added: Set[Hashable] = set()
         self._self_removed = dict()
 
-        self._self_on_changed = [on_changed]
+        self._self_on_changed = root_callbacks(on_changed)
+        self._self_released = False  # released when nothing holds it (release)
         for key, value in d.items():
             self.__wrapped__.__setitem__(key, self._get_tracked(key, value))
 
@@ -647,7 +705,7 @@ class TrackedDict(ObjectProxy):
     @property
     def on_changed(self) -> Callable:
         def call_all():
-            for callback in self._self_on_changed:
+            for callback in list(self._self_on_changed.values()):
                 callback()
         return call_all
 
@@ -663,33 +721,48 @@ class TrackedDict(ObjectProxy):
         self.changed.add(key)
         self.on_changed()
 
+    def _owner_key(self, key: Hashable) -> Hashable:
+        return 'dict', id(self.__wrapped__), key
+
+    def release(self):
+        """Removes its callbacks from its values, as nothing holds this dict any more"""
+        self._self_released = True
+        for key, value in self.__wrapped__.items():
+            if is_trackable(value):
+                value._self_on_changed.pop(self._owner_key(key), None)
+
+    def reacquire(self):
+        """Attaches its values again, as something holds this dict again"""
+        self._self_released = False
+        for key, value in self.__wrapped__.items():
+            self._get_tracked(key, value)
+
     def _get_tracked(self, key: Hashable, value: Any):
         # Return primitive types unchanged - they don't require nested tracking
         if value is None or isinstance(value, primitives):
             return value
-
-        if is_trackable(value):
-            logger.debug("Value already tracked, adding to its callback")
-            def on_changed():
-                self.on_changed_value(key)
-            value._self_on_changed.append(on_changed)
-            return value
-
-        on_changed = lambda: self.on_changed_value(key)
-        return tracked(value, on_changed)
+        if not is_trackable(value):
+            value = tracked(value)
+        attach(value, self._owner_key(key), lambda: self.on_changed_value(key))
+        return value
 
     def __setitem__(self, key, value) -> None:
-        if key not in self.__wrapped__:
+        previous = self.__wrapped__.get(key, _missing)
+        if previous is _missing:
             self.added.add(key)
         else:
             self.changed.add(key)
 
         self.__wrapped__.__setitem__(key, self._get_tracked(key, value))
+        if previous is not _missing and previous is not value:
+            detach(previous, self._owner_key(key))
         self.on_changed()
 
     def __delitem__(self, key) -> None:
-        self.removed[key] = self[key]
+        value = self[key]
+        self.removed[key] = value
         self.__wrapped__.__delitem__(key)
+        detach(value, self._owner_key(key))
         self.on_changed()
 
     def update(self, *args, **kwargs):
@@ -714,6 +787,7 @@ class TrackedDict(ObjectProxy):
     def popitem(self):
         key, value = self.__wrapped__.popitem()
         self.removed[key] = value
+        detach(value, self._owner_key(key))
         self.on_changed()
         return key, value
 
@@ -725,7 +799,7 @@ class TrackedDict(ObjectProxy):
         self.__wrapped__.__setitem__(key, self._get_tracked(key, value))
 
     def silent_remove(self, key) -> None: # remove an item without recording the change
-        self.__wrapped__.__delitem__(key)
+        detach(self.__wrapped__.pop(key), self._owner_key(key))
 
     def replace_with_stored(self, old_id, new_model):
         if old_id in self._self_changed:
@@ -751,12 +825,12 @@ class TrackedGraph(ObjectProxy):
     Tracks changes to a nx.DiGraph
     """
 
-    def __init__(self, g: nx.DiGraph, on_changed: Callable  = lambda: None):
+    def __init__(self, g: nx.DiGraph, on_changed: Callable | None = None):
         if g is None:
             g = nx.DiGraph()
         super().__init__(g)
 
-        self._self_on_changed = [on_changed]
+        self._self_on_changed = root_callbacks(on_changed)
         self._self_changed: Set[str] = set()  # node or adj, case depending
 
         # https://networkx.org/documentation/stable/reference/classes/digraph.html
@@ -880,7 +954,7 @@ class TrackedGraph(ObjectProxy):
     @property
     def on_changed(self) -> Callable:
         def call_all():
-            for callback in self._self_on_changed:
+            for callback in list(self._self_on_changed.values()):
                 callback()
         return call_all
 

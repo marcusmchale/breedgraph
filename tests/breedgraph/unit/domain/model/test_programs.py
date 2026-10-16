@@ -5,6 +5,7 @@ from breedgraph.domain.model.controls import Controller, Control, ReadRelease
 from breedgraph.domain.model.programs import (
     ProgramStored, TrialStored, StudyStored, RecordGroupingStored, GroupingScope
 )
+from breedgraph.service_layer.tracking.wrappers import tracked
 
 
 @pytest.fixture
@@ -21,6 +22,16 @@ def test_get_grouping_by_id_zero(program):
     assert study.get_grouping(grouping_id=0).name == "Replicate"
     assert study.get_grouping(name="replicate").id == 0
     assert study.get_grouping(grouping_id=1) is None
+
+
+def test_merge_dataset_scope_coalesces_overlapping_scopes():
+    grouping = tracked(RecordGroupingStored(id=0, type=1, name="Replicate", scope=GroupingScope.DATASET_SCOPED))
+    for scope in ([1, 2], [3], [4, 5], [2, 4], [9]):
+        grouping.merge_dataset_scope(scope)
+    assert [sorted(scope.dataset_ids) for scope in grouping.dataset_scopes] == [[3], [1, 2, 4, 5], [9]]
+    assert 'dataset_scopes' in grouping.changed
+    # each merge gives the grouping a new list of the scopes kept, which hold a callback to the current list only
+    assert len(grouping.dataset_scopes[0]._self_on_changed) == 1
 
 
 def test_get_trial_by_id_or_study(program):
