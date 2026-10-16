@@ -134,7 +134,7 @@ has the same visibility as the name, and is cleared on erasure.
 | `description` | Free text tends to collect sensitive information. |
 | `fullname` | One `name` is enough for display. |
 | `titles` (and the `Title` ontology entry) | Not needed for attribution. The ontology entry is removed. |
-| `roles` (and the `Role` ontology entry) | Not needed for attribution, including on contributions. The ontology entry is removed. |
+| `roles` (and the `Role` ontology entry) | Not needed for attribution. Roles describing a Person stay removed; the roles a Person had in a contribution are `Role` ontology entries on the contribution (`contributions.md`). |
 | `locations` | Extra personal data; teams and institution already give affiliation. |
 
 ### What viewers see
@@ -158,7 +158,7 @@ An erased Person shows as "Erased person" with its `id` to everyone who could se
 
 | Reference | Decision |
 |---|---|
-| `Dataset.contributors` | Keep, as `(Person)-[:CONTRIBUTED_TO]->(Dataset)` without a role. Resolved through `people_map`. |
+| `Dataset.contributors` | Replaced by contributions, `(Person)-[:CONTRIBUTED_TO {roles}]->(Dataset)`, with optional roles (`contributions.md`). Resolved through `people_map`. |
 | `Program/Trial.contact_ids` | Resolved through `people_map`. Contacts are described below. |
 | `OntologyEntry.authors` | Removed. External authors are cited through `references`; contributors to the ontology are recorded by its edit history. |
 | `GermplasmEntry.authors` | Removed, cited through `references`. Older entries may keep an `authors` property, which is ignored. |
