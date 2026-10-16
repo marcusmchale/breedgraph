@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable
 
 from breedgraph.domain.model.analysis import (
@@ -37,6 +37,8 @@ class RecordGroupDimensionResolver:
     Each (grouping, scope, code) is a distinct level unless combined
     into a shared level by the dimension's level definitions.
     Codes of WITHIN_UNIT groupings are also nested in the base unit, and can't be shared.
+    Codes of WITHIN_GRAPH groupings are nested in the root of the base unit's graph (block);
+    a shared level definition combines a code across graphs.
     Groupings are resolved live, as readable by the requesting user.
     """
 
@@ -46,7 +48,8 @@ class RecordGroupDimensionResolver:
             studies: Iterable[StudyStored],
             dataset_studies: dict[int, int],
             path: list[str] | None = None,
-            within_unit: set[int] | None = None
+            within_unit: set[int] | None = None,
+            within_graph: set[int] | None = None
     ):
         """
         :param dimension: the dimension to resolve
@@ -54,10 +57,12 @@ class RecordGroupDimensionResolver:
         :param dataset_studies: selected dataset ID -> study ID
         :param path: input path of the dimension, for messages
         :param within_unit: IDs of the groupings whose type has the WITHIN_UNIT extent
+        :param within_graph: IDs of the groupings whose type has the WITHIN_GRAPH extent
         """
         self.dimension = dimension
         self.dataset_studies = dataset_studies
         self.within_unit = within_unit or set()
+        self.within_graph = within_graph or set()
         self.path = path or []
         self.groupings: dict[int, RecordGroupingStored] = {}
         self.grouping_study: dict[int, int] = {}
@@ -117,14 +122,20 @@ class RecordGroupDimensionResolver:
         return any(grouping_id in self.within_unit for grouping_id in self.groupings)
 
     def _level(
-            self, grouping: RecordGroupingStored, dataset_id: int | None, code: str, unit_id: int | None = None
+            self,
+            grouping: RecordGroupingStored,
+            dataset_id: int | None,
+            code: str,
+            unit_id: int | None = None,
+            root_id: int | None = None
     ) -> RecordGroupLevelKey:
-        return RecordGroupLevelKey(
-            grouping_id=grouping.id,
-            scope=grouping.scope_key(dataset_id),
-            code=code.strip(),
-            unit=unit_id if grouping.id in self.within_unit else None
-        )
+        if grouping.id in self.within_unit:
+            unit = unit_id
+        elif grouping.id in self.within_graph:
+            unit = root_id
+        else:
+            unit = None
+        return RecordGroupLevelKey(grouping_id=grouping.id, scope=grouping.scope_key(dataset_id), code=code.strip(), unit=unit)
 
     def _member_level(self, member: RecordGroupMember, path: list[str]) -> RecordGroupLevelKey:
         grouping = self.groupings[member.grouping_id]
@@ -160,12 +171,17 @@ class RecordGroupDimensionResolver:
         return self._level(grouping, member.dataset_id, member.code)
 
     def assign(
-            self, dataset_id: int, groups: list[RecordGroup] | None, unit_id: int | None = None
+            self,
+            dataset_id: int,
+            groups: list[RecordGroup] | None,
+            unit_id: int | None = None,
+            root_id: int | None = None
     ) -> RecordGroupAssignment | None:
         """
         Level of a record in this dimension, or None if the record has
         no code for any grouping of the dimension and should be excluded.
-        unit_id is the record's base unit, which nests the codes of WITHIN_UNIT groupings.
+        unit_id is the record's base unit, which nests the codes of WITHIN_UNIT groupings,
+        and root_id the root of its graph, which nests the codes of WITHIN_GRAPH groupings.
         """
         matches = [group for group in groups or [] if group.id in self.groupings]
         if not matches:
@@ -182,14 +198,16 @@ class RecordGroupDimensionResolver:
                 f"Dataset {dataset_id} has codes for grouping {grouping.id} of another study"
             )
 
-        level = self._level(grouping, dataset_id, group.code, unit_id)
-        self.observed.add(level)
+        level = self._level(grouping, dataset_id, group.code, unit_id, root_id)
+        # Shared level definitions name a code of a WITHIN_GRAPH grouping in every graph
+        defined = replace(level, unit=None) if grouping.id in self.within_graph else level
+        self.observed.add(defined)
         member = RecordGroupMember(
             grouping_id=grouping.id,
             code=level.code,
             dataset_id=dataset_id if grouping.scope == GroupingScope.DATASET_SCOPED else None
         )
-        label = self.shared.get(level)
+        label = self.shared.get(defined)
         if label is not None:
             return RecordGroupAssignment(dimension=self.dimension.name, level=label, member=member)
         return RecordGroupAssignment(dimension=self.dimension.name, level=level.key, nested=level, member=member)

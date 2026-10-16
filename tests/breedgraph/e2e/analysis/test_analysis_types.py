@@ -9,6 +9,8 @@ import pytest_asyncio
 
 from breedgraph.config import GQL_API_PATH
 from breedgraph.domain.model.datasets import DataRecordInput, RecordGroup
+from breedgraph.domain.model.ontology import RecordGroupTypeInput, RecordGroupExtent
+from breedgraph.domain.model.programs import GroupingScope
 from breedgraph.domain.model.submissions import SubmissionStatus
 from numpy import datetime64
 
@@ -345,3 +347,42 @@ async def test_replicate_aggregation(analysis_context, login_token_factory, clie
     # one value per unit: the mean of its replicates
     assert overall['count'] == 2
     assert overall['mean'] == 27.5
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_within_graph_codes_are_nested_in_graph_roots(
+        analysis_context, dataset_build_context, uow_factory, login_token_factory, client
+):
+    """Each unit of the fixture is the root of its own graph, so one WITHIN_GRAPH code is a level per unit"""
+    user_id, team_id, study_id = analysis_context['user_id'], dataset_build_context['team_id'], dataset_build_context['study_id']
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        block_type = await uow.ontology.create_entry(RecordGroupTypeInput(name="Field Block", extent=RecordGroupExtent.WITHIN_GRAPH))
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
+        program = await uow.repositories.programs.get(study_id=study_id)
+        program.get_study(study_id).add_grouping(block_type.id, "Field Block", GroupingScope.STUDY_WIDE)
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(study_id=study_id)
+        grouping_id = program.get_study(study_id).get_grouping(name="Field Block").id
+    unit_ids = analysis_context['unit_ids'][:3]
+    records = [
+        DataRecordInput(unit=unit_id, value=str(10 * (i + 1)), start=datetime64("2020-06-01"), groups=[RecordGroup(id=grouping_id, code="Block 1")])
+        for i, unit_id in enumerate(unit_ids)
+    ]
+    dataset_id = (await DatasetBuilder(uow_factory).dataset(
+        user_id, team_id, analysis_context['height_id'], study_id, records=records
+    ))['dataset_id']
+
+    token = login_token_factory(user_id)
+    submission = await run_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [dataset_id], {
+            "terms": [concept(analysis_context['height_id']), {"reference": {"type": "RECORD_GROUP", "recordGroupDimension": "block"}}],
+            "grouping": {"recordGroups": [{"name": "block", "groupingIds": [grouping_id]}]},
+        }
+    ), "... on DescriptiveStatisticsResult { terms { group { recordGroups { shared code unitId } } count } }")
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    overall, *by_block = submission['result']['terms']
+    assert overall['count'] == 3
+    assert sorted(t['group']['recordGroups'][0]['unitId'] for t in by_block) == sorted(str(u) for u in unit_ids)
+    assert all(t['group']['recordGroups'][0]['shared'] is False and t['count'] == 1 for t in by_block)

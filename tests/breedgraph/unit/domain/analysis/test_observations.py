@@ -231,6 +231,42 @@ def test_record_group_grouping_not_found():
     assert e.value.errors[0].path == ['descriptiveStatistics', 'grouping', 'recordGroups', '0', 'groupingIds', '0']
 
 
+""" Codes of WITHIN_GRAPH groupings, nested in the root of the unit's graph """
+BLOCK_TYPE = 60
+# Trees 100 and 101 in the graph of field 1, tree 102 in the graph of field 2, whose root the user can't read
+FIELDS = {
+    100: UnitContext(100, ancestor_ids=[1], root_id=1),
+    101: UnitContext(101, ancestor_ids=[1], root_id=1),
+    102: UnitContext(102, ancestor_ids=[], root_id=2),
+}
+
+def blocks(levels=()):
+    studies = {1: study(1, [grouping(7, type_id=BLOCK_TYPE)])}
+    datasets = [dataset(1, 1, 10, [
+        record(1, 100, '1', groups={7: 'Block 1'}), record(2, 101, '2', groups={7: 'Block 1'}),
+        record(3, 102, '3', groups={7: 'Block 1'}),
+    ])]
+    return context(
+        descriptive(
+            [concept_term(10), domain_term('RECORD_GROUP', record_group_dimension='block')],
+            grouping={'record_groups': [{'name': 'block', 'grouping_ids': [7], 'levels': list(levels)}]}
+        ),
+        datasets, units=FIELDS, studies=studies, record_group_extents={BLOCK_TYPE: RecordGroupExtent.WITHIN_GRAPH}
+    )
+
+def test_within_graph_codes_are_nested_in_the_graph_root():
+    frame, _ = prepare(blocks())
+    # the same code is one level within a graph, and another in another graph; it can be a term
+    assert list(frame.data['record_group:block']) == ['7|*|1|Block 1', '7|*|1|Block 1', '7|*|2|Block 1']
+    assert [o.group['record_groups'][0]['unit_id'] for o in frame.observations] == [1, 1, 2]
+    assert frame.observations[0].group['record_groups'][0]['shared'] is False
+
+def test_within_graph_code_combined_across_graphs_by_a_level():
+    frame, warnings = prepare(blocks(levels=[{'label': 'first', 'members': [{'grouping_id': 7, 'code': 'Block 1'}]}]))
+    assert list(frame.data['record_group:block']) == ['first', 'first', 'first']
+    assert AnalysisWarningCode.RECORD_GROUP_LEVEL_UNMATCHED not in codes(warnings)
+
+
 
 """ Replicates: codes of WITHIN_UNIT groupings """
 REPLICATE_TYPE = 50

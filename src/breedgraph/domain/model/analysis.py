@@ -248,12 +248,13 @@ class RecordGroupLevelKey:
     Codes are only comparable within the same grouping and scope:
     scope is None for study-wide groupings, otherwise the dataset IDs
     of the DatasetScope as resolved when the analysis is processed.
-    Codes of WITHIN_UNIT groupings are also only comparable within the base unit.
+    Codes of WITHIN_UNIT groupings are also only comparable within the base unit,
+    and codes of WITHIN_GRAPH groupings within the root of the base unit's graph (block).
     """
     grouping_id: int
     scope: frozenset[int]|None
     code: str
-    unit: int|None = None  # base unit, for WITHIN_UNIT groupings only
+    unit: int|None = None  # base unit for WITHIN_UNIT groupings, its graph root for WITHIN_GRAPH, otherwise None
 
     @property
     def key(self) -> str:

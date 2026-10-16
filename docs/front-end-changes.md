@@ -384,3 +384,23 @@ their descendants, and, without a date, to every time bin."
   - (c) submit a descriptive analysis of replicate data, without and then with `replicateAggregation`. Without, it fails
     with `DUPLICATE_OBSERVATION` at `replicateAggregation`; with, it completes.
 - The test database must be rebuilt for the record group types to have an extent.
+
+## 12. The WITHIN_GRAPH extent
+
+`RecordGroupExtent` has a third value, `WITHIN_GRAPH`. Its codes are shared like SHARED codes, but only by the units of
+one block (graph of units, e.g. a field), so the design blocks of different fields, which reuse the same names
+("Block 1"), stay apart without the code having to name the field. Background: `docs/analysis.md` §3 and the README's
+"Record Group Type", which also gives the rule for choosing between a unit, a code and a factor. The BreedCAFS migration
+uses it for the blocks of its fields.
+
+**Help text** (with §11's concepts):
+- **`WITHIN_GRAPH`**: records of units of one block with the same code are one group, e.g. the design blocks of a field.
+  Block 1 of one field is not grouped with Block 1 of another.
+
+Front end:
+- §11.1: the extent field offers the third value, with this help text; badges and lists show it.
+- §11.3: curation sections may be built from WITHIN_GRAPH groupings as from SHARED ones (`c.extent !== 'WITHIN_UNIT'`).
+- §11.5: a WITHIN_GRAPH dimension can be a term and be used in ANOVA, and its codes can be members of shared levels
+  (a member merges the code across blocks). `AnalysisRecordGroupAssignment.unitId` is the block's root for WITHIN_GRAPH
+  levels (`level` key `grouping|scope|root|code`): show the code with its root, e.g. "Block 1 of ED1". The root may be a
+  placeholder the user can't read; show its id only.

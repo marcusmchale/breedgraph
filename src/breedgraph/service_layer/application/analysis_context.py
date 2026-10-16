@@ -182,7 +182,9 @@ class AnalysisContextLoader:
                         unit_id=unit_id,
                         germplasm_id=unit.germplasm,
                         positions=list(unit.positions or []),
-                        ancestor_ids=block.get_ancestors(unit_id)
+                        ancestor_ids=block.get_ancestors(unit_id),
+                        # Redaction keeps a hidden root as a placeholder, so this is the root whatever the user reads
+                        root_id=block.get_root_id()
                     )
 
         for i, unit_id in enumerate(selected):

@@ -50,6 +50,11 @@ class RecordGroupExtent(str, Enum):
     replicate aggregation window, are one reading, e.g. replicate readings, subsamples or the branches of a tree.
     Something followed over time, sampled or positioned is better recorded as a child unit."""
 
+    WITHIN_GRAPH = "WITHIN_GRAPH"
+    """Codes are nested in the root of each record unit's graph (block): records of units of one graph with the same
+    code are one group, a level that can be estimated across those units, e.g. the design blocks of a field,
+    whose names recur in other fields. Otherwise as SHARED."""
+
 class ObservationMethodType(str, Enum):
     """Broad category describing how the value of a Variable is obtained."""
 

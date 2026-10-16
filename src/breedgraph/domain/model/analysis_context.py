@@ -20,6 +20,7 @@ class UnitContext:
     germplasm_id: int | None = None
     positions: list[Position] = field(default_factory=list)
     ancestor_ids: list[int] = field(default_factory=list)  # closest first
+    root_id: int | None = None  # root of its graph (block), even if hidden from the user, for WITHIN_GRAPH codes
 
 @dataclass
 class ConceptContext:
@@ -94,6 +95,14 @@ class AnalysisContext:
         return {
             grouping_id: grouping for grouping_id, grouping in self.groupings.items()
             if self.record_group_extents.get(grouping.type) == RecordGroupExtent.WITHIN_UNIT
+        }
+
+    @cached_property
+    def within_graph_groupings(self) -> dict[int, RecordGroupingStored]:
+        """Groupings whose type has the WITHIN_GRAPH extent: their codes are nested in the root of the unit's graph."""
+        return {
+            grouping_id: grouping for grouping_id, grouping in self.groupings.items()
+            if self.record_group_extents.get(grouping.type) == RecordGroupExtent.WITHIN_GRAPH
         }
 
     def replicate_key(self, record: AnalysisRecord) -> tuple | None:

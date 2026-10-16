@@ -254,7 +254,8 @@ class RecordGroupResolver(DimensionResolver):
             studies=context.studies.values(),
             dataset_studies=context.dataset_studies,
             path=path,
-            within_unit=set(context.within_unit_groupings)
+            within_unit=set(context.within_unit_groupings),
+            within_graph=set(context.within_graph_groupings)
         )
         if self.resolver.nested_in_unit:
             self._check_replicates(dimension, context, path)
@@ -285,7 +286,8 @@ class RecordGroupResolver(DimensionResolver):
             )
 
     def _assign(self, record: AnalysisRecord) -> DimensionLevel | None:
-        assignment = self.resolver.assign(record.dataset_id, record.groups, record.unit_id)
+        root_id = record.unit.root_id if record.unit is not None else None
+        assignment = self.resolver.assign(record.dataset_id, record.groups, record.unit_id, root_id)
         if assignment is None:
             return None
         return DimensionLevel(key=assignment.level, output=assignment.to_output(), member=assignment.member)

@@ -105,7 +105,7 @@ or as having a relationship to other ontology entries.
 Term entries may be used to relate other key terms in the ontology.
 Example: "Metabolism" may be a term.
 ##### Subject
-Subject entries describe the [units](#block) being observed in a study.
+Subject entries describe the [units](#unit) being observed in a study.
 These also provide context for the relevance of [traits](#trait) in the ontology.
 Examples: "Leaf", "Tree", "Field", "Rhizosphere Soil"
 ##### Scale
@@ -181,9 +181,20 @@ Examples: "Split-plot", "Randomized block"
 Record group types describe the codes that group [records](#data-record) within a [study](#study).
 A code can mean the same on every unit, e.g. a canopy stratum "Lower"; the type's extent decides whether analysis uses that.
 With SHARED, records of different units with the same code are one group, a level that can be estimated across units
-(e.g. "Block", "Batch", "Stratum"). With WITHIN_UNIT, codes are nested in each record's unit: records of one unit
+(e.g. "Batch", "Plate", "Stratum"). With WITHIN_GRAPH, codes are shared in the same way, but only by the units of one
+[block](#block) (the graph of units, e.g. a field): the design blocks of a field (e.g. "Block"), whose names recur in
+other fields, are one level per field. With WITHIN_UNIT, codes are nested in each record's unit: records of one unit
 with the same code at one time, or within the replicate aggregation window, are one reading (e.g. "Replicate",
-or "Branch" for the branches of a tree). Something followed over time, sampled or positioned is better recorded as a child unit.
+or "Branch" for the branches of a tree).
+
+Whether to record something as a unit, a code or a factor:
+* a [unit](#unit), if it persists or is followed over time, is sampled, has a position, carries its own germplasm,
+  or other units hang from it (a tree, a sample sent for analysis);
+* a WITHIN_UNIT code, for repeated readings or one-off parts of one unit (replicates, the branches or leaves of a tree
+  each measured once);
+* a WITHIN_GRAPH code, for a group of units within one block (the design blocks of a field);
+* a SHARED code, for a group across blocks (a batch, a plate, a session, a canopy stratum);
+* a [factor](#factor), for a level the design sets that is to be estimated (a treatment).
 ##### Role
 Role entries describe roles for [people](#people).
 Examples: "Post-doctoral researcher", "Principal Investigator"
@@ -228,7 +239,9 @@ Layouts have attributes for:
     - name: a string to describe this specific layout
 
 ### Block
-Blocks are directed acyclic graphs with a single root, composed of [units](#unit)
+Blocks are directed acyclic graphs with a single root, composed of [units](#unit), e.g. a field and the trees and
+samples in it. A block here is this graph of units, not a block of a statistical design: design blocks are best
+recorded as WITHIN_GRAPH [record group](#record-group-type) codes.
 #### Unit
 Units have attributes for:
 - subject, an ID for [subject](#subject) in the ontology

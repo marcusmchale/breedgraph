@@ -300,10 +300,10 @@ async def test_create_and_update_record_group_type(
     assert child['parents'] == [{'id': parent['id'], 'name': parent_name, 'extent': 'WITHIN_UNIT'}]
 
     response = await post_to_update_record_group_type(
-        client, token=login_token, record_group_type_update={'id': child['id'], 'extent': 'WITHIN_UNIT'}
+        client, token=login_token, record_group_type_update={'id': child['id'], 'extent': 'WITHIN_GRAPH'}
     )
     assert_payload_success(get_verified_payload(response, "ontologyUpdateRecordGroupType"))
-    assert (await read_types())[child_name]['extent'] == 'WITHIN_UNIT'
+    assert (await read_types())[child_name]['extent'] == 'WITHIN_GRAPH'
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_commit_version(

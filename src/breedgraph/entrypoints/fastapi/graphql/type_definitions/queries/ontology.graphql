@@ -229,6 +229,12 @@ enum RecordGroupExtent {
     A term's replicateAggregation combines them.
     """
     WITHIN_UNIT
+    """
+    Codes are nested in the root of each record unit's graph (block): records of units of one graph with the same
+    code are one group, a level that can be estimated across those units, e.g. the design blocks of a field,
+    whose names recur in other fields. Otherwise as SHARED.
+    """
+    WITHIN_GRAPH
 }
 
 enum ObservationMethodType{

@@ -60,7 +60,8 @@ Every analysis operates on **observations**, not on records.
   - set an `aggregation` (MEAN, MEDIAN, …), or
   - add a dimension that separates the values, e.g. time bins for repeated measurements, or a record-group dimension for replicates.
 - **Replicates.** Record group types have an `extent` in the ontology.
-  - `SHARED` codes name a group of many units, e.g. a block or batch.
+  - `SHARED` codes name a group of many units, e.g. a batch or plate.
+  - `WITHIN_GRAPH` codes name a group of the units of one block (graph of units), e.g. the design blocks of a field.
   - `WITHIN_UNIT` codes only distinguish readings of one unit at one time, e.g. replicate or subsample numbers.
   - `replicateAggregation: { aggregation, window }` combines the replicates of each reading into one value, before `aggregation`.
     `aggregation` is MEAN, MEDIAN, MIN, MAX or MODE.
@@ -107,6 +108,13 @@ Every analysis operates on **observations**, not on records.
   - Levels are **nested by default**: equal codes in different groupings or scopes are different levels, keyed `groupingId|scope|code`.
   - `levels` define **shared levels** that merge exactly the members they list. Members of dataset-scoped groupings need a `datasetId`, which selects the scope.
   - A shared member matching no records produces `RECORD_GROUP_LEVEL_UNMATCHED`.
+  - **WITHIN_GRAPH groupings**:
+    - Their codes are also nested in the root of the base unit's block (graph of units), keyed `groupingId|scope|rootId|code`,
+      so "Block 1" of one field is a different level from "Block 1" of another.
+    - The root is the block's root whether or not the user can read it, so the levels don't depend on access;
+      only its id is given, as for any hidden root.
+    - Otherwise they are as SHARED groupings: a dimension of them can be a term and be used in ANOVA, and their codes
+      can be members of shared `levels`, which merge a code across blocks (a member names the code in every block).
   - **WITHIN_UNIT groupings** (§2, replicates):
     - Their codes are also nested in the record's base unit, keyed `groupingId|scope|unitId|code`,
       so under unit grouping each child unit's replicates stay apart.
@@ -180,7 +188,7 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 | GERMPLASM, UNIT, STUDY | IDs; resolve the names in the UI |
 | TIME | Bin labels |
 | POSITION | `location\|layout\|coordinates` key; `AnalysisGroup.position` has the structured position |
-| RECORD_GROUP | A shared level label, or a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings); `AnalysisRecordGroupAssignment` has the parts |
+| RECORD_GROUP | A shared level label, or a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings, `grouping\|scope\|root\|code` for WITHIN_GRAPH); `AnalysisRecordGroupAssignment` has the parts |
 | CONCEPT | Category or bin labels |
 
 Results per analysis:
