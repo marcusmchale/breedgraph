@@ -6,11 +6,11 @@ from breedgraph.domain.commands.ontologies import (
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
     CreateScale, CreateScaleCategory, CreateObservationMethod, CreateVariable,
     CreateControlMethod, CreateFactor, CreateEventType,
-    CreateLocationType, CreateDesign, CreateLayoutType,
+    CreateLocationType, CreateDesign, CreateLayoutType, CreateRole,
     UpdateTerm, UpdateSubject, UpdateTrait, UpdateCondition,
     UpdateScale, UpdateCategory, UpdateObservationMethod, UpdateVariable,
     UpdateControlMethod, UpdateFactor, UpdateEventType,
-    UpdateLocationType, UpdateDesign, UpdateLayoutType, UpdateRecordGroupType, CreateRecordGroupType
+    UpdateLocationType, UpdateDesign, UpdateLayoutType, UpdateRecordGroupType, CreateRecordGroupType, UpdateRole
 
 )
 from breedgraph.domain.model.ontology import VersionChange
@@ -209,6 +209,16 @@ async def create_design(_, info, design: dict) -> bool:
     await info.context['bus'].handle(cmd)
     return True
 
+@graphql_mutation.field("ontologyCreateRole")
+@graphql_payload
+@require_authentication
+async def create_role(_, info, role: dict) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} creates role: {role}")
+    cmd = CreateRole(agent_id=user_id, **role)
+    await info.context['bus'].handle(cmd)
+    return True
+
 @graphql_mutation.field("ontologyCreateRecordGroupType")
 @graphql_payload
 @require_authentication
@@ -369,6 +379,17 @@ async def update_design(_, info, design: dict) -> bool:
     logger.debug(f"User {user_id} updates design: {design}")
     design['ontology_entry_id'] = design.pop('id')
     cmd = UpdateDesign(agent_id=user_id, **design)
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("ontologyUpdateRole")
+@graphql_payload
+@require_authentication
+async def update_role(_, info, role: dict) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} updates role: {role}")
+    role['ontology_entry_id'] = role.pop('id')
+    cmd = UpdateRole(agent_id=user_id, **role)
     await info.context['bus'].handle(cmd)
     return True
 

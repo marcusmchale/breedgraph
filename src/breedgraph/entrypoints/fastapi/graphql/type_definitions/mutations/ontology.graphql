@@ -26,6 +26,7 @@ input TermInput {
     locationTypeIds: [ID!]
     layoutTypeIds: [ID!]
     designIds: [ID!]
+    roleIds: [ID!]
     recordGroupTypeIds: [ID!]
 }
 
@@ -187,6 +188,17 @@ input DesignInput {
 }
 
 
+input RoleInput {
+    name: String!
+    description: String
+    abbreviation: String
+    synonyms: [String!]
+    referenceIds: [ID!]
+    parentIds: [ID!]
+    childIds: [ID!]
+    termIds: [ID!]
+}
+
 input RecordGroupTypeInput {
     name: String!
     defaultExtent: RecordGroupExtent
@@ -233,6 +245,7 @@ input TermUpdate {
     locationTypeIds: [ID!]
     layoutTypeIds: [ID!]
     designIds: [ID!]
+    roleIds: [ID!]
 }
 
 input SubjectUpdate {
@@ -403,6 +416,18 @@ input DesignUpdate {
     termIds: [ID!]
 }
 
+input RoleUpdate {
+    id: ID!
+    name: String
+    description: String
+    abbreviation: String
+    synonyms: [String!]
+    referenceIds: [ID!]
+    parentIds: [ID!]
+    childIds: [ID!]
+    termIds: [ID!]
+}
+
 input RecordGroupTypeUpdate {
     id: ID!
     name: String
@@ -445,6 +470,7 @@ extend type Mutation {
     ontologyCreateEvent(event: EventInput!): BooleanPayload!
     ontologyCreateLocationType(locationType: LocationTypeInput!): BooleanPayload!
     ontologyCreateDesign(design: DesignInput!): BooleanPayload!
+    ontologyCreateRole(role: RoleInput!): BooleanPayload!
     ontologyCreateRecordGroupType(recordGroupType: RecordGroupTypeInput!): BooleanPayload!
     ontologyCreateLayoutType(layoutType: LayoutTypeInput!): BooleanPayload!
     
@@ -461,6 +487,7 @@ extend type Mutation {
     ontologyUpdateEvent(event: EventUpdate!): BooleanPayload!
     ontologyUpdateLocationType(locationType: LocationTypeUpdate!): BooleanPayload!
     ontologyUpdateDesign(design: DesignUpdate!): BooleanPayload!
+    ontologyUpdateRole(role: RoleUpdate!): BooleanPayload!
     ontologyUpdateRecordGroupType(recordGroupType: RecordGroupTypeUpdate!): BooleanPayload!
     ontologyUpdateLayoutType(layoutType: LayoutTypeUpdate!): BooleanPayload!
 

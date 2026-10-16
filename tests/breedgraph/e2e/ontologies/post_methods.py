@@ -261,6 +261,32 @@ async def post_to_update_record_group_type(
     return response
 
 
+async def post_to_create_role(client, token: str, role_input: dict):
+    json={
+        "query": (
+            " mutation ( $role: RoleInput! ) { "
+            "  ontologyCreateRole( role: $role ) { status result errors { name message } } "
+            " } "
+        ),
+        "variables": {"role": role_input}
+    }
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    return await client.post(GQL_API_PATH, json=json, headers=headers)
+
+
+async def post_to_update_role(client, token: str, role_update: dict):
+    json={
+        "query": (
+            " mutation ( $role: RoleUpdate! ) { "
+            "  ontologyUpdateRole( role: $role ) { status result errors { name message } } "
+            " } "
+        ),
+        "variables": {"role": role_update}
+    }
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    return await client.post(GQL_API_PATH, json=json, headers=headers)
+
+
 async def post_to_get_entries(
         client,
         token: str,
@@ -298,6 +324,7 @@ async def post_to_get_entries(
             "       ... on Event { variables { id name } factors { id name } } "
             "       ... on LayoutType { axes } "
             "       ... on RecordGroupType { defaultExtent parents { id name defaultExtent } } "
+            "       ... on Term { roles { id name } } "
             "   } "
             "    errors { name message } "
             "  } "

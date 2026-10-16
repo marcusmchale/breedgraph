@@ -84,6 +84,7 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             OntologyEntryLabel.LOCATION_TYPE: LocationTypeStored,
             OntologyEntryLabel.LAYOUT_TYPE: LayoutTypeStored,
             OntologyEntryLabel.DESIGN: DesignStored,
+            OntologyEntryLabel.ROLE: RoleStored,
         }
         entry_class = label_to_class.get(OntologyEntryLabel(label), OntologyEntryStored)
         return entry_class(**entry_data)

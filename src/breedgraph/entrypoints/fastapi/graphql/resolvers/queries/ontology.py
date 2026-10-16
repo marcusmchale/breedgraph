@@ -288,6 +288,10 @@ async def resolve_term_layout_types(obj, info):
 async def resolve_term_designs(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.designs)
 
+@term.field("roles")
+async def resolve_term_roles(obj, info):
+    return await resolve_ontology_entries(info.context, entry_ids=obj.roles)
+
 
 # Subject-specific resolvers
 @subject.field("traits")

@@ -51,6 +51,7 @@ class CreateTerm(Command, CreateEntryBase):
     layout_type_ids: List[int] | None = None
     design_ids: List[int] | None = None
     record_group_type_ids: List[int] | None = None
+    role_ids: List[int] | None = None
 
 class CreateSubject(Command, CreateEntryBase):
     term_ids: List[int] | None = None
@@ -113,6 +114,9 @@ class CreateRecordGroupType(Command, CreateEntryBase):
     default_extent: RecordGroupExtent | None = None
     term_ids: List[int] | None = None
 
+class CreateRole(Command, CreateEntryBase):
+    term_ids: List[int] | None = None
+
 class UpdateEntryBase(BaseModel):
     ontology_entry_id: int
     name: str | None = None
@@ -160,4 +164,7 @@ class UpdateLayoutType(UpdateEntryBase, CreateLayoutType):
     pass
 
 class UpdateRecordGroupType(UpdateEntryBase, CreateRecordGroupType):
+    pass
+
+class UpdateRole(UpdateEntryBase, CreateRole):
     pass

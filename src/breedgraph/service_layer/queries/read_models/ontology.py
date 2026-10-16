@@ -103,6 +103,7 @@ class TermOutput(OntologyEntryOutput):
     location_types: tuple[int, ...] = ()
     layout_types: tuple[int, ...] = ()
     designs: tuple[int, ...] = ()
+    roles: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
 class LocationTypeOutput(OntologyEntryOutput):
@@ -196,6 +197,11 @@ class VariableOutput(OntologyEntryOutput):
 @dataclass(frozen=True)
 class DesignOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.DESIGN
+    terms: tuple[int, ...] = ()
+
+@dataclass(frozen=True)
+class RoleOutput(OntologyEntryOutput):
+    label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.ROLE
     terms: tuple[int, ...] = ()
 
 @dataclass(frozen=True)

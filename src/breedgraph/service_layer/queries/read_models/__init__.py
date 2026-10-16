@@ -17,6 +17,7 @@ from .ontology import (
     TraitOutput,
     VariableOutput,
     DesignOutput,
+    RoleOutput,
     EventOutput,
 
     OntologyEntryPatch

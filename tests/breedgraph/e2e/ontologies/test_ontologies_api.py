@@ -15,6 +15,8 @@ from tests.breedgraph.e2e.ontologies.post_methods import (
     post_to_create_layout_type,
     post_to_create_record_group_type,
     post_to_update_record_group_type,
+    post_to_create_role,
+    post_to_update_role,
     post_to_get_entries,
     post_to_commit_version,
     post_to_commit_history,
@@ -306,6 +308,45 @@ async def test_create_and_update_record_group_type(
     )
     assert_payload_success(get_verified_payload(response, "ontologyUpdateRecordGroupType"))
     assert (await read_types())[child_name]['defaultExtent'] == 'WITHIN_GRAPH'
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_and_update_role(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    login_token = login_token_factory(ontology_build_context['user_id'])
+
+    async def read_entries(label: OntologyEntryLabel) -> dict:
+        response = await post_to_get_entries(client, token=login_token, labels=[label], view=OntologyViewMode.EDITORIAL)
+        return {entry['name']: entry for entry in get_verified_payload(response, "ontologyEntries").get('result')}
+
+    # a CRediT role, and an extension refining it
+    parent_name, child_name, term_name = (lorem_text_generator.new_text() for _ in range(3))
+    response = await post_to_create_term(client, token=login_token, term_input={'name': term_name})
+    assert_payload_success(get_verified_payload(response, "ontologyCreateTerm"))
+    term = (await read_entries(OntologyEntryLabel.TERM))[term_name]
+
+    response = await post_to_create_role(client, token=login_token, role_input={'name': parent_name})
+    assert_payload_success(get_verified_payload(response, "ontologyCreateRole"))
+    parent = (await read_entries(OntologyEntryLabel.ROLE))[parent_name]
+
+    response = await post_to_create_role(
+        client, token=login_token,
+        role_input={'name': child_name, 'parentIds': [parent['id']], 'termIds': [term['id']]}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCreateRole"))
+    child = (await read_entries(OntologyEntryLabel.ROLE))[child_name]
+    assert child['parents'] == [{'id': parent['id'], 'name': parent_name}]
+    assert child['terms'] == [{'id': term['id'], 'name': term_name}]
+    assert (await read_entries(OntologyEntryLabel.TERM))[term_name]['roles'] == [{'id': child['id'], 'name': child_name}]
+
+    response = await post_to_update_role(
+        client, token=login_token, role_update={'id': child['id'], 'description': 'Collecting samples in the field'}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyUpdateRole"))
+    assert (await read_entries(OntologyEntryLabel.ROLE))[child_name]['description'] == 'Collecting samples in the field'
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_commit_version(

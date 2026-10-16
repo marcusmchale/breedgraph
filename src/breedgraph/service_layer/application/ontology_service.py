@@ -16,6 +16,7 @@ from breedgraph.domain.model.ontology import (
     EventTypeInput, EventTypeStored,
     LocationTypeInput, LocationTypeStored,
     DesignInput, DesignStored,
+    RoleInput, RoleStored,
     LayoutTypeInput, LayoutTypeStored,
     OntologyEntryLabel, LifecyclePhase, VersionChange, Version, OntologyCommit,
     OntologyRelationshipBase, ParentRelationship, TermRelationship, SubjectRelationship,
@@ -222,6 +223,8 @@ class OntologyApplicationService:
     @overload
     async def _create_entry(self, entry: DesignInput, **kwargs) -> DesignStored: ...
     @overload
+    async def _create_entry(self, entry: RoleInput, **kwargs) -> RoleStored: ...
+    @overload
     async def _create_entry(self, entry: TraitInput, **kwargs) -> TraitStored: ...
     @overload
     async def _create_entry(self, entry: ConditionInput, **kwargs) -> ConditionStored: ...
@@ -278,7 +281,7 @@ class OntologyApplicationService:
             self,
             entry: SubjectInput|TermInput|ObservationMethodInput|\
                    ScaleCategoryInput|ControlMethodInput|\
-                   LocationTypeInput|LayoutTypeInput|DesignInput|RecordGroupTypeInput,
+                   LocationTypeInput|LayoutTypeInput|DesignInput|RoleInput|RecordGroupTypeInput,
             parents: list[int]|None = None,
             children: list[int]|None = None
     ):
@@ -507,6 +510,8 @@ class OntologyApplicationService:
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.LAYOUT_TYPE]) -> LayoutTypeStored|None: ...
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.DESIGN]) -> DesignStored|None: ...
+    @overload
+    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.ROLE]) -> RoleStored|None: ...
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.VARIABLE]) -> VariableStored|None: ...
     @overload

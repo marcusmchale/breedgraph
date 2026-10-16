@@ -72,6 +72,7 @@ async def create_term(cmd: commands.ontologies.CreateTerm, uow_factory: Abstract
             "layout_type_ids",
             "design_ids",
             "record_group_type_ids",
+            "role_ids",
         ]
         for attr in to_link:
             id_list = getattr(cmd, attr) or []
@@ -313,6 +314,23 @@ async def create_design(cmd: commands.ontologies.CreateDesign, uow_factory: Abst
 
 
 @handlers.command_handler()
+async def create_role(cmd: commands.ontologies.CreateRole, uow_factory: AbstractUnitOfWorkFactory):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        ontology_service = uow.ontology
+        entry_input = RoleInput(
+            name=cmd.name,
+            description=cmd.description,
+            abbreviation=cmd.abbreviation,
+            synonyms=cmd.synonyms or [],
+            references=cmd.reference_ids or []
+        )
+        entry = await ontology_service.create_entry(entry_input, cmd.parent_ids, cmd.child_ids)
+        for term_id in cmd.term_ids or []:
+            await ontology_service.link_to_term(source_id=entry.id, source_label=entry.label, term_id=term_id)
+        await uow.commit()
+
+
+@handlers.command_handler()
 async def create_layout_type(cmd: commands.ontologies.CreateLayoutType, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
@@ -472,6 +490,7 @@ async def update_relationships(
         'design_ids',
         'term_ids',
         'record_group_type_ids',
+        'role_ids',
     ]
     relationships = None
     relationships_to_draft: List[OntologyRelationshipBase] = []
@@ -592,6 +611,10 @@ async def update_design(cmd: commands.ontologies.UpdateDesign, uow_factory: Abst
 
 @handlers.command_handler()
 async def update_layout_type(cmd: commands.ontologies.UpdateLayoutType, uow_factory: AbstractUnitOfWorkFactory):
+    await update_by_command(cmd, uow_factory)
+
+@handlers.command_handler()
+async def update_role(cmd: commands.ontologies.UpdateRole, uow_factory: AbstractUnitOfWorkFactory):
     await update_by_command(cmd, uow_factory)
 
 @handlers.command_handler()

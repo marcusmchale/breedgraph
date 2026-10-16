@@ -144,6 +144,12 @@ enum OntologyNodeLabel {
     """
     DESIGN
     """
+    Role entries describe the role a Person had in a contribution.
+    Based on CRediT (Contributor Roles Taxonomy), extended where needed.
+    Examples: "Investigation", "Data curation"
+    """
+    ROLE
+    """
     A record group is a set of records associated by a common criterion arising from
     the execution, observation, processing, or organization of a study.
     These entries describe reusable types of record groups.
@@ -355,6 +361,7 @@ interface TermRelationships {
         locationTypes: [LocationType!]
         layoutTypes: [LayoutType!]
         designs: [Design!]
+        roles: [Role!]
 }
 
 type Term implements OntologyNodeInterface & OntologyRelationships & TermRelationships {
@@ -388,6 +395,7 @@ type Term implements OntologyNodeInterface & OntologyRelationships & TermRelatio
     locationTypes: [LocationType!]
     layoutTypes: [LayoutType!]
     designs: [Design!]
+    roles: [Role!]
 }
 
 """
@@ -869,6 +877,32 @@ type Design implements OntologyNodeInterface & OntologyRelationships & RelatedTo
 }
 
 """
+Role entries describe the role a Person had in a contribution, e.g. to a dataset.
+They are based on CRediT (Contributor Roles Taxonomy), extended where needed.
+Examples: "Investigation", "Data curation"
+"""
+type Role implements OntologyNodeInterface & OntologyRelationships & RelatedToTerms {
+    id: ID!
+    versionId: ID!
+    view: OntologyView!
+
+    phase: LifecyclePhase!
+
+    name: String!
+
+    description: String
+    abbreviation: String
+    synonyms: [String!]
+
+    references: [ReferenceInterface!]
+
+    parents: [Role!]
+    children: [Role!]
+
+    terms: [Term!]
+}
+
+"""
 Record Group Type entries describe transient identifiers like replicate, batch
 to complement the more permanent identifiers in the unit graph/unit structure
 """
@@ -899,7 +933,7 @@ type RecordGroupType implements OntologyNodeInterface & OntologyRelationships & 
 
 
 
-union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | RecordGroupType
+union OntologyEntryUnion = Term | Subject | Trait | Condition | Scale | Category | ObservationMethod | Variable | ControlMethod | Factor | Event | LocationType | LayoutType | Design | RecordGroupType | Role
 
 type OntologyRelationship {
     id: ID!
