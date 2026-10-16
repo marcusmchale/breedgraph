@@ -95,9 +95,9 @@ Expected, from the dry run:
 | Germplasm | 112 varieties |
 | Locations | 41 fields |
 | Layouts | 36 |
-| Units | 99,739 |
+| Units | 48,259 (branches are record group codes, not units) |
 | Program | 8 studies |
-| Datasets | 1,175 with 265,651 records; 1,080 repeated records left out |
+| Datasets | 1,173 with 214,171 records; 1,080 repeated records left out |
 | Curves | 4 datasets with 5,084 curves; 16 repeated curves left out |
 | Persons | 17, as in persons.csv |
 

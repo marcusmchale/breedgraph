@@ -1,4 +1,5 @@
 import csv
+import json
 
 import pytest
 import pytest_asyncio
@@ -12,7 +13,7 @@ from breedgraph.domain.model.ontology import (
 )
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGroupingInput, GroupingScope
 
-from breedcafs_migration import datasets, programs
+from breedcafs_migration import datasets, programs, units as migration_units
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.datasets import prepare_breedcafs_datasets, DESIGN
 from breedcafs_migration.ontology import OntologyIds
@@ -48,6 +49,10 @@ RECORDS = [
     record(A, '1_T1', 'Set harvest time', '12:00', record_type='Property'),
     record(B, '22_T1', 'Shade level', '40', record_type='Condition', start='1438430400000', end='False'),
     record(B, '22_T1', 'Tree height', '2', T1, '0'),
+    # Branches are not units: on the tree they were taken from, with branch and stratum codes
+    record(B, '22_S1', 'Fruit count', '4', T1, '0'),
+    record(B, '22_S2', 'Fruit count', '6', T1, '0'),
+    record(B, '22_S1', 'Node count', '9', T1, '0'),
     # Loaded without a submission: one repeating a record of submission A (same item, input, value and replicate),
     # left out whatever its date; one not, kept in a dataset of its own
     record(NONE, '1_T1', 'Tree height', '12.5', T3, '0'),
@@ -55,7 +60,15 @@ RECORDS = [
 ]
 FILES = {
     'records.csv': RECORDS,
-    'factor_records.csv': [{'item_uid': '22_T1', 'factor': 'Stratum', 'category': 'Upper'}],
+    'factor_records.csv': [{'item_uid': '22_T1', 'factor': 'Shade Treatment', 'category': 'Shade'}],
+    'item_name_subject_sources_sinks.csv': [
+        {'item_uid': f'"""{uid}"""', 'name': 'null', 'subject': f'"""{subject}"""', 'source_items': json.dumps(sources), 'sink_items': '[]'}
+        for uid, subject, sources in (
+            ('22', 'Field', []), ('22_T1', 'Tree', [22]), ('22_S1', 'Branch', ['22_T1']), ('22_S2', 'Branch', ['22_T1'])
+        )
+    ],
+    'skipped_items.csv': [{'item_uid': '1_S9', 'reason': ''}],
+    'branch_strata.csv': [{'item_uid': '22_S1', 'strata': '["Upper"]'}, {'item_uid': '22_S2', 'strata': '["Lower"]'}],
     'input_details_curated.csv': [
         {'name': '"5CQA"', 'terms': '[“Metabolites”]'}, {'name': '"Tree height"', 'terms': '[“Phenotype”]'},
     ],
@@ -98,9 +111,13 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
             ("Fᵥ / Fₘ", 'PocketPEA'): (variable, await concept(ontology, subject.id, "Fv/Fm (PocketPEA)", ScaleType.NUMERICAL)),
             ("Fᵥ / Fₘ", 'MiniPAM'): (variable, await concept(ontology, subject.id, "Fv/Fm (MiniPAM)", ScaleType.NUMERICAL)),
             ("5CQA", ''): (variable, await concept(ontology, subject.id, "5CQA", ScaleType.NUMERICAL)),
+            ("Fruit count", ''): (variable, await concept(ontology, subject.id, "Fruit count", ScaleType.NUMERICAL)),
+            ("Node count", ''): (variable, await concept(ontology, subject.id, "Node count", ScaleType.NUMERICAL)),
         }
-        stratum = await concept(ontology, subject.id, "Stratum", ScaleType.ORDINAL, ["Lower", "Middle", "Upper"], factor=True)
+        shade_treatment = await concept(ontology, subject.id, "Shade Treatment", ScaleType.NOMINAL, ["Full Sun", "Shade"], factor=True)
         replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
+        branch_type = await ontology.create_entry(RecordGroupTypeInput(name="Branch", extent=RecordGroupExtent.WITHIN_UNIT))
+        stratum_type = await ontology.create_entry(RecordGroupTypeInput(name="Stratum", extent=RecordGroupExtent.SHARED))
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
@@ -109,21 +126,28 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
         await uow.repositories.programs.update_seen()
         trial = next(iter(program.trials.values()))
         for name in ("Vietnam", "Nicaragua", "Metabolomics"):
-            trial.add_study(StudyInput(name=name, groupings=[
-                RecordGroupingInput(type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED)
-            ]))
+            groupings = [RecordGroupingInput(type=replicate_type.id, name="Replicate", scope=GroupingScope.DATASET_SCOPED)]
+            if name == "Nicaragua":
+                groupings += [
+                    RecordGroupingInput(type=branch_type.id, name="Branch", scope=GroupingScope.STUDY_WIDE),
+                    RecordGroupingInput(type=stratum_type.id, name="Stratum", scope=GroupingScope.STUDY_WIDE),
+                ]
+            trial.add_study(StudyInput(name=name, groupings=groupings))
         await uow.repositories.programs.update_seen()
         program_ids = ProgramIds(program_id=program.id)
         for study in next(iter(program.trials.values())).studies.values():
             program_ids.studies[study.name] = study.id
             program_ids.replicate_groupings[study.name] = study.get_grouping(name="Replicate").id
+        nicaragua = next(study for study in next(iter(program.trials.values())).studies.values() if study.name == "Nicaragua")
+        program_ids.branch_groupings["Nicaragua"] = nicaragua.get_grouping(name="Branch").id
+        program_ids.stratum_groupings["Nicaragua"] = nicaragua.get_grouping(name="Stratum").id
         await uow.commit()
 
     block_builder = BlockBuilder(uow_factory=uow_factory)
     units = {uid: await block_builder.unit(user_id=user_id, team_id=team_id) for uid in ('1_T1', '1_T2', '1_S1', '22_T1')}
     return {
         'context': MigrationContext(user_id=user_id, team_id=team_id),
-        'ontology': OntologyIds(inputs=inputs, design_factors={"Stratum": stratum}),
+        'ontology': OntologyIds(inputs=inputs, design_factors={"Shade Treatment": shade_treatment}),
         'programs': program_ids,
         'units': units,
     }
@@ -133,7 +157,7 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
 def data_dir(tmp_path, monkeypatch):
     for name, rows in FILES.items():
         write_csv(tmp_path / name, rows)
-    for module in (datasets, programs):
+    for module in (datasets, programs, migration_units):
         monkeypatch.setattr(module, 'BREEDCAFS_DATA_DIR', tmp_path)
     return tmp_path
 
@@ -163,9 +187,11 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         ('Metabolomics', concept_of('5CQA'), *A),
         ('Nicaragua', concept_of('Shade level'), *B),
         ('Nicaragua', concept_of('Tree height'), *B),
-        ('Nicaragua', datasets_context['ontology'].design_factors['Stratum'], DESIGN, ''),
+        ('Nicaragua', concept_of('Fruit count'), *B),
+        ('Nicaragua', concept_of('Node count'), *B),
+        ('Nicaragua', datasets_context['ontology'].design_factors['Shade Treatment'], DESIGN, ''),
     }
-    assert ids.records == 11
+    assert ids.records == 14
     assert ids.repeats_left_out == 1
 
     async with uow_factory.get_uow(user_id=datasets_context['context'].user_id) as uow:
@@ -199,8 +225,19 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
         # To the minute, as the time of day was entered
         assert metabolite.start == datetime64('2019-05-20T02:31')
         assert datetime_data(metabolite.start.dtype)[0] == 'm'
-        [stratum] = (await dataset('Nicaragua', datasets_context['ontology'].design_factors['Stratum'], (DESIGN, ''))).records
-        assert (stratum.unit, stratum.value) == (units['22_T1'], 'Upper')
+        [treatment] = (await dataset('Nicaragua', datasets_context['ontology'].design_factors['Shade Treatment'], (DESIGN, ''))).records
+        assert (treatment.unit, treatment.value) == (units['22_T1'], 'Shade')
+
+        branch = datasets_context['programs'].branch_groupings['Nicaragua']
+        stratum = datasets_context['programs'].stratum_groupings['Nicaragua']
+        groups = lambda r: {(g.id, g.code) for g in r.groups}
+        fruit = (await dataset('Nicaragua', concept_of('Fruit count'), B)).records
+        assert sorted((r.unit, r.value, frozenset(groups(r))) for r in fruit) == [
+            (units['22_T1'], '4', frozenset({(branch, '22_S1'), (stratum, 'Upper')})),
+            (units['22_T1'], '6', frozenset({(branch, '22_S2'), (stratum, 'Lower')})),
+        ]
+        [nodes] = (await dataset('Nicaragua', concept_of('Node count'), B)).records
+        assert (nodes.unit, groups(nodes)) == (units['22_T1'], {(branch, '22_S1'), (stratum, 'Upper')})
 
         # Replicate codes are compared only within the datasets of a submission in a study
         program = await uow.repositories.programs.get(study_id=studies['Vietnam'])
@@ -208,7 +245,9 @@ async def test_prepare_datasets(uow_factory, datasets_context, data_dir):
             set(scope.dataset_ids) for scope in program.get_study(studies[study]).get_grouping(name="Replicate").dataset_scopes
         ]
         assert {dataset_id for key, dataset_id in ids.datasets.items() if key[0] == 'Vietnam' and key[2] == A[0]} in scopes('Vietnam')
-        assert scopes('Nicaragua') == [{ids.datasets[('Nicaragua', concept_of(name), *B)] for name in ('Shade level', 'Tree height')}]
+        assert scopes('Nicaragua') == [{
+            ids.datasets[('Nicaragua', concept_of(name), *B)] for name in ('Shade level', 'Tree height', 'Fruit count', 'Node count')
+        }]
 
     with open(data_dir / 'dataset_ids.csv') as f:
         assert len(list(csv.DictReader(f))) == len(ids.datasets)

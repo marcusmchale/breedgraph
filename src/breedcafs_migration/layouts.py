@@ -5,7 +5,7 @@ From field_layout_types.csv, each field has, at its location:
   - where trees have row and column positions, a "Row and Tree" layout,
     or one per block where rows and trees are numbered per block (field 29),
     and one for each separate planting in the field with its own rows (PLANTINGS);
-Each layout is the root of its own arrangement. Branch strata are recorded as a factor, not positions (units.py).
+Each layout is the root of its own arrangement. Branch strata are record group codes, not positions (units.py).
 Layouts are matched by name and type at the field's location, or created, `PRIVATE` and controlled by the migration team.
 
 Running this again matches the layouts created before.

@@ -1,4 +1,5 @@
 import csv
+import json
 
 import pytest
 import pytest_asyncio
@@ -9,7 +10,7 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import RecordGroupTypeInput, RecordGroupExtent
 from breedgraph.domain.model.programs import GroupingScope
 
-from breedcafs_migration import programs
+from breedcafs_migration import programs, units
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.programs import prepare_breedcafs_programs, study_for, STUDIES, TRIALS
 
@@ -34,8 +35,14 @@ FILES = {
         {'input': 'Shade level', 'item_uid': '22_T1', 'time': '', 'start': '1438387200000', 'end': 'False'},  # 2015-08-01
         {'input': 'Shade level', 'item_uid': '22_T2', 'time': '', 'start': 'False', 'end': 'False'},
         {'input': 'Set planting date', 'item_uid': '22_T1', 'time': '', 'start': '', 'end': ''},
+        {'input': 'Fruit count', 'item_uid': '22_S2', 'time': '1558310400000', 'start': '', 'end': ''},  # a branch
     ],
     'curves.csv': [{'input': 'Fluorescence ~ Time', 'item_uid': '22_S1', 'time': '1574899200000'}],  # 2019-11-28
+    'item_name_subject_sources_sinks.csv': [
+        {'item_uid': f'"""{uid}"""', 'name': 'null', 'subject': f'"""{subject}"""', 'source_items': json.dumps(sources), 'sink_items': '[]'}
+        for uid, subject, sources in (('22', 'Field', []), ('22_T1', 'Tree', [22]), ('22_S2', 'Branch', ['22_T1']))
+    ],
+    'skipped_items.csv': [{'item_uid': '1_S9', 'reason': ''}],
 }
 
 
@@ -50,11 +57,16 @@ def write_csv(path, rows):
 async def programs_context(isolated_state, uow_factory) -> dict:
     migration = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
     async with uow_factory.get_uow(user_id=migration['user_id']) as uow:
-        replicate = await uow.ontology.create_entry(RecordGroupTypeInput(name="Replicate", extent=RecordGroupExtent.WITHIN_UNIT))
+        record_group_types = {
+            name: (await uow.ontology.create_entry(RecordGroupTypeInput(name=name, extent=extent))).id
+            for name, extent in (
+                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED)
+            )
+        }
         await uow.commit()
     return {
         'context': MigrationContext(user_id=migration['user_id'], team_id=migration['team_id']),
-        'record_group_types': {"Replicate": replicate.id},
+        'record_group_types': record_group_types,
     }
 
 
@@ -71,14 +83,18 @@ def test_study_for():
 async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeypatch):
     for name, rows in FILES.items():
         write_csv(tmp_path / name, rows)
-    monkeypatch.setattr(programs, 'BREEDCAFS_DATA_DIR', tmp_path)
+    for module in (programs, units):
+        monkeypatch.setattr(module, 'BREEDCAFS_DATA_DIR', tmp_path)
     context = programs_context['context']
+    types = programs_context['record_group_types']
 
     ids = await prepare_breedcafs_programs(uow_factory, context, programs_context['record_group_types'])
 
     assert set(ids.trials) == set(TRIALS)
     assert set(ids.studies) == set(STUDIES)
-    assert ids.created == 1 + len(TRIALS) + len(STUDIES)
+    # and the Branch and Stratum groupings of Nicaragua, the only study with records of branches
+    assert ids.created == 1 + len(TRIALS) + len(STUDIES) + 2
+    assert set(ids.branch_groupings) == set(ids.stratum_groupings) == {"Nicaragua"}
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         program = await uow.repositories.programs.get(program_id=ids.program_id)
@@ -87,11 +103,13 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
             trial = program.trials[ids.trials[trial_name]]
             study = trial.studies[ids.studies[key]]
             assert study.name == name
-            [grouping] = study.groupings
-            assert (grouping.id, grouping.name, grouping.scope, grouping.type) == (
-                ids.replicate_groupings[key], "Replicate", GroupingScope.DATASET_SCOPED,
-                programs_context['record_group_types']["Replicate"]
-            )
+            expected = {(ids.replicate_groupings[key], "Replicate", GroupingScope.DATASET_SCOPED, types["Replicate"])}
+            if key == "Nicaragua":
+                expected |= {
+                    (ids.branch_groupings[key], "Branch", GroupingScope.STUDY_WIDE, types["Branch"]),
+                    (ids.stratum_groupings[key], "Stratum", GroupingScope.STUDY_WIDE, types["Stratum"]),
+                }
+            assert {(g.id, g.name, g.scope, g.type) for g in study.groupings} == expected
         def study(key):
             return program.trials[ids.trials[STUDIES[key][0]]].studies[ids.studies[key]]
 
@@ -105,10 +123,13 @@ async def test_prepare_programs(uow_factory, programs_context, tmp_path, monkeyp
         assert set(controller.controls) == {context.team_id}
 
     with open(tmp_path / 'study_ids.csv') as f:
-        assert {row['study']: int(row['study_id']) for row in csv.DictReader(f)} == ids.studies
+        rows = list(csv.DictReader(f))
+    assert {row['study']: int(row['study_id']) for row in rows} == ids.studies
+    assert {row['study']: int(row['branch_grouping_id']) for row in rows if row['branch_grouping_id']} == ids.branch_groupings
+    assert {row['study']: int(row['stratum_grouping_id']) for row in rows if row['stratum_grouping_id']} == ids.stratum_groupings
 
     again = await prepare_breedcafs_programs(uow_factory, context, programs_context['record_group_types'])
     assert again.created == 0
-    assert (again.program_id, again.trials, again.studies, again.replicate_groupings) == (
-        ids.program_id, ids.trials, ids.studies, ids.replicate_groupings
+    assert (again.program_id, again.trials, again.studies, again.replicate_groupings, again.branch_groupings, again.stratum_groupings) == (
+        ids.program_id, ids.trials, ids.studies, ids.replicate_groupings, ids.branch_groupings, ids.stratum_groupings
     )

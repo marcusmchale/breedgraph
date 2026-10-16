@@ -10,7 +10,7 @@ A dataset's contributors are the Persons who recorded its records: the attributi
 `person`, or the submitter where none was given) of its submission for its input, in submissions.csv,
 mapped to Persons by attribution_persons.csv. A submission's attribution values are not split by study,
 so a submission covering two studies credits the same Persons in both.
-The factor datasets of the block treatments and branch strata are not from a submission, so have no contributors.
+The factor datasets of the block treatments are not from a submission, so have no contributors.
 
 Writes person_ids.csv, mapping each Person's name and institution to its id.
 """

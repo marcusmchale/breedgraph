@@ -6,6 +6,7 @@ and with what is stored, read directly from the database (controls through the a
   - every expected item, variety, field, layout, input, study, dataset and Person is mapped, and every mapped id is stored;
   - units have the expected subject, parents, germplasm and tree positions;
   - datasets have their study, variable or factor, and the expected number of records;
+  - the records of each branch are on the unit of the item it was taken from, with its Branch and Stratum codes;
   - curve data files are stored and match the hash recorded for archival;
   - Persons have the curated names and institutions, and each dataset has the Persons who recorded it as contributors;
   - the migrated fields, sample locations, layouts, germplasm created from BreedCAFS, units, studies, datasets,
@@ -131,7 +132,7 @@ async def validate_controls(validation, uow_factory, context, label: ControlledM
 
 async def validate_units(validation, uow_factory, ontology_subjects: dict[str, int]):
     plan = UnitPlan(read_items())
-    expected = {uid for uid, item in plan.items.items() if uid not in plan.treatment_blocks}
+    expected = {uid for uid in plan.items if uid not in plan.treatment_blocks and uid not in plan.branches}
     unit_ids = {row['item_uid']: int(row['unit_id']) for row in read_mapping('unit_ids.csv')}
     validation.same("Items mapped to units (unit_ids.csv)", expected, unit_ids)
 
@@ -224,8 +225,42 @@ async def validate_datasets(validation, uow_factory, ontology: OntologyIds):
         "No record has replicate code 0, BreedCAFS's code for a reading not replicated",
         zero['records'] == 0, f"{zero['records']} with code 0"
     )
+    await validate_branch_records(validation, uow_factory, plan)
     validation.sections.append(replicate_summary(plan, ontology))
     return mapped, list(studies.values())
+
+
+async def validate_branch_records(validation, uow_factory, plan: DatasetPlan):
+    """Each branch's records are on the unit of the item it was taken from, each with its stratum (README §6.1)"""
+    unit_ids = {row['item_uid']: int(row['unit_id']) for row in read_mapping('unit_ids.csv')}
+    rows = read_mapping('study_ids.csv')
+    expected: dict[str, int] = {}
+    for records in plan.datasets.values():
+        for record in records:
+            if record.branch is not None:
+                expected[record.branch] = expected.get(record.branch, 0) + 1
+    stored = {}
+    for row in await query(uow_factory, """
+        MATCH (grouping:RecordGrouping)-[:HAS_GROUP]->(branch:RecordGroup)<-[:IN_GROUP]-(record:Record)-[:FOR_UNIT]->(unit:Unit)
+        WHERE grouping.id IN $branch_groupings
+        OPTIONAL MATCH (record)-[:IN_GROUP]->(stratum:RecordGroup)<-[:HAS_GROUP]-(stratum_grouping:RecordGrouping)
+        WHERE stratum_grouping.id IN $stratum_groupings
+        RETURN branch.code AS branch, collect(DISTINCT unit.id) AS units, collect(stratum.code) AS strata,
+               count(DISTINCT record) AS records
+    """,
+        branch_groupings=[int(row['branch_grouping_id']) for row in rows if row['branch_grouping_id']],
+        stratum_groupings=[int(row['stratum_grouping_id']) for row in rows if row['stratum_grouping_id']]
+    ):
+        stored[row['branch']] = row
+    validation.same("Branches with records, by their Branch codes", expected, stored)
+    misplaced = []
+    for uid, count in expected.items():
+        row, branch = stored.get(uid), plan.branches[uid]
+        if row is None:
+            continue
+        if (row['records'], row['units'], row['strata']) != (count, [unit_ids.get(branch.parent)], [branch.stratum] * count):
+            misplaced.append(uid)
+    validation.all("Branch records are on the item it was taken from, each with its stratum", misplaced, len(expected))
 
 
 async def validate_curves(validation, uow_factory, ontology: OntologyIds):
@@ -372,7 +407,7 @@ def replicate_summary(plan: DatasetPlan, ontology: OntologyIds) -> Section:
         coded = [(submission, r) for submission, r in entries if replicate_code(r.replicate)]
         readings: dict[tuple, list[str]] = {}
         for submission, r in coded:
-            readings.setdefault((submission, r.item_uid, r.start, r.end), []).append(replicate_code(r.replicate))
+            readings.setdefault((submission, r.item_uid, r.branch, r.start, r.end), []).append(replicate_code(r.replicate))
         replicated = [codes for codes in readings.values() if len(codes) > 1]
         numbers = sorted({int(c) for codes in readings.values() for c in codes if c.isdigit()})
         rows.append([

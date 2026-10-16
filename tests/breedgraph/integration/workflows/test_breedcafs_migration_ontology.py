@@ -91,7 +91,7 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
     assert set(ids.subjects) == {s[0] for s in ontology.SUBJECTS}
     assert set(ids.location_types) == {"Country", "Region", "Farm", "Field", "Research Center"}
     assert set(ids.layout_types) == {"Row and Tree"}
-    assert set(ids.record_group_types) == {"Replicate"}
+    assert set(ids.record_group_types) == {"Replicate", "Branch", "Stratum"}
     assert set(ids.inputs) == {
         ("Total Boron", ""), ("Tree rust symptoms", ""), ("Set planting date", ""),
         ("Fᵥ / Fₘ", "PocketPEA"), ("Fᵥ / Fₘ", "MiniPAM")
@@ -99,17 +99,21 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
     assert ids.inputs[("Set planting date", "")][0] is OntologyEntryLabel.FACTOR
     assert ids.inputs[("Fᵥ / Fₘ", "PocketPEA")] != ids.inputs[("Fᵥ / Fₘ", "MiniPAM")]
 
-    assert set(ids.design_factors) == {"Shade Treatment", "Shade Level Treatment", "Stratum"}
+    assert set(ids.design_factors) == {"Shade Treatment", "Shade Level Treatment"}
 
     async with uow_factory.get_uow(user_id=editor_id) as uow:
         variable = await uow.ontology.get_entry(entry_id=ids.inputs[("Total Boron", "")][1], label=OntologyEntryLabel.VARIABLE)
         assert variable.name == "Boron (µg/g)"
         assert variable.description == "Total boron content (µg/g)"
         assert variable.synonyms == ["Total Boron"]
-        replicate = await uow.ontology.get_entry(
-            entry_id=ids.record_group_types["Replicate"], label=OntologyEntryLabel.RECORD_GROUP_TYPE
-        )
-        assert replicate.extent is RecordGroupExtent.WITHIN_UNIT
+        # Branches are not units, but codes nested in the tree; their strata are shared across trees
+        for name, extent in (
+                ("Replicate", RecordGroupExtent.WITHIN_UNIT), ("Branch", RecordGroupExtent.WITHIN_UNIT), ("Stratum", RecordGroupExtent.SHARED)
+        ):
+            record_group_type = await uow.ontology.get_entry(
+                entry_id=ids.record_group_types[name], label=OntologyEntryLabel.RECORD_GROUP_TYPE
+            )
+            assert record_group_type.extent is extent
 
         async def targets(source_id: int, label: OntologyRelationshipLabel) -> set[int]:
             return {r.target_id async for r in uow.ontology.get_relationships(source_ids=[source_id], labels=[label])}
@@ -130,12 +134,6 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
         assert len(await targets(shade_scale_id, OntologyRelationshipLabel.HAS_CATEGORY)) == 6
         shade_condition_id = next(iter(await targets(shade_level.id, OntologyRelationshipLabel.DESCRIBES_CONDITION)))
         assert await targets(shade_condition_id, OntologyRelationshipLabel.DESCRIBES_SUBJECT) == {ids.subjects["Tree"]}
-        stratum = ids.design_factors["Stratum"]
-        stratum_scale_id = next(iter(await targets(stratum, OntologyRelationshipLabel.USES_SCALE)))
-        stratum_scale = await uow.ontology.get_entry(entry_id=stratum_scale_id, label=OntologyEntryLabel.SCALE)
-        assert stratum_scale.scale_type is ScaleType.ORDINAL
-        stratum_condition_id = next(iter(await targets(stratum, OntologyRelationshipLabel.DESCRIBES_CONDITION)))
-        assert await targets(stratum_condition_id, OntologyRelationshipLabel.DESCRIBES_SUBJECT) == {ids.subjects["Branch"]}
 
         shade_treatment_id = ids.design_factors["Shade Treatment"]
         for label in (OntologyRelationshipLabel.DESCRIBES_CONDITION, OntologyRelationshipLabel.USES_CONTROL_METHOD):

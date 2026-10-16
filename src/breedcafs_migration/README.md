@@ -130,6 +130,11 @@ Blocks are units (6.4), not layouts.
   In analysis, its codes are nested in their unit, and a term's `replicateAggregation` combines each reading's replicates
   (with a `window` for readings recorded minutes apart, like the curves of 7.1); see docs/analysis.md §2.
   If a type named Replicate already exists, it is reused only with this extent; otherwise the ontology phase stops.
+* Branch, for the branch a reading was taken from (6.1), with extent `WITHIN_UNIT`: a branch code only distinguishes
+  the branches of one tree.
+* Stratum, for the canopy stratum (Lower, Middle or Upper) of a branch (6.1), with extent `SHARED`:
+  a stratum is the same across the trees, so analysis can compare strata.
+  Branch and Stratum, like Replicate, are reused only with these extents.
 
 ---
 
@@ -169,7 +174,7 @@ From field_layout_types.csv (1.2.1), create the layouts at each Field's location
     and the duplicate positions are to be resolved with the partner (§11).
   Trees are assigned to the plantings by name (`PLANTINGS` and `tree_group` in layouts.py).
 Tree positions are recorded in the Row and Tree layouts, from unit_positions.csv (1.2.2).
-Branch strata are not positions: each branch gets a record of the Stratum factor (6.1), as the stratum was set by the sampling design.
+Branch strata are not positions: branches are not units, and their stratum is a record group code on their records (6.1).
 In fields 18–24 (Nicaragua) the branches were taken from tree samples taken from a block or the field,
 with no row or tree recorded, so a stratum layout could not have placed them anyway.
 
@@ -237,7 +242,7 @@ and following discussions with Partner organisations.
 ## 6.1 Ordinary Units
 
 Each Field is a block, rooted at a Field unit positioned at the Field's location (units.py).
-For each other Item, a unit in its Field's block, `PRIVATE` and controlled by the migration team:
+For each other Item, but branches, a unit in its Field's block, `PRIVATE` and controlled by the migration team:
 
 * Its name is the Item `name`, or its uid where it has none, and its description "BreedCAFS item <uid>",
   by which a second run finds the units created before.
@@ -247,12 +252,19 @@ For each other Item, a unit in its Field's block, `PRIVATE` and controlled by th
   A sample pooled from parents of different varieties (only 42_S161, 1.3.2) is left without germplasm,
   its parents saying what it contains.
 * Trees are positioned in their layout (unit_positions.csv, 4). Coordinates are stored as strings, as the API gives them.
-* Branches get a record of the Stratum factor (condition Canopy Position, an ordinal scale Lower, Middle, Upper)
-  from branch_strata.csv, as the stratum was set by the sampling design. They have no positions of their own.
 * Samples analysed at IRD Montpellier are positioned there, from the date given (sample_positions.csv).
 
-Factor records for units, the block treatments (6.4) and the strata of branches,
-are saved in factor_records.csv for the datasets phase. Saved unit_ids.csv: each Item and its unit.
+Branches (51,480, in Nicaragua and Vietnam) are not units. Each was taken from one tree, or tree sample,
+and none is referenced over time or has samples taken from it,
+so a unit per branch would only repeat its tree. Instead, a branch's records are on the unit of the item it was
+taken from, with two record group codes (`read_branches` in units.py, 7.6):
+
+* its uid in the Study's Branch grouping, telling the branches of a tree apart;
+* its stratum (branch_strata.csv) in the Study's Stratum grouping, as the stratum was set by the sampling design.
+
+The units phase stops if any item was taken from a branch, as such an item would have no unit to be under.
+Factor records for units, the block treatments (6.4), are saved in factor_records.csv for the datasets phase.
+Saved unit_ids.csv: each Item and its unit.
 
 ## 6.2 Fields with Multiple Germplasm
 
@@ -285,7 +297,7 @@ BreedCAFS Blocks group the trees of a Field, and have no data of their own.
   Both describe the Light Availability condition, as the curated "Shade level" factor (a percentage) does,
   and differ only in their scale, keeping the labels of each experiment together.
 
-  These factors, and the Stratum factor, are created with the ontology (`DESIGN_FACTORS` in ontology.py).
+  These factors are created with the ontology (`DESIGN_FACTORS` in ontology.py).
 
 ## 6.5 Skipped Items
 
@@ -376,7 +388,7 @@ Collect BreedCAFS Traits that have associated data.
 
 match (:RecordType {name:'Trait'})<-[:OF_TYPE]-(i:Input)<-[:FOR_INPUT*..2]-()<-[:RECORD_FOR]-(:Record) return distinct i
 
-For branch "Stratum": recorded as the Stratum factor on each branch (6.1), not as a trait.
+For branch "Stratum": recorded as a Stratum code on the records of each branch (6.1), not as a trait.
    
 For each remaining:
 
@@ -419,7 +431,8 @@ and one covers fields in two countries.
 The Program ("BreedCAFS", Breeding Coffee for Agroforestry Systems), Trials and Studies are created `PRIVATE`,
 controlled by the migration team, or matched by name (programs.py, with `study_for` for the rule above).
 Each Study has a dataset-scoped Replicate grouping, of the Replicate record group type in the ontology,
-scoped in the datasets phase (7.6). Saved study_ids.csv: each Study, its id and its Replicate grouping.
+scoped in the datasets phase (7.6). The Studies with records of branches (Nicaragua and Vietnam) also have
+study-wide Branch and Stratum groupings (6.1). Saved study_ids.csv: each Study, its id and the ids of its groupings.
 Each Study's start and end are the first and last times of its records: record times, and condition starts and ends
 where given (BreedCAFS stores False for most). French Guiana has no timed records, so no dates.
 Nicaragua starts in August 2015, before BreedCAFS: data recorded earlier was submitted within BreedCAFS,
@@ -436,7 +449,8 @@ Each record of records.csv gets:
     the Photosynthetic Analysis Apparatus recorded for its item at the same time, or the only apparatus of its input,
     or else PocketPEA where JIP-test parameters (measured only with PocketPEA) were recorded with it.
     In field 25 (La Hilda), 4,320 photosynthesis records have no apparatus at the same time; all are resolved this way.
-  * its Study, by `study_for` (7.5), and its unit (unit_ids.csv).
+  * its Study, by `study_for` (7.5), and its unit (unit_ids.csv): for a branch, the unit of the item it was taken
+    from, with its Branch and Stratum codes (6.1).
   * its value, parsed against its scale. Flowering is recorded as True or False, the categories Yes and No.
   * its time: observations start and end at their time; conditions at their start and end where given.
     Times are stored as entered: BreedCAFS records have no date field of their own, only `time`
@@ -446,7 +460,7 @@ Each record of records.csv gets:
 
 The apparatus records are not migrated as data, nor are the "Set harvest time" records: all are the default "12:00",
 and the harvest date is recorded. Curves (7.1) follow in their own step (curves.py), as their complex scale needs a data file.
-The factor records of factor_records.csv (block treatments and branch strata) are one Dataset per factor and Study.
+The factor records of factor_records.csv (block treatments) are one Dataset per factor and Study.
 
 Records loaded without a submission (1,096 records, all from field 25 except 16 apparatus records of field 34,
 and the 16 curves of 7.1) are one Dataset per variable and Study, as they were loaded apart from any submission.
@@ -456,7 +470,8 @@ though two of the three sessions are dated differently (29 rather than 25 Novemb
 They look like a manual submission script, run before the users uploaded their own versions of the same data.
 So records and curves loaded without a submission are left out where they repeat a submitted one, whatever the date,
 as the submitted dates are trusted; any that repeat none would be kept, in Datasets of their own. None are left.
-The plan is then 1,175 Datasets with 265,651 records, without the 3 records of the duplicate trees (§6.5).
+The plan is then 1,173 Datasets with 214,171 records, without the 3 records of the duplicate trees (§6.5).
+Of these, 43,962 records are of 37,278 branches (6.1), on 6,499 trees, in Nicaragua and Vietnam; none has a replicate code.
 
 Each Study and submission is one transaction, recorded in dataset_ids.csv as it completes,
 so a second run creates only the Datasets not yet created.

@@ -2,7 +2,7 @@
 Units for the BreedCAFS items (README.md §6, 1_4_Extract_Units.md).
 
 Each BreedCAFS field is a block, rooted at a Field unit positioned at the field's location.
-Every other item is a unit in its field's block, `PRIVATE` and controlled by the migration team, with:
+Every other item, but branches, is a unit in its field's block, `PRIVATE` and controlled by the migration team, with:
   - its subject, from item_name_subject_sources_sinks.csv: the item type, or the sample unit for samples,
     with BreedCAFS blocks as `Trees` (README §6.4);
   - its parents, the items it is in or was taken from, or else its field;
@@ -11,8 +11,9 @@ Every other item is a unit in its field's block, `PRIVATE` and controlled by the
   - positions: trees in their layout (unit_positions.csv), and samples at their location (sample_positions.csv).
 Items in skipped_items.csv are left out (README §6.5), as are the duplicates in DUPLICATE_ITEMS.
 Blocks named after a treatment (TREATMENT_FIELDS) are not units: their trees are placed under the field,
-and get a record of the treatment. Branches get a record of their stratum (branch_strata.csv).
-These records are written to factor_records.csv, for the datasets phase.
+and get a record of the treatment, written to factor_records.csv for the datasets phase.
+Branches are not units, as none is referenced over time: their records are on the item they were taken from,
+with the branch and its stratum (branch_strata.csv) as record group codes (read_branches, README §6.1).
 
 A unit keeps its BreedCAFS name, or its uid where it has none, and is described as "BreedCAFS item <uid>",
 by which running this again finds the units created before.
@@ -31,7 +32,7 @@ from breedgraph.domain.model.blocks import Block, UnitInput, Position
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.layouts import LayoutIds, tree_group, ROW_AND_TREE
 from breedcafs_migration.locations import LocationIds
-from breedcafs_migration.ontology import TREATMENT_FACTORS, STRATUM_FACTOR
+from breedcafs_migration.ontology import TREATMENT_FACTORS
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 import logging
@@ -49,6 +50,8 @@ SUBJECTS = {
     "Cherries": "Cherries",
     "Green Beans": "Green Beans",
 }
+
+BRANCH = "Branch"
 
 # Trees registered twice, with the same name, variety, block, position and records, and no samples:
 # the second of each pair is left out, with its records (README §6.5)
@@ -77,10 +80,16 @@ class Item:
 
 
 @dataclass
+class Branch:
+    parent: str  # uid of the tree, or tree sample, it was taken from
+    stratum: str
+
+
+@dataclass
 class UnitIds:
     # BreedCAFS item uid -> unit id
     units: dict[str, int] = field(default_factory=dict)
-    # (item uid, factor name, category): treatments of trees in blocks named after a treatment, and strata of branches
+    # (item uid, factor name, category): treatments of trees in blocks named after a treatment
     factor_records: list[tuple[str, str, str]] = field(default_factory=list)
     created: int = 0
 
@@ -124,6 +133,19 @@ def read_items() -> dict[str, Item]:
     return items
 
 
+def read_branches(items: dict[str, Item]) -> dict[str, Branch]:
+    """Branches, by uid: not units, but codes on the records of the item each was taken from (README §6.1)"""
+    strata = {clean(row['item_uid']): json.loads(row['strata'])[0] for row in read_csv('branch_strata.csv')}
+    branches = {}
+    for uid, item in items.items():
+        if item.subject != BRANCH:
+            continue
+        if len(item.parents) != 1 or uid not in strata:
+            raise ValueError(f"Branch {uid} needs one parent and a stratum, not {item.parents} and {strata.get(uid)}")
+        branches[uid] = Branch(parent=item.parents[0], stratum=strata[uid])
+    return branches
+
+
 class UnitPlan:
     """What to create for each item, from the extracted files"""
 
@@ -149,7 +171,10 @@ class UnitPlan:
             if uid in items:
                 group = tree_group(clean(row['field_uid']), clean(row['layout_level']), clean(row['layout_name']), items[uid].name or '')
                 self.tree_positions[uid] = (group, coordinate(row['row']), coordinate(row['column']))
-        self.strata = {clean(row['item_uid']): json.loads(row['strata'])[0] for row in read_csv('branch_strata.csv')}
+        self.branches = read_branches(items)
+        sampled = sorted(uid for uid, item in items.items() if not self.branches.keys().isdisjoint(item.parents))
+        if sampled:
+            raise ValueError(f"Items taken from a branch, which is not a unit: {sampled}")
         self.sample_positions = {
             clean(row['item_uid']): (clean(row['location']), clean(row['date'])) for row in read_csv('sample_positions.csv')
         }
@@ -187,7 +212,8 @@ class UnitPlan:
         """The items of a field to create as units, parents before children, without the field itself"""
         items = [
             item for item in self.items.values()
-            if item.field_uid == field_uid and item.uid != field_uid and item.uid not in self.treatment_blocks
+            if item.field_uid == field_uid and item.uid != field_uid
+            and item.uid not in self.treatment_blocks and item.uid not in self.branches
         ]
         depths: dict[str, int] = {field_uid: 0}
 
@@ -199,13 +225,11 @@ class UnitPlan:
         return sorted(items, key=lambda item: (depth(item.uid), item.uid))
 
     def factor_records(self) -> list[tuple[str, str, str]]:
-        treatments = [
+        return sorted(
             (item.uid, *self.treatment_blocks[parent])
             for item in self.items.values()
             for parent in item.parents if parent in self.treatment_blocks
-        ]
-        strata = [(uid, STRATUM_FACTOR['Factor'], stratum) for uid, stratum in self.strata.items() if uid in self.items]
-        return sorted(treatments + strata)
+        )
 
     def positions(self, item: Item, field_location: int, layouts: LayoutIds, sample_locations: dict[str, int]) -> list[Position]:
         positions = []

@@ -59,6 +59,15 @@ RECORD_GROUP_TYPES = [
         "Replicate", "Repeated observations of the same unit at the same time, distinguished by a replicate code",
         RecordGroupExtent.WITHIN_UNIT
     ),
+    # Branches are not units: their records are on the tree they were taken from, with a code of each (README §6.1)
+    (
+        "Branch", "The branch of a tree (or tree sample) a reading was taken from, as a code distinguishing its branches",
+        RecordGroupExtent.WITHIN_UNIT
+    ),
+    (
+        "Stratum", "The canopy stratum (Lower, Middle or Upper) of the tree a reading was taken from, as set by the sampling design",
+        RecordGroupExtent.SHARED
+    ),
 ]
 
 # name, description, axes, parent names
@@ -92,17 +101,7 @@ TREATMENT_FACTORS = [
         'subject': "Tree",
     },
 ]
-# Each branch gets a record of the stratum of the tree it was sampled from, as set by the sampling design (README §6.1).
-STRATUM_FACTOR = {
-    'Factor': "Stratum",
-    'description': "The stratum of the tree a branch was sampled from",
-    'Condition': "Canopy Position",
-    'ControlMethod': "Procedure (BreedCAFS)", 'ControlMethodType': "MANAGEMENT", 'ControlMethodDescription': "",
-    'Scale': "Stratum", 'Scale Description': "Position in the canopy, from the lowest", 'ScaleType': "ORDINAL",
-    'categories': "Lower / Middle / Upper",
-    'subject': "Branch",
-}
-DESIGN_FACTORS = [*TREATMENT_FACTORS, STRATUM_FACTOR]
+DESIGN_FACTORS = TREATMENT_FACTORS
 
 
 @dataclass
@@ -197,7 +196,7 @@ class OntologyPreparation:
                 lambda: self.ontology.create_entry(RecordGroupTypeInput(name=name, description=description, extent=extent))
             )
             if not created:
-                # analysis nests replicate codes in their unit only if the existing type says so
+                # analysis nests codes in their unit, or shares them across units, as the existing type says
                 existing = await self.ontology.get_entry(self.ids.record_group_types[name], label=OntologyEntryLabel.RECORD_GROUP_TYPE)
                 if existing.extent is not extent:
                     raise ValueError(

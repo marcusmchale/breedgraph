@@ -6,7 +6,8 @@ Each record in records.csv is assigned:
     the Photosynthetic Analysis Apparatus recorded for its item at the same time, or the only apparatus of its input,
     or else PocketPEA where JIP-test parameters, only measured by PocketPEA, were recorded with it;
   - its study, by study_for (README §7.5);
-  - its unit (unit_ids.csv);
+  - its unit (unit_ids.csv). Branches are not units: a branch's records are on the item it was taken from,
+    with the branch uid as its code in the study's Branch grouping, and its stratum as its code in the Stratum grouping (README §6.1);
   - its value, as parsed against the scale of its variable or factor ("True" and "False" as Yes and No);
   - its time: observations start and end at their time, conditions at their start and end where given,
     to the minute where a time of day was entered (text_time), and otherwise as the date alone,
@@ -19,7 +20,7 @@ the same item, input, value and replicate code, whatever the date, as the submit
 Any that do not repeat one are kept, one dataset per variable and study; in the extracted data, all repeat one.
 The Replicate grouping of each study is scoped to the datasets of each submission,
 so replicate codes are only compared within the records submitted together.
-The factor records of factor_records.csv (block treatments and branch strata) are one dataset per factor and study.
+The factor records of factor_records.csv (block treatments) are one dataset per factor and study.
 
 Left out: the records of duplicate items (units.DUPLICATE_ITEMS), the apparatus records (used to choose the variable), "Set harvest time" records (all the default "12:00",
 the harvest date being recorded), and curves (curves.py), whose complex scale needs a data file.
@@ -40,7 +41,7 @@ from breedgraph.service_layer.handlers.events.datasets import get_scale_and_cate
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.ontology import OntologyIds
 from breedcafs_migration.programs import ProgramIds, study_for, input_terms, field_countries
-from breedcafs_migration.units import DUPLICATE_ITEMS
+from breedcafs_migration.units import DUPLICATE_ITEMS, read_items, read_branches
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 import logging
@@ -64,6 +65,9 @@ class RecordPlan:
     start: datetime64 | None = None
     end: datetime64 | None = None
     replicate: str | None = None
+    # the uid of the branch it was recorded for, on the item_uid it was taken from, and the branch's stratum
+    branch: str | None = None
+    stratum: str | None = None
 
 
 @dataclass
@@ -83,6 +87,24 @@ def replicate_code(value: str | None) -> str | None:
     """The replicate code to migrate: none where BreedCAFS has none, or 0, its code for a reading not replicated"""
     value = (value or '').strip()
     return None if value in ('', '0') else value
+
+
+def record_groups(record: RecordPlan, programs: ProgramIds, study: str) -> list[RecordGroup] | None:
+    groups = []
+    if code := replicate_code(record.replicate):
+        groups.append(RecordGroup(id=programs.replicate_groupings[study], code=code))
+    if record.branch is not None:
+        groups.append(RecordGroup(id=programs.branch_groupings[study], code=record.branch))
+        groups.append(RecordGroup(id=programs.stratum_groupings[study], code=record.stratum))
+    return groups or None
+
+
+def study_groupings(programs: ProgramIds, study: str) -> list[int]:
+    return [
+        groupings[study]
+        for groupings in (programs.replicate_groupings, programs.branch_groupings, programs.stratum_groupings)
+        if study in groupings
+    ]
 
 
 def epoch_ms(value: str) -> datetime64 | None:
@@ -111,6 +133,7 @@ class DatasetPlan:
         self.apparatus_options: dict[str, set[str]] = {}
         for input_name, apparatus in ontology.inputs:
             self.apparatus_options.setdefault(input_name, set()).add(apparatus)
+        self.branches = read_branches(read_items())
         self.datasets: dict[DatasetKey, list[RecordPlan]] = {}
         self.label: dict[int, OntologyEntryLabel] = {}
         self.repeats_left_out = 0
@@ -156,9 +179,10 @@ class DatasetPlan:
             else:
                 start = end = entered_time(row['time'], row['text_time'])
             key = (self.study(row['input'], row['item_uid']), concept, row['submission_time'], row['submitter_id'])
-            self.add(key, RecordPlan(
-                item_uid=row['item_uid'], value=row['value'], start=start, end=end, replicate=row['replicate'] or None
-            ))
+            record = RecordPlan(item_uid=row['item_uid'], value=row['value'], start=start, end=end, replicate=row['replicate'] or None)
+            if (branch := self.branches.get(row['item_uid'])) is not None:
+                record.item_uid, record.branch, record.stratum = branch.parent, row['item_uid'], branch.stratum
+            self.add(key, record)
 
     def read_factor_records(self) -> None:
         for row in read_csv('factor_records.csv'):
@@ -224,6 +248,7 @@ async def prepare_breedcafs_datasets(
         async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
             program = await uow.repositories.programs.get(study_id=programs.studies[study])
             replicate = programs.replicate_groupings[study]
+            groupings = study_groupings(programs, study)
             created = {}
             for key in keys:
                 concept = key[1]
@@ -237,13 +262,13 @@ async def prepare_breedcafs_datasets(
                         value=value_for(record.value, scale, categories),
                         start=record.start,
                         end=record.end,
-                        groups=[RecordGroup(id=replicate, code=code)] if (code := replicate_code(record.replicate)) else None
+                        groups=record_groups(record, programs, study)
                     )
                     for record in plan.datasets[key]
                 ]
                 errors = [
-                    (record.item_uid, record.value, error)
-                    for record, error in zip(plan.datasets[key], dataset.add_records(records, scale, categories, [replicate]))
+                    (record.branch or record.item_uid, record.value, error)
+                    for record, error in zip(plan.datasets[key], dataset.add_records(records, scale, categories, groupings))
                     if error
                 ]
                 if errors:

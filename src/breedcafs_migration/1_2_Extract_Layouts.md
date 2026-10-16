@@ -82,7 +82,7 @@ and a later planting of trees named with codes citing other fields, in rows and 
 Each has a "Row and Tree" layout; a grid would imply more than is known.
 
 We also need to consider where we recorded Stratum data.
-(This was first planned as a further layout for branch positions; branch strata are instead recorded as a Stratum factor, README §6.1.)
+(This was first planned as a further layout for branch positions; branch strata are instead record group codes on the branches' records, README §6.1.)
 
 ```cypher
 MATCH (f:Field)<-[:IS_IN|FROM*]-(item:Item)<-[:FOR_ITEM]-(ii:ItemInput)-[:FOR_INPUT*..5]->(:Input {name: "Stratum"}),

@@ -16,7 +16,7 @@ from breedcafs_migration import units
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.layouts import LayoutIds, ROW_AND_TREE
 from breedcafs_migration.locations import LocationIds
-from breedcafs_migration.units import prepare_breedcafs_units, description
+from breedcafs_migration.units import prepare_breedcafs_units, description, read_items, read_branches, Branch
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 
@@ -140,10 +140,12 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
 
     ids = await prepare(uow_factory, units_context)
 
-    # Not the skipped sample, nor the block named after a treatment
-    assert set(ids.units) == {'1', '1_B1', '1_T1', '1_T2', '1_T3', '1_S1', '1_S2', '1_S3', '1_S4', '1_S6', '25', '25_T1'}
-    assert ids.created == 12
-    assert ids.factor_records == [('1_S1', 'Stratum', 'Upper'), ('1_S3', 'Stratum', 'Lower'), ('25_T1', 'Shade Treatment', 'Shade')]
+    # Not the skipped sample, the block named after a treatment, nor the branches
+    assert set(ids.units) == {'1', '1_B1', '1_T1', '1_T2', '1_T3', '1_S2', '1_S4', '1_S6', '25', '25_T1'}
+    assert ids.created == 10
+    assert ids.factor_records == [('25_T1', 'Shade Treatment', 'Shade')]
+    # Their records are on the tree, or tree sample, they were taken from, with their stratum
+    assert read_branches(read_items()) == {'1_S1': Branch(parent='1_T1', stratum='Upper'), '1_S3': Branch(parent='1_S2', stratum='Lower')}
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         block = await uow.repositories.blocks.get(unit_id=ids.units['1'])
@@ -165,10 +167,7 @@ async def test_prepare_units(uow_factory, units_context, data_dir):
         assert [(p.layout_id, p.coordinates) for p in tree.positions] == [(layouts[('1', '', ROW_AND_TREE)], ["1", "1"])]
         assert unit('1_T2').name == '1_T2'
 
-        branch = unit('1_S1')
-        assert branch.subject == subjects["Branch"]
-        assert branch.positions == []
-        assert parents('1_S1') == {ids.units['1_T1']}
+        assert parents('1_S2') == {ids.units['1_B1']}
 
         # Pooled from trees of one variety: its own; of different varieties: none, as its parents say what it contains
         assert unit('1_S4').germplasm == units_context['germplasm']["Catimor"]
