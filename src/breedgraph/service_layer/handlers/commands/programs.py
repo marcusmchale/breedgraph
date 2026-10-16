@@ -57,6 +57,7 @@ async def create_program(
         if existing_program is not None:
             raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
         await _verify_contacts(uow, cmd.contact_ids, cmd.release)
+        await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
 
         program = ProgramInput(
             name=cmd.name,
@@ -96,6 +97,7 @@ async def update_program(
             await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids), controller.release)
             program.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(program.reference_ids or []))
             program.reference_ids = cmd.reference_ids
 
         await uow.commit()
@@ -125,6 +127,7 @@ async def create_trial(
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
         await _verify_contacts(uow, cmd.contact_ids, cmd.release)
+        await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
 
         trial = TrialInput(
             name=cmd.name,
@@ -168,6 +171,7 @@ async def update_trial(
             await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids), controller.release)
             trial.contact_ids = cmd.contact_ids
         if cmd.reference_ids is not None:
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(trial.reference_ids or []))
             trial.reference_ids = cmd.reference_ids
 
         await uow.commit()
@@ -207,6 +211,7 @@ async def create_study(
         trial = program.trials.get(cmd.trial_id)
         if trial is None:
             raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
+        await uow.controls.require_read(ControlledModelLabel.REFERENCE, [*(cmd.reference_ids or []), cmd.licence_id])
 
         study = StudyInput(
             name=cmd.name,
@@ -252,8 +257,11 @@ async def update_study(
         if cmd.design_id is not None:
             study.design_id = cmd.design_id
         if cmd.licence_id is not None:
+            if cmd.licence_id != study.licence_id:
+                await uow.controls.require_read(ControlledModelLabel.REFERENCE, [cmd.licence_id])
             study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(study.reference_ids or []))
             study.reference_ids = cmd.reference_ids
 
         await uow.commit()

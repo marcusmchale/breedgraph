@@ -87,7 +87,10 @@ In detail:
    to both stored ends, a new member needs read access to its parent, and attaching a merged unit graph's root needs curate
    access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
-   layout to its location, a dataset to its study, and splitting a unit graph (curate on the unit, read on its parents).
+   layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
+   and citing a reference (`AccessControlService.require_read`): references of datasets and their records, of programs,
+   trials, studies and germplasm entries, a study's licence, and the references, licence and copyright of the ontology.
+   Only references added are checked, so an entry can still be edited while it cites one the editor cannot read.
    Changing or removing a controlled model needs curate access, which includes read. The few reads that still use a
    repository redact explicitly: team trees with `TeamTree.redacted` (the teams map, and the teams a user may
    give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused

@@ -65,3 +65,35 @@ async def test_create_dataset_command(
 
 
 
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_citing_an_unreadable_reference_fails_the_submission(
+        bus,
+        event_queue,
+        uow_factory,
+        state_store,
+        dataset_build_context
+):
+    from breedgraph.domain.commands.references import CreateExternalReference
+    from tests.breedgraph.scenarios.account_builder import AccountBuilder
+
+    other = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations()
+    hidden_id = await bus.handle(CreateExternalReference(
+        agent_id=other['user_id'], write_team=other['team_id'], url='https://example.org/hidden'
+    ))
+    user_id: int = dataset_build_context['user_id']
+    record = {'unit_id': dataset_build_context['unit_id'], 'value': '1', 'start': '2012'}
+    for dataset_input in (
+        {'reference_ids': [hidden_id], 'records': [record]},
+        {'records': [{**record, 'reference_ids': [hidden_id]}]}
+    ):
+        submission_id = await state_store.store_submission(agent_id=user_id, submission={
+            'study_id': dataset_build_context['study_id'],
+            'concept_id': dataset_build_context['concept_id'],
+            **dataset_input
+        })
+        await bus.handle(DatasetSubmitted(agent_id=user_id, write_team=dataset_build_context['team_id'], submission_id=submission_id))
+        await event_queue.join()
+        assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.FAILED
+        assert 'NoResultFoundError' in str(await state_store.get_errors(agent_id=user_id, key=submission_id))

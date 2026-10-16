@@ -90,7 +90,8 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         ontology_service = OntologyApplicationService(
             persistence_service=ontology_persistence,
             user_id=user_id,
-            role=ontology_role
+            role=ontology_role,
+            access_control_service=access_control_service
         )
 
 

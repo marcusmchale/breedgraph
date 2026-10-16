@@ -47,6 +47,10 @@ async def handle_dataset_submitted(
             dataset_input = dataset_import.to_input_for_create()
             # Programs are loaded whole, so check the study can be read before linking to it
             await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_input.study], Access.READ)
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
+                *(dataset_input.references or []),
+                *(reference_id for record in dataset_input.records for reference_id in record.references or [])
+            ])
 
             # we want to create the dataset without records first so that we can begin locking them in
             # and return errors only for those that need to be corrected before storing.
@@ -117,7 +121,17 @@ async def dataset_update_submitted(
             if dataset_import.contributor_ids is not None:
                 dataset.contributors = dataset_import.contributor_ids
             if dataset_import.reference_ids is not None:
+                await uow.controls.require_read(
+                    ControlledModelLabel.REFERENCE, set(dataset_import.reference_ids) - set(dataset.references or [])
+                )
                 dataset.references = dataset_import.reference_ids
+            # only the references a record does not already cite need checking
+            stored_references = {record.id: set(record.references or []) for record in dataset.records}
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
+                reference_id
+                for record in dataset_import.records
+                for reference_id in set(record.reference_ids or []) - stored_references.get(record.id, set())
+            ])
 
             program = await uow.repositories.programs.get(study_id=dataset.study)
             if program is None:
@@ -156,6 +170,9 @@ async def dataset_records_submitted(
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
             dataset_id = submission.get("dataset_id")
             records = [RecordImport(**r).model_dump() for r in submission.get("records", [])]
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
+                reference_id for record in records for reference_id in record.get('reference_ids') or []
+            ])
             dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
             if dataset is None:
                 raise ValueError(f"Dataset not found for dataset id: {dataset_id}")

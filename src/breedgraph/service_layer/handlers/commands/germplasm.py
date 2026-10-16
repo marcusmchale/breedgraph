@@ -1,6 +1,7 @@
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from breedgraph.domain import commands
+from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 
 from breedgraph.custom_exceptions import ProtectedNodeError
@@ -17,6 +18,7 @@ async def create_germplasm_entry(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         germplasm_service = uow.germplasm
+        await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         entry = GermplasmInput(
             name=cmd.name,
             description=cmd.description,
@@ -59,6 +61,7 @@ async def update_germplasm_entry(
         if cmd.synonyms is not None and not set(cmd.synonyms) == set(entry.synonyms):
             entry.synonyms = cmd.synonyms
         if cmd.reference_ids is not None and not set(cmd.reference_ids) == set(entry.references):
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(entry.references or []))
             entry.references = cmd.reference_ids
         if cmd.origin_id is not None and not cmd.origin_id == entry.origin:
             entry.origin = cmd.origin_id

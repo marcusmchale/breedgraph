@@ -193,6 +193,15 @@ class AbstractAccessControlService(ABC):
             if not controller.has_access(access, self.user_id, self.access_teams[access]):
                 raise UnauthorisedOperationError(f"This change requires {access.value.casefold()} access")
 
+    async def require_read(self, label: ControlledModelLabel, model_ids: Iterable[int | None] | None) -> None:
+        """
+        For links to another aggregate, such as citing a reference: you can only link to what you can read.
+        None ids are ignored, so optional links can be passed as they are.
+        """
+        model_ids = {model_id for model_id in model_ids or [] if model_id is not None}
+        if model_ids:
+            await self.require_access(label, model_ids, Access.READ)
+
     async def get_controllers_for_aggregate(self, aggregate: ControlledAggregate) -> Dict[ControlledModelLabel, Dict[int, Controller]]:
         """
         :param aggregate:

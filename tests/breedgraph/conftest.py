@@ -419,6 +419,7 @@ async def ontology_build_context(isolated_state, uow_factory) -> Dict[str, int]:
         'user_id_1': user_id,
         'team_id': account_1_ids['team_id'],
         'user_id_2': account_2_ids['user_id'],
+        'team_id_2': account_2_ids['team_id'],
         **variable_components
     }
 

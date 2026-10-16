@@ -27,10 +27,12 @@ from breedgraph.domain.model.ontology import (
 )
 
 from breedgraph.domain.model.accounts import OntologyRole
+from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.events import Event
 from breedgraph.domain.events.ontology import OntologyVersionCreated
 
 from breedgraph.service_layer.persistence import OntologyPersistenceService
+from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 from breedgraph.service_layer.mappers import ontology_mapper
 
@@ -54,11 +56,14 @@ class OntologyApplicationService:
             self,
             persistence_service: OntologyPersistenceService,
             user_id: int|None = None,
-            role: OntologyRole|None = None
+            role: OntologyRole|None = None,
+            access_control_service: AbstractAccessControlService|None = None
     ):
         self.persistence = persistence_service
         self.user_id = user_id
         self.role = role
+        # references are controlled: citing one needs read access to it (docs/read-access.md, rule 10)
+        self.access_control = access_control_service
         self.events: List[Event] = []
         # in memory store for lifecycle management
         self._entry_lifecycles: Dict[int, EntryLifecycle] = {}
@@ -67,6 +72,14 @@ class OntologyApplicationService:
     def collect_events(self):
         while self.events:
             yield self.events.pop(0)
+
+    async def _require_readable_references(self, reference_ids) -> None:
+        """You can only cite what you can read; a reference the user cannot read is reported as not found"""
+        if not any(reference_id is not None for reference_id in reference_ids or []):
+            return
+        if self.access_control is None:
+            raise UnauthorisedOperationError("Citing references requires access control")
+        await self.access_control.require_read(ControlledModelLabel.REFERENCE, reference_ids)
 
     async def get_current_version(self):
         return await self.persistence.get_current_version()
@@ -83,6 +96,7 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
         elif not self.user_id:
             raise UnauthorisedOperationError("Only registered users can commit versions")
+        await self._require_readable_references([licence_reference, copyright_reference])
 
         commit = await self.persistence.commit_version(
             user_id = self.user_id,
@@ -249,6 +263,7 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         """Create a new ontology entry with validation and persistence."""
         await self._validate_entry_uniqueness(entry)
+        await self._require_readable_references(entry.references)
         # Create and persist entry
 
         created_entry = await self.persistence.create_entry(entry, self.user_id)
@@ -568,6 +583,9 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only registered users can update entries")
         # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
+        # only references added need checking: the entry may keep citing references others added that this user cannot read
+        stored = await self.persistence.get_entry(entry_id=entry.id)
+        await self._require_readable_references(set(entry.references) - set(stored.references if stored else []))
 
         lifecycle = await self._get_entry_lifecycle(entry.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:
