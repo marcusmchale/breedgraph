@@ -4,54 +4,23 @@ This lists the API changes made with the Person, control transfer and invitation
 and later account deletion and Person institutions, and what the front end needs to do about each.
 Field names are given as in GraphQL (camelCase). Design background is in `person.md` and `control-transfer.md`.
 
-Checked against the front end (`breedview` at `7c27267`, 2026-10-13) and the API on master (2026-10-13):
-the front end's schema snapshot was compared with the current schema, and every operation in it was validated (§10).
-All API changes since the snapshot are listed here.
+Checked against the front end (`breedview` master at `876ad5b`, 2026-10-17) and the API on master (`1a5a492`): every
+operation in the front end validates against the current schema (§10).
 
-## 0. Starting point and work list
+## 0. Where the front end is
 
-**Where the front end is (2026-10-16).** §1–§10 are done (Persons, invitations, legal entities, claims, ORCID, transfers,
-account deletion). Most of §11 is done on breedview's `record_group_extent` branch, not merged. §12 (WITHIN_GRAPH), §13 (renames),
-§14 (contributions, roles, sources, locks) and §15 (times) are not started.
+**The front end is current (2026-10-17).** breedview's master (`876ad5b`) implements §1–§16:
+- §1–§10 (Persons, invitations, legal entities, claims, ORCID, transfers, account deletion), by 2026-10-14;
+- §11–§15 (record group extent, replicate aggregation and factors in analysis, the WITHIN_GRAPH extent, the area
+  renames, contributions with roles, Role entries, sources and locked entries, and times as periods), on 2026-10-17;
+- §16 (what a team controls, and scopes for bulk control), built with the API on 2026-10-17.
 
-**First:** regenerate the schema files with the API running, so tooling and the Apollo cache know the new types:
-`node scripts/fetchGraphqlSchema.js` writes `src/graphql/schema.graphql`; regenerate `possibleTypes.json` and `unionTypes.json` the same way
-(`OntologyEntryUnion` no longer includes `Title`; `Role` is back with a new meaning, §14). Then `python scripts/check_front_end_queries.py ../breedview/src`
-in this repository lists the operations that no longer validate (§10).
+`python scripts/check_front_end_queries.py ../breedview/src` reports no operation with errors, and breedview's e2e
+suite (`tests/e2e`, on the synthetic test database) passes.
 
-**What breaks now** (seven operations before the renames, 29 more from them, and code the check does not see):
-
-| File | Problem | Fix |
-|---|---|---|
-| `graphql/account/account.graphql` | queries `allowedEmails` | Query `invitations` instead (§2) |
-| `graphql/account/addEmail.graphql`, `removeEmail.graphql` | mutations removed | Delete; use `accountsInvite`, `accountsCancelInvitation` (§2) |
-| `components/user/InviteUserModal.vue`, `composables/user/useAuthentication.js` | use allowed emails | Rewrite as invitations (§2) |
-| `graphql/ontology/entries.graphql`, `ontology.graphql`, `graphql/programs/study.graphql` | query `Term.titles` | Remove it. `Term.roles` is back, now the roles of contributions (§14) |
-| `composables/ontology/createOntologyEntries.js`, `updateOntologyEntries.js` | send `titleIds` (not caught by the check, as they are variables) | Remove the field and its form input; `roleIds` stays valid |
-| `composables/ontology/nodeColorMap.js` | `TITLE` label | Remove it; keep `ROLE` |
-| Dataset queries and forms | `Dataset.contributors` and `contributorIds` are replaced by contributions (§14) | Query `contributions { person { … } roles { id name } }`, send `contributions: [{ personId, roleIds }]` |
-| `graphql/blocks/`, `graphql/regions/`, `graphql/arrangements/`, `graphql/organisations/`, `graphql/datasets/datasetSummaries.graphql` | the areas and three fields are renamed (29 operations) | Rename them, and the response keys read in JavaScript (§13) |
-| `graphql/datasets/submissionWithData.graphql` | spreads `RecordFields` (on `Record`) on `SubmittedRecord`, whose fields differ (`unitId`, `referenceIds`). Older than these changes, and unused | Delete it, or give it its own fields |
-
-`authors` / `authorIds` (§1) are not used by the front end, so need no change.
-
-**Then, new work, in a suggested order:**
-0. The area renames (§13), with the fixes above: every units, locations, layouts and teams operation fails until
-   it is renamed, so nothing else on those pages can be checked before.
-1. Registration by invitation (§2): `/register` reads `token`, and the invite modal. Needed before anyone else can register.
-2. Persons (§4): a Person display component ("Name (Institution)", restricted and erased forms), used for contacts and dataset contributors,
-   then create, edit and erase forms, and a people list.
-3. Declaring a team tree's legal entity (§3), needed before Persons can be created.
-4. Profile page from `peopleMyPerson`: edit, ORCID (with a new `/orcid` route), claims, unlink, erase, and account deletion (§6, §8).
-5. Contacts on Programs and Trials, with messaging (§5).
-6. Claim requests for admins (§6).
-7. Control transfers (§7): a transfers page, and "transfer control" from the controller modal.
-8. Record group extent and replicate aggregation (§11): the grouping form first, as creating a record grouping fails without it.
-9. The WITHIN_GRAPH extent (§12).
-10. Contributions with roles, Role entries, sources and locked entries (§14).
-11. Times (§15): observation times are local, partial times are periods, server timestamps carry an offset.
-
-New routes needed: `/orcid` (ORCID's redirect, §6); probably a profile page, a people page and a transfers page.
+**For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
+regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
+`possibleTypes.json` and `unionTypes.json`) and run the check script here.
 
 ## 1. Breaking changes at a glance
 
