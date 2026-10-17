@@ -76,8 +76,15 @@ QUERIES = {
     **{
         f'controls.{builder.__name__}({label.name})': builder(label)
         for label in ControlledModelLabel
-        for builder in (controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes, controls.get_controllers, controls.read_controllers)
+        for builder in (
+            controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes,
+            controls.get_controllers, controls.read_controllers, controls.read_controlled_entities, controls.scope_entity_ids
+        )
     },
+    'controls.read_controlled_counts': controls.read_controlled_counts(),
+    'controls.read_controlled_unit_roots': controls.read_controlled_unit_roots(),
+    'controls.read_controlled_unit_children': controls.read_controlled_unit_children(),
+    'controls.scope_entity_ids(UNIT, below_units)': controls.scope_entity_ids(ControlledModelLabel.UNIT, below_units=True),
 }
 
 
