@@ -558,3 +558,12 @@ be given instead of the ids to `controlsSetRelease(scope, release)` (whose `enti
 optional), `controlsOfferTransfer(offer: { scope, ... })` (`entities` optional) and
 `controlsRenounceControl(scope, teamIds)` (`entities` optional). Give one or the other: both, or neither, is refused.
 The server resolves the scope, so the client never posts 100,000 ids; a release set on 5,000 units takes about 3 s.
+
+## 17. Ancestors, and records of exactly some units
+
+Additions, nothing breaks; breedview uses both for the factors describing the curation table's rows.
+- `Unit.ancestors`: the units above a unit, closest first: those you can read, found through hidden units as `parents`
+  are, and its unit graph's root, a placeholder when hidden. Empty for a unit you cannot read. It is read for every
+  unit of the request at once, so `unitsUnits(ids) { ancestors { id positions { … } } }` costs one query for a page.
+- `Dataset.records(includeBelow: false)`: `unitIds` then narrows to the records of exactly those units, rather than
+  also everything below them, e.g. the factor records of a page's units and their ancestors.

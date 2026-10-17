@@ -53,9 +53,10 @@ type Dataset {
     The dataset's records, in submission order. Without arguments, all of them.
     unitIds narrows them to the records of those units and of every unit below the readable ones (a unit graph or a plot
     selects what it contains; a hidden unit only its own records); start and end to records whose own period overlaps the window;
-    offset and limit page through the result.
+    offset and limit page through the result. With includeBelow false, unitIds narrows them to the records of exactly
+    those units, e.g. the factor records of the units above some units.
     """
-    records(unitIds: [ID!], start: DateTime, end: DateTime, offset: Int, limit: Int): [Record]
+    records(unitIds: [ID!], start: DateTime, end: DateTime, offset: Int, limit: Int, includeBelow: Boolean): [Record]
     """ The number of records in the dataset, narrowed like records when the same arguments are given """
     recordCount(unitIds: [ID!], start: DateTime, end: DateTime): Int!
     """

@@ -97,11 +97,12 @@ class Neo4jDatasetsView(AbstractDatasetsView):
             start: datetime64 | None,
             end: datetime64 | None,
             offset: int,
-            limit: int | None
+            limit: int | None,
+            include_below: bool = True
     ) -> List[dict]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                dataset_queries.read_records(),
+                dataset_queries.read_records(include_below),
                 dataset_id=dataset_id,
                 unit_ids=unit_ids,
                 **self._window(start, end),

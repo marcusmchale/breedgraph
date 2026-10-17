@@ -27,6 +27,11 @@ type Unit {
 
     parents: [Unit]
     children: [Unit]
+    """
+    The units above it, closest first: those you can read, found through hidden ones as parents are, and its unit
+    graph's root, a placeholder when hidden. None for a unit you cannot read. Read for every unit of the request at once.
+    """
+    ancestors: [Unit!]!
 }
 
 """ Units below some units that share a subject, as id and name """

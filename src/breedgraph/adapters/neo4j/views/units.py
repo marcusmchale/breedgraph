@@ -49,6 +49,13 @@ class Neo4jUnitsView(AbstractUnitsView):
         units = await self._read(unit_graph_queries.read_unit_names(), unit_ids=unit_ids)
         return {unit.id: unit for unit in units}
 
+    async def _get_ancestor_ids(self, unit_ids: List[int]) -> Dict[int, List[int]]:
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_unit_ancestors(),
+            unit_ids=unit_ids, read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        return {record['unit_id']: list(record['ancestor_ids']) async for record in result}
+
     async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(

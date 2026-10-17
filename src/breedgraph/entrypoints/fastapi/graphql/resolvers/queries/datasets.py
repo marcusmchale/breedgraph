@@ -108,7 +108,7 @@ async def resolve_concept(obj, info):
     return ontology_map.get(obj.concept)
 
 @dataset.field('records')
-async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset=None, limit=None):
+async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset=None, limit=None, include_below=None):
     """A page of the dataset's records, read through the datasets view; nothing for a dataset the user cannot read"""
     if obj.redacted:
         return []
@@ -117,7 +117,7 @@ async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset
         records = await views.datasets.get_records(
             dataset_id=obj.id,
             unit_ids=[int(unit_id) for unit_id in unit_ids] if unit_ids is not None else None,
-            start=start, end=end, offset=offset or 0, limit=limit
+            start=start, end=end, offset=offset or 0, limit=limit, include_below=include_below is not False
         )
     # Preload what the record resolvers need in one call per page, instead of one per record
     await update_unit_names_map(info.context, unit_ids=[record.get('unit') for record in records])

@@ -152,3 +152,21 @@ def read_descendants_by_subject():
         ORDER BY unit.name, unit.id
         RETURN subject, collect({{id: unit.id, name: unit.name}}) AS units
     """
+
+
+def read_unit_ancestors():
+    """
+    For each unit $unit_ids the user can read, the ids of the units above it that they can read, closest first (by
+    the shortest path, then id), found through hidden units as parents are, with its unit graph's root even when
+    hidden, as the placeholder it is kept as. A hidden unit, a bare placeholder, has none.
+    """
+    return f"""
+        UNWIND $unit_ids AS unit_id
+        MATCH (unit:Unit {{id: unit_id}})
+        WHERE {_readable('unit')}
+        OPTIONAL MATCH path = (ancestor:Unit)-[:{EDGE}*1..]->(unit)
+        WHERE {_readable('ancestor')} OR NOT (:Unit)-[:{EDGE}]->(ancestor)
+        WITH unit, ancestor, min(length(path)) AS distance
+        ORDER BY unit.id, distance, ancestor.id
+        RETURN unit.id AS unit_id, collect(ancestor.id) AS ancestor_ids
+    """

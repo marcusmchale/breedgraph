@@ -46,6 +46,21 @@ class AbstractUnitsView(ABC):
             return {}
         return await self._get_descendants_by_subject(unit_ids)
 
+    async def get_ancestor_ids(self, unit_ids: Iterable[int]) -> Dict[int, List[int]]:
+        """
+        The ids of the units above each readable unit that the user can read, closest first, with its unit graph's
+        root even when hidden; a hidden unit has none, as its parents are not shown
+        """
+        unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        if not unit_ids:
+            return {}
+        found = await self._get_ancestor_ids(unit_ids)
+        return {unit_id: found.get(unit_id, []) for unit_id in unit_ids}
+
+    @abstractmethod
+    async def _get_ancestor_ids(self, unit_ids: List[int]) -> Dict[int, List[int]]:
+        ...
+
     @abstractmethod
     async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
         ...

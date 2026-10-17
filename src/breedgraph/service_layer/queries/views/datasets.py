@@ -50,16 +50,20 @@ class AbstractDatasetsView(ABC):
             start: datetime64 | None = None,
             end: datetime64 | None = None,
             offset: int = 0,
-            limit: int | None = None
+            limit: int | None = None,
+            include_below: bool = True
     ) -> List[dict]:
         """
         A page of a readable dataset's records in submission order, as dicts with the record fields.
-        unit_ids narrow them to the records of those units and of every unit below them; start and end to
-        records whose own period overlaps the window.
+        unit_ids narrow them to the records of those units and of every unit below them, or without include_below, of
+        exactly those units; start and end to records whose own period overlaps the window.
         """
         if unit_ids is not None:
             unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
-        return await self._get_records(dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end, offset=max(offset or 0, 0), limit=limit)
+        return await self._get_records(
+            dataset_id=dataset_id, unit_ids=unit_ids, start=start, end=end, offset=max(offset or 0, 0), limit=limit,
+            include_below=include_below
+        )
 
     async def count_records(
             self,
@@ -176,7 +180,8 @@ class AbstractDatasetsView(ABC):
             start: datetime64 | None,
             end: datetime64 | None,
             offset: int,
-            limit: int | None
+            limit: int | None,
+            include_below: bool = True
     ) -> List[dict]:
         ...
 

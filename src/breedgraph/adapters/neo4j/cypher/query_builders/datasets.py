@@ -186,10 +186,18 @@ def read_datasets():
     """
 
 
-def _selected_units() -> str:
+def _selected_units(include_below: bool = True) -> str:
     """
     A call collecting, as selected_units, the ids of the units $unit_ids select: each unit and, when the user can read
-    it, every unit below it. A hidden unit selects only itself, as it holds nothing in the tree of a dataset's units
+    it, every unit below it. A hidden unit selects only itself, as it holds nothing in the tree of a dataset's units.
+    Without include_below, each unit selects only itself.
+    """
+    if not include_below:
+        return """
+        CALL () {
+          UNWIND coalesce($unit_ids, []) AS selected_id
+          RETURN collect(DISTINCT selected_id) AS selected_units
+        }
     """
     return f"""
         CALL () {{
@@ -203,21 +211,24 @@ def _selected_units() -> str:
     """
 
 
-def _dataset_records() -> str:
+def _dataset_records(include_below: bool = True) -> str:
     """The records of the readable dataset $dataset_id, narrowed to the units $unit_ids select and the time window"""
     return f"""
         MATCH (dataset:Dataset {{id: $dataset_id}})
-        {_selected_units()}
+        {_selected_units(include_below)}
         MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit)
         WHERE ($unit_ids IS NULL OR unit.id IN selected_units)
           AND {IN_WINDOW}
     """
 
 
-def read_records():
-    """A page of a readable dataset's records in submission order, narrowed as _dataset_records"""
+def read_records(include_below: bool = True):
+    """
+    A page of a readable dataset's records in submission order, narrowed as _dataset_records; without include_below,
+    the records of exactly the units $unit_ids
+    """
     return f"""
-        {_dataset_records()}
+        {_dataset_records(include_below)}
         WITH record, unit
         ORDER BY record.submitted, record.id
         SKIP $offset

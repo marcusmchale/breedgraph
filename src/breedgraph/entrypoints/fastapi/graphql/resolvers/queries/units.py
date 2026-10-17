@@ -2,6 +2,9 @@ from ariadne import ObjectType
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+    _get_lock,
+    get_context_lock,
+    get_context_views,
     update_units_map,
     update_ontology_map,
     update_locations_map,
@@ -77,6 +80,23 @@ async def resolve_parents(obj, info):
     await update_units_map(info.context, unit_ids=obj.parents)
     units_map = info.context.get('units_map')
     return [units_map.get(i) for i in obj.parents]
+
+@unit.field("ancestors")
+async def resolve_ancestors(obj, info):
+    """
+    Read once for every unit of the request so far: the units a page asks for share most of their ancestors, and one
+    query per unit would be slow. The ancestors themselves are then read in one call.
+    """
+    async with _get_lock(info.context, '_unit_ancestors_lock'):
+        ancestors_map = info.context.setdefault('unit_ancestors', {})
+        if obj.id not in ancestors_map:
+            pending = [obj.id] + [i for i in info.context.get('units_map', {}) if i not in ancestors_map and i != obj.id]
+            async with get_context_lock(info.context):
+                views = await get_context_views(info.context)
+                ancestors_map.update(await views.units.get_ancestor_ids(pending))
+            await update_units_map(info.context, unit_ids={a for i in pending for a in ancestors_map.get(i, [])})
+    units_map = info.context.get('units_map', {})
+    return [units_map[i] for i in ancestors_map.get(obj.id, []) if i in units_map]
 
 @unit.field("children")
 async def resolve_children(obj, info):
