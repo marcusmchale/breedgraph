@@ -43,7 +43,9 @@ ControlTransfer
 ```
 
 1. **Offer.** An admin of every team in `from_teams` (directly or inherited) offers the entities to one `recipient_team`.
-   The offering side only needs to see the recipient team, e.g. the root of another team tree.
+   The offering side must be able to see the recipient team: the root of a team tree, which every signed-in user
+   sees, or one of their own teams. An offer to a team hidden from them is refused as not found, so hidden team ids
+   can't be probed nor their admins sent offers.
    Controls do not change yet.
 2. **Accept.** An admin of `recipient_team` (directly or inherited) accepts, and chooses:
    - `to_teams`: `recipient_team` or teams below it in the tree. The accepting user must be an admin of each, directly or through heritable admin affiliations.
@@ -101,7 +103,7 @@ Rules are checked at offer and at acceptance. Initially:
 
 | Entity | Rule |
 |---|---|
-| Person | All control teams must be in one team tree, and that team tree must have a declared legal entity. A transfer to another team tree changes the data controller. |
+| Person | All control teams must be in one team tree, and that team tree must have a declared legal entity. A transfer to another team tree changes the data controller. Every team controlling the Person afterwards must be in the recipient's team tree: a transfer that leaves some of its old team tree's teams in control (not giving it up, or keeping it with `keep_from_teams`) is refused. |
 | Others | None. Control teams may span team trees. |
 
 ## 6. Decisions

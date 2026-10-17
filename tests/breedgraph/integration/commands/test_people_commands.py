@@ -9,11 +9,13 @@ from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundErr
 from breedgraph.domain.commands.team_trees import DeclareLegalEntity, LegalEntity
 from breedgraph.domain.commands.people import CreatePerson, UpdatePerson, ErasePerson
 from breedgraph.domain.model.control_transfers import ControlledEntity
-from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.people import LawfulBasis
+from breedgraph.domain.model.team_trees import TeamInput
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.person_builder import PersonBuilder
+from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 
 TERMS_VERSION = 'test-terms-1'
 
@@ -180,6 +182,58 @@ async def test_erase_requires_admin_or_linked_user(bus, uow_factory, isolated_st
     with pytest.raises(UnauthorisedOperationError):
         await bus.handle(ErasePerson(agent_id=other_user_id, person_id=person_id))
     assert not (await get_person(uow_factory, account['user_id'], person_id)).erased
+
+
+async def child_team(uow_factory, account: dict) -> int:
+    """A team below the account's root, which the account administers"""
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
+        team_tree.add_team(TeamInput(name=TeamTreeBuilder.team_input().name), parent_id=account['team_id'])
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
+        team_id = team_tree.get_children_ids(account['team_id'])[0]
+    for access in (Access.ADMIN, Access.READ):
+        await TeamTreeBuilder(uow_factory).authorise_access(user_id=account['user_id'], team_id=team_id, access=access)
+    return team_id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_person_transfer_keeps_control_within_one_team_tree(bus, uow_factory, isolated_state):
+    """
+    A transfer that would leave a Person controlled by teams of two team trees is refused (docs/person.md §2): when
+    some of its controlling teams give up control and others, of the old team tree, keep it
+    """
+    account = await declared_account(bus, uow_factory)
+    child = await child_team(uow_factory, account)
+    declared = await declared_account(bus, uow_factory)
+    person = ControlledEntity(label=ControlledModelLabel.PERSON, id=await create_person(bus, uow_factory, account))
+
+    # share control with the child team, in the same team tree
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        await uow.controls.offer_transfer(
+            entities=[person], from_teams={account['team_id']}, recipient_team=child, keep_from_teams=True,
+            to_teams={child}
+        )
+        await uow.commit()
+    async with uow_factory.get_uow() as uow:
+        assert (await uow.controls.get_controller(person.label, person.id)).teams == {account['team_id'], child}
+
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        # the child team would keep control under the old team tree
+        with pytest.raises(IllegalOperationError, match="same team tree"):
+            await uow.controls.offer_transfer(
+                entities=[person], from_teams={account['team_id']}, recipient_team=declared['team_id']
+            )
+        transfer = await uow.controls.offer_transfer(
+            entities=[person], from_teams={account['team_id'], child}, recipient_team=declared['team_id']
+        )
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=declared['user_id']) as uow:
+        await uow.controls.accept_transfer(transfer.id, to_teams={declared['team_id']})
+        await uow.commit()
+    async with uow_factory.get_uow() as uow:
+        assert (await uow.controls.get_controller(person.label, person.id)).teams == {declared['team_id']}
 
 
 @pytest.mark.asyncio(loop_scope="session")

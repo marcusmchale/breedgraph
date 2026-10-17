@@ -1,6 +1,6 @@
 import pytest
 
-from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError, NoResultFoundError
 from breedgraph.domain.commands.control_transfers import (
     OfferControlTransfer, AcceptControlTransfer, RejectControlTransfer, CancelControlTransfer, RenounceControl
 )
@@ -343,3 +343,43 @@ async def test_offer_notifies_recipient_team_admins(uow_factory, control_transfe
     assert {user.id for user in recipients} == {control_transfer_context['user_id_2']}
     assert 'control transfer offered' in message.message['Subject']
     assert 'offered control of 2 entries' in message.message.get_content()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_offer_to_a_team_hidden_from_the_offerer_is_refused(uow_factory, control_transfer_context):
+    """A transfer goes to a root, which everyone signed in sees, or to the offerer's own teams, not to a hidden team"""
+    program = await create_program(uow_factory, control_transfer_context['user_id_1'], control_transfer_context['team_id_1'])
+    async with uow_factory.get_uow(user_id=control_transfer_context['user_id_1']) as uow:
+        with pytest.raises(NoResultFoundError, match="not found"):
+            await uow.controls.offer_transfer(
+                entities=[program],
+                from_teams={control_transfer_context['team_id_1']},
+                recipient_team=control_transfer_context['child_team_id']
+            )
+    # user 2 administers the child team, so may offer to it
+    program = await create_program(uow_factory, control_transfer_context['user_id_2'], control_transfer_context['team_id_2'])
+    async with uow_factory.get_uow(user_id=control_transfer_context['user_id_2']) as uow:
+        await uow.controls.offer_transfer(
+            entities=[program],
+            from_teams={control_transfer_context['team_id_2']},
+            recipient_team=control_transfer_context['child_team_id']
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_setting_the_release_of_an_uncontrolled_entity_is_refused(uow_factory, control_transfer_context):
+    """Without current controls there is no admin to check, so setting controls would take the entity over"""
+    async with uow_factory.get_uow() as uow:
+        await uow.tx.run("CREATE (:Program {id: -1, name: 'Uncontrolled'})")
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=control_transfer_context['user_id_1']) as uow:
+        with pytest.raises(IllegalOperationError, match="No current controls"):
+            await uow.controls.set_controls_by_id_and_label(
+                ids=[-1],
+                label=ControlledModelLabel.PROGRAM,
+                control_teams={control_transfer_context['team_id_1']},
+                release=ReadRelease.PUBLIC
+            )
+    async with uow_factory.get_uow() as uow:
+        controller = await uow.controls.get_controller(ControlledModelLabel.PROGRAM, -1)
+    assert controller is None or not controller.teams
