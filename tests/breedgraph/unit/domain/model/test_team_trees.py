@@ -122,9 +122,37 @@ async def test_revoke_read_from_admin_is_refused(first_team_tree):
     first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.ADMIN, heritable=False)
     with pytest.raises(IllegalOperationError):
         first_team_tree.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ)
-    # once admin access is revoked, read access can be revoked, and curate goes with it as before
+    # once admin access is revoked, read access can be revoked
     first_team_tree.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.ADMIN)
     first_team_tree.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ)
+    assert 2 not in first_team_tree.get_affiliates(team_id=1, access=Access.READ)
+
+@pytest.mark.asyncio
+async def test_read_cannot_be_revoked_or_removed_while_curate_is_authorised(first_team_tree):
+    """Curate access includes read access, as admin access does, so read goes last (and curate no longer goes with it)"""
+    first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.CURATE)
+    first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.CURATE, heritable=False)
+    with pytest.raises(IllegalOperationError):
+        first_team_tree.revoke_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ)
+    with pytest.raises(IllegalOperationError):
+        first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.READ)
+    assert 2 in first_team_tree.get_affiliates(team_id=1, access=Access.CURATE)
+    assert 2 in first_team_tree.get_affiliates(team_id=1, access=Access.READ)
+
+    # removing curate leaves read in place; then read can go
+    first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.CURATE)
+    assert 2 in first_team_tree.get_affiliates(team_id=1, access=Access.READ)
+    first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.READ)
+    assert 2 not in first_team_tree.get_affiliates(team_id=1, access=Access.READ)
+
+@pytest.mark.asyncio
+async def test_read_cannot_be_removed_while_admin_is_authorised(first_team_tree):
+    first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.ADMIN)
+    first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.ADMIN, heritable=False)
+    with pytest.raises(IllegalOperationError):
+        first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.READ)
+    first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.ADMIN)
+    first_team_tree.remove_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.READ)
     assert 2 not in first_team_tree.get_affiliates(team_id=1, access=Access.READ)
 
 def declare(team_tree, agent_id=1, team_id=1, **kwargs):

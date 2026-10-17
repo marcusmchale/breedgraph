@@ -405,6 +405,7 @@ class TeamTree(TreeAggregate):
             raise UnauthorisedOperationError("Only the given user or admins for the given team may remove affiliations")
 
         team = self.get_team(team_id)
+        self._require_no_access_including_read(team, access, user_id)
 
         # we must ensure that removing this affiliation will not leave the team without an admin
         if access == Access.ADMIN:
@@ -481,21 +482,24 @@ class TeamTree(TreeAggregate):
             raise IllegalOperationError(f"No team found with id: {team_id}")
 
         affiliation = team.affiliations.get_by_access(access)[user_id]
-
-        # Admin access includes read access, and the last admin cannot be removed, so revoke admin first
-        if access is Access.READ:
-            admin_affiliation = team.affiliations.get_by_access(Access.ADMIN).get(user_id)
-            if admin_affiliation is not None and admin_affiliation.authorisation is Authorisation.AUTHORISED:
-                raise IllegalOperationError("Revoke this user's admin access before revoking their read access")
-
+        self._require_no_access_including_read(team, access, user_id)
         affiliation.authorisation = Authorisation.REVOKED
 
-        # Always revoke curate access (if found) if revoking read access
-        if access is Access.READ:
-            affiliations_dict = team.affiliations.get_by_access(Access.CURATE)
-            curate_affiliation = affiliations_dict.get(user_id)
-            if curate_affiliation is not None and curate_affiliation.authorisation is Authorisation.AUTHORISED:
-                curate_affiliation.authorisation = Authorisation.REVOKED
+    @staticmethod
+    def _require_no_access_including_read(team: 'TeamStored', access: Access, user_id: int) -> None:
+        """
+        Curate and admin access include read access: authorising either authorises read, so read access cannot be
+        removed or revoked while either is authorised. Curate and admin are removed first, and the last admin of a
+        team cannot be removed at all.
+        """
+        if access is not Access.READ:
+            return
+        for including in (Access.CURATE, Access.ADMIN):
+            affiliation = team.affiliations.get_by_access(including).get(user_id)
+            if affiliation is not None and affiliation.authorisation is Authorisation.AUTHORISED:
+                raise IllegalOperationError(
+                    f"Remove or revoke this user's {including.value.lower()} access before their read access"
+                )
 
     def is_visible(self, team_id: int, user_id: int|None = None) -> bool:
         """The root is visible to everyone, other teams only to their authorised affiliates"""
