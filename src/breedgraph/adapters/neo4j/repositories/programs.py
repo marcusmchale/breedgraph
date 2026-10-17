@@ -170,7 +170,8 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
                 study_id=study_id,
                 groupings=changed_groupings
             )
-            removed_grouping_ids = [groupings[i]['id'] for i in study.groupings.removed]
+            # added and changed are indices into the list, removed the removed groupings themselves
+            removed_grouping_ids = [grouping.id for grouping in study.groupings.removed]
             await self.tx.run(
                 queries['programs']['delete_groupings'],
                 study_id=study_id,
