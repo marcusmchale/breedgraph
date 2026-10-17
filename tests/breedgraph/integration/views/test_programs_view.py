@@ -5,7 +5,8 @@ Programs under the read policy (docs/read-access.md), on the read-policy scenari
     program_public (root, public) > trial_public (root, public) > study_registered (root, registered)
 
 A program, trial or study the viewer cannot read is a placeholder where it holds something they can read (rule 4,
-fixed depth) or when asked for by id (rule 2), and is otherwise left out (rule 5).
+fixed depth) or when asked for by id (rule 2), and is otherwise left out (rule 5). A program or trial looked up by a
+trial or study is found only from one the viewer can read, or a hidden trial holding a study they can read (rule 5).
 """
 import pytest
 
@@ -14,6 +15,15 @@ from breedgraph.domain.model.programs import ProgramStored, TrialStored, StudySt
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PROGRAMS
 
 REDACTED = 'REDACTED'
+
+
+def start_shown(read_policy, viewer: str, start: str) -> bool:
+    """Whether a program or trial can be looked up from this trial or study: readable, or a trial holding a readable study"""
+    if read_policy.readable(viewer, start):
+        return True
+    studies = next((trials[start] for trials in PROGRAMS.values() if start in trials), [])
+    return any(read_policy.readable(viewer, study) for study in studies)
+
 
 def assert_study(read_policy, viewer: str, name: str, study: StudyStored):
     assert study.id == read_policy[name]
@@ -82,8 +92,9 @@ async def test_get_programs(views_factory, read_policy, viewer):
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_get_program_by_id(views_factory, read_policy, viewer):
-    """Asked for by its id, or by a trial's or study's, a program is returned even when hidden and holding nothing
-    the viewer can read; its trials and studies follow the same rules as in the list"""
+    """Asked for by its id a program is returned even when hidden and holding nothing the viewer can read, and asked
+    for by a trial's or study's when that start may be looked up from; its trials and studies follow the same rules
+    as in the list"""
     expected = read_policy.shown_programs(viewer)
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         for name, trials in PROGRAMS.items():
@@ -92,10 +103,16 @@ async def test_get_program_by_id(views_factory, read_policy, viewer):
             assert_program(read_policy, viewer, name, shown_trials, program)
             for trial, studies in trials.items():
                 by_trial = await views.programs.get_program(trial_id=read_policy[trial])
-                assert_program(read_policy, viewer, name, shown_trials, by_trial)
+                if start_shown(read_policy, viewer, trial):
+                    assert_program(read_policy, viewer, name, shown_trials, by_trial)
+                else:
+                    assert by_trial is None, f"{viewer}: program found from {trial}"
                 for study in studies:
                     by_study = await views.programs.get_program(study_id=read_policy[study])
-                    assert_program(read_policy, viewer, name, shown_trials, by_study)
+                    if start_shown(read_policy, viewer, study):
+                        assert_program(read_policy, viewer, name, shown_trials, by_study)
+                    else:
+                        assert by_study is None, f"{viewer}: program found from {study}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -109,7 +126,10 @@ async def test_get_trial_by_id(views_factory, read_policy, viewer):
                 assert_trial(read_policy, viewer, name, shown_studies, trial)
                 for study in studies:
                     by_study = await views.programs.get_trial(study_id=read_policy[study])
-                    assert_trial(read_policy, viewer, name, shown_studies, by_study)
+                    if start_shown(read_policy, viewer, study):
+                        assert_trial(read_policy, viewer, name, shown_studies, by_study)
+                    else:
+                        assert by_study is None, f"{viewer}: trial found from {study}"
 
 
 @pytest.mark.asyncio(loop_scope="session")

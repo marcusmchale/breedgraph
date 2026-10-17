@@ -1,7 +1,9 @@
 """
 The program queries under the read policy, through GraphQL, on the read-policy scenario
 (see tests/breedgraph/integration/views/test_programs_view.py for the view underneath).
-They answer anonymous requests, and placeholders resolve with empty contacts, references and groupings.
+They answer anonymous requests, and placeholders resolve with empty contacts, references and groupings. A program or
+trial looked up by a trial or study is found only from one the viewer can read, or a hidden trial holding a readable
+study (rule 5).
 """
 import pytest
 
@@ -77,6 +79,23 @@ async def test_programs(client, login_token_factory, read_policy, viewer):
         assert_program(read_policy, viewer, name, trials, programs[read_policy[name]])
 
 
+def start_shown(read_policy, viewer: str, start: str) -> bool:
+    """
+    Whether a program or trial can be looked up from this trial or study (docs/read-access.md, rule 5): one the viewer
+    can read, or a hidden trial holding a study they can read; from any other the lookup finds nothing
+    """
+    if read_policy.readable(viewer, start):
+        return True
+    studies = next((trials[start] for trials in PROGRAMS.values() if start in trials), [])
+    return any(read_policy.readable(viewer, study) for study in studies)
+
+
+def assert_not_found(payload):
+    assert payload['status'] == GQLStatus.ERROR.name
+    assert payload['result'] is None
+    assert payload['errors'][0]['name'] == 'NoResultFoundError'
+
+
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_program_by_id(client, login_token_factory, read_policy, viewer):
@@ -89,13 +108,17 @@ async def test_program_by_id(client, login_token_factory, read_policy, viewer):
     )
     expected = read_policy.shown_programs(viewer)
     for name, trials in PROGRAMS.items():
-        for variables in (
-                {'id': read_policy[name]},
-                *({'trialId': read_policy[trial]} for trial in trials),
-                *({'studyId': read_policy[study]} for studies in trials.values() for study in studies)
+        # (start, variables): the program itself, then each trial and study it holds as the start of a lookup
+        for start, variables in (
+                (None, {'id': read_policy[name]}),
+                *((trial, {'trialId': read_policy[trial]}) for trial in trials),
+                *((study, {'studyId': read_policy[study]}) for studies in trials.values() for study in studies)
         ):
             response = await post_query(client, login_token_factory, read_policy, viewer, query, variables)
             payload = get_verified_payload(response, 'programsProgram')
+            if start is not None and not start_shown(read_policy, viewer, start):
+                assert_not_found(payload)
+                continue
             assert_payload_success(payload)
             assert_program(read_policy, viewer, name, expected.get(name, {}), payload['result'])
 
@@ -113,9 +136,12 @@ async def test_trial_by_id(client, login_token_factory, read_policy, viewer):
     for trials in PROGRAMS.values():
         for name, studies in trials.items():
             shown_studies = [study for study in studies if read_policy.readable(viewer, study)]
-            for variables in ({'id': read_policy[name]}, *({'studyId': read_policy[study]} for study in studies)):
+            for start, variables in ((None, {'id': read_policy[name]}), *((study, {'studyId': read_policy[study]}) for study in studies)):
                 response = await post_query(client, login_token_factory, read_policy, viewer, query, variables)
                 payload = get_verified_payload(response, 'programsTrial')
+                if start is not None and not start_shown(read_policy, viewer, start):
+                    assert_not_found(payload)
+                    continue
                 assert_payload_success(payload)
                 assert_trial(read_policy, viewer, name, shown_studies, payload['result'])
 

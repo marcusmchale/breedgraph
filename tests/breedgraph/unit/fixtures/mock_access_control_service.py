@@ -80,6 +80,13 @@ class MockAccessControlService(AbstractAccessControlService):
         """The mock records no citations"""
         return {}
 
+    async def _get_scope_entity_ids(self, scope) -> List[int]:
+        """The entities of the scope's label its team controls, at its release when given (units below are not modelled)"""
+        return sorted(
+            model_id for model_id, controls in self._controls[scope.label].items()
+            if scope.team_id in controls and (scope.release is None or controls[scope.team_id].release == scope.release)
+        )
+
     async def _get_controllers(self, label: str, model_ids: List[int]) -> Dict[int, Controller]:
         """Get controllers for multiple model instances - key batch operation"""
         if not model_ids:
