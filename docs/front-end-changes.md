@@ -554,6 +554,8 @@ ending `2021-05-03` runs through that day, and one dated `2021` through the year
 - An end may now be given to a coarser precision than its start on the same day or month, e.g. start `2021-05-03T10:30`, end `2021-05-03`.
 - `DatasetSummary.start` / `end` and the dataset dimensions' `start` / `end` are the first start and last end as entered, at their
   precision (they were cut to the day).
+- Analysis time bins follow the same rule: `END` assigns a record by the last moment of the period of its end, and `MIDPOINT` by the
+  middle of the record's period, so a record dated `2021` falls in July (`docs/analysis.md` §3). Both used the start of the period before.
 
 **Timestamps carry an offset.** Times the server sets (`Control.time`, `WriteStamp.time`, `Controller.created` / `updated`,
 `referencesFileDownload.expiresAt`, `submitted`, ...) are ISO 8601 with an offset, e.g. `2026-10-16T09:30:00+00:00`;

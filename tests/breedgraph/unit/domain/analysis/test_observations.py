@@ -132,6 +132,36 @@ def test_time_dimension_and_unassigned_warning():
     assert unassigned[0].record_ids == [3]
     assert unassigned[0].path == ['descriptiveStatistics', 'grouping', 'time']
 
+def time_bins(assignment, boundary_time, records, boundary='RIGHT'):
+    """The time bin, before or after the boundary, of each record (one per unit) in record order"""
+    spec = {'assignment': assignment, 'binning': {'boundaries': [boundary_time], 'labels': ['before', 'after'], 'boundary': boundary}}
+    ctx = context(descriptive([concept_term(10), domain_term('TIME')], grouping={'time': spec}), [dataset(1, 1, 10, records)])
+    frame, _ = prepare(ctx)
+    return list(frame.data['time'])
+
+def test_end_assignment_is_the_end_of_the_period_of_the_end():
+    # an end of 2020-12-31 runs through that day, and an end of 2020 through the year
+    assert time_bins('END', '2020-12-31T12:00', [
+        record(1, 100, '1', start='2020-12-01', end='2020-12-31'),
+        record(2, 101, '2', start='2020-03-01', end='2020'),
+        record(3, 102, '3', start='2020-12-01', end='2020-12-30'),
+    ]) == ['after', 'after', 'before']
+
+@pytest.mark.parametrize('boundary', ['LEFT', 'RIGHT'])
+def test_end_of_a_period_falls_before_a_boundary_at_the_next_period(boundary):
+    assert time_bins('END', '2021-01-01', [record(1, 100, '1', start='2020-03-01', end='2020')], boundary) == ['before']
+
+def test_midpoint_assignment_is_the_middle_of_the_period():
+    # 2020-01-01 to the end of 2020-01-02 has its middle at the start of 2020-01-02, a record of 2020 in July
+    assert time_bins('MIDPOINT', '2020-01-01T18:00', [record(1, 100, '1', start='2020-01-01', end='2020-01-02')]) == ['after']
+    assert time_bins('MIDPOINT', '2020-07-01', [record(1, 100, '1', start='2020')]) == ['after']
+    assert time_bins('MIDPOINT', '2020-07-03', [record(1, 100, '1', start='2020')]) == ['before']
+
+def test_a_record_with_one_time_stands_for_its_period():
+    # with only an end, START is the start of the end's period; with only a start, END is the end of the start's
+    assert time_bins('START', '2020-05-03T12:00', [record(1, 100, '1', end='2020-05-03')]) == ['before']
+    assert time_bins('END', '2020-05-03T12:00', [record(1, 100, '1', start='2020-05-03')]) == ['after']
+
 def test_unit_grouping_uses_parent_unit():
     units = {
         100: UnitContext(100, ancestor_ids=[1]),

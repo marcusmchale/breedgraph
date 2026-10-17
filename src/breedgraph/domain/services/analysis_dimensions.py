@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from numpy import datetime64
+from numpy import datetime64, timedelta64
 
 from breedgraph.domain.model.analysis import (
     AnalysisTermType, AnalysisTermReference, AnalysisMessage, AnalysisWarningCode, AnalysisErrorCode, AnalysisFailed,
@@ -16,6 +16,7 @@ from breedgraph.domain.model.analysis import (
     RecordGroupMember, AnovaSpec, intervals_overlap
 )
 from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord
+from breedgraph.domain.model.time_descriptors import upper
 from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime
 from breedgraph.domain.services.record_grouping_resolver import RecordGroupDimensionResolver
@@ -110,15 +111,23 @@ class TimeResolver(DimensionResolver):
             raise AnalysisFailed.single(AnalysisErrorCode.CONFIG_INVALID, str(e), path=path + ['binning', 'boundaries'])
 
     def record_time(self, record: AnalysisRecord) -> datetime64 | None:
-        start, end = record.start, record.end
-        if start is None or end is None:
-            return start if start is not None else end
+        """
+        The time of a record within its period, which runs from the start of the period of its start to the end of the
+        period of its end, either standing in for a missing other (see time_descriptors.upper): START is the first
+        moment of the period, END its last and MIDPOINT its middle. A record ending 2021-05-03 ends late that day,
+        and one dated 2021 has its midpoint in July
+        """
+        start = record.start if record.start is not None else record.end
+        end = record.end if record.end is not None else record.start
+        if start is None:
+            return None
+        # the end of the period is exclusive, so END is the millisecond before it
+        start, end = datetime64(start, 'ms'), datetime64(upper(end), 'ms')
         assignment = self.specification.assignment
         if assignment == TimeAssignment.START:
             return start
         if assignment == TimeAssignment.END:
-            return end
-        start, end = datetime64(start, 'ms'), datetime64(end, 'ms')
+            return end - timedelta64(1, 'ms')
         return start + (end - start) / 2
 
     def _assign(self, record: AnalysisRecord) -> DimensionLevel | None:

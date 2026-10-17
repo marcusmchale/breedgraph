@@ -90,7 +90,9 @@ Every analysis operates on **observations**, not on records.
 - **Time** (`grouping.time`)
   - Bins are defined by `boundaries` (N) and `labels` (N + 1).
   - `boundary: LEFT` puts a value equal to a boundary in the lower bin; `RIGHT` puts it in the upper bin.
-  - `START`, `END` and `MIDPOINT` fall back to whichever time the record has. Records with no time are unassigned.
+  - A record's period runs from the start of the period of its start to the end of the period of its end, either standing in
+    for a missing other. `START` takes the start of that period, `END` its last moment and `MIDPOINT` its middle: a record
+    ending `2021-05-03` is assigned by the end of that day, and a record dated `2021` by early July. Records with no time are unassigned.
 - **Germplasm** (`grouping.germplasm`)
   - Each unit's germplasm is assigned to the closest selected germplasm: itself or its nearest selected ancestor.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.

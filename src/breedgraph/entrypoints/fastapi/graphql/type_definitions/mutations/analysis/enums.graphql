@@ -210,25 +210,26 @@ Determines how records are assigned to time bins.
 """
 enum TimeAssignment {
   """
-  Assign a record according to its start time.
+  Assign a record according to the start of its period: the start of the period of its start time.
 
-  If no start is found for the record, use its end time.
+  If no start is found for the record, use its end time: a record ending 2021-05-03 starts that day.
   """
   START
 
   """
-  Assign a record according to its end time.
+  Assign a record according to the end of its period: the last moment of the period of its end time,
+  so a record ending 2021-05-03 is assigned to the end of that day.
 
-  If no end is found for the record, use its start time.
+  If no end is found for the record, use the end of the period of its start time.
   """
   END
 
   """
-  Assign the observation to the bin containing the midpoint
-  between its start and end times.
+  Assign the observation to the bin containing the midpoint of its period, from the start of the
+  period of its start time to the end of the period of its end time.
 
-  If both start and end are not provided, use whichever is
-  provided.
+  A record with only one time takes the midpoint of that time's period: a record of 2021 has its
+  midpoint in July.
   """
   MIDPOINT
 }
