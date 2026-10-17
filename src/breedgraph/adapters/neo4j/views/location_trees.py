@@ -48,7 +48,7 @@ class Neo4jLocationTreesView(AbstractLocationTreesView):
     async def _get_descendants_by_type(self, location_ids: List[int]) -> Dict[int | None, List[LocationOutput]]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['location_trees']['get_descendants_by_type_for_read_teams'],
+                location_tree_queries.read_descendants_by_type(),
                 location_ids=location_ids,
                 read_teams=self.read_teams,
                 minimum_release=ReadRelease.REGISTERED if self.user_id is not None else ReadRelease.PUBLIC

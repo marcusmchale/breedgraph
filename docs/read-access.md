@@ -54,7 +54,11 @@ In detail:
      from; a readable entry can then name the hidden root as its parent or source.
 5. **Searches leave hidden entities out.** Listing by a filter (datasets by study or concept, programs, units by
    subject) returns only readable entities, and placeholders only where rule 4 needs them. A search is not a
-   reference, so it gives no placeholders for what it found hidden.
+   reference, so it gives no placeholders for what it found hidden. A search from a given entity (what lies below a
+   unit or location, by subject or type; the descendants of a germplasm, for analysis grouping; the program or trial
+   holding a trial or study) starts only from one the user can read, or from a hidden root rule 4 keeps (and a trial
+   holding readable studies); from any other hidden entity it finds nothing, as for a missing id, rather than show
+   what lies below or above it.
 6. **Counts follow what is released.** A count of things a readable entity holds counts them all (a released dataset's
    records); a count over a tree counts what rules 2 to 4 would show.
 7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is
@@ -116,6 +120,10 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
   Counts are of the recorded units and records below each shown unit.
 - `datasetsUnitsBySubject`: readable recorded units by subject, and the hidden ones as one group without a subject
   (a placeholder has none).
+- Analysis: every record of a readable dataset is analysed. A record on a hidden unit has that unit as a placeholder
+  context, hung from its nearest readable ancestors (for unit grouping and the factors describing it), without its
+  germplasm or positions, so it is not assigned to a germplasm or position group. Germplasm grouping takes the
+  readable descendants of a selected germplasm, which must be readable or a crop.
 
 ## 4. Status
 

@@ -141,6 +141,16 @@ class GermplasmPersistenceService(ABC):
         pass
 
     @abstractmethod
+    async def get_readable_descendant_ids(
+            self, entry_id: int, read_teams: List[int], minimum_release: int
+    ) -> List[int] | None:
+        """
+        Ids of the entries below this one that a reader with these read teams, or of at least this release, can read;
+        None when they cannot read the entry and it is not a crop
+        """
+        pass
+
+    @abstractmethod
     async def get_descendant_ids(self, entry_id: int, path_length_limit=None) -> List[int]:
         """
         Get ids of all entries that have this entry as a source.

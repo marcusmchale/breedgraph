@@ -133,3 +133,22 @@ def read_unit_names():
           ELSE {{ id: unit.id, name: 'REDACTED' }}
         END AS unit
     """
+
+
+def read_descendants_by_subject():
+    """
+    Every unit below the units $unit_ids that the user can read, found through hidden units, grouped by subject, as id
+    and name only: for selecting all the units of a subject at once, e.g. every tree of a field. A unit to start from
+    must be readable, or a unit graph's root, whose placeholder holds the readable units below it; below another hidden
+    unit nothing is found, as the units view gives such a unit no children.
+    """
+    return f"""
+        MATCH (start:Unit) WHERE start.id IN $unit_ids AND ({_readable('start')} OR NOT (:Unit)-[:{EDGE}]->(start))
+        MATCH (start)-[:{EDGE}*1..]->(unit:Unit)
+        WITH DISTINCT unit
+        WHERE {_readable('unit')}
+        OPTIONAL MATCH (unit)-[:OF_SUBJECT]->(subject:Subject)
+        WITH subject.id AS subject, unit
+        ORDER BY unit.name, unit.id
+        RETURN subject, collect({{id: unit.id, name: unit.name}}) AS units
+    """

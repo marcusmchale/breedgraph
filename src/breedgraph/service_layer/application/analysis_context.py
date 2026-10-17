@@ -158,19 +158,29 @@ class AnalysisContextLoader:
         selected = request.spec.grouping.unit.unit_ids if request.spec.grouping.unit else []
         unit_ids |= set(selected)
 
+        recorded = unit_ids - set(selected)
         units = {}
         if unit_ids:
             async for unit_graph in self.uow.repositories.unit_graphs.get_all(unit_ids=list(unit_ids)):
                 # Units the user cannot read are left out, and ancestors are those the user can read
-                unit_graph = await self.uow.repositories.unit_graphs.redacted(unit_graph)
-                for unit_id, unit in unit_graph.entries.items():
+                redacted = await self.uow.repositories.unit_graphs.redacted(unit_graph)
+                for unit_id, unit in redacted.entries.items():
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
                         germplasm_id=unit.germplasm,
                         positions=list(unit.positions or []),
-                        ancestor_ids=unit_graph.get_ancestors(unit_id),
+                        ancestor_ids=redacted.get_ancestors(unit_id),
                         # Redaction keeps a hidden root as a placeholder, so this is the root whatever the user reads
-                        root_id=unit_graph.get_root_id()
+                        root_id=redacted.get_root_id()
+                    )
+                # A readable dataset's records are readable, their hidden units placeholders (docs/read-access.md):
+                # such a unit hangs from the nearest units above it that the user can read, without its germplasm or
+                # positions, as datasetsUnits shows it
+                for unit_id in recorded & set(unit_graph.entries) - set(redacted.entries):
+                    units[unit_id] = UnitContext(
+                        unit_id=unit_id,
+                        ancestor_ids=[a for a in unit_graph.get_ancestors(unit_id) if a in redacted.entries],
+                        root_id=redacted.get_root_id()
                     )
 
         for i, unit_id in enumerate(selected):
@@ -188,13 +198,14 @@ class AnalysisContextLoader:
             return {}
         descendants = {}
         for i, germplasm_id in enumerate(grouping.germplasm_ids):
-            entry = await self.uow.germplasm.get_entry(germplasm_id)
-            if entry is None:
+            # the readable entries below it, found through hidden ones; a hidden entry is not found, unless a crop
+            descendant_ids = await self.uow.germplasm.get_readable_descendant_ids(germplasm_id)
+            if descendant_ids is None:
                 self.errors.append(AnalysisMessage(
                     code=AnalysisErrorCode.CONFIG_INVALID,
                     message=f"Germplasm {germplasm_id} was not found",
                     path=spec_path + ['grouping', 'germplasm', 'germplasmIds', str(i)]
                 ))
                 continue
-            descendants[germplasm_id] = set(await self.uow.germplasm.get_descendant_ids(germplasm_id))
+            descendants[germplasm_id] = set(descendant_ids)
         return descendants

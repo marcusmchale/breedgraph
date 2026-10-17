@@ -9,6 +9,7 @@ from breedgraph.domain.model.time_descriptors import serialize_npdt64, deseriali
 from breedgraph.service_layer.persistence.germplasm import GermplasmPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.adapters.neo4j.cypher.query_builders import germplasm as germplasm_queries
 
 import logging
 
@@ -195,6 +196,16 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
             query = queries['germplasm']['get_ancestor_ids']
             result = await self.tx.run(query, entry_id=entry_id, limit=path_length_limit)
         return [record['ancestor.id'] async for record in result]
+
+    async def get_readable_descendant_ids(
+            self, entry_id: int, read_teams: List[int], minimum_release: int
+    ) -> List[int] | None:
+        result = await self.tx.run(
+            germplasm_queries.read_descendant_ids(),
+            entry_id=entry_id, read_teams=read_teams, minimum_release=minimum_release
+        )
+        record = await result.single()
+        return None if record is None else list(record['descendant_ids'])
 
     async def get_descendant_ids(self, entry_id: int, path_length_limit=None) -> List[int]:
         if path_length_limit:

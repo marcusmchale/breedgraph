@@ -1,7 +1,6 @@
 from neo4j import AsyncResult, AsyncSession
 from typing import List, Dict
 
-from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.adapters.neo4j.cypher.query_builders import unit_graphs as unit_graph_queries
 from breedgraph.domain.model.unit_graphs import UnitOutput, Position
 from breedgraph.domain.model.controls import ReadRelease
@@ -53,7 +52,7 @@ class Neo4jUnitsView(AbstractUnitsView):
     async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
         async with await self.session.begin_transaction() as tx:
             result: AsyncResult = await tx.run(
-                queries['unit_graphs']['get_descendants_by_subject_for_read_teams'],
+                unit_graph_queries.read_descendants_by_subject(),
                 unit_ids=unit_ids,
                 read_teams=self.read_teams,
                 minimum_release=self.minimum_release

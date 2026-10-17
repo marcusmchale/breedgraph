@@ -126,9 +126,11 @@ async def test_descendants_by_type(views_factory, read_policy, viewer, start):
         descendants.update(children)
         pending.extend(children)
     expected: dict[int, set[int]] = {}
-    for name in descendants:
-        if read_policy.readable(viewer, name):
-            expected.setdefault(read_policy[LOCATION_TYPES[name]], set()).add(read_policy[name])
+    # below a hidden location nothing, unless it is a location tree's root, whose placeholder holds the readable ones
+    if read_policy.readable(viewer, start) or LOCATION_PARENTS.get(start) is None:
+        for name in descendants:
+            if read_policy.readable(viewer, name):
+                expected.setdefault(read_policy[LOCATION_TYPES[name]], set()).add(read_policy[name])
 
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         by_type = await views.location_trees.get_descendants_by_type([read_policy[start]])

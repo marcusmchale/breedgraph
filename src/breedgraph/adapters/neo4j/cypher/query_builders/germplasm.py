@@ -118,3 +118,19 @@ def read_crops():
         RETURN {_entry()} AS entry
         ORDER BY entry.id
     """
+
+
+def read_descendant_ids():
+    """
+    The ids of the entries below $entry_id that the user can read, found through hidden entries as sinks are, for
+    grouping units by germplasm. No row when the entry is hidden and not a crop, whose placeholder holds the readable
+    entries below it: what lies below another hidden entry is not shown.
+    """
+    return f"""
+        MATCH (selected:Germplasm {{id: $entry_id}})
+        WHERE {_readable('selected')} OR {_is_crop('selected')}
+        OPTIONAL MATCH (selected)-[:SOURCE_FOR*1..]->(descendant:Germplasm)
+        WHERE {_readable('descendant')}
+        // grouped by the entry, so a hidden one gives no row rather than an empty list
+        RETURN selected.id AS entry_id, collect(DISTINCT descendant.id) AS descendant_ids
+    """

@@ -418,6 +418,16 @@ class GermplasmApplicationService:
     async def get_descendant_ids(self, entry_id: int, path_length_limit=None) -> List[int]:
         return await self.persistence.get_descendant_ids(entry_id, path_length_limit)
 
+    async def get_readable_descendant_ids(self, entry_id: int) -> List[int] | None:
+        """
+        The ids of the entries below this one that the user can read, or None when they cannot read it (a hidden crop
+        stands in for the readable entries below it), as the germplasm view shows the pedigree
+        """
+        minimum_release = ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED
+        return await self.persistence.get_readable_descendant_ids(
+            entry_id, read_teams=list(self.access_teams[Access.READ]), minimum_release=int(minimum_release)
+        )
+
     async def validate_control_permission(self, entry_ids: List[int]):
         if not self.user_id:
             raise UnauthorisedOperationError("User ID required to set controls in germplasm service")

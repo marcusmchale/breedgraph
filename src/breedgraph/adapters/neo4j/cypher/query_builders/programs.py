@@ -1,5 +1,5 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable
 
 # Programs, trials and studies as the user may see them. A node the user can read is returned in full. A node the
 # user cannot read is returned only as a placeholder, its id and a REDACTED name: when it was asked for directly, or
@@ -90,15 +90,30 @@ def read_programs():
     """
 
 
+def _start_shown(start: str, label: ControlledModelLabel) -> str:
+    """
+    Whether a trial or study a program or trial is looked up by is one the user may see: one they can read, or a trial
+    holding a study they can read, which is shown as a placeholder. Otherwise the lookup finds nothing, as for a
+    missing id, rather than show where a hidden node belongs.
+    """
+    shown = _readable(start, label)
+    if label == ControlledModelLabel.TRIAL:
+        shown += f" OR EXISTS {{ MATCH ({start})-[:HAS_STUDY]->(study:Study) WHERE {_readable('study', ControlledModelLabel.STUDY)} }}"
+    return shown
+
+
 def read_program(by: str = 'program'):
     """A program asked for by its id ($program_id), or by a trial's ($trial_id) or a study's ($study_id)"""
     match = {
         'program': "MATCH (program: Program {id: $program_id})",
-        'trial': "MATCH (: Trial {id: $trial_id})<-[:HAS_TRIAL]-(program: Program)",
-        'study': "MATCH (: Study {id: $study_id})<-[:HAS_STUDY]-(:Trial)<-[:HAS_TRIAL]-(program: Program)",
+        'trial': f"""MATCH (start: Trial {{id: $trial_id}})<-[:HAS_TRIAL]-(program: Program)
+        WHERE {_start_shown('start', ControlledModelLabel.TRIAL)}""",
+        'study': f"""MATCH (start: Study {{id: $study_id}})<-[:HAS_STUDY]-(:Trial)<-[:HAS_TRIAL]-(program: Program)
+        WHERE {_start_shown('start', ControlledModelLabel.STUDY)}""",
     }[by]
     return f"""
         {match}
+        WITH program
         {_visible('program', ControlledModelLabel.PROGRAM, 'program_visible')}
         {_trials()}
         RETURN {_program()} AS program
@@ -109,10 +124,12 @@ def read_trial(by: str = 'trial'):
     """A trial asked for by its id ($trial_id) or a study's ($study_id)"""
     match = {
         'trial': "MATCH (trial: Trial {id: $trial_id})",
-        'study': "MATCH (: Study {id: $study_id})<-[:HAS_STUDY]-(trial: Trial)",
+        'study': f"""MATCH (start: Study {{id: $study_id}})<-[:HAS_STUDY]-(trial: Trial)
+        WHERE {_start_shown('start', ControlledModelLabel.STUDY)}""",
     }[by]
     return f"""
         {match}
+        WITH trial
         {_visible('trial', ControlledModelLabel.TRIAL, 'trial_visible')}
         {_studies('trial')}
         RETURN {_trial()} AS trial

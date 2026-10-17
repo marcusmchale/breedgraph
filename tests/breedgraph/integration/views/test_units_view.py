@@ -118,11 +118,15 @@ async def test_unit_names(views_factory, read_policy, viewer):
 @pytest.mark.parametrize('viewer', VIEWERS)
 @pytest.mark.parametrize('start', ('field_unit', 'tree_public', 'leaf_other', 'plot_public', 'plot_private'))
 async def test_descendants_by_subject(views_factory, read_policy, viewer, start):
-    """Every readable unit below, through hidden ones, by subject; hidden ones left out"""
+    """
+    Every readable unit below, through hidden ones, by subject; hidden ones left out. Below a hidden unit nothing,
+    unless it is a unit graph's root, whose placeholder holds the readable units below it
+    """
     expected: dict[int, set[int]] = {}
-    for name in descendants(start):
-        if read_policy.readable(viewer, name):
-            expected.setdefault(read_policy[UNIT_SUBJECTS[name]], set()).add(read_policy[name])
+    if read_policy.readable(viewer, start) or UNIT_PARENTS.get(start) is None:
+        for name in descendants(start):
+            if read_policy.readable(viewer, name):
+                expected.setdefault(read_policy[UNIT_SUBJECTS[name]], set()).add(read_policy[name])
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         by_subject = await views.units.get_descendants_by_subject([read_policy[start]])
     assert {subject: {unit.id for unit in units} for subject, units in by_subject.items()} == expected

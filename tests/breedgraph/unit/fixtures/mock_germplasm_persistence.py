@@ -114,6 +114,12 @@ class MockGermplasmPersistenceService(GermplasmPersistenceService):
                 sources[source_id] = edge_data.copy() if edge_data else {}
         return sources
 
+    async def get_readable_descendant_ids(self, entry_id: int, read_teams: List[int], minimum_release: int) -> List[int] | None:
+        """Without controls in the mock, every entry is readable"""
+        if entry_id not in self.graph:
+            return None
+        return list(nx.descendants(self.graph, entry_id))
+
     async def get_descendant_ids(self, entry_id: int, path_length_limit=None) -> List[int]:
         """
         Get all descendants (entries that have this entry as an ancestor).

@@ -100,6 +100,7 @@ class UnitStored(UnitBase, ControlledModel):
                 name=self.name and self.redacted_str,
                 description=self.description and self.redacted_str,
                 subject=None,
+                germplasm=None,
                 positions=list()
             )
 

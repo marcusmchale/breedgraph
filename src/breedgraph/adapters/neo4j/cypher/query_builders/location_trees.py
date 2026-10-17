@@ -1,5 +1,5 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible_members, tree_links
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible_members, tree_links, readable
 
 # Locations as the user may see them, each as the repository's output map gives it (location tree, parent and children ids),
 # with the hidden locations of a location tree skipped: a parent is the nearest readable ancestor or the location tree's root, and
@@ -71,4 +71,24 @@ def read_locations_by_type():
         WITH root, visible_ids, location WHERE location.id IN visible_ids
         RETURN {_location()} AS location
         ORDER BY location.id
+    """
+
+
+def read_descendants_by_type():
+    """
+    Every location below the locations $location_ids that the user can read, found through hidden locations, grouped
+    by location type, as id and name only: for selecting all the locations of a type at once, e.g. every field of a
+    country. A location to start from must be readable, or a location tree's root, whose placeholder holds the readable
+    locations below it; below another hidden location nothing is found.
+    """
+    return f"""
+        MATCH (start:Location)
+        WHERE start.id IN $location_ids AND ({readable('start', LOCATION)} OR NOT (:Location)-[:{EDGE}]->(start))
+        MATCH (start)-[:{EDGE}*1..]->(location:Location)
+        WITH DISTINCT location
+        WHERE {readable('location', LOCATION)}
+        OPTIONAL MATCH (location)-[:OF_LOCATION_TYPE]->(type:LocationType)
+        WITH type.id AS type, location
+        ORDER BY location.name, location.id
+        RETURN type, collect({{id: location.id, name: location.name}}) AS locations
     """
