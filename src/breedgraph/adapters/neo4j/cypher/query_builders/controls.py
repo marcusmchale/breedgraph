@@ -1,5 +1,5 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable
 
 def set_controls(label: ControlledModelLabel):
     return f"""
@@ -159,4 +159,213 @@ def read_controllers(label: ControlledModelLabel):
                 (entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
                 {{user: user.id, time: write.time}}
             ] ELSE [] END AS writes
+    """
+
+
+# What a team controls, for its admins acting on many entities at once. A team controls an entity while its latest
+# Control of it (the highest sequence under the team's Team<Plural> node) is not ended; that control's release is the
+# entity's release as the team set it. Names follow the read check: an entity the user cannot read is named REDACTED.
+
+UNIT = ControlledModelLabel.UNIT
+UNIT_EDGE = 'INCLUDES_UNIT'
+
+
+def _current_controls(label: ControlledModelLabel) -> str:
+    """Rows of each entity of label that team (in scope) currently controls, with the team's latest control of it"""
+    return f"""
+        MATCH (team)-[:CONTROLS]->(:Team{label.plural})-[:CONTROLS]->(any_control:Control)-[:CONTROLS]->(entity:{label.label})
+        WITH team, entity, any_control ORDER BY any_control.sequence DESC
+        WITH team, entity, collect(any_control)[0] AS control
+        WHERE NOT coalesce(control.ended, false)
+    """
+
+
+def _other_teams(entity: str, label: ControlledModelLabel, team_id: str) -> str:
+    """A call collecting the ids of the teams other than team_id that currently control entity, as other_team_ids"""
+    return f"""
+        CALL ({entity}) {{
+          OPTIONAL MATCH ({entity})<-[:CONTROLS]-(other_control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(other:Team)
+          WHERE other.id <> {team_id}
+          WITH other, other_control ORDER BY other.id, other_control.sequence DESC
+          WITH other, collect(other_control)[0] AS other_control
+          WHERE other IS NOT NULL AND NOT coalesce(other_control.ended, false)
+          RETURN collect(other.id) AS other_team_ids
+        }}
+    """
+
+
+def read_controlled_counts() -> str:
+    """For each team $team_ids and label, how many entities the team currently controls, by release"""
+    return '\nUNION ALL\n'.join(f"""
+        MATCH (team:Team) WHERE team.id IN $team_ids
+        {_current_controls(label)}
+        RETURN team.id AS team_id, '{label.name}' AS label, control.release AS release, count(entity) AS count
+    """ for label in ControlledModelLabel)
+
+
+def _name(label: ControlledModelLabel, entity: str = 'entity') -> str:
+    if label == ControlledModelLabel.DATASET:
+        return f"[({entity})-[:FOR_CONCEPT]->(concept) | concept.name][0]"
+    if label == ControlledModelLabel.REFERENCE:
+        return f"coalesce({entity}.filename, {entity}.description, {entity}.url)"
+    return f"{entity}.name"
+
+
+# What holds an entity of each label, named for context: the pattern, with the holder as holder, and its label
+_HOLDERS = {
+    ControlledModelLabel.DATASET: ("(entity)-[:FOR_STUDY]->(holder:Study)", ControlledModelLabel.STUDY),
+    ControlledModelLabel.STUDY: ("(holder:Trial)-[:HAS_STUDY]->(entity)", ControlledModelLabel.TRIAL),
+    ControlledModelLabel.TRIAL: ("(holder:Program)-[:HAS_TRIAL]->(entity)", ControlledModelLabel.PROGRAM),
+    ControlledModelLabel.LOCATION: ("(holder:Location)-[:INCLUDES_LOCATION]->(entity)", ControlledModelLabel.LOCATION),
+    ControlledModelLabel.LAYOUT: ("(entity)-[:AT_LOCATION]->(holder:Location)", ControlledModelLabel.LOCATION),
+}
+
+
+def _context(label: ControlledModelLabel) -> str:
+    """The name of what holds entity, REDACTED when the user cannot read it, or null"""
+    if label not in _HOLDERS:
+        return "null"
+    pattern, holder_label = _HOLDERS[label]
+    return f"""head(COLLECT {{
+            MATCH {pattern}
+            RETURN CASE WHEN {_readable('holder', holder_label)} THEN holder.name ELSE 'REDACTED' END
+          }})"""
+
+
+def read_controlled_entities(label: ControlledModelLabel) -> str:
+    """
+    The entities of label that team $team_id currently controls, at release $release when given, ordered by id, as
+    a page from $offset of $limit, with how many there are in all: each with its name, the team's release, the other
+    teams controlling it and what holds it. No row when the team controls none.
+    """
+    return f"""
+        MATCH (team:Team {{id: $team_id}})
+        {_current_controls(label)}
+        WITH team, entity, control WHERE $release IS NULL OR control.release = $release
+        WITH team, entity, control ORDER BY entity.id
+        WITH team, collect({{entity: entity, release: control.release}}) AS controlled
+        CALL (team, controlled) {{
+          UNWIND controlled[$offset..$offset + $limit] AS item
+          WITH team, item.entity AS entity, item.release AS release
+          {_other_teams('entity', label, '$team_id')}
+          WITH entity, release, other_team_ids ORDER BY entity.id
+          RETURN collect({{
+            id: entity.id,
+            name: CASE WHEN {_readable('entity', label)} THEN {_name(label)} ELSE 'REDACTED' END,
+            release: release,
+            other_team_ids: other_team_ids,
+            context: {_context(label)}
+          }}) AS items
+        }}
+        RETURN size(controlled) AS total, items
+    """
+
+
+def _team_controls(unit: str) -> str:
+    """Whether team $team_id currently controls unit, with EXISTS subqueries only, for quantified path patterns"""
+    return f"""EXISTS {{
+          MATCH ({unit})<-[:CONTROLS]-(team_control:Control)<-[:CONTROLS]-(team_units:TeamUnits)<-[:CONTROLS]-(:Team {{id: $team_id}})
+          WHERE NOT coalesce(team_control.ended, false)
+            AND NOT EXISTS {{ MATCH ({unit})<-[:CONTROLS]-(newer:Control)<-[:CONTROLS]-(team_units) WHERE newer.sequence > team_control.sequence }}
+        }}"""
+
+
+def _shown(unit: str) -> str:
+    """A unit in the tree of what a team controls: one the user can read, or that the team controls"""
+    return f"({_readable(unit, UNIT)} OR {_team_controls(unit)})"
+
+
+def _unit_summary(unit: str) -> str:
+    """unit as id, name, subject and germplasm, for naming it in the tree; REDACTED when the user cannot read it"""
+    return f"""CASE WHEN {_readable(unit, UNIT)} THEN {{
+            id: {unit}.id,
+            name: {unit}.name,
+            subject: [({unit})-[:OF_SUBJECT]->(subject:Subject) | subject.id][0],
+            germplasm: [({unit})-[:OF_GERMPLASM]->(germplasm:Germplasm) | germplasm.id][0]
+          }} ELSE {{ id: {unit}.id, name: 'REDACTED' }} END"""
+
+
+def _unit_controls(unit: str) -> str:
+    """A call setting release, the team's release of unit (null where it doesn't control it), and other_team_ids"""
+    return f"""
+        CALL ({unit}) {{
+          OPTIONAL MATCH ({unit})<-[:CONTROLS]-(any_control:Control)<-[:CONTROLS]-(:TeamUnits)<-[:CONTROLS]-(controller:Team)
+          WITH controller, any_control ORDER BY controller.id, any_control.sequence DESC
+          WITH controller, collect(any_control)[0] AS latest
+          WHERE controller IS NOT NULL AND NOT coalesce(latest.ended, false)
+          WITH collect({{team: controller.id, release: latest.release}}) AS controls
+          RETURN
+            [control IN controls WHERE control.team = $team_id | control.release][0] AS release,
+            [control IN controls WHERE control.team <> $team_id | control.team] AS other_team_ids
+        }}
+    """
+
+
+def read_controlled_unit_roots() -> str:
+    """
+    The roots of the unit graphs holding units team $team_id controls, each with how many of them are in its graph.
+    A root is kept even when hidden, as a placeholder holding them (docs/read-access.md, rule 4).
+    """
+    return f"""
+        MATCH (team:Team {{id: $team_id}})
+        {_current_controls(UNIT)}
+        MATCH (root:Unit)-[:{UNIT_EDGE}*0..]->(entity) WHERE NOT (:Unit)-[:{UNIT_EDGE}]->(root)
+        WITH root, count(DISTINCT entity) AS count
+        {_unit_controls('root')}
+        RETURN {_unit_summary('root')} AS unit, null AS parent_id, count, release, other_team_ids
+        ORDER BY root.id
+    """
+
+
+def read_controlled_unit_children() -> str:
+    """
+    For each unit $parent_ids that the tree shows (one the user can read, that team $team_id controls, or a root), the
+    nearest units below it that the tree shows, through others, that are or hold units the team controls, each with
+    how many of those it holds, itself included
+    """
+    return f"""
+        UNWIND $parent_ids AS parent_id
+        MATCH (parent:Unit {{id: parent_id}})
+        WHERE {_shown('parent')} OR NOT (:Unit)-[:{UNIT_EDGE}]->(parent)
+        CALL (parent) {{
+          MATCH (parent) (()-[:{UNIT_EDGE}]->(between:Unit WHERE NOT {_shown('between')})){{0,}} ()-[:{UNIT_EDGE}]->(child:Unit)
+          WHERE {_shown('child')}
+          RETURN DISTINCT child
+        }}
+        CALL (child) {{
+          MATCH (child)-[:{UNIT_EDGE}*0..]->(below:Unit)
+          WHERE {_team_controls('below')}
+          RETURN count(DISTINCT below) AS count
+        }}
+        WITH parent, child, count WHERE count > 0
+        {_unit_controls('child')}
+        RETURN {_unit_summary('child')} AS unit, parent.id AS parent_id, count, release, other_team_ids
+        ORDER BY parent.id, child.id
+    """
+
+
+def scope_entity_ids(label: ControlledModelLabel, below_units: bool = False) -> str:
+    """
+    The ids of the entities of label that team $team_id currently controls, at release $release when given; with
+    below_units, only the units $below_unit_ids and those below them. For acting on everything in a scope at once.
+    """
+    if below_units:
+        match = f"""
+        MATCH (top:Unit) WHERE top.id IN $below_unit_ids
+        MATCH (top)-[:{UNIT_EDGE}*0..]->(entity:Unit)
+        WITH DISTINCT entity
+        MATCH (team:Team {{id: $team_id}})-[:CONTROLS]->(:TeamUnits)-[:CONTROLS]->(any_control:Control)-[:CONTROLS]->(entity)
+        WITH team, entity, any_control ORDER BY any_control.sequence DESC
+        WITH team, entity, collect(any_control)[0] AS control
+        WHERE NOT coalesce(control.ended, false)
+        """
+    else:
+        match = f"""
+        MATCH (team:Team {{id: $team_id}})
+        {_current_controls(label)}
+        """
+    return f"""
+        {match}
+        WITH entity, control WHERE $release IS NULL OR control.release = $release
+        RETURN collect(entity.id) AS entity_ids
     """

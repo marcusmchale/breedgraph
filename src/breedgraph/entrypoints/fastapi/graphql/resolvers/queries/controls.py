@@ -12,7 +12,10 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     prepare_user_people
 )
 
-from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access
+from breedgraph.domain.model.controls import ControlledModel, Controller, ControlledModelLabel, Control, Access, ReadRelease
+from breedgraph.service_layer.queries.views.controls import (
+    ControlledCount, ControlledItem, ControlledItems, ControlledUnitNode
+)
 from breedgraph.domain.model.control_transfers import ControlTransferStored, ControlTransferStatus
 from breedgraph.custom_exceptions import NoResultFoundError
 
@@ -30,6 +33,9 @@ write_stamp = ObjectType("WriteStamp")
 graphql_resolvers.register_type_resolvers(controller, control, write_stamp)
 control_transfer = ObjectType("ControlTransfer")
 graphql_resolvers.register_type_resolvers(control_transfer)
+controlled_item = ObjectType("ControlledItem")
+controlled_unit = ObjectType("ControlledUnit")
+graphql_resolvers.register_type_resolvers(controlled_item, controlled_unit)
 graphql_resolvers.register_enums(EnumType("ControlledModelLabel", ControlledModelLabel))
 graphql_resolvers.register_enums(EnumType("ControlTransferStatus", ControlTransferStatus))
 
@@ -115,6 +121,51 @@ async def resolve_created(obj: Controller, info):
 @controller.field("updated")
 async def resolve_updated(obj: Controller, info):
     return obj.updated.isoformat() if obj.updated is not None else None
+
+@graphql_query.field("controlsControlledCounts")
+@graphql_payload
+@require_authentication
+async def get_controlled_counts(_, info, team_ids: List[int]) -> List[ControlledCount]:
+    """For teams the user is an admin of: how many entities of each label each controls, by release"""
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.controls.get_controlled_counts(team_ids)
+
+@graphql_query.field("controlsControlledEntities")
+@graphql_payload
+@require_authentication
+async def get_controlled_entities(
+        _,
+        info,
+        team_id: int,
+        label: ControlledModelLabel,
+        release: ReadRelease | None = None,
+        offset: int | None = None,
+        limit: int | None = None
+) -> ControlledItems:
+    """For a team the user is an admin of: the entities of a label it controls, a page at a time"""
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.controls.get_controlled_entities(
+            team_id, label, release=release, offset=offset or 0, limit=50 if limit is None else limit
+        )
+
+@graphql_query.field("controlsControlledUnits")
+@graphql_payload
+@require_authentication
+async def get_controlled_units(_, info, team_id: int, parent_ids: List[int] | None = None) -> List[ControlledUnitNode]:
+    """For a team the user is an admin of: the units it controls as a tree, from the roots or below some units"""
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.controls.get_controlled_units(team_id, parent_ids)
+
+@controlled_unit.field("otherTeams")
+async def resolve_controlled_unit_other_teams(obj: ControlledUnitNode, info):
+    return await team_references(info.context, obj.other_team_ids)
+
+@controlled_item.field("otherTeams")
+async def resolve_controlled_item_other_teams(obj: ControlledItem, info):
+    return await team_references(info.context, obj.other_team_ids)
 
 @graphql_query.field("controlsTransfers")
 @graphql_payload

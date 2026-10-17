@@ -563,3 +563,29 @@ ending `2021-05-03` runs through that day, and one dated `2021` through the year
 `referencesFileDownload.expiresAt`, `submitted`, ...) are ISO 8601 with an offset, e.g. `2026-10-16T09:30:00+00:00`;
 the control times had a space in place of the `T`. `FileRecovery.startedAt` is when retrieval was first requested, or null
 while a file is archived and no retrieval has been requested (it was the time of the query).
+
+## 16. What a team controls (bulk control)
+
+Controls are an admin concern: setting a release and transfers both need ADMIN of a controlling team. These reads are
+for teams the user is an admin of, and a request naming any other team is refused with an error saying so.
+
+- `controlsControlledCounts(teamIds)`: `[ControlledCount { teamId, label, release, count }]`, how many entities of each
+  label each team controls, by the release the team set.
+- `controlsControlledEntities(teamId, label, release, offset, limit)`: `ControlledItems { total, items }`, the entities of
+  a label a team controls, ordered by id, `limit` 50 by default. Each `ControlledItem` has `id`, `name` (a dataset's
+  concept, a reference's file name or description; REDACTED where the user cannot read it), the team's `release`,
+  `otherTeams` (TeamReferences, stand-ins for hidden teams) and `context`, the name of what holds it (a dataset's
+  study, a study's trial, a trial's program, a location's parent, a layout's location).
+- `controlsControlledUnits(teamId, parentIds)`: the units as a tree. Without `parentIds`, the roots of the unit graphs
+  holding units the team controls; with them, the nearest units below each that the team controls or that hold units
+  it controls, through hidden units (a hidden root is a placeholder, a hidden unit the team controls is shown named
+  REDACTED). Each `ControlledUnit` has `unit` (id, name, subject and germplasm only), `parentId`, `release` (the team's,
+  null where it controls only units below), `count` (the units it controls at and below) and `otherTeams`. For a
+  field of 1,000 trees the children take about half a second.
+
+**Scopes in place of id lists.** `ControlScopeInput { teamId, label, release, belowUnitIds }` stands for everything of
+a label the team controls, at a release when given, and for units only those at and below `belowUnitIds`. It can
+be given instead of the ids to `controlsSetRelease(scope, release)` (whose `entityLabel` and `entityIds` are now
+optional), `controlsOfferTransfer(offer: { scope, ... })` (`entities` optional) and
+`controlsRenounceControl(scope, teamIds)` (`entities` optional). Give one or the other: both, or neither, is refused.
+The server resolves the scope, so the client never posts 100,000 ids; a release set on 5,000 units takes about 3 s.

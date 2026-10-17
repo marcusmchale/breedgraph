@@ -34,6 +34,18 @@ class ControlledEntity:
     id: int
 
 
+@dataclass
+class ControlScope:
+    """
+    Every entity of a label that a team currently controls, in place of listing them, for acting on many at once:
+    at a release when given, and for units only those at and below the units below_unit_ids when given
+    """
+    team_id: int
+    label: ControlledModelLabel
+    release: ReadRelease | None = None
+    below_unit_ids: List[int] | None = None
+
+
 @dataclass(eq=False)
 class ControlTransferBase(ABC):
     label: ClassVar[str] = 'ControlTransfer'

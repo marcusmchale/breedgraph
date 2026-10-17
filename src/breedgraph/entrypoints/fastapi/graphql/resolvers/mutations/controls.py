@@ -18,14 +18,15 @@ from . import graphql_mutation
 async def set_release(
         _,
         info,
-        entity_ids: List[int],
-        entity_label: ControlledModelLabel,
         release: ReadRelease,
+        entity_ids: List[int] | None = None,
+        entity_label: ControlledModelLabel | None = None,
+        scope: dict | None = None
 ) -> bool:
 
     user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} sets controls for {entity_label}: {entity_ids} to {release.value}")
-    cmd = SetRelease(agent_id=user_id, entity_ids=entity_ids, entity_label=entity_label, release=release)
+    logger.debug(f"User {user_id} sets controls for {entity_label}: {entity_ids or scope} to {release.value}")
+    cmd = SetRelease(agent_id=user_id, entity_ids=entity_ids, entity_label=entity_label, scope=scope, release=release)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -37,7 +38,8 @@ async def offer_transfer(_, info, offer: dict) -> bool:
     logger.debug(f"User {user_id} offers control transfer to team {offer.get('recipient_team_id')}")
     cmd = OfferControlTransfer(
         agent_id=user_id,
-        entities=offer['entities'],
+        entities=offer.get('entities'),
+        scope=offer.get('scope'),
         from_teams=offer['from_team_ids'],
         recipient_team=offer['recipient_team_id'],
         keep_from_teams=offer.get('keep_from_teams') or False,
@@ -83,8 +85,12 @@ async def cancel_transfer(_, info, id: int) -> bool:
 @graphql_mutation.field("controlsRenounceControl")
 @graphql_payload
 @require_authentication
-async def renounce_control(_, info, entities: List[dict], team_ids: List[int]) -> bool:
+async def renounce_control(
+        _, info, team_ids: List[int], entities: List[dict] | None = None, scope: dict | None = None
+) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} renounces control for teams {team_ids}")
-    await info.context['bus'].handle(RenounceControl(agent_id=user_id, entities=entities, team_ids=team_ids))
+    await info.context['bus'].handle(
+        RenounceControl(agent_id=user_id, entities=entities, scope=scope, team_ids=team_ids)
+    )
     return True

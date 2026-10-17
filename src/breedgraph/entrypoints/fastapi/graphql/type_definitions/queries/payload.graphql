@@ -246,6 +246,24 @@ type ControlTransferPayload {
     errors: [Error!]
 }
 
+type ControlledCountsPayload {
+    status: QueryStatus!
+    result: [ControlledCount!]
+    errors: [Error!]
+}
+
+type ControlledItemsPayload {
+    status: QueryStatus!
+    result: ControlledItems
+    errors: [Error!]
+}
+
+type ControlledUnitsPayload {
+    status: QueryStatus!
+    result: [ControlledUnit!]
+    errors: [Error!]
+}
+
 type ControlTransfersPayload {
     status: QueryStatus!
     result: [ControlTransfer!]

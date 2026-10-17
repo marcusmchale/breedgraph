@@ -1,13 +1,15 @@
 from .base import Command
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.control_transfers import ControlledEntity
+from breedgraph.domain.model.control_transfers import ControlledEntity, ControlScope
 
 from typing import List, Set
 
 class OfferControlTransfer(Command):
     agent_id: int
 
-    entities: List[ControlledEntity]
+    # the entities, or a scope
+    entities: List[ControlledEntity] | None = None
+    scope: ControlScope | None = None
     from_teams: Set[int]
     recipient_team: int
     keep_from_teams: bool = False
@@ -35,5 +37,7 @@ class CancelControlTransfer(Command):
 class RenounceControl(Command):
     agent_id: int
 
-    entities: List[ControlledEntity]
+    # the entities, or a scope
+    entities: List[ControlledEntity] | None = None
+    scope: ControlScope | None = None
     team_ids: Set[int]

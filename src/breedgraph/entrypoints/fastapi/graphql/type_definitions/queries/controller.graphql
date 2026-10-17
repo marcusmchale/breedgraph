@@ -82,3 +82,54 @@ type ControlTransfer {
     cancelledBy: UserDisplay
     cancelledAt: DateTime
 }
+
+
+""" How many entities of a label a team controls at a release, for the team's admins """
+type ControlledCount {
+    teamId: ID!
+    label: ControlledModelLabel!
+    """ The release the team set """
+    release: ReadRelease!
+    count: Int!
+}
+
+""" An entity a team controls, for the team's admins """
+type ControlledItem {
+    label: ControlledModelLabel!
+    id: ID!
+    """ Its name (a dataset's concept, a reference's file name or description); REDACTED when you cannot read it """
+    name: String
+    """ The release the team set """
+    release: ReadRelease!
+    """ The other teams controlling it, those hidden from you stood in for by the nearest team you can see """
+    otherTeams: [TeamReference!]!
+    """
+    The name of what holds it, REDACTED when you cannot read that: a dataset's study, a study's trial, a trial's
+    program, a location's parent, a layout's location; null for other labels
+    """
+    context: String
+}
+
+""" A page of the entities of a label a team controls, ordered by id, with how many there are in all """
+type ControlledItems {
+    total: Int!
+    items: [ControlledItem!]!
+}
+
+"""
+A unit in the tree of the units a team controls, for the team's admins: one the team controls, or that holds units
+it controls. The tree is the unit graphs as you may see them: hidden units are skipped, unless the team controls
+them, and a hidden root is a placeholder (docs/read-access.md).
+"""
+type ControlledUnit {
+    """ The unit's id, name, subject and germplasm only: its place in this tree is given here, not by its parents """
+    unit: Unit!
+    """ The unit it was asked for below; null for the root of a unit graph """
+    parentId: ID
+    """ The release the team set; null when the team doesn't control this unit itself, only units below it """
+    release: ReadRelease
+    """ How many units the team controls: this one, if it does, and those below it """
+    count: Int!
+    """ The other teams controlling it, those hidden from you stood in for by the nearest team you can see """
+    otherTeams: [TeamReference!]!
+}

@@ -73,5 +73,5 @@ class Neo4jViewsFactory(AbstractViewsFactory):
                 layout_trees = Neo4jLayoutTreesView(session=session, user_id=user_id, read_teams=read_teams),
                 references = Neo4jReferencesView(session=session, user_id=user_id, read_teams=read_teams),
                 people = Neo4jPeopleView(session=session, user_id=user_id, read_teams=read_teams),
-                controls = Neo4jControlsView(session=session, user_id=user_id, read_teams=read_teams)
+                controls = Neo4jControlsView(session=session, user_id=user_id, read_teams=read_teams, accounts=accounts_view)
             )

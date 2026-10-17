@@ -8,7 +8,7 @@ from breedgraph.domain.model.controls import (
     ControlledModel, ControlledAggregate, Controller, ReadRelease, Access, ControlledModelLabel
 )
 from breedgraph.domain.model.control_transfers import (
-    ControlledEntity, ControlTransferInput, ControlTransferStored, ControlTransferStatus
+    ControlledEntity, ControlScope, ControlTransferInput, ControlTransferStored, ControlTransferStatus
 )
 from breedgraph.domain.events.control_transfers import ControlTransferOffered
 from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError, NoResultFoundError
@@ -526,6 +526,31 @@ class AbstractAccessControlService(ABC):
             transfer.cancel_for_deleted_team(agent_id=self.user_id, team_id=team_id)
             cancelled.append(await self._set_transfer(transfer))
         return cancelled
+
+    async def get_scope_entities(self, scope: ControlScope) -> List[ControlledEntity]:
+        """
+        The entities a scope stands for: those of its label that its team currently controls, at its release when
+        given, and for units only those at and below its units when given. Only for admins of the team.
+        """
+        if scope.team_id not in self.admin_teams:
+            raise UnauthorisedOperationError("Admin access to the team is required to act on what it controls")
+        if scope.below_unit_ids is not None and scope.label != ControlledModelLabel.UNIT:
+            raise IllegalOperationError("Only a scope of units can be limited to the units below some units")
+        return [ControlledEntity(label=scope.label, id=entity_id) for entity_id in await self._get_scope_entity_ids(scope)]
+
+    async def entities_or_scope(
+            self,
+            entities: List[ControlledEntity] | None,
+            scope: ControlScope | None
+    ) -> List[ControlledEntity]:
+        """The entities listed, or those a scope stands for: one or the other must be given"""
+        if (entities is None) == (scope is None):
+            raise IllegalOperationError("Give either the entities or a scope")
+        return list(entities) if scope is None else await self.get_scope_entities(scope)
+
+    @abstractmethod
+    async def _get_scope_entity_ids(self, scope: ControlScope) -> List[int]:
+        ...
 
     async def renounce_controls(self, entities: List[ControlledEntity], team_ids: Set[int]) -> None:
         """

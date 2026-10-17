@@ -179,6 +179,28 @@ type Query {
         entityLabel: ControlledModelLabel!
         entityIds: [ID!]!
     ): ControllersPayload!
+    """
+    How many entities of each label teams control, by release. Only for teams the user is an admin of: a request
+    naming any other team is refused.
+    """
+    controlsControlledCounts(teamIds: [ID!]!): ControlledCountsPayload!
+    """
+    The entities of a label a team controls, at a release if given, ordered by id, a page at a time (limit defaults
+    to 50). Only for a team the user is an admin of.
+    """
+    controlsControlledEntities(
+        teamId: ID!
+        label: ControlledModelLabel!
+        release: ReadRelease
+        offset: Int
+        limit: Int
+    ): ControlledItemsPayload!
+    """
+    The units a team controls, as a tree: without parentIds the roots of the unit graphs holding them, with parentIds
+    the nearest units below each that the team controls or that hold units it controls. Only for a team the user is
+    an admin of.
+    """
+    controlsControlledUnits(teamId: ID!, parentIds: [ID!]): ControlledUnitsPayload!
     """ Control transfers offered to or from teams the user is an admin of """
     controlsTransfers (
         statuses: [ControlTransferStatus!]

@@ -9,7 +9,7 @@ from breedgraph.domain.model.controls import (
     ReadRelease, Controller, Control, ControlledModelLabel, Access
 )
 from breedgraph.domain.model.control_transfers import (
-    ControlledEntity, ControlTransferInput, ControlTransferStored, ControlTransferStatus
+    ControlledEntity, ControlScope, ControlTransferInput, ControlTransferStored, ControlTransferStatus
 )
 from breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService, TeamTreeRoot
@@ -164,6 +164,16 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             team_ids=list(team_ids),
             user_id=user_id
         )
+
+    async def _get_scope_entity_ids(self, scope: ControlScope) -> List[int]:
+        result = await self.tx.run(
+            controls.scope_entity_ids(scope.label, below_units=scope.below_unit_ids is not None),
+            team_id=scope.team_id,
+            release=None if scope.release is None else int(scope.release),
+            below_unit_ids=list(scope.below_unit_ids or [])
+        )
+        record = await result.single()
+        return list(record['entity_ids']) if record else []
 
     async def _get_team_tree(self, team_id: int) -> TeamTreeRoot | None:
         result = await self.tx.run(queries['controls']['get_team_tree'], team_id=team_id)

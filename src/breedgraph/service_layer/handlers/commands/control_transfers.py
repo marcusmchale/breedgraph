@@ -14,7 +14,7 @@ async def offer_control_transfer(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         await uow.controls.offer_transfer(
-            entities=cmd.entities,
+            entities=await uow.controls.entities_or_scope(cmd.entities, cmd.scope),
             from_teams=cmd.from_teams,
             recipient_team=cmd.recipient_team,
             keep_from_teams=cmd.keep_from_teams,
@@ -56,5 +56,7 @@ async def renounce_control(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        await uow.controls.renounce_controls(entities=cmd.entities, team_ids=cmd.team_ids)
+        await uow.controls.renounce_controls(
+            entities=await uow.controls.entities_or_scope(cmd.entities, cmd.scope), team_ids=cmd.team_ids
+        )
         await uow.commit()
