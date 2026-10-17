@@ -13,7 +13,8 @@ operation in the front end validates against the current schema (§10).
 - §1–§10 (Persons, invitations, legal entities, claims, ORCID, transfers, account deletion), by 2026-10-14;
 - §11–§15 (record group extent, replicate aggregation and factors in analysis, the WITHIN_GRAPH extent, the area
   renames, contributions with roles, Role entries, sources and locked entries, and times as periods), on 2026-10-17;
-- §16 (what a team controls, and scopes for bulk control), built with the API on 2026-10-17.
+- §16 (what a team controls, and scopes for bulk control), built with the API on 2026-10-17;
+- §18 (Person views, data controllers, no public directory of people or teams), built with the API on 2026-10-17.
 
 `python scripts/check_front_end_queries.py ../breedview/src` reports no operation with errors, and breedview's e2e
 suite (`tests/e2e`, on the synthetic test database) passes.
@@ -567,3 +568,38 @@ Additions, nothing breaks; breedview uses both for the factors describing the cu
   unit of the request at once, so `unitsUnits(ids) { ancestors { id positions { … } } }` costs one query for a page.
 - `Dataset.records(includeBelow: false)`: `unitIds` then narrows to the records of exactly those units, rather than
   also everything below them, e.g. the factor records of a page's units and their ancestors.
+
+## 18. Person views, data controllers, and no public directory
+
+Design in `person.md` §2–§3 and `read-access.md` rules 2, 7 and 9.
+
+**Breaking for signed-out visitors.**
+- `people`, `peoplePeople`, `peoplePerson`, `teamsRoots`, `teamsTeam` and `teamsTeams` need an account: anonymous
+  requests get the authentication error. Signed-out visitors meet Persons only nested in what they can read
+  (`Program`/`Trial.contacts`, `contributions { person }` on programs, trials, datasets and references), and see no
+  teams. The People page and anything else listing people or teams should be for signed-in users only.
+
+**Three views of a Person** (`Person.view: PersonView!`):
+- `FULL`, for read affiliates of a controlling team and the linked user: as before, plus `linked: Boolean`, whether
+  an account is linked, which full viewers see even when `linkedUser` is hidden from them (rule 9). Use `linked`, not
+  `linkedUser`, to say whether a Person has an account, and to offer contacts (which must be linked).
+- `ATTRIBUTION`, for those reading it by release only, signed-in users without a read affiliation included: `name`,
+  `institution`, `orcid` and `erased`. `teams` is empty and `basis`, `informedAttestation`, `recordedBy`,
+  `recordedAt`, `erasedAt`, `linked` and `linkedUser` are null. A person picker should accept these, and tell people
+  apart by institution where teams are missing.
+- `RESTRICTED`: the id only, as before (`restricted` stays, true for this view). `basis`, `informedAttestation` and
+  `erasedAt` are now null here too, and `erased` is false: an erased Person shows as erased only to those who could
+  see it.
+
+**Who holds a record.** `Person.dataController: DataController { legalName, privacyContact }`, in every view, restricted
+ones included: the legal entity declared on the root of the team tree controlling the Person, null when it can't be
+told. Show it with Persons, for signed-out visitors too, e.g. "Record held by <legal name>" with the privacy contact.
+`LegalEntity` on teams is unchanged (signed-in users only, `declaredBy` for root admins).
+
+**Affiliations.** Read access can no longer be removed or revoked while curate or admin access is authorised on the same
+team: remove those first. Removing curate access now leaves read access in place (revoking read used to revoke curate
+too). The mutations return an error saying which access to remove first.
+
+**Transfers.** An offer must go to a team the offering user can see (a team tree root, or one of their own teams);
+others are refused as not found. A transfer of a Person is refused when teams of its old team tree would keep
+control alongside the recipient's. `controlsSetRelease` is refused for an entity without current controls.

@@ -18,7 +18,7 @@ Data Protection Officer: [DPO name and address].
 
 - **Your BreedGraph account**, and how the platform is run: [the university] is the data controller.
 - **Person records**, which credit people for their contributions to research: the organisation that recorded you is the data controller.
-  Each such organisation has declared its legal name and a privacy contact, shown with the organisation in BreedGraph, and has agreed to our data processing terms.
+  Each such organisation has declared its legal name and a privacy contact, shown with every Person record it holds, and has agreed to our data processing terms.
   We host and process these records for them.
 
 ## What we hold and why
@@ -43,7 +43,7 @@ Organisations record the people who took part in research, such as technicians, 
 
 | Data | Why | Kept |
 |---|---|---|
-| A display name, and the teams you belong to | To attribute contributions to you | As long as the research data you are credited for |
+| A display name, the institution you did the work with, and the teams you belong to | To attribute contributions to you | As long as the research data you are credited for |
 | The lawful basis, and who recorded you and when | To show why the record is held and by whom | As above |
 | Your ORCID iD, if you link it yourself | To identify you unambiguously | Until you remove it |
 | The link to your account, if you claim the record | So you can manage it | Until you or an administrator unlink it |
@@ -53,7 +53,13 @@ We do not hold contact details, postal addresses or free-text descriptions in Pe
 The organisation that recorded you confirmed that you were informed. The lawful basis is research: [Art. 6(1)(e) public task for the university; 6(1)(f) legitimate interests for other organisations].
 We rely on the research provisions of Art. 89 GDPR [and section 42 of the Data Protection Act 2018], including safeguards such as holding only the data needed for attribution.
 
-Who can see a Person record is set by the organisation that controls it: members of its teams, all registered users, or the public. Others may see only that a record exists, by its number.
+Who can see a Person record is set by the organisation that controls it: members of its teams, all registered users, or the public.
+- Members of the organisation's teams who can read it, and you once you have linked it to your account, see the whole record.
+- Others it is released to see only what attribution needs: your name, institution and ORCID iD.
+- Anyone else may see only that a record exists, by its number.
+
+Everyone who sees a record, even only by its number, also sees which organisation holds it and its privacy contact.
+Person records are not listed publicly: people who are not registered see them only beside the research they are credited for.
 
 ### If you are invited
 
@@ -93,7 +99,7 @@ In BreedGraph:
 - **Your account:** view and change your details, or delete your account, in your account settings. You are asked whether to erase the Person record linked to it as well, which is the default.
   Deleting removes your name, email address, password and team memberships. What you contributed stays attributed to an anonymous account number.
 - **A Person record crediting you:** register (or ask to be invited) and ask to link the record to your account. Once linked, you can see it in full, correct your name, unlink it, or **erase it**.
-  Erasing removes your name and teams and keeps only an anonymous record number, so research data stays attributed without identifying you. You can also ask the organisation that recorded you, using its privacy contact.
+  Erasing removes your name, institution, teams and ORCID iD and keeps only an anonymous record number, so research data stays attributed without identifying you. You can also ask the organisation that recorded you, using its privacy contact, shown with the record.
 - **Anything else:** contact us, or the privacy contact of the organisation concerned.
 
 We may refuse some requests where the research provisions apply, but we will always explain why. Erasing a Person record is always available, because it keeps the research record intact.
@@ -121,3 +127,7 @@ Backups of the database are kept for [period] on [the archive server]. If we res
 6. **Processors** and where data is hosted.
 7. **Public release of Person records**: organisations can release a Person record to the public. The data processing terms make this their decision and require their own notice to cover it.
 8. The link from this notice to the **data processing terms** organisations accept (`docs/legal/data-processing-terms.md`).
+9. **Who holds a Person record** is shown with the record, to anyone who sees it, rather than as a public list of organisations.
+   Is that enough to meet Art. 14(5)(b)'s "making the information publicly available", together with the organisations' own staff notices, or should the platform also publish a list of the organisations holding Person records (their legal names and privacy contacts)?
+10. **The published notice** (breedview `public/privacy_notice.md`, July 2026) predates Person records and says the university keeps contribution records.
+    It should be replaced by this notice, once completed, before any Person record is released to the public in production.

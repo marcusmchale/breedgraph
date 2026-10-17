@@ -21,7 +21,7 @@ For BreedGraph user accounts, the Operator is the data controller.
 
 ## 2. What the Organisation may record
 
-1. Person records hold only what attribution needs: a display name, team affiliations, the lawful basis, and confirmation that the person was informed. The platform does not accept other personal data in Person records.
+1. Person records hold only what attribution needs: a display name, the institution the person did the work with, team affiliations, the lawful basis, and confirmation that the person was informed, and an ORCID iD if the person links one. The platform does not accept other personal data in Person records.
 2. The Organisation records Persons only for people who took part in its research, on the lawful basis it selects for each record, which it has verified applies.
 3. The Organisation does not record personal data in research data, such as datasets, files or free-text fields, except as its own policies permit and these terms allow.
 
@@ -29,10 +29,10 @@ For BreedGraph user accounts, the Operator is the data controller.
 
 The Organisation:
 1. **Informs people** recorded about the record, its purpose, and their rights, for example through its staff privacy notice, and confirms this for each record (Art. 13/14 GDPR).
-2. **Decides who can see** its Person records. Releasing records to all registered users or to the public is its decision, and its notices must cover it.
+2. **Decides who can see** its Person records. Releasing records to all registered users or to the public is its decision, and its notices must cover it. A released record shows what attribution needs (name, institution, ORCID iD); the rest of the record stays with the Organisation's teams and the person.
 3. **Keeps records accurate**, correcting them when asked.
 4. **Handles requests** from people about their data, using the tools BreedGraph provides (correction, erasure, linking to an account), and responds within the time limits of the GDPR. The Operator assists on request.
-5. **Keeps its declaration current**: its legal name, and a privacy contact address that reaches the people handling these requests, preferably a role address.
+5. **Keeps its declaration current**: its legal name, and a privacy contact address that reaches the people handling these requests, preferably a role address. Both are shown with each of the Organisation's Person records, to anyone who can see the record.
 6. **Approves requests to link** a Person record to an account only after confirming the requester's identity.
 7. **Controls access** within its teams, granting administrator access only to people who act for it.
 8. Tells the Operator without undue delay of any suspected misuse of BreedGraph affecting personal data.

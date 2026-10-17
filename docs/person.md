@@ -59,8 +59,12 @@ only in its everyday sense: a team tree may stand for one, but what the rules de
 - The current data processing terms are configured by `DATA_PROCESSING_TERMS_VERSION` and `DATA_PROCESSING_TERMS_URL`.
   Declaring requires the version the user was shown to equal the configured version. Without a configured version, declaring is refused.
 - Declaring again creates a new declaration and accepts the current terms again. Earlier declarations are kept, and only the latest is current.
-- Visibility follows the team: the legal name, privacy contact, terms version and time are visible wherever the root team is.
-  Who declared is visible to admins of the root team only, as for affiliations.
+- The legal name and privacy contact are shown with every Person the team tree holds (`Person.dataController`), to anyone
+  who sees the Person in any view, restricted ones included, so anyone credited can tell who holds their record and
+  how to reach them. The privacy contact is therefore public, and should be a role address.
+  With the root team, which only signed-in users see (docs/read-access.md, rule 9), the terms version and time are
+  visible too; who declared is visible to admins of the root team only, as for affiliations.
+  Team trees are not listed publicly: the data controller is shown where its personal data is.
 - `teamsWithdrawLegalEntity` withdraws the current declaration, by root admins, and is refused while any team of the team tree controls a Person, including erased Persons; transfer them first.
   The declaration is kept, marked with who withdrew it and when.
 
@@ -74,7 +78,11 @@ Root admins of team trees created without a declaration can declare one later an
 
 A Person's access controls may only name teams in a single team tree.
 `Controller.controls` can otherwise hold teams from several team trees, which would leave the data controller ambiguous.
-`set_controls` for a Person refuses control teams from another team tree.
+Controls are first set by the write team when the Person is created, and teams are added only by control transfers,
+which refuse to leave a Person controlled by teams of two team trees (`control-transfer.md` §5): every team keeping
+control must be in the recipient's team tree. Setting the release cannot add teams, and is refused for an entity
+without current controls, which would otherwise be taken over without a transfer.
+`scripts/check_person_controllers.py` reports any Person breaking this, or without a data controller.
 
 #### Changing the data controller
 
@@ -139,20 +147,34 @@ has the same visibility as the name, and is cleared on erasure.
 
 ### What viewers see
 
-| Viewer | Sees |
-|---|---|
-| Has read access, or is the linked User | The full record |
-| Anyone else, anonymous users included | `id` only (`restricted`), where the Person is referred to (a contact, a contributor) or asked for by id. The id can be used to look up who controls access to the record. |
+| Viewer | View (`Person.view`) | Sees |
+|---|---|---|
+| A read affiliate of a team controlling the record, or the linked User | `FULL` | The record: name, institution, ORCID iD, teams, lawful basis, informed attestation, when it was recorded, whether an account is linked (`linked`), and erasure. Who recorded it and the linked account follow docs/read-access.md rule 9 |
+| Anyone who can read it only because it is released to them (signed-in users for REGISTERED, anyone for PUBLIC) | `ATTRIBUTION` | What attribution needs: name, institution, ORCID iD, and whether it was erased |
+| Anyone else, anonymous users included, where the Person is referred to (a contact, a contributor), and signed-in users asking for it by id | `RESTRICTED` | The id only (`restricted`). Signed-in users can use it to look up who controls the record |
 
-Searches (`people`, by name or not) return only the Persons the viewer can read or is linked to, so a name does not
-reveal that a hidden Person has it. A Person's teams the viewer cannot see are shown as the nearest team they can see
-that includes them, marked as standing in (`TeamReference.standIn`), as for controllers (docs/read-access.md, rule 7).
-A Person's teams are affiliation for attribution (`(Person)-[:IN_TEAM]->(Team)`), separate from the linked user's
-access affiliations, and only curators change them. A curator can only give teams they can see, and saving keeps the
-teams hidden from them, so curators who see different teams do not drop each other's.
-Reads go through the people view (`query_builders/people.py`); the repository and `PersonStored.redacted` serve writes.
+Every view names the Person's data controller (`dataController`: the legal name and privacy contact, §2), so a person
+credited anywhere can tell who holds the record about them; it is an organisation, not personal data.
+Releasing a Person therefore publishes only its attribution: teams, lawful basis and record-keeping stay with the
+controlling teams and the subject. Curators and admins of a controlling team see the full record, as approving curate
+or admin access also grants read access, and read access can't be removed while either is held.
+A Person without current controls is not released to anyone, so it fails closed.
 
-An erased Person shows as "Erased person" with its `id` to everyone who could see it before.
+**No public directory.** Listing and looking up Persons (`people`, `peoplePeople`, `peoplePerson`) needs an account.
+Anonymous users meet Persons only where something they can read refers to them, so a Person released to the public
+is attributed where it is credited, rather than listed with everyone else.
+
+Searches (`people`, by name or not) return only the Persons the viewer sees in full or by attribution, so a name does
+not reveal that a hidden Person has it. In the full view, a Person's teams the viewer cannot see are shown as the
+nearest team they can see that includes them, marked as standing in (`TeamReference.standIn`), as for controllers
+(docs/read-access.md, rule 7). A Person's teams are affiliation for attribution (`(Person)-[:IN_TEAM]->(Team)`),
+separate from the linked user's access affiliations, and only curators change them. A curator can only give teams
+they can see, and saving keeps the teams hidden from them, so curators who see different teams do not drop each other's.
+Reads go through the people view (`query_builders/people.py`), which builds each view in Cypher; the repository and
+`PersonStored.redacted` serve writes.
+
+An erased Person shows as "Erased person" with its `id` to everyone who could see it before; to others it is
+restricted, as before, so erasure is not revealed to them.
 
 ## 4. Where Person is referenced
 
@@ -224,7 +246,7 @@ Two routes, both ending in a confirmed `IS_PERSON` link:
 
 1. **Invitation.** An invitation can name a `person_id`. Registering with `linkPerson` links it, because the invitation token and email verification prove identity.
    The link is made with the inviter's authority, which is checked again: they must still administer a team controlling the Person. The user can register without linking.
-2. **Request and approve.** A registered user asks to claim a Person by id (`peopleRequestClaim`), even one they can only see as an id; the request reveals nothing.
+2. **Request and approve.** A registered user asks to claim a Person by id (`peopleRequestClaim`), even one they can only see as an id; the request reveals only whether the Person can be linked (it is refused for an erased or already linked Person).
    Admins of the controlling teams are emailed, see pending requests with the requester's name (`peopleClaimRequests`), and approve or reject them, confirming the user's identity first.
    Approving links the user and drops other pending requests. The requester sees their own pending requests (`peopleMyClaims`) and can withdraw them.
 
@@ -371,5 +393,9 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Done: deleting an account erases the linked Person by default (§6).
 10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes. Tested against a fake ORCID service and a mocked token exchange; to test against ORCID, register an application in the sandbox and set the credentials.
 11. **Privacy notice and data processing terms.** Drafted for the DPO: `docs/legal/privacy-notice.md` and `docs/legal/data-processing-terms.md`, each ending with the questions to settle.
+12. **Views and data controller.** Done (2026-10-17): the three views of §3 (`Person.view`, `linked`), the data
+    controller on every view (`Person.dataController`), no public directory (the people and team queries need an
+    account), transfers keeping a Person within one team tree, setting the release refused without current controls,
+    and transfer offers only to teams the offerer can see.
 
 Tests accompany each step: repository, handlers, then GraphQL end-to-end covering each viewer type in §3 and erasure.
