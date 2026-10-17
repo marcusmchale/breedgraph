@@ -222,7 +222,16 @@ def manifest(
             }
             for viewer in ACCOUNTS
         },
-        'teams': {team: {'id': scenario[team]} for team in ('root', 'child', 'other')},
+        'teams': {
+            team: {
+                'id': scenario[team],
+                **(
+                    {'legal_name': scenario.legal_entities[team][0], 'privacy_contact': scenario.legal_entities[team][1]}
+                    if team in scenario.legal_entities else {}
+                ),
+            }
+            for team in ('root', 'child', 'other')
+        },
         'ids': dict(sorted(scenario.ids.items())),
         'entities': {
             name: {
@@ -231,6 +240,11 @@ def manifest(
                 'team': scenario.controls[name][0],
                 'release': scenario.controls[name][1].name,
                 'readable_by': [viewer for viewer in VIEWERS if scenario.readable(viewer, name)],
+                # how each viewer sees a Person: FULL, ATTRIBUTION or RESTRICTED (docs/person.md §3)
+                **(
+                    {'person_views': {viewer: scenario.person_view(viewer, name) for viewer in VIEWERS}}
+                    if label is ControlledModelLabel.PERSON else {}
+                ),
             }
             for name, label in sorted(ENTITY_LABELS.items())
         },

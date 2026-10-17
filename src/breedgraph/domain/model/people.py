@@ -45,6 +45,20 @@ class LawfulBasis(str, Enum):
     LEGITIMATE_INTEREST = "LEGITIMATE_INTEREST"  # f)
 
 
+class PersonView(str, Enum):
+    """How a viewer sees a Person (docs/person.md §3)"""
+    FULL = "FULL"  # read affiliates of a controlling team, and the linked user: the record
+    ATTRIBUTION = "ATTRIBUTION"  # readers by release only: what attribution needs
+    RESTRICTED = "RESTRICTED"  # anyone else, where the Person is referred to: its id
+
+
+@dataclass
+class DataController:
+    """The legal entity holding a Person record: the one declared on the root of its controlling team tree"""
+    legal_name: str
+    privacy_contact: str
+
+
 @dataclass(eq=False)
 class PersonBase(ABC):
     label: ClassVar[ControlledModelLabel] = ControlledModelLabel.PERSON
@@ -212,6 +226,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         self.user = None
 
     def to_output(self) -> 'PersonOutput':
+        """The full record, as its readers see it"""
         return PersonOutput(
             id=self.id,
             name=self.name,
@@ -224,12 +239,21 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             claims=list(self.claims),
             recorded_by=self.recorded_by,
             recorded_at=self.recorded_at,
-            erased_at=self.erased_at
+            erased_at=self.erased_at,
+            view=PersonView.FULL,
+            erased=self.erased,
+            linked=self.user is not None
         )
 
 
 @dataclass(eq=False)
 class PersonOutput(PersonBase, EnumLabeledModel):
+    """
+    A Person as a viewer sees it (view). Fields outside that view are None, the basis and attestation included,
+    rather than PersonBase's defaults, which would state a basis to viewers who may not see it.
+    """
+    basis: LawfulBasis | None = None
+    informed_attestation: bool | None = None
     id: int = None
     orcid: str | None = None
     user: int | None = None
@@ -237,3 +261,7 @@ class PersonOutput(PersonBase, EnumLabeledModel):
     recorded_by: int | None = None
     recorded_at: datetime | None = None
     erased_at: datetime | None = None
+    view: PersonView = PersonView.RESTRICTED
+    erased: bool = False
+    linked: bool | None = None  # whether an account is linked, in the full view only
+    data_controller: DataController | None = None

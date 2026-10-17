@@ -7,8 +7,9 @@ from typing import Dict, List
 
 class AbstractPeopleView(ABC):
     """
-    Persons as the user may see them. A Person the user can read, or is linked to, is returned in full; one they
-    cannot read is a placeholder when asked for by id (its id, with no name), and is left out of searches.
+    Persons as the user may see them (docs/person.md §3): in full to read affiliates of a controlling team and to the
+    linked user, by attribution to those reading them by release only, and otherwise restricted, as an id with its
+    data controller, when asked for by id. Searches leave restricted Persons out.
     """
     user_id: int | None
     read_teams: List[int]
@@ -36,7 +37,7 @@ class AbstractPeopleView(ABC):
         ...
 
     async def search_people(self, name: str | None = None) -> List[PersonOutput]:
-        """The Persons the user can read with this name, ignoring case, or all of them without a name"""
+        """The Persons the user can see in full or by attribution with this name, ignoring case, or all of them"""
         return await self._search_people(name)
 
     @abstractmethod

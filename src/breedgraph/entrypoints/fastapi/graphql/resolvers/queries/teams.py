@@ -5,7 +5,7 @@ from typing import List
 from breedgraph import config
 from breedgraph.domain.model.team_trees import TeamOutput
 
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_users_map,
@@ -25,13 +25,15 @@ affiliation = ObjectType("Affiliation")
 user = ObjectType("User")
 graphql_resolvers.register_type_resolvers(team, legal_entity, affiliations, affiliation, user)
 
+# Teams are for signed-in users (docs/read-access.md, rule 9): anonymous users see no team trees. Who holds a Person
+# record is shown with the Person instead (Person.dataController), so the organisations using BreedGraph are not listed
+# publicly.
+
 @graphql_query.field("teamsRoots")
 @graphql_payload
+@require_authentication
 async def get_team_trees(_, info) -> List[TeamOutput]:
-    """
-    Every team tree root, and the teams in it the user is affiliated with; anonymous users see the roots only,
-    with their legal entities, as whom data is held by is public (see docs/read-access.md)
-    """
+    """Every team tree root, with its legal entity, and the teams in it the user is affiliated with"""
     await update_teams_map(info.context)
     teams_map = info.context.get('teams_map')
     team_tree_roots = info.context.get('team_tree_roots')
@@ -51,12 +53,14 @@ def _team_asked_for(teams_map: dict, team_id: int) -> TeamOutput | None:
 
 @graphql_query.field("teamsTeam")
 @graphql_payload
+@require_authentication
 async def get_team(_, info, id: int) -> TeamOutput:
     await update_teams_map(info.context, team_ids=[id])
     return _team_asked_for(info.context.get('teams_map'), id)
 
 @graphql_query.field("teamsTeams")
 @graphql_payload
+@require_authentication
 async def get_teams(_, info, ids: List[int]) -> List[TeamOutput]:
     await update_teams_map(info.context, team_ids=ids)
     teams_map = info.context.get('teams_map')

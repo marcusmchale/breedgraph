@@ -1,43 +1,71 @@
 """
-Persons under the read policy (docs/read-access.md and docs/person.md), on the read-policy scenario (PEOPLE in
+Persons under the read policy (docs/read-access.md and docs/person.md §3), on the read-policy scenario (PEOPLE in
 tests/breedgraph/scenarios/read_policy_scenario.py).
 
-A Person the viewer can read, or is linked to, is returned in full. Any other Person asked for by id is a placeholder:
-its id with no name or teams, and the viewer's own request to be linked, if any, so they can withdraw it (rule 2).
-Searches leave such Persons out, so a name does not reveal that a hidden Person has it (rule 5).
+A Person is seen in one of three views: FULL, the record, by read affiliates of its team and by its linked user;
+ATTRIBUTION, name, institution and ORCID iD, by those reading it by release only; RESTRICTED, its id, by anyone else
+asking for it by id, with their own request to be linked, if any, so they can withdraw it (rule 2). Every view names
+the Person's data controller. Searches leave restricted Persons out, so a name does not reveal that a hidden Person
+has it (rule 5).
 """
 import pytest
+
+from breedgraph.domain.model.people import PersonView, LawfulBasis
 
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PEOPLE
 
 
-def shown(read_policy, viewer: str, name: str) -> bool:
-    """Whether the viewer sees the Person in full: they can read it or are linked to it"""
-    return read_policy.readable(viewer, name) or PEOPLE[name][3] == viewer
-
-
 def assert_person(read_policy, viewer: str, name: str, person):
     _, _, teams, linked_user, claimant = PEOPLE[name]
+    view = read_policy.person_view(viewer, name)
     assert person.id == read_policy[name]
-    if shown(read_policy, viewer, name):
+    assert person.view is PersonView(view), f"{viewer}: view of {name}"
+    data_controller = read_policy.data_controller(name)
+    if data_controller is None:
+        assert person.data_controller is None
+    else:
+        assert (person.data_controller.legal_name, person.data_controller.privacy_contact) == data_controller
+    assert person.erased is False
+    assert person.erased_at is None
+
+    if view == 'FULL':
         assert person.name
         assert set(person.teams) == {read_policy[team] for team in teams}
+        assert person.basis is LawfulBasis.PUBLIC_TASK
+        assert person.informed_attestation is True
+        assert person.recorded_at is not None
         assert person.user == (read_policy[linked_user] if linked_user else None)
+        assert person.linked is (linked_user is not None)
         assert person.claims == ([read_policy[claimant]] if claimant else [])
+        return
+
+    # outside the full view, nothing of the record-keeping: no lawful basis stated, not even PersonBase's default
+    assert person.teams == []
+    assert person.basis is None
+    assert person.informed_attestation is None
+    assert person.recorded_by is None
+    assert person.recorded_at is None
+    assert person.user is None
+    assert person.linked is None
+    # only the viewer's own request to be linked
+    assert person.claims == ([read_policy[claimant]] if claimant == viewer else [])
+    if view == 'ATTRIBUTION':
+        assert person.name
     else:
         assert person.name is None
         assert person.institution is None
-        assert person.teams == []
-        assert person.user is None
-        # only the viewer's own request to be linked
-        assert person.claims == ([read_policy[claimant]] if claimant == viewer else [])
+        assert person.orcid is None
 
 
-def test_expected_shapes(read_policy):
-    assert shown(read_policy, 'outsider', 'person_outsider')
-    assert not shown(read_policy, 'outsider', 'person_claimed')
-    assert not shown(read_policy, 'anonymous', 'person_other')
-    assert shown(read_policy, 'admin', 'person_claimed')
+def test_expected_views(read_policy):
+    assert read_policy.person_view('outsider', 'person_outsider') == 'FULL'
+    assert read_policy.person_view('outsider', 'person_claimed') == 'RESTRICTED'
+    assert read_policy.person_view('outsider', 'person_public') == 'ATTRIBUTION'
+    assert read_policy.person_view('anonymous', 'person_public') == 'ATTRIBUTION'
+    assert read_policy.person_view('anonymous', 'person_other') == 'RESTRICTED'
+    assert read_policy.person_view('stranger', 'person_other') == 'FULL'
+    assert read_policy.person_view('admin', 'person_other') == 'ATTRIBUTION'
+    assert read_policy.person_view('admin', 'person_claimed') == 'FULL'
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -52,19 +80,20 @@ async def test_people_by_id(views_factory, read_policy, viewer):
 
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
-async def test_search_leaves_hidden_out(views_factory, read_policy, viewer):
+async def test_search_leaves_restricted_out(views_factory, read_policy, viewer):
     async with views_factory.get_views(user_id=read_policy.user('admin')) as views:
         names = {person.id: person.name for person in await views.people.get_people([read_policy[name] for name in PEOPLE])}
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         everyone = {person.id: person for person in await views.people.search_people()}
-        expected = [name for name in PEOPLE if shown(read_policy, viewer, name)]
+        expected = [name for name in PEOPLE if read_policy.person_view(viewer, name) != 'RESTRICTED']
         assert set(everyone) == {read_policy[name] for name in expected}
         for name in expected:
             assert_person(read_policy, viewer, name, everyone[read_policy[name]])
-        # by name, ignoring case: a hidden Person's name finds nothing
+        # by name, ignoring case: a restricted Person's name finds nothing
         for name in PEOPLE:
             found = await views.people.search_people(names[read_policy[name]].upper())
-            assert [person.id for person in found] == ([read_policy[name]] if shown(read_policy, viewer, name) else []), \
+            shown = read_policy.person_view(viewer, name) != 'RESTRICTED'
+            assert [person.id for person in found] == ([read_policy[name]] if shown else []), \
                 f"{viewer}: search for {name}"
 
 

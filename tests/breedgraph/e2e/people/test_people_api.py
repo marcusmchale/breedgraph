@@ -76,6 +76,9 @@ async def test_create_and_read(client, login_token_factory, people_api_context):
     assert person['recordedAt'] is not None
     assert person['restricted'] is False
     assert person['erased'] is False
+    assert person['view'] == 'FULL'
+    assert person['linked'] is False
+    assert person['dataController'] == {'legalName': 'Test University', 'privacyContact': 'dataprotection@test.example'}
 
     payload = get_verified_payload(await post_to_people(client, token), "people")
     assert person['id'] in [p['id'] for p in payload['result']]
@@ -92,10 +95,16 @@ async def test_other_users_see_id_only(client, login_token_factory, people_api_c
     restricted = payload['result']
     assert restricted['id'] == person['id']
     assert restricted['restricted'] is True
+    assert restricted['view'] == 'RESTRICTED'
     assert restricted['name'] is None
     assert restricted['institution'] is None
     assert restricted['teams'] == []
     assert restricted['recordedBy'] is None
+    # no record-keeping details, not even the lawful basis; who holds the record is shown
+    assert restricted['basis'] is None
+    assert restricted['informedAttestation'] is None
+    assert restricted['linked'] is None
+    assert restricted['dataController'] == person['dataController']
 
     payload = get_verified_payload(await post_to_people_by_ids(client, other_token, [int(person['id'])]), "peoplePeople")
     assert [p['id'] for p in payload['result']] == [person['id']]

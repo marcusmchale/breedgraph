@@ -4,8 +4,8 @@ from tests.breedgraph.e2e.utils import with_auth
 from typing import List
 
 PERSON_FIELDS = (
-    " id name institution basis informedAttestation orcid recordedAt erased erasedAt restricted "
-    " teams { team { id } standIn } linkedUser { id } recordedBy { id } "
+    " id view name institution basis informedAttestation orcid recordedAt erased erasedAt restricted linked "
+    " teams { team { id } standIn } linkedUser { id } recordedBy { id } dataController { legalName privacyContact } "
 )
 
 async def _post(client, token: str | None, query: str, variables: dict | None = None):

@@ -37,13 +37,7 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'ontologyEntries': ('query { ontologyEntries(labels: [SUBJECT]) { status errors { name message } } }', {}, True),
         'ontologyRelationships': ('query ($ids: [ID!]!) { ontologyRelationships(entryIds: $ids) { status errors { name message } } }', {'ids': [ids['ontology_subject_tree']]}, True),
         'ontologyVersion': ('query { ontologyVersion { status errors { name message } } }', {}, True),
-        'teamsRoots': ('query { teamsRoots { status errors { name message } } }', {}, True),
         'teamsDataProcessingTerms': ('query { teamsDataProcessingTerms { status errors { name message } } }', {}, True),
-        'teamsTeam': ('query ($id: ID!) { teamsTeam(id: $id) { status errors { name message } } }', {'id': ids['root']}, True),
-        'teamsTeams': ('query ($ids: [ID!]) { teamsTeams(ids: $ids) { status errors { name message } } }', {'ids': [ids['root']]}, True),
-        'people': ('query { people { status errors { name message } } }', {}, True),
-        'peoplePeople': ('query ($ids: [ID!]!) { peoplePeople(ids: $ids) { status errors { name message } } }', {'ids': [ids['person_public']]}, True),
-        'peoplePerson': ('query ($id: ID!) { peoplePerson(id: $id) { status errors { name message } } }', {'id': ids['person_public']}, True),
         'programs': ('query { programs { status errors { name message } } }', {}, True),
         'programsProgram': ('query ($id: ID) { programsProgram(id: $id) { status errors { name message } } }', {'id': ids['program_public']}, True),
         'programsStudy': ('query ($id: ID!) { programsStudy(id: $id) { status errors { name message } } }', {'id': ids['study_public']}, True),
@@ -69,6 +63,9 @@ ACCOUNT_QUERIES = {
     'analysisRecentSubmissions': 'query { analysisRecentSubmissions { status errors { name message } } }',
     'analysisSubmission': 'query { analysisSubmission(id: "1") { status errors { name message } } }',
     'controlsControllers': 'query { controlsControllers(entityLabel: LOCATION, entityIds: ["1"]) { status errors { name message } } }',
+    'controlsControlledCounts': 'query { controlsControlledCounts(teamIds: ["1"]) { status errors { name message } } }',
+    'controlsControlledEntities': 'query { controlsControlledEntities(teamId: "1", label: LOCATION) { status errors { name message } } }',
+    'controlsControlledUnits': 'query { controlsControlledUnits(teamId: "1") { status errors { name message } } }',
     'controlsTransfer': 'query { controlsTransfer(id: "1") { status errors { name message } } }',
     'controlsTransfers': 'query { controlsTransfers { status errors { name message } } }',
     'datasetsSubmission': 'query { datasetsSubmission(id: "1") { status errors { name message } } }',
@@ -76,11 +73,19 @@ ACCOUNT_QUERIES = {
     'ontologyCommitHistory': 'query { ontologyCommitHistory { status errors { name message } } }',
     'ontologyEditors': 'query { ontologyEditors { status errors { name message } } }',
     'ontologyRoleRequests': 'query { ontologyRoleRequests { status errors { name message } } }',
+    # no public directory of people or organisations: anonymous users meet Persons only where something they can
+    # read refers to them, each with its data controller (docs/person.md §3, docs/read-access.md rule 9)
+    'people': 'query { people { status errors { name message } } }',
+    'peoplePeople': 'query { peoplePeople(ids: ["1"]) { status errors { name message } } }',
+    'peoplePerson': 'query { peoplePerson(id: "1") { status errors { name message } } }',
     'peopleClaimRequests': 'query { peopleClaimRequests { status errors { name message } } }',
     'peopleMyClaims': 'query { peopleMyClaims { status errors { name message } } }',
     'peopleMyPerson': 'query { peopleMyPerson { status errors { name message } } }',
     'referencesFileSubmission': 'query { referencesFileSubmission(fileId: "1") { status errors { name message } } }',
     'referencesRecentFiles': 'query { referencesRecentFiles { status errors { name message } } }',
+    'teamsRoots': 'query { teamsRoots { status errors { name message } } }',
+    'teamsTeam': 'query { teamsTeam(id: "1") { status errors { name message } } }',
+    'teamsTeams': 'query { teamsTeams(ids: ["1"]) { status errors { name message } } }',
 }
 
 

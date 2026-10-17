@@ -3,7 +3,7 @@ from ariadne import ObjectType, EnumType
 from typing import List
 
 from breedgraph.custom_exceptions import NoResultFoundError
-from breedgraph.domain.model.people import PersonOutput, LawfulBasis
+from breedgraph.domain.model.people import PersonOutput, LawfulBasis, PersonView
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_people_map,
@@ -25,19 +25,24 @@ person = ObjectType("Person")
 person_claim = ObjectType("PersonClaim")
 person_claim_request = ObjectType("PersonClaimRequest")
 graphql_resolvers.register_type_resolvers(person, person_claim, person_claim_request)
-graphql_resolvers.register_enums(EnumType("LawfulBasis", LawfulBasis))
+graphql_resolvers.register_enums(EnumType("LawfulBasis", LawfulBasis), EnumType("PersonView", PersonView))
 
+
+# Listing and looking up Persons needs an account, so Persons released to the public are not a public directory: anonymous
+# users meet them only where something they can read refers to them (contacts, contributions). See docs/person.md §3.
 
 @graphql_query.field("people")
 @graphql_payload
+@require_authentication
 async def get_people(_, info, name: str | None = None) -> List[PersonOutput]:
-    """The Persons the user can read, or is linked to, by name or all of them; hidden ones are left out"""
+    """The Persons the user sees in full or by attribution, by name or all of them; restricted ones are left out"""
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
         return await views.people.search_people(name)
 
 @graphql_query.field("peoplePeople")
 @graphql_payload
+@require_authentication
 async def get_people_by_ids(_, info, ids: List[int]) -> List[PersonOutput]:
     await update_people_map(info.context, person_ids=ids)
     people_map = info.context.get('people_map')
@@ -45,6 +50,7 @@ async def get_people_by_ids(_, info, ids: List[int]) -> List[PersonOutput]:
 
 @graphql_query.field("peoplePerson")
 @graphql_payload
+@require_authentication
 async def get_person(_, info, id: int) -> PersonOutput:
     await update_people_map(info.context, person_ids=[id])
     person_output = info.context.get('people_map').get(id)
@@ -71,24 +77,19 @@ async def resolve_linked_user(obj: PersonOutput, info):
 async def resolve_recorded_by(obj: PersonOutput, info):
     return await _resolve_user(info, obj.recorded_by)
 
-@person.field("erased")
-def resolve_erased(obj: PersonOutput, info) -> bool:
-    return obj.erased_at is not None
-
 @person.field("restricted")
 def resolve_restricted(obj: PersonOutput, info) -> bool:
-    # Readers always see a name unless the Person is erased, see PersonStored.redacted
-    return obj.name is None and obj.erased_at is None
+    return obj.view is PersonView.RESTRICTED
 
 @graphql_query.field("peopleMyPerson")
 @graphql_payload
 @require_authentication
 async def get_my_person(_, info) -> PersonOutput | None:
+    """The user's own Person, which they always see in full, through the people view as other reads"""
     user_id = info.context.get('user_id')
-    bus = info.context.get('bus')
-    async with bus.uow_factory.get_uow(user_id=user_id) as uow:
-        person_stored = await uow.repositories.people.get(user_id=user_id)
-        return person_stored.to_output() if person_stored is not None else None
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return (await views.people.get_people_by_users([user_id])).get(user_id)
 
 @graphql_query.field("peopleMyClaims")
 @graphql_payload

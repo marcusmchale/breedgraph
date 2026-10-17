@@ -7,13 +7,12 @@ from breedgraph.domain.model.controls import ControlledModelLabel
 # can change the query. tests/breedgraph/integration/test_query_builders_compile.py plans every builder's output.
 
 
-def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
+def _current_controls(entity: str, label: ControlledModelLabel) -> str:
     """
-    A call setting alias to whether the user can read entity: with no current controls, when the least of its current
-    controls' releases is at least $minimum_release, or when a team in $read_teams controls it
+    Within a call on entity, controls as the current control of each team controlling it, {team, release}: a team's
+    latest control, while it is not ended
     """
     return f"""
-        CALL ({entity}) {{
           OPTIONAL MATCH ({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team)
           WITH team, control
           ORDER BY team.id, control.sequence DESC
@@ -21,10 +20,41 @@ def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
           WITH collect(
             CASE WHEN team IS NOT NULL AND NOT coalesce(control.ended, false) THEN {{team: team.id, release: control.release}} END
           ) AS controls
+    """
+
+
+_LEAST_RELEASE = "reduce(least = 2, c IN controls | CASE WHEN c.release < least THEN c.release ELSE least END)"
+
+
+def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
+    """
+    A call setting alias to whether the user can read entity: with no current controls, when the least of its current
+    controls' releases is at least $minimum_release, or when a team in $read_teams controls it
+    """
+    return f"""
+        CALL ({entity}) {{
+          {_current_controls(entity, label)}
           RETURN size(controls) = 0
             OR any(c IN controls WHERE c.team IN $read_teams)
-            OR reduce(least = 2, c IN controls | CASE WHEN c.release < least THEN c.release ELSE least END) >= $minimum_release
+            OR {_LEAST_RELEASE} >= $minimum_release
             AS {alias}
+        }}
+    """
+
+
+def control_access(entity: str, label: ControlledModelLabel, prefix: str) -> str:
+    """
+    A call setting, as visible() decides them but apart: {prefix}_teams, the ids of the teams currently controlling
+    entity; {prefix}_by_read_team, whether one of them is in $read_teams; and {prefix}_released, whether the least of
+    its current controls' releases is at least $minimum_release. Unlike visible(), an entity without current controls
+    is not released, for entities whose reads must fail closed (Persons, see query_builders.people)
+    """
+    return f"""
+        CALL ({entity}) {{
+          {_current_controls(entity, label)}
+          RETURN [c IN controls | c.team] AS {prefix}_teams,
+            any(c IN controls WHERE c.team IN $read_teams) AS {prefix}_by_read_team,
+            size(controls) > 0 AND {_LEAST_RELEASE} >= $minimum_release AS {prefix}_released
         }}
     """
 

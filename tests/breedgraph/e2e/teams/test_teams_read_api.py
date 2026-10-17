@@ -2,8 +2,9 @@
 Team trees and accounts under the read policy (docs/read-access.md, rules 7 and 9), through GraphQL, on the
 read-policy scenario: team tree "root" with a child team "child", and a second team tree "other".
 
-- A team tree's root is visible to everyone, anonymous users included, with its legal entity: whom data is held
-  by is public. Its other teams are visible only to their affiliates; asked for by id, a hidden team is a placeholder.
+- Teams are for signed-in users: anonymous users see none, and learn who holds a Person record from the Person
+  (Person.dataController). A team tree's root is visible to every signed-in user, with its legal entity. Its other
+  teams are visible only to their affiliates; asked for by id, a hidden team is a placeholder.
 - A team's affiliations are shown in full to its admins, and otherwise only the viewer's own.
 - Accounts are shown to their owner and to admins of their teams: an affiliation's user, a legal entity's
   declaredBy. accountsAccount and accountsUserAccess need an account.
@@ -21,6 +22,7 @@ REDACTED = 'REDACTED'
 TEAMS = ('root', 'child', 'other')
 ROOTS = ('root', 'other')
 PARENTS = {'child': 'root'}
+ROOT_ADMINS = {'root': 'admin', 'other': 'stranger'}
 
 AFFILIATION_FIELDS = "user { id } authorisation heritable"
 TEAM_FIELDS = (
@@ -70,24 +72,31 @@ def assert_team(read_policy, viewer: str, name: str, team: dict):
         for access in ('read', 'write', 'admin', 'curate')
     }
     assert affiliations == expected_affiliations(viewer, name), f"{viewer}: affiliations of {name}"
-    if name == 'root' and config.DATA_PROCESSING_TERMS_VERSION is not None:
+    if name in ROOTS and config.DATA_PROCESSING_TERMS_VERSION is not None:
         legal_entity = team['legalEntity']
-        assert legal_entity['legalName'] and legal_entity['privacyContact']
+        assert (legal_entity['legalName'], legal_entity['privacyContact']) == read_policy.legal_entities[name]
         assert legal_entity['termsVersion'] == config.DATA_PROCESSING_TERMS_VERSION
         # the declaring account, shown to admins of the team only
         declared_by = legal_entity['declaredBy']
-        assert (declared_by is not None) == (viewer == 'admin'), f"{viewer}: declaredBy"
-    elif name != 'root':
+        assert (declared_by is not None) == (viewer == ROOT_ADMINS[name]), f"{viewer}: declaredBy"
+    elif name not in ROOTS:
         assert team['legalEntity'] is None
+
+
+async def assert_refused_anonymously(client, login_token_factory, read_policy, operation: str, text: str, variables=None):
+    payload = await payload_of(client, login_token_factory, read_policy, 'anonymous', operation, text, variables)
+    assert payload['status'] != GQLStatus.SUCCESS.name
+    assert payload['result'] is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_team_trees(client, login_token_factory, read_policy, viewer):
-    result = await result_of(
-        client, login_token_factory, read_policy, viewer, 'teamsRoots',
-        f"query {{ teamsRoots {{ status result {{ {TEAM_FIELDS} }} errors {{ name message }} }} }}"
-    )
+    query = f"query {{ teamsRoots {{ status result {{ {TEAM_FIELDS} }} errors {{ name message }} }} }}"
+    if viewer == 'anonymous':
+        await assert_refused_anonymously(client, login_token_factory, read_policy, 'teamsRoots', query)
+        return
+    result = await result_of(client, login_token_factory, read_policy, viewer, 'teamsRoots', query)
     roots = {int(team['id']): team for team in result}
     # every team tree's root, the scenario's among them
     assert {read_policy[name] for name in ROOTS} <= set(roots)
@@ -98,10 +107,16 @@ async def test_team_trees(client, login_token_factory, read_policy, viewer):
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_teams_by_id(client, login_token_factory, read_policy, viewer):
+    by_ids = f"query ($ids: [ID!]) {{ teamsTeams(ids: $ids) {{ status result {{ {TEAM_FIELDS} }} errors {{ name message }} }} }}"
+    by_id = "query ($id: ID!) { teamsTeam(id: $id) { status result { id name } errors { name message } } }"
+    if viewer == 'anonymous':
+        await assert_refused_anonymously(
+            client, login_token_factory, read_policy, 'teamsTeams', by_ids, {'ids': [read_policy[name] for name in TEAMS]}
+        )
+        await assert_refused_anonymously(client, login_token_factory, read_policy, 'teamsTeam', by_id, {'id': read_policy['root']})
+        return
     result = await result_of(
-        client, login_token_factory, read_policy, viewer, 'teamsTeams',
-        f"query ($ids: [ID!]) {{ teamsTeams(ids: $ids) {{ status result {{ {TEAM_FIELDS} }} errors {{ name message }} }} }}",
-        {'ids': [read_policy[name] for name in TEAMS]}
+        client, login_token_factory, read_policy, viewer, 'teamsTeams', by_ids, {'ids': [read_policy[name] for name in TEAMS]}
     )
     teams = {int(team['id']): team for team in result}
     assert set(teams) == {read_policy[name] for name in TEAMS}
@@ -116,17 +131,13 @@ async def test_teams_by_id(client, login_token_factory, read_policy, viewer):
             assert team['legalEntity'] is None
 
     for name in TEAMS:
-        team = await result_of(
-            client, login_token_factory, read_policy, viewer, 'teamsTeam',
-            "query ($id: ID!) { teamsTeam(id: $id) { status result { id name } errors { name message } } }",
-            {'id': read_policy[name]}
-        )
+        team = await result_of(client, login_token_factory, read_policy, viewer, 'teamsTeam', by_id, {'id': read_policy[name]})
         assert int(team['id']) == read_policy[name]
         assert (team['name'] != REDACTED) == visible(viewer, name)
 
 
 @pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.parametrize('viewer', VIEWERS)
+@pytest.mark.parametrize('viewer', [viewer for viewer in VIEWERS if viewer != 'anonymous'])
 async def test_team_trees_with_teams_asked_for_in_the_same_request(client, login_token_factory, read_policy, viewer):
     """Teams loaded by id earlier in a request do not change the list of team trees"""
     response = await post_as(

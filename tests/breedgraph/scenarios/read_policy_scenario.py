@@ -1,7 +1,8 @@
 """
 The read-policy scenario: one world for the read tests (docs/read-access.md) and for the synthetic test database.
 
-Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree.
+Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree. Both roots
+declare a legal entity (when data processing terms are configured), the data controller of their Persons.
 
     admin     WRITE, READ, CURATE, ADMIN on root; ADMIN and READ on child (no WRITE, no CURATE)
     writer    READ, WRITE, CURATE on child
@@ -46,7 +47,8 @@ Programs
     └── trial                    child PRIVATE     writer
         ├── study_public         child PUBLIC      writer
         └── study_private        child PRIVATE     writer
-    program_public               root  PUBLIC      admin
+    program_public               root  PUBLIC      admin     contact person_admin; contribution person_public
+                                                             (Data curation)
     └── trial_public             root  PUBLIC      admin
         └── study_registered     root  REGISTERED  admin
 
@@ -204,6 +206,11 @@ REFERENCES = {
 }
 STUDY_REFERENCES = {'study_public': ['reference_public', 'reference_private']}
 
+# The Persons credited on programs, as built after the Persons: contacts, and contributions as (person, roles)
+PROGRAM_CREDITS = {
+    'program_public': {'contacts': ['person_admin'], 'contributions': [('person_public', ['Data curation'])]},
+}
+
 # The programs, trials and studies by name, as built
 PROGRAMS = {
     'program': {'trial': ['study_public', 'study_private']},
@@ -266,6 +273,8 @@ class ReadPolicyScenario:
     ids: Dict[str, int] = field(default_factory=dict)
     controls: Dict[str, Tuple[str, ReadRelease]] = field(default_factory=dict)
     files: Dict[str, Tuple[str, bytes]] = field(default_factory=dict)  # file references by name: (file id, content)
+    # the legal entities declared on the roots, by root name: (legal name, privacy contact)
+    legal_entities: Dict[str, Tuple[str, str]] = field(default_factory=dict)
     read_teams: Dict[str, set[str]] = field(default_factory=lambda: {
         'admin': {'root', 'child'},
         'writer': {'child'},
@@ -287,6 +296,23 @@ class ReadPolicyScenario:
         if team in self.read_teams[viewer]:
             return True
         return release >= (PUBLIC if viewer == 'anonymous' else REGISTERED)
+
+    def person_view(self, viewer: str, name: str) -> str:
+        """
+        How the viewer sees a Person (docs/person.md §3): FULL to read affiliates of its team and its linked user,
+        ATTRIBUTION to those reading it by release only, else RESTRICTED
+        """
+        team, release = self.controls[name]
+        if team in self.read_teams[viewer] or PEOPLE[name][3] == viewer:
+            return 'FULL'
+        if release >= (PUBLIC if viewer == 'anonymous' else REGISTERED):
+            return 'ATTRIBUTION'
+        return 'RESTRICTED'
+
+    def data_controller(self, name: str) -> Tuple[str, str] | None:
+        """The legal entity holding a Person, (legal name, privacy contact): its team's root's, if declared"""
+        team, _ = self.controls[name]
+        return self.legal_entities.get('other' if team == 'other' else 'root')
 
     def tree_member(self, viewer: str, parents: dict[str, str | None], name: str) -> TreeMember:
         """
@@ -503,6 +529,7 @@ class ReadPolicyScenarioBuilder:
         await self._references()
         await self._programs()
         await self._people()
+        await self._program_credits()
         await self._datasets()
         await self._ontology_commit_and_draft()
         return self.scenario
@@ -523,16 +550,7 @@ class ReadPolicyScenarioBuilder:
         async with self.uow_factory.get_uow(user_id=s['admin']) as uow:
             team_tree = await uow.repositories.team_trees.get(team_id=s['root'])
             s['child'] = team_tree.get_children_ids(s['root'])[0]
-            if config.DATA_PROCESSING_TERMS_VERSION is not None:
-                team_tree.declare_legal_entity(
-                    agent_id=s['admin'],
-                    team_id=s['root'],
-                    legal_name=text.new_text(10),
-                    privacy_contact=users.new_user_input()['email'],
-                    terms_version=config.DATA_PROCESSING_TERMS_VERSION,
-                    current_terms_version=config.DATA_PROCESSING_TERMS_VERSION
-                )
-                await uow.commit()
+            await self._declare_legal_entity(uow, team_tree, 'root', s['admin'])
         for access in (Access.ADMIN, Access.READ):
             await team_trees.authorise_access(user_id=s['admin'], team_id=s['child'], access=access)
 
@@ -546,8 +564,27 @@ class ReadPolicyScenarioBuilder:
         s['other'] = await team_trees.team_tree(user_id=s['stranger'])
         for access in Access:
             await team_trees.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
+        async with self.uow_factory.get_uow(user_id=s['stranger']) as uow:
+            team_tree = await uow.repositories.team_trees.get(team_id=s['other'])
+            await self._declare_legal_entity(uow, team_tree, 'other', s['stranger'])
 
         s['outsider'] = await self._account('outsider')
+
+    async def _declare_legal_entity(self, uow, team_tree, root: str, admin: int):
+        """Declare a legal entity on a root, when data processing terms are configured, as creating Persons needs"""
+        if config.DATA_PROCESSING_TERMS_VERSION is None:
+            return
+        legal_name, privacy_contact = text.new_text(10), users.new_user_input()['email']
+        team_tree.declare_legal_entity(
+            agent_id=admin,
+            team_id=self.scenario[root],
+            legal_name=legal_name,
+            privacy_contact=privacy_contact,
+            terms_version=config.DATA_PROCESSING_TERMS_VERSION,
+            current_terms_version=config.DATA_PROCESSING_TERMS_VERSION
+        )
+        await uow.commit()
+        self.scenario.legal_entities[root] = (legal_name, privacy_contact)
 
     async def _ontology(self):
         ontology = OntologyBuilder(uow_factory=self.uow_factory)
@@ -805,6 +842,24 @@ class ReadPolicyScenarioBuilder:
                     stored = await uow.repositories.people.get(person_id=person.id)
                     stored.request_claim(s[claimant])
                     await uow.commit()
+
+    async def _program_credits(self):
+        """Contacts (linked Persons released at least as widely as the program) and contributors of programs"""
+        s = self.scenario.ids
+        for name, credits in PROGRAM_CREDITS.items():
+            team, release = self.scenario.controls[name]
+            async with self._uow(team, release) as uow:
+                role_ids = {
+                    role: (await uow.ontology.get_entry(name=role, label=OntologyEntryLabel.ROLE)).id
+                    for _, roles in credits['contributions'] for role in roles
+                }
+                stored = await uow.repositories.programs.get(program_id=s[name])
+                stored.contact_ids = [s[person] for person in credits['contacts']]
+                stored.contributions = [
+                    Contribution(person=s[person], roles=[role_ids[role] for role in roles])
+                    for person, roles in credits['contributions']
+                ]
+                await uow.commit()
 
     async def _datasets(self):
         s = self.scenario.ids

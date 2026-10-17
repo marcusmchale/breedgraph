@@ -1,17 +1,20 @@
 from neo4j import AsyncSession
 
 from breedgraph.adapters.neo4j.cypher.query_builders import people as people_queries
-from breedgraph.adapters.neo4j.repositories.people import Neo4jPeopleRepository
 from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.people import PersonOutput
+from breedgraph.domain.model.people import PersonOutput, PersonView, LawfulBasis, DataController
+from breedgraph.domain.model.time_descriptors import deserialize_time
 from breedgraph.service_layer.queries.views.people import AbstractPeopleView
 
 from typing import Dict, List
 
 
 class Neo4jPeopleView(AbstractPeopleView):
-    """The read checks and placeholders are in the Cypher (see query_builders.people); records parse as the repository's"""
+    """
+    The read checks and views are in the Cypher (see query_builders.people). Records parse straight into PersonOutput,
+    not through the repository's parser, so fields outside the view stay None
+    """
 
     def __init__(self, session: AsyncSession, user_id: int | None, read_teams: List[int]):
         self.session = session
@@ -29,7 +32,26 @@ class Neo4jPeopleView(AbstractPeopleView):
 
     @staticmethod
     def _to_output(record) -> PersonOutput:
-        return Neo4jPeopleRepository.record_to_person(dict(record['person'])).to_output()
+        person = dict(record['person'])
+        data_controller = person.get('data_controller')
+        return PersonOutput(
+            id=person['id'],
+            name=person.get('name'),
+            institution=person.get('institution'),
+            teams=list(person.get('teams') or []),
+            basis=LawfulBasis(person['basis']) if person.get('basis') is not None else None,
+            informed_attestation=person.get('informed_attestation'),
+            orcid=person.get('orcid'),
+            user=person.get('user'),
+            claims=list(person.get('claims') or []),
+            recorded_by=person.get('recorded_by'),
+            recorded_at=deserialize_time(person.get('recorded_at')),
+            erased_at=deserialize_time(person.get('erased_at')),
+            view=PersonView(person['view']),
+            erased=person['erased'],
+            linked=person.get('linked'),
+            data_controller=DataController(**data_controller) if data_controller is not None else None
+        )
 
     async def _run(self, query: str, **params) -> List[PersonOutput]:
         return [self._to_output(record) async for record in await self._records(query, **params)]

@@ -6,28 +6,27 @@ type Query {
     """
     accountsUserAccess: UserAccessPayload!
     """
-    Get a list of team tree "root" teams.
-    These are the top-level teams of the team trees.
-    Visibility of teams within a team tree is dependent on controls, read-release and affiliations.
-    Navigation of the team tree graph is achieved by resolvers on the parent/children attributes.
+    The roots of the team trees, which every signed-in user sees, with their legal entities.
+    Teams below a root are visible to their affiliates only (docs/read-access.md, rule 9).
+    Navigation of the team tree graph is achieved by resolvers on the parent/children attributes. Requires sign-in.
     """
     teamsRoots: TeamsPayload!
     """
-    Get a single team details
-    As with team trees, the team tree can be explored from this node.
+    A team by id; a placeholder for a team hidden from the user.
+    As with team trees, the team tree can be explored from this node. Requires sign-in.
     """
     teamsTeam(id: ID!): TeamPayload! # see team
     """
-    Get a multiple team details
+    Teams by id, as teamsTeam. Requires sign-in.
     """
     teamsTeams(ids: [ID!]): TeamsPayload! # see team
     """ What an invitation offers, for the registration form. Requires the token from the invitation link, not login """
     accountsInvitation(token: String!): InvitationPreviewPayload!
-    """ Persons the user can read, optionally by exact name (case insensitive) """
+    """ Persons the user can see in full or by attribution, optionally by exact name (case insensitive). Requires sign-in """
     people(name: String): PeoplePayload!
-    """ Get Persons by id. Registered users without read access see the id only """
+    """ Get Persons by id, each in the user's view of it (Person.view). Requires sign-in """
     peoplePeople(ids: [ID!]!): PeoplePayload!
-    """ Get a Person by id. Registered users without read access see the id only """
+    """ Get a Person by id, in the user's view of it (Person.view). Requires sign-in """
     peoplePerson(id: ID!): PersonPayload!
     """ The Person linked to the current user's account, if any """
     peopleMyPerson: PersonPayload!
