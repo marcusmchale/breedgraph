@@ -267,14 +267,14 @@ async def update_grouping(
 async def delete_grouping(
         _,
         info,
-        grouping_id: int
+        id: int
 ):
     user_id = info.context.get('user_id')
-    logger.debug(f"Delete grouping: {grouping_id} by user {user_id}")
+    logger.debug(f"Delete grouping: {id} by user {user_id}")
 
     cmd = DeleteGrouping(
         agent_id=user_id,
-        grouping_id=grouping_id,
+        grouping_id=id,
     )
     await info.context['bus'].handle(cmd)
     return True
