@@ -311,6 +311,8 @@ grouping fails. In `GroupingUpdate` it is optional: omitted, it is unchanged.
 - `graphql/programs/study.graphql`: select `extent` on `groupings` (and the type's `defaultExtent` for the prefill).
   The curation table and the grouping list get it from there.
 - `RecordGroupingList.vue`: show each grouping's extent, so it's clear which groupings hold replicates.
+- `programsDeleteGrouping` is refused while any record has a code of the grouping (the error says to remove the codes
+  first). It used to report success and keep the grouping. Codes no record has any more go with the grouping.
 
 ### 11.3 Dataset curation
 

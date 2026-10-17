@@ -17,6 +17,11 @@ class AbstractDependencyGuards(ABC):
         ...
 
     @abstractmethod
+    async def grouping_has_records(self, grouping_id: int) -> bool:
+        """Check if any record is in a group of a record grouping"""
+        ...
+
+    @abstractmethod
     async def germplasm_has_units(self, germplasm_id: int) -> bool:
         """Check if a germplasm is part of any unit definitions"""
         ...

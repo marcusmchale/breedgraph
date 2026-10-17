@@ -369,6 +369,11 @@ async def delete_grouping(
         if study is None:
             raise NoResultFoundError(f"Study for grouping ID {cmd.grouping_id} not found")
 
+        if await uow.guards.grouping_has_records(cmd.grouping_id):
+            raise ProtectedNodeError(
+                "Cannot delete a grouping that has records in its groups; remove its codes from those records first"
+            )
+
         study.remove_grouping(grouping_id=cmd.grouping_id)
         await uow.commit()
 
