@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
 """
 Cut the map tiles BreedGraph serves (README.md, Maps) from a Protomaps build of OpenStreetMap, so that browsers load
-maps from our server and contact no third party:
-  - world.pmtiles: the whole world at low detail, to --world-maxzoom (8, about 560 MB);
-  - regions.pmtiles: full detail, from the next zoom to --regions-maxzoom (15), in the cells of a grid of
-    --cell-degrees (1) that come within --padding-km (25) of a location with coordinates (adapters/pmtiles/regions.py:
-    the files are served to anyone, so they show which cells hold locations, private ones included);
-  - tiles.json, listing them for the location map.
-Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
-can run while the files are served. Run it again when new field sites are added, or from cron, which also refreshes
-the map data; --regions-only leaves the world file as it is.
+maps from our server and contact no third party.
 
-Needs the pmtiles command (https://github.com/protomaps/go-pmtiles/releases) and a build: one of Protomaps' daily
-builds, https://build.protomaps.com/YYYYMMDD.pmtiles, kept for about a week (https://maps.protomaps.com/builds).
+By default it cuts world.pmtiles, the whole world at low detail to --world-maxzoom (8, about 560 MB), and writes
+world.json and tiles.json. The API then fetches detailed maps in the background: a country's when it is added, or for
+a country too large, a section's when a location in it is placed (adapters/pmtiles/map_regions.py).
+  --regions  fetches, as the API would, the detailed maps of every country in the database and of the sections where
+             located locations lie, keeping those already fetched: for a first setup, or after losing the files.
+  --refresh  fetches every region again from the newest build.
+  --dry-run  reports what would be fetched and its size.
+Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
+can run while the files are served, and while the API runs: they share its locks in Redis. No emails are sent.
+
+Needs the pmtiles command (README.md, Maps) and a build: by default (MAP_TILES_BUILD=latest) the newest of
+Protomaps' daily builds, each kept for about a week (https://maps.protomaps.com/builds).
 
 Usage, with the instance env files sourced:
-    python scripts/map_tiles.py --build https://build.protomaps.com/YYYYMMDD.pmtiles [--regions-only] [--dry-run]
+    python scripts/map_tiles.py [--world-maxzoom 8] [--build https://build.protomaps.com/YYYYMMDD.pmtiles] [--dry-run]
+    python scripts/map_tiles.py --regions [--dry-run]
+    python scripts/map_tiles.py --refresh [--dry-run]
 """
 import argparse
 import asyncio
-import json
 import os
-import subprocess
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,110 +34,138 @@ from neo4j import AsyncGraphDatabase
 
 from breedgraph import config
 from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
-from breedgraph.adapters.pmtiles import region_cells, region_geojson, cells_bounds
+from breedgraph.adapters.redis import RedisStateStore
+from breedgraph.adapters.pmtiles import PmtilesMapRegions, Outcome, Region, MapRegionError
+from breedgraph.adapters.pmtiles.command import PmtilesCommand, ProtomapsBuilds
+from breedgraph.adapters.pmtiles.regions import WORLD_JSON, read_json, read_sidecars, write_json, write_tiles_json
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# The breedgraph package logs to its log file; this reports to the terminal too
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+logging.getLogger().addHandler(console)
 logger = logging.getLogger(__name__)
 
-ATTRIBUTION = '© OpenStreetMap contributors, Protomaps'
-
-COORDINATES = """
-    MATCH (coordinate: Coordinate)-[:COORDINATE_OF]->(:Location)
+# Countries are the roots of location trees; their located locations, by the country's code
+LOCATED_LOCATIONS = """
+    MATCH (country: Location) WHERE NOT (country)<-[:INCLUDES_LOCATION]-(:Location) AND country.code IS NOT NULL
+    OPTIONAL MATCH (country)-[:INCLUDES_LOCATION*]->(:Location)<-[:COORDINATE_OF]-(coordinate: Coordinate)
     WHERE coordinate.latitude IS NOT NULL AND coordinate.longitude IS NOT NULL
-    RETURN DISTINCT coordinate.latitude AS latitude, coordinate.longitude AS longitude
+    WITH country, coordinate
+    RETURN country.code AS code, [point IN collect(DISTINCT [coordinate.latitude, coordinate.longitude]) WHERE point[0] IS NOT NULL] AS points
+    ORDER BY code
 """
 
 
-async def read_coordinates() -> list[tuple[float, float]]:
+async def read_located_locations() -> dict[str, list[tuple[float, float]]]:
     driver = AsyncGraphDatabase.driver(get_bolt_url(), auth=get_graphdb_auth())
     try:
         async with driver.session(database=DATABASE_NAME) as session:
-            result = await session.run(COORDINATES)
-            return [(record['latitude'], record['longitude']) async for record in result]
+            result = await session.run(LOCATED_LOCATIONS)
+            return {record['code']: [tuple(point) for point in record['points']] async for record in result}
     finally:
         await driver.close()
 
 
-def extract(pmtiles: str, build: str, output: Path, dry_run: bool, *options: str) -> None:
-    """pmtiles extract into a temporary file beside output, then replace output with it"""
-    temporary = output.with_name(f".{output.name}.partial")
-    command = [pmtiles, 'extract', build, '/dev/null' if dry_run else str(temporary), *options]
-    if dry_run:
-        command.append('--dry-run')
-    logger.info(' '.join(command))
-    subprocess.run(command, check=True)
-    if not dry_run:
-        os.replace(temporary, output)
+def gigabytes(size: int) -> str:
+    return f"{size / 10 ** 9:.2f} GB"
 
 
-def write_json(path: Path, content: dict) -> None:
-    temporary = path.with_name(f".{path.name}.partial")
-    temporary.write_text(json.dumps(content, indent=2))
-    os.replace(temporary, path)
+async def cut_world(args, out: Path) -> int:
+    build, version = await ProtomapsBuilds(args.build).latest()
+    world = out / 'world.pmtiles'
+    pmtiles = PmtilesCommand(args.pmtiles)
+    if args.dry_run:
+        size = await pmtiles.size(build, None, 0, args.world_maxzoom)
+        logger.info(f"Would cut {world} to zoom {args.world_maxzoom} from {build}: {gigabytes(size)}")
+        return 0
+    partial = out / '.world.pmtiles.partial'
+    logger.info(f"Cutting {world} to zoom {args.world_maxzoom} from {build}")
+    await pmtiles.extract(build, None, partial, 0, args.world_maxzoom)
+    os.replace(partial, world)
+    write_json(out / WORLD_JSON, {
+        'url': world.name,
+        'maxZoom': args.world_maxzoom,
+        'build': build,
+        'version': version,
+        'updated': datetime.now(timezone.utc).isoformat(timespec='seconds')
+    })
+    write_tiles_json(out)
+    stale = [sidecar['key'] for sidecar in read_sidecars(out) if sidecar['minZoom'] != args.world_maxzoom + 1]
+    if stale:
+        logger.warning(f"{len(stale)} regions start at another zoom than the world file ends: run --refresh")
+    logger.info(f"Wrote the world file and tiles.json to {out}")
+    return 0
+
+
+async def fetch_regions(args, regions: PmtilesMapRegions) -> int:
+    failed = 0
+    for code, points in (await read_located_locations()).items():
+        country = Region(code)
+        try:
+            size = await regions.size(country)
+            sections = await regions.sections(code, points) if size > regions.max_bytes and points else []
+        except MapRegionError as e:
+            logger.error(f"{code}: {e}")
+            failed += 1
+            continue
+        if size <= regions.max_bytes:
+            logger.info(f"{code}: the whole country, {gigabytes(size)}")
+        else:
+            logger.info(f"{code}: divided ({gigabytes(size)}), {len(sections)} sections hold its {len(points)} located points")
+        for section, section_size in sections:
+            logger.info(f"  {section.key}: {gigabytes(section_size)}" + (" is too large" if section_size > regions.max_bytes else ""))
+        if args.dry_run:
+            continue
+        outcomes = [await regions.fetch_now(country)]
+        outcomes += [await regions.fetch_now(section) for section, section_size in sections if section_size <= regions.max_bytes]
+        failed += outcomes.count(Outcome.FAILED)
+    return 1 if failed else 0
+
+
+async def refresh_regions(args, regions: PmtilesMapRegions) -> int:
+    failed = 0
+    for sidecar in read_sidecars(regions.tiles_path):
+        region = Region.from_key(sidecar['key'])
+        if args.dry_run:
+            logger.info(f"Would fetch {region.key} again, now {gigabytes(await regions.size(region, fresh=True))}")
+        elif await regions.fetch_now(region, refresh=True) is Outcome.FAILED:
+            failed += 1
+    return 1 if failed else 0
+
+
+async def run(args) -> int:
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    if not args.regions and not args.refresh:
+        return await cut_world(args, out)
+    if read_json(out / WORLD_JSON) is None:
+        logger.error(f"There is no world file in {out}: cut it first, without --regions or --refresh")
+        return 1
+    state_store = await RedisStateStore.create()
+    try:
+        regions = PmtilesMapRegions(state_store, command=args.pmtiles, tiles_path=out, build=args.build)
+        return await (fetch_regions if args.regions else refresh_regions)(args, regions)
+    finally:
+        await state_store.connection.aclose()
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--build', required=True, help="a Protomaps build, e.g. https://build.protomaps.com/YYYYMMDD.pmtiles")
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument('--regions', action='store_true', help="fetch the regions of every country and located location")
+    action.add_argument('--refresh', action='store_true', help="fetch every region again from the newest build")
+    parser.add_argument('--build', default=config.MAP_TILES_BUILD, help="'latest', or a Protomaps build's URL (MAP_TILES_BUILD)")
     parser.add_argument('--out', default=config.MAP_TILES_PATH, help="where the tiles are served from (MAP_TILES_PATH)")
-    parser.add_argument('--pmtiles', default='pmtiles', help="the pmtiles command")
+    parser.add_argument('--pmtiles', default=config.MAP_PMTILES_COMMAND or 'pmtiles', help="the pmtiles command (MAP_PMTILES_COMMAND)")
     parser.add_argument('--world-maxzoom', type=int, default=8)
-    parser.add_argument('--regions-maxzoom', type=int, default=15)
-    parser.add_argument('--padding-km', type=float, default=25)
-    parser.add_argument('--cell-degrees', type=float, default=1)
-    parser.add_argument('--regions-only', action='store_true', help="keep the world file as it is")
-    parser.add_argument('--dry-run', action='store_true', help="report what would be downloaded, writing nothing")
+    parser.add_argument('--dry-run', action='store_true', help="report what would be fetched and its size, fetching nothing")
     args = parser.parse_args()
-
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    world = out / 'world.pmtiles'
-    regions = out / 'regions.pmtiles'
-
-    world_maxzoom = args.world_maxzoom
-    if not args.regions_only:
-        extract(args.pmtiles, args.build, world, args.dry_run, f'--maxzoom={world_maxzoom}')
-    elif world.exists() and (out / 'tiles.json').exists():
-        # the world file kept, at the zoom it was cut to
-        world_maxzoom = json.loads((out / 'tiles.json').read_text())['layers'][0]['maxZoom']
-    else:
-        logger.error(f"{world} or tiles.json is missing, so the world file can't be kept: run without --regions-only")
+    if not PmtilesCommand(args.pmtiles).available():
+        logger.error(f"The pmtiles command ({args.pmtiles}) is not installed (README.md, Maps)")
         return 1
-
-    cells = region_cells(asyncio.run(read_coordinates()), padding_km=args.padding_km, cell_degrees=args.cell_degrees)
-    logger.info(f"{len(cells)} cells of {args.cell_degrees} degrees hold locations")
-    layers = [{'url': world.name, 'maxZoom': world_maxzoom}]
-    if cells:
-        with tempfile.NamedTemporaryFile('w', suffix='.geojson', delete=False) as region_file:
-            json.dump(region_geojson(cells, args.cell_degrees), region_file)
-        try:
-            extract(
-                args.pmtiles, args.build, regions, args.dry_run, f'--region={region_file.name}',
-                f'--minzoom={world_maxzoom + 1}', f'--maxzoom={args.regions_maxzoom}'
-            )
-        finally:
-            os.unlink(region_file.name)
-        layers.append({
-            'url': regions.name,
-            'minZoom': world_maxzoom + 1,
-            'maxZoom': args.regions_maxzoom,
-            'bounds': cells_bounds(cells, args.cell_degrees)
-        })
-
-    if args.dry_run:
-        logger.info(f"Would write {out / 'tiles.json'} with layers {layers}")
-        return 0
-    if not cells and regions.exists():
-        regions.unlink()
-    write_json(out / 'tiles.json', {
-        'attribution': ATTRIBUTION,
-        'build': args.build,
-        'updated': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-        'layers': layers
-    })
-    logger.info(f"Wrote the map tiles to {out}")
-    return 0
+    return asyncio.run(run(args))
 
 
 if __name__ == '__main__':
