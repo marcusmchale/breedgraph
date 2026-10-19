@@ -1,0 +1,92 @@
+"""
+Outlines of countries and their sections from geoBoundaries (config.GEOBOUNDARIES_URL; open licences, which vary by
+country and are kept with each file). They are used only to cut tiles, never shown, and are cached in
+config.MAP_BOUNDARIES_PATH, which is not served.
+"""
+import asyncio
+import json
+from pathlib import Path
+from typing import List, Tuple
+
+import httpx
+
+from breedgraph import config
+from .command import MapRegionError
+from .regions import Region, write_json
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+def _load_features(path: Path) -> List[dict]:
+    return json.loads(path.read_text()).get('features') or []
+
+
+class GeoBoundaries:
+
+    def __init__(self, path: Path):
+        self.path = path
+        self._downloading = asyncio.Lock()
+
+    def level_file(self, code: str, level: str) -> Path:
+        return self.path / f'{code}-{level}.geojson'
+
+    def outline_file(self, region: Region) -> Path:
+        """The outline pmtiles cuts a region with: a country's own file, or a section's feature saved alone"""
+        if region.shape_id is None:
+            return self.level_file(region.code, region.level)
+        return self.path / f'{region.key}.geojson'
+
+    async def features(self, code: str, level: str) -> List[dict]:
+        """The outlines of the country (ADM0) or its sections at that level, downloaded once"""
+        path = self.level_file(code, level)
+        async with self._downloading:
+            if not path.exists():
+                await self._download(code, level, path)
+        return await asyncio.to_thread(_load_features, path)
+
+    async def _download(self, code: str, level: str, path: Path) -> None:
+        try:
+            client = httpx.AsyncClient(timeout=120, follow_redirects=True, headers={'User-Agent': 'BreedGraph'})
+            async with client:
+                response = await client.get(f"{config.GEOBOUNDARIES_URL}/{code}/{level}/")
+                if response.status_code == 404:
+                    raise MapRegionError(f"geoBoundaries has no {level} outlines for {code}")
+                response.raise_for_status()
+                about = response.json()
+                response = await client.get(about['simplifiedGeometryGeoJSON'])
+                response.raise_for_status()
+                outlines = response.json()
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
+            raise MapRegionError(f"The {level} outlines for {code} could not be downloaded: {type(e).__name__}")
+        if not isinstance(outlines, dict) or not outlines.get('features'):
+            raise MapRegionError(f"geoBoundaries returned no {level} outlines for {code}")
+        self.path.mkdir(parents=True, exist_ok=True)
+        write_json(path.with_suffix('.json'), {
+            key: about.get(key)
+            for key in ('boundaryID', 'boundaryName', 'boundaryLicense', 'licenseSource', 'buildDate')
+        })
+        write_json(path, outlines)
+        logger.info(f"Downloaded the {level} outlines for {code} ({len(outlines['features'])} units)")
+
+    def save_section(self, region: Region, feature: dict) -> None:
+        """Keep a section's outline alone, for cutting it and naming it"""
+        path = self.outline_file(region)
+        if not path.exists():
+            self.path.mkdir(parents=True, exist_ok=True)
+            write_json(path, {'type': 'FeatureCollection', 'features': [
+                {'type': 'Feature', 'properties': feature.get('properties') or {}, 'geometry': feature['geometry']}
+            ]})
+
+    async def outline(self, region: Region) -> Tuple[Path, List[dict]]:
+        """The file pmtiles cuts the region with, and the region's features in it (one, unless a country has more)"""
+        if region.shape_id is None:
+            return self.level_file(region.code, region.level), await self.features(region.code, region.level)
+        path = self.outline_file(region)
+        if not path.exists():
+            features = await self.features(region.code, region.level)
+            feature = next((f for f in features if (f.get('properties') or {}).get('shapeID') == region.shape_id), None)
+            if feature is None:
+                raise MapRegionError(f"{region.key} is not among the {region.level} outlines for {region.code}")
+            self.save_section(region, feature)
+        return path, await asyncio.to_thread(_load_features, path)

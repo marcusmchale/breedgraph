@@ -37,6 +37,8 @@ async def lifespan(fast_api_app: FastAPI):
 
     logger.info("Starting event processors")
     await bus.start()  # start event process workers
+    if bus.map_regions is not None:
+        await bus.map_regions.start()  # resume fetching detailed maps
 
     logger.debug("Load brute force protection service")
     brute_force_service = BruteForceProtectionService(state_store=bus.state_store)
@@ -53,6 +55,9 @@ async def lifespan(fast_api_app: FastAPI):
 
     logger.info("Start shutting down")
     if bus is not None:
+        if bus.map_regions is not None:
+            logger.info("Stopping map region fetches")
+            await bus.map_regions.stop()
         if hasattr(bus.uow_factory, "driver"):
             logger.info("Closing driver")
             await bus.uow_factory.driver.close()
@@ -73,8 +78,8 @@ app.include_router(redirect_router)
 app.include_router(security_router)
 app.include_router(graphql_router)
 app.include_router(download_router)
-# Map tiles (scripts/map_tiles.py), served by nginx in production; here for development, read in ranges.
-# Until the script has run there are none, and each request is answered 404.
+# Map tiles (scripts/map_tiles.py and adapters/pmtiles/map_regions.py), served by nginx in production; here for
+# development, read in ranges. Until the script has run there are none, and each request is answered 404.
 Path(config.MAP_TILES_PATH).mkdir(parents=True, exist_ok=True)
 app.mount("/tiles", StaticFiles(directory=config.MAP_TILES_PATH), name="tiles")
 

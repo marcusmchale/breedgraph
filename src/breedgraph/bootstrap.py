@@ -11,7 +11,8 @@ from breedgraph.service_layer.infrastructure import (
     FileManagementService,
     AbstractFileArchivalService,
     AbstractErasureLog,
-    AbstractOrcidService
+    AbstractOrcidService,
+    AbstractMapRegions
 )
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
@@ -23,6 +24,7 @@ from breedgraph.adapters.aiosmtp import EmailNotifications
 from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from breedgraph.adapters.files import JsonLinesErasureLog
 from breedgraph.adapters.orcid import HttpxOrcidService
+from breedgraph.adapters.pmtiles import PmtilesMapRegions
 
 
 
@@ -46,7 +48,8 @@ async def bootstrap(
         event_queue: Queue = Queue(),
         archival_service: Type[AbstractFileArchivalService]|None = None,
         erasure_log: Type[AbstractErasureLog] = JsonLinesErasureLog,
-        orcid_service: Type[AbstractOrcidService] = HttpxOrcidService
+        orcid_service: Type[AbstractOrcidService] = HttpxOrcidService,
+        map_regions: Type[AbstractMapRegions] = PmtilesMapRegions
 ) -> MessageBus:
     logger.debug("Init driver")
     driver = driver()
@@ -79,6 +82,9 @@ async def bootstrap(
     logger.debug("Init erasure log")
     erasure_log = erasure_log()
 
+    logger.debug("Init map regions")
+    map_regions = map_regions(state_store=state_store, publish=event_queue.put)
+
     handlers.register_dependencies(
         uow_factory=uow_factory,
         views_factory=views_factory,
@@ -90,7 +96,8 @@ async def bootstrap(
         archival_service=archival_service,
         event_queue=event_queue,
         erasure_log=erasure_log,
-        orcid_service=orcid_service()
+        orcid_service=orcid_service(),
+        map_regions=map_regions
     )
 
     return MessageBus(
@@ -102,5 +109,6 @@ async def bootstrap(
         event_handlers=handlers.event_handlers,
         command_handlers=handlers.command_handlers,
         archival_service=archival_service,
+        map_regions=map_regions,
         event_queue=event_queue
     )

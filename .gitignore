@@ -22,5 +22,6 @@ __pycache__
 /instance/test_archive/
 /instance/neo4j_archive/
 /instance/map_tiles/
+/instance/map_boundaries/
 /src/breedcafs_migration/private_notes.md
 /.claude/

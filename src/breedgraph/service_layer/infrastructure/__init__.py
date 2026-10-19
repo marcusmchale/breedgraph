@@ -12,3 +12,4 @@ from .dependency_guards import AbstractDependencyGuards
 from .erasure_log import AbstractErasureLog, ErasureLogEntry, AccountDeletionLogEntry
 from .orcid import AbstractOrcidService
 from .geocoding import AbstractGeocodingService, Place
+from .map_regions import AbstractMapRegions

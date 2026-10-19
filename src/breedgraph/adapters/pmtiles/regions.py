@@ -1,57 +1,209 @@
 """
-The regions mapped in full detail (scripts/map_tiles.py): the cells of a grid of whole degrees that come within a
-padding of a location. The files are served to anyone, so they show which cells hold locations, private ones
-included; coarse cells keep that to the area, not the site.
+The regions mapped in full detail (map_regions.py): whole countries, or for a country too large to fetch whole, the
+sections of it (states or provinces, geoBoundaries' ADM1 units, or within one of those an ADM2 unit) where locations
+are placed. Countries are public, and a section shows only that some location lies within it.
+
+Sections are found here, from local outlines, so no site coordinates leave the server.
 """
-from math import cos, radians, floor
-from typing import Iterable, List, Set, Tuple
+import fcntl
+import json
+import os
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from math import cos, radians, inf
+from pathlib import Path
+from typing import Iterable, List, Tuple
 
-KM_PER_DEGREE = 111.32
-MAX_LATITUDE = 85.05  # the web map projection's limit
+ATTRIBUTION = '© OpenStreetMap contributors, Protomaps'
+COUNTRY = 'ADM0'
+SECTION_LEVELS = ('ADM1', 'ADM2')
+REGIONS_DIRECTORY = 'regions'  # within the tiles path, so served with the world file
+WORLD_JSON = 'world.json'
+TILES_JSON = 'tiles.json'
+# How far a point may lie outside every simplified outline and still take the nearest section, in degrees of latitude
+NEAREST_SECTION_DEGREES = 1.0
 
+_CODE = re.compile(r'[A-Z]{3}')
+_SHAPE_ID = re.compile(r'[A-Za-z0-9_-]+')
 
-def region_cells(
-        coordinates: Iterable[Tuple[float, float]],
-        padding_km: float = 25,
-        cell_degrees: float = 1
-) -> Set[Tuple[int, int]]:
-    """The grid cells, as (row, column) of cell_degrees from latitude -90 and longitude -180, within padding_km of a
-    coordinate (latitude, longitude)"""
-    cells = set()
-    for latitude, longitude in coordinates:
-        if latitude is None or longitude is None:
-            continue
-        latitude = min(max(latitude, -MAX_LATITUDE), MAX_LATITUDE)
-        lat_padding = padding_km / KM_PER_DEGREE
-        lon_padding = min(180.0, padding_km / (KM_PER_DEGREE * max(cos(radians(latitude)), 0.01)))
-        south, north = max(latitude - lat_padding, -MAX_LATITUDE), min(latitude + lat_padding, MAX_LATITUDE)
-        west, east = max(longitude - lon_padding, -180.0), min(longitude + lon_padding, 180.0 - 1e-9)
-        for row in range(floor((south + 90) / cell_degrees), floor((north + 90) / cell_degrees) + 1):
-            for column in range(floor((west + 180) / cell_degrees), floor((east + 180) / cell_degrees) + 1):
-                cells.add((row, column))
-    return cells
+Point = Tuple[float, float]  # latitude, longitude
 
 
-def _cell_box(cell: Tuple[int, int], cell_degrees: float) -> Tuple[float, float, float, float]:
-    """south, west, north, east"""
-    row, column = cell
-    south, west = row * cell_degrees - 90, column * cell_degrees - 180
-    return max(south, -MAX_LATITUDE), west, min(south + cell_degrees, MAX_LATITUDE), west + cell_degrees
+@dataclass(frozen=True)
+class Region:
+    """A country (ISO 3166 alpha-3 code) or a section of it (geoBoundaries' level and shapeID)"""
+    code: str
+    level: str = COUNTRY
+    shape_id: str | None = None
+
+    def __post_init__(self):
+        if not _CODE.fullmatch(self.code or ''):
+            raise ValueError(f"Not an ISO 3166 alpha-3 code: {self.code!r}")
+        if self.level == COUNTRY:
+            if self.shape_id is not None:
+                raise ValueError("A country has no shapeID")
+        elif self.level not in SECTION_LEVELS or not _SHAPE_ID.fullmatch(self.shape_id or ''):
+            raise ValueError(f"Not a section: {self.level} {self.shape_id!r}")
+
+    @property
+    def key(self) -> str:
+        """IRL, or USA-ADM1-<shapeID>; the name of the region's files"""
+        return self.code if self.level == COUNTRY else f'{self.code}-{self.level}-{self.shape_id}'
+
+    @classmethod
+    def from_key(cls, key: str) -> 'Region':
+        code, *section = key.split('-', 2)
+        if not section:
+            return cls(code)
+        if len(section) != 2:
+            raise ValueError(f"Not a region key: {key!r}")
+        return cls(code, *section)
 
 
-def region_geojson(cells: Set[Tuple[int, int]], cell_degrees: float = 1) -> dict:
-    """The cells as a GeoJSON MultiPolygon, for pmtiles extract --region"""
-    polygons: List[list] = []
-    for cell in sorted(cells):
-        south, west, north, east = _cell_box(cell, cell_degrees)
-        polygons.append([[[west, south], [east, south], [east, north], [west, north], [west, south]]])
-    return {'type': 'MultiPolygon', 'coordinates': polygons}
+def _polygons(geometry: dict) -> list:
+    """The polygons of a Polygon or MultiPolygon, each a list of rings of [longitude, latitude, ...]"""
+    if geometry.get('type') == 'Polygon':
+        return [geometry['coordinates']]
+    if geometry.get('type') == 'MultiPolygon':
+        return geometry['coordinates']
+    return []
 
 
-def cells_bounds(cells: Set[Tuple[int, int]], cell_degrees: float = 1) -> List[List[float]] | None:
-    """[[south, west], [north, east]] around the cells, or None when there are none"""
-    if not cells:
+def geometry_bounds(geometry: dict) -> List[List[float]] | None:
+    """[[south, west], [north, east]] around the geometry, or None when it has no points"""
+    points = [point for polygon in _polygons(geometry) for ring in polygon for point in ring]
+    if not points:
         return None
-    boxes = [_cell_box(cell, cell_degrees) for cell in cells]
-    return [[min(box[0] for box in boxes), min(box[1] for box in boxes)],
-            [max(box[2] for box in boxes), max(box[3] for box in boxes)]]
+    longitudes, latitudes = [point[0] for point in points], [point[1] for point in points]
+    return [[min(latitudes), min(longitudes)], [max(latitudes), max(longitudes)]]
+
+
+def features_bounds(features: Iterable[dict]) -> List[List[float]] | None:
+    boxes = [box for box in (geometry_bounds(feature.get('geometry') or {}) for feature in features) if box]
+    if not boxes:
+        return None
+    return [[min(box[0][0] for box in boxes), min(box[0][1] for box in boxes)],
+            [max(box[1][0] for box in boxes), max(box[1][1] for box in boxes)]]
+
+
+def _in_ring(latitude: float, longitude: float, ring: list) -> bool:
+    inside = False
+    for start, end in zip(ring, ring[1:] + ring[:1]):
+        (x1, y1), (x2, y2) = start[:2], end[:2]
+        if (y1 > latitude) != (y2 > latitude) and longitude < x1 + (latitude - y1) * (x2 - x1) / (y2 - y1):
+            inside = not inside
+    return inside
+
+
+def contains(geometry: dict, point: Point) -> bool:
+    latitude, longitude = point
+    return any(
+        polygon and _in_ring(latitude, longitude, polygon[0])
+        and not any(_in_ring(latitude, longitude, hole) for hole in polygon[1:])
+        for polygon in _polygons(geometry)
+    )
+
+
+def _segment_distance(point: Tuple[float, float], start: Tuple[float, float], end: Tuple[float, float]) -> float:
+    (px, py), (ax, ay), (bx, by) = point, start, end
+    dx, dy = bx - ax, by - ay
+    length = dx * dx + dy * dy
+    t = 0.0 if length == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length))
+    return ((px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2) ** 0.5
+
+
+def distance(geometry: dict, point: Point) -> float:
+    """Roughly how far the point is from the geometry's outline, in degrees of latitude"""
+    latitude, longitude = point
+    scale = cos(radians(latitude))  # degrees of longitude are shorter away from the equator
+    nearest = inf
+    for polygon in _polygons(geometry):
+        for ring in polygon:
+            scaled = [(position[0] * scale, position[1]) for position in ring]
+            for start, end in zip(scaled, scaled[1:]):
+                nearest = min(nearest, _segment_distance((longitude * scale, latitude), start, end))
+    return nearest
+
+
+def _box_contains(feature: dict, point: Point) -> bool:
+    if 'bbox' not in feature:
+        bounds = geometry_bounds(feature.get('geometry') or {})
+        feature['bbox'] = [bounds[0][1], bounds[0][0], bounds[1][1], bounds[1][0]] if bounds else None
+    box = feature['bbox']
+    return box is not None and box[1] <= point[0] <= box[3] and box[0] <= point[1] <= box[2]
+
+
+def section_for(features: Iterable[dict], point: Point) -> dict | None:
+    """
+    The feature whose outline holds the point, or when none does, e.g. for a site on a coast that the simplified
+    outlines leave out, the nearest within NEAREST_SECTION_DEGREES; None when the point is further from every one
+    """
+    features = [feature for feature in features if feature.get('geometry')]
+    for feature in features:
+        if _box_contains(feature, point) and contains(feature['geometry'], point):
+            return feature
+    nearest = min(features, key=lambda feature: distance(feature['geometry'], point), default=None)
+    if nearest is not None and distance(nearest['geometry'], point) <= NEAREST_SECTION_DEGREES:
+        return nearest
+    return None
+
+
+def write_json(path: Path, content) -> None:
+    """Written under a temporary name and then replaced, so readers never see part of it"""
+    temporary = path.with_name(f'.{path.name}.partial')
+    temporary.write_text(json.dumps(content, indent=2))
+    os.replace(temporary, path)
+
+
+def read_json(path: Path) -> dict | None:
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        return None
+
+
+def region_file(tiles_path: Path, region: Region, suffix: str = '.pmtiles') -> Path:
+    return tiles_path / REGIONS_DIRECTORY / f'{region.key}{suffix}'
+
+
+def read_sidecars(tiles_path: Path) -> List[dict]:
+    """The regions fetched: the sidecar of each complete region file"""
+    directory = tiles_path / REGIONS_DIRECTORY
+    if not directory.is_dir():
+        return []
+    sidecars = []
+    for path in sorted(directory.glob('*.json')):
+        if path.name.startswith('.') or not path.with_suffix('.pmtiles').exists():
+            continue
+        sidecar = read_json(path)
+        if sidecar is not None:
+            sidecars.append(sidecar)
+    return sidecars
+
+
+def tiles_json(world: dict, sidecars: Iterable[dict]) -> dict:
+    """tiles.json, for the location map (breedview composables/locations/baseMap.js): the world, then the regions"""
+    return {
+        'attribution': ATTRIBUTION,
+        'updated': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'layers': [
+            {key: world[key] for key in ('url', 'maxZoom', 'build') if key in world},
+            *({key: sidecar[key] for key in ('url', 'name', 'minZoom', 'maxZoom', 'bounds')} for sidecar in sidecars)
+        ]
+    }
+
+
+def write_tiles_json(tiles_path: Path) -> bool:
+    """
+    Rebuild tiles.json from world.json and the regions' sidecars, holding a lock so that processes adding or removing
+    regions at the same time keep one another's. Returns False, writing nothing, while there is no world file.
+    """
+    tiles_path.mkdir(parents=True, exist_ok=True)
+    with open(tiles_path / '.tiles.lock', 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        world = read_json(tiles_path / WORLD_JSON)
+        if world is None:
+            return False
+        write_json(tiles_path / TILES_JSON, tiles_json(world, read_sidecars(tiles_path)))
+        return True

@@ -168,6 +168,48 @@ class ControlTransferOfferedMessage(Email):
         self.message.set_content(body)
 
 
+class MapRegionFetching(Email):
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME}: fetching detailed maps for {name}'
+        self.message.set_content(
+            f'Fetching detailed maps for {name}. This can take some time; we\'ll email you when they\'re ready.'
+        )
+
+
+class MapCountryDivided(Email):
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME}: detailed maps for {name}'
+        self.message.set_content(
+            f'{name} is too large to fetch whole, so detailed maps are fetched for each of its regions, '
+            f'such as states or provinces, when a location in it is placed on the map.'
+        )
+
+
+class MapRegionReady(Email):
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME}: detailed maps for {name} are ready'
+        self.message.set_content(
+            f'Detailed maps for {name} are ready. You can see them on the map at {get_vue_url()}locations'
+        )
+
+
+class MapRegionFailed(Email):
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.message['Subject'] = f'{SITE_NAME}: detailed maps for {name} could not be fetched'
+        self.message.set_content(
+            f'Detailed maps for {name} could not be fetched, so the map shows less detail there for now. '
+            f'Please let the system administrator know; the details are in the server\'s log.'
+        )
+
+
 class FileUploadSuccess(Email):
 
     def __init__(self, user: UserBase, filename: str, reference_id: int):

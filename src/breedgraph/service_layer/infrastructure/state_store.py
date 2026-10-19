@@ -462,8 +462,74 @@ class AbstractStateStore(ABC):
         ...
 
     """
+    Map regions (adapters/pmtiles/map_regions.py), by region key. Finished regions are known from their files, so this
+    holds only what is under way.
+    """
+    @abstractmethod
+    async def add_map_region_request(self, key: str, user_id: int | None) -> bool:
+        """Mark the region pending, with the user among those to notify; whether the user was not already"""
+        ...
+
+    @abstractmethod
+    async def get_pending_map_regions(self) -> List[str]:
+        ...
+
+    @abstractmethod
+    async def is_map_region_pending(self, key: str) -> bool:
+        ...
+
+    @abstractmethod
+    async def get_map_region_requestors(self, key: str) -> List[int]:
+        ...
+
+    @abstractmethod
+    async def set_map_region_fetching(self, key: str) -> None:
+        """Record that the region's file is being written"""
+        ...
+
+    @abstractmethod
+    async def is_map_region_fetching(self, key: str) -> bool:
+        ...
+
+    @abstractmethod
+    async def mark_map_region_notified(self, key: str, user_id: int) -> bool:
+        """Record that the user was told the region is being fetched; False if they already were"""
+        ...
+
+    @abstractmethod
+    async def finish_map_region(self, key: str) -> List[int]:
+        """End the region's request, returning the users to notify"""
+        ...
+
+    @abstractmethod
+    async def acquire_map_region_lock(self, key: str, seconds: int) -> str | None:
+        """A token while no other process works on the region, else None"""
+        ...
+
+    @abstractmethod
+    async def refresh_map_region_lock(self, key: str, token: str, seconds: int) -> bool:
+        ...
+
+    @abstractmethod
+    async def release_map_region_lock(self, key: str, token: str) -> None:
+        ...
+
+    @abstractmethod
+    async def set_map_region_size(self, key: str, size: int) -> None:
+        ...
+
+    @abstractmethod
+    async def get_map_region_size(self, key: str) -> int | None:
+        ...
+
+    @abstractmethod
+    async def remove_map_country(self, code: str) -> None:
+        """Forget the requests and sizes of a country and its sections"""
+        ...
+
+    """
     Brute force protection state
-    
+
     Identifier can be either user_id or IP address
     """
 

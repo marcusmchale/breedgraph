@@ -44,6 +44,26 @@ return 1
 """
 
 
+MAP_PENDING = "map:pending"  # set of region keys requested and not finished
+MAP_FETCHING = "map:fetching"  # set of region keys whose files are being written
+MAP_SIZES = "map:sizes"  # hash of region key to the size of its file in bytes
+MAP_REQUESTORS = "map:requestors:"  # set of user ids per region key
+MAP_NOTIFIED = "map:notified:"  # set of user ids told the region is being fetched
+MAP_LOCK = "map:lock:"  # held by the process working on a region
+
+# KEYS: lock; ARGV: token, seconds
+REFRESH_LOCK_SCRIPT = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('EXPIRE', KEYS[1], ARGV[2])
+"""
+
+# KEYS: lock; ARGV: token
+RELEASE_LOCK_SCRIPT = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('DEL', KEYS[1])
+"""
+
+
 class RedisStateStore(AbstractStateStore):
     def __init__(self, connection: redis.Redis = None):
         self.connection = connection
@@ -351,6 +371,74 @@ class RedisStateStore(AbstractStateStore):
     async def _remove_user_file(self, agent_id, file_id) -> None:
         user_files_key = f"user:{agent_id}:files"
         await self.connection.srem(user_files_key, file_id)
+
+    """ Map regions """
+
+    async def add_map_region_request(self, key: str, user_id: int | None) -> bool:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            pipe.sadd(MAP_PENDING, key)
+            if user_id is not None:
+                pipe.sadd(f"{MAP_REQUESTORS}{key}", user_id)
+            results = await pipe.execute()
+        return user_id is not None and results[1] == 1
+
+    async def get_pending_map_regions(self) -> List[str]:
+        return sorted(key.decode() for key in await self.connection.smembers(MAP_PENDING))
+
+    async def is_map_region_pending(self, key: str) -> bool:
+        return bool(await self.connection.sismember(MAP_PENDING, key))
+
+    async def get_map_region_requestors(self, key: str) -> List[int]:
+        return sorted(int(user_id) for user_id in await self.connection.smembers(f"{MAP_REQUESTORS}{key}"))
+
+    async def set_map_region_fetching(self, key: str) -> None:
+        await self.connection.sadd(MAP_FETCHING, key)
+
+    async def is_map_region_fetching(self, key: str) -> bool:
+        return bool(await self.connection.sismember(MAP_FETCHING, key))
+
+    async def mark_map_region_notified(self, key: str, user_id: int) -> bool:
+        return await self.connection.sadd(f"{MAP_NOTIFIED}{key}", user_id) == 1
+
+    async def finish_map_region(self, key: str) -> List[int]:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            pipe.smembers(f"{MAP_REQUESTORS}{key}")
+            pipe.delete(f"{MAP_REQUESTORS}{key}", f"{MAP_NOTIFIED}{key}")
+            pipe.srem(MAP_FETCHING, key)
+            pipe.srem(MAP_PENDING, key)
+            requestors, *_ = await pipe.execute()
+        return sorted(int(user_id) for user_id in requestors)
+
+    async def acquire_map_region_lock(self, key: str, seconds: int) -> str | None:
+        token = uuid4().hex
+        return token if await self.connection.set(f"{MAP_LOCK}{key}", token, nx=True, ex=seconds) else None
+
+    async def refresh_map_region_lock(self, key: str, token: str, seconds: int) -> bool:
+        return bool(await self.connection.eval(REFRESH_LOCK_SCRIPT, 1, f"{MAP_LOCK}{key}", token, seconds))
+
+    async def release_map_region_lock(self, key: str, token: str) -> None:
+        await self.connection.eval(RELEASE_LOCK_SCRIPT, 1, f"{MAP_LOCK}{key}", token)
+
+    async def set_map_region_size(self, key: str, size: int) -> None:
+        await self.connection.hset(MAP_SIZES, key, size)
+
+    async def get_map_region_size(self, key: str) -> int | None:
+        size = await self.connection.hget(MAP_SIZES, key)
+        return int(size) if size is not None else None
+
+    async def remove_map_country(self, code: str) -> None:
+        def of_country(key: bytes) -> bool:
+            return key.decode().split('-', 1)[0] == code
+        pending = [key.decode() for key in await self.connection.smembers(MAP_PENDING) if of_country(key)]
+        sizes = [key for key in await self.connection.hkeys(MAP_SIZES) if of_country(key)]
+        async with self.connection.pipeline(transaction=True) as pipe:
+            for key in pending:
+                pipe.delete(f"{MAP_REQUESTORS}{key}", f"{MAP_NOTIFIED}{key}")
+                pipe.srem(MAP_FETCHING, key)
+                pipe.srem(MAP_PENDING, key)
+            if sizes:
+                pipe.hdel(MAP_SIZES, *sizes)
+            await pipe.execute()
 
     """ Brute force protection state """
 

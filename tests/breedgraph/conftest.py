@@ -80,6 +80,19 @@ def erasure_log_path(tmp_path_factory):
     yield path
     config.PERSON_ERASURE_LOG_PATH = original
 
+@pytest.fixture(scope="session", autouse=True)
+def map_paths(tmp_path_factory):
+    """
+    Tests keep map tiles and outlines in temporary directories rather than instance/, so removing a test country
+    leaves the development tiles alone. Nothing is fetched, as pytest.ini empties MAP_PMTILES_COMMAND.
+    """
+    from breedgraph import config
+    original = config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH
+    config.MAP_TILES_PATH = str(tmp_path_factory.mktemp("map_tiles"))
+    config.MAP_BOUNDARIES_PATH = str(tmp_path_factory.mktemp("map_boundaries"))
+    yield
+    config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH = original
+
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_app() -> AsyncGenerator[FastAPI, None]:
     async with LifespanManager(app) as manager:
