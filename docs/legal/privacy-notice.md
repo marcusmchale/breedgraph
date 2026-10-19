@@ -26,17 +26,11 @@ breedview renders the file with a simple parser (`composables/system/usePrivacyN
 
 ## Who we are
 
-BreedGraph is operated by the University of Galway ("we"). It consists of the BreedGraph API and the BreedView website, hosted at breedgraph.universityofgalway.ie on University infrastructure in Ireland.
+BreedGraph is run by the University of Galway ("we"), the data controller for all personal data in it. It consists of the BreedGraph API and the BreedView website, at breedgraph.universityofgalway.ie.
 
 Contact for questions about this notice or your personal data: [BreedGraph contact address].
 
 Data Protection Officer: [name and contact address of the University's Data Protection Officer].
-
-## Who is responsible for your data
-
-The University of Galway is the data controller for all personal data in BreedGraph: accounts, the Person records that credit people for research, invitations, messages and logs.
-
-Research data, such as datasets and files, is controlled by the teams that upload it. Teams decide who can see what they control, but the University remains responsible for any personal data in BreedGraph.
 
 ## If you have an account
 
@@ -48,7 +42,7 @@ What we hold:
 - requests you make: to join teams, for an ontology role, or to link a Person record to your account;
 - records of what you created or changed, and when.
 
-Why: to sign you in, to control what you can see and change, to send you service emails (account verification, password resets, invitations, notices about requests, and notices about fetching detailed maps for a country you added or a location you placed), and to record who contributed what, for the integrity of research data. We do not send marketing emails.
+Why: to sign you in, to control what you can see and change, to record who contributed what, for the integrity of research data, and to send you the emails the service needs, such as account verification, password resets, invitations, replies to your requests and the progress of work you started. We do not send marketing emails.
 
 Who sees it:
 
@@ -56,15 +50,7 @@ Who sees it:
 - Your username and full name: you, and administrators of the teams you belong to or ask to join.
 - What you created or changed is shown as the work of the Person record linked to your account, if there is one, to those who can see that record (see below). Otherwise it is not attributed to you by name.
 
-Lawful basis: a task carried out in the public interest (Art. 6(1)(e) GDPR). The University provides BreedGraph as part of its research.
-
-How long: while your account exists. When you delete your account, your username, full name, email address, password and team memberships are removed, and what you contributed stays attributed to an anonymous account number.
-
-### Signing in
-
-- After five failed sign-in attempts within an hour, the username is locked for five minutes. We keep the count of failed attempts for an hour.
-- Usernames that get locked are recorded in our application logs, kept for 90 days, so that we can detect password guessing.
-- Links in verification and password reset emails expire after 24 hours.
+To detect password guessing, we count failed sign-in attempts, and record in our application logs the usernames locked after repeated failures.
 
 ## If you are credited in a Person record
 
@@ -79,30 +65,21 @@ What a Person record holds:
 - your ORCID iD, only if you link it yourself;
 - the link to your account, if you claim the record.
 
-Person records hold no contact details, postal addresses or free-text descriptions.
+It holds no contact details, postal addresses or free-text descriptions.
 
 Why: to attribute research to the people who did it.
-
-Lawful basis: a task carried out in the public interest (Art. 6(1)(e)), scientific research. We rely on the research provisions of Art. 89 GDPR and section 42 of the Data Protection Act 2018, with safeguards including holding only what attribution needs, showing it only to signed-in users, and letting you erase it at any time.
 
 Who sees it: the teams that control the record decide whether it is shown to their own members only, or to all signed-in users.
 
 - Members of those teams with read access, and you once the record is linked to your account, see the whole record.
 - Other signed-in users it is shown to see only what attribution needs: your name, institution and ORCID iD.
-- People who are not signed in never see Person records: pages open to everyone show no contributors or contacts.
-- BreedGraph has no public directory of people. Signed-in users can search, by name, the records shown to them.
+- People who are not signed in never see Person records. Signed-in users can search, by name, the records shown to them.
 
-How long: as long as the research data you are credited for. Your ORCID iD is kept until you remove it, and the link to your account until you or an administrator remove it.
-
-### Linking your ORCID iD
-
-To link your ORCID iD to the record linked to your account, you sign in at ORCID, which tells us your iD. ORCID also sends us your name and an access token, which we do not keep.
+To link your ORCID iD, you sign in at ORCID, which tells us your iD. ORCID also sends us your name and an access token, which we do not keep.
 
 ## If you are invited
 
-When someone invites you, we hold your email address, who invited you, and what the invitation offers (team access, or a Person record to link to your account).
-
-**The invitation, including your email address, is deleted when you register, when it is cancelled, or after 30 days**, whichever comes first.
+When someone invites you, we hold your email address, who invited you, and what the invitation offers: team access, or a Person record to link to your account.
 
 ## Messages to contacts
 
@@ -110,7 +87,6 @@ If the Person record linked to your account is named as a contact for a research
 
 - BreedGraph passes the message on to your account email address and does not keep it. **Senders never see your address.**
 - The message includes the sender's name and email address, so that you can reply. Replying shares your address with them.
-- Our application logs record that a message was sent, by account and record number, never its content.
 - You can remove yourself as a contact at any time.
 
 If you send a message, your name and email address are given to the recipient.
@@ -118,8 +94,6 @@ If you send a message, your name and email address are given to the recipient.
 ## Research data
 
 Research data, such as datasets, files and analyses, is controlled by the teams it is uploaded for. It describes plants, samples, locations and measurements, and should not include personal data.
-
-Uploads awaiting processing, and analysis jobs, are kept for 7 days after their last change. Download links expire after 24 hours.
 
 ## When you use the website
 
@@ -134,33 +108,43 @@ We use no analytics, advertising or tracking cookies.
 
 ### Maps and place search
 
-- Maps are drawn from OpenStreetMap data served by our own server.
-- When a country is added, or a location placed on the map, our server fetches detailed maps of the area from Protomaps' copies of OpenStreetMap, using country outlines from geoBoundaries. It sends them nothing about you, and no site coordinates. We email whoever added the country or placed the location when the maps are being fetched and when they are ready.
-- When you search for a place on a map, our server asks the Nominatim service of the OpenStreetMap Foundation (United Kingdom) for you. It receives your search, but not your IP address or who you are. Place search is for signed-in users.
+- Maps are served from our own server. To prepare detailed maps of an area, our server downloads public map data, and sends nothing about you.
+- When you search for a place on a map, our server asks the Nominatim service of the OpenStreetMap Foundation (United Kingdom) for you. It receives your search, but not your IP address or who you are.
 
 ### Server logs
 
-- Access logs record requests to the service, including your IP address, and are kept for 30 days.
-- Application logs record actions by account and record number, not names, email addresses, searches or message content, and are kept for 90 days.
+- Access logs record requests to the service, including your IP address.
+- Application logs record actions by account and record number, not names, email addresses, searches or message content.
 
-## Who receives your data
+## Lawful basis
+
+We process personal data in BreedGraph as a task carried out in the public interest (Art. 6(1)(e) GDPR), as the University provides BreedGraph as part of its research. For Person records, which serve scientific research, we also rely on the research provisions of Art. 89 GDPR and section 42 of the Data Protection Act 2018, with safeguards including holding only what attribution needs, showing it only to signed-in users, and letting you erase it at any time.
+
+## How long we keep it
+
+- Your account: while it exists. When you delete it, your username, full name, email address, password and team memberships are removed, and what you contributed stays attributed to an anonymous account number.
+- Person records: as long as the research data they credit. An ORCID iD is kept until you remove it, and the link to your account until you or an administrator remove it.
+- Invitations, including the email address: until you register or the invitation is cancelled, and at most 30 days.
+- Counts of failed sign-in attempts: one hour.
+- Uploads awaiting processing, and analysis jobs: 7 days after their last change.
+- Access logs: 30 days. Application logs: 90 days.
+- Backups of the database: 90 days.
+
+## Who receives your data, and where it is kept
 
 - Other BreedGraph users, as described above.
 - Others, where the law requires it.
 
-The University's IT services host the platform and its database, and send its emails. A server of the University's Plant Systems Biology Laboratory keeps the database backups, archives uploaded files and runs analyses. Your data is stored in Ireland.
+The University's IT services host BreedGraph and its database, and send its emails. A server of the University's Plant Systems Biology Laboratory keeps the database backups, archives uploaded files and runs analyses. Backups and archived files are encrypted before they are copied to that server, which holds no key to read them. Your data is stored in Ireland.
 
-## Backups
-
-Backups of the database are kept for 90 days on the Plant Systems Biology Laboratory's server. Backups, and the uploaded files archived on that server, are encrypted on our web server before they are copied there, and the laboratory's server holds no key to read them. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
+If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken, from a log of the record and account numbers concerned, kept outside the database.
 
 ## Security
 
 - Connections are encrypted (HTTPS), and cookies are sent only over encrypted connections.
-- Access to data is controlled by team, and Person records are never shown to people who are not signed in.
+- Access to data is controlled by team.
 - Passwords are hashed, and sign-in attempts are limited.
-- Personal data is kept out of application logs, and error details are not sent to users' browsers.
-- Administrative access to servers is restricted, under the University's controls and confidentiality obligations. Only the BreedGraph operator uses the laboratory's server.
+- Administrative access to the servers is restricted to the people who run BreedGraph, under the University's controls and confidentiality obligations.
 
 ## Your rights
 
@@ -180,7 +164,7 @@ You can complain to the Data Protection Commission (www.dataprotection.ie).
 
 ## Changes to this notice
 
-We will update this notice when BreedGraph or the law changes, and tell registered users of significant changes [by email / when they next sign in].
+We will update this notice when BreedGraph or the law changes, and tell registered users of significant changes by email.
 
 ---
 
