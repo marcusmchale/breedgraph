@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from breedgraph.adapters.neo4j.services import Neo4jFileArchivalService
 from breedgraph.entrypoints.fastapi.middleware import setup_middlewares
@@ -14,8 +16,9 @@ from breedgraph.entrypoints.fastapi.analysis_jobs import router as analysis_jobs
 from breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphql_router
 from breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
 
-from breedgraph import bootstrap
+from breedgraph import bootstrap, config
 from breedgraph.service_layer.infrastructure.brute_force_protection import BruteForceProtectionService
+from breedgraph.adapters.nominatim import NominatimGeocodingService
 
 from breedgraph.service_layer.messagebus import MessageBus
 
@@ -38,6 +41,9 @@ async def lifespan(fast_api_app: FastAPI):
     logger.debug("Load brute force protection service")
     brute_force_service = BruteForceProtectionService(state_store=bus.state_store)
     fast_api_app.brute_force_service = brute_force_service
+
+    logger.debug("Load geocoding service")
+    fast_api_app.geocoding_service = NominatimGeocodingService()
 
     logger.debug("Load graphql schema")
     graphql_schema = create_graphql_schema()
@@ -67,6 +73,10 @@ app.include_router(redirect_router)
 app.include_router(security_router)
 app.include_router(graphql_router)
 app.include_router(download_router)
+# Map tiles (scripts/map_tiles.py), served by nginx in production; here for development, read in ranges.
+# Until the script has run there are none, and each request is answered 404.
+Path(config.MAP_TILES_PATH).mkdir(parents=True, exist_ok=True)
+app.mount("/tiles", StaticFiles(directory=config.MAP_TILES_PATH), name="tiles")
 
 ## Internal services
 # Local network service

@@ -3,8 +3,11 @@ from ariadne import ObjectType
 from breedgraph.service_layer.queries.read_models import OntologyViewMode
 from breedgraph.service_layer.queries.views import location_trees, AbstractLocationTreesView
 
+from breedgraph import config
+from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
+from breedgraph.service_layer.infrastructure.geocoding import Place
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
@@ -29,6 +32,38 @@ async def get_countries(_, info) -> List[LocationInput]:
     bus = info.context.get('bus')
     async with bus.views_factory.get_views(user_id = info.context.get('user_id')) as views:
         return await views.location_trees.countries()
+
+async def _geocoding(info):
+    """The geocoding service, once the user is within their hourly limit of searches"""
+    state_store = info.context['bus'].state_store
+    searches = await state_store.increment_rate_counter(f"geocoding:{info.context['user_id']}", window_seconds=3600)
+    if searches > config.GEOCODING_RATE_LIMIT_PER_HOUR:
+        raise IllegalOperationError("You have reached the limit of place searches per hour, please try again later")
+    return info.context['geocoding_service']
+
+@graphql_query.field("locationsSearchPlaces")
+@graphql_payload
+@require_authentication
+async def search_places(
+        _,
+        info,
+        query: str,
+        viewbox: List[float] | None = None,
+        bounded: bool | None = None,
+        country_code: str | None = None,
+        limit: int | None = None
+) -> List[Place]:
+    geocoding = await _geocoding(info)
+    return await geocoding.search_places(
+        query, viewbox=viewbox, bounded=bool(bounded), country_code=country_code, limit=limit or 5
+    )
+
+@graphql_query.field("locationsGeocodeCountry")
+@graphql_payload
+@require_authentication
+async def geocode_country(_, info, name: str) -> Place | None:
+    geocoding = await _geocoding(info)
+    return await geocoding.geocode_country(name)
 
 @graphql_query.field("locationsRoots")
 @graphql_payload

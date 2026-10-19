@@ -52,6 +52,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             request.url.path == "/verify" or # to allow user registration, requires a token anyway
             request.url.path == "/reset" or # to allow users to reset password, requires a token anyway
             request.url.path == "/download" or  # to allow users to download files, requires a token anyway
+            request.url.path.startswith("/tiles/") or  # map tiles, public static files
             request.url.path.startswith("/archive/") or # allow all paths for archive to skip csrf token, requires an auth_token
             request.url.path.startswith("/retention/") or # allow all paths for retention to skip csrf token, requires an auth_token
             request.url.path.startswith("/analysis_jobs/")  # allow all paths for the analysis worker to skip csrf token, requires an auth_token
@@ -117,7 +118,7 @@ def setup_middlewares(app: FastAPI) -> None:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-CSRF-Token"]
+        expose_headers=["X-CSRF-Token", "Content-Range", "ETag"]  # map tiles are read in ranges (/tiles)
     )
 
 

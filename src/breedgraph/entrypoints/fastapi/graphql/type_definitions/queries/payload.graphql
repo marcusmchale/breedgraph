@@ -120,6 +120,18 @@ type LocationTemplatesPayload {
     errors: [Error!]
 }
 
+type PlacesPayload {
+    status: QueryStatus!
+    result: [Place!]
+    errors: [Error!]
+}
+
+type PlacePayload {
+    status: QueryStatus!
+    result: Place
+    errors: [Error!]
+}
+
 type LayoutsPayload {
     status: QueryStatus!
     result: [Layout!]

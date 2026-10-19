@@ -46,3 +46,12 @@ type LocationTemplate {
     """ Ontology LocationType identifier """
     typeId: ID!
 }
+
+"""A place found by name, to move the location map to"""
+type Place {
+    name: String!
+    latitude: Float!
+    longitude: Float!
+    """[[south, west], [north, east]], when known"""
+    bounds: [[Float!]!]
+}

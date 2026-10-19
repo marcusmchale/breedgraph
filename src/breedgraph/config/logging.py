@@ -113,6 +113,10 @@ LOG_CONFIG = {
             'handlers': ['access'],
             'level': LOG_LEVEL,
             'propagate': False
+        },
+        # httpx logs each request's URL at INFO, which would log place searches (Nominatim) and other parameters
+        'httpx': {
+            'level': 'WARNING'
         }
     }
 }

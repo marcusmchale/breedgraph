@@ -11,3 +11,4 @@ from .constraints import AbstractConstraintsHandler
 from .dependency_guards import AbstractDependencyGuards
 from .erasure_log import AbstractErasureLog, ErasureLogEntry, AccountDeletionLogEntry
 from .orcid import AbstractOrcidService
+from .geocoding import AbstractGeocodingService, Place

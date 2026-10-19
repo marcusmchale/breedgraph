@@ -97,6 +97,15 @@ type Query {
     ontologyAdmins: UsersPayload!
     """Get a list of country templates for use in top level location tree creation"""
     locationsCountries: LocationTemplatesPayload!
+    """
+    Places matching a search, to move the location map to: preferring those in viewbox ([west, south, east, north]),
+    or only those there when bounded, and only those in the country with ISO alpha-2 countryCode when given.
+    The server asks OpenStreetMap's Nominatim, so the browser contacts no third party. Requires sign-in, and is
+    limited per user per hour.
+    """
+    locationsSearchPlaces(query: String!, viewbox: [Float!], bounded: Boolean, countryCode: String, limit: Int): PlacesPayload!
+    """The country with this name, as locationsSearchPlaces finds places. Requires sign-in"""
+    locationsGeocodeCountry(name: String!): PlacePayload!
     """Get a list of location tree "root" locations.
     These are all countries that form the top-level location in the location tree.
     """

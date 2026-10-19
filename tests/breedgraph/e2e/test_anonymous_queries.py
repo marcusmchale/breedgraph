@@ -68,6 +68,9 @@ ACCOUNT_QUERIES = {
     'controlsTransfer': 'query { controlsTransfer(id: "1") { status errors { name message } } }',
     'controlsTransfers': 'query { controlsTransfers { status errors { name message } } }',
     'datasetsSubmission': 'query { datasetsSubmission(id: "1") { status errors { name message } } }',
+    # place searches are asked of Nominatim by the server, so are not open to everyone
+    'locationsGeocodeCountry': 'query { locationsGeocodeCountry(name: "Ireland") { status errors { name message } } }',
+    'locationsSearchPlaces': 'query { locationsSearchPlaces(query: "Galway") { status errors { name message } } }',
     'ontologyAdmins': 'query { ontologyAdmins { status errors { name message } } }',
     'ontologyCommitHistory': 'query { ontologyCommitHistory { status errors { name message } } }',
     'ontologyEditors': 'query { ontologyEditors { status errors { name message } } }',
