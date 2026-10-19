@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Iterable
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.service_layer.infrastructure.driver import AbstractAsyncDriver
 from breedgraph.service_layer.infrastructure.erasure_log import (
     ErasureLogEntry, AccountDeletionLogEntry, LogEntry, AbstractErasureLog
@@ -121,3 +123,32 @@ async def replay_erasure_log(driver: AbstractAsyncDriver, erasure_log: AbstractE
     applied = await apply_erasures(driver, timed)
     counters = await advance_id_counters(driver, entries)
     return Replay(applied=applied, entries=len(timed), untimed=len(entries) - len(timed), counters=counters)
+
+
+READ_PERSON = """
+    MATCH (person: Person {id: $person_id})
+    RETURN person.recorded_at AS recorded_at, person.erased_at IS NOT NULL AS erased
+"""
+
+
+async def erase_person(driver: AbstractAsyncDriver, erasure_log: AbstractErasureLog, person_id: int) -> bool:
+    """
+    Erases a Person for a request made to the operator (scripts/erase_person.py), outside the access rules that
+    let admins of its controlling teams and its linked user erase it: logs the erasure, then applies it as a replay
+    after a restore would, so it is applied again then. Returns False, logging nothing, when the Person was already
+    erased. Logged first, so an erasure that fails to apply is applied by the next replay.
+    """
+    async with driver.session() as session:
+        record = await (await session.run(READ_PERSON, person_id=person_id)).single()
+    if record is None:
+        raise NoResultFoundError(f"Person {person_id} not found")
+    if record['erased']:
+        return False
+    entry = ErasureLogEntry(
+        person_id=person_id,
+        erased_at=datetime.now(timezone.utc),
+        created_at=record['recorded_at'].to_native()
+    )
+    await erasure_log.append(entry)
+    await apply_erasures(driver, [entry])
+    return True

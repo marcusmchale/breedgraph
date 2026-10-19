@@ -11,6 +11,9 @@ WITH DISTINCT person, erasure
 OPTIONAL MATCH (:User)-[is_person: IS_PERSON]->(person)
 DELETE is_person
 WITH DISTINCT person, erasure
+OPTIONAL MATCH (:User)-[claims: CLAIMS]->(person)
+DELETE claims
+WITH DISTINCT person, erasure
 SET
   person.name = null,
   person.institution = null,
