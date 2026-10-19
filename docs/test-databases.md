@@ -79,9 +79,14 @@ python scripts/build_test_database.py --manifest instance/neo4j_archive/test_dat
 - It sets the database up as `setup_initial_data.py` would, builds the read-policy scenario
   (`tests/breedgraph/scenarios/read_policy_scenario.py`) without the message bus, so no email is sent, and refreshes
   the read models.
+- The scenario's location trees are in Iran and Isle of Man, and its field, centre, lab and registered field have
+  made-up coordinates on the Qazvin plain (`LOCATION_COORDINATES`), so the location map shows pins and a polygon;
+  the states have none. Detailed maps of these countries come from `scripts/map_tiles.py --regions` (README.md,
+  Maps), as the build sends no events.
 - It adds the replicates study (`replicate_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
-  20 fields, 100,020 units and 44,000 records. The sizes can be set (`--fields`, `--trees-per-field`, …).
+  20 fields, 100,020 units and 44,000 records, each field a made-up plot beside the scenario's field. The sizes can
+  be set (`--fields`, `--trees-per-field`, …).
   The manifest's `perf` entry names the study, concept and field those scripts use.
 - `--seed` (default 1) seeds the generated names, so a build is repeatable.
 - It refuses to overwrite an existing manifest: move the old one aside, or build to another path.

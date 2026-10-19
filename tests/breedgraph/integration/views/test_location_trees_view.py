@@ -14,7 +14,7 @@ root is kept as a placeholder holding them (rule 4); any other hidden member ask
 """
 import pytest
 
-from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, LOCATION_PARENTS, LAYOUT_PARENTS
+from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, LOCATION_PARENTS, LAYOUT_PARENTS, LOCATION_COORDINATES
 
 REDACTED = 'REDACTED'
 
@@ -40,10 +40,12 @@ def assert_location(read_policy, viewer: str, name: str, location):
         assert location.type == read_policy[LOCATION_TYPES[name]]
         assert location.root == read_policy[expected.root]
         assert location.parent == (read_policy[expected.parent] if expected.parent else None), f"{viewer}: parent of {name}"
+        assert [(c['latitude'], c['longitude']) for c in location.coordinates] == LOCATION_COORDINATES.get(name, [])
     else:
         assert location.name == REDACTED, f"{viewer} should not read {name}"
         assert location.type is None
         assert location.parent is None
+        assert not location.coordinates, f"{viewer} should not see where {name} is"
         # a hidden root keeps its location tree, so its children can name it; other placeholders are bare
         assert location.root == (read_policy[name] if name == expected.root else None)
     assert set(location.children) == ids(read_policy, expected.children), f"{viewer}: children of {name}"

@@ -5,7 +5,8 @@ generated, not migrated, and built through the repositories as the BreedCAFS mig
 Everything is controlled by the child team and PRIVATE, as the migrated data was, so the admin reads it through their
 READ affiliation and the scripts measure the same access checks.
 
-    scale_field_01 .. scale_field_NN       fields (location type Field) below state
+    scale_field_01 .. scale_field_NN       fields (location type Field) below state, each a made-up plot near the
+                                           read-policy field (field_coordinates)
     each field: a unit graph rooted at a field unit (subject Field) positioned at the field,
         holding trees (subject Tree), each holding leaves (subject Leaf)
     scale_program > scale_trial > scale_study_01 .. scale_study_NN, one study per field
@@ -60,6 +61,13 @@ def field_key(number: int) -> str:
     return f"scale_field_{number:02d}"
 
 
+def field_coordinates(number: int) -> list[tuple[float, float]]:
+    """The field's plot: (latitude, longitude) corners, in a grid of five columns beside the read-policy field"""
+    row, column = divmod(number - 1, 5)
+    south, west = 36.163 + row * 0.005, 50.160 + column * 0.006
+    return [(south + 0.003, west), (south + 0.003, west + 0.004), (south, west + 0.004), (south, west)]
+
+
 def study_key(number: int) -> str:
     return f"scale_study_{number:02d}"
 
@@ -97,8 +105,14 @@ class ScaleScenarioBuilder:
         names = {field_key(n): f"Readpolicy scale field {n:02d}" for n in range(1, self.scale.parameters.fields + 1)}
         async with self._uow() as uow:
             location_tree = await uow.repositories.location_trees.get(location_id=b['state'])
-            for name in names.values():
-                location_tree.add_location(LocationInput(name=name, type=b['ontology_location_field']), parent_id=b['state'])
+            for number in range(1, self.scale.parameters.fields + 1):
+                location_tree.add_location(LocationInput(
+                    name=names[field_key(number)],
+                    type=b['ontology_location_field'],
+                    coordinates=[
+                        {'latitude': latitude, 'longitude': longitude} for latitude, longitude in field_coordinates(number)
+                    ]
+                ), parent_id=b['state'])
             await uow.commit()
         async with self.uow_factory.get_uow() as uow:
             location_tree = await uow.repositories.location_trees.get(location_id=b['state'])

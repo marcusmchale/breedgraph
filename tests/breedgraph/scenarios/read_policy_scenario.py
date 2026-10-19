@@ -12,14 +12,15 @@ Viewers and teams. "root" is a team tree root with a child team "child"; "other"
 Each entity below is listed with its controlling team, release and writer. Hidden members sit between readable ones,
 so each viewer sees a skip, a placeholder or a reconnection somewhere (rules 2 to 4).
 
-Location trees
-    country                      root  PUBLIC      admin
+Location trees, in Iran and Isle of Man, with made-up coordinates (LOCATION_COORDINATES) on the field, centre, lab and
+field_registered; the states have none, so the map shows them by their children or their country
+    country                      root  PUBLIC      admin     (Iran)
     └── state                    child PRIVATE     writer
-        ├── field                child PUBLIC      writer
-        │   └── centre           other PRIVATE     stranger
-        │       └── lab          other REGISTERED  stranger
-        └── field_registered     child REGISTERED  writer
-    country_private              child PRIVATE     writer    (a hidden location tree root)
+        ├── field                child PUBLIC      writer    (a polygon)
+        │   └── centre           other PRIVATE     stranger  (a point)
+        │       └── lab          other REGISTERED  stranger  (a point)
+        └── field_registered     child REGISTERED  writer    (a point)
+    country_private              child PRIVATE     writer    (Isle of Man; a hidden location tree root)
     └── state_public             child PUBLIC      writer
 
 Layout trees
@@ -134,6 +135,15 @@ VIEWERS = ('admin', 'writer', 'stranger', 'outsider', 'anonymous')
 LOCATION_PARENTS = {
     'country': None, 'state': 'country', 'field': 'state', 'centre': 'field', 'lab': 'centre',
     'field_registered': 'state', 'country_private': None, 'state_public': 'country_private'
+}
+# The countries the trees are rooted at, by ISO 3166 alpha-3 code
+LOCATION_COUNTRIES = {'country': 'IRN', 'country_private': 'IMN'}
+# Made-up coordinates, (latitude, longitude), in open country on the Qazvin plain; no real site
+LOCATION_COORDINATES = {
+    'field': [(36.160, 50.150), (36.160, 50.156), (36.155, 50.156), (36.155, 50.150)],
+    'centre': [(36.1575, 50.1530)],
+    'lab': [(36.1576, 50.1532)],
+    'field_registered': [(36.152, 50.165)]
 }
 LAYOUT_PARENTS = {
     'facility': None, 'chamber': 'facility', 'shelf': 'chamber',
@@ -595,7 +605,7 @@ class ReadPolicyScenarioBuilder:
 
         async def root(name: str, team: str, release: ReadRelease):
             async with self._uow(team, release) as uow:
-                location_tree = await location_trees.location_tree_from_country(uow)
+                location_tree = await location_trees.location_tree_from_country(uow, LOCATION_COUNTRIES[name])
                 await uow.commit()
             self._set(name, location_tree.get_root_id(), team, release)
 
@@ -604,7 +614,10 @@ class ReadPolicyScenarioBuilder:
                 location_tree = await uow.repositories.location_trees.get(location_id=s[parent])
                 before = set(location_tree._graph.nodes)
                 location_tree.add_location(
-                    LocationInput(name=text.new_text(10), type=s[type_key]),
+                    LocationInput(name=text.new_text(10), type=s[type_key], coordinates=[
+                        {'latitude': latitude, 'longitude': longitude}
+                        for latitude, longitude in LOCATION_COORDINATES.get(name, [])
+                    ]),
                     parent_id=s[parent]
                 )
                 await uow.commit()

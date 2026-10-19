@@ -16,7 +16,13 @@ class LocationTreeBuilder:
         self.uow_factory = uow_factory
         self.state_store = state_store
 
-    async def location_tree_from_country(self, uow: AbstractUnitHolder) -> LocationTree:
+    async def location_tree_from_country(self, uow: AbstractUnitHolder, code: str | None = None) -> LocationTree:
+        """A new location tree, rooted at the country with this ISO 3166 alpha-3 code, or else at any not yet stored"""
+        if code is not None:
+            country = await self.state_store.get_country(code)
+            if not isinstance(country, LocationInput):
+                raise ValueError(f"{code} is not a country that is not yet stored")
+            return await uow.repositories.location_trees.create(country)
         location_tree = None
         count = 0
         async for country in self.state_store.get_countries():

@@ -9,11 +9,13 @@ import pytest
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 from tests.breedgraph.e2e.utils import post_as, get_verified_payload
-from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, LOCATION_PARENTS, LAYOUT_PARENTS
+from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, LOCATION_PARENTS, LAYOUT_PARENTS, LOCATION_COORDINATES
 
 REDACTED = 'REDACTED'
 
-LOCATION_FIELDS = "id name type { id } root { id name } parent { id name } children { id name }"
+LOCATION_FIELDS = (
+    "id name type { id } coordinates { latitude longitude } root { id name } parent { id name } children { id name }"
+)
 LAYOUT_FIELDS = (
     "id name axes position root { id name } parent { id name } children { id name } location { id name }"
 )
@@ -44,6 +46,9 @@ def assert_location(read_policy, viewer: str, name: str, location: dict):
     assert (location['name'] != REDACTED) == expected.readable, f"{viewer}: {name}"
     if expected.readable:
         assert location['type'] is not None
+    # where a location is, only for those who can read it
+    coordinates = [(c['latitude'], c['longitude']) for c in location['coordinates'] or []]
+    assert coordinates == (LOCATION_COORDINATES.get(name, []) if expected.readable else []), f"{viewer}: where {name} is"
     is_kept = expected.readable or name == expected.root
     assert_linked(read_policy, viewer, location['root'], expected.root if is_kept else None)
     assert_linked(read_policy, viewer, location['parent'], expected.parent)
