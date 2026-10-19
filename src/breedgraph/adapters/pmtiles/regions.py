@@ -13,16 +13,19 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import cos, radians, inf
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 ATTRIBUTION = '© OpenStreetMap contributors, Protomaps'
 COUNTRY = 'ADM0'
 SECTION_LEVELS = ('ADM1', 'ADM2')
 REGIONS_DIRECTORY = 'regions'  # within the tiles path, so served with the world file
+COUNTRIES_DIRECTORY = 'countries'  # each country's extent, for showing it on the map
 WORLD_JSON = 'world.json'
 TILES_JSON = 'tiles.json'
 # How far a point may lie outside every simplified outline and still take the nearest section, in degrees of latitude
 NEAREST_SECTION_DEGREES = 1.0
+# A country is shown by its parts at least this share of its largest, by area
+MAIN_PART_SHARE = 0.01
 
 _CODE = re.compile(r'[A-Z]{3}')
 _SHAPE_ID = re.compile(r'[A-Za-z0-9_-]+')
@@ -85,6 +88,52 @@ def features_bounds(features: Iterable[dict]) -> List[List[float]] | None:
         return None
     return [[min(box[0][0] for box in boxes), min(box[0][1] for box in boxes)],
             [max(box[1][0] for box in boxes), max(box[1][1] for box in boxes)]]
+
+
+def _area(polygon: list) -> float:
+    """Roughly the area of a polygon's outer ring, in square degrees of latitude"""
+    ring = polygon[0] if polygon else []
+    if len(ring) < 3:
+        return 0.0
+    scale = cos(radians(sum(position[1] for position in ring) / len(ring)))
+    twice = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(ring, ring[1:] + ring[:1]))
+    return abs(twice) / 2 * scale
+
+
+def _longitude_span(intervals: List[Tuple[float, float]]) -> Tuple[float, float]:
+    """
+    West and east of the narrowest span holding the intervals of longitude, crossing the antimeridian when that is
+    narrower; east is then above 180, which Leaflet accepts
+    """
+    merged: List[List[float]] = []
+    for west, east in sorted(intervals):
+        if merged and west <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], east)
+        else:
+            merged.append([west, east])
+    # the widest gap between them, round the globe, is left out
+    gaps = [(merged[0][0] + 360 - merged[-1][1], len(merged) - 1)]
+    gaps += [(merged[i + 1][0] - merged[i][1], i) for i in range(len(merged) - 1)]
+    _, before = max(gaps)
+    if before == len(merged) - 1:
+        return merged[0][0], merged[-1][1]
+    return merged[before + 1][0], merged[before][1] + 360
+
+
+def country_bounds(features: Iterable[dict]) -> List[List[float]] | None:
+    """
+    [[south, west], [north, east]] to show a country by: around its main parts, those at least MAIN_PART_SHARE of the
+    largest, so that small distant islands and territories don't widen it across an ocean
+    """
+    features = list(features)
+    polygons = [polygon for feature in features for polygon in _polygons(feature.get('geometry') or {}) if polygon]
+    areas = [_area(polygon) for polygon in polygons]
+    if not polygons or max(areas) <= 0:
+        return features_bounds(features)
+    main = [polygon[0] for polygon, area in zip(polygons, areas) if area >= max(areas) * MAIN_PART_SHARE]
+    latitudes = [position[1] for ring in main for position in ring]
+    west, east = _longitude_span([(min(p[0] for p in ring), max(p[0] for p in ring)) for ring in main])
+    return [[min(latitudes), west], [max(latitudes), east]]
 
 
 def _in_ring(latitude: float, longitude: float, ring: list) -> bool:
@@ -182,22 +231,46 @@ def read_sidecars(tiles_path: Path) -> List[dict]:
     return sidecars
 
 
-def tiles_json(world: dict, sidecars: Iterable[dict]) -> dict:
-    """tiles.json, for the location map (breedview composables/locations/baseMap.js): the world, then the regions"""
+def country_file(tiles_path: Path, code: str) -> Path:
+    return tiles_path / COUNTRIES_DIRECTORY / f'{code}.json'
+
+
+def read_countries(tiles_path: Path) -> Dict[str, dict]:
+    """The extents of the countries whose maps were asked for, by code"""
+    directory = tiles_path / COUNTRIES_DIRECTORY
+    if not directory.is_dir():
+        return {}
+    countries = {}
+    for path in sorted(directory.glob('*.json')):
+        country = read_json(path)
+        if country is not None:
+            countries[path.stem] = country
+    return countries
+
+
+def tiles_json(world: dict, sidecars: Iterable[dict], countries: Dict[str, dict] | None = None) -> dict:
+    """
+    tiles.json, for the location map (breedview composables/locations/baseMap.js): the world, then the regions, and
+    the extent to show each country by
+    """
     return {
         'attribution': ATTRIBUTION,
         'updated': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'layers': [
             {key: world[key] for key in ('url', 'maxZoom', 'build') if key in world},
             *({key: sidecar[key] for key in ('url', 'name', 'minZoom', 'maxZoom', 'bounds')} for sidecar in sidecars)
-        ]
+        ],
+        'countries': {
+            code: {key: country[key] for key in ('name', 'bounds')} for code, country in (countries or {}).items()
+        }
     }
 
 
 def write_tiles_json(tiles_path: Path) -> bool:
     """
-    Rebuild tiles.json from world.json and the regions' sidecars, holding a lock so that processes adding or removing
-    regions at the same time keep one another's. Returns False, writing nothing, while there is no world file.
+    Rebuild tiles.json from world.json, the regions' sidecars and the countries' extents, holding a lock so that
+    processes adding or removing regions at the same time keep one another's. Returns False, writing nothing, while
+    there is no world file.
     """
     tiles_path.mkdir(parents=True, exist_ok=True)
     with open(tiles_path / '.tiles.lock', 'w') as lock:
@@ -205,5 +278,5 @@ def write_tiles_json(tiles_path: Path) -> bool:
         world = read_json(tiles_path / WORLD_JSON)
         if world is None:
             return False
-        write_json(tiles_path / TILES_JSON, tiles_json(world, read_sidecars(tiles_path)))
+        write_json(tiles_path / TILES_JSON, tiles_json(world, read_sidecars(tiles_path), read_countries(tiles_path)))
         return True

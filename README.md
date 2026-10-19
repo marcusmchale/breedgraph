@@ -499,8 +499,9 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     the country is divided.
   - Countries are public, and a section shows only that some location lies within it. Sections are found on our
     server, from its copy of the outlines, so no site coordinates leave it.
-  - Each region is a file, `regions/<key>.pmtiles`, with a `<key>.json` description. Removing a country deletes its
-    files; a section stays until its country is removed.
+  - Each region is a file, `regions/<key>.pmtiles`, with a `<key>.json` description, and each country has its extent
+    for the map to show it by in `countries/<code>.json`, whether fetched whole or divided. Removing a country deletes
+    its files; a section stays until its country is removed.
   - Before a fetch, a dry run gives the region's size. The fetch fails unless the disk has room for it, with 10% of
     its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed.
   - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,

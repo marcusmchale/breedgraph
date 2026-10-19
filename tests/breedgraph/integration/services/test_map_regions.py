@@ -117,6 +117,10 @@ class Maps:
     def layers(self) -> list:
         return [layer['url'] for layer in json.loads((self.tiles / 'tiles.json').read_text())['layers']]
 
+    def countries(self) -> dict:
+        """The extent to show each country by"""
+        return json.loads((self.tiles / 'tiles.json').read_text())['countries']
+
 
 async def until(condition, seconds: float = 10):
     for _ in range(int(seconds / 0.05)):
@@ -152,6 +156,7 @@ async def test_a_small_country_is_fetched_whole(maps, state_store):
         'build': BUILD, 'size': 5
     }
     assert maps.layers() == ['world.pmtiles', 'regions/LUX.pmtiles']
+    assert maps.countries() == {'LUX': {'name': 'Luxembourg', 'bounds': [[49.4, 5.7], [50.2, 6.6]]}}
     assert maps.sent() == [('MapRegionFetching', 'Luxembourg', [7]), ('MapRegionReady', 'Luxembourg', [7])]
     assert await state_store.get_pending_map_regions() == []
 
@@ -170,6 +175,9 @@ async def test_a_large_country_is_divided_and_placed_locations_fetch_their_secti
     await regions.wait_until_idle()
     assert maps.extracts() == []
     assert maps.sent() == [('MapCountryDivided', 'United States of America', [7])]
+    # a divided country is still shown by its outline
+    assert maps.layers() == ['world.pmtiles']
+    assert maps.countries() == {'USA': {'name': 'United States of America', 'bounds': [[30, -100], [40, -80]]}}
 
     await regions.request_places('USA', [IN_A], requested_by=8)
     await regions.wait_until_idle()
@@ -254,6 +262,7 @@ async def test_removing_a_country_deletes_its_regions(maps, state_store):
     await regions.remove_country('USA')
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
     assert maps.layers() == ['world.pmtiles', 'regions/LUX.pmtiles']
+    assert list(maps.countries()) == ['LUX']
     assert await state_store.get_map_region_size('USA') is None
     assert await state_store.get_map_region_size('USA-ADM1-a') is None
     assert await state_store.get_map_region_size('LUX') is not None

@@ -4,7 +4,7 @@ import pytest
 
 from breedgraph.adapters.pmtiles.command import parse_archive_size, latest_build, MapRegionError
 from breedgraph.adapters.pmtiles.regions import (
-    Region, contains, section_for, geometry_bounds, features_bounds, write_tiles_json, read_sidecars
+    Region, contains, section_for, geometry_bounds, features_bounds, country_bounds, write_tiles_json, read_sidecars
 )
 
 
@@ -73,6 +73,25 @@ def test_bounds():
     assert features_bounds([]) is None
 
 
+def test_a_country_is_shown_by_its_main_parts():
+    mainland = feature('mainland', [square(0, 40, 10, 50)])
+    island = feature('island', [square(10.5, 41, 12, 43)])  # more than 1% of the mainland, nearby
+    territory = feature('territory', [square(-60, 4, -59.5, 4.5)])  # less, across an ocean
+    assert country_bounds([mainland, island, territory]) == [[40, 0], [50, 12]]
+    assert features_bounds([mainland, island, territory]) == [[4, -60], [50, 12]]
+    # a single small part is still shown
+    assert country_bounds([territory]) == [[4, -60], [4.5, -59.5]]
+    assert country_bounds([]) is None
+
+
+def test_a_country_across_the_antimeridian_is_shown_across_it():
+    """Its parts are split at 180 degrees; the narrower extent crosses it, with east above 180 as Leaflet takes it"""
+    west_of = feature('west', [square(170, -20, 180, -10)])
+    east_of = feature('east', [square(-180, -20, -175, -10)])
+    assert country_bounds([west_of, east_of]) == [[-20, 170], [-10, 185]]
+    assert country_bounds([feature('wide', [square(-170, 0, 170, 10)])]) == [[0, -170], [10, 170]]
+
+
 @pytest.mark.parametrize('output, size', [
     ('extract.go:612: Extract transferred 476 MB (overfetch 0.05) for an archive size of 454 MB', 454_000_000),
     ('... for an archive size of 5.5 GB\n', 5_500_000_000),
@@ -135,3 +154,14 @@ def test_tiles_json_lists_the_world_and_the_complete_regions(tmp_path):
     ]
     assert [sidecar['key'] for sidecar in read_sidecars(tmp_path)] == ['IRL', 'USA-ADM1-a']
     assert not list(tmp_path.glob('.*.partial'))
+    assert tiles['countries'] == {}
+
+    # and the extent to show each country by, divided ones included
+    (tmp_path / 'countries').mkdir()
+    for code, name in (('IRL', 'Ireland'), ('USA', 'United States of America')):
+        (tmp_path / 'countries' / f'{code}.json').write_text(json.dumps({'name': name, 'bounds': [[0, 0], [1, 1]]}))
+    assert write_tiles_json(tmp_path)
+    assert json.loads((tmp_path / 'tiles.json').read_text())['countries'] == {
+        'IRL': {'name': 'Ireland', 'bounds': [[0, 0], [1, 1]]},
+        'USA': {'name': 'United States of America', 'bounds': [[0, 0], [1, 1]]}
+    }

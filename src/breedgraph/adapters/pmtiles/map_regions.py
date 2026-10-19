@@ -33,7 +33,7 @@ from .boundaries import GeoBoundaries
 from .command import PmtilesCommand, ProtomapsBuilds, MapRegionError
 from .regions import (
     Region, Point, COUNTRY, SECTION_LEVELS, REGIONS_DIRECTORY, WORLD_JSON,
-    section_for, features_bounds, region_file, read_json, write_json, write_tiles_json
+    section_for, features_bounds, country_bounds, region_file, country_file, read_json, write_json, write_tiles_json
 )
 
 import logging
@@ -139,7 +139,8 @@ class PmtilesMapRegions(AbstractMapRegions):
         for task in cancelled:
             task.cancel()
         await asyncio.gather(*cancelled, return_exceptions=True)
-        removed = False
+        removed = country_file(self.tiles_path, code).exists()
+        country_file(self.tiles_path, code).unlink(missing_ok=True)
         for pattern in (f'{code}.*', f'{code}-*', f'.{code}.*', f'.{code}-*'):
             for path in (self.tiles_path / REGIONS_DIRECTORY).glob(pattern):
                 path.unlink(missing_ok=True)
@@ -263,6 +264,11 @@ class PmtilesMapRegions(AbstractMapRegions):
             return outcome
 
     async def _fetch(self, region: Region, refresh: bool) -> Outcome:
+        if region.level == COUNTRY:
+            try:
+                await self._describe_country(region)
+            except MapRegionError as e:
+                logger.warning(f"The extent of {region.code} is not known: {e}")
         file = region_file(self.tiles_path, region)
         if file.exists() and not refresh:
             return Outcome.READY
@@ -272,6 +278,19 @@ class PmtilesMapRegions(AbstractMapRegions):
             return Outcome.DIVIDED
         await self._extract(region, size)
         return Outcome.READY
+
+    async def _describe_country(self, country: Region) -> None:
+        """Keep the extent the map shows the country by (tiles.json countries), from its outline"""
+        file = country_file(self.tiles_path, country.code)
+        if file.exists():
+            return
+        _, features = await self.boundaries.outline(country)
+        bounds = await asyncio.to_thread(country_bounds, features)
+        if bounds is None or not await self.state_store.is_map_region_pending(country.key):
+            return  # no outline, or the country was removed meanwhile
+        file.parent.mkdir(parents=True, exist_ok=True)
+        write_json(file, {'name': await self._name(country), 'bounds': bounds})
+        await asyncio.to_thread(write_tiles_json, self.tiles_path)
 
     async def size(self, region: Region, fresh: bool = False) -> int:
         """The size in bytes of the region's file, from a dry run (kept, unless fresh)"""

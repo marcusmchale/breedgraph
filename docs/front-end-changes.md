@@ -643,7 +643,7 @@ the browser doesn't. They need an account and are limited per user per hour (`GE
 
 **Map tiles** are served at `/tiles` from `MAP_TILES_PATH` (nginx serves them in production), all PMTiles from
 Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet). `/tiles/tiles.json` lists them:
-`{attribution, updated, layers}`. Until the world file is cut there is none (404).
+`{attribution, updated, layers, countries}`. Until the world file is cut there is none (404).
 - The first layer is the low-detail world file, `{url, maxZoom, build}`, cut by `scripts/map_tiles.py`.
 - The others are regions in full detail, `{url, name, minZoom, maxZoom, bounds}` with `bounds` as
   `[[south, west], [north, east]]`: whole countries, or sections (states or provinces) of countries too large to fetch
@@ -652,5 +652,11 @@ Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet)
   them with one layer whose source asks each tile of the regions whose zooms and bounds hold it and takes the first
   found (breedview `composables/locations/baseMap.js`). Fetch `tiles.json` without caching it (`cache: 'no-cache'`), so
   new regions appear at the next page load.
+- `countries` maps each country's code to `{name, bounds}`: the extent to show it by, around its main parts (small
+  distant islands and territories are left out), for every country whose maps were fetched or divided. `bounds` is
+  `[[south, west], [north, east]]`, with east above 180 for a country across the antimeridian. Show a selected
+  country by fitting these bounds; countries need no coordinates, so don't geocode or save a centre for them. Where
+  a country has no entry (no detailed maps on that server), Nominatim's box for its name
+  (`locationsGeocodeCountry(name).bounds`) is the fallback.
 - The user who added the country or placed the location is emailed when the fetch starts and ends; say so where
   countries are added. There is no status in the API.
