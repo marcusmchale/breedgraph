@@ -109,7 +109,8 @@ async def test_search_leaves_hidden_locations_out(views_factory, read_policy, vi
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         for name in LOCATION_PARENTS:
             text = names[read_policy[name]]
-            found = await views.location_trees.search_locations(text[1:-1].upper())
+            # part of the name, or all of a name too short to have a middle (random names can be like 'S.')
+            found = await views.location_trees.search_locations((text[1:-1].strip() or text).upper())
             readable = read_policy.tree_member(viewer, LOCATION_PARENTS, name).readable
             assert (read_policy[name] in {location.id for location in found}) == readable, f"{viewer}: search for {name}"
             # what is found is readable, in full
