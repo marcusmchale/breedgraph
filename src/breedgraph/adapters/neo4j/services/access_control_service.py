@@ -180,7 +180,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
         record = await result.single()
         if record is None:
             return None
-        return TeamTreeRoot(root_id=record['root_id'], legal_entity_declared=record['legal_entity_declared'])
+        return TeamTreeRoot(root_id=record['root_id'])
 
     async def _get_team_and_descendants(self, team_id: int) -> Set[int]:
         result = await self.tx.run(queries['controls']['get_team_and_descendants'], team_id=team_id)

@@ -2,16 +2,15 @@
 Team trees and accounts under the read policy (docs/read-access.md, rules 7 and 9), through GraphQL, on the
 read-policy scenario: team tree "root" with a child team "child", and a second team tree "other".
 
-- Teams are for signed-in users: anonymous users see none, and learn who holds a Person record from the Person
-  (Person.dataController). A team tree's root is visible to every signed-in user, with its legal entity. Its other
-  teams are visible only to their affiliates; asked for by id, a hidden team is a placeholder.
+- Teams are for signed-in users: anonymous users see none, so the organisations using BreedGraph are not listed
+  publicly. A team tree's root is visible to every signed-in user. Its other teams are visible only to their
+  affiliates; asked for by id, a hidden team is a placeholder.
 - A team's affiliations are shown in full to its admins, and otherwise only the viewer's own.
-- Accounts are shown to their owner and to admins of their teams: an affiliation's user, a legal entity's
-  declaredBy. accountsAccount and accountsUserAccess need an account.
+- Accounts are shown to their owner and to admins of their teams: an affiliation's user. accountsAccount and
+  accountsUserAccess need an account.
 """
 import pytest
 
-from breedgraph import config
 from breedgraph.domain.model.controls import Access
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
@@ -22,14 +21,12 @@ REDACTED = 'REDACTED'
 TEAMS = ('root', 'child', 'other')
 ROOTS = ('root', 'other')
 PARENTS = {'child': 'root'}
-ROOT_ADMINS = {'root': 'admin', 'other': 'stranger'}
 
 AFFILIATION_FIELDS = "user { id } authorisation heritable"
 TEAM_FIELDS = (
     "id name parent { id } children { id } "
     f"affiliations {{ read {{ {AFFILIATION_FIELDS} }} write {{ {AFFILIATION_FIELDS} }} "
-    f"admin {{ {AFFILIATION_FIELDS} }} curate {{ {AFFILIATION_FIELDS} }} }} "
-    "legalEntity { legalName privacyContact termsVersion declaredBy { id } }"
+    f"admin {{ {AFFILIATION_FIELDS} }} curate {{ {AFFILIATION_FIELDS} }} }}"
 )
 
 
@@ -72,15 +69,6 @@ def assert_team(read_policy, viewer: str, name: str, team: dict):
         for access in ('read', 'write', 'admin', 'curate')
     }
     assert affiliations == expected_affiliations(viewer, name), f"{viewer}: affiliations of {name}"
-    if name in ROOTS and config.DATA_PROCESSING_TERMS_VERSION is not None:
-        legal_entity = team['legalEntity']
-        assert (legal_entity['legalName'], legal_entity['privacyContact']) == read_policy.legal_entities[name]
-        assert legal_entity['termsVersion'] == config.DATA_PROCESSING_TERMS_VERSION
-        # the declaring account, shown to admins of the team only
-        declared_by = legal_entity['declaredBy']
-        assert (declared_by is not None) == (viewer == ROOT_ADMINS[name]), f"{viewer}: declaredBy"
-    elif name not in ROOTS:
-        assert team['legalEntity'] is None
 
 
 async def assert_refused_anonymously(client, login_token_factory, read_policy, operation: str, text: str, variables=None):
@@ -128,7 +116,6 @@ async def test_teams_by_id(client, login_token_factory, read_policy, viewer):
             assert team['name'] == REDACTED, f"{viewer} should not see {name}"
             assert team['parent'] is None
             assert not team['children']
-            assert team['legalEntity'] is None
 
     for name in TEAMS:
         team = await result_of(client, login_token_factory, read_policy, viewer, 'teamsTeam', by_id, {'id': read_policy[name]})

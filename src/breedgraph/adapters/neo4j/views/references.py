@@ -22,7 +22,8 @@ class Neo4jReferencesView(AbstractReferencesView):
             query,
             **params,
             read_teams=self.read_teams,
-            minimum_release=int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+            minimum_release=int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED),
+            signed_in=self.user_id is not None
         )
         return [Neo4jReferencesRepository.record_to_reference(dict(record['reference'])) async for record in result]
 

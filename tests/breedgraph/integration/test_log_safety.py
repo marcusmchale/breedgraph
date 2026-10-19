@@ -23,7 +23,7 @@ async def test_message_bus_does_not_log_person_data(bus, isolated_state):
     logger.setLevel(logging.DEBUG)
     try:
         with pytest.raises(Exception):
-            # fails for lack of a legal entity, after the command is logged
+            # fails as neither the agent nor the write team exists, after the command is logged
             await bus.handle(CreatePerson(
                 agent_id=-1, write_team=-1, name='Secret Person Name', informed_attestation=True
             ))

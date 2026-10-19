@@ -9,14 +9,12 @@ from breedgraph.domain.model.team_trees import (
     TeamTree,
     Affiliation,
     Affiliations,
-    Authorisation,
-    LegalEntityDeclaration
+    Authorisation
 )
 from breedgraph.domain.model.controls import Access
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.service_layer.repositories.base import BaseRepository
-from breedgraph.domain.model.time_descriptors import deserialize_time
 
 from typing import AsyncGenerator, Set, List
 
@@ -64,29 +62,6 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
             fullname=team.fullname
         )
         await self._set_team_access(team)
-        if team.legal_entity is not None and team.legal_entity.declared_at is None:
-            await self._declare_legal_entity(team)
-        elif team.legal_entity is None and 'legal_entity' in team.changed:
-            await self.tx.run(queries['team_trees']['withdraw_legal_entity'], team=team.id, user_id=self.user_id)
-
-    async def _declare_legal_entity(self, team: TeamStored | TrackableProtocol):
-        result = await self.tx.run(
-            queries['team_trees']['declare_legal_entity'],
-            team=team.id,
-            legal_name=team.legal_entity.legal_name,
-            privacy_contact=team.legal_entity.privacy_contact,
-            terms_version=team.legal_entity.terms_version,
-            declared_by=team.legal_entity.declared_by
-        )
-        record = await result.single()
-        declaration = record['declaration']
-        declaration['declared_at'] = deserialize_time(declaration['declared_at'])
-        # Record the stored time without marking the team as changed again
-        stored = LegalEntityDeclaration(**declaration)
-        if hasattr(team, 'silent_setattr'):
-            team.silent_setattr('legal_entity', stored)
-        else:
-            team.legal_entity = stored
 
     async def _set_team_access(self, team: TeamStored|TrackableProtocol):
         for access in team.affiliations.changed:
@@ -210,10 +185,6 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
             for user_id in record['affiliations'][access]:
                 affiliations.set_by_access(Access(access), user_id, record['affiliations'][access][user_id])
         record['affiliations'] = affiliations
-        legal_entity = record.pop('legal_entity', None)
-        if legal_entity is not None:
-            legal_entity['declared_at'] = deserialize_time(legal_entity.get('declared_at'))
-            record['legal_entity'] = LegalEntityDeclaration(**legal_entity)
         return TeamStored(**record)
 
     async def split(self, team_id):

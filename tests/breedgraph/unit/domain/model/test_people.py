@@ -3,7 +3,7 @@ from numpy import datetime64
 
 from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 from breedgraph.domain.model.controls import Control, Controller, ControlledModelLabel, ReadRelease
-from breedgraph.domain.model.people import PersonInput, PersonStored, PersonOutput, LawfulBasis
+from breedgraph.domain.model.people import PersonInput, PersonStored, PersonOutput
 
 CONTROL_TEAM = 10
 OTHER_TEAM = 20
@@ -25,7 +25,6 @@ def stored_person(**kwargs) -> PersonStored:
         name='A Technician',
         institution='A University',
         teams=[CONTROL_TEAM],
-        basis=LawfulBasis.PUBLIC_TASK,
         informed_attestation=True,
         user=SUBJECT_USER,
         recorded_by=ADMIN_USER
@@ -44,10 +43,8 @@ def test_input_requires_informed_attestation():
         PersonInput(name='A Technician')
 
 
-def test_input_basis_from_value():
-    person = PersonInput(name=' A Technician ', informed_attestation=True, basis='LEGITIMATE_INTEREST')
-    assert person.name == 'A Technician'
-    assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
+def test_input_name_is_stripped():
+    assert PersonInput(name=' A Technician ', informed_attestation=True).name == 'A Technician'
 
 
 def test_input_institution_is_optional():
@@ -101,9 +98,8 @@ def test_erase(agent_id, admin_teams):
     assert person.teams == []
     assert person.orcid is None
     assert person.user is None
-    # kept: id, basis and record of who recorded it
+    # kept: id and record of who recorded it
     assert person.id == 1
-    assert person.basis is LawfulBasis.PUBLIC_TASK
     assert person.recorded_by == ADMIN_USER
 
 

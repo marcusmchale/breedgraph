@@ -1,7 +1,7 @@
 from typing import AbstractSet
 
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable_as
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable_as, contributions as _contributions
 from breedgraph.adapters.neo4j.cypher.query_builders.times import upper as _upper, entered as _entered
 
 # Datasets as the user may see them (see docs/read-access.md). A readable dataset is returned in full, all its records
@@ -176,7 +176,7 @@ def read_datasets():
           id: dataset.id,
           study: [(dataset)-[:FOR_STUDY]->(study:Study) | study.id][0],
           concept: [(dataset)-[:FOR_CONCEPT]->(concept:Variable|Factor) | concept.id][0],
-          contributions: [(dataset)<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
+          contributions: {_contributions('dataset')},
           references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference) | reference.id],
           record_count: COUNT {{ (dataset)-[:INCLUDES_RECORD]->(:Record) }}
         }} ELSE dataset {{

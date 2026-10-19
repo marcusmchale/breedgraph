@@ -3,7 +3,7 @@ from ariadne import ObjectType, EnumType
 from typing import List
 
 from breedgraph.custom_exceptions import NoResultFoundError
-from breedgraph.domain.model.people import PersonOutput, LawfulBasis, PersonView
+from breedgraph.domain.model.people import PersonOutput, PersonView
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_people_map,
@@ -25,7 +25,7 @@ person = ObjectType("Person")
 person_claim = ObjectType("PersonClaim")
 person_claim_request = ObjectType("PersonClaimRequest")
 graphql_resolvers.register_type_resolvers(person, person_claim, person_claim_request)
-graphql_resolvers.register_enums(EnumType("LawfulBasis", LawfulBasis), EnumType("PersonView", PersonView))
+graphql_resolvers.register_enums(EnumType("PersonView", PersonView))
 
 
 # Listing and looking up Persons needs an account, so Persons released to the public are not a public directory: anonymous

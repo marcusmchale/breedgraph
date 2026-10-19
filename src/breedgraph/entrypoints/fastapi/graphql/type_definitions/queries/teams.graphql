@@ -34,30 +34,6 @@ type Team {
     affiliations: Affiliations
     directAffiliations: Affiliations
     inheritedAffiliations: Affiliations
-    """The legal entity responsible for the team tree. Only declared on team tree roots"""
-    legalEntity: LegalEntity
-}
-
-"""
-The legal entity responsible for a team tree, declared on its root team by accepting the data processing terms.
-Required for the team tree to record Persons.
-"""
-type LegalEntity {
-    legalName: String!
-    """A role address for requests about personal data"""
-    privacyContact: String!
-    """The version of the data processing terms accepted"""
-    termsVersion: String!
-    declaredAt: DateTime
-    """Visible to admins of the team only"""
-    declaredBy: UserDisplay
-}
-
-"""The data processing terms accepted when declaring a legal entity"""
-type DataProcessingTerms {
-    """Null when no terms are configured, in which case legal entities cannot be declared"""
-    version: String
-    url: String
 }
 
 type UserAccess {

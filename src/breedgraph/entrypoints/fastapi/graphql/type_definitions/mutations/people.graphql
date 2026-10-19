@@ -4,8 +4,6 @@ input PersonInput {
     institution: String
     """Affiliation"""
     teamIds: [ID!]
-    """Defaults to PUBLIC_TASK"""
-    basis: LawfulBasis
     """Confirm the person was informed that this record is held. Required to be true"""
     informedAttestation: Boolean!
 }
@@ -17,14 +15,11 @@ input PersonUpdate {
     institution: String
     """Requires curate access"""
     teamIds: [ID!]
-    """Requires curate access"""
-    basis: LawfulBasis
 }
 
 extend type Mutation {
     """
-    Record a Person. The team tree of the control team must have declared its legal entity,
-    and becomes the data controller for the record.
+    Record a Person. Its release can be at most REGISTERED: Persons are never shown to anonymous users.
     """
     peopleCreatePerson(
         person: PersonInput!

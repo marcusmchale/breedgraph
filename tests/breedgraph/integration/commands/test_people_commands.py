@@ -1,41 +1,21 @@
 import pytest
 import pytest_asyncio
 
-from breedgraph import config
 from breedgraph.adapters.files import JsonLinesErasureLog
-from breedgraph.adapters.neo4j.erasures import apply_erasures
+from breedgraph.adapters.neo4j.erasures import apply_erasures, erase_person
 from breedgraph.service_layer.infrastructure.erasure_log import ErasureLogEntry
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError, UnauthorisedOperationError
-from breedgraph.domain.commands.team_trees import DeclareLegalEntity, LegalEntity
 from breedgraph.domain.commands.people import CreatePerson, UpdatePerson, ErasePerson
-from breedgraph.domain.model.control_transfers import ControlledEntity
-from breedgraph.domain.model.controls import ControlledModelLabel, Access
-from breedgraph.domain.model.people import LawfulBasis
-from breedgraph.domain.model.team_trees import TeamInput
+from breedgraph.domain.commands.controls import SetRelease
+from breedgraph.domain.model.control_transfers import ControlledEntity, ControlScope
+from breedgraph.domain.model.controls import ControlledModelLabel, Access, ReadRelease
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.person_builder import PersonBuilder
-from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 
-TERMS_VERSION = 'test-terms-1'
-
-
-@pytest.fixture(autouse=True)
-def terms_version(monkeypatch):
-    monkeypatch.setattr(config, 'DATA_PROCESSING_TERMS_VERSION', TERMS_VERSION)
-
-
-async def declared_account(bus, uow_factory) -> dict:
-    """An account administering a team tree with a declared legal entity"""
-    account = await AccountBuilder(uow_factory).account_with_affiliations()
-    await bus.handle(DeclareLegalEntity(
-        agent_id=account['user_id'],
-        team_id=account['team_id'],
-        legal_entity=LegalEntity(
-            legal_name='Test University', privacy_contact='dataprotection@test.example', terms_version=TERMS_VERSION
-        )
-    ))
-    return account
+async def team_account(uow_factory) -> dict:
+    """An account administering a team tree, which can record Persons"""
+    return await AccountBuilder(uow_factory).account_with_affiliations()
 
 
 async def create_person(bus, uow_factory, account: dict, **kwargs) -> int:
@@ -57,31 +37,20 @@ async def get_person(uow_factory, user_id: int, person_id: int):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_requires_declared_legal_entity(bus, uow_factory, isolated_state):
-    account = await AccountBuilder(uow_factory).account_with_affiliations()
-    with pytest.raises(IllegalOperationError, match="legal entity"):
-        await bus.handle(CreatePerson(
-            agent_id=account['user_id'], write_team=account['team_id'], name='A Technician', informed_attestation=True
-        ))
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_create(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     person_id = await create_person(
-        bus, uow_factory, account, teams=[account['team_id']], basis=LawfulBasis.LEGITIMATE_INTEREST,
-        institution='A University'
+        bus, uow_factory, account, teams=[account['team_id']], institution='A University'
     )
     person = await get_person(uow_factory, account['user_id'], person_id)
     assert person.institution == 'A University'
     assert person.teams == [account['team_id']]
-    assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
     assert person.recorded_by == account['user_id']
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_requires_existing_teams(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     with pytest.raises(NoResultFoundError, match="Teams not found"):
         await bus.handle(CreatePerson(
             agent_id=account['user_id'], write_team=account['team_id'], name='A Technician',
@@ -91,24 +60,23 @@ async def test_create_requires_existing_teams(bus, uow_factory, isolated_state):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_requires_informed_attestation(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     with pytest.raises(IllegalOperationError, match="informed"):
         await bus.handle(CreatePerson(agent_id=account['user_id'], write_team=account['team_id'], name='A Technician'))
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']])
     await bus.handle(UpdatePerson(
         agent_id=account['user_id'], person_id=person_id, name='Renamed', institution='A University',
-        teams=[], basis=LawfulBasis.LEGITIMATE_INTEREST
+        teams=[]
     ))
     person = await get_person(uow_factory, account['user_id'], person_id)
     assert person.name == 'Renamed'
     assert person.institution == 'A University'
     assert person.teams == []
-    assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
 
     # An empty string removes the institution, and leaving it out keeps it
     await bus.handle(UpdatePerson(agent_id=account['user_id'], person_id=person_id, name='Renamed Again'))
@@ -119,7 +87,7 @@ async def test_update(bus, uow_factory, isolated_state):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_linked_user_can_change_name_and_institution_only(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     subject_id = await AccountBuilder(uow_factory).account()
     person_id = await create_person(bus, uow_factory, account)
     async with uow_factory.get_uow(user_id=account['user_id']) as uow:
@@ -138,7 +106,7 @@ async def test_linked_user_can_change_name_and_institution_only(bus, uow_factory
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_state, erasure_log_path):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']], institution='A University')
 
     await bus.handle(ErasePerson(agent_id=account['user_id'], person_id=person_id))
@@ -175,8 +143,41 @@ async def test_erase_logs_and_replays(bus, uow_factory, event_queue, isolated_st
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_operator_erasure_is_logged(bus, uow_factory, isolated_state, erasure_log_path):
+    """For requests made to the University (scripts/erase_person.py): erased and logged like any other erasure"""
+    account = await team_account(uow_factory)
+    person_id = await create_person(bus, uow_factory, account, teams=[account['team_id']], institution='A University')
+    claimant_id = await AccountBuilder(uow_factory).account()
+    linked_user_id = await AccountBuilder(uow_factory).account()
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        person = await uow.repositories.people.get(person_id=person_id)
+        person.link(linked_user_id)
+        await uow.commit()
+    async with uow_factory.get_uow() as uow:
+        await uow.tx.run(
+            "MATCH (user:User {id: $user_id}), (person:Person {id: $person_id}) CREATE (user)-[:CLAIMS]->(person)",
+            user_id=claimant_id, person_id=person_id
+        )
+        await uow.commit()
+
+    erasure_log = JsonLinesErasureLog(erasure_log_path)
+    assert await erase_person(bus.uow_factory.driver, erasure_log, person_id) is True
+    person = await get_person(uow_factory, account['user_id'], person_id)
+    assert person.erased and person.name is None and person.institution is None and person.teams == []
+    assert person.user is None and person.claims == []
+    [entry] = [e for e in erasure_log.read() if isinstance(e, ErasureLogEntry) and e.person_id == person_id]
+    assert entry.created_at == person.recorded_at
+
+    # erasing again changes and logs nothing
+    assert await erase_person(bus.uow_factory.driver, erasure_log, person_id) is False
+    assert len([e for e in erasure_log.read() if isinstance(e, ErasureLogEntry) and e.person_id == person_id]) == 1
+    with pytest.raises(NoResultFoundError):
+        await erase_person(bus.uow_factory.driver, erasure_log, -1)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_erase_requires_admin_or_linked_user(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
+    account = await team_account(uow_factory)
     other_user_id = await AccountBuilder(uow_factory).account()
     person_id = await create_person(bus, uow_factory, account)
     with pytest.raises(UnauthorisedOperationError):
@@ -184,83 +185,54 @@ async def test_erase_requires_admin_or_linked_user(bus, uow_factory, isolated_st
     assert not (await get_person(uow_factory, account['user_id'], person_id)).erased
 
 
-async def child_team(uow_factory, account: dict) -> int:
-    """A team below the account's root, which the account administers"""
-    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
-        team_tree.add_team(TeamInput(name=TeamTreeBuilder.team_input().name), parent_id=account['team_id'])
-        await uow.commit()
-    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
-        team_id = team_tree.get_children_ids(account['team_id'])[0]
-    for access in (Access.ADMIN, Access.READ):
-        await TeamTreeBuilder(uow_factory).authorise_access(user_id=account['user_id'], team_id=team_id, access=access)
-    return team_id
-
-
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_transfer_keeps_control_within_one_team_tree(bus, uow_factory, isolated_state):
-    """
-    A transfer that would leave a Person controlled by teams of two team trees is refused (docs/person.md §2): when
-    some of its controlling teams give up control and others, of the old team tree, keep it
-    """
-    account = await declared_account(bus, uow_factory)
-    child = await child_team(uow_factory, account)
-    declared = await declared_account(bus, uow_factory)
-    person = ControlledEntity(label=ControlledModelLabel.PERSON, id=await create_person(bus, uow_factory, account))
-
-    # share control with the child team, in the same team tree
-    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        await uow.controls.offer_transfer(
-            entities=[person], from_teams={account['team_id']}, recipient_team=child, keep_from_teams=True,
-            to_teams={child}
-        )
-        await uow.commit()
-    async with uow_factory.get_uow() as uow:
-        assert (await uow.controls.get_controller(person.label, person.id)).teams == {account['team_id'], child}
-
-    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        # the child team would keep control under the old team tree
-        with pytest.raises(IllegalOperationError, match="same team tree"):
-            await uow.controls.offer_transfer(
-                entities=[person], from_teams={account['team_id']}, recipient_team=declared['team_id']
-            )
-        transfer = await uow.controls.offer_transfer(
-            entities=[person], from_teams={account['team_id'], child}, recipient_team=declared['team_id']
-        )
-        await uow.commit()
-    async with uow_factory.get_uow(user_id=declared['user_id']) as uow:
-        await uow.controls.accept_transfer(transfer.id, to_teams={declared['team_id']})
-        await uow.commit()
-    async with uow_factory.get_uow() as uow:
-        assert (await uow.controls.get_controller(person.label, person.id)).teams == {declared['team_id']}
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_person_transfer_requires_recipient_legal_entity(bus, uow_factory, isolated_state):
-    account = await declared_account(bus, uow_factory)
-    undeclared = await AccountBuilder(uow_factory).account_with_affiliations()
-    declared = await declared_account(bus, uow_factory)
+async def test_person_control_can_be_shared_between_team_trees(bus, uow_factory, isolated_state):
+    """The University holds every Person (docs/person.md §2), so control can be shared with any team"""
+    account = await team_account(uow_factory)
+    other = await team_account(uow_factory)
     person = ControlledEntity(label=ControlledModelLabel.PERSON, id=await create_person(bus, uow_factory, account))
 
     async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        with pytest.raises(IllegalOperationError, match="declared its legal entity"):
-            await uow.controls.offer_transfer(
-                entities=[person], from_teams={account['team_id']}, recipient_team=undeclared['team_id']
-            )
-        with pytest.raises(IllegalOperationError, match="same team tree"):
-            await uow.controls.offer_transfer(
-                entities=[person], from_teams={account['team_id']}, recipient_team=declared['team_id'],
-                keep_from_teams=True
-            )
         transfer = await uow.controls.offer_transfer(
-            entities=[person], from_teams={account['team_id']}, recipient_team=declared['team_id']
+            entities=[person], from_teams={account['team_id']}, recipient_team=other['team_id'], keep_from_teams=True
         )
         await uow.commit()
-
-    async with uow_factory.get_uow(user_id=declared['user_id']) as uow:
-        await uow.controls.accept_transfer(transfer.id, to_teams={declared['team_id']})
+    async with uow_factory.get_uow(user_id=other['user_id']) as uow:
+        await uow.controls.accept_transfer(transfer.id, to_teams={other['team_id']})
         await uow.commit()
     async with uow_factory.get_uow() as uow:
-        controller = await uow.controls.get_controller(person.label, person.id)
-    assert controller.teams == {declared['team_id']}
+        assert (await uow.controls.get_controller(person.label, person.id)).teams == {account['team_id'], other['team_id']}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_person_release_is_at_most_registered(bus, uow_factory, isolated_state):
+    """Persons are never shown to anonymous users (docs/person.md §3): no path releases one to the public"""
+    account = await team_account(uow_factory)
+    with pytest.raises(IllegalOperationError, match="at most to registered"):
+        await create_person(bus, uow_factory, account, release=ReadRelease.PUBLIC)
+
+    person_id = await create_person(bus, uow_factory, account, release=ReadRelease.REGISTERED)
+    with pytest.raises(IllegalOperationError, match="at most to registered"):
+        await bus.handle(SetRelease(
+            agent_id=account['user_id'], entity_ids=[person_id], entity_label=ControlledModelLabel.PERSON,
+            release=ReadRelease.PUBLIC
+        ))
+    with pytest.raises(IllegalOperationError, match="at most to registered"):
+        await bus.handle(SetRelease(
+            agent_id=account['user_id'],
+            scope=ControlScope(team_id=account['team_id'], label=ControlledModelLabel.PERSON),
+            release=ReadRelease.PUBLIC
+        ))
+
+    other = await team_account(uow_factory)
+    person = ControlledEntity(label=ControlledModelLabel.PERSON, id=person_id)
+    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
+        transfer = await uow.controls.offer_transfer(
+            entities=[person], from_teams={account['team_id']}, recipient_team=other['team_id']
+        )
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=other['user_id']) as uow:
+        with pytest.raises(IllegalOperationError, match="at most to registered"):
+            await uow.controls.accept_transfer(transfer.id, to_teams={other['team_id']}, release=ReadRelease.PUBLIC)
+    async with uow_factory.get_uow() as uow:
+        assert (await uow.controls.get_controller(person.label, person.id)).release is ReadRelease.REGISTERED

@@ -1,8 +1,7 @@
 """
 The read-policy scenario: one world for the read tests (docs/read-access.md) and for the synthetic test database.
 
-Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree. Both roots
-declare a legal entity (when data processing terms are configured), the data controller of their Persons.
+Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree.
 
     admin     WRITE, READ, CURATE, ADMIN on root; ADMIN and READ on child (no WRITE, no CURATE)
     writer    READ, WRITE, CURATE on child
@@ -60,8 +59,8 @@ References (descriptions all contain "Readpolicy"; each file is a small CSV in t
     study_public cites reference_public and reference_private
 
 People
-    person_admin                 root  PUBLIC      admin     teams [root]; linked to the admin
-    person_public                child PUBLIC      writer    teams [root, child]
+    person_admin                 root  REGISTERED  admin     teams [root]; linked to the admin
+    person_public                child REGISTERED  writer    teams [root, child]
     person_private               child PRIVATE     writer    teams [child]
     person_other                 other REGISTERED  stranger  teams [other]
     person_outsider              child PRIVATE     writer    teams [child]; linked to the outsider
@@ -100,7 +99,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
 
-from breedgraph import config
 from breedgraph.domain.model.accounts import OntologyRole, AccountInput, UserInput
 from breedgraph.domain.model.ontology import VersionChange, OntologyEntryLabel
 from breedgraph.domain.model.contributions import Contribution
@@ -189,8 +187,8 @@ GERMPLASM = {
 
 # The Persons by name, as built: (team, release, teams, linked user, user asking to be linked)
 PEOPLE = {
-    'person_admin': ('root', PUBLIC, ['root'], 'admin', None),
-    'person_public': ('child', PUBLIC, ['root', 'child'], None, None),
+    'person_admin': ('root', REGISTERED, ['root'], 'admin', None),
+    'person_public': ('child', REGISTERED, ['root', 'child'], None, None),
     'person_private': ('child', PRIVATE, ['child'], None, None),
     'person_other': ('other', REGISTERED, ['other'], None, None),
     'person_outsider': ('child', PRIVATE, ['child'], 'outsider', None),
@@ -273,8 +271,6 @@ class ReadPolicyScenario:
     ids: Dict[str, int] = field(default_factory=dict)
     controls: Dict[str, Tuple[str, ReadRelease]] = field(default_factory=dict)
     files: Dict[str, Tuple[str, bytes]] = field(default_factory=dict)  # file references by name: (file id, content)
-    # the legal entities declared on the roots, by root name: (legal name, privacy contact)
-    legal_entities: Dict[str, Tuple[str, str]] = field(default_factory=dict)
     read_teams: Dict[str, set[str]] = field(default_factory=lambda: {
         'admin': {'root', 'child'},
         'writer': {'child'},
@@ -300,7 +296,8 @@ class ReadPolicyScenario:
     def person_view(self, viewer: str, name: str) -> str:
         """
         How the viewer sees a Person (docs/person.md §3): FULL to read affiliates of its team and its linked user,
-        ATTRIBUTION to those reading it by release only, else RESTRICTED
+        ATTRIBUTION to those reading it by release only, else RESTRICTED. Persons are released at most to registered
+        users, so anonymous users can't read any, and they get no contacts or contributions to meet them in
         """
         team, release = self.controls[name]
         if team in self.read_teams[viewer] or PEOPLE[name][3] == viewer:
@@ -308,11 +305,6 @@ class ReadPolicyScenario:
         if release >= (PUBLIC if viewer == 'anonymous' else REGISTERED):
             return 'ATTRIBUTION'
         return 'RESTRICTED'
-
-    def data_controller(self, name: str) -> Tuple[str, str] | None:
-        """The legal entity holding a Person, (legal name, privacy contact): its team's root's, if declared"""
-        team, _ = self.controls[name]
-        return self.legal_entities.get('other' if team == 'other' else 'root')
 
     def tree_member(self, viewer: str, parents: dict[str, str | None], name: str) -> TreeMember:
         """
@@ -550,7 +542,6 @@ class ReadPolicyScenarioBuilder:
         async with self.uow_factory.get_uow(user_id=s['admin']) as uow:
             team_tree = await uow.repositories.team_trees.get(team_id=s['root'])
             s['child'] = team_tree.get_children_ids(s['root'])[0]
-            await self._declare_legal_entity(uow, team_tree, 'root', s['admin'])
         for access in (Access.ADMIN, Access.READ):
             await team_trees.authorise_access(user_id=s['admin'], team_id=s['child'], access=access)
 
@@ -564,27 +555,8 @@ class ReadPolicyScenarioBuilder:
         s['other'] = await team_trees.team_tree(user_id=s['stranger'])
         for access in Access:
             await team_trees.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
-        async with self.uow_factory.get_uow(user_id=s['stranger']) as uow:
-            team_tree = await uow.repositories.team_trees.get(team_id=s['other'])
-            await self._declare_legal_entity(uow, team_tree, 'other', s['stranger'])
 
         s['outsider'] = await self._account('outsider')
-
-    async def _declare_legal_entity(self, uow, team_tree, root: str, admin: int):
-        """Declare a legal entity on a root, when data processing terms are configured, as creating Persons needs"""
-        if config.DATA_PROCESSING_TERMS_VERSION is None:
-            return
-        legal_name, privacy_contact = text.new_text(10), users.new_user_input()['email']
-        team_tree.declare_legal_entity(
-            agent_id=admin,
-            team_id=self.scenario[root],
-            legal_name=legal_name,
-            privacy_contact=privacy_contact,
-            terms_version=config.DATA_PROCESSING_TERMS_VERSION,
-            current_terms_version=config.DATA_PROCESSING_TERMS_VERSION
-        )
-        await uow.commit()
-        self.scenario.legal_entities[root] = (legal_name, privacy_contact)
 
     async def _ontology(self):
         ontology = OntologyBuilder(uow_factory=self.uow_factory)

@@ -1,7 +1,7 @@
 """
 Set up the identity the migration runs as (README.md, Migration Bootstrap):
 a BreedCAFS Migration user, affiliated with a BreedCAFS Migration team
-under an existing team of a team tree that has declared a legal entity (University of Galway).
+under an existing team.
 
 The migration user is a system account. It has no email or password, so it cannot log in,
 and it is created directly rather than through CreateAccount, which requires an invitation.
@@ -85,8 +85,6 @@ async def get_or_create_migration_team(uow_factory: Neo4jUnitOfWorkFactory, admi
         team_tree: TeamTree = await uow.repositories.team_trees.get(team_id=parent_id)
         if team_tree is None:
             raise MigrationSettingsError(f"Parent team {parent_id} (BREEDCAFS_PARENT_TEAM_ID) not found")
-        if team_tree.legal_entity is None:
-            raise MigrationSettingsError("The parent team's team tree has not declared a legal entity, which Persons require")
         if admin_id not in team_tree.get_affiliates(parent_id, Access.ADMIN):
             raise MigrationSettingsError(f"User {admin_id} (BREEDCAFS_ADMIN_USER_ID) is not an admin of the parent team {parent_id}")
 
@@ -132,7 +130,7 @@ async def setup_breedcafs_migration_account(uow_factory: Neo4jUnitOfWorkFactory)
     )
     parent_id = required_id(
         'BREEDCAFS_PARENT_TEAM_ID', BREEDCAFS_PARENT_TEAM_ID,
-        "the id of the team to create the migration team under, in a team tree with a declared legal entity"
+        "the id of the team to create the migration team under"
     )
 
     account = await get_or_create_migration_account(uow_factory)

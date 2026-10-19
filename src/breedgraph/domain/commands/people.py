@@ -1,5 +1,4 @@
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
-from breedgraph.domain.model.people import LawfulBasis
 
 from .base import Command
 
@@ -14,7 +13,6 @@ class CreatePerson(Command):
     name: str
     institution: str | None = None
     teams: List[int] | None = None
-    basis: LawfulBasis = LawfulBasis.PUBLIC_TASK
     informed_attestation: bool = False  # the person was informed that this record is held
 
 
@@ -25,7 +23,6 @@ class UpdatePerson(Command):
     name: str | None = None
     institution: str | None = None  # an empty string removes it
     teams: List[int] | None = None
-    basis: LawfulBasis | None = None
 
 
 class ErasePerson(Command):

@@ -1,8 +1,8 @@
 import pytest
 
-from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError, IllegalOperationError
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel, Access
-from breedgraph.domain.model.people import PersonStored, LawfulBasis
+from breedgraph.domain.model.people import PersonStored
 
 from tests.breedgraph.scenarios.person_builder import PersonBuilder
 
@@ -25,7 +25,6 @@ async def test_create_and_get(uow_factory, person_build_context):
         person = await uow.repositories.people.get(name=name)
         assert person.id == person_id
         assert person.teams == [team_id]
-        assert person.basis is LawfulBasis.PUBLIC_TASK
         assert person.informed_attestation
         assert person.recorded_by == user_id
         assert person.recorded_at is not None
@@ -74,14 +73,19 @@ async def test_unregistered_and_without_read_access(uow_factory, person_build_co
 
 
 @pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.parametrize("release, anonymous_reads", [(ReadRelease.REGISTERED, False), (ReadRelease.PUBLIC, True)])
-async def test_release(uow_factory, person_build_context, release, anonymous_reads):
+async def test_release(uow_factory, person_build_context):
+    """Released to registered users, a Person is read by them but not by anonymous users; it goes no wider"""
     person_id, name = await create_person(uow_factory, person_build_context)
     async with uow_factory.get_uow(user_id=person_build_context['user_id']) as uow:
         await uow.controls.set_controls_by_id_and_label(
             ids=[person_id], label=ControlledModelLabel.PERSON,
-            control_teams={person_build_context['team_id']}, release=release
+            control_teams={person_build_context['team_id']}, release=ReadRelease.REGISTERED
         )
+        with pytest.raises(IllegalOperationError, match="at most to registered"):
+            await uow.controls.set_controls_by_id_and_label(
+                ids=[person_id], label=ControlledModelLabel.PERSON,
+                control_teams={person_build_context['team_id']}, release=ReadRelease.PUBLIC
+            )
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=person_build_context['user_id_2']) as uow:
@@ -89,8 +93,7 @@ async def test_release(uow_factory, person_build_context, release, anonymous_rea
         assert (await uow.repositories.people.get(name=name)).id == person_id
 
     async with uow_factory.get_uow() as uow:
-        person = await uow.repositories.people.redacted(await uow.repositories.people.get(person_id=person_id))
-        assert (person is not None) == anonymous_reads
+        assert await uow.repositories.people.redacted(await uow.repositories.people.get(person_id=person_id)) is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -103,14 +106,12 @@ async def test_edit_person(uow_factory, person_build_context):
         person = await uow.repositories.people.get(person_id=person_id)
         person.name = new_name
         person.teams = []
-        person.basis = LawfulBasis.LEGITIMATE_INTEREST
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         person = await uow.repositories.people.get(person_id=person_id)
         assert person.name == new_name
         assert person.teams == []
-        assert person.basis is LawfulBasis.LEGITIMATE_INTEREST
 
 
 @pytest.mark.asyncio(loop_scope="session")

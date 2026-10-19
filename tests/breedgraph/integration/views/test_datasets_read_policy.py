@@ -59,8 +59,11 @@ def assert_header(read_policy, viewer: str, name: str, dataset: DatasetRead):
         assert not dataset.redacted
         assert dataset.study == read_policy[expected['study']]
         assert dataset.concept == read_policy['ontology_variable_height']
-        # links to people and references are kept as ids, readable or not (rule 2)
-        assert {contribution.person for contribution in dataset.contributions} == ids(read_policy, [person for person, _ in expected['contributions']])
+        # links to people and references are kept as ids, readable or not (rule 2), except that anonymous users get
+        # no contributors, as they see no Persons (docs/person.md §3)
+        assert {contribution.person for contribution in dataset.contributions} == (
+            set() if viewer == 'anonymous' else ids(read_policy, [person for person, _ in expected['contributions']])
+        )
         assert all(isinstance(contribution.roles, list) for contribution in dataset.contributions)
         assert set(dataset.references) == ids(read_policy, expected['references'])
         assert dataset.record_count == len(expected['records'])

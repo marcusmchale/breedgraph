@@ -26,7 +26,6 @@ async def create_person(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} creates a Person controlled by team {control_team_id}")
-    optional = {'basis': person['basis']} if person.get('basis') else {}
     cmd = CreatePerson(
         agent_id=user_id,
         write_team=control_team_id,
@@ -34,8 +33,7 @@ async def create_person(
         name=person['name'],
         institution=person.get('institution'),
         teams=person.get('team_ids'),
-        informed_attestation=person['informed_attestation'],
-        **optional
+        informed_attestation=person['informed_attestation']
     )
     await info.context['bus'].handle(cmd)
     return True
@@ -51,8 +49,7 @@ async def update_person(_, info, person: dict) -> bool:
         person_id=person['id'],
         name=person.get('name'),
         institution=person.get('institution'),
-        teams=person.get('team_ids'),
-        basis=person.get('basis')
+        teams=person.get('team_ids')
     )
     await info.context['bus'].handle(cmd)
     return True

@@ -1,5 +1,7 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable
+from breedgraph.adapters.neo4j.cypher.query_builders.access import (
+    visible as _visible, readable as _readable, signed_in_only as _signed_in_only, contributions as _contributions
+)
 
 # Programs, trials and studies as the user may see them. A node the user can read is returned in full. A node the
 # user cannot read is returned only as a placeholder, its id and a REDACTED name: when it was asked for directly, or
@@ -45,11 +47,16 @@ def _studies(trial: str = 'trial') -> str:
     """
 
 
+def _contact_ids(entity: str) -> str:
+    """The ids of the contacts of entity, for signed-in users only"""
+    return _signed_in_only(f"[({entity})-[:HAS_CONTACT]->(contact:Person) | contact.id]")
+
+
 def _trial(trial: str = 'trial', visible: str = 'trial_visible') -> str:
     return f"""CASE WHEN {visible} THEN {trial} {{
           .*,
-          contact_ids: [({trial})-[:HAS_CONTACT]->(contact:Person)|contact.id],
-          contributions: [({trial})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
+          contact_ids: {_contact_ids(trial)},
+          contributions: {_contributions(trial)},
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->({trial})|reference.id],
           studies: studies
         }} ELSE {_placeholder(trial, contact_ids='[]', contributions='[]', reference_ids='[]', studies='studies')} END"""
@@ -71,8 +78,8 @@ def _trials(program: str = 'program') -> str:
 def _program(program: str = 'program', visible: str = 'program_visible') -> str:
     return f"""CASE WHEN {visible} THEN {program} {{
           .*,
-          contact_ids: [({program})-[:HAS_CONTACT]->(contact:Person)|contact.id],
-          contributions: [({program})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}],
+          contact_ids: {_contact_ids(program)},
+          contributions: {_contributions(program)},
           reference_ids: [(reference:Reference)-[:REFERENCE_FOR]->({program})|reference.id],
           trials: trials
         }} ELSE {_placeholder(program, contact_ids='[]', contributions='[]', reference_ids='[]', trials='trials')} END"""

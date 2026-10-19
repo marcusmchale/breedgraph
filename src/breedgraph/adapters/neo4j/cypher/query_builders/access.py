@@ -42,6 +42,22 @@ def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
     """
 
 
+def signed_in_only(persons: str) -> str:
+    """
+    persons, a list of Persons or of references to them (contacts, contributions), for signed-in users only: anonymous
+    users ($signed_in false) get an empty list. Persons are released at most to registered users, so anonymous users
+    could read none of them, and are not shown placeholders either (docs/read-access.md, rule 2)
+    """
+    return f"CASE WHEN $signed_in THEN {persons} ELSE [] END"
+
+
+def contributions(entity: str) -> str:
+    """The contributions to entity, each {person, roles}, for signed-in users only (see signed_in_only)"""
+    return signed_in_only(
+        f"[({entity})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}]"
+    )
+
+
 def control_access(entity: str, label: ControlledModelLabel, prefix: str) -> str:
     """
     A call setting, as visible() decides them but apart: {prefix}_teams, the ids of the teams currently controlling

@@ -3,7 +3,7 @@ from neo4j import AsyncSession
 from breedgraph.adapters.neo4j.cypher.query_builders import people as people_queries
 from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.people import PersonOutput, PersonView, LawfulBasis, DataController
+from breedgraph.domain.model.people import PersonOutput, PersonView
 from breedgraph.domain.model.time_descriptors import deserialize_time
 from breedgraph.service_layer.queries.views.people import AbstractPeopleView
 
@@ -33,13 +33,11 @@ class Neo4jPeopleView(AbstractPeopleView):
     @staticmethod
     def _to_output(record) -> PersonOutput:
         person = dict(record['person'])
-        data_controller = person.get('data_controller')
         return PersonOutput(
             id=person['id'],
             name=person.get('name'),
             institution=person.get('institution'),
             teams=list(person.get('teams') or []),
-            basis=LawfulBasis(person['basis']) if person.get('basis') is not None else None,
             informed_attestation=person.get('informed_attestation'),
             orcid=person.get('orcid'),
             user=person.get('user'),
@@ -49,8 +47,7 @@ class Neo4jPeopleView(AbstractPeopleView):
             erased_at=deserialize_time(person.get('erased_at')),
             view=PersonView(person['view']),
             erased=person['erased'],
-            linked=person.get('linked'),
-            data_controller=DataController(**data_controller) if data_controller is not None else None
+            linked=person.get('linked')
         )
 
     async def _run(self, query: str, **params) -> List[PersonOutput]:

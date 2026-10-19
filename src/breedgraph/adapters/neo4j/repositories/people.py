@@ -10,7 +10,7 @@ from breedgraph.adapters.neo4j.cypher.matching import exact_text_regex
 
 from typing import AsyncGenerator, List
 
-from breedgraph.domain.model.people import PersonInput, PersonStored, LawfulBasis
+from breedgraph.domain.model.people import PersonInput, PersonStored
 from breedgraph.domain.model.controls import DiscoveryMatch, Controller, Access, ControlledModelLabel
 from breedgraph.domain.model.time_descriptors import deserialize_time
 
@@ -24,7 +24,6 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             name=person.name,
             institution=person.institution,
             teams=list(person.teams or []),
-            basis=person.basis.value,
             informed_attestation=person.informed_attestation,
             recorded_by=self.user_id
         )
@@ -131,8 +130,6 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         for attr in ('name', 'institution', 'orcid', 'erased_at'):
             if attr in changed:
                 props[attr] = getattr(person, attr)
-        if 'basis' in changed:
-            props['basis'] = person.basis.value
         await self.tx.run(
             queries['people']['set_person'],
             id=person.id,
@@ -150,7 +147,6 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             name=record.get('name'),
             institution=record.get('institution'),
             teams=list(record.get('teams') or []),
-            basis=LawfulBasis(record['basis']),
             informed_attestation=record.get('informed_attestation', False),
             orcid=record.get('orcid'),
             user=record.get('user'),

@@ -10,7 +10,6 @@ from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, ScaleType, ObservationMethodType, SubjectInput, TraitInput, ObservationMethodInput, ScaleInput,
     VariableInput
 )
-from breedgraph.domain.model.people import LawfulBasis
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
 
 from breedcafs_migration import persons
@@ -23,7 +22,6 @@ from breedcafs_migration.persons import prepare_breedcafs_persons
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.team_tree_builder import TeamTreeBuilder
 
-TERMS_VERSION = "test"
 CIRAD = "Centre de Coopération Internationale en Recherche Agronomique pour le Développement"
 FILES = {
     'persons.csv': [
@@ -56,25 +54,18 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
-async def declared_team_tree(uow_factory) -> dict:
-    """An account with write access to a team under the root of a team tree with a declared legal entity"""
+async def team_tree_account(uow_factory) -> dict:
+    """An account with write access to a team under the root of a team tree"""
     account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations(ontology_role=OntologyRole.EDITOR)
     await TeamTreeBuilder(uow_factory=uow_factory).authorise_access(
         user_id=account['user_id'], team_id=account['team_id'], access=Access.ADMIN, heritable=True
     )
-    async with uow_factory.get_uow(user_id=account['user_id']) as uow:
-        team_tree = await uow.repositories.team_trees.get(team_id=account['team_id'])
-        team_tree.declare_legal_entity(
-            agent_id=account['user_id'], team_id=account['team_id'], legal_name="University",
-            privacy_contact="dataprotection@example.org", terms_version=TERMS_VERSION, current_terms_version=TERMS_VERSION
-        )
-        await uow.commit()
     return account
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def persons_context(isolated_state, uow_factory) -> dict:
-    account = await declared_team_tree(uow_factory)
+    account = await team_tree_account(uow_factory)
     user_id, team_id = account['user_id'], account['team_id']
     async with uow_factory.get_uow(user_id=user_id) as uow:
         ontology = uow.ontology
@@ -118,14 +109,6 @@ async def prepare(uow_factory, context):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_persons_require_a_legal_entity(uow_factory, persons_context, data_dir):
-    account = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations()
-    context = {**persons_context, 'context': MigrationContext(user_id=account['user_id'], team_id=account['team_id'])}
-    with pytest.raises(MigrationSettingsError, match="legal entity"):
-        await prepare(uow_factory, context)
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_prepare_persons(uow_factory, persons_context, data_dir):
     context = persons_context['context']
     datasets = persons_context['datasets'].datasets
@@ -139,9 +122,7 @@ async def test_prepare_persons(uow_factory, persons_context, data_dir):
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         person = await uow.repositories.people.get(person_id=ana)
-        assert (person.name, person.institution, person.basis, person.informed_attestation) == (
-            'Ana Pérez', CIRAD, LawfulBasis.PUBLIC_TASK, True
-        )
+        assert (person.name, person.institution, person.informed_attestation) == ('Ana Pérez', CIRAD, True)
         controller = await uow.controls.get_controller(person.label, person.id)
         assert controller.release is ReadRelease.PRIVATE
         assert set(controller.controls) == {context.team_id}

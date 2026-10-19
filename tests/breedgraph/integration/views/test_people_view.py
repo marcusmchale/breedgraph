@@ -4,13 +4,14 @@ tests/breedgraph/scenarios/read_policy_scenario.py).
 
 A Person is seen in one of three views: FULL, the record, by read affiliates of its team and by its linked user;
 ATTRIBUTION, name, institution and ORCID iD, by those reading it by release only; RESTRICTED, its id, by anyone else
-asking for it by id, with their own request to be linked, if any, so they can withdraw it (rule 2). Every view names
-the Person's data controller. Searches leave restricted Persons out, so a name does not reveal that a hidden Person
+asking for it by id, with their own request to be linked, if any, so they can withdraw it (rule 2). Persons are
+released at most to registered users, so anonymous users see every Person restricted (and get no contacts or
+contributions to meet them in). Searches leave restricted Persons out, so a name does not reveal that a hidden Person
 has it (rule 5).
 """
 import pytest
 
-from breedgraph.domain.model.people import PersonView, LawfulBasis
+from breedgraph.domain.model.people import PersonView
 
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PEOPLE
 
@@ -20,18 +21,12 @@ def assert_person(read_policy, viewer: str, name: str, person):
     view = read_policy.person_view(viewer, name)
     assert person.id == read_policy[name]
     assert person.view is PersonView(view), f"{viewer}: view of {name}"
-    data_controller = read_policy.data_controller(name)
-    if data_controller is None:
-        assert person.data_controller is None
-    else:
-        assert (person.data_controller.legal_name, person.data_controller.privacy_contact) == data_controller
     assert person.erased is False
     assert person.erased_at is None
 
     if view == 'FULL':
         assert person.name
         assert set(person.teams) == {read_policy[team] for team in teams}
-        assert person.basis is LawfulBasis.PUBLIC_TASK
         assert person.informed_attestation is True
         assert person.recorded_at is not None
         assert person.user == (read_policy[linked_user] if linked_user else None)
@@ -39,9 +34,8 @@ def assert_person(read_policy, viewer: str, name: str, person):
         assert person.claims == ([read_policy[claimant]] if claimant else [])
         return
 
-    # outside the full view, nothing of the record-keeping: no lawful basis stated, not even PersonBase's default
+    # outside the full view, nothing of the record-keeping, not even PersonBase's default attestation
     assert person.teams == []
-    assert person.basis is None
     assert person.informed_attestation is None
     assert person.recorded_by is None
     assert person.recorded_at is None
@@ -61,7 +55,7 @@ def test_expected_views(read_policy):
     assert read_policy.person_view('outsider', 'person_outsider') == 'FULL'
     assert read_policy.person_view('outsider', 'person_claimed') == 'RESTRICTED'
     assert read_policy.person_view('outsider', 'person_public') == 'ATTRIBUTION'
-    assert read_policy.person_view('anonymous', 'person_public') == 'ATTRIBUTION'
+    assert read_policy.person_view('anonymous', 'person_public') == 'RESTRICTED'
     assert read_policy.person_view('anonymous', 'person_other') == 'RESTRICTED'
     assert read_policy.person_view('stranger', 'person_other') == 'FULL'
     assert read_policy.person_view('admin', 'person_other') == 'ATTRIBUTION'

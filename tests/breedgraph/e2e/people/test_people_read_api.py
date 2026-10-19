@@ -2,8 +2,8 @@
 The people queries under the read policy, through GraphQL, on the read-policy scenario
 (see tests/breedgraph/integration/views/test_people_view.py for the view underneath).
 
-They need an account: anonymous users meet Persons only where something they can read refers to them, as contacts
-and contributors (docs/person.md §3). In the full view, a Person's teams hidden from the viewer are stood in for by the
+They need an account, and anonymous users meet no Persons at all: Persons are released at most to registered users,
+and anonymous users get no contacts or contributors (docs/person.md §3). In the full view, a Person's teams hidden from the viewer are stood in for by the
 nearest team they can see (rule 7): a team tree's root is visible to every signed-in user, its other teams only to
 their affiliates.
 """
@@ -15,8 +15,8 @@ from tests.breedgraph.e2e.utils import post_as, get_verified_payload
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PEOPLE
 
 PERSON_FIELDS = (
-    "id view name restricted erased erasedAt basis informedAttestation linked recordedAt "
-    "teams { team { id } standIn } dataController { legalName privacyContact }"
+    "id view name restricted erased erasedAt informedAttestation linked recordedAt "
+    "teams { team { id } standIn }"
 )
 
 # who can see each team, and the team that stands in for it otherwise
@@ -54,13 +54,8 @@ def assert_person(read_policy, viewer: str, name: str, person: dict):
     assert person['restricted'] is (view == 'RESTRICTED')
     assert person['erased'] is False
     assert person['erasedAt'] is None
-    data_controller = read_policy.data_controller(name)
-    assert person['dataController'] == (
-        None if data_controller is None else {'legalName': data_controller[0], 'privacyContact': data_controller[1]}
-    )
     if view == 'FULL':
         assert person['name']
-        assert person['basis'] == 'PUBLIC_TASK'
         assert person['informedAttestation'] is True
         assert person['linked'] is (PEOPLE[name][3] is not None)
         assert person['recordedAt']
@@ -68,7 +63,6 @@ def assert_person(read_policy, viewer: str, name: str, person: dict):
             expected_team_references(read_policy, viewer, PEOPLE[name][2]), f"{viewer}: teams of {name}"
         return
     assert person['teams'] == []
-    assert person['basis'] is None
     assert person['informedAttestation'] is None
     assert person['linked'] is None
     assert person['recordedAt'] is None
@@ -176,8 +170,8 @@ async def test_my_claims(client, login_token_factory, read_policy, viewer):
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_people_in_context(client, login_token_factory, read_policy, viewer):
     """
-    Persons as contributors of a readable dataset, the way anonymous users meet them: in the viewer's view of each,
-    restricted ones too, each with its data controller
+    Persons as contributors of a readable dataset, in the signed-in viewer's view of each, restricted ones too.
+    Anonymous users get no contributors
     """
     result = await result_of(
         client, login_token_factory, read_policy, viewer, 'datasets',
@@ -185,6 +179,9 @@ async def test_people_in_context(client, login_token_factory, read_policy, viewe
         {'ids': [read_policy['dataset_public']]}
     )
     [dataset] = result
+    if viewer == 'anonymous':
+        assert dataset['contributions'] == []
+        return
     contributors = {int(c['person']['id']): c['person'] for c in dataset['contributions']}
     assert set(contributors) == {read_policy[name] for name in ('person_public', 'person_private')}
     for name in ('person_public', 'person_private'):

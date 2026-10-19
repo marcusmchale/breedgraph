@@ -16,7 +16,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
    python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json 2>&1 | tee rehearsal.log
    ```
-   It sets up what §2 expects (a team with a legal entity, the production germplasm), bundles and unbundles the data
+   It sets up what §2 expects (a root team, the production germplasm), bundles and unbundles the data
    as below, runs §3–4 and the validation, and exits with the validation's status. Dump the result privately if
    you keep it: it holds BreedCAFS and Person data ([docs/test-databases.md](../../docs/test-databases.md)).
 3. **Build** the BreedGraph wheelhouse as for any deployment (README), and the migration wheel:
@@ -45,7 +45,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
 3. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type and the CRediT roles),
    your account exists, and `scripts/import_germplasm.py` has loaded the production germplasm,
    so BreedCAFS varieties are matched to it rather than created again.
-4. **The University of Galway.** Its root team exists, with its legal entity declared (the data controller of the Persons),
+4. **The University of Galway.** Its root team exists (the University is the data controller of all Persons),
    and your account is an admin of it through a heritable affiliation.
 5. **Install the migration** into the API's environment, without dependencies (BreedGraph is already installed):
    ```bash
@@ -68,7 +68,7 @@ breedcafs-migration bootstrap
 ```
 
 It creates (or finds) the BreedCAFS Migration user and team, and prints their ids. Note them for the next steps.
-It exits with an error saying what to set if a setting is missing or the parent team has no legal entity.
+It exits with an error saying what to set if a setting is missing or the parent team can't be used.
 
 ## 4. Migrate
 

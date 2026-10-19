@@ -6,7 +6,7 @@ type Query {
     """
     accountsUserAccess: UserAccessPayload!
     """
-    The roots of the team trees, which every signed-in user sees, with their legal entities.
+    The roots of the team trees, which every signed-in user sees.
     Teams below a root are visible to their affiliates only (docs/read-access.md, rule 9).
     Navigation of the team tree graph is achieved by resolvers on the parent/children attributes. Requires sign-in.
     """
@@ -34,8 +34,6 @@ type Query {
     peopleMyClaims: PersonClaimsPayload!
     """ Pending requests to be linked to Persons controlled by teams the current user administers """
     peopleClaimRequests: PersonClaimRequestsPayload!
-    """ The current data processing terms, to show when declaring a legal entity """
-    teamsDataProcessingTerms: DataProcessingTermsPayload!
     """Get the latest ontology version"""
     ontologyVersion: VersionPayload!
     """

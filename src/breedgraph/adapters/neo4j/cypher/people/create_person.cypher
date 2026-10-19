@@ -5,7 +5,6 @@ CREATE (person: Person {
   id:                   counter.count,
   name:                 $name,
   institution:          $institution,
-  basis:                $basis,
   informed_attestation: $informed_attestation,
   recorded_by:          $recorded_by,
   recorded_at:          datetime.transaction()

@@ -55,19 +55,12 @@ async def create_person(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
-        # The team tree of the write team is the data controller for the Person
-        team_tree = await uow.repositories.team_trees.get(team_id=cmd.write_team)
-        if team_tree is None or team_tree.legal_entity is None:
-            raise IllegalOperationError(
-                "Recording a Person requires the write team's team tree to have declared its legal entity"
-            )
         await _verify_teams(uow, cmd.teams)
 
         await uow.repositories.people.create(PersonInput(
             name=cmd.name,
             institution=cmd.institution,
             teams=list(cmd.teams or []),
-            basis=cmd.basis,
             informed_attestation=cmd.informed_attestation
         ))
         await uow.commit()
@@ -86,8 +79,8 @@ async def update_person(
         # The linked user can change their name and institution, other changes need curate access to the record
         controller = await uow.controls.get_controller(person.label, person.id)
         is_curator = controller.has_access(Access.CURATE, access_teams=uow.controls.access_teams[Access.CURATE])
-        if not is_curator and (cmd.teams is not None or cmd.basis is not None):
-            raise UnauthorisedOperationError("Changing the teams or basis of a Person requires curate access")
+        if not is_curator and cmd.teams is not None:
+            raise UnauthorisedOperationError("Changing the teams of a Person requires curate access")
 
         if cmd.name is not None:
             name = cmd.name.strip()
@@ -101,8 +94,6 @@ async def update_person(
             # The curator sets the teams they can see; those hidden from them are kept, as they could not see them
             hidden = set(person.teams) - await _visible_teams(uow, person.teams)
             person.teams = list(dict.fromkeys([*cmd.teams, *(team for team in person.teams if team in hidden)]))
-        if cmd.basis is not None:
-            person.basis = cmd.basis
         await uow.commit()
 
 

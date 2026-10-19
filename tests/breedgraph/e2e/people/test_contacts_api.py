@@ -72,18 +72,17 @@ async def test_contacts_must_be_linked(bus, uow_factory, contacts_context):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_contacts_must_be_visible_with_the_program(bus, uow_factory, contacts_context):
+async def test_contacts_must_be_released_to_registered_users(bus, uow_factory, contacts_context):
+    """So every signed-in user who can read the program sees its contacts; anonymous users see no contacts"""
     private_id, _ = await linked_person(uow_factory, contacts_context, ReadRelease.PRIVATE)
-    with pytest.raises(Exception, match="at least REGISTERED"):
+    with pytest.raises(Exception, match="released to registered users"):
         await create_program(bus, uow_factory, contacts_context, [private_id], release=ReadRelease.PRIVATE)
 
     registered_id, _ = await linked_person(uow_factory, contacts_context, ReadRelease.REGISTERED)
-    with pytest.raises(Exception, match="at least PUBLIC"):
-        await create_program(bus, uow_factory, contacts_context, [registered_id], release=ReadRelease.PUBLIC)
-
-    program_id = await create_program(bus, uow_factory, contacts_context, [registered_id])
-    async with uow_factory.get_uow(user_id=contacts_context['user_id']) as uow:
-        assert (await uow.repositories.programs.get(program_id=program_id)).contact_ids == [registered_id]
+    for release in (ReadRelease.REGISTERED, ReadRelease.PUBLIC):
+        program_id = await create_program(bus, uow_factory, contacts_context, [registered_id], release=release)
+        async with uow_factory.get_uow(user_id=contacts_context['user_id']) as uow:
+            assert (await uow.repositories.programs.get(program_id=program_id)).contact_ids == [registered_id]
 
 
 @pytest.mark.asyncio(loop_scope="session")

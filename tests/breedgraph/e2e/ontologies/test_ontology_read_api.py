@@ -131,7 +131,7 @@ async def test_commit_history(client, login_token_factory, read_policy, viewer):
     assert commit['comment'] == "Readpolicy commit with references"
     # the account is shown to its owner only here (the admin is admin of no team the others are in)
     assert (commit['user'] is not None) == (viewer == 'admin'), f"{viewer}: commit user"
-    # the committer's Person is public
+    # the committer's Person is released to registered users
     assert int(commit['person']['id']) == read_policy['person_admin']
     assert commit['person']['restricted'] is False
     for field, reference in (('licence', 'reference_registered'), ('copyright', 'reference_legal_private')):

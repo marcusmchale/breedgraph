@@ -11,6 +11,5 @@ RETURN team {
      READ : [(team)<-[affiliation:READ]-(user:User) | affiliation {.*, id: user.id}],
      WRITE : [(team)<-[affiliation:WRITE]-(user:User) | affiliation {.*, id: user.id}],
      CURATE : [(team)<-[affiliation:CURATE]-(user:User) | affiliation {.*, id: user.id}]
-  },
-  legal_entity: head([(team)-[:DECLARED {current: true}]->(declaration:LegalEntityDeclaration) | declaration {.*}])
+  }
 }, [(team)-[include:INCLUDES_TEAM]->(member:Team) | [team.id, member.id, {label:type(include)}]] as includes

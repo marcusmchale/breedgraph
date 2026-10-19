@@ -9,8 +9,8 @@ To run the migration, follow [RUNBOOK.md](RUNBOOK.md).
    * The migration identity is not a human account and does not need login capability.
    * Migration commands and events therefore go through the normal BreedGraph application/domain machinery.
    * The personal account of the migration administrator remains separate from the historical provenance of migrated data.
-   * The University of Galway root team declares the legal entity, so the university is the data controller
-     of Persons created by the migration until they are handed over (see docs/person.md §2).
+   * The University of Galway is the data controller of the Persons the migration creates, as of all Persons in
+     BreedGraph (see docs/person.md §2).
 
 **The migration team temporarily controls all migrated data.**
 
@@ -79,7 +79,7 @@ CALL db.schema.nodeTypeProperties()
 
 1. Create the **BreedCAFS Migration User**.
 2. Create the **BreedCAFS Migration Team** as a child of the University of Galway root team
-   (the University of Galway organisation, with its declared legal entity, already exists in production).
+   (the University of Galway team tree already exists in production).
 3. Establish the required affiliations/permissions for the migration user on the migration team.
 4. Use the migration user as the actor for all migration commands.
 

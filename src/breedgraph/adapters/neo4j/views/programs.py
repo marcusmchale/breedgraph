@@ -22,7 +22,8 @@ class Neo4jProgramsView(AbstractProgramsView):
             query,
             **params,
             read_teams=self.read_teams,
-            minimum_release=ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED
+            minimum_release=ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED,
+            signed_in=self.user_id is not None
         )
 
     async def _get_programs(self) -> List[ProgramStored]:

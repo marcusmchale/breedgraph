@@ -1,22 +1,25 @@
 """
 The program queries under the read policy, through GraphQL, on the read-policy scenario
 (see tests/breedgraph/integration/views/test_programs_view.py for the view underneath).
-They answer anonymous requests, and placeholders resolve with empty contacts, references and groupings. A program or
-trial looked up by a trial or study is found only from one the viewer can read, or a hidden trial holding a readable
-study (rule 5).
+They answer anonymous requests, and placeholders resolve with empty contacts, references and groupings. Anonymous
+users get no contacts or contributions, as they see no Persons (docs/person.md §3). A program or trial looked up by a
+trial or study is found only from one the viewer can read, or a hidden trial holding a readable study (rule 5).
 """
 import pytest
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 from tests.breedgraph.e2e.utils import post_as, get_verified_payload, assert_payload_success
-from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PROGRAMS
+from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PROGRAMS, PROGRAM_CREDITS
 
 REDACTED = 'REDACTED'
 
 STUDY_FIELDS = "id name description groupings { id } design { id } licence { id } references { id }"
 TRIAL_FIELDS = f"id name description contacts {{ id }} references {{ id }} studies {{ {STUDY_FIELDS} }}"
-PROGRAM_FIELDS = f"id name description contacts {{ id }} references {{ id }} trials {{ {TRIAL_FIELDS} }}"
+PROGRAM_FIELDS = (
+    f"id name description contacts {{ id }} contributions {{ person {{ id }} }} references {{ id }} "
+    f"trials {{ {TRIAL_FIELDS} }}"
+)
 
 
 async def post_query(client, login_token_factory, read_policy, viewer: str, query: str, variables: dict | None = None):
@@ -57,8 +60,13 @@ def assert_program(read_policy, viewer: str, name: str, trials: dict[str, list[s
     assert int(program['id']) == read_policy[name]
     if read_policy.readable(viewer, name):
         assert program['name'] != REDACTED
+        credits = {} if viewer == 'anonymous' else PROGRAM_CREDITS.get(name, {})
+        assert {int(contact['id']) for contact in program['contacts']} == \
+            {read_policy[person] for person in credits.get('contacts', [])}, f"{viewer}: contacts of {name}"
+        assert {int(contribution['person']['id']) for contribution in program['contributions']} == \
+            {read_policy[person] for person, _ in credits.get('contributions', [])}, f"{viewer}: contributions to {name}"
     else:
-        assert_placeholder(program, 'contacts', 'references')
+        assert_placeholder(program, 'contacts', 'contributions', 'references')
     by_id = {int(trial['id']): trial for trial in program['trials']}
     assert set(by_id) == {read_policy[trial] for trial in trials}, f"{viewer}: trials of {name}"
     for trial, studies in trials.items():

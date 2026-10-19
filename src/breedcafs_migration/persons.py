@@ -1,8 +1,8 @@
 """
 Persons, and the contributors of the migrated datasets (README.md §7.6, 1_7_Extract_Persons.md).
 
-Each row of persons.csv becomes a Person with its name and institution, `PRIVATE` and controlled by the migration team,
-whose team tree's legal entity (the University of Galway) is the data controller, so the basis is public task.
+Each row of persons.csv becomes a Person with its name and institution, `PRIVATE` and controlled by the migration team.
+The University of Galway is the data controller of every Person in BreedGraph (docs/person.md §2).
 The informed attestation is given by the migration administrator. Persons are matched by name and institution,
 so running this again creates nothing new.
 
@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from breedgraph.domain.model.contributions import Contribution
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.service_layer.application.ontology_seed import credit_seed_key_for
-from breedgraph.domain.model.people import PersonInput, LawfulBasis
+from breedgraph.domain.model.people import PersonInput
 
 from breedcafs_migration.bootstrap import MigrationContext, MigrationSettingsError
 from breedcafs_migration.curves import CurveIds
@@ -146,11 +146,6 @@ def contribution_names(ontology: OntologyIds, datasets: dict[DatasetKey, int]) -
 async def create_persons(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext, ids: PersonIds) -> None:
     persons = read_persons()
     async with uow_factory.get_uow(user_id=context.user_id, write_team=context.team_id) as uow:
-        team_tree = await uow.repositories.team_trees.get(team_id=context.team_id)
-        if team_tree is None or team_tree.legal_entity is None:
-            raise MigrationSettingsError(
-                "Recording Persons requires the migration team's team tree to have declared its legal entity"
-            )
         for name, institution in persons.values():
             existing = [
                 person async for person in uow.repositories.people.get_all(name=name)
@@ -162,7 +157,6 @@ async def create_persons(uow_factory: Neo4jUnitOfWorkFactory, context: Migration
             person = await uow.repositories.people.create(PersonInput(
                 name=name,
                 institution=institution or None,
-                basis=LawfulBasis.PUBLIC_TASK,
                 informed_attestation=True
             ))
             ids.persons[(name, institution)] = person.id

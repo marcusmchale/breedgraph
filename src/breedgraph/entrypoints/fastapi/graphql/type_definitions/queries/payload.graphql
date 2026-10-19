@@ -294,12 +294,6 @@ type AnalysisSubmissionPayload {
   errors: [Error!]
 }
 
-type DataProcessingTermsPayload {
-    status: QueryStatus!
-    result: DataProcessingTerms
-    errors: [Error!]
-}
-
 type PersonPayload {
     status: QueryStatus!
     result: Person

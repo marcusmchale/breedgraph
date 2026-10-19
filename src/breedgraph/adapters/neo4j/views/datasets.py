@@ -33,7 +33,8 @@ class Neo4jDatasetsView(AbstractDatasetsView):
         """The parameters of the read checks"""
         return {
             'read_teams': self.read_teams,
-            'minimum_release': int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED)
+            'minimum_release': int(ReadRelease.PUBLIC if self.user_id is None else ReadRelease.REGISTERED),
+            'signed_in': self.user_id is not None
         }
 
     @staticmethod

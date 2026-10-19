@@ -1,6 +1,3 @@
-"""The GDPR basis for holding a Person record"""
-enum LawfulBasis { PUBLIC_TASK, LEGITIMATE_INTEREST }
-
 """How the viewer sees a Person. See docs/person.md §3"""
 enum PersonView {
     """The record: for read affiliates of a team controlling it, and for the linked user"""
@@ -12,21 +9,11 @@ enum PersonView {
 }
 
 """
-The legal entity holding a Person record (its data controller under GDPR): the one declared on the root of the team
-tree controlling the record. Shown with every Person, restricted ones included, so anyone can tell who holds a
-record and how to contact them about it
-"""
-type DataController {
-    legalName: String!
-    """A role address for requests about personal data"""
-    privacyContact: String!
-}
-
-"""
 Someone who took part in research, for attribution. See docs/person.md.
 What the viewer sees depends on view: the record in FULL; name, institution and ORCID iD as ATTRIBUTION; the id only
-when RESTRICTED. Fields outside the view are null (lists empty). Every view names the data controller.
-Searches leave restricted Persons out (docs/read-access.md). An erased Person keeps its id only, so contributions stay
+when RESTRICTED. Fields outside the view are null (lists empty). Persons are released at most to registered users,
+and anonymous users get no contacts or contributors, so they see no Persons. Searches leave restricted Persons out
+(docs/read-access.md). An erased Person keeps its id only, so contributions stay
 attributed to an anonymous person; it shows as erased only to those who could see it before.
 """
 type Person {
@@ -41,8 +28,6 @@ type Person {
     affiliations do). Those hidden from the viewer are stood in for by the nearest team they can see
     """
     teams: [TeamReference!]!
-    """In the full view"""
-    basis: LawfulBasis
     """In the full view: the creator confirmed the person was informed that this record is held"""
     informedAttestation: Boolean
     """Set by the linked user, verified through ORCID sign-in. Null when restricted or erased"""
@@ -55,8 +40,6 @@ type Person {
     recordedBy: UserDisplay
     """In the full view"""
     recordedAt: DateTime
-    """The legal entity holding this record, null when it can't be told (no single team tree, or none declared)"""
-    dataController: DataController
     """Whether the Person was erased: false when restricted"""
     erased: Boolean!
     """In the full view"""

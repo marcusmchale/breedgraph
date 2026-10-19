@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class TeamTreeRoot:
     root_id: int
-    legal_entity_declared: bool
+
+
+# The widest release of some kinds of entity. Persons are never shown to anonymous users (docs/person.md §3)
+RELEASE_CEILINGS: Dict[ControlledModelLabel, ReadRelease] = {
+    ControlledModelLabel.PERSON: ReadRelease.REGISTERED
+}
 
 
 class AbstractAccessControlService(ABC):
@@ -106,6 +111,7 @@ class AbstractAccessControlService(ABC):
             if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
 
+        self._require_release_ceiling(label, release)
         await self._require_release_floor(label, model_ids, release)
 
         # A model whose controlling teams already have this release needs no new Control
@@ -223,6 +229,14 @@ class AbstractAccessControlService(ABC):
                 raise NoResultFoundError(f"{label.value} {model_id} was not found")
             if not controller.has_access(access, self.user_id, self.access_teams[access]):
                 raise UnauthorisedOperationError(f"This change requires {access.value.casefold()} access")
+
+    @staticmethod
+    def _require_release_ceiling(label: ControlledModelLabel, release: ReadRelease) -> None:
+        ceiling = RELEASE_CEILINGS.get(label)
+        if ceiling is not None and release > ceiling:
+            raise IllegalOperationError(
+                f"{label.plural} can be released at most to {ceiling.name.casefold()} users"
+            )
 
     async def _require_release_floor(self, label: ControlledModelLabel, model_ids: Iterable[int], release: ReadRelease) -> None:
         """
@@ -423,7 +437,6 @@ class AbstractAccessControlService(ABC):
         await self._get_recipient_teams(recipient_team)
         await self._require_visible_recipient(recipient_team)
         await self._verify_entities_controlled_by(transfer_input.entities, set(transfer_input.from_teams))
-        await self._verify_entity_rules(transfer_input)
 
         transfer = await self._create_transfer(transfer_input)
 
@@ -463,8 +476,8 @@ class AbstractAccessControlService(ABC):
             release=release
         )
         await self._verify_entities_controlled_by(transfer.entities, set(transfer.from_teams))
-        await self._verify_entity_rules(transfer)
         for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
+            self._require_release_ceiling(label, transfer.release)
             await self._require_release_floor(label, model_ids, transfer.release)
 
         for label, model_ids in self._entity_ids_by_label(transfer.entities).items():
@@ -491,41 +504,6 @@ class AbstractAccessControlService(ABC):
         team_tree = await self._get_team_tree(recipient_team)
         if team_tree is None or team_tree.root_id != recipient_team:
             raise NoResultFoundError(f"Recipient team {recipient_team} not found")
-
-    async def _verify_entity_rules(self, transfer: ControlTransferInput | ControlTransferStored) -> None:
-        """
-        Rules for particular kinds of entity, checked at offer and at acceptance. See docs/control-transfer.md §5.
-        Person: the team tree receiving control is the data controller, so it must have declared a legal entity, and a
-        Person's control teams stay within one team tree (docs/person.md §2). The teams taking control are in the
-        recipient's team tree, so every team keeping control must be too: those not giving it up, and those giving it
-        up when they keep it (shared control).
-        """
-        person_ids = [entity.id for entity in transfer.entities if entity.label is ControlledModelLabel.PERSON]
-        if not person_ids:
-            return
-
-        recipient_team_tree = await self._get_team_tree(transfer.recipient_team)
-        if recipient_team_tree is None:
-            raise NoResultFoundError(f"Recipient team {transfer.recipient_team} not found")
-        if not recipient_team_tree.legal_entity_declared:
-            raise IllegalOperationError(
-                "Persons can only be transferred to a team tree that has declared its legal entity"
-            )
-
-        teams_to_end = set() if transfer.keep_from_teams else set(transfer.from_teams)
-        controllers = await self.get_controllers(ControlledModelLabel.PERSON, person_ids)
-        roots: Dict[int, int | None] = dict()
-        for person_id in person_ids:
-            controller = controllers.get(person_id)
-            for team_id in (controller.teams if controller is not None else set()) - teams_to_end:
-                if team_id not in roots:
-                    team_tree = await self._get_team_tree(team_id)
-                    roots[team_id] = team_tree.root_id if team_tree is not None else None
-                if roots[team_id] != recipient_team_tree.root_id:
-                    raise IllegalOperationError(
-                        "Control of a Person can only be shared between teams of the same team tree: "
-                        f"Person {person_id} would stay controlled by a team of another team tree"
-                    )
 
     async def reject_transfer(self, transfer_id: int) -> ControlTransferStored:
         if not self.user_id:
@@ -636,7 +614,7 @@ class AbstractAccessControlService(ABC):
 
     @abstractmethod
     async def _get_team_tree(self, team_id: int) -> TeamTreeRoot | None:
-        """The root of the team's team tree and whether it has declared a legal entity"""
+        """The root of the team's team tree"""
         ...
 
     @abstractmethod

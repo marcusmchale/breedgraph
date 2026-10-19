@@ -22,11 +22,12 @@ from ..registry import handlers
 import logging
 logger = logging.getLogger(__name__)
 
-async def _verify_contacts(uow, person_ids, release: ReadRelease) -> None:
+async def _verify_contacts(uow, person_ids) -> None:
     """
-    A contact is a Person linked to an account, so it can be messaged, and visible wherever the Program or Trial is:
-    its release is at least that of the Program or Trial, and at least REGISTERED. See docs/person.md §4.
-    If either release changes later, contacts the viewer cannot read are shown with their id only.
+    A contact is a Person linked to an account, so it can be messaged, and released to registered users, so every
+    signed-in user who can read the Program or Trial sees it (Persons are released at most to registered users, and
+    anonymous users see no contacts). See docs/person.md §4. If its release is lowered later, signed-in users who can
+    no longer read it see its id only.
     """
     person_ids = sorted(set(person_ids or []))
     if not person_ids:
@@ -38,13 +39,10 @@ async def _verify_contacts(uow, person_ids, release: ReadRelease) -> None:
             raise NoResultFoundError(f"Person {person_id} not found")
         if not status['linked']:
             raise IllegalOperationError(f"Person {person_id} is not linked to an account, so cannot be a contact")
-    minimum_release = max(release, ReadRelease.REGISTERED)
     controllers = await uow.controls.get_controllers(ControlledModelLabel.PERSON, person_ids)
     for person_id in person_ids:
-        if controllers[person_id].release < minimum_release:
-            raise IllegalOperationError(
-                f"Person {person_id} must be released to at least {minimum_release.name} to be a contact"
-            )
+        if controllers[person_id].release < ReadRelease.REGISTERED:
+            raise IllegalOperationError(f"Person {person_id} must be released to registered users to be a contact")
 
 
 # Program Handlers
@@ -63,7 +61,7 @@ async def create_program(
         existing_program = await uow.repositories.programs.get(name=cmd.name)
         if existing_program is not None:
             raise IdentityExistsError(f"Program with name '{cmd.name}' already exists")
-        await _verify_contacts(uow, cmd.contact_ids, cmd.release)
+        await _verify_contacts(uow, cmd.contact_ids)
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         contributions = _contributions(cmd)
         await verify_contributions(uow, contributions or [])
@@ -103,8 +101,7 @@ async def update_program(
         if cmd.description is not None:
             program.description = cmd.description
         if cmd.contact_ids is not None:
-            controller = await uow.controls.get_controller(ControlledModelLabel.PROGRAM, program.id)
-            await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids), controller.release)
+            await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids))
             program.contact_ids = cmd.contact_ids
         if cmd.contributions is not None:
             contributions = _contributions(cmd)
@@ -140,7 +137,7 @@ async def create_trial(
         program = await uow.repositories.programs.get(program_id=cmd.program_id)
         if program is None:
             raise NoResultFoundError(f"Program with ID {cmd.program} not found")
-        await _verify_contacts(uow, cmd.contact_ids, cmd.release)
+        await _verify_contacts(uow, cmd.contact_ids)
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         contributions = _contributions(cmd)
         await verify_contributions(uow, contributions or [])
@@ -184,8 +181,7 @@ async def update_trial(
         if cmd.end is not None:
             trial.end = cmd.end
         if cmd.contact_ids is not None:
-            controller = await uow.controls.get_controller(ControlledModelLabel.TRIAL, trial.id)
-            await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids), controller.release)
+            await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids))
             trial.contact_ids = cmd.contact_ids
         if cmd.contributions is not None:
             contributions = _contributions(cmd)

@@ -19,7 +19,6 @@ RETURN [ team IN team_tree |
       WRITE:[(team)<-[affiliation:WRITE]-(user:User) | affiliation {.*, id:user.id}],
       CURATE:[(team)<-[affiliation:CURATE]-(user:User) | affiliation {.*, id:user.id}]
     },
-    legal_entity: head([(team)-[:DECLARED {current: true}]->(declaration:LegalEntityDeclaration) | declaration {.*}]),
     includes: [(team)-[includes:INCLUDES_TEAM]->(child:Team) | [team.id, child.id, {label:type(includes)}]]
   }
 ] AS team_tree

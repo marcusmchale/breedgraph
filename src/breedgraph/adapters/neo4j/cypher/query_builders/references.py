@@ -1,5 +1,5 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible
+from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, contributions as _contributions
 
 # References as the user may see them (see docs/read-access.md). Each reference is an aggregate of its own, so a
 # reference the user cannot read is a placeholder when asked for by id, as other entities refer to references by id:
@@ -11,7 +11,7 @@ REFERENCE = ControlledModelLabel.REFERENCE
 
 def _reference(reference: str = 'reference', visible: str = 'reference_visible') -> str:
     return f"""CASE WHEN {visible} THEN {reference} {{ .*,
-            contributions: [({reference})<-[contributed:CONTRIBUTED_TO]-(person:Person) | {{person: person.id, roles: coalesce(contributed.roles, [])}}]
+            contributions: {_contributions(reference)}
           }}
           ELSE {reference} {{ .id, .type, description: 'REDACTED' }} END"""
 

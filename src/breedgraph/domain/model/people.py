@@ -39,24 +39,11 @@ def normalise_orcid(orcid: str) -> str:
     return orcid
 
 
-class LawfulBasis(str, Enum):
-    """The GDPR basis for holding a Person record, Art. 6(1)"""
-    PUBLIC_TASK = "PUBLIC_TASK"  # e)
-    LEGITIMATE_INTEREST = "LEGITIMATE_INTEREST"  # f)
-
-
 class PersonView(str, Enum):
     """How a viewer sees a Person (docs/person.md §3)"""
     FULL = "FULL"  # read affiliates of a controlling team, and the linked user: the record
     ATTRIBUTION = "ATTRIBUTION"  # readers by release only: what attribution needs
     RESTRICTED = "RESTRICTED"  # anyone else, where the Person is referred to: its id
-
-
-@dataclass
-class DataController:
-    """The legal entity holding a Person record: the one declared on the root of its controlling team tree"""
-    legal_name: str
-    privacy_contact: str
 
 
 @dataclass(eq=False)
@@ -67,7 +54,6 @@ class PersonBase(ABC):
     institution: str | None = None  # the institution the person did the work with, for attribution
     teams: List[int] = field(default_factory=list)  # affiliation, references to stored Team IDs
 
-    basis: LawfulBasis = LawfulBasis.PUBLIC_TASK
     informed_attestation: bool = False  # the creator confirmed the person was informed that the record is held
 
 
@@ -81,8 +67,6 @@ class PersonInput(PersonBase, EnumLabeledModel):
         self.institution = (self.institution or '').strip() or None
         if not self.informed_attestation:
             raise IllegalOperationError("The person must have been informed that this record is held")
-        if not isinstance(self.basis, LawfulBasis):
-            self.basis = LawfulBasis(self.basis)
 
 
 @dataclass(eq=False)
@@ -151,7 +135,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
 
     def erase(self, agent_id: int, controller: Controller, admin_teams: Set[int]) -> None:
         """
-        Remove identifying data, keeping the ID, controls, basis and record of who recorded it.
+        Remove identifying data, keeping the ID, controls and record of who recorded it.
         Admins of the controlling teams and the linked user can erase.
         """
         if self.erased:
@@ -232,7 +216,6 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             name=self.name,
             institution=self.institution,
             teams=list(self.teams),
-            basis=self.basis,
             informed_attestation=self.informed_attestation,
             orcid=self.orcid,
             user=self.user,
@@ -249,10 +232,9 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
 @dataclass(eq=False)
 class PersonOutput(PersonBase, EnumLabeledModel):
     """
-    A Person as a viewer sees it (view). Fields outside that view are None, the basis and attestation included,
-    rather than PersonBase's defaults, which would state a basis to viewers who may not see it.
+    A Person as a viewer sees it (view). Fields outside that view are None, the attestation included, rather than
+    PersonBase's default.
     """
-    basis: LawfulBasis | None = None
     informed_attestation: bool | None = None
     id: int = None
     orcid: str | None = None
@@ -264,4 +246,3 @@ class PersonOutput(PersonBase, EnumLabeledModel):
     view: PersonView = PersonView.RESTRICTED
     erased: bool = False
     linked: bool | None = None  # whether an account is linked, in the full view only
-    data_controller: DataController | None = None
