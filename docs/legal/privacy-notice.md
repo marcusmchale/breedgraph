@@ -145,14 +145,13 @@ We use no analytics, advertising or tracking cookies.
 ## Who receives your data
 
 - Other BreedGraph users, as described above.
-- Our service providers: the University's IT services, which host the platform, its database and backups, and [email delivery provider], which sends service emails and messages.
 - Others, where the law requires it.
 
-Your data is stored in Ireland.
+The University's IT services host the platform and its database, and send its emails. A server of the University's Plant Systems Biology Laboratory keeps the database backups, archives uploaded files and runs analyses. Your data is stored in Ireland.
 
 ## Backups
 
-Backups of the database are kept for 90 days on the University's archive server. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
+Backups of the database are kept for 90 days on the Plant Systems Biology Laboratory's server. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
 
 ## Security
 
@@ -160,7 +159,7 @@ Backups of the database are kept for 90 days on the University's archive server.
 - Access to data is controlled by team, and Person records are never shown to people who are not signed in.
 - Passwords are hashed, and sign-in attempts are limited.
 - Personal data is kept out of application logs, and error details are not sent to users' browsers.
-- Administrative access to servers is restricted, under the University's controls and confidentiality obligations.
+- Administrative access to servers is restricted, under the University's controls and confidentiality obligations. Only the BreedGraph operator uses the laboratory's server.
 
 ## Your rights
 
@@ -202,8 +201,8 @@ confirm:
 3. **Records.** Whether BreedGraph needs a data protection impact assessment, or an entry in the University's record
    of processing activities, and what you need from us for either.
 
-Before publishing, the operator fills in the contact address (a role address, rather than an individual's), the email
-delivery provider, the DPO's details, and the date.
+Before publishing, the operator fills in the contact address (a role address, rather than an individual's), the DPO's
+details, and the date.
 
 Other points, for information:
 - People are recorded by partner users, who confirm that each person took part and was told about the record and this
