@@ -1,133 +1,213 @@
 # BreedGraph privacy notice: draft
 
-Status: **draft for the Data Protection Officer to review and complete.** Not legal advice.
-Text in [square brackets] is to be completed. The notes at the end list the questions to settle.
-It describes the system as implemented; see `docs/person.md` for the design.
+Status: **draft for the Data Protection Officer to confirm.** Not legal advice.
+It proposes answers rather than leaving them open; the notes at the end list what to confirm. Text in [square brackets]
+is a fact to fill in before publishing.
+It describes the system as implemented; see `docs/person.md` for the design and `docs/read-access.md` for who can read what.
+
+When complete, it replaces the text in breedview `public/privacy_notice.md`.
+To publish it, copy the notice, from its title to the end of "Changes to this notice", to that file.
+breedview renders the file with a simple parser (`composables/system/usePrivacyNotice.js`) that handles headings, bold, italics, `-` bullets and `---` rules only, so the notice has no tables, links or nested lists.
 
 ---
 
+# BreedGraph privacy notice
+
+**Last updated: [date]**
+
+## Summary
+
+- BreedGraph is a research data platform for plant breeding, run by the University of Galway. Partner organisations use it to record and share research data.
+- The University is responsible for all personal data in BreedGraph: your account, and the records that credit people for research.
+- Your email address is not shown to other users.
+- People are credited only where signed-in users can see it. Pages open to everyone show no one's name, and there is no public directory of people or organisations.
+- You can erase a record that credits you, or ask us to, and you can delete your account at any time.
+- BreedGraph sets only the cookies it needs to sign you in and protect your requests. Maps and place searches come from our own server, so using BreedGraph sends nothing from your browser to other companies, unless you choose to link your ORCID iD.
+
 ## Who we are
 
-BreedGraph is a research data platform for plant breeding, operated by [team name] at [University of Galway / legal name of the university] ("we").
-Partner organisations use BreedGraph to record and share research data.
+BreedGraph is operated by the University of Galway ("we"). It consists of the BreedGraph API and the BreedView website, hosted at breedgraph.universityofgalway.ie on University infrastructure in Ireland.
 
-Contact for questions about this notice or your personal data: [operator contact address].
-Data Protection Officer: [DPO name and address].
+Contact for questions about this notice or your personal data: [BreedGraph contact address].
+
+Data Protection Officer: [name and contact address of the University's Data Protection Officer].
 
 ## Who is responsible for your data
 
-- **Your BreedGraph account**, and how the platform is run: [the university] is the data controller.
-- **Person records**, which credit people for their contributions to research: the organisation that recorded you is the data controller.
-  Each such organisation has declared its legal name and a privacy contact, shown with every Person record it holds, and has agreed to our data processing terms.
-  We host and process these records for them.
+The University of Galway is the data controller for all personal data in BreedGraph: accounts, the Person records that credit people for research, invitations, messages and logs.
 
-## What we hold and why
+Research data, such as datasets and files, is controlled by the teams that upload it. Teams decide who can see what they control, but the University remains responsible for any personal data in BreedGraph.
 
-### If you have an account
+## If you have an account
 
-| Data | Why | Kept |
-|---|---|---|
-| Username, full name, email address | To identify you, and to send you service emails | While your account exists |
-| Password, stored as a one-way hash | To sign you in | While your account exists |
-| Your team affiliations and access levels, ontology role, default team | To control what you can see and change | While your account exists |
-| Records of what you created or changed, and when | To show who contributed what, and for the integrity of research data | As long as the data they relate to |
-| Requests you make (affiliations, links to Person records) | To let administrators decide them | Until decided or withdrawn |
-| Recent failed sign-in attempts for a username | To protect accounts from password guessing | 1 hour; usernames of locked accounts are also kept in security logs for [period] |
-| Sign-in and security tokens, in cookies | To keep you signed in, and against request forgery | Until they expire or you sign out |
+What we hold:
 
-[Lawful basis for account data: e.g. Art. 6(1)(b) contract, or 6(1)(e) public task, for providing the platform; 6(1)(f) legitimate interests for security.]
+- your username, full name and email address;
+- your password, as a one-way hash, never in readable form;
+- your team affiliations and access levels (read, write, curate, admin), your default team for new records, and your role in developing the shared ontology;
+- requests you make: to join teams, for an ontology role, or to link a Person record to your account;
+- records of what you created or changed, and when.
 
-### If you are credited in a Person record
+Why: to sign you in, to control what you can see and change, to send you service emails (account verification, password resets, invitations and notices about requests), and to record who contributed what, for the integrity of research data. We do not send marketing emails.
 
-Organisations record the people who took part in research, such as technicians, so that contributions are attributed correctly, whether or not those people have an account.
+Who sees it:
 
-| Data | Why | Kept |
-|---|---|---|
-| A display name, the institution you did the work with, and the teams you belong to | To attribute contributions to you | As long as the research data you are credited for |
-| The lawful basis, and who recorded you and when | To show why the record is held and by whom | As above |
-| Your ORCID iD, if you link it yourself | To identify you unambiguously | Until you remove it |
-| The link to your account, if you claim the record | So you can manage it | Until you or an administrator unlink it |
+- Your email address: only you and us.
+- Your username and full name: you, and administrators of the teams you belong to or ask to join.
+- What you created or changed is shown as the work of the Person record linked to your account, if there is one, to those who can see that record (see below). Otherwise it is not attributed to you by name.
 
-We do not hold contact details, postal addresses or free-text descriptions in Person records.
+Lawful basis: a task carried out in the public interest (Art. 6(1)(e) GDPR). The University provides BreedGraph as part of its research.
 
-The organisation that recorded you confirmed that you were informed. The lawful basis is research: [Art. 6(1)(e) public task for the university; 6(1)(f) legitimate interests for other organisations].
-We rely on the research provisions of Art. 89 GDPR [and section 42 of the Data Protection Act 2018], including safeguards such as holding only the data needed for attribution.
+How long: while your account exists. When you delete your account, your username, full name, email address, password and team memberships are removed, and what you contributed stays attributed to an anonymous account number.
 
-Who can see a Person record is set by the organisation that controls it: members of its teams, all registered users, or the public.
-- Members of the organisation's teams who can read it, and you once you have linked it to your account, see the whole record.
-- Others it is released to see only what attribution needs: your name, institution and ORCID iD.
-- Anyone else may see only that a record exists, by its number.
+### Signing in
 
-Everyone who sees a record, even only by its number, also sees which organisation holds it and its privacy contact.
-Person records are not listed publicly: people who are not registered see them only beside the research they are credited for.
+- After five failed sign-in attempts within an hour, the username is locked for five minutes. We keep the count of failed attempts for an hour.
+- Usernames that get locked are recorded in our application logs, kept for 90 days, so that we can detect password guessing.
+- Links in verification and password reset emails expire after 24 hours.
 
-### If you are invited
+## If you are credited in a Person record
+
+Partner organisations use BreedGraph to record the people who took part in their research, such as technicians and field staff, so that contributions are attributed correctly, whether or not those people have an account. A Person record can be credited as a contributor, with the roles played, or named as a contact, on research programmes, trials, datasets and files.
+
+The person who records you confirms that you took part in the research and that you were told about the record and this notice. They act on the University's behalf.
+
+What a Person record holds:
+
+- a display name, the institution you did the work with, and the teams you belong to;
+- confirmation that you were told, and who recorded you and when;
+- your ORCID iD, only if you link it yourself;
+- the link to your account, if you claim the record.
+
+Person records hold no contact details, postal addresses or free-text descriptions.
+
+Why: to attribute research to the people who did it.
+
+Lawful basis: a task carried out in the public interest (Art. 6(1)(e)), scientific research. We rely on the research provisions of Art. 89 GDPR and section 42 of the Data Protection Act 2018, with safeguards including holding only what attribution needs, showing it only to signed-in users, and letting you erase it at any time.
+
+Who sees it: the teams that control the record decide whether it is shown to their own members only, or to all signed-in users.
+
+- Members of those teams with read access, and you once the record is linked to your account, see the whole record.
+- Other signed-in users it is shown to see only what attribution needs: your name, institution and ORCID iD.
+- People who are not signed in never see Person records: pages open to everyone show no contributors or contacts.
+- BreedGraph has no public directory of people. Signed-in users can search, by name, the records shown to them.
+
+How long: as long as the research data you are credited for. Your ORCID iD is kept until you remove it, and the link to your account until you or an administrator remove it.
+
+### Linking your ORCID iD
+
+To link your ORCID iD to the record linked to your account, you sign in at ORCID, which tells us your iD. ORCID also sends us your name and an access token, which we do not keep.
+
+## If you are invited
 
 When someone invites you, we hold your email address, who invited you, and what the invitation offers (team access, or a Person record to link to your account).
-**The invitation, including your email address, is deleted when you register, when it is cancelled, or after [30] days**, whichever comes first.
 
-### Messages to contacts
+**The invitation, including your email address, is deleted when you register, when it is cancelled, or after 30 days**, whichever comes first.
 
-If your Person record is linked to your account and listed as a contact for a research programme or trial, other registered users can send you a message through BreedGraph.
-- BreedGraph sends the message to your account email address. **Senders never see your address.**
-- The message includes the sender's name and email address, so you can reply. Replying shares your address with them.
-- We do not keep the content of messages. We record that a message was sent, from whom and to whom, in application logs for [period].
+## Messages to contacts
+
+If the Person record linked to your account is named as a contact for a research programme or trial, signed-in users who can see it can send you a message through BreedGraph.
+
+- BreedGraph passes the message on to your account email address and does not keep it. **Senders never see your address.**
+- The message includes the sender's name and email address, so that you can reply. Replying shares your address with them.
+- Our application logs record that a message was sent, by account and record number, never its content.
 - You can remove yourself as a contact at any time.
 
 If you send a message, your name and email address are given to the recipient.
 
-### Other data
+## Research data
 
-- **Research data you upload**, such as datasets and files, is controlled by the teams you upload it for. Do not include personal data in research data unless your organisation permits it.
-- **Analysis submissions** are kept for [7] days after their last change.
-- **Server logs** record requests to the service, including [IP addresses] in access logs, for [period]. Application logs record actions with account and record numbers, not names or messages.
+Research data, such as datasets, files and analyses, is controlled by the teams it is uploaded for. It describes plants, samples, locations and measurements, and should not include personal data.
+
+Uploads awaiting processing, and analysis jobs, are kept for 7 days after their last change. Download links expire after 24 hours.
+
+## When you use the website
+
+### Cookies
+
+BreedGraph sets two cookies. Both are needed for the service to work, so they do not need your consent.
+
+- auth_token keeps you signed in, for 7 days or until you sign out.
+- csrf_token protects your requests against forgery by other websites, for an hour.
+
+We use no analytics, advertising or tracking cookies.
+
+### Maps and place search
+
+- Maps are drawn from OpenStreetMap data served by our own server.
+- When you search for a place on a map, our server asks the Nominatim service of the OpenStreetMap Foundation (United Kingdom) for you. It receives your search, but not your IP address or who you are. Place search is for signed-in users.
+
+### Server logs
+
+- Access logs record requests to the service, including your IP address, and are kept for 30 days.
+- Application logs record actions by account and record number, not names, email addresses, searches or message content, and are kept for 90 days.
 
 ## Who receives your data
 
-- Other BreedGraph users, as permitted by the access settings above. Team administrators can see who is affiliated to their teams.
-- Administrators of the organisation controlling a Person record, including requests to link to it.
-- Our service providers: [hosting provider], [email delivery provider], [backup storage].
-- [ORCID, only when you link your ORCID iD.]
+- Other BreedGraph users, as described above.
+- Our service providers: the University's IT services, which host the platform, its database and backups, and [email delivery provider], which sends service emails and messages.
+- Others, where the law requires it.
 
-[Where data is stored, and any transfers outside the EEA.]
+Your data is stored in Ireland.
+
+## Backups
+
+Backups of the database are kept for 90 days on the University's archive server. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
+
+## Security
+
+- Connections are encrypted (HTTPS), and cookies are sent only over encrypted connections.
+- Access to data is controlled by team, and Person records are never shown to people who are not signed in.
+- Passwords are hashed, and sign-in attempts are limited.
+- Personal data is kept out of application logs, and error details are not sent to users' browsers.
+- Administrative access to servers is restricted, under the University's controls and confidentiality obligations.
 
 ## Your rights
 
 You have rights to access, correct and erase your personal data, to restrict or object to its processing, and to data portability, subject to the conditions in the GDPR, including exemptions for research.
 
 In BreedGraph:
-- **Your account:** view and change your details, or delete your account, in your account settings. You are asked whether to erase the Person record linked to it as well, which is the default.
-  Deleting removes your name, email address, password and team memberships. What you contributed stays attributed to an anonymous account number.
-- **A Person record crediting you:** register (or ask to be invited) and ask to link the record to your account. Once linked, you can see it in full, correct your name, unlink it, or **erase it**.
-  Erasing removes your name, institution, teams and ORCID iD and keeps only an anonymous record number, so research data stays attributed without identifying you. You can also ask the organisation that recorded you, using its privacy contact, shown with the record.
-- **Anything else:** contact us, or the privacy contact of the organisation concerned.
 
-We may refuse some requests where the research provisions apply, but we will always explain why. Erasing a Person record is always available, because it keeps the research record intact.
+- **Your account**: change your username, full name, email address or password, or delete your account, in your account settings. When you delete your account, you are asked whether to erase the Person record linked to it as well, which is the default.
+- **A Person record crediting you**: if you have an account, ask to link the record to your account. Administrators of the teams that control it decide the request, after confirming who you are. Once linked, you can see the record in full, correct your name, link your ORCID iD, unlink the record, or **erase it**.
+- **If you have no account**, contact us. Once we have confirmed who you are, we can erase the record for you, or invite you to register and link it, so you can manage it yourself.
+- **Erasing a Person record** removes your name, institution, teams and ORCID iD and keeps only an anonymous record number, so research data stays attributed without identifying you.
+- **Anything else**: contact us.
+
+We may refuse some requests where the research provisions apply, and we will always explain why. Erasing a Person record is always available, because it keeps the research record intact.
 
 You can complain to the Data Protection Commission (www.dataprotection.ie).
 
-## Backups
-
-Backups of the database are kept for [period] on [the archive server]. If we restore a backup, we apply all erasures and account deletions made since it was taken before the data is used again, from a log of the record and account numbers concerned, kept outside the database.
-
 ## Changes to this notice
 
-[Date and version. How changes are announced.]
+We will update this notice when BreedGraph or the law changes, and tell registered users of significant changes [by email / when they next sign in].
 
 ---
 
 ## Notes for the DPO
 
-1. **Lawful bases** for account data, and for Person records by the university and by partner organisations.
-2. **Art. 89 / section 42 DPA 2018**: whether the research provisions apply as described, and which safeguards to name.
-3. **Retention periods** to fill in: security logs, application and access logs, backups.
-4. **Account deletion**: implemented. Deleting an account removes the name, email address, password and memberships, and keeps contributions attributed to an anonymous account number. It offers to erase the linked Person record, erasing by default.
-   Deletions are logged with erasures and applied again after restoring a backup. Until a backup expires, it still holds the deleted account's details.
-5. **Access logs**: whether IP addresses are logged, and for how long, depends on the deployment's web server configuration.
-6. **Processors** and where data is hosted.
-7. **Public release of Person records**: organisations can release a Person record to the public. The data processing terms make this their decision and require their own notice to cover it.
-8. The link from this notice to the **data processing terms** organisations accept (`docs/legal/data-processing-terms.md`).
-9. **Who holds a Person record** is shown with the record, to anyone who sees it, rather than as a public list of organisations.
-   Is that enough to meet Art. 14(5)(b)'s "making the information publicly available", together with the organisations' own staff notices, or should the platform also publish a list of the organisations holding Person records (their legal names and privacy contacts)?
-10. **The published notice** (breedview `public/privacy_notice.md`, July 2026) predates Person records and says the university keeps contribution records.
-    It should be replaced by this notice, once completed, before any Person record is released to the public in production.
+The design was simplified so that this notice can state its answers. The University is the only data controller,
+Person records are never shown to people who are not signed in, and browsers contact no third party. Three points to
+confirm:
+
+1. **Lawful basis and research safeguards.** Public task (Art. 6(1)(e)) for everything, accounts and security logging
+   included, as legitimate interests is not available to a public authority for its tasks. For Person records, the
+   research provisions of Art. 89 and section 42 of the Data Protection Act 2018, with the safeguards named in the
+   notice: only what attribution needs, shown only to signed-in users, erasure at any time, and record and account
+   numbers in logs rather than names.
+2. **Retention periods.** Access logs 30 days; application logs, including security warnings, 90 days; backups 90
+   days; invitations 30 days; uploads and analysis jobs 7 days; failed sign-in counts 1 hour. Accounts while they
+   exist; Person records as long as the research data they are credited for. The erasure log holds only record and
+   account numbers, and is kept indefinitely so that restores stay correct.
+3. **Records.** Whether BreedGraph needs a data protection impact assessment, or an entry in the University's record
+   of processing activities, and what you need from us for either.
+
+Before publishing, the operator fills in the contact address (a role address, rather than an individual's), the email
+delivery provider, the DPO's details, and the date.
+
+Other points, for information:
+- People are recorded by partner users, who confirm that each person took part and was told about the record and this
+  notice (`informed_attestation`). No separate agreement is made with partner organisations.
+- Place searches are sent to Nominatim (OpenStreetMap Foundation, UK, which has an adequacy decision) by our server,
+  without the user's IP address. Map tiles come from our server.
+- The registration form asks users to confirm they have read this notice, not to consent.

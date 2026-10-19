@@ -56,7 +56,7 @@ ControlTransfer
 
 Checks at offer and at acceptance:
 - The entities still exist and every team in `from_teams` controls each of them.
-- Entity-specific rules hold (§5), against the recipient team's team tree.
+- Entity-specific rules hold (§5).
 
 Only admins of `recipient_team` can accept. Admins of teams below it see the offer only if they are also admins of `recipient_team`.
 If a team tree root receives an offer meant for a child team, a root admin accepts and assigns control to that child team.
@@ -95,16 +95,17 @@ A team that currently controls entities cannot be deleted. Once it controls none
 - Affiliations to the team are removed, and it is cleared as any user's default write team.
 - Its `Control` nodes, all ended, stay attached.
 - Pending transfers to or from the team are cancelled, recorded as cancelled by the user deleting it.
-A team becoming a root triggers the legal entity declaration described in `person.md` §2, if the new team tree will control Persons.
 
 ## 5. Entity-specific rules
 
-Rules are checked at offer and at acceptance. Initially:
-
 | Entity | Rule |
 |---|---|
-| Person | All control teams must be in one team tree, and that team tree must have a declared legal entity. A transfer to another team tree changes the data controller. Every team controlling the Person afterwards must be in the recipient's team tree: a transfer that leaves some of its old team tree's teams in control (not giving it up, or keeping it with `keep_from_teams`) is refused. |
+| Person | The release chosen on acceptance can be at most REGISTERED, as for every Person (`person.md` §3). Control teams may span team trees: the University holds every Person whichever teams control it (`person.md` §2), so a transfer changes access, not the data controller. |
+| Reference | The release chosen on acceptance can't be below that of what cites it (`contributions.md` §6). |
 | Others | None. Control teams may span team trees. |
+
+Until 2026-10-19, Persons also had to stay within one team tree whose root had declared a legal entity, its data
+controller; that rule went with the per-organisation model.
 
 ## 6. Decisions
 
@@ -132,7 +133,7 @@ Rules are checked at offer and at acceptance. Initially:
    The service supplies the user's admin teams and the recipient team's sub-tree to the domain model, writes each change directly,
    and applies accepted transfers in the same transaction. Transfers are visible to admins of the recipient team or of a team giving up control.
    Command handlers, and an event handler emailing the recipient team's admins.
-4. **Rules.** Done: `_verify_entity_rules` in the access control service, checked at offer and at acceptance, with the Person rule (§5).
+4. **Rules.** Done: the release floor and ceiling (`_require_release_floor`, `_require_release_ceiling`) checked on acceptance (§5). The Person team tree rule (`_verify_entity_rules`) was removed on 2026-10-19.
 5. **Team structure.** Done: deletion of teams that control entities is refused, and deleted teams are kept as `DeletedTeam`.
    Later, when moving teams is needed: pending structure changes for split, merge and move.
 6. **GraphQL.** Queries `controlsTransfers(statuses)` and `controlsTransfer(id)`, for transfers to or from teams the user administers.

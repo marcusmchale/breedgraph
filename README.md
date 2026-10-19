@@ -213,9 +213,8 @@ There is currently no facility to request an invitation.
 ### Team tree
 A team tree is a tree of [teams](#team) with a single root team.
 These form the foundation of [access control](#access-control) logic.
-Its root team may declare a legal entity, such as a university, which is the data controller for the Persons the
-tree's teams record. Only team trees with a declared legal entity can record Persons. The declaration can be withdrawn
-while the tree controls no Person.
+Teams decide who can read and change what they control, Persons included; the University of Galway is the data
+controller of all personal data in BreedGraph ([docs/person.md](docs/person.md) §2).
 
 In the GraphQL interface, the teamsCreateTeam mutation will create a team.
 If the optional "parent" parameter is not supplied then the created team 
@@ -470,6 +469,33 @@ with your own values for secrets, the neo4j connection, mail hosting and log fil
 ### Nginx
   be sure to set nginx client_max_body_size to a value that is appropriate for your use case, e.g. 100M
 
+Serve the map tiles (see Maps) directly from `MAP_TILES_PATH`, beside the front end; nginx answers the range requests
+they are read with:
+
+    location /tiles/ {
+        alias /opt/breedgraph/instance/map_tiles/;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+### Maps
+
+Browsers contact no third party for maps: tiles come from our server, and place searches go through the API, which asks
+Nominatim (`NOMINATIM_URL`, limited per user by `GEOCODING_RATE_LIMIT_PER_HOUR`).
+
+The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloads) build of OpenStreetMap by
+`scripts/map_tiles.py`, into `MAP_TILES_PATH`: the world at low detail (to zoom 8, about 560 MB), full detail (to
+zoom 15) in 1° cells around every location with coordinates, and `tiles.json`, which lists them. Only those parts are
+downloaded. It needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
+(check the archive's sha256 against the release's digest). The cells are served to anyone, so they show which 1°
+cells hold locations, private ones included; `--cell-degrees` widens them.
+
+    set -a; . ./breedgraph.env; set +a
+    scripts/map_tiles.py --build https://build.protomaps.com/YYYYMMDD.pmtiles
+
+Builds are kept for about a week, so use a recent date. Run it again with `--regions-only` when new field sites are
+added, e.g. weekly from cron, and without it now and then to refresh the world file. For development, `--world-maxzoom 6`
+gives a world file of about 45 MB.
+
 
 
 ### Notes for developers
@@ -522,7 +548,8 @@ Dumps accumulate on the web server; remove old ones there as space requires, onc
 *on the archive server*, at least as often as dumps are made: an erasure is at risk until the log is copied.
 Its settings are in `/etc/breedgraph/backup_sync.env` (example: `instance/backup_sync.env`), and it needs ssh key
 access to the web server. New dumps are copied as they appear, and the log with `rsync --append-verify`, as it is only
-ever appended to. `BACKUP_RETENTION_DAYS` optionally removes old dumps there; the erasure log is never removed.
+ever appended to. `BACKUP_RETENTION_DAYS` removes old dumps there: set it to 90, the period the privacy notice states.
+The erasure log is never removed.
 
     0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
 
@@ -542,6 +569,38 @@ before the database is used. Then rebuild the read models in Redis from the rest
     scripts/load_state_store.py
 
 Uploaded files are not in the dump: they stay in `FILE_STORAGE_PATH`, or in archive storage (the archive worker).
+
+**Erasure on request.** The University is the data controller, so people without an account linked to their Person
+record ask us to erase it. Confirm who is asking, then, with the environment loaded:
+
+    scripts/erase_person.py <person id>
+
+It erases the Person and appends it to the erasure log, as erasures in BreedGraph are, so a restore applies it again.
+
+**Logs** are kept for the periods the privacy notice states: access logs 30 days, the others 90. The application writes
+them to `LOG_BASE` without rotating, as several processes write them, so rotate them with logrotate, e.g. in
+`/etc/logrotate.d/breedgraph`:
+
+    /var/log/breedgraph/access.log {
+        daily
+        rotate 30
+        copytruncate
+        compress
+        delaycompress
+        missingok
+        notifempty
+    }
+    /var/log/breedgraph/breedgraph.log /var/log/breedgraph/graphql.log /var/log/breedgraph/neo4j.log /var/log/breedgraph/redis.log {
+        daily
+        rotate 90
+        copytruncate
+        compress
+        delaycompress
+        missingok
+        notifempty
+    }
+
+and keep nginx's access logs no longer than 30 days (`rotate` in `/etc/logrotate.d/nginx`).
 
 **Retention** of files and expired invitations runs through the API, with `scripts/trigger_retention.sh` from cron
 on the web server (it loads the env files itself), e.g. daily:

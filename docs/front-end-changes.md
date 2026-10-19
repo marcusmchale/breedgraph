@@ -14,7 +14,9 @@ operation in the front end validates against the current schema (§10).
 - §11–§15 (record group extent, replicate aggregation and factors in analysis, the WITHIN_GRAPH extent, the area
   renames, contributions with roles, Role entries, sources and locked entries, and times as periods), on 2026-10-17;
 - §16 (what a team controls, and scopes for bulk control), built with the API on 2026-10-17;
-- §18 (Person views, data controllers, no public directory of people or teams), built with the API on 2026-10-17.
+- §18 (Person views, data controllers, no public directory of people or teams), built with the API on 2026-10-17;
+- §19 (one data controller, no Persons for signed-out visitors, place search and map tiles from our server), built
+  with the API on 2026-10-19.
 
 `python scripts/check_front_end_queries.py ../breedview/src` reports no operation with errors, and breedview's e2e
 suite (`tests/e2e`, on the synthetic test database) passes.
@@ -71,6 +73,8 @@ Allowed emails are replaced by invitations, which hold the invited address only 
 The first account on a new deployment still registers without an invitation.
 
 ## 3. Team trees: legal entity
+
+**Removed on 2026-10-19 (§19).** Kept for the history of the API.
 
 The root team of a team tree (the teams under one root, from `teamsRoots`) may declare the legal entity responsible
 for it, e.g. a university, which is the data controller for the tree's Persons. Only team trees with a declared legal
@@ -591,7 +595,7 @@ Design in `person.md` §2–§3 and `read-access.md` rules 2, 7 and 9.
   `erasedAt` are now null here too, and `erased` is false: an erased Person shows as erased only to those who could
   see it.
 
-**Who holds a record.** `Person.dataController: DataController { legalName, privacyContact }`, in every view, restricted
+**Who holds a record** (removed in §19). `Person.dataController: DataController { legalName, privacyContact }`, in every view, restricted
 ones included: the legal entity declared on the root of the team tree controlling the Person, null when it can't be
 told. Show it with Persons, for signed-out visitors too, e.g. "Record held by <legal name>" with the privacy contact.
 `LegalEntity` on teams is unchanged (signed-in users only, `declaredBy` for root admins).
@@ -603,3 +607,38 @@ too). The mutations return an error saying which access to remove first.
 **Transfers.** An offer must go to a team the offering user can see (a team tree root, or one of their own teams);
 others are refused as not found. A transfer of a Person is refused when teams of its old team tree would keep
 control alongside the recipient's. `controlsSetRelease` is refused for an entity without current controls.
+
+## 19. One data controller, no Persons signed out, maps from our server
+
+Design in `person.md` §2–§3, `read-access.md` rule 2 and `legal/privacy-notice.md`. The University is the data
+controller of all personal data in BreedGraph, so organisations no longer declare legal entities, and browsers contact
+no third party.
+
+**Removed.**
+- Legal entity declarations (§3): `Team.legalEntity`, `LegalEntity`, `LegalEntityInput`, `TeamInput.legalEntity`,
+  `teamsDeclareLegalEntity`, `teamsWithdrawLegalEntity`, `teamsDataProcessingTerms` and `DataProcessingTerms`.
+  Any team can record Persons.
+- `Person.dataController` and `DataController` (§18): every Person is held by the University, named in the privacy
+  notice.
+- `Person.basis`, `PersonInput.basis`, `PersonUpdate.basis` and the `LawfulBasis` enum: the basis is the same for every
+  Person, and stated in the privacy notice.
+- The rule that a Person's controlling teams stay within one team tree: transfers of Persons go to any team.
+
+**Persons are for signed-in users.**
+- A Person's release is at most `REGISTERED`. `peopleCreatePerson`, `controlsSetRelease` (by ids or by scope) and
+  `controlsAcceptTransfer` refuse `PUBLIC` for Persons ("People can be released at most to registered users"). Offer
+  no public release for Persons, including in bulk control and transfers that hold Persons.
+- Anonymous requests get empty `contacts` and `contributions` on programs, trials, datasets and references. Hide those
+  sections when signed out.
+- A contact must be released to registered users, whatever the release of its program or trial.
+
+**Place search** (`locationsSearchPlaces(query, viewbox, bounded, countryCode, limit)` and
+`locationsGeocodeCountry(name)`, returning `Place { name latitude longitude bounds }`): the server asks Nominatim, so
+the browser doesn't. They need an account and are limited per user per hour (`GEOCODING_RATE_LIMIT_PER_HOUR`, 120).
+`viewbox` is `[west, south, east, north]`; `bounds` is `[[south, west], [north, east]]`, or null.
+
+**Map tiles** are served at `/tiles` from `MAP_TILES_PATH` (`scripts/map_tiles.py` writes them; nginx serves them in
+production). `/tiles/tiles.json` lists the files: `{attribution, build, updated, layers: [{url, minZoom?, maxZoom,
+bounds?}]}`, a low-detail world file and, where locations are, a full-detail regions file, both PMTiles from
+Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet). Until the script has run there is no
+`tiles.json` (404).

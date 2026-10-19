@@ -39,8 +39,9 @@ In detail:
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
    study's or ontology entry's reference, a hidden entity asked for directly by id. A reference placeholder keeps its
    type as well (legal, external, file and so on), as GraphQL needs it to choose the reference's type. References to teams are the exception (rule 7).
-   A Person placeholder (restricted) keeps its data controller, the legal entity holding it, so anyone credited can
-   tell who holds the record about them (docs/person.md §3); readers by release see a Person's attribution only.
+   Readers of a Person by release see its attribution only (docs/person.md §3). Persons are the other exception:
+   they are released at most to registered users, and anonymous users get no references to them at all, neither
+   contacts nor contributions (`query_builders.access.signed_in_only`), rather than placeholders.
 3. **Within an aggregate, hidden members are skipped.** A tree or graph (a unit graph, a location tree, a
    layout tree, a crop's pedigree of germplasm) is shown with its hidden members left out and their
    readable descendants joined to the nearest readable ancestor. Nothing about the hidden members is shown: not their
@@ -83,11 +84,10 @@ In detail:
    admins of its teams. What an account did, a write or an ontology commit, is attributed to its linked Person
    (`WriteStamp.person`, `OntologyCommit.person`), which follows the people rules: in full, restricted, or none if the
    account has no Person. Teams are not controlled entities, and are for signed-in users: a team is seen by those
-   affiliated with it, and a team tree's root, with its legal entity, by every signed-in user, so they can ask to
-   join it, offer it transfers and follow stand-ins to it. Anonymous users see no teams (the team queries need an
-   account), so the organisations using BreedGraph are not listed publicly; whom personal data is held by is shown
-   with the data instead, as each Person's data controller (rule 2). Hidden teams are skipped within a team tree
-   (rule 3), stood in for where referred to (rule 7), and a placeholder when asked for by id (rule 2).
+   affiliated with it, and a team tree's root by every signed-in user, so they can ask to join it, offer it
+   transfers and follow stand-ins to it. Anonymous users see no teams (the team queries need an account), so the
+   organisations using BreedGraph are not listed publicly. Hidden teams are skipped within a team tree (rule 3),
+   stood in for where referred to (rule 7), and a placeholder when asked for by id (rule 2).
 10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
    aggregates, team trees included, so write handlers and integrity checks see members the writer cannot read:
    deleting a location with hidden children, or a location tree, layout tree or unit graph root with hidden members, is refused, and
@@ -147,6 +147,6 @@ EDITORIAL view, with drafts, needs an account.
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
 | References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
-| People (`views.people`, `query_builders/people.py`) | yes, in three views (docs/person.md §3); listing and looking up Persons needs an account, so anonymous users meet them only in context |
+| People (`views.people`, `query_builders/people.py`) | yes, in three views (docs/person.md §3), for signed-in users only: Persons are released at most to registered users, anonymous users get no contacts or contributions, and listing and looking up Persons needs an account |
 | Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
 | Accounts and team trees | yes; team trees are read through the repository and redacted explicitly in Python (small, and already following the note), and need an account |

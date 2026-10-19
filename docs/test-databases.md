@@ -157,7 +157,7 @@ build. It needs the extracted BreedCAFS data in `src/data/breedcafs_migration/`,
    ```bash
    python scripts/rehearse_migration.py --manifest <scratch>/rehearsal_base.manifest.json 2>&1 | tee rehearsal.log
    ```
-   It creates the rehearsal team with a legal entity, loads the germplasm, bundles and unbundles the data into
+   It creates the rehearsal team, loads the germplasm, bundles and unbundles the data into
    `src/data/breedcafs_migration_rehearsal/`, runs bootstrap, migrate and validate, and exits with the validation's
    status. The validation report is in that directory.
 3. Dump with `scripts/backup.sh`, and move the dump to `test_databases/test_database_breedcafs.dump`.
