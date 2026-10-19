@@ -48,7 +48,7 @@ What we hold:
 - requests you make: to join teams, for an ontology role, or to link a Person record to your account;
 - records of what you created or changed, and when.
 
-Why: to sign you in, to control what you can see and change, to send you service emails (account verification, password resets, invitations and notices about requests), and to record who contributed what, for the integrity of research data. We do not send marketing emails.
+Why: to sign you in, to control what you can see and change, to send you service emails (account verification, password resets, invitations, notices about requests, and notices about fetching detailed maps for a country you added or a location you placed), and to record who contributed what, for the integrity of research data. We do not send marketing emails.
 
 Who sees it:
 
@@ -135,6 +135,7 @@ We use no analytics, advertising or tracking cookies.
 ### Maps and place search
 
 - Maps are drawn from OpenStreetMap data served by our own server.
+- When a country is added, or a location placed on the map, our server fetches detailed maps of the area from Protomaps' copies of OpenStreetMap, using country outlines from geoBoundaries. It sends them nothing about you, and no site coordinates. We email whoever added the country or placed the location when the maps are being fetched and when they are ready.
 - When you search for a place on a map, our server asks the Nominatim service of the OpenStreetMap Foundation (United Kingdom) for you. It receives your search, but not your IP address or who you are. Place search is for signed-in users.
 
 ### Server logs
@@ -208,5 +209,6 @@ Other points, for information:
 - People are recorded by partner users, who confirm that each person took part and was told about the record and this
   notice (`informed_attestation`). No separate agreement is made with partner organisations.
 - Place searches are sent to Nominatim (OpenStreetMap Foundation, UK, which has an adequacy decision) by our server,
-  without the user's IP address. Map tiles come from our server.
+  without the user's IP address. Map tiles come from our server, which fetches them from Protomaps' builds, with
+  country outlines from geoBoundaries, sending no personal data or site coordinates.
 - The registration form asks users to confirm they have read this notice, not to consent.

@@ -641,8 +641,16 @@ location reads; hidden locations are left out. List them in the map's search box
 the browser doesn't. They need an account and are limited per user per hour (`GEOCODING_RATE_LIMIT_PER_HOUR`, 120).
 `viewbox` is `[west, south, east, north]`; `bounds` is `[[south, west], [north, east]]`, or null.
 
-**Map tiles** are served at `/tiles` from `MAP_TILES_PATH` (`scripts/map_tiles.py` writes them; nginx serves them in
-production). `/tiles/tiles.json` lists the files: `{attribution, build, updated, layers: [{url, minZoom?, maxZoom,
-bounds?}]}`, a low-detail world file and, where locations are, a full-detail regions file, both PMTiles from
-Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet). Until the script has run there is no
-`tiles.json` (404).
+**Map tiles** are served at `/tiles` from `MAP_TILES_PATH` (nginx serves them in production), all PMTiles from
+Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet). `/tiles/tiles.json` lists them:
+`{attribution, updated, layers}`. Until the world file is cut there is none (404).
+- The first layer is the low-detail world file, `{url, maxZoom, build}`, cut by `scripts/map_tiles.py`.
+- The others are regions in full detail, `{url, name, minZoom, maxZoom, bounds}` with `bounds` as
+  `[[south, west], [north, east]]`: whole countries, or sections (states or provinces) of countries too large to fetch
+  whole. The API fetches them in the background when a country is added, or a location placed in a divided country
+  (README.md, Maps), and adds each to `tiles.json` once complete. Regions share the tiles along their borders, so draw
+  them with one layer whose source asks each tile of the regions whose zooms and bounds hold it and takes the first
+  found (breedview `composables/locations/baseMap.js`). Fetch `tiles.json` without caching it (`cache: 'no-cache'`), so
+  new regions appear at the next page load.
+- The user who added the country or placed the location is emailed when the fetch starts and ends; say so where
+  countries are added. There is no status in the API.

@@ -470,8 +470,12 @@ with your own values for secrets, the neo4j connection, mail hosting and log fil
   be sure to set nginx client_max_body_size to a value that is appropriate for your use case, e.g. 100M
 
 Serve the map tiles (see Maps) directly from `MAP_TILES_PATH`, beside the front end; nginx answers the range requests
-they are read with:
+they are read with. `tiles.json` changes as regions are fetched, so browsers check it at each page load:
 
+    location = /tiles/tiles.json {
+        alias /opt/breedgraph/instance/map_tiles/tiles.json;
+        add_header Cache-Control "no-cache";
+    }
     location /tiles/ {
         alias /opt/breedgraph/instance/map_tiles/;
         add_header Cache-Control "public, max-age=86400";
@@ -482,14 +486,34 @@ they are read with:
 Browsers contact no third party for maps: tiles come from our server, and place searches go through the API, which asks
 Nominatim (`NOMINATIM_URL`, limited per user by `GEOCODING_RATE_LIMIT_PER_HOUR`).
 
-The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloads) build of OpenStreetMap by
-`scripts/map_tiles.py`, into `MAP_TILES_PATH`: the world at low detail (to zoom 8, about 560 MB), full detail (to
-zoom 15) in 1° cells around every location with coordinates, and `tiles.json`, which lists them. Only those parts are
-downloaded. The cells are served to anyone, so they show which 1° cells hold locations, private ones included;
-`--cell-degrees` widens them.
+The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloads) build of OpenStreetMap into
+`MAP_TILES_PATH`, served at `/tiles` and listed in `tiles.json`. Only the parts needed are downloaded.
+- **The world** at low detail, to zoom 8 (about 560 MB), is cut by `scripts/map_tiles.py`.
+- **Regions** in full detail, to zoom 15, are fetched by the API in the background (`adapters/pmtiles/map_regions.py`):
+  - When a country is added, the whole country is fetched (Ireland 454 MB, Kenya 404 MB).
+  - A country larger than `MAP_REGION_MAX_GB` (2) is divided into its states or provinces (ADM1 units), and a section
+    is fetched when a location in it is placed on the map. A section over the cap too is fetched by its ADM2 unit
+    (a county, say) instead, and one still over the cap fails as too large. Brazil (4.2 GB), France (5.5 GB) and the
+    United States (17 GB) are divided.
+  - The user who added the country or placed the location is emailed when the fetch starts and when it ends, or that
+    the country is divided.
+  - Countries are public, and a section shows only that some location lies within it. Sections are found on our
+    server, from its copy of the outlines, so no site coordinates leave it.
+  - Each region is a file, `regions/<key>.pmtiles`, with a `<key>.json` description. Removing a country deletes its
+    files; a section stays until its country is removed.
+  - Before a fetch, a dry run gives the region's size. The fetch fails unless the disk has room for it, with 10% of
+    its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed.
+  - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,
+    which resume after a restart. Finished regions are known from their files.
 
-It needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases), a single program,
-installed once on the server that runs the script (`Linux_arm64` on ARM):
+Country outlines come from [geoBoundaries](https://www.geoboundaries.org) (`GEOBOUNDARIES_URL`; open licences, which
+vary by country and are kept beside each file). They are cached in `MAP_BOUNDARIES_PATH`, which is not served, and used
+only to cut tiles. Regions are cut from the newest Protomaps build (`PROTOMAPS_BUILDS_URL`) of the same version as the
+world file, or from the build `MAP_TILES_BUILD` pins.
+
+The API's server needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
+(`MAP_PMTILES_COMMAND`), a single program. Without it, or with the setting empty, no regions are fetched and the API
+logs a warning at startup. Install it once (`Linux_arm64` on ARM):
 
     curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
     curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/checksums.txt
@@ -497,15 +521,16 @@ installed once on the server that runs the script (`Linux_arm64` on ARM):
     tar xzf go-pmtiles_1.31.2_Linux_x86_64.tar.gz pmtiles
     sudo install pmtiles /usr/local/bin/
 
-Then cut the tiles:
+Then cut the world file, from the newest build unless `--build` or `MAP_TILES_BUILD` names one:
 
     set -a; . ./breedgraph.env; set +a
-    scripts/map_tiles.py --build https://build.protomaps.com/YYYYMMDD.pmtiles
+    scripts/map_tiles.py
 
-Builds are kept for about a week, so use a recent date. Run it again with `--regions-only` when new field sites are
-added, e.g. weekly from cron, and without it now and then to refresh the world file. Deploying leaves
-`MAP_TILES_PATH` as it is, so the tiles don't need cutting again after a deploy. For development, `--world-maxzoom 6`
-gives a world file of about 45 MB.
+Run it again now and then to refresh the world file, and then `scripts/map_tiles.py --refresh` to fetch the regions
+again from the newest build. `--regions` fetches what the API would for every country and placed location, for a first
+setup or after losing the files, and `--dry-run` reports what would be fetched and its size. The script sends no
+emails, and shares the API's locks, so both can run at once. Deploying leaves `MAP_TILES_PATH` and
+`MAP_BOUNDARIES_PATH` as they are. For development, `--world-maxzoom 6` gives a world file of about 45 MB.
 
 
 
