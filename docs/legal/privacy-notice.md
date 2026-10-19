@@ -137,6 +137,8 @@ We process personal data in BreedGraph as a task carried out in the public inter
 
 The University's IT services host BreedGraph and its database, and send its emails. A server of the University's Plant Systems Biology Laboratory keeps the database backups, archives uploaded files and runs analyses. Backups and archived files are encrypted before they are copied to that server, which holds no key to read them. Your data is stored in Ireland.
 
+Some users work for partner organisations outside the European Economic Area (EEA), so what they can see, as described above, is transferred outside the EEA. These transfers are protected by [the safeguard, such as standard contractual clauses, and how to get a copy of it].
+
 If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken, from a log of the record and account numbers concerned, kept outside the database.
 
 ## Security
@@ -171,7 +173,7 @@ We will update this notice when BreedGraph or the law changes, and tell register
 ## Notes for the DPO
 
 The design was simplified so that this notice can state its answers. The University is the only data controller,
-Person records are never shown to people who are not signed in, and browsers contact no third party. Three points to
+Person records are never shown to people who are not signed in, and browsers contact no third party. Four points to
 confirm:
 
 1. **Lawful basis and research safeguards.** Public task (Art. 6(1)(e)) for everything, accounts and security logging
@@ -185,9 +187,14 @@ confirm:
    account numbers, and is kept indefinitely so that restores stay correct.
 3. **Records.** Whether BreedGraph needs a data protection impact assessment, or an entry in the University's record
    of processing activities, and what you need from us for either.
+4. **Transfers outside the EEA.** Some partner users are outside the EEA. They see what the notice describes: the
+   names, institutions and ORCID iDs in Person records shown to them, the usernames and full names of their team
+   members and applicants, and the names and email addresses of people who message them. Which safeguard covers this
+   (Art. 13(1)(f)): standard contractual clauses with the partner organisations, or the project's consortium agreement
+   if it covers it.
 
 Before publishing, the operator fills in the contact address (a role address, rather than an individual's), the DPO's
-details, and the date.
+details, the safeguard for transfers outside the EEA, and the date.
 
 Other points, for information:
 - People are recorded by partner users, who confirm that each person took part and was told about the record and this
