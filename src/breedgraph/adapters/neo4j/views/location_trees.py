@@ -5,6 +5,7 @@ from breedgraph.service_layer.infrastructure.state_store import AbstractStateSto
 
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.adapters.neo4j.cypher.query_builders import location_trees as location_tree_queries
+from breedgraph.adapters.neo4j.cypher.matching import containing_text_regex
 
 from breedgraph.domain.model.location_trees import LocationOutput
 from breedgraph.domain.model.controls import ReadRelease
@@ -44,6 +45,11 @@ class Neo4jLocationTreesView(AbstractLocationTreesView):
     async def _get_locations_by_type(self, location_type_id: int) -> AsyncGenerator[LocationOutput, None]:
         for location in await self._read(location_tree_queries.read_locations_by_type(), location_type=location_type_id):
             yield location
+
+    async def _search_locations(self, name: str, limit: int) -> List[LocationOutput]:
+        return await self._read(
+            location_tree_queries.search_locations(), name=name, name_regex=containing_text_regex(name), limit=limit
+        )
 
     async def _get_descendants_by_type(self, location_ids: List[int]) -> Dict[int | None, List[LocationOutput]]:
         async with await self.session.begin_transaction() as tx:

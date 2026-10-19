@@ -49,6 +49,7 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'locationsCountries': ('query { locationsCountries { status errors { name message } } }', {}, True),
         'locationsDescendantsByType': ('query ($ids: [ID!]!) { locationsDescendantsByType(locationIds: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'locationsLocations': ('query ($ids: [ID!]!) { locationsLocations(ids: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
+        'locationsSearch': ('query { locationsSearch(name: "a") { status errors { name message } } }', {}, True),
         'locationsLocationsByType': ('query ($id: ID!) { locationsLocationsByType(locationTypeId: $id) { status errors { name message } } }', {'id': ids['ontology_location_field']}, True),
     }
 

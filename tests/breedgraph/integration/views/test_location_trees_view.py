@@ -97,6 +97,31 @@ async def test_locations_by_id(views_factory, read_policy, viewer):
 
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
+async def test_search_leaves_hidden_locations_out(views_factory, read_policy, viewer):
+    """A location is found by any part of its name, ignoring case, only by those who can read it (rule 5)"""
+    names = {}
+    for reader in ('admin', 'stranger'):  # between them, they read every location
+        async with views_factory.get_views(user_id=read_policy.user(reader)) as views:
+            located = await views.location_trees.get_locations([read_policy[name] for name in LOCATION_PARENTS])
+        names.update({location.id: location.name for location in located.values() if location.name != REDACTED})
+    assert set(names) == ids(read_policy, LOCATION_PARENTS)
+
+    async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
+        for name in LOCATION_PARENTS:
+            text = names[read_policy[name]]
+            found = await views.location_trees.search_locations(text[1:-1].upper())
+            readable = read_policy.tree_member(viewer, LOCATION_PARENTS, name).readable
+            assert (read_policy[name] in {location.id for location in found}) == readable, f"{viewer}: search for {name}"
+            # what is found is readable, in full
+            for location in found:
+                assert location.name != REDACTED
+                assert_location(read_policy, viewer, next(n for n in LOCATION_PARENTS if read_policy[n] == location.id), location)
+        assert len(await views.location_trees.search_locations(names[read_policy['country']], limit=1)) <= 1
+        assert await views.location_trees.search_locations('  ') == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', VIEWERS)
 async def test_locations_by_type(views_factory, read_policy, viewer):
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         for type_key in set(LOCATION_TYPES.values()):

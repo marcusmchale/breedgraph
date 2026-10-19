@@ -632,6 +632,10 @@ no third party.
   sections when signed out.
 - A contact must be released to registered users, whatever the release of its program or trial.
 
+**Location search** (`locationsSearch(name, limit)`): the locations the viewer can read whose name contains `name`,
+ignoring case, those starting with it first, at most `limit` (10, up to 50). Open to anonymous users, like the other
+location reads; hidden locations are left out. List them in the map's search box above the places.
+
 **Place search** (`locationsSearchPlaces(query, viewbox, bounded, countryCode, limit)` and
 `locationsGeocodeCountry(name)`, returning `Place { name latitude longitude bounds }`): the server asks Nominatim, so
 the browser doesn't. They need an account and are limited per user per hour (`GEOCODING_RATE_LIMIT_PER_HOUR`, 120).

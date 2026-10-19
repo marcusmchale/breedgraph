@@ -45,6 +45,17 @@ class AbstractLocationTreesView(ABC):
     def _get_locations_by_type(self, location_type: int) -> AsyncGenerator[LocationOutput, None]:
         ...
 
+    async def search_locations(self, name: str, limit: int = 10) -> List[LocationOutput]:
+        """The locations the user can read whose name contains name, ignoring case, those starting with it first"""
+        name = (name or '').strip()
+        if not name:
+            return []
+        return await self._search_locations(name, max(1, min(limit, 50)))
+
+    @abstractmethod
+    async def _search_locations(self, name: str, limit: int) -> List[LocationOutput]:
+        ...
+
     async def get_descendants_by_type(self, location_ids: Iterable[int]) -> Dict[int | None, List[LocationOutput]]:
         """
         Every readable location below these locations, as id, name and type, keyed by location type id.

@@ -98,6 +98,11 @@ type Query {
     """Get a list of country templates for use in top level location tree creation"""
     locationsCountries: LocationTemplatesPayload!
     """
+    The locations the user can read whose name contains name, ignoring case, those whose name starts with it first,
+    then by name: at most limit (10 by default, 50 at most)
+    """
+    locationsSearch(name: String!, limit: Int): LocationsPayload!
+    """
     Places matching a search, to move the location map to: preferring those in viewbox ([west, south, east, north]),
     or only those there when bounded, and only those in the country with ISO alpha-2 countryCode when given.
     The server asks OpenStreetMap's Nominatim, so the browser contacts no third party. Requires sign-in, and is

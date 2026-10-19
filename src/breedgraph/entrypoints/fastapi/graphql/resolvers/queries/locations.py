@@ -33,6 +33,15 @@ async def get_countries(_, info) -> List[LocationInput]:
     async with bus.views_factory.get_views(user_id = info.context.get('user_id')) as views:
         return await views.location_trees.countries()
 
+@graphql_query.field("locationsSearch")
+@graphql_payload
+async def search_locations(_, info, name: str, limit: int | None = None) -> List[LocationOutput]:
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views(user_id=info.context.get('user_id')) as views:
+        locations = await views.location_trees.search_locations(name, limit=limit or 10)
+    info.context.setdefault('locations_map', dict()).update({location_.id: location_ for location_ in locations})
+    return locations
+
 async def _geocoding(info):
     """The geocoding service, once the user is within their hourly limit of searches"""
     state_store = info.context['bus'].state_store

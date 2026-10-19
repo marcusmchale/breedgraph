@@ -9,3 +9,8 @@ def exact_text_regex(text: str) -> str:
     Matching with =~ does not use indexes: keep it to small sets or lookups by an indexed property first.
     """
     return f"(?iu)^{re.escape(text)}$"
+
+
+def containing_text_regex(text: str) -> str:
+    """As exact_text_regex, but matching any text that contains text"""
+    return f"(?iu).*{re.escape(text)}.*"

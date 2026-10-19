@@ -92,3 +92,18 @@ def read_descendants_by_type():
         ORDER BY location.name, location.id
         RETURN type, collect({{id: location.id, name: location.name}}) AS locations
     """
+
+
+def search_locations():
+    """
+    The locations the user can read whose name contains $name (as $name_regex matches it), those whose name starts with
+    it first, then by name, at most $limit; hidden locations are left out (rule 5)
+    """
+    return f"""
+        MATCH (location:Location) WHERE location.name =~ $name_regex
+        {_with_root()}
+        WITH root, visible_ids, location WHERE location.id IN visible_ids
+        RETURN {_location()} AS location
+        ORDER BY NOT toLower(location.name) STARTS WITH toLower($name), toLower(location.name), location.id
+        LIMIT $limit
+    """

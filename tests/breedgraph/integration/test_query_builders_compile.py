@@ -52,6 +52,7 @@ QUERIES = {
     'location_trees.read_location_trees': location_trees.read_location_trees(),
     'location_trees.read_locations_by_type': location_trees.read_locations_by_type(),
     'location_trees.read_descendants_by_type': location_trees.read_descendants_by_type(),
+    'location_trees.search_locations': location_trees.search_locations(),
     'programs.read_programs': programs.read_programs(),
     **{f'programs.read_program({by})': programs.read_program(by) for by in ('program', 'trial', 'study')},
     **{f'programs.read_trial({by})': programs.read_trial(by) for by in ('trial', 'study')},
