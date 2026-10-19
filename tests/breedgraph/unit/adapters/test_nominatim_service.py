@@ -40,6 +40,7 @@ async def test_search_places(monkeypatch):
     }
     # the application and a contact, as Nominatim's usage policy asks; nothing about the user
     assert request.headers['User-Agent'] == 'BreedGraph (breedgraph@example.org)'
+    assert request.headers['Accept-Language'] == 'en'
 
 
 @pytest.mark.asyncio

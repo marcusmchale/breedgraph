@@ -25,7 +25,8 @@ class NominatimGeocodingService(AbstractGeocodingService):
     @staticmethod
     def _headers() -> dict:
         contact = f" ({config.MAIL_FROM})" if config.MAIL_FROM else ""
-        return {'User-Agent': f"BreedGraph{contact}", 'Accept': 'application/json'}
+        # names in English, as the app is, rather than each place's own language
+        return {'User-Agent': f"BreedGraph{contact}", 'Accept': 'application/json', 'Accept-Language': 'en'}
 
     async def _search(self, params: dict) -> list:
         async with self._lock:
