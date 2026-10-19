@@ -384,6 +384,7 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
 7. **Logging.** Done: the message bus logs commands and events as their name and ID fields (`service_layer/log_safety.py`); validation errors are logged without input values;
    the auth token and request context, user records, account names, emails and login usernames are no longer logged at debug level.
    `LOG_LEVEL` defaults to `INFO` unless `ENVIRONMENT=development`, as library debug logs (e.g. Neo4j query parameters) may contain personal data.
+   GraphQL errors include Ariadne's debug extension (stack trace and local variables) only when `ENVIRONMENT=development`.
    Usernames of locked-out login attempts are still logged as warnings, for security monitoring; the privacy notice should say so.
 8. **Invitations.** Done, on the `invitations` branch: invitations replace allowed emails, which are removed with their `Email` nodes and `ALLOWED_REGISTRATION` links.
    Existing data is not migrated; the development database is flushed.

@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any
 
 from breedgraph.domain.model.accounts import AccountStored
 from breedgraph.custom_exceptions import UnauthorisedOperationError
-from breedgraph.config import GQL_API_PATH
+from breedgraph.config import GQL_API_PATH, ENVIRONMENT, Environment
 
 # logging
 import logging
@@ -16,6 +16,9 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Debug errors carry a stack trace and the local variables of the raising frame, so only in development
+GRAPHQL_DEBUG = ENVIRONMENT is Environment.DEVELOPMENT
 
 
 async def get_user_id(request: Request) -> Optional[AccountStored]:
@@ -105,7 +108,7 @@ async def graphql_server(request: Request):
             request.app.graphql_schema,
             data,
             context_value=context,
-            debug=True,
+            debug=GRAPHQL_DEBUG,
         )
         status_code = 200 if success else 400
         # Create the response with the GraphQL result
