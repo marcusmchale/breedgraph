@@ -83,6 +83,45 @@ async def post_to_create_file_reference(client, token:str, reference, control_te
     response = await client.post(GQL_API_PATH, data=data, files=files, headers=headers)
     return response
 
+async def post_to_update_file_reference(client, token:str, reference):
+    test_file = reference.pop('file')
+    filepath = Path(test_file.name)
+    operations = {
+        "query": """
+            mutation UpdateFile(
+                $reference: FileReferenceUpdate!
+            ) {
+                referencesUpdateFile(
+                  reference: $reference
+                ) {
+                    status
+                    result
+                    errors { message }
+                }
+            }
+        """,
+        "variables": {
+            "reference": {
+                **reference,
+                "file": None  # Must be null here
+            }
+        }
+    }
+    map_data = {"0": ["variables.reference.file"]}
+    files = {
+        "0": (filepath.name, test_file, "application/pdf")
+    }
+    data = {
+        "operations": json.dumps(operations),
+        "map": json.dumps(map_data)
+    }
+    headers = with_auth(
+        csrf_token=client.headers["X-CSRF-Token"],
+        auth_token=token
+    )
+    response = await client.post(GQL_API_PATH, data=data, files=files, headers=headers)
+    return response
+
 async def post_to_file_submission(client, token:str, file_id: str):
     json_str = {
         "query": (

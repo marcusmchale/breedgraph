@@ -7,9 +7,13 @@ from breedgraph.domain.model.references import (
     LegalReferenceInput
 )
 from breedgraph.config import FILE_STORAGE_PATH
+from neo4j.exceptions import ResultNotSingleError
+
+from breedgraph.domain.model.archive import ArchiveState, LocalState
 from tests.breedgraph.e2e.references.post_methods import (
     post_to_create_legal_reference,
     post_to_create_file_reference,
+    post_to_update_file_reference,
     post_to_file_submission,
     post_to_file_download
 )
@@ -183,3 +187,106 @@ async def test_create_monitor_progress_and_get_file(
     file_content = response.content
     assert len(file_content) > 0, f"File {key} is empty"
     assert file_content == test_file_content
+
+
+async def wait_for_archival_record(archival_service, file_id: str):
+    """ The archival record is created last, once an upload is complete """
+    max_retries = 20
+    for i in range(max_retries):
+        try:
+            return await archival_service.get(file_id)
+        except ResultNotSingleError:
+            await asyncio.sleep(0.2)
+    raise AssertionError(f"No archival record for {file_id} after {max_retries} retries")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_replace_file(
+        reference_build_context,
+        login_token_factory,
+        client,
+        uow_factory,
+        bus
+):
+    user_id = reference_build_context['user_id']
+    login_token = login_token_factory(user_id)
+
+    first_path = Path(FILE_STORAGE_PATH, "test_document3.pdf")
+    first_path.write_bytes(b"first version")
+    with first_path.open("rb") as test_file:
+        create_file_response = await post_to_create_file_reference(
+            client,
+            token=login_token,
+            reference={'description': 'Test file replacement', 'file': test_file},
+            control_team_id=reference_build_context['team_id']
+        )
+    first_key = get_verified_payload(create_file_response, "referencesCreateFile").get('result')
+    await wait_for_archival_record(bus.archival_service, first_key)
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        reference_id = (await uow.repositories.references.get(file_id=first_key)).id
+
+    second_path = Path(FILE_STORAGE_PATH, "test_document4.pdf")
+    second_path.write_bytes(b"second version")
+    with second_path.open("rb") as test_file:
+        update_file_response = await post_to_update_file_reference(
+            client,
+            token=login_token,
+            reference={'id': reference_id, 'file': test_file}
+        )
+    update_payload = get_verified_payload(update_file_response, "referencesUpdateFile")
+    assert_payload_success(update_payload)
+    second_key = update_payload.get('result')
+    second_record = await wait_for_archival_record(bus.archival_service, second_key)
+
+    # the reference points to the new file, which is to be archived
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        reference = await uow.repositories.references.get(reference_id=reference_id)
+        assert reference.file_id == second_key
+        assert reference.filename == "test_document4.pdf"
+    assert Path(FILE_STORAGE_PATH, second_key).read_bytes() == b"second version"
+    assert second_record.archive_state == ArchiveState.ARCHIVAL_PENDING
+
+    # and the file it replaced is deleted, here and from the archive
+    assert not Path(FILE_STORAGE_PATH, first_key).exists()
+    first_record = await bus.archival_service.get(first_key)
+    assert first_record.local_state == LocalState.EXPIRED
+    assert first_record.archive_state == ArchiveState.DELETION_PENDING
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_file_reference(
+        reference_build_context,
+        login_token_factory,
+        client,
+        uow_factory,
+        bus
+):
+    user_id = reference_build_context['user_id']
+    login_token = login_token_factory(user_id)
+
+    test_file_path = Path(FILE_STORAGE_PATH, "test_document5.pdf")
+    test_file_path.write_bytes(b"to be deleted")
+    with test_file_path.open("rb") as test_file:
+        create_file_response = await post_to_create_file_reference(
+            client,
+            token=login_token,
+            reference={'description': 'Test file deletion', 'file': test_file},
+            control_team_id=reference_build_context['team_id']
+        )
+    key = get_verified_payload(create_file_response, "referencesCreateFile").get('result')
+    await wait_for_archival_record(bus.archival_service, key)
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        reference_id = (await uow.repositories.references.get(file_id=key)).id
+
+    response = await client.post(GQL_API_PATH, json={
+        "query": " mutation ( $ids: [ID!]! ) { referencesDelete( ids: $ids ) { status result errors { message } } } ",
+        "variables": {"ids": [reference_id]}
+    }, headers=with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=login_token))
+    assert_payload_success(get_verified_payload(response, "referencesDelete"))
+    await bus.wait_until_idle()
+
+    # the file is deleted, here and from the archive
+    assert not Path(FILE_STORAGE_PATH, key).exists()
+    record = await bus.archival_service.get(key)
+    assert record.local_state == LocalState.EXPIRED
+    assert record.archive_state == ArchiveState.DELETION_PENDING
