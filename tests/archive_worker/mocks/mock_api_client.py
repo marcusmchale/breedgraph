@@ -49,6 +49,8 @@ class MockArchiveAPIClient(AbstractArchiveAPIClient):
             'get_retrieving': None,
             'get_deleting': None,
         }
+        # Exceptions raised by update_state for these archive states, as when the web server refuses an update
+        self.refused_states: Dict[str, Exception] = {}
         self.pending_archival = []
         self.archiving = []
         self.pending_retrieval = []
@@ -138,6 +140,9 @@ class MockArchiveAPIClient(AbstractArchiveAPIClient):
 
         if self._exceptions['update_state']:
             raise self._exceptions['update_state']
+
+        if update.get('archive_state') in self.refused_states:
+            raise self.refused_states[update['archive_state']]
 
         if update.get('archive_state') == ArchiveState.ARCHIVED.value:
             self.archiving = [r for r in self.archiving if not r.get('file_id') == file_id]

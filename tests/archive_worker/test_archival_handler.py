@@ -38,27 +38,46 @@ async def test_handle_archival_success(
 
 
 @pytest.mark.asyncio
-async def test_handle_archival_hash_mismatch(
+async def test_handle_archival_reports_hash_of_stored_file(
         mock_api_client,
         temp_archive_dir,
         sample_file_content
 ):
-    """Test archival fails on hash mismatch"""
+    """The web server checks what was stored against what it sent, so the worker reports the hash of what it stored"""
     record: dict = {
         "file_id": "test-file-123",
         "file_size": len(sample_file_content),
-        "file_hash": "wrong-hash-value"
+        "file_hash": "hash-of-the-unencrypted-file"
     }
 
-    # Should raise ValueError for hash mismatch
-    with pytest.raises(ValueError, match="Hash mismatch"):
+    await handle_archival(mock_api_client, temp_archive_dir, record)
+
+    [call] = mock_api_client.call_history['update_state']
+    assert call['update'] == {
+        "archive_state": ArchiveState.ARCHIVED.value,
+        "archive_hash": hashlib.sha256(sample_file_content).hexdigest()
+    }
+
+
+@pytest.mark.asyncio
+async def test_handle_archival_refused(
+        mock_api_client,
+        temp_archive_dir,
+        sample_file_content
+):
+    """When the web server refuses the hash, archival is marked failed, to be tried again"""
+    record: dict = {
+        "file_id": "test-file-123",
+        "file_size": len(sample_file_content),
+        "file_hash": "hash-of-the-unencrypted-file"
+    }
+    mock_api_client.refused_states[ArchiveState.ARCHIVED.value] = ValueError("does not match what was sent")
+
+    with pytest.raises(ValueError, match="does not match"):
         await handle_archival(mock_api_client, temp_archive_dir, record)
 
-    # Verify state is set for retry
-    mock_api_client.assert_update_state_call(
-        file_id=record['file_id'],
-        archive_state=ArchiveState.ARCHIVAL_FAILED
-    )
+    states = [call['update']['archive_state'] for call in mock_api_client.call_history['update_state']]
+    assert states == [ArchiveState.ARCHIVED.value, ArchiveState.ARCHIVAL_FAILED.value]
 
 
 @pytest.mark.asyncio

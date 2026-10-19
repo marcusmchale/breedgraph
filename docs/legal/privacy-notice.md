@@ -152,7 +152,7 @@ The University's IT services host the platform and its database, and send its em
 
 ## Backups
 
-Backups of the database are kept for 90 days on the Plant Systems Biology Laboratory's server. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
+Backups of the database are kept for 90 days on the Plant Systems Biology Laboratory's server. Backups, and the uploaded files archived on that server, are encrypted on our web server before they are copied there, and the laboratory's server holds no key to read them. If we restore a backup, we first apply every Person record erasure and account deletion made since it was taken. We do this from a log of the record and account numbers concerned, which is kept outside the database.
 
 ## Security
 

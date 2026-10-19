@@ -109,6 +109,14 @@ class Neo4jFileArchivalService(AbstractFileArchivalService):
             record = await result.single(strict=True)
             return self.record_to_archival_record(record)
 
+    async def set_archive_hash(self, file_id: str, archive_hash: str) -> None:
+        async with self.driver.session() as session:
+            await session.run(
+                queries['archive']['update_record'],
+                file_id=file_id,
+                updates={'archive_hash': archive_hash}
+            )
+
     async def _set_retrieved(self, file_id, file_hash: str) -> FileArchivalRecord:
         async with self.driver.session() as session:
             result = await session.run(

@@ -171,7 +171,7 @@ Backups and logs:
   where `created_at` is when the Person or account was created (`recorded_at`, `time`).
   It is appended to by the `PersonErased` and `AccountDeleted` event handlers after the change is committed, so every logged erasure happened.
   The setting and file keep their Person names, so existing deployments need no change.
-- `scripts/backup.sh` (cron on the web server) writes timestamped dumps. `scripts/sync_database_backups.sh` (cron on the archive server, settings as in `instance/backup_sync.env`) copies new dumps and the erasure log.
+- `scripts/backup.sh` (cron on the web server) writes timestamped dumps, encrypted with age (README, "Encryption key"). `scripts/sync_database_backups.sh` (cron on the archive server, settings as in `instance/backup_sync.env`) copies new dumps and the erasure log.
   It is unrelated to the file archive worker. The log is copied with `rsync --append-verify`, so a truncated log on the web server never shortens the copy. Run it at least as often as dumps are made.
   `BACKUP_RETENTION_DAYS` optionally removes old dumps on the archive server; the erasure log is never removed.
 - `scripts/restore.sh` loads a dump and then runs `scripts/apply_erasures.py`, which applies the log again: Persons are erased and accounts tombstoned again, with their logged times, including those logged after the dump was taken. Replaying is idempotent.

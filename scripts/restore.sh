@@ -1,5 +1,8 @@
 #!/bin/bash
-set -e
+# Loads a dump from NEO4J_ARCHIVE_PATH over DATABASE_NAME, then applies the erasure log.
+# A <database>-<date>.dump.age is decrypted with the key file ENCRYPTION_IDENTITY_PATH (README, "Encryption key");
+# an unencrypted .dump, such as a test database, is loaded as it is.
+set -eo pipefail
 
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <backup-filename>"
@@ -7,13 +10,26 @@ if [ $# -ne 1 ]; then
 fi
 
 BACKUP_FILE="$1"
-BACKUP_PATH="${NEO4J_ARCHIVE_PATH/}/${BACKUP_FILE}"
+BACKUP_PATH="${NEO4J_ARCHIVE_PATH}/${BACKUP_FILE}"
 TEMP_DUMP="${NEO4J_ARCHIVE_PATH}/${DATABASE_NAME}.dump"
 
 if [ ! -f "$BACKUP_PATH" ]; then
     echo "Backup file not found:"
     echo "$BACKUP_PATH"
     exit 1
+fi
+
+ENCRYPTED=0
+if [[ "${BACKUP_FILE}" == *.age ]]; then
+    ENCRYPTED=1
+    if [ -z "${ENCRYPTION_IDENTITY_PATH}" ] || [ ! -r "${ENCRYPTION_IDENTITY_PATH}" ]; then
+        echo "To restore an encrypted dump, ENCRYPTION_IDENTITY_PATH must be a key file this user can read:"
+        echo "${ENCRYPTION_IDENTITY_PATH:-(not set)}"
+        exit 1
+    fi
+    # Before anything is stopped or overwritten: a wrong key or a damaged file fails here
+    echo "Checking the backup can be decrypted..."
+    age --decrypt --identity "${ENCRYPTION_IDENTITY_PATH}" "${BACKUP_PATH}" > /dev/null
 fi
 
 echo "WARNING: This will overwrite database '${DATABASE_NAME}'."
@@ -46,21 +62,32 @@ echo "Stopping Neo4j..."
 sudo service neo4j stop
 NEO4J_STOPPED=1
 
-echo "Copying backup to temporary path for restoration: ${TEMP_DUMP}"
-sudo -u neo4j cp ${BACKUP_PATH} ${TEMP_DUMP}
+if [ "${ENCRYPTED}" -eq 1 ]; then
+    echo "Restoring backup: ${BACKUP_PATH}"
+    age --decrypt --identity "${ENCRYPTION_IDENTITY_PATH}" "${BACKUP_PATH}" \
+        | sudo -u neo4j neo4j-admin database load \
+            "${DATABASE_NAME}" \
+            --from-stdin \
+            --overwrite-destination=true
+else
+    echo "Copying backup to temporary path for restoration: ${TEMP_DUMP}"
+    sudo -u neo4j cp ${BACKUP_PATH} ${TEMP_DUMP}
 
-echo "Restoring backup: ${TEMP_DUMP}"
-sudo -u neo4j neo4j-admin database load \
-    "${DATABASE_NAME}" \
-    --from-path="${NEO4J_ARCHIVE_PATH}" \
-    --overwrite-destination=true
+    echo "Restoring backup: ${TEMP_DUMP}"
+    sudo -u neo4j neo4j-admin database load \
+        "${DATABASE_NAME}" \
+        --from-path="${NEO4J_ARCHIVE_PATH}" \
+        --overwrite-destination=true
+fi
 
 echo "Starting Neo4j..."
 sudo service neo4j start
 NEO4J_STOPPED=0
 
-echo "Removing temporary dump file ${TEMP_DUMP}"
-sudo -u neo4j rm ${NEO4J_ARCHIVE_PATH}/${DATABASE_NAME}.dump
+if [ "${ENCRYPTED}" -eq 0 ]; then
+    echo "Removing temporary dump file ${TEMP_DUMP}"
+    sudo -u neo4j rm ${NEO4J_ARCHIVE_PATH}/${DATABASE_NAME}.dump
+fi
 
 # Persons erased and accounts deleted after the backup was taken must be erased again before the database is used
 ERASURE_LOG="${PERSON_ERASURE_LOG_PATH:-instance/person_erasure_log.jsonl}"

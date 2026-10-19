@@ -188,6 +188,30 @@ async def test_download_file_success(client, sample_file_content, destination):
 
 
 @pytest.mark.asyncio
+async def test_download_file_interrupted(client, sample_file_content, temp_archive_dir):
+    """An interrupted download leaves nothing in the archive, not even part of the file"""
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+
+    async def interrupted_chunk_generator():
+        yield sample_file_content[:10]
+        raise httpx.ReadError("Connection lost")
+
+    mock_response.aiter_bytes = MagicMock(return_value=interrupted_chunk_generator())
+
+    @asynccontextmanager
+    async def mock_stream_context(*args, **kwargs):
+        yield mock_response
+
+    with patch.object(client.client, 'stream', side_effect=mock_stream_context):
+        with pytest.raises(httpx.ReadError):
+            await client.download_file("file-123", temp_archive_dir)
+
+    assert list(temp_archive_dir.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_download_file_not_found(client, destination):
     """Test download file when not found"""
     mock_response = AsyncMock()

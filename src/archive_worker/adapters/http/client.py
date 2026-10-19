@@ -83,7 +83,8 @@ class ArchiveAPIClient(AbstractArchiveAPIClient):
     async def download_file(self, file_id: str, destination: Path) -> str:
         # todo implement range request support on the archive/download page so can resume large files
         #  will need to handle resuming/restart of hash creation from partial download
-        """Download a file from the web server to disk."""
+        """Download a file from the web server to disk, under a temporary name until it is complete."""
+        partial = Path(destination, f"{file_id}.partial")
         try:
             async with self.client.stream(
                     "GET",
@@ -93,16 +94,19 @@ class ArchiveAPIClient(AbstractArchiveAPIClient):
                 response.raise_for_status()
                 # Calculate hash while writing
                 hash_obj = hashlib.sha256()
-                async with aiofiles.open(Path(destination, file_id), "wb") as f:
+                async with aiofiles.open(partial, "wb") as f:
                     async for chunk in response.aiter_bytes(CHUNK_SIZE):
                         await f.write(chunk)
                         hash_obj.update(chunk)
+                partial.replace(Path(destination, file_id))
                 file_hash = hash_obj.hexdigest()
                 return file_hash
 
         except httpx.HTTPError as e:
             logger.error(f"Failed to download file {file_id}: {e}")
             raise
+        finally:
+            partial.unlink(missing_ok=True)
 
     async def upload_file(self, file_id: str, source: Path) -> dict:
         # todo implement range request support on the archive/download page so can resume large files

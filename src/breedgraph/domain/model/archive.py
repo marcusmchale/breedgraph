@@ -37,6 +37,8 @@ class FileArchivalRecord:
     file_id: str  # UUID used as filename in file storage, unique identifier
     file_size: int  # size in bytes
     file_hash: str  # SHA256 hash for integrity verification
+    # SHA256 hash of what was last sent to the archive server, encrypted, which it must report back to archive the file
+    archive_hash: str | None = None
     last_accessed: datetime | None = None  # when this file was last accessed (for pruning of local files), set by the database
 
     # State tracking
@@ -54,6 +56,7 @@ class FileArchivalRecord:
 @dataclass
 class FileArchivalUpdate:
     archive_state: ArchiveState
+    archive_hash: str | None = None  # with ARCHIVED: SHA256 hash of what the archive server stored
 
 @dataclass
 class ArchiveRequestor:

@@ -3,7 +3,7 @@
 #
 # This is NOT the file archive worker (archive_worker, ARCHIVE_* settings), which moves uploaded files
 # to archive storage. This script copies only:
-#   - Neo4j database dumps, written on the web server by scripts/backup.sh, and
+#   - Neo4j database dumps, written on the web server by scripts/backup.sh, encrypted (.dump.age), and
 #   - the erasure log of erased Persons and deleted accounts, which scripts/restore.sh replays after loading a dump (docs/person.md §5).
 #
 # Settings are read from BACKUP_SYNC_ENV (default /etc/breedgraph/backup_sync.env) if it exists,
@@ -13,6 +13,7 @@
 #   0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
 #
 # This server needs ssh key access to BACKUP_SOURCE, and rsync on both servers.
+# It never needs the encryption key: the dumps it holds can be read only with the key kept elsewhere.
 set -euo pipefail
 
 BACKUP_SYNC_ENV="${BACKUP_SYNC_ENV:-/etc/breedgraph/backup_sync.env}"
@@ -32,9 +33,10 @@ BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-}"
 mkdir -p "${BACKUP_DESTINATION_PATH}"
 echo "$(date -Iseconds) Syncing database backups from ${BACKUP_SOURCE}"
 
-# Dumps are never changed once written, so only new ones are copied
+# Dumps are never changed once written, so only new ones are copied.
+# One still being written is named .partial, so it is left for the next sync.
 rsync -az --ignore-existing \
-    --include='*.dump' --exclude='*' \
+    --include='*.dump.age' --include='*.dump' --exclude='*' \
     "${BACKUP_SOURCE}:${NEO4J_ARCHIVE_PATH}/" \
     "${BACKUP_DESTINATION_PATH}/"
 
@@ -51,7 +53,8 @@ fi
 # Optionally remove old dumps here. The erasure log is never removed: it must cover every dump that could be restored.
 if [ -n "${BACKUP_RETENTION_DAYS}" ]; then
     echo "Removing dumps older than ${BACKUP_RETENTION_DAYS} days"
-    find "${BACKUP_DESTINATION_PATH}" -maxdepth 1 -type f -name '*.dump' -mtime +"${BACKUP_RETENTION_DAYS}" -print -delete
+    find "${BACKUP_DESTINATION_PATH}" -maxdepth 1 -type f \( -name '*.dump.age' -o -name '*.dump' \) \
+        -mtime +"${BACKUP_RETENTION_DAYS}" -print -delete
 fi
 
 echo "$(date -Iseconds) Database backup sync complete"

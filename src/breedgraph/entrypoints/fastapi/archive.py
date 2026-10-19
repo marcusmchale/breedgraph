@@ -1,24 +1,37 @@
+from contextlib import aclosing
 from pathlib import Path
+import hashlib
 import aiofiles
 
 from fastapi import APIRouter, HTTPException, Request, Header, Depends
-from fastapi.responses import Response, FileResponse
+from fastapi.responses import Response, StreamingResponse
 
+from breedgraph import config
 from breedgraph.domain.model.archive import FileArchivalUpdate, ArchiveState
-
-from breedgraph.config import ARCHIVE_AUTH_TOKEN, FILE_STORAGE_PATH
+from breedgraph.adapters.files.age import AgeError, encrypted_chunks, decrypt_file, file_chunks
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 """
-These endpoints should only be accessed by the file archival server
+These endpoints should only be accessed by the file archival server.
+Files are encrypted on their way to it and decrypted on their way back, so it never holds a readable copy
+(README, "Encryption key").
 """
 
 def verify_service_token(authorization: str = Header(None)):
-    if authorization != f"Bearer {ARCHIVE_AUTH_TOKEN}":
+    if authorization != f"Bearer {config.ARCHIVE_AUTH_TOKEN}":
         raise HTTPException(status_code=401, detail="Unauthorized service request")
+
+def archive_encrypted() -> bool:
+    """Whether files go to the archive server encrypted: always, except in development without a key"""
+    if config.ENCRYPTION_RECIPIENT:
+        return True
+    if config.ENVIRONMENT is config.Environment.DEVELOPMENT:
+        return False
+    logger.error("ENCRYPTION_RECIPIENT is not set, so files cannot be sent to or received from the archive server")
+    raise HTTPException(status_code=503, detail="Archive encryption not configured")
 
 router = APIRouter(prefix='/archive', dependencies=[Depends(verify_service_token)])
 
@@ -105,8 +118,14 @@ async def update_archive(file_id: str, update: FileArchivalUpdate, request: Requ
             )
         archive_record = await archival_service.update_archive_state(
             file_id=file_id,
-            archive_state=update.archive_state
+            archive_state=update.archive_state,
+            archive_hash=update.archive_hash
         )
+        if archive_record is None:  # deleted
+            return {"file_id": file_id}
+
+        if update.archive_state is ArchiveState.ARCHIVED and archive_record.archive_state is not ArchiveState.ARCHIVED:
+            raise HTTPException(status_code=409, detail="The archived copy does not match what was sent")
 
         return {
             "file_id": archive_record.file_id,
@@ -114,32 +133,73 @@ async def update_archive(file_id: str, update: FileArchivalUpdate, request: Requ
             "file_hash": archive_record.file_hash
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error updating record: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/download/{file_id}")
-async def download_file_to_archive(file_id: str):
-    file_path = Path(FILE_STORAGE_PATH, file_id)
+async def download_file_to_archive(file_id: str, request: Request):
+    """
+    Send a file to the archive server, encrypted, and store the hash of what was sent,
+    which the archive server reports back when it marks the file archived
+    """
+    archival_service = request.app.bus.archival_service
+    if not archival_service:
+        raise HTTPException(status_code=503, detail="Archival service not configured")
+
+    file_path = Path(config.FILE_STORAGE_PATH, file_id)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(
-        file_path,
-        filename=file_id
-    )
+
+    if archive_encrypted():
+        source = encrypted_chunks(file_path, config.ENCRYPTION_RECIPIENT)
+    else:
+        source = file_chunks(file_path)
+
+    async def send():
+        sent = hashlib.sha256()
+        async with aclosing(source) as chunks:
+            async for chunk in chunks:
+                sent.update(chunk)
+                yield chunk
+        # stored before the response ends, so before the archive server can report what it stored
+        await archival_service.set_archive_hash(file_id, sent.hexdigest())
+
+    return StreamingResponse(send(), media_type="application/octet-stream")
 
 @router.put("/upload/{file_id}")
 async def upload_file_to_restore(file_id: str, request: Request):
-    destination = Path(FILE_STORAGE_PATH, file_id)
+    """
+    Receive a file back from the archive server and decrypt it.
+    It is written beside its destination and put in place only once complete,
+    so a failed retrieval leaves nothing behind. The file's hash is checked when the archive server marks it retrieved.
+    """
+    encrypted = archive_encrypted()
+    if encrypted and not config.ENCRYPTION_IDENTITY_PATH:
+        logger.error("ENCRYPTION_IDENTITY_PATH is not set, so archived files cannot be decrypted")
+        raise HTTPException(status_code=503, detail="Archive encryption not configured")
 
+    destination = Path(config.FILE_STORAGE_PATH, file_id)
+    received = destination.with_name(f"{file_id}.received")
+    decrypted = destination.with_name(f"{file_id}.decrypted")
     try:
-        async with aiofiles.open(destination, "wb") as f:
+        async with aiofiles.open(received, "wb") as f:
             async for chunk in request.stream():
                 await f.write(chunk)
 
+        if encrypted:
+            await decrypt_file(received, decrypted, config.ENCRYPTION_IDENTITY_PATH)
+            decrypted.replace(destination)
+        else:
+            received.replace(destination)
+
         return {"file_id": file_id}
 
-    except Exception:
-        if destination.exists():
-            destination.unlink(missing_ok=True)
-        raise
+    except AgeError as e:
+        logger.error(str(e))
+        raise HTTPException(status_code=400, detail="The file could not be decrypted")
+    finally:
+        received.unlink(missing_ok=True)
+        decrypted.unlink(missing_ok=True)

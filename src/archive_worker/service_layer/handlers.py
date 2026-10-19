@@ -8,20 +8,21 @@ logger = logging.getLogger(__name__)
 
 
 async def handle_archival(client: AbstractArchiveAPIClient, destination: Path, record: dict):
-    """Handle archival of a file from web server to archive"""
+    """
+    Handle archival of a file from web server to archive.
+    The web server sends the file encrypted, so it checks the hash of what was stored against what it sent.
+    """
     file_id = record['file_id']
-    file_hash = record['file_hash']
     try:
         # Download file from web server
         logger.debug(f"Downloading {file_id} from web server")
-        download_hash = await client.download_file(file_id, destination)
-        if download_hash != file_hash:
-            raise ValueError(f"Hash mismatch for {file_id}")
-        logger.info(f"Successfully archived {file_id}")
-        # Update state
+        archive_hash = await client.download_file(file_id, destination)
+        # Update state, refused if what was stored does not match what was sent
         await client.update_state(file_id, {
-            "archive_state": ArchiveState.ARCHIVED.value
+            "archive_state": ArchiveState.ARCHIVED.value,
+            "archive_hash": archive_hash
         })
+        logger.info(f"Successfully archived {file_id}")
     except Exception as e:
         logger.error(f"Archival failed for {file_id}: {e}")
         await client.update_state(file_id, {

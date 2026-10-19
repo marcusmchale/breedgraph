@@ -564,18 +564,58 @@ to run the scripts
     set +a
     ./setup_initial_data.py
 
+### Encryption key
+
+Database backups and archived files are encrypted with [age](https://age-encryption.org) before they leave the web
+server, so the archive server holds only copies it cannot read. The web server keeps the private key, as it decrypts
+archived files when users ask for them back, and restores need it too. On the web server, install age and make the key
+as the user that runs BreedGraph (here `breedgraph`):
+
+    sudo apt install age
+    sudo -u breedgraph age-keygen -o /opt/breedgraph/encryption_key.txt
+    sudo -u breedgraph age-keygen -y /opt/breedgraph/encryption_key.txt
+
+`age-keygen` makes the key file readable only by its owner. The last command prints the public key, `age1…`.
+Set both in `breedgraph.env`, and restart the API:
+
+    ENCRYPTION_RECIPIENT="age1…"
+    ENCRYPTION_IDENTITY_PATH="/opt/breedgraph/encryption_key.txt"
+
+Run `scripts/backup.sh` and `scripts/restore.sh` as that user too. The archive server needs neither age nor the key:
+never copy the private key there. In development (`ENVIRONMENT=development`) both settings may be left empty, and
+backups and archived files are then not encrypted. Elsewhere `backup.sh` refuses to run without a public key, and the
+API refuses to send files to the archive server or take them back.
+
+**Keep copies of the private key**, the `AGE-SECRET-KEY-1…` line in the key file, somewhere safe away from the web
+server and the archive server, including a printed copy in a sealed envelope on campus. Without the key no backup or
+archived file can be read, so losing the web server without a copy loses them all.
+
+**Check each copy** once it is made, by decrypting a backup with it on a machine with age installed, then deleting the
+copied key file:
+
+    age --decrypt --identity copy_of_key.txt <database>-<date>.dump.age > /dev/null && echo "the key works"
+
+**Changing the key.** Make a new key with `age-keygen -o new_key.txt`, add it to the end of the key file
+(`cat new_key.txt >> encryption_key.txt`, then delete `new_key.txt`), set `ENCRYPTION_RECIPIENT` to its public key,
+restart the API, and replace the copies. age tries every key in the key file, so backups and archived files made with
+the old key can still be read. Keep an old key for as long as anything made with it exists: backups are kept for 90
+days, but archived files can be kept indefinitely.
+
 ### Backups, restores and retention
 
-Neo4j is dumped on the web server, and the dumps and the erasure log are copied to an archive server.
+Neo4j is dumped on the web server, encrypted, and the dumps and the erasure log are copied to an archive server.
 The erasure log records erased Persons and deleted accounts outside the database, so a restore can apply them
 again ([docs/person.md](docs/person.md) §5). Redis is not backed up: it holds read models, which are rebuilt from
 Neo4j, and work in progress (dataset submissions, analysis jobs and their results for `ANALYSIS_RETENTION_DAYS`,
 upload progress), which is lost if Redis is.
 
 **Back up** on the web server with `scripts/backup.sh`. It stops Neo4j (the API is unavailable meanwhile),
-dumps `DATABASE_NAME` to `NEO4J_ARCHIVE_PATH` as `<database>-<date>.dump`, and starts Neo4j again.
-It uses `sudo` to stop Neo4j and dump as the neo4j user, and reads its settings from the environment, which cron
-doesn't load. For example, in the crontab of a user allowed those commands, nightly:
+dumps `DATABASE_NAME` to `NEO4J_ARCHIVE_PATH` as `<database>-<date>.dump.age`, encrypted to `ENCRYPTION_RECIPIENT`
+as it is written, and starts Neo4j again. No unencrypted dump is written, and a dump is named `.partial` until complete.
+In development without a key it writes an unencrypted `<database>-<date>.dump`, as before.
+It uses `sudo` to stop Neo4j and dump as the neo4j user, and writes the encrypted dump as the user running it, who
+needs write access to `NEO4J_ARCHIVE_PATH`. It reads its settings from the environment, which cron doesn't load.
+For example, in the crontab of the user that runs BreedGraph, allowed those commands, nightly:
 
     15 2 * * * cd /path/to/breedgraph && set -a && . ./breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph_backup.log 2>&1
 
@@ -584,9 +624,10 @@ Dumps accumulate on the web server; remove old ones there as space requires, onc
 **Copy** the dumps and the erasure log to the archive server with `scripts/sync_database_backups.sh`, run from cron
 *on the archive server*, at least as often as dumps are made: an erasure is at risk until the log is copied.
 Its settings are in `/etc/breedgraph/backup_sync.env` (example: `instance/backup_sync.env`), and it needs ssh key
-access to the web server. New dumps are copied as they appear, and the log with `rsync --append-verify`, as it is only
-ever appended to. `BACKUP_RETENTION_DAYS` removes old dumps there: set it to 90, the period the privacy notice states.
-The erasure log is never removed.
+access to the web server, but never the encryption key. New dumps are copied as they appear, and the log with
+`rsync --append-verify`, as it is only ever appended to. `BACKUP_RETENTION_DAYS` removes old dumps there: set it to
+90, the period the privacy notice states. The erasure log is never removed, and is not encrypted: it holds only
+record and account numbers, and must stay appendable.
 
     0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
 
@@ -595,8 +636,11 @@ The erasure log is never removed.
 
     cd /path/to/breedgraph
     set -a; . ./breedgraph.env; set +a
-    scripts/restore.sh <database>-20261015-021500.dump
+    scripts/restore.sh <database>-20261015-021500.dump.age
 
+An encrypted dump needs the key file `ENCRYPTION_IDENTITY_PATH`, so run it as the key's owner, or, if the web server
+was lost, with `ENCRYPTION_IDENTITY_PATH` set to a copy of the key. It decrypts the whole dump first, so a wrong key or
+a damaged dump stops it before anything is changed. An unencrypted `.dump`, such as a test database, loads as it is.
 It asks for confirmation, stops Neo4j, loads the dump over `DATABASE_NAME`, starts Neo4j, and replays the erasure log
 (`scripts/apply_erasures.py`), so Persons erased and accounts deleted since the dump stay that way. Each entry is
 applied to its own record only, and the id counters are advanced past the logged ids, so no erased id is given out
@@ -606,6 +650,10 @@ before the database is used. Then rebuild the read models in Redis from the rest
     scripts/load_state_store.py
 
 Uploaded files are not in the dump: they stay in `FILE_STORAGE_PATH`, or in archive storage (the archive worker).
+The API encrypts files as it sends them to the archive worker and decrypts them when they come back, with the same
+key, so the archive server holds only encrypted copies, while `FILE_STORAGE_PATH` holds files as uploaded. Once a file
+is archived, the retention job removes the web server's copy after `LOCAL_STORAGE_DURATION` days, so the archive server
+then holds its only copy. The API checks the archive server stored exactly what it sent before marking a file archived.
 
 **Erasure on request.** The University is the data controller, so people without an account linked to their Person
 record ask us to erase it. Confirm who is asking, then, with the environment loaded:

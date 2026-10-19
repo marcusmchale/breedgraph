@@ -107,12 +107,21 @@ class AbstractFileArchivalService(ABC):
     async def update_archive_state(
             self,
             file_id: str,
-            archive_state: ArchiveState
+            archive_state: ArchiveState,
+            archive_hash: str | None = None
     ) -> FileArchivalRecord | None:
         """
-        Update state for a record, return None only if record is deleted
+        Update state for a record, return None only if record is deleted.
+        A file is archived only if archive_hash, the hash of what the archive server stored,
+        matches what was sent to it; otherwise it is archived again.
         """
         logger.debug(f"Updating archival state for file {file_id}")
+        if archive_state == ArchiveState.ARCHIVED:
+            record = await self.get(file_id)
+            if archive_hash is None or archive_hash != record.archive_hash:
+                logger.error(f"The archived copy of {file_id} does not match what was sent, archiving it again")
+                archive_state = ArchiveState.ARCHIVAL_FAILED
+
         if archive_state == ArchiveState.RETRIEVED:
             return await self.set_retrieved(file_id)
         elif archive_state == ArchiveState.DELETED:
@@ -157,6 +166,11 @@ class AbstractFileArchivalService(ABC):
         else:
             await self.queue.put(RetrievalSucceeded(file_id=file_id))
             return retrieved
+
+    @abstractmethod
+    async def set_archive_hash(self, file_id: str, archive_hash: str) -> None:
+        """ Store the hash of what was sent to the archive server """
+        ...
 
     @abstractmethod
     async def _set_retrieved(self, file_id: str, file_hash: str) -> FileArchivalRecord:
