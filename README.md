@@ -485,15 +485,26 @@ Nominatim (`NOMINATIM_URL`, limited per user by `GEOCODING_RATE_LIMIT_PER_HOUR`)
 The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloads) build of OpenStreetMap by
 `scripts/map_tiles.py`, into `MAP_TILES_PATH`: the world at low detail (to zoom 8, about 560 MB), full detail (to
 zoom 15) in 1° cells around every location with coordinates, and `tiles.json`, which lists them. Only those parts are
-downloaded. It needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
-(check the archive's sha256 against the release's digest). The cells are served to anyone, so they show which 1°
-cells hold locations, private ones included; `--cell-degrees` widens them.
+downloaded. The cells are served to anyone, so they show which 1° cells hold locations, private ones included;
+`--cell-degrees` widens them.
+
+It needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases), a single program,
+installed once on the server that runs the script (`Linux_arm64` on ARM):
+
+    curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
+    curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/checksums.txt
+    sha256sum --check --ignore-missing checksums.txt
+    tar xzf go-pmtiles_1.31.2_Linux_x86_64.tar.gz pmtiles
+    sudo install pmtiles /usr/local/bin/
+
+Then cut the tiles:
 
     set -a; . ./breedgraph.env; set +a
     scripts/map_tiles.py --build https://build.protomaps.com/YYYYMMDD.pmtiles
 
 Builds are kept for about a week, so use a recent date. Run it again with `--regions-only` when new field sites are
-added, e.g. weekly from cron, and without it now and then to refresh the world file. For development, `--world-maxzoom 6`
+added, e.g. weekly from cron, and without it now and then to refresh the world file. Deploying leaves
+`MAP_TILES_PATH` as it is, so the tiles don't need cutting again after a deploy. For development, `--world-maxzoom 6`
 gives a world file of about 45 MB.
 
 
