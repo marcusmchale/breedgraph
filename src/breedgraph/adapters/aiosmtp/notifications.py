@@ -15,6 +15,16 @@ from breedgraph.service_layer.infrastructure.notifications import AbstractNotifi
 
 logger=logging.getLogger(__name__)
 
+
+def _failure(e: Exception) -> str:
+    """
+    A failed send, by the exception's type and SMTP reply code only: its arguments and message can hold the recipient's
+    or sender's address, which are not logged
+    """
+    code = getattr(e, 'code', None)
+    return f"Failed to send email: {type(e).__name__}" + (f" (SMTP {code})" if code is not None else "")
+
+
 class EmailNotifications(AbstractNotifications):
 
     @staticmethod
@@ -32,7 +42,7 @@ class EmailNotifications(AbstractNotifications):
                 start_tls=MAIL_USE_TLS if MAIL_AUTHENTICATED else False
             )
         except Exception as e:
-            logger.error(f"Failed to send email: {type(e).__name__, e}")
+            logger.error(_failure(e))
 
 
     @staticmethod
@@ -50,4 +60,4 @@ class EmailNotifications(AbstractNotifications):
                 start_tls=MAIL_USE_TLS if MAIL_AUTHENTICATED else False
             )
         except Exception as e:
-            logger.error(f"Failed to send email: {type(e).__name__, e}")
+            logger.error(_failure(e))
