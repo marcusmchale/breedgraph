@@ -112,6 +112,11 @@ type AnalysisRecordGroupDimension {
   groupings: [AnalysisRecordGrouping!]!
 
   """
+  Subjects whose units are levels, for studies without one of the groupings.
+  """
+  subjectIds: [ID!]!
+
+  """
   Shared levels combining codes across groupings or scopes.
   """
   levels: [AnalysisRecordGroupLevel!]!

@@ -210,19 +210,25 @@ class RecordGroupDimension:
     Levels are nested by default: each (grouping, scope, code) is distinct.
     Level definitions explicitly combine codes into shared levels;
     codes not included keep their nested identity.
+
+    Studies without one of the groupings take their levels from the unit graph instead:
+    the nearest unit of one of the subjects, the record's unit or an ancestor, e.g. the plots of a field.
     """
     name: str
-    grouping_ids: list[int]
+    grouping_ids: list[int] = field(default_factory=list)
+    subject_ids: list[int] = field(default_factory=list)
     levels: list[RecordGroupLevel] = field(default_factory=list)
 
     def __post_init__(self):
         self.name = (self.name or '').strip()
         if not self.name:
             raise ValueError("A name is required for record group dimensions")
-        if not self.grouping_ids:
-            raise ValueError(f"Dimension '{self.name}' requires at least one grouping")
+        if not self.grouping_ids and not self.subject_ids:
+            raise ValueError(f"Dimension '{self.name}' requires at least one grouping or subject")
         if len(set(self.grouping_ids)) != len(self.grouping_ids):
             raise ValueError(f"Dimension '{self.name}' lists a grouping more than once")
+        if len(set(self.subject_ids)) != len(self.subject_ids):
+            raise ValueError(f"Dimension '{self.name}' lists a subject more than once")
 
         labels = [level.label for level in self.levels]
         if len(set(labels)) != len(labels):

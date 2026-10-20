@@ -165,13 +165,15 @@ class RecordGroupLevelImport(DomainCheckedModel):
 
 class RecordGroupDimensionImport(DomainCheckedModel):
     name: str
-    grouping_ids: list[int]
+    grouping_ids: list[int] | None = None
+    subject_ids: list[int] | None = None
     levels: list[RecordGroupLevelImport] | None = None
 
     def to_domain(self) -> RecordGroupDimension:
         return RecordGroupDimension(
             name=self.name,
-            grouping_ids=self.grouping_ids,
+            grouping_ids=list(self.grouping_ids or []),
+            subject_ids=list(self.subject_ids or []),
             levels=[l.to_domain() for l in self.levels or []]
         )
 

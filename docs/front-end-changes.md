@@ -9,7 +9,7 @@ describe the API rather than the work, the schema's descriptions, README.md and 
 ## Where the front end is
 
 breedview's master (`4069acf`) implements every API change up to 2026-10-19. Not yet: removing optional links with
-null (2026-10-20, below).
+null and units as record group levels (both 2026-10-20, below).
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
@@ -45,3 +45,30 @@ In breedview:
 - `updateUnitModal.vue` sends `subjectId` and `germplasmId` as `|| undefined`: send `null` when they are cleared.
 - `GemplasmEntryModal.vue` already sends `originId: formData.value.originId || null`, so clearing the origin now
   removes it. Nothing to change.
+
+## Units as record group levels
+
+A record group dimension can now take its levels from the unit graph: `RecordGroupDimensionInput.subjectIds` lists
+subjects, and a record of a study without one of the dimension's groupings takes the nearest unit of one of them (its
+unit or an ancestor) as its level, e.g. the plots of a field as blocks. `groupingIds` is now optional; a dimension needs
+at least one grouping or subject. The rules are in `docs/analysis.md` §3 (record groups, units as levels). Nothing
+breaks: existing dimensions are unchanged.
+
+- Config: `AnalysisRecordGroupDimension.subjectIds` (non-null, `[]` when none); `groupings` is `[]` for a dimension of
+  subjects alone.
+- Results: a unit level is keyed `unit|<unitId>`. Its `AnalysisRecordGroupAssignment` has `unitId` (the plot) and
+  `shared: false`, with `groupingId`, `code` and `scopeDatasetIds` null.
+- Errors: an unknown subject fails the analysis with `CONFIG_INVALID` at `grouping.recordGroups.i.subjectIds.j`; a
+  subject in two dimensions is refused on submit.
+
+In breedview:
+- `RecordGroupDimensionEditor.vue`: add a subject picker beside the groupings. Mark the studies whose records will use
+  units (those of the selected datasets with none of the dimension's groupings), and refuse a subject already used by
+  another dimension, as for groupings.
+- `useAnalysisForm.js`: send `subjectIds` in `groupingInput`, and read them back in `groupingFromOutput`
+  (`subjectIds: d.subjectIds ?? []`). Add `subjectIds` to the dimension fields of
+  `analysisFragments.graphql`. `GroupingSection.vue` starts a new dimension with `subjectIds: []`.
+- `useAnalysisNames.js`: `recordGroupAssignmentLabel` gives `groupingName(null): null of <unit>` for a unit level.
+  Return `unitName(a.unitId)` when `groupingId` is null and the level isn't shared, and have `keyLabel` read
+  `unit|<id>` as that unit's name. `collectIds` already collects the `unitId`.
+- `useTermRules.js`: `isWithinUnitDimension` needs no change (subjects are never WITHIN_UNIT).

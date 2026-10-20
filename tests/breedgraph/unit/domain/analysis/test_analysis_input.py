@@ -121,6 +121,30 @@ def test_record_group_dimensions():
         ('anova', 'grouping', 'recordGroups', '1', 'groupingIds', '0'),
     }
 
+def test_record_group_dimensions_of_subjects():
+    analysis = anova()
+    analysis['anova']['terms'].append(domain_term('RECORD_GROUP', record_group_dimension='plot'))
+    analysis['anova']['grouping']['record_groups'] = [
+        {'name': 'plot', 'subject_ids': ['31']},
+        {'name': 'block', 'grouping_ids': [1], 'subject_ids': [31, 32]},
+    ]
+    request = AnalysisInputImport(**analysis).to_domain()
+    assert request.spec.grouping.record_groups[0].grouping_ids == []
+    assert request.spec.grouping.record_groups[0].subject_ids == [31]
+    # a subject's units are the levels of one dimension
+    assert paths(analysis) == {('anova', 'grouping', 'recordGroups', '1', 'subjectIds', '0')}
+
+@pytest.mark.parametrize('dimension', [{'name': 'plot'}, {'name': 'plot', 'grouping_ids': [], 'subject_ids': []}])
+def test_record_group_dimension_needs_a_grouping_or_subject(dimension):
+    analysis = anova()
+    analysis['anova']['grouping']['record_groups'] = [dimension]
+    assert paths(analysis) == {('anova', 'grouping', 'recordGroups', '0')}
+
+def test_record_group_dimension_lists_a_subject_once():
+    analysis = anova()
+    analysis['anova']['grouping']['record_groups'] = [{'name': 'plot', 'subject_ids': [31, 31]}]
+    assert paths(analysis) == {('anova', 'grouping', 'recordGroups', '0')}
+
 def test_domain_term_options():
     analysis = anova()
     analysis['anova']['terms'][2].update(transformations=['LOG'], aggregation='MEAN')

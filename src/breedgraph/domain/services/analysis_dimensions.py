@@ -264,7 +264,8 @@ class RecordGroupResolver(DimensionResolver):
             dataset_studies=context.dataset_studies,
             path=path,
             within_unit=set(context.within_unit_groupings),
-            within_graph=set(context.within_graph_groupings)
+            within_graph=set(context.within_graph_groupings),
+            units=context.units
         )
         if self.resolver.nested_in_unit:
             self._check_replicates(dimension, context, path)

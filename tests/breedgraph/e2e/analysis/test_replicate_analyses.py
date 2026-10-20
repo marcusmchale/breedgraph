@@ -4,10 +4,14 @@ report is what the scenario expects, and so what the test database manifest give
 """
 import pytest
 
+from breedgraph.config import GQL_API_PATH
+
+from tests.breedgraph.e2e.analysis.post_methods import post_to_submit_analysis
 from tests.breedgraph.e2e.analysis.test_analysis_types import run_analysis, concept, analysis, ANOVA_FRAGMENT
+from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success, with_auth
 from tests.breedgraph.scenarios.replicate_scenario import (
-    EXPECTED_CASES, EXPECTED_WINDOWED_READINGS, EXPECTED_PLOT_MEANS, CONCEPTS, TREES,
-    REPLICATE, BIOREP, BLOCK, BATCH, DATASET_BLOCK, FIELD_OF, level_keys, Case
+    EXPECTED_CASES, EXPECTED_WINDOWED_READINGS, EXPECTED_PLOT_MEANS, CONCEPTS, TREES, PLOTS, TREES_PER_PLOT,
+    REPLICATE, BIOREP, BLOCK, BATCH, DATASET_BLOCK, FIELD_OF, level_keys, plot_name, Case
 )
 
 DESCRIPTIVE = (
@@ -192,3 +196,88 @@ async def test_block_as_anova_term(read_policy, replicates, login_token_factory,
     assert [t['term']['type'] for t in result['terms']] == ['RECORD_GROUP']
     # one observation per tree, one parameter per block level
     assert result['residual']['degreesOfFreedom'] == len(TREES) - len(level_keys(replicates, 'blocks', BLOCK))
+
+
+def plot_dimension(read_policy, subject: str = 'ontology_subject_plot') -> dict:
+    return {"recordGroups": [{"name": "plot", "subjectIds": [read_policy[subject]]}]}
+
+PLOT_TERM = {"reference": {"type": "RECORD_GROUP", "recordGroupDimension": "plot"}}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_plot_units_are_levels(read_policy, replicates, login_token_factory, client):
+    """The plots of the Plot subject block the trees as each field's Block codes do, without a grouping"""
+    plots = {str(replicates.units[plot_name(f, plot)]) for f, plot in PLOTS}
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['blocks']], {
+            "terms": [concept(concept_id(read_policy, 'height')), PLOT_TERM],
+            "grouping": plot_dimension(read_policy)
+        }
+    ), DESCRIPTIVE)
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    _, *rows = submission['result']['terms']
+    assignments = [row['group']['recordGroups'][0] for row in rows]
+    assert {(a['level'], a['unitId'], a['code'], a['shared']) for a in assignments} == {
+        (f"unit|{plot}", plot, None, False) for plot in plots
+    }
+    assert all(row['count'] == TREES_PER_PLOT for row in rows)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_plot_units_as_anova_term(read_policy, replicates, login_token_factory, client):
+    pytest.importorskip("rpy2")
+    height = concept_id(read_policy, 'height')
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "ANOVA", "anova", [replicates.datasets['blocks']], {
+            "terms": [concept(height), PLOT_TERM],
+            "response": {"type": "CONCEPT", "conceptId": height},
+            "grouping": plot_dimension(read_policy)
+        }
+    ), ANOVA_FRAGMENT)
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    # one observation per tree, one parameter per plot, as for the Block codes (test_block_as_anova_term)
+    assert submission['result']['residual']['degreesOfFreedom'] == len(TREES) - len(PLOTS)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_unit_levels_need_a_subject(read_policy, replicates, login_token_factory, client):
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['blocks']], {
+            "terms": [concept(concept_id(read_policy, 'height')), PLOT_TERM],
+            "grouping": plot_dimension(read_policy, CONCEPTS['height'][0])
+        }
+    ), DESCRIPTIVE)
+    assert submission['status'] == 'FAILED'
+    error, = submission['errors']
+    assert error['code'] == 'CONFIG_INVALID'
+    assert error['path'] == ['descriptiveStatistics', 'grouping', 'recordGroups', '0', 'subjectIds', '0']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_unit_level_dimension_config(read_policy, replicates, login_token_factory, client):
+    token = login_token_factory(read_policy['writer'])
+    payload = get_verified_payload(await post_to_submit_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['blocks']], {
+            "terms": [concept(concept_id(read_policy, 'height')), PLOT_TERM],
+            "grouping": plot_dimension(read_policy)
+        }
+    )), "analysisSubmit")
+    assert_payload_success(payload)
+    dimension = " name subjectIds groupings { groupingId } "
+    json = {
+        "query": (
+            " query ( $id: ID! ) { analysisSubmission( id: $id ) { status, errors { name, message } "
+            "  result { config { ... on DescriptiveStatisticsConfig { "
+            f"   grouping {{ recordGroups {{ {dimension} }} }} "
+            f"   terms {{ reference {{ type recordGroupDimension {{ {dimension} }} }} }} "
+            " } } } } } "
+        ),
+        "variables": {"id": payload['result']}
+    }
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    submission = get_verified_payload(await client.post(GQL_API_PATH, json=json, headers=headers), "analysisSubmission")
+    assert_payload_success(submission)
+    config = submission['result']['config']
+    expected = {'name': 'plot', 'subjectIds': [str(read_policy['ontology_subject_plot'])], 'groupings': []}
+    assert config['grouping']['recordGroups'] == [expected]
+    assert config['terms'][1]['reference']['recordGroupDimension'] == expected

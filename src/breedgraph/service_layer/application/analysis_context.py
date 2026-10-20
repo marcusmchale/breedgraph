@@ -39,6 +39,7 @@ class AnalysisContextLoader:
         studies = await self._load_studies({dataset.study for dataset in datasets.values()})
         units = await self._load_units(request, datasets, concepts, spec_path)
         germplasm_descendants = await self._load_germplasm(request, spec_path)
+        await self._check_subjects(request, spec_path)
         self._raise_errors()
 
         return AnalysisContext(
@@ -167,6 +168,7 @@ class AnalysisContextLoader:
                 for unit_id, unit in redacted.entries.items():
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
+                        subject_id=unit.subject,
                         germplasm_id=unit.germplasm,
                         positions=list(unit.positions or []),
                         ancestor_ids=redacted.get_ancestors(unit_id),
@@ -174,8 +176,8 @@ class AnalysisContextLoader:
                         root_id=redacted.get_root_id()
                     )
                 # A readable dataset's records are readable, their hidden units placeholders (docs/read-access.md):
-                # such a unit hangs from the nearest units above it that the user can read, without its germplasm or
-                # positions, as datasetsUnits shows it
+                # such a unit hangs from the nearest units above it that the user can read, without its subject,
+                # germplasm or positions, as datasetsUnits shows it
                 for unit_id in recorded & set(unit_graph.entries) - set(redacted.entries):
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
@@ -209,3 +211,14 @@ class AnalysisContextLoader:
                 continue
             descendants[germplasm_id] = set(descendant_ids)
         return descendants
+
+    async def _check_subjects(self, request: AnalysisRequest, spec_path: list[str]):
+        """The subjects whose units are levels of record group dimensions must be subjects of the ontology"""
+        for i, dimension in enumerate(request.spec.grouping.record_groups):
+            for j, subject_id in enumerate(dimension.subject_ids):
+                if await self.uow.ontology.get_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
+                    self.errors.append(AnalysisMessage(
+                        code=AnalysisErrorCode.CONFIG_INVALID,
+                        message=f"Subject {subject_id} was not found",
+                        path=spec_path + ['grouping', 'recordGroups', str(i), 'subjectIds', str(j)]
+                    ))

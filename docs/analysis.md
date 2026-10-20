@@ -49,7 +49,8 @@ Every analysis operates on **observations**, not on records.
     unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its design block's treatment
     unless it has its own);
   - **time:** its time bin, or **every** time bin when it has no start or end (a design factor holds throughout);
-  - **record groups:** its level, or every level when it has no code for the dimension;
+  - **record groups:** its level, or every level when it has none in the dimension (no code, or no unit of the
+    dimension's subjects, e.g. a factor on the field above the plots);
   - germplasm and position come from the observed unit, so they don't constrain it.
   - A factor record that describes no observation is unused, and can leave its dataset `DATASET_FULLY_EXCLUDED`.
   - Several factor records of the same unit and level are duplicates as for any term: aggregate them, e.g. `MODE`.
@@ -128,6 +129,18 @@ Every analysis operates on **observations**, not on records.
       each in its own dataset of one submission.
     - Time is not part of the key, as observations already have a time bin. Analysing the replicates of a study-wide
       WITHIN_UNIT grouping across dates needs a `grouping.time`.
+  - **Units as levels** (`subjectIds`): blocks that are already units (e.g. the plots of a field, holding its trees)
+    need no grouping. The dimension lists their subjects instead of, or as well as, groupings.
+    - Each study has one source of levels. Records of a study with one of the dimension's groupings take its codes, as
+      above. Records of other studies take the nearest unit of one of the subjects: their base unit or an ancestor.
+    - A dimension needs at least one grouping or subject, and a subject can belong to only one dimension.
+    - The level is that unit, keyed `unit|<unitId>`. It comes from the record's base unit, as codes are on records,
+      so under `grouping.unit` rolled up above these units, observations split by them as they would by codes.
+    - A base unit with no such unit (e.g. the field above the plots) is unassigned. So is one whose nearest such units
+      lie on separate lineages (e.g. a sample taken from trees in two plots).
+    - Only units the user can read count, so a hidden unit is never a level.
+    - Units can't be members of shared `levels`.
+    - Otherwise they are as SHARED codes: a dimension of them can be a term, fixed or random in ANOVA.
   - Groupings are resolved when the analysis is processed, not when it is submitted.
 
 ## 4. Terms: what is valid where
@@ -190,7 +203,7 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 | GERMPLASM, UNIT, STUDY | IDs; resolve the names in the UI |
 | TIME | Bin labels |
 | POSITION | `location\|layout\|coordinates` key; `AnalysisGroup.position` has the structured position |
-| RECORD_GROUP | A shared level label, or a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings, `grouping\|scope\|root\|code` for WITHIN_GRAPH); `AnalysisRecordGroupAssignment` has the parts |
+| RECORD_GROUP | A shared level label, a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings, `grouping\|scope\|root\|code` for WITHIN_GRAPH), or `unit\|<unitId>` for a unit level, whose `unitId` is set and `groupingId` null; `AnalysisRecordGroupAssignment` has the parts |
 | CONCEPT | Category or bin labels |
 
 Results per analysis:

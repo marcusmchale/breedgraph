@@ -5,6 +5,7 @@ from breedgraph.domain.model.analysis import (
     RecordGroupDimension, RecordGroupLevelKey, RecordGroupMember,
     AnalysisFailed, AnalysisErrorCode, AnalysisMessage, AnalysisWarningCode
 )
+from breedgraph.domain.model.analysis_context import UnitContext
 from breedgraph.domain.model.datasets import RecordGroup
 from breedgraph.domain.model.programs import StudyStored, GroupingScope, RecordGroupingStored
 
@@ -13,20 +14,26 @@ from breedgraph.domain.model.programs import StudyStored, GroupingScope, RecordG
 class RecordGroupAssignment:
     """The level of a record group dimension assigned to a record."""
     dimension: str
-    level: str  # unique within the dimension: shared label or nested level key
-    nested: RecordGroupLevelKey | None = None  # None for shared levels
+    level: str  # unique within the dimension: shared label, nested level key or unit level key
+    nested: RecordGroupLevelKey | None = None  # None for shared levels and unit levels
     member: RecordGroupMember | None = None  # the code of the record, for exclusion rules
+    unit_id: int | None = None  # the unit of a unit level
+
+    @classmethod
+    def of_unit(cls, dimension: str, unit_id: int) -> 'RecordGroupAssignment':
+        # nested keys have three or four parts and shared labels can't contain "|", so this key is unique
+        return cls(dimension=dimension, level=f"unit|{unit_id}", unit_id=unit_id)
 
     def to_output(self) -> dict:
         nested = self.nested
         return {
             'dimension': self.dimension,
             'level': self.level,
-            'shared': nested is None,
+            'shared': nested is None and self.unit_id is None,
             'grouping_id': nested.grouping_id if nested else None,
             'scope_dataset_ids': sorted(nested.scope) if nested and nested.scope is not None else None,
             'code': nested.code if nested else None,
-            'unit_id': nested.unit if nested else None,
+            'unit_id': nested.unit if nested else self.unit_id,
         }
 
 
@@ -40,6 +47,10 @@ class RecordGroupDimensionResolver:
     Codes of WITHIN_GRAPH groupings are nested in the root of the base unit's graph;
     a shared level definition combines a code across graphs.
     Groupings are resolved live, as readable by the requesting user.
+
+    Records of studies without one of the groupings take a unit level instead: the nearest unit of one of the
+    dimension's subjects, the base unit or an ancestor, so each study has one source of levels.
+    Only the units the user can read have a subject.
     """
 
     def __init__(
@@ -49,7 +60,8 @@ class RecordGroupDimensionResolver:
             dataset_studies: dict[int, int],
             path: list[str] | None = None,
             within_unit: set[int] | None = None,
-            within_graph: set[int] | None = None
+            within_graph: set[int] | None = None,
+            units: dict[int, UnitContext] | None = None
     ):
         """
         :param dimension: the dimension to resolve
@@ -58,11 +70,15 @@ class RecordGroupDimensionResolver:
         :param path: input path of the dimension, for messages
         :param within_unit: IDs of the groupings with the WITHIN_UNIT extent
         :param within_graph: IDs of the groupings with the WITHIN_GRAPH extent
+        :param units: units of the records and their ancestors, for unit levels
         """
         self.dimension = dimension
         self.dataset_studies = dataset_studies
         self.within_unit = within_unit or set()
         self.within_graph = within_graph or set()
+        self.units = units or {}
+        self.subject_ids = set(dimension.subject_ids)
+        self._unit_levels: dict[int, int | None] = {}  # base unit -> unit level
         self.path = path or []
         self.groupings: dict[int, RecordGroupingStored] = {}
         self.grouping_study: dict[int, int] = {}
@@ -101,6 +117,7 @@ class RecordGroupDimensionResolver:
                     path=self.path + ['groupingIds']
                 )
             grouping_by_study[study_id] = grouping_id
+        self.coded_studies = set(grouping_by_study)  # studies whose records take their levels from codes
 
         self.shared: dict[RecordGroupLevelKey, str] = {}
         for i, level in enumerate(dimension.levels):
@@ -178,11 +195,15 @@ class RecordGroupDimensionResolver:
             root_id: int | None = None
     ) -> RecordGroupAssignment | None:
         """
-        Level of a record in this dimension, or None if the record has
-        no code for any grouping of the dimension and should be excluded.
-        unit_id is the record's base unit, which nests the codes of WITHIN_UNIT groupings,
+        Level of a record in this dimension, or None if the record has no code for any grouping of the dimension,
+        or in a study without one, no unit of the dimension's subjects, and should be excluded.
+        unit_id is the record's base unit, which nests the codes of WITHIN_UNIT groupings and finds unit levels,
         and root_id the root of its graph, which nests the codes of WITHIN_GRAPH groupings.
         """
+        if self.dataset_studies.get(dataset_id) not in self.coded_studies:
+            level = self._unit_level(unit_id)
+            return RecordGroupAssignment.of_unit(self.dimension.name, level) if level is not None else None
+
         matches = [group for group in groups or [] if group.id in self.groupings]
         if not matches:
             return None
@@ -211,6 +232,32 @@ class RecordGroupDimensionResolver:
         if label is not None:
             return RecordGroupAssignment(dimension=self.dimension.name, level=label, member=member)
         return RecordGroupAssignment(dimension=self.dimension.name, level=level.key, nested=level, member=member)
+
+    def _unit_level(self, unit_id: int | None) -> int | None:
+        if not self.subject_ids or unit_id is None:
+            return None
+        if unit_id not in self._unit_levels:
+            self._unit_levels[unit_id] = self._nearest_unit(unit_id)
+        return self._unit_levels[unit_id]
+
+    def _nearest_unit(self, unit_id: int) -> int | None:
+        """
+        The nearest unit of one of the subjects, the unit itself or an ancestor, if it is below every other one;
+        None if there is none, or they lie on separate lineages (e.g. a sample taken from trees of two plots).
+        """
+        unit = self.units.get(unit_id)
+        if unit is None:
+            return None
+        candidates = [
+            candidate for candidate in [unit_id, *unit.ancestor_ids]
+            if candidate in self.units and self.units[candidate].subject_id in self.subject_ids
+        ]
+        if not candidates:
+            return None
+        # ancestors are sorted closest first, so the first candidate is the nearest, or one of the nearest
+        nearest, *others = candidates
+        above = set(self.units[nearest].ancestor_ids)
+        return nearest if all(other in above for other in others) else None
 
     def unmatched_members(self) -> list[tuple[str, RecordGroupLevelKey]]:
         """(level label, member) for shared level members that matched no records, for warnings."""

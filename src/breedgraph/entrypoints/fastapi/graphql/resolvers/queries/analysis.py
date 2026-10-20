@@ -185,6 +185,10 @@ def resolve_grouping_record_groups(grouping: dict, info):
 def resolve_dimension_groupings(dimension: dict, info):
     return [{'grouping_id': grouping_id} for grouping_id in dimension.get('grouping_ids') or []]
 
+@analysis_record_group_dimension.field('subjectIds')
+def resolve_dimension_subject_ids(dimension: dict, info):
+    return dimension.get('subject_ids') or []
+
 @analysis_record_group_dimension.field('levels')
 def resolve_dimension_levels(dimension: dict, info):
     return dimension.get('levels') or []

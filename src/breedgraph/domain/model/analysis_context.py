@@ -17,6 +17,7 @@ from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
 @dataclass
 class UnitContext:
     unit_id: int
+    subject_id: int | None = None  # None if the unit is hidden from the user
     germplasm_id: int | None = None
     positions: list[Position] = field(default_factory=list)
     ancestor_ids: list[int] = field(default_factory=list)  # closest first

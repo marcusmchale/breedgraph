@@ -148,9 +148,14 @@ scopes are never pooled. Level definitions explicitly combine codes
 into shared levels; codes not included in a level definition keep
 their nested identity.
 
-Records with no code for any of the dimension's groupings, including
-all records from studies without such a grouping, are excluded from
-the analysis and reported in a warning.
+Each study has one source of levels. Records of a study with one of
+the dimension's groupings take its codes. Records of other studies
+take the nearest unit of one of the dimension's subjects, their own
+unit or an ancestor, e.g. the plots of a field, as a level of its own.
+
+Records with no code, or in a study without a grouping, no such unit
+(or two on separate lineages), are excluded from the analysis and
+reported in a warning.
 """
 input RecordGroupDimensionInput {
   """
@@ -168,7 +173,15 @@ input RecordGroupDimensionInput {
   At most one grouping per study, and each grouping may contribute
   to only one dimension in the analysis.
   """
-  groupingIds: [ID!]!
+  groupingIds: [ID!]
+
+  """
+  Subjects whose units are levels, for studies without one of the groupings.
+
+  Each subject may contribute to only one dimension in the analysis.
+  A dimension needs at least one grouping or subject.
+  """
+  subjectIds: [ID!]
 
   """
   Optional shared levels combining codes across groupings or scopes.

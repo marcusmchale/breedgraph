@@ -132,7 +132,7 @@ type AnalysisRecordGroupAssignment {
   """
   Identifier of the level, unique within the dimension.
 
-  The label of a shared level, otherwise an identifier
+  The label of a shared level, "unit|<unitId>" for a unit level, otherwise an identifier
   composed of grouping, scope, code and, for WITHIN_UNIT groupings, the base unit,
   or for WITHIN_GRAPH groupings, the root of the base unit's graph.
   """
@@ -144,7 +144,7 @@ type AnalysisRecordGroupAssignment {
   shared: Boolean!
 
   """
-  Grouping of a nested level.
+  Grouping of a nested level. Null for shared levels and unit levels.
   """
   groupingId: ID
 
@@ -161,7 +161,8 @@ type AnalysisRecordGroupAssignment {
   code: String
 
   """
-  Base unit of a nested level of a WITHIN_UNIT grouping, whose codes are only comparable within a unit,
+  The unit of a unit level, a unit of one of the dimension's subjects.
+  Otherwise the base unit of a nested level of a WITHIN_UNIT grouping, whose codes are only comparable within a unit,
   or the root of the base unit's graph for a WITHIN_GRAPH grouping, whose codes are only comparable within a graph.
   """
   unitId: ID

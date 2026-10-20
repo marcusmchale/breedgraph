@@ -296,6 +296,98 @@ def test_within_graph_code_combined_across_graphs_by_a_level():
     assert AnalysisWarningCode.RECORD_GROUP_LEVEL_UNMATCHED not in codes(warnings)
 
 
+""" Units of a subject as levels, in studies without a grouping of the dimension """
+FIELD, PLOT, TREE, SAMPLE = 30, 31, 32, 33
+# Field 1 with plots 2 and 3: trees 100 and 101 in plot 2, tree 102 in plot 3.
+# Sample 200 is from tree 100, sample 201 from trees 100 and 102, of separate plots.
+PLOTS = {
+    1: UnitContext(1, subject_id=FIELD),
+    2: UnitContext(2, subject_id=PLOT, ancestor_ids=[1]),
+    3: UnitContext(3, subject_id=PLOT, ancestor_ids=[1]),
+    100: UnitContext(100, subject_id=TREE, ancestor_ids=[2, 1]),
+    101: UnitContext(101, subject_id=TREE, ancestor_ids=[2, 1]),
+    102: UnitContext(102, subject_id=TREE, ancestor_ids=[3, 1]),
+    200: UnitContext(200, subject_id=SAMPLE, ancestor_ids=[100, 2, 1]),
+    201: UnitContext(201, subject_id=SAMPLE, ancestor_ids=[100, 102, 2, 3, 1]),
+}
+PLOT_TERM = domain_term('RECORD_GROUP', record_group_dimension='plot')
+
+def test_nearest_unit_of_a_subject_is_the_level():
+    ctx = context(
+        descriptive([concept_term(10), PLOT_TERM], grouping={'record_groups': [{'name': 'plot', 'subject_ids': [PLOT]}]}),
+        [dataset(1, 1, 10, [
+            record(1, 100, '1'), record(2, 101, '2'), record(3, 102, '3'), record(4, 200, '4'), record(5, 2, '5'),
+            record(6, 201, '6'), record(7, 1, '7')
+        ])],
+        units=PLOTS
+    )
+    frame, warnings = prepare(ctx)
+    # a tree's plot, a sample's tree's plot, and a plot itself
+    assert list(frame.data['record_group:plot']) == ['unit|2', 'unit|2', 'unit|3', 'unit|2', 'unit|2']
+    assert frame.observations[2].group['record_groups'] == [{
+        'dimension': 'plot', 'level': 'unit|3', 'shared': False,
+        'grouping_id': None, 'scope_dataset_ids': None, 'code': None, 'unit_id': 3
+    }]
+    assert frame.observations[2].exclusion['record_groups'] is None
+    # a sample of trees in two plots, and the field above the plots, have no plot
+    assert [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_RECORD_GROUP] == [[6, 7]]
+
+def test_each_study_has_one_source_of_levels():
+    studies = {1: study(1, [grouping(7)]), 2: study(2)}
+    ctx = context(
+        descriptive(
+            [concept_term(10), PLOT_TERM],
+            grouping={'record_groups': [{'name': 'plot', 'grouping_ids': [7], 'subject_ids': [PLOT]}]},
+            dataset_ids=[1, 2]
+        ),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1', groups={7: 'Plot 1'}), record(2, 101, '2')]),
+            dataset(2, 2, 10, [record(3, 102, '3')]),
+        ],
+        units=PLOTS, studies=studies
+    )
+    frame, warnings = prepare(ctx)
+    # a record of a study with a grouping has its code or nothing, never its unit's plot
+    assert list(frame.data['record_group:plot']) == ['7|*|Plot 1', 'unit|3']
+    assert [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_RECORD_GROUP] == [[2]]
+
+def test_unit_levels_split_units_rolled_up_above_them():
+    ctx = context(
+        descriptive(
+            [concept_term(10, aggregation='MEAN'), PLOT_TERM],
+            grouping={'unit': {'unit_ids': [1]}, 'record_groups': [{'name': 'plot', 'subject_ids': [PLOT]}]}
+        ),
+        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '3'), record(3, 102, '5')])],
+        units=PLOTS
+    )
+    frame, _ = prepare(ctx)
+    # levels come from the base unit, as codes on its records do
+    assert [o.group['unit_id'] for o in frame.observations] == [1, 1]
+    assert list(frame.data['record_group:plot']) == ['unit|2', 'unit|3']
+    assert values(frame, 10) == [2.0, 5.0]
+
+def test_factor_above_the_unit_levels_applies_across_them():
+    concepts = {
+        10: ConceptContext(10, ScaleType.NUMERICAL),
+        20: ConceptContext(20, ScaleType.NOMINAL, categories=['Shade', 'Sun'], factor=True),
+    }
+    ctx = context(
+        descriptive(
+            [concept_term(10), concept_term(20), PLOT_TERM],
+            grouping={'record_groups': [{'name': 'plot', 'subject_ids': [PLOT]}]}, dataset_ids=[1, 2]
+        ),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1'), record(2, 102, '2')]),
+            dataset(2, 1, 20, [record(3, 2, 'Shade'), record(4, 1, 'Sun')]),
+        ],
+        units=PLOTS, concepts=concepts
+    )
+    frame, warnings = prepare(ctx)
+    # plot 2's factor applies within it; the field's, with no plot, applies to plot 3
+    assert list(frame.data['concept:20']) == ['Shade', 'Sun']
+    assert AnalysisWarningCode.UNASSIGNED_RECORD_GROUP not in codes(warnings)
+
+
 
 """ Replicates: codes of WITHIN_UNIT groupings """
 WITHIN_UNIT = RecordGroupExtent.WITHIN_UNIT

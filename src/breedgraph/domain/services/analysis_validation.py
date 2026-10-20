@@ -33,10 +33,11 @@ def validate_dataset_ids(dataset_ids: list[int]) -> list[AnalysisMessage]:
 
 
 def validate_dimensions(grouping: AnalysisGrouping, path: Path) -> list[AnalysisMessage]:
-    """Dimension names are unique and each grouping contributes to at most one dimension."""
+    """Dimension names are unique and each grouping or subject contributes to at most one dimension."""
     messages = []
     names: set[str] = set()
     grouping_owner: dict[int, str] = {}
+    subject_owner: dict[int, str] = {}
     for i, dimension in enumerate(grouping.record_groups):
         dimension_path = path + ['recordGroups', str(i)]
         key = dimension.name.casefold()
@@ -53,6 +54,14 @@ def validate_dimensions(grouping: AnalysisGrouping, path: Path) -> list[Analysis
                     dimension_path + ['groupingIds', str(j)]
                 ))
             grouping_owner.setdefault(grouping_id, dimension.name)
+        for j, subject_id in enumerate(dimension.subject_ids):
+            if subject_id in subject_owner:
+                messages.append(_invalid(
+                    f"Subject {subject_id} is used by dimensions "
+                    f"'{subject_owner[subject_id]}' and '{dimension.name}'",
+                    dimension_path + ['subjectIds', str(j)]
+                ))
+            subject_owner.setdefault(subject_id, dimension.name)
     if grouping.unit is not None and len(set(grouping.unit.unit_ids)) != len(grouping.unit.unit_ids):
         messages.append(_invalid("Units must not be listed more than once", path + ['unit', 'unitIds']))
     if grouping.germplasm is not None and len(set(grouping.germplasm.germplasm_ids)) != len(grouping.germplasm.germplasm_ids):

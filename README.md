@@ -195,7 +195,9 @@ Whether to record something as a unit, a code or a factor:
   or other units hang from it (a tree, a sample sent for analysis);
 * a WITHIN_UNIT code, for repeated readings or one-off parts of one unit (replicates, the branches or leaves of a tree
   each measured once);
-* a WITHIN_GRAPH code, for a group of units within one unit graph (the design blocks of a field);
+* a WITHIN_GRAPH code, for a group of units within one unit graph (the design blocks of a field). Where the blocks
+  are already units for a reason above (e.g. plots that trees hang from), they need no code: an analysis can take the
+  units of their subject as the levels of a record group dimension (docs/analysis.md §3);
 * a SHARED code, for a group across unit graphs (a batch, a plate, a session, a canopy stratum);
 * a [factor](#factor), for a level the design sets that is to be estimated (a treatment).
 ##### Role
