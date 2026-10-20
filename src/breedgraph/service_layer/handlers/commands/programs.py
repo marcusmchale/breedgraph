@@ -271,9 +271,10 @@ async def update_study(
             study.start = cmd.start
         if cmd.end is not None:
             study.end = cmd.end
-        if cmd.design_id is not None:
+        # given as None, the design and licence are removed
+        if 'design_id' in cmd.model_fields_set:
             study.design_id = cmd.design_id
-        if cmd.licence_id is not None:
+        if 'licence_id' in cmd.model_fields_set:
             if cmd.licence_id != study.licence_id:
                 await uow.controls.require_read(ControlledModelLabel.REFERENCE, [cmd.licence_id])
             study.licence_id = cmd.licence_id

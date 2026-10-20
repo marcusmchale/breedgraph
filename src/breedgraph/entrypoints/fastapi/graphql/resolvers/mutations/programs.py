@@ -189,9 +189,9 @@ async def update_study(
         practices=study.get('practices'),
         start=study.get('start'),
         end=study.get('end'),
-        design_id=study.get('design_id'),
-        licence_id=study.get('licence_id'),
-        reference_ids=study.get('reference_ids')
+        reference_ids=study.get('reference_ids'),
+        # passed only when given, as null removes them
+        **{key: study[key] for key in ('design_id', 'licence_id') if key in study}
     )
     await info.context['bus'].handle(cmd)
     return True

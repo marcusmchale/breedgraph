@@ -106,6 +106,7 @@ class UpdateStudy(Command):
     start: PyDT64 | None = None
     end: PyDT64 | None = None
 
+    # unchanged unless set, and set to None to remove (model_fields_set)
     design_id: int | None = None
     licence_id: int | None = None
 

@@ -87,7 +87,9 @@ input StudyUpdate {
     start: DateTime
     end: DateTime
     datasetIds: [ID!]
+    """ Omitted, the design is unchanged; null removes it """
     designId: ID
+    """ Omitted, the licence is unchanged; null removes it """
     licenceId: ID
     referenceIds: [ID!]
 }

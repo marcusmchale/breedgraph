@@ -15,7 +15,7 @@ CALL (study) {
 //Update design (in ontology)
 CALL (study) {
   OPTIONAL MATCH (study)-[has_design:USES_DESIGN]->(design:Design)
-    WHERE NOT design.id = $design_id
+    WHERE $design_id IS NULL OR NOT design.id = $design_id
   DELETE has_design
 }
 CALL (study) {
@@ -25,7 +25,7 @@ CALL (study) {
 //Update licence (reference)
 CALL (study) {
   OPTIONAL MATCH (study)-[uses_licence:USES_LICENCE]->(licence:Reference)
-    WHERE NOT licence.id = $licence_id
+    WHERE $licence_id IS NULL OR NOT licence.id = $licence_id
   DELETE uses_licence
 }
 CALL (study) {

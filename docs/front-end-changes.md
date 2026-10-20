@@ -18,6 +18,8 @@ operation in the front end validates against the current schema (§10).
 - §19 (one data controller, no Persons for signed-out visitors, place search and map tiles from our server), built
   with the API on 2026-10-19.
 
+Not yet in breedview: §20 (removing a study's design or licence, 2026-10-20).
+
 `python scripts/check_front_end_queries.py ../breedview/src` reports no operation with errors, and breedview's e2e
 suite (`tests/e2e`, on the synthetic test database) passes.
 
@@ -660,3 +662,16 @@ Protomaps' OpenStreetMap builds, read in byte ranges (e.g. by protomaps-leaflet)
   (`locationsGeocodeCountry(name).bounds`) is the fallback.
 - The user who added the country or placed the location is emailed when the fetch starts and ends; say so where
   countries are added. There is no status in the API.
+
+## 20. Removing a study's design or licence
+
+`programsUpdateStudy` can now remove a study's design and licence: in `StudyUpdate`, an omitted `designId` or
+`licenceId` leaves it unchanged, and `null` removes it. Until now null meant unchanged, so neither could be removed.
+The other fields of `StudyUpdate` are unchanged (omitted or null, they are kept).
+
+In breedview's `UpdateStudyModal.vue`:
+- `licenceId` is sent as `selectedLicence.value?.id || null`, so a study without a licence now sends a removal, which
+  is what the form shows. Add a "Remove" button beside "Change" that clears `selectedLicence`. A licence the editor
+  can't read comes as a placeholder with its id (`read-access.md` rule 2), so it is sent back and kept.
+- `designId` is sent as `values.designId || undefined` and then deleted, so clearing the select changes nothing. Send
+  `null` when the select is cleared.
