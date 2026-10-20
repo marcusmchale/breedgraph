@@ -6,7 +6,8 @@ import asyncio
 from breedgraph.domain.model.references import (
     LegalReferenceInput
 )
-from breedgraph.config import FILE_STORAGE_PATH
+from breedgraph.config import FILE_STORAGE_PATH, RETENTION_AUTH_TOKEN, UNUSED_REFERENCE_RETENTION_DAYS
+from breedgraph.domain.model.germplasm import GermplasmInput
 from neo4j.exceptions import ResultNotSingleError
 
 from breedgraph.domain.model.archive import ArchiveState, LocalState
@@ -290,3 +291,103 @@ async def test_delete_file_reference(
     record = await bus.archival_service.get(key)
     assert record.local_state == LocalState.EXPIRED
     assert record.archive_state == ArchiveState.DELETION_PENDING
+
+
+async def run_retention(client):
+    response = await client.post(
+        "/retention/run?reason=test", headers={"Authorization": f"Bearer {RETENTION_AUTH_TOKEN}"}
+    )
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_retention_removes_unused_file_references(
+        reference_build_context,
+        login_token_factory,
+        client,
+        uow_factory,
+        bus
+):
+    """
+    A file reference goes, with its file, once the retention job has found it unused, and it was not written,
+    for UNUSED_REFERENCE_RETENTION_DAYS: counted from when it was unlinked, not from when it was created
+    """
+    user_id = reference_build_context['user_id']
+    team_id = reference_build_context['team_id']
+    login_token = login_token_factory(user_id)
+
+    keys, reference_ids = {}, {}
+    for name in ('old', 'cited_again', 'unlinked'):
+        test_file_path = Path(FILE_STORAGE_PATH, f"test_retention_{name}.pdf")
+        test_file_path.write_bytes(name.encode())
+        with test_file_path.open("rb") as test_file:
+            create_file_response = await post_to_create_file_reference(
+                client,
+                token=login_token,
+                reference={'description': f'Test retention {name}', 'file': test_file},
+                control_team_id=team_id
+            )
+        keys[name] = get_verified_payload(create_file_response, "referencesCreateFile").get('result')
+        await wait_for_archival_record(bus.archival_service, keys[name])
+        async with uow_factory.get_uow(user_id=user_id) as uow:
+            reference_ids[name] = (await uow.repositories.references.get(file_id=keys[name])).id
+
+    async def age(names, field: str):
+        """Move the writes to the references, or the time they were found unused, back beyond the retention period"""
+        ids = [reference_ids[name] for name in names]
+        query = {
+            'writes': " MATCH (reference: Reference)<-[write:CONTRIBUTED]-() WHERE reference.id IN $ids "
+                      " SET write.time = datetime() - duration({days: $days + 1}) ",
+            'unused': " MATCH (reference: Reference) WHERE reference.id IN $ids "
+                      " SET reference.unused_since = datetime() - duration({days: $days + 1}) ",
+        }[field]
+        async with uow_factory.get_uow() as uow:
+            await uow.tx.run(query, ids=ids, days=UNUSED_REFERENCE_RETENTION_DAYS)
+            await uow.commit()
+
+    async def remaining() -> set[int]:
+        async with uow_factory.get_uow(user_id=user_id) as uow:
+            return {reference.id async for reference in uow.repositories.references.get_all(
+                reference_ids=list(reference_ids.values())
+            )}
+
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
+        germplasm = await uow.germplasm.create_entry(
+            GermplasmInput(name="Retention citer", references=[reference_ids['unlinked']])
+        )
+        germplasm_id = germplasm.id
+        await uow.commit()
+    # all were written long ago
+    await age(reference_ids, 'writes')
+
+    assert (await client.post("/retention/run?reason=test")).status_code == 401
+    # the first run finds old and cited_again unused, and keeps them
+    await run_retention(client)
+    assert await remaining() == set(reference_ids.values())
+
+    # old and cited_again have been unused for the period, but cited_again is cited again;
+    # unlinked is unlinked long after it was written
+    await age(['old', 'cited_again'], 'unused')
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
+        await uow.germplasm.create_entry(GermplasmInput(name="Retention citer 2", references=[reference_ids['cited_again']]))
+        germplasm = await uow.germplasm.get_entry(germplasm_id)
+        germplasm.references = []
+        await uow.germplasm.update_entry(germplasm)
+        await uow.commit()
+    await run_retention(client)
+    assert await remaining() == {reference_ids['cited_again'], reference_ids['unlinked']}
+
+    # the old reference's file is deleted, here and from the archive; the others are kept
+    assert not Path(FILE_STORAGE_PATH, keys['old']).exists()
+    record = await bus.archival_service.get(keys['old'])
+    assert record.local_state == LocalState.EXPIRED
+    assert record.archive_state == ArchiveState.DELETION_PENDING
+    for name in ('cited_again', 'unlinked'):
+        assert Path(FILE_STORAGE_PATH, keys[name]).read_bytes() == name.encode()
+        assert (await bus.archival_service.get(keys[name])).archive_state == ArchiveState.ARCHIVAL_PENDING
+
+    # once unused for the period, the unlinked one goes too
+    await age(['unlinked'], 'unused')
+    await run_retention(client)
+    assert await remaining() == {reference_ids['cited_again']}
+    assert not Path(FILE_STORAGE_PATH, keys['unlinked']).exists()

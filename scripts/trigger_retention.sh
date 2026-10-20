@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the retention policies (files, and expired invitations) through the API. Run on the web server from cron, e.g. daily:
+# Runs the retention policies (unused file references, files, and expired invitations) through the API. Run on the web server from cron, e.g. daily:
 #   30 3 * * * /path/to/breedgraph/scripts/trigger_retention.sh >> /var/log/breedgraph_retention.log 2>&1
 #
 # Cron does not load the env files, so this does: instance/breedgraph.env and instance/private.breedgraph.env.

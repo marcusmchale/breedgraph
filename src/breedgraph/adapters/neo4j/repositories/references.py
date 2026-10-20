@@ -70,6 +70,8 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             record['format'] = DataFormat(record['format'])
         if 'schema' in record:
             record['schema'] = json.loads(record['schema'])
+        # the retention job's mark (remove_unused_files), not part of the reference
+        record.pop('unused_since', None)
 
         reference_type = ReferenceType(record['type'])
         if not reference_type in REFERENCE_TYPE_MAP:
@@ -152,6 +154,17 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
 
     async def _remove_controlled(self, reference: ReferenceStoredBase):
         await self.tx.run(queries['references']['remove_reference'], reference_id=reference.id)
+
+    async def remove_unused_files(self, days: int) -> List[str]:
+        """
+        For the retention job, whatever the user's access, as remove_expired does for invitations: mark when each file
+        reference was first found unused (nothing cites it), and remove those unused, and not written, for more than
+        days. Each run marks, so a reference unlinked today is kept for days from the next run.
+        Returns the IDs of their files.
+        """
+        await self.tx.run(queries['references']['mark_unused_file_references'])
+        result = await self.tx.run(queries['references']['remove_unused_file_references'], days=days)
+        return [record['file_id'] async for record in result if record['file_id'] is not None]
 
     async def _update_controlled(self, aggregate: ReferenceStoredBase | TrackableProtocol):
         if aggregate.changed:

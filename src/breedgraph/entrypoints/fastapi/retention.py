@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Header, Depends
 
-from breedgraph.domain.commands.archive import TriggerFileRetentionPolicy
+from breedgraph.domain.commands.archive import RemoveUnusedFileReferences, TriggerFileRetentionPolicy
 from breedgraph.domain.commands.accounts import RemoveExpiredInvitations
 
 from breedgraph.config import RETENTION_AUTH_TOKEN
@@ -30,6 +30,7 @@ async def run_file_cleanup(request: Request, reason:str):
     logger.debug(f"Triggering cleanup for reason: {reason}")
     try:
         bus = request.app.bus
+        await bus.handle(RemoveUnusedFileReferences())
         await bus.handle(TriggerFileRetentionPolicy())
         await bus.handle(RemoveExpiredInvitations())
     except Exception as e:

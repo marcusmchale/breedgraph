@@ -1,7 +1,11 @@
+from breedgraph import config
 from breedgraph.domain import commands
 from breedgraph.domain.model.archive import ArchiveState, LocalState, FileArchivalUpdate
 
-from breedgraph.service_layer.infrastructure import AbstractFileArchivalService, FileManagementService
+from breedgraph.service_layer.infrastructure import (
+    AbstractFileArchivalService, FileManagementService, AbstractUnitOfWorkFactory
+)
+from breedgraph.service_layer.application.file_deletion import delete_file_and_archive
 
 from ..registry import handlers
 
@@ -23,6 +27,24 @@ async def request_file_restore(
             file_id = cmd.file_id,
             archive_state=ArchiveState.RETRIEVAL_PENDING
         )
+
+@handlers.command_handler()
+async def remove_unused_file_references(
+        cmd: commands.archive.RemoveUnusedFileReferences,
+        uow_factory: AbstractUnitOfWorkFactory,
+        archival_service: AbstractFileArchivalService,
+        file_management: FileManagementService
+):
+    async with uow_factory.get_uow() as uow:
+        file_ids = await uow.repositories.references.remove_unused_files(days=config.UNUSED_REFERENCE_RETENTION_DAYS)
+        await uow.commit()
+    logger.info(f"Removed unused file references, deleting their {len(file_ids)} files")
+    # once no reference points to them
+    for file_id in file_ids:
+        try:
+            await delete_file_and_archive(file_id, file_management, archival_service)
+        except Exception as e:
+            logger.error(f"Error deleting file {file_id} of an unused reference: {str(e)}")
 
 @handlers.command_handler()
 async def trigger_file_retention_policy(

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Runs the retention policies on the web server: archiving or removing files (see the archive worker),
-and removing expired invitations. Run from cron with scripts/trigger_retention.sh, which loads the settings.
+Runs the retention policies on the web server: removing unused file references and their files, archiving or
+removing files (see the archive worker), and removing expired invitations. Run from cron with scripts/trigger_retention.sh, which loads the settings.
 """
 import sys
 

@@ -700,7 +700,10 @@ them to `LOG_BASE` without rotating, as several processes write them, so rotate 
 and keep nginx's access logs no longer than 30 days (`rotate` in `/etc/logrotate.d/nginx`).
 
 **Retention** of files and expired invitations runs through the API, with `scripts/trigger_retention.sh` from cron
-on the web server (it loads the env files itself), e.g. daily:
+on the web server (it loads the env files itself). Each run notes the file references nothing cites (as a licence, a
+copyright or a reference of anything), and removes those it has found unused, and that were not written, for
+`UNUSED_REFERENCE_RETENTION_DAYS` (default 7), with their files, here and from the archive. A reference cited again
+before then is kept. Then it removes the local copies of archived files, as above. Run it e.g. daily:
 
     30 3 * * * /path/to/breedgraph/scripts/trigger_retention.sh >> /var/log/breedgraph_retention.log 2>&1
 
