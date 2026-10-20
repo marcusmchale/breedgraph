@@ -62,10 +62,10 @@ async def update_unit(
         unit_id=unit.get('id'),
         name=unit.get('name'),
         description=unit.get('description'),
-        subject_id=unit.get('subject_id'),
-        germplasm_id=unit.get('germplasm_id'),
         parents=unit.get('parent_ids'),
-        children=unit.get('children_ids')
+        children=unit.get('children_ids'),
+        # passed only when given, as null removes them
+        **{key: unit[key] for key in ('subject_id', 'germplasm_id') if key in unit}
     )
     await info.context['bus'].handle(cmd)
     return True

@@ -37,6 +37,7 @@ class UpdateUnit(Command):
     name: str | None = None
     description: str | None = None
 
+    # unchanged unless set, and set to None to remove (model_fields_set)
     subject_id: int | None = None
     germplasm_id: int | None = None
 

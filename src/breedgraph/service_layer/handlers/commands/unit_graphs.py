@@ -68,10 +68,10 @@ async def update_unit(
         unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
         unit = unit_graph.get_unit(cmd.unit_id)
 
-        # Update unit fields if provided
-        if cmd.subject_id is not None:
+        # Update unit fields if provided; given as None, the subject and germplasm are removed
+        if 'subject_id' in cmd.model_fields_set:
             unit.subject = cmd.subject_id
-        if cmd.germplasm_id is not None:
+        if 'germplasm_id' in cmd.model_fields_set:
             unit.germplasm = cmd.germplasm_id
         if cmd.name is not None:
             unit.name = cmd.name

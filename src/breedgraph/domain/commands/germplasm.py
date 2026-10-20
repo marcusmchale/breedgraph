@@ -54,7 +54,7 @@ class UpdateGermplasm(Command):
 
     reference_ids: List[int] | None = None  # internal reference ID
 
-    origin_id: int | None = None  # internal location
+    origin_id: int | None = None  # internal location; unchanged unless set, and set to None to remove (model_fields_set)
     time: PyDT64|None = None
 
     reproduction: Reproduction | None = None

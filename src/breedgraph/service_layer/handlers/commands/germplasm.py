@@ -63,7 +63,7 @@ async def update_germplasm_entry(
         if cmd.reference_ids is not None and not set(cmd.reference_ids) == set(entry.references):
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(entry.references or []))
             entry.references = cmd.reference_ids
-        if cmd.origin_id is not None and not cmd.origin_id == entry.origin:
+        if 'origin_id' in cmd.model_fields_set and not cmd.origin_id == entry.origin:
             entry.origin = cmd.origin_id
         if cmd.time is not None and not cmd.time == entry.time:
             entry.time = cmd.time

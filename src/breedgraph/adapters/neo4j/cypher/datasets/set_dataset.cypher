@@ -14,7 +14,7 @@ CALL (dataset) {
 //Update concept
 CALL (dataset) {
   OPTIONAL MATCH (dataset)-[for_concept:FOR_CONCEPT]->(concept: Variable|Factor)
-  WHERE NOT dataset.id = $concept
+  WHERE NOT concept.id = $concept
   DELETE for_concept
 }
 CALL (dataset) {

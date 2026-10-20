@@ -51,11 +51,12 @@ input GermplasmUpdate {
     name: String
     description: String
     synonyms: [String!]
+    """ Omitted, the origin is unchanged; null removes it """
     originId: ID
     time: DateTime
     reproduction: Reproduction
     controlMethodIds: [ID!]
-    referenceIds: [ID!] = []
+    referenceIds: [ID!]
     sources: [GermplasmSourceRelationship!]
 }
 

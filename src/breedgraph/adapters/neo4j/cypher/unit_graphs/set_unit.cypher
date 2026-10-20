@@ -7,7 +7,7 @@ WITH
 // Update subject
 CALL (unit) {
   MATCH (unit)-[of_subject:OF_SUBJECT]->(subject:Subject)
-    WHERE NOT subject.id = $subject
+    WHERE $subject IS NULL OR NOT subject.id = $subject
   DELETE of_subject
 }
 CALL (unit) {
@@ -19,7 +19,7 @@ CALL (unit) {
 // Update germplasm
 CALL (unit) {
   MATCH (unit)-[of_germplasm:OF_GERMPLASM]->(germplasm:Germplasm)
-    WHERE NOT germplasm.id = $germplasm
+    WHERE $germplasm IS NULL OR NOT germplasm.id = $germplasm
   DELETE of_germplasm
 }
 CALL (unit) {

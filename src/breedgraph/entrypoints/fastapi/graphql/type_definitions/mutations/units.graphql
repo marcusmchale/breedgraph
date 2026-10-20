@@ -36,7 +36,9 @@ input UnitInput {
 
 input UnitUpdate {
     id: ID!
+    """ Omitted, the subject is unchanged; null removes it """
     subjectId: ID
+    """ Omitted, the germplasm is unchanged; null removes it """
     germplasmId: ID
     name: String
     description: String
