@@ -507,6 +507,16 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
   - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,
     which resume after a restart. Finished regions are known from their files.
 
+`/tiles/tiles.json` (404 until the world file is cut) is what the map reads: `{attribution, updated, layers, countries}`.
+Bounds in it are `[[south, west], [north, east]]`.
+- The first layer is the world file, `{url, maxZoom, build}`. The others are regions, `{url, name, minZoom, maxZoom,
+  bounds}`, each added once complete. Regions share the tiles along their borders, so the map draws them as one layer
+  whose source takes each tile from the first region whose zooms and bounds hold it (breedview
+  `composables/locations/baseMap.js`). Fetch `tiles.json` without caching, so new regions appear at the next page load.
+- `countries` maps each country's code to `{name, bounds}`, the extent to show it by around its main parts (east is
+  above 180 for a country across the antimeridian), for every country fetched or divided. Where a country has none,
+  `locationsGeocodeCountry(name).bounds` is the fallback.
+
 Country outlines come from [geoBoundaries](https://www.geoboundaries.org) (`GEOBOUNDARIES_URL`; open licences, which
 vary by country and are kept beside each file). They are cached in `MAP_BOUNDARIES_PATH`, which is not served, and used
 only to cut tiles. Regions are cut from the newest Protomaps build (`PROTOMAPS_BUILDS_URL`) of the same version as the

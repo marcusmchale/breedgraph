@@ -153,7 +153,7 @@ The Data curation Role is seeded (§3), so the migration finds it by name.
 - `person.md` §3, "Removed from the current model": the `Role` row says roles describing a Person stay removed, and points here for contribution roles.
 - `person.md` §4: `Dataset.contributors` is replaced by contributions with roles (this note).
 - `docs/read-access.md`: citing a reference needs read access, and the release rule (§6). Done.
-- `front-end-changes.md`: the API changes in §11.
+- `front-end-changes.md`: the API changes, since made in breedview and removed from it.
 
 ## 9. Decisions
 
