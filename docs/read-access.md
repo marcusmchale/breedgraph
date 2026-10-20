@@ -97,7 +97,7 @@ In detail:
    to both stored ends, a new member needs read access to its parent, and attaching a merged unit graph's root needs curate
    access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
-   layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
+   unit to its germplasm, a germplasm entry to its origin location, a layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
    and citing a reference (`AccessControlService.require_read`): references of datasets and their records, of programs,
    trials, studies and germplasm entries, a study's licence, and the references, licence and copyright of the ontology.
    Only references added are checked, so an entry can still be edited while it cites one the editor cannot read.

@@ -17,6 +17,7 @@ async def create_unit(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
         unit_input = UnitInput(
             subject = cmd.subject_id,
             germplasm = cmd.germplasm_id,
@@ -72,6 +73,8 @@ async def update_unit(
         if 'subject_id' in cmd.model_fields_set:
             unit.subject = cmd.subject_id
         if 'germplasm_id' in cmd.model_fields_set:
+            if cmd.germplasm_id != unit.germplasm:
+                await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
             unit.germplasm = cmd.germplasm_id
         if cmd.name is not None:
             unit.name = cmd.name
