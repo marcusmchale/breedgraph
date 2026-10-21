@@ -17,6 +17,8 @@ from breedgraph.service_layer.queries.read_models import OntologyViewMode
 
 from typing import List
 
+import asyncio
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -152,6 +154,39 @@ async def resolve_ancestors(obj, info):
             await update_units_map(info.context, unit_ids={a for i in pending for a in ancestors_map.get(i, [])})
     units_map = info.context.get('units_map', {})
     return [units_map[i] for i in ancestors_map.get(obj.id, []) if i in units_map]
+
+@unit.field("inheritedGermplasm")
+async def resolve_inherited_germplasm(obj, info):
+    """
+    Read in one batch for the units of the request that ask for it: each joins the batch and yields once, so the other
+    units of its list join before the first of them reads it. Not for every unit loaded, as ancestors are: a unit
+    graph's root loads its children, often thousands, that ask for nothing more than their names.
+    """
+    if obj.germplasm is not None:
+        return None
+    inherited = info.context.setdefault('inherited_germplasm', {})
+    if obj.id not in inherited:
+        asked = info.context.setdefault('_inherited_germplasm_asked', set())
+        asked.add(obj.id)
+        await asyncio.sleep(0)
+        async with _get_lock(info.context, '_inherited_germplasm_lock'):
+            pending = [i for i in asked if i not in inherited]
+            if pending:
+                async with get_context_lock(info.context):
+                    views = await get_context_views(info.context)
+                    found = await views.units.get_inherited_germplasm(pending)
+                inherited.update({i: found.get(i) for i in pending})
+                asked.difference_update(pending)
+    value = inherited.get(obj.id)
+    if value is None:
+        return None
+    germplasm_id, unit_id = value
+    await update_germplasm_map(info.context, entry_ids=[germplasm_id])
+    await update_units_map(info.context, unit_ids=[unit_id])
+    return {
+        'germplasm': info.context.get('germplasm_map', {}).get(germplasm_id),
+        'unit': info.context.get('units_map', {}).get(unit_id)
+    }
 
 @unit.field("children")
 async def resolve_children(obj, info):

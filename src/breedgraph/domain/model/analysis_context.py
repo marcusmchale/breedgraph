@@ -18,9 +18,11 @@ from breedgraph.domain.model.programs import StudyStored, RecordGroupingStored
 class UnitContext:
     unit_id: int
     subject_id: int | None = None  # None if the unit is hidden from the user
+    # its own germplasm, or the one the nearest units above it with germplasm agree on (domain.services.lineages)
     germplasm_id: int | None = None
     positions: list[Position] = field(default_factory=list)
     ancestor_ids: list[int] = field(default_factory=list)  # closest first
+    parent_ids: list[int] = field(default_factory=list)  # the nearest units above it that the user can read
     root_id: int | None = None  # root of its graph, even if hidden from the user, for WITHIN_GRAPH codes
 
 @dataclass

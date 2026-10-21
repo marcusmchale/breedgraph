@@ -26,6 +26,8 @@ Defines how germplasm is resolved into analytical groups.
 
 The server navigates the germplasm hierarchy from the germplasm
 assigned to each unit to find the applicable selected ancestor.
+A unit's germplasm is its own, or else the one it inherits from
+the units above it (Unit.inheritedGermplasm).
 """
 input GermplasmGroupingInput {
   """

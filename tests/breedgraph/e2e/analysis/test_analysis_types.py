@@ -85,7 +85,7 @@ async def post_to_get_result(client, token: str, analysis_id: str, fragment: str
     json = {
         "query": (
             " query ( $id: ID! ) { analysisSubmission( id: $id ) { status, errors { name, message } "
-            "  result { status, errors { code, message, path, recordIds }, warnings { code, message, path } "
+            "  result { status, errors { code, message, path, recordIds }, warnings { code, message, path, recordIds } "
             f"   result {{ {fragment} }} "
             " } } } "
         ),

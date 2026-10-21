@@ -52,6 +52,7 @@ QUERIES = {
     **{f'unit_graphs.read_arrival_units(related={related})': unit_graphs.read_arrival_units(related) for related in (False, True)},
     **{f'unit_graphs.read_arrival_unit_ids(related={related})': unit_graphs.read_arrival_unit_ids(related) for related in (False, True)},
     'unit_graphs.read_arrival_units_by_subject': unit_graphs.read_arrival_units_by_subject(),
+    'unit_graphs.read_inherited_germplasm': unit_graphs.read_inherited_germplasm(),
     'location_trees.read_locations': location_trees.read_locations(),
     'location_trees.read_location_trees': location_trees.read_location_trees(),
     'location_trees.read_locations_by_type': location_trees.read_locations_by_type(),

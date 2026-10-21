@@ -140,6 +140,30 @@ def read_unit_names():
     """
 
 
+def read_inherited_germplasm():
+    """
+    For each readable unit of $unit_ids without germplasm of its own, the nearest units above it with germplasm, one
+    on each lineage (walking up through units without germplasm, readable or not, each path stops at the first unit
+    with some), each with its germplasm, distance and whether the user can read it: the unit takes their germplasm when
+    they are all readable and agree (domain.services.lineages, Unit.inheritedGermplasm)
+    """
+    return f"""
+        UNWIND $unit_ids AS unit_id
+        MATCH (unit:Unit {{id: unit_id}})
+        WHERE {_readable('unit')} AND NOT EXISTS {{ MATCH (unit)-[:OF_GERMPLASM]->(:Germplasm) }}
+        CALL (unit) {{
+          MATCH path = (unit)
+            (()<-[:{EDGE}]-(between:Unit WHERE NOT EXISTS {{ MATCH (between)-[:OF_GERMPLASM]->(:Germplasm) }})){{0,}}
+            ()<-[:{EDGE}]-(source:Unit)-[:OF_GERMPLASM]->(germplasm:Germplasm)
+          WITH source, germplasm, min(length(path)) AS distance
+          RETURN collect({{
+            unit_id: source.id, germplasm_id: germplasm.id, distance: distance, readable: {_readable('source')}
+          }}) AS sources
+        }}
+        RETURN unit.id AS unit_id, sources
+    """
+
+
 def read_descendants_by_subject():
     """
     Every unit below the units $unit_ids that the user can read, found through hidden units, grouped by subject, as id

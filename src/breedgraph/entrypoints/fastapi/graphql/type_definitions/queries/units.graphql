@@ -32,6 +32,20 @@ type Unit {
     graph's root, a placeholder when hidden. None for a unit you cannot read. Read for every unit of the request at once.
     """
     ancestors: [Unit!]!
+    """
+    Without germplasm of its own, the germplasm of the nearest units above it with some, as analysis takes it: one on
+    each lineage (a path up stops at the first unit with germplasm), which must agree. Null with its own, with none
+    above, when they differ (e.g. a sample pooled from trees of two varieties), or when one is hidden from you.
+    Read for every unit of the request at once.
+    """
+    inheritedGermplasm: InheritedGermplasm
+}
+
+""" Germplasm a unit takes from the units above it """
+type InheritedGermplasm {
+    germplasm: GermplasmEntry!
+    """ The nearest unit above with this germplasm """
+    unit: Unit!
 }
 
 """ Units below some units that share a subject, as id and name """

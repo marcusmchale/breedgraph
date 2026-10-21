@@ -9,10 +9,31 @@ from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, FactorStored
 from breedgraph.domain.model.programs import StudyStored
+from breedgraph.domain.model.unit_graphs import UnitGraph
+from breedgraph.domain.services.lineages import lineage_value, nearest_on_each_lineage
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder
 
 import logging
 logger = logging.getLogger(__name__)
+
+# germplasm on a unit the user cannot read: where a lineage stops, unknown
+HIDDEN = object()
+
+
+def _germplasm_seen(unit_graph: UnitGraph, redacted: UnitGraph):
+    """A unit's germplasm as the user sees it, for lineage_value: HIDDEN where it has some the user cannot read"""
+    def germplasm_of(unit_id: int):
+        germplasm = unit_graph.get_unit(unit_id).germplasm
+        if germplasm is None:
+            return None
+        seen = redacted.get_unit(unit_id).germplasm if redacted.has_unit(unit_id) else None
+        return germplasm if seen == germplasm else HIDDEN
+    return germplasm_of
+
+
+def _nearest_seen(unit_graph: UnitGraph, unit_id: int, seen: set[int]) -> list[int]:
+    """The nearest units above a hidden unit that the user can read, one on each lineage"""
+    return nearest_on_each_lineage(unit_id, unit_graph.get_parent_ids, lambda u: u in seen)
 
 
 class AnalysisContextLoader:
@@ -165,13 +186,18 @@ class AnalysisContextLoader:
             async for unit_graph in self.uow.repositories.unit_graphs.get_all(unit_ids=list(unit_ids)):
                 # Units the user cannot read are left out, and ancestors are those the user can read
                 redacted = await self.uow.repositories.unit_graphs.redacted(unit_graph)
+                germplasm_of = _germplasm_seen(unit_graph, redacted)
                 for unit_id, unit in redacted.entries.items():
+                    # its own germplasm or the one its lineages agree on, walked on the whole graph: a hidden unit
+                    # with germplasm is where a lineage stops, unknown, so the unit takes none
+                    germplasm, _ = lineage_value(unit_id, unit_graph.get_parent_ids, germplasm_of)
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
                         subject_id=unit.subject,
-                        germplasm_id=unit.germplasm,
+                        germplasm_id=None if germplasm is HIDDEN else germplasm,
                         positions=list(unit.positions or []),
                         ancestor_ids=redacted.get_ancestors(unit_id),
+                        parent_ids=redacted.get_parent_ids(unit_id),
                         # Redaction keeps a hidden root as a placeholder, so this is the root whatever the user reads
                         root_id=redacted.get_root_id()
                     )
@@ -179,9 +205,11 @@ class AnalysisContextLoader:
                 # such a unit hangs from the nearest units above it that the user can read, without its subject,
                 # germplasm or positions, as datasetsUnits shows it
                 for unit_id in recorded & set(unit_graph.entries) - set(redacted.entries):
+                    ancestor_ids = [a for a in unit_graph.get_ancestors(unit_id) if a in redacted.entries]
                     units[unit_id] = UnitContext(
                         unit_id=unit_id,
-                        ancestor_ids=[a for a in unit_graph.get_ancestors(unit_id) if a in redacted.entries],
+                        ancestor_ids=ancestor_ids,
+                        parent_ids=_nearest_seen(unit_graph, unit_id, set(redacted.entries)),
                         root_id=redacted.get_root_id()
                     )
 

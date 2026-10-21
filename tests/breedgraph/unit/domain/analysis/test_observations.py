@@ -164,8 +164,8 @@ def test_a_record_with_one_time_stands_for_its_period():
 
 def test_unit_grouping_uses_parent_unit():
     units = {
-        100: UnitContext(100, ancestor_ids=[1]),
-        101: UnitContext(101, ancestor_ids=[1]),
+        100: UnitContext(100, ancestor_ids=[1], parent_ids=[1]),
+        101: UnitContext(101, ancestor_ids=[1], parent_ids=[1]),
         102: UnitContext(102),
     }
     ctx = context(
@@ -264,8 +264,8 @@ def test_record_group_grouping_not_found():
 """ Codes of WITHIN_GRAPH groupings, nested in the root of the unit's graph """
 # Trees 100 and 101 in the graph of field 1, tree 102 in the graph of field 2, whose root the user can't read
 FIELDS = {
-    100: UnitContext(100, ancestor_ids=[1], root_id=1),
-    101: UnitContext(101, ancestor_ids=[1], root_id=1),
+    100: UnitContext(100, ancestor_ids=[1], parent_ids=[1], root_id=1),
+    101: UnitContext(101, ancestor_ids=[1], parent_ids=[1], root_id=1),
     102: UnitContext(102, ancestor_ids=[], root_id=2),
 }
 
@@ -302,13 +302,13 @@ FIELD, PLOT, TREE, SAMPLE = 30, 31, 32, 33
 # Sample 200 is from tree 100, sample 201 from trees 100 and 102, of separate plots.
 PLOTS = {
     1: UnitContext(1, subject_id=FIELD),
-    2: UnitContext(2, subject_id=PLOT, ancestor_ids=[1]),
-    3: UnitContext(3, subject_id=PLOT, ancestor_ids=[1]),
-    100: UnitContext(100, subject_id=TREE, ancestor_ids=[2, 1]),
-    101: UnitContext(101, subject_id=TREE, ancestor_ids=[2, 1]),
-    102: UnitContext(102, subject_id=TREE, ancestor_ids=[3, 1]),
-    200: UnitContext(200, subject_id=SAMPLE, ancestor_ids=[100, 2, 1]),
-    201: UnitContext(201, subject_id=SAMPLE, ancestor_ids=[100, 102, 2, 3, 1]),
+    2: UnitContext(2, subject_id=PLOT, ancestor_ids=[1], parent_ids=[1]),
+    3: UnitContext(3, subject_id=PLOT, ancestor_ids=[1], parent_ids=[1]),
+    100: UnitContext(100, subject_id=TREE, ancestor_ids=[2, 1], parent_ids=[2]),
+    101: UnitContext(101, subject_id=TREE, ancestor_ids=[2, 1], parent_ids=[2]),
+    102: UnitContext(102, subject_id=TREE, ancestor_ids=[3, 1], parent_ids=[3]),
+    200: UnitContext(200, subject_id=SAMPLE, ancestor_ids=[100, 2, 1], parent_ids=[100]),
+    201: UnitContext(201, subject_id=SAMPLE, ancestor_ids=[100, 102, 2, 3, 1], parent_ids=[100, 102]),
 }
 PLOT_TERM = domain_term('RECORD_GROUP', record_group_dimension='plot')
 
@@ -391,7 +391,7 @@ def test_factor_above_the_unit_levels_applies_across_them():
 
 """ Replicates: codes of WITHIN_UNIT groupings """
 WITHIN_UNIT = RecordGroupExtent.WITHIN_UNIT
-TREES = {100: UnitContext(100, ancestor_ids=[1]), 101: UnitContext(101, ancestor_ids=[1])}
+TREES = {100: UnitContext(100, ancestor_ids=[1], parent_ids=[1]), 101: UnitContext(101, ancestor_ids=[1], parent_ids=[1])}
 
 def replicates(scope=GroupingScope.STUDY_WIDE, dataset_scopes=(), extent=WITHIN_UNIT):
     """Study 1 with replicate grouping 7: tree 100 has 2 replicates, tree 101 has 4"""
@@ -610,8 +610,8 @@ def test_dated_factor_applies_to_its_time_bin():
 def test_factor_of_the_closest_unit_applies():
     units = {
         1: UnitContext(1),  # a block
-        100: UnitContext(100, ancestor_ids=[1]),
-        101: UnitContext(101, ancestor_ids=[1]),
+        100: UnitContext(100, ancestor_ids=[1], parent_ids=[1]),
+        101: UnitContext(101, ancestor_ids=[1], parent_ids=[1]),
     }
     ctx = context(
         descriptive([concept_term(10), concept_term(20)], dataset_ids=[1, 2]),
@@ -627,6 +627,45 @@ def test_factor_of_the_closest_unit_applies():
     # the block's record does not widen the exclusion rule of the tree's observation to the block
     assert frame.observations[0].exclusion['unit_ids'] == [100]
     assert AnalysisWarningCode.DATASET_FULLY_EXCLUDED not in codes(warnings)
+
+def test_factor_records_on_separate_lineages_must_agree():
+    """
+    A sample pooled from trees of two plots takes their plots' factor only when the plots' records agree (PLOTS: sample
+    201 is from tree 100 in plot 2 and tree 102 in plot 3); a sample of one tree takes its plot's
+    """
+    def light(plot_2, plot_3):
+        return context(
+            descriptive([concept_term(10), concept_term(20)], dataset_ids=[1, 2]),
+            [
+                dataset(1, 1, 10, [record(1, 200, '1'), record(2, 201, '2')]),
+                dataset(2, 1, 20, [record(3, 2, plot_2), record(4, 3, plot_3)]),
+            ],
+            units=PLOTS, concepts=FACTOR_CONCEPTS
+        )
+    frame, warnings = prepare(light('Shade', 'Sun'))
+    assert factor_values(frame) == ['Shade', None]
+    (warning,) = [w for w in warnings if w.code == AnalysisWarningCode.FACTOR_LINEAGES_DIFFER]
+    assert warning.record_ids == [3, 4]
+
+    frame, warnings = prepare(light('Shade', 'Shade'))
+    assert factor_values(frame) == ['Shade', 'Shade']
+    assert AnalysisWarningCode.FACTOR_LINEAGES_DIFFER not in codes(warnings)
+
+
+def test_a_nearer_factor_record_on_a_lineage_hides_one_further_up():
+    """The field's record is above plot 2's on the same lineage, so only the plot's describes the tree"""
+    ctx = context(
+        descriptive([concept_term(10), concept_term(20)], dataset_ids=[1, 2]),
+        [
+            dataset(1, 1, 10, [record(1, 100, '1'), record(2, 102, '2')]),
+            dataset(2, 1, 20, [record(3, 1, 'Sun'), record(4, 2, 'Shade')]),
+        ],
+        units=PLOTS, concepts=FACTOR_CONCEPTS
+    )
+    frame, warnings = prepare(ctx)
+    assert factor_values(frame) == ['Shade', 'Sun']
+    assert AnalysisWarningCode.FACTOR_LINEAGES_DIFFER not in codes(warnings)
+
 
 def test_factors_alone_are_the_observations():
     ctx = context(

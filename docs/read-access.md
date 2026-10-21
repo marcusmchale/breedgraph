@@ -46,7 +46,10 @@ In detail:
    layout tree, a crop's pedigree of germplasm) is shown with its hidden members left out and their
    readable descendants joined to the nearest readable ancestor. Nothing about the hidden members is shown: not their
    number, nor how the readable members were grouped under them. Where joining loses the kind of link, the joined
-   link says so (a germplasm relationship through hidden entries is UNKNOWN).
+   link says so (a germplasm relationship through hidden entries is UNKNOWN). What comes down a unit graph passes
+   through hidden members that hold none of it: a unit without germplasm takes that of the nearest units above it
+   with germplasm (`Unit.inheritedGermplasm`), but a path that reaches a hidden unit with germplasm gives none, since
+   that germplasm is not shown and one from further up would be wrong.
    Aggregate here means what is read as one structure, which need not be what is written as one: germplasm entries
    are written one at a time through `GermplasmApplicationService`, as no rule spans a crop's whole pedigree and loading
    it for each edit would be wasted, yet a crop and its connected entries are read as one pedigree.
@@ -131,8 +134,9 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
   (a placeholder has none).
 - Analysis: every record of a readable dataset is analysed. A record on a hidden unit has that unit as a placeholder
   context, hung from its nearest readable ancestors (for unit grouping and the factors describing it), without its
-  germplasm or positions, so it is not assigned to a germplasm or position group. Germplasm grouping takes the
-  readable descendants of a selected germplasm, which must be readable or a crop.
+  germplasm or positions, so it is not assigned to a germplasm or position group. A readable unit's germplasm is its
+  own or the one it inherits, as rule 3 gives it, so a unit below a hidden one with germplasm is unassigned too.
+  Germplasm grouping takes the readable descendants of a selected germplasm, which must be readable or a crop.
 
 ## 4. Status
 

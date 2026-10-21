@@ -75,7 +75,8 @@ input AnalysisExclusionInput {
   unitIds: [ID!]
 
   """
-  IDs of the germplasm of the base units of records to exclude.
+  IDs of the germplasm of the base units of records to exclude: a
+  unit's own germplasm, or the one it inherits (Unit.inheritedGermplasm).
   """
   germplasmIds: [ID!]
 

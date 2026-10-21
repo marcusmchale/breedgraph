@@ -59,6 +59,21 @@ class AbstractUnitsView(ABC):
         found = await self._get_ancestor_ids(unit_ids)
         return {unit_id: found.get(unit_id, []) for unit_id in unit_ids}
 
+    async def get_inherited_germplasm(self, unit_ids: Iterable[int]) -> Dict[int, Tuple[int, int]]:
+        """
+        For the readable units among these without germplasm of their own, the germplasm they take from the units
+        above them, and the nearest unit it comes from: (germplasm id, unit id) where the nearest units with germplasm,
+        one on each lineage, are readable and agree; left out otherwise (domain.services.lineages)
+        """
+        unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        if not unit_ids:
+            return {}
+        return await self._get_inherited_germplasm(unit_ids)
+
+    @abstractmethod
+    async def _get_inherited_germplasm(self, unit_ids: List[int]) -> Dict[int, Tuple[int, int]]:
+        ...
+
     async def get_arrivals(self, location_ids: Iterable[int], unit_id: int | None = None) -> List[UnitArrival]:
         """
         The arrivals at these locations: the readable units, not unit graph roots, with a position at one of them whose

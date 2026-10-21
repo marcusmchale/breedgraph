@@ -40,6 +40,7 @@ def prepare_observations(context: AnalysisContext, warnings: list[AnalysisMessag
     for record_id in builder.attach_context():
         included_counts[context_datasets[record_id]] += 1
 
+    warnings.extend(builder.context_warnings())
     warnings.extend(exclusions.warnings())
     for resolver in resolvers:
         warnings.extend(resolver.warnings())

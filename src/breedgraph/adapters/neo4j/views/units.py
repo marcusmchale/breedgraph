@@ -79,6 +79,23 @@ class Neo4jUnitsView(AbstractUnitsView):
     async def _get_unit_graph_roots(self, location_ids: List[int]) -> List[UnitOutput]:
         return await self._read(unit_graph_queries.read_unit_graph_roots(), location_ids=location_ids)
 
+    async def _get_inherited_germplasm(self, unit_ids: List[int]) -> Dict[int, Tuple[int, int]]:
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_inherited_germplasm(),
+            unit_ids=unit_ids, read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        inherited = {}
+        async for record in result:
+            sources = record['sources']
+            # none above, one hidden from the user (its germplasm unknown), or lineages that differ: nothing comes down
+            if not sources or not all(source['readable'] for source in sources):
+                continue
+            if len({source['germplasm_id'] for source in sources}) != 1:
+                continue
+            nearest = min(sources, key=lambda source: (source['distance'], source['unit_id']))
+            inherited[record['unit_id']] = (nearest['germplasm_id'], nearest['unit_id'])
+        return inherited
+
     async def _get_arrivals(self, location_ids: List[int], unit_id: int | None) -> List[UnitArrival]:
         result: AsyncResult = await self.session.run(
             unit_graph_queries.read_unit_arrivals(related=unit_id is not None),

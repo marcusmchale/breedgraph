@@ -35,6 +35,23 @@ nothing at a location the user cannot read.
 Work in breedview: the Units page (unit graphs and arrivals at a location), links from a tree to the arrivals its
 units went to, and arrivals in the dataset unit picker.
 
+## Inherited germplasm, and factor records on separate lineages
+
+A unit without germplasm of its own takes that of the units above it: on each path up its parents, the first unit
+with germplasm, and these must agree. Nothing is copied onto the unit, so `Unit.germplasm` is still its own. New:
+
+- `Unit.inheritedGermplasm: InheritedGermplasm`, `{ germplasm: GermplasmEntry!, unit: Unit! }`: the germplasm it takes
+  and the nearest unit it comes from (by distance, then id). Null when the unit has germplasm of its own, when nothing
+  above it has any, when its lineages differ, or when a lineage stops at a unit the user cannot read that has
+  germplasm. Resolved in one batch per request, as `Unit.ancestors`.
+- Analysis takes a unit's germplasm the same way, for the germplasm dimension, `germplasmIds` exclusions and
+  results. Factor records describing the units below follow the same rule: where the nearest records on separate
+  lineages differ, none applies, with the new warning `FACTOR_LINEAGES_DIFFER` and its `recordIds`.
+
+Work in breedview: show the inherited germplasm where a unit's germplasm is shown (marked as inherited, naming the
+unit it comes from), and use it in dataset tables; refresh it after a unit's germplasm or parents change; a hint for
+`FACTOR_LINEAGES_DIFFER`; the curation table's factor columns by the same rule.
+
 ## Checking the front end against the API
 
 ```bash

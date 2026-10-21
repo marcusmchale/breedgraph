@@ -167,7 +167,8 @@ Examples:
 Parameters are called factors in the code and the API. Variables and factors differ in what their records mean:
 a variable's record is an observation of a unit at a time; a factor's record describes the conditions of a unit,
 e.g. a treatment or a stratum. In analysis, factor records describe the observations of variables: they hold for the
-unit's descendants (the nearest record applies), and for all time when they have none (docs/analysis.md §2).
+unit's descendants (the nearest record applies, and on separate lineages the nearest must agree), and for all time
+when they have none (docs/analysis.md §2).
 ##### Event
 Event entries link  variables](#variable) and [factors](#factor).
 This is to support the definition of details that may be recorded in association with an event. 
@@ -259,6 +260,10 @@ Units have attributes for:
   - description
   - germplasm: an ID for a [germplasm entry](#germplasm-entry)
   - positions: a list of [positions](#position)
+
+A unit without germplasm of its own takes that of the units above it, so a sample needs none: on each path up its
+parents, the first unit with germplasm, and these must agree (a sample pooled from trees of two varieties has none).
+A unit's own germplasm overrides what it would take, e.g. a seedling raised from a cross.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)

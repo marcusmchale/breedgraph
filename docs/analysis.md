@@ -47,11 +47,14 @@ Every analysis operates on **observations**, not on records.
   only variable records form observations. Each factor record is added to the observations it describes:
   - **unit:** observations of its own unit, or of a selected parent unit it rolls up into; otherwise those of the
     unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its design block's treatment
-    unless it has its own);
+    unless it has its own). Each path up a unit's parents stops at its first unit with a record, so on separate
+    lineages (a sample pooled from two trees) the nearest records must agree: where they differ none applies, and
+    `FACTOR_LINEAGES_DIFFER` lists them;
   - **time:** its time bin, or **every** time bin when it has no start or end (a design factor holds throughout);
   - **record groups:** its level, or every level when it has none in the dimension (no code, or no unit of the
     dimension's subjects, e.g. a factor on the field above the plots);
-  - germplasm and position come from the observed unit, so they don't constrain it.
+  - germplasm and position come from the observed unit (its germplasm may be inherited, see Germplasm in section 3),
+    so they don't constrain it.
   - A factor record that describes no observation is unused, and can leave its dataset `DATASET_FULLY_EXCLUDED`.
   - Several factor records of the same unit and level are duplicates as for any term: aggregate them, e.g. `MODE`.
   - An observation's exclusion rule (`OutlierResult.exclusion`) is built from its own records' units, not from the
@@ -95,6 +98,10 @@ Every analysis operates on **observations**, not on records.
     for a missing other. `START` takes the start of that period, `END` its last moment and `MIDPOINT` its middle: a record
     ending `2021-05-03` is assigned by the end of that day, and a record dated `2021` by early July. Records with no time are unassigned.
 - **Germplasm** (`grouping.germplasm`)
+  - A unit's germplasm is its own, or else inherited from the units above it as the Units pages show it
+    (`Unit.inheritedGermplasm`): the nearest unit with germplasm on each path up its parents, which must agree; a
+    sample pooled from trees of two varieties has none. A unit the user cannot read stops the path where it has
+    germplasm, so the units below it have none (unassigned), rather than taking a germplasm from further up.
   - Each unit's germplasm is assigned to the closest selected germplasm: itself or its nearest selected ancestor.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.
 - **Unit** (`grouping.unit`): replaces each base unit with its closest selected parent unit. The base units are still reported in results.
@@ -178,7 +185,7 @@ Requirements by analysis:
 
 - A record is excluded if it matches **any** rule.
 - Within a rule, **all** given criteria must match. Within a list criterion, **any** element may match.
-- Matching is exact: excluding a germplasm doesn't exclude its descendants, and excluding a unit doesn't exclude its children. `unitIds` and `germplasmIds` refer to the record's base unit.
+- Matching is exact: excluding a germplasm doesn't exclude its descendants, and excluding a unit doesn't exclude its children. `unitIds` and `germplasmIds` refer to the record's base unit, and its germplasm may be inherited (section 3).
 - **Time.** `start` (inclusive) and `end` (exclusive) are compared with the record's start/end interval, which matches if it overlaps. Null means unbounded. A record with no time never matches a time-bounded rule.
 - **Positions.** Position criteria use the unit's position history, not the record time.
   - A position interval matching the criterion must overlap the rule's `[start, end]`.
@@ -252,4 +259,5 @@ Results per analysis:
 | `DATASET_FULLY_EXCLUDED` | warning | The dataset contributed no observations |
 | `RECORD_GROUP_LEVEL_UNMATCHED` | warning | A shared level member matched no records |
 | `REPLICATES_POOLED` | warning | Replicates were pooled by the term's aggregation; suggest a `replicateAggregation` |
+| `FACTOR_LINEAGES_DIFFER` | warning | Factor records on separate lineages above some units differ (a sample pooled from trees given different treatments), so none describes them; show `recordIds`, suggest recording the factor on those units |
 | `MODEL_NOT_CONVERGED` | warning | Show the result with a caveat |

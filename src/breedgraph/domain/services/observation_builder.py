@@ -6,8 +6,9 @@ Each term is a column of a wide frame with one row per observation.
 
 When an analysis has variable terms, variable records form the observations, and factor records describe them
 (attach_context): a factor record applies to an observation of its own unit, a unit rolled up into it, or failing
-those of the nearest ancestor unit with a record of that factor, in its time bin (or every bin when it has no time)
-and its record group levels (or every level when it has no code).
+those of the nearest units above with a record of that factor, one on each lineage, which must agree
+(domain.services.lineages), in its time bin (or every bin when it has no time) and its record group levels (or every
+level when it has no code).
 """
 from collections import Counter
 from dataclasses import dataclass, field
@@ -25,6 +26,7 @@ from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRe
 from breedgraph.domain.model.ontology import ScaleType
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime, parse_number
 from breedgraph.domain.services.analysis_dimensions import DimensionResolver, DimensionLevel
+from breedgraph.domain.services.lineages import nearest_on_each_lineage
 
 NUMERIC_AGGREGATIONS = (TermAggregation.MEAN, TermAggregation.MEDIAN, TermAggregation.SUM)
 # aggregations giving the same result whether or not replicates are combined first (or that count records)
@@ -183,6 +185,7 @@ class ObservationBuilder:
         self.spec_path = [context.request.analysis_type.input_field]
         self._observations: dict[tuple[str, ...], _ObservationRecords] = {}
         self._context: list[_ContextRecord] = []
+        self._differing: set[int] = set()  # factor records whose lineages differ, describing no observation for it
 
     def add(self, record: AnalysisRecord, levels: dict[str, DimensionLevel]):
         key = tuple(levels[r.name].key for r in self.resolvers)
@@ -197,7 +200,8 @@ class ObservationBuilder:
     def attach_context(self) -> set[int]:
         """
         Adds each factor record to the observations it describes. For each observation and factor, the records of
-        the closest unit apply: the observation's unit (or one rolled up into it), else its nearest ancestor with any.
+        the closest units apply: the observation's unit (or one rolled up into it), else the nearest units above it
+        with any, one on each lineage, when they agree; where they differ, none applies (context_warnings).
         Returns the IDs of the factor records that describe an observation.
         """
         if not self._context:
@@ -210,26 +214,52 @@ class ObservationBuilder:
             if unit_level is not None:
                 by_unit.setdefault(unit_level.key, []).append(entry)
             by_base.setdefault(entry.record.unit_id, []).append(entry)
+        concepts = {entry.record.concept_id for entry in self._context}
+
+        def parents_of(unit_id: int) -> list[int]:
+            unit = self.context.units.get(unit_id)
+            return unit.parent_ids if unit is not None else []
 
         attached = set()
         for observation in self._observations.values():
             unit_level = observation.levels[unit_name]
+            own = [entry for entry in by_unit.get(unit_level.key, []) if self._describes(entry, observation, unit_name)]
+            for entry in own:
+                observation.add_context(entry.record)
+                attached.add(entry.record.record_id)
             unit = self.context.units.get(unit_level.output)
-            candidates = [by_unit.get(unit_level.key, [])] + [
-                by_base.get(ancestor, []) for ancestor in (unit.ancestor_ids if unit is not None else [])
-            ]
-            described: set[int] = set()  # concepts found at a closer unit
-            for entries in candidates:
-                found = set()
-                for entry in entries:
-                    concept_id = entry.record.concept_id
-                    if concept_id in described or not self._describes(entry, observation, unit_name):
-                        continue
+            if unit is None:
+                continue
+            for concept_id in concepts - {entry.record.concept_id for entry in own}:
+                def describing(unit_id: int) -> list[_ContextRecord]:
+                    return [
+                        entry for entry in by_base.get(unit_id, [])
+                        if entry.record.concept_id == concept_id and self._describes(entry, observation, unit_name)
+                    ]
+                sources = nearest_on_each_lineage(unit.unit_id, parents_of, lambda u: bool(describing(u)))
+                if not sources:
+                    continue
+                found = {source: describing(source) for source in sources}
+                if len({tuple(sorted({str(e.record.value) for e in entries})) for entries in found.values()}) > 1:
+                    self._differing.update(e.record.record_id for entries in found.values() for e in entries)
+                    continue
+                for entry in found[sources[0]]:
                     observation.add_context(entry.record)
                     attached.add(entry.record.record_id)
-                    found.add(concept_id)
-                described |= found
         return attached
+
+    def context_warnings(self) -> list[AnalysisMessage]:
+        """Where factor records on separate lineages above an observation's unit differ, so describe it not at all"""
+        if not self._differing:
+            return []
+        return [AnalysisMessage(
+            code=AnalysisWarningCode.FACTOR_LINEAGES_DIFFER,
+            message=(
+                f"{len(self._differing)} factor records differ between separate lineages above some units, e.g. a sample "
+                f"pooled from trees given different treatments, so they describe none of those units' observations"
+            ),
+            record_ids=sorted(self._differing)
+        )]
 
     def _describes(self, entry: _ContextRecord, observation: _ObservationRecords, unit_name: str) -> bool:
         return all(
