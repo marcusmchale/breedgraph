@@ -87,12 +87,15 @@ async def test_units_by_id(views_factory, read_policy, viewer):
 @pytest.mark.parametrize('viewer', VIEWERS)
 @pytest.mark.parametrize('location', ('field', 'field_registered', 'state'))
 async def test_unit_graph_roots(views_factory, read_policy, viewer, location):
-    """Roots positioned at a location, kept where the viewer can read a unit in the unit graph; only roots count"""
+    """
+    Roots positioned at a location, kept where the viewer can read a unit in the unit graph; only roots count, and none
+    at a location the viewer cannot read (a search from it, docs/read-access.md rule 5)
+    """
     async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
         roots = {unit.id: unit for unit in await views.units.get_unit_graph_roots([read_policy[location]])}
     expected = {
         name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) == location
-    }
+    } if read_policy.readable(viewer, location) else set()
     assert set(roots) == ids(read_policy, expected), f"{viewer}: unit graph roots at {location}"
     for name in expected:
         assert_unit(read_policy, viewer, name, roots[read_policy[name]])

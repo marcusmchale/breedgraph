@@ -97,8 +97,10 @@ async def test_unit_graphs_at_locations(client, login_token_factory, read_policy
         {'locations': [read_policy[location] for location in locations]}
     )
     roots = {int(unit['id']): unit for unit in result}
+    # none at a location the viewer cannot read (a search from it, docs/read-access.md rule 5)
+    readable_locations = [location for location in locations if read_policy.readable(viewer, location)]
     expected = {
-        name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) in locations
+        name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) in readable_locations
     }
     assert set(roots) == {read_policy[name] for name in expected}
     for name in expected:

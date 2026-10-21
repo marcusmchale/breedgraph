@@ -25,6 +25,8 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'layoutsRoots': ('query ($id: ID!) { layoutsRoots(locationId: $id) { status errors { name message } } }', {'id': ids['field']}, True),
         'layoutsLayouts': ('query ($ids: [ID!]) { layoutsLayouts(ids: $ids) { status errors { name message } } }', {'ids': [ids['facility']]}, True),
         'unitsRoots': ('query ($ids: [ID!]) { unitsRoots(locationIds: $ids) { status errors { name message } } }', {'ids': [ids['field']]}, True),
+        'unitsArrivals': ('query ($ids: [ID!]!) { unitsArrivals(locationIds: $ids) { status errors { name message } } }', {'ids': [ids['field']]}, True),
+        'unitsArrivalUnits': ('query ($id: ID!) { unitsArrivalUnits(arrival: {locationId: $id}) { status errors { name message } } }', {'id': ids['field']}, True),
         'unitsDescendantsBySubject': ('query ($ids: [ID!]!) { unitsDescendantsBySubject(unitIds: $ids) { status errors { name message } } }', {'ids': [ids['tree_public']]}, True),
         'unitsUnits': ('query ($ids: [ID!]) { unitsUnits(ids: $ids) { status errors { name message } } }', {'ids': [ids['tree_public']]}, True),
         'datasets': ('query ($ids: [ID!]) { datasets(ids: $ids) { status errors { name message } } }', {'ids': [ids['dataset_public']]}, True),
