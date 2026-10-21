@@ -152,22 +152,19 @@ def position(**grouping):
     return analysis
 
 def test_position_grouping_to_domain():
-    analysis = position(subject_ids=['31'], layout=True, axes=[' Row ', 'Tree'], time='2024-06-01')
-    analysis['anova']['terms'] += [
-        domain_term('LOCATION'), domain_term('LAYOUT'), domain_term('LAYOUT_AXIS', layout_axis='Row')
-    ]
+    analysis = position(subject_ids=['31'], axes=[' Row ', 'Tree'], time='2024-06-01')
+    analysis['anova']['terms'] += [domain_term('LOCATION'), domain_term('LAYOUT_AXIS', layout_axis='Row')]
     assert paths(analysis) == set()
     grouping = AnalysisInputImport(**analysis).to_domain().spec.grouping.position
     assert grouping.location_type_ids == [3]
     assert grouping.subject_ids == [31]
-    assert grouping.layout is True
     assert grouping.axes == ['Row', 'Tree']
     assert grouping.time == np.datetime64('2024-06-01')
-    assert [r.label for r in grouping.references] == ['location', 'layout', 'layout_axis:Row', 'layout_axis:Tree']
+    assert [r.label for r in grouping.references] == ['location', 'layout_axis:Row', 'layout_axis:Tree']
 
 def test_position_grouping_defaults():
     grouping = AnalysisInputImport(**position()).to_domain().spec.grouping.position
-    assert (grouping.subject_ids, grouping.layout, grouping.axes, grouping.time) == ([], False, [], None)
+    assert (grouping.subject_ids, grouping.axes, grouping.time) == ([], [], None)
 
 @pytest.mark.parametrize('grouping, expected', [
     ({'location_type_ids': []}, ('anova', 'grouping', 'position', 'locationTypeIds')),
@@ -175,8 +172,9 @@ def test_position_grouping_defaults():
     ({'location_type_ids': [3], 'subject_ids': [31, 31]}, ('anova', 'grouping', 'position', 'subjectIds')),
     ({'location_type_ids': [3], 'axes': ['Row', 'Row']}, ('anova', 'grouping', 'position', 'axes', '1')),
     ({'location_type_ids': [3], 'axes': [' ']}, ('anova', 'grouping', 'position', 'axes', '0')),
-    # the explicit positions and axis indexes of the old grouping are gone
+    # the explicit positions and axis indexes of the old grouping are gone, and so is a layout term
     ({'location_type_ids': [3], 'axis_indexes': [0]}, ('anova', 'grouping', 'position', 'axisIndexes')),
+    ({'location_type_ids': [3], 'layout': True}, ('anova', 'grouping', 'position', 'layout')),
 ])
 def test_position_grouping_errors(grouping, expected):
     analysis = anova()
@@ -186,7 +184,6 @@ def test_position_grouping_errors(grouping, expected):
 @pytest.mark.parametrize('grouping, reference, expected', [
     (None, {'type': 'LOCATION'}, ('anova', 'terms', '3', 'reference', 'type')),
     (None, {'type': 'LAYOUT_AXIS', 'layout_axis': 'Row'}, ('anova', 'terms', '3', 'reference', 'type')),
-    ({'location_type_ids': [3]}, {'type': 'LAYOUT'}, ('anova', 'terms', '3', 'reference', 'type')),
     ({'location_type_ids': [3], 'axes': ['Tree']}, {'type': 'LAYOUT_AXIS', 'layout_axis': 'Row'},
      ('anova', 'terms', '3', 'reference', 'layoutAxis')),
     # an axis term names its axis, and other terms don't

@@ -326,7 +326,7 @@ class AnalysisContextLoader:
                 )
 
         layouts: dict[int, LayoutContext] = {}
-        if not grouping.layout and not grouping.axes:
+        if not grouping.axes:
             return locations, layouts
         for layout_id in sorted({position.layout_id for position in positions if position.layout_id is not None}):
             if layout_id in layouts:

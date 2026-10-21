@@ -120,7 +120,6 @@ class UnitGroupingImport(ImportModel):
 class PositionGroupingImport(ImportModel):
     location_type_ids: list[int] = Field(min_length=1)
     subject_ids: list[int] | None = None
-    layout: bool | None = None
     axes: list[str] | None = None
     time: PyDT64 | None = None
 
@@ -128,7 +127,6 @@ class PositionGroupingImport(ImportModel):
         return PositionGrouping(
             location_type_ids=self.location_type_ids,
             subject_ids=list(self.subject_ids or []),
-            layout=bool(self.layout),
             axes=list(self.axes or []),
             time=self.time
         )

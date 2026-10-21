@@ -10,8 +10,7 @@ from analysis_worker.service_layer.analyses.checks import single_level_columns, 
 
 # the AnalysisGroup fields of each domain term type
 GROUP_FIELDS = {
-    'TIME': 'time', 'GERMPLASM': 'germplasm_id', 'UNIT': 'unit_id', 'LOCATION': 'location_id', 'LAYOUT': 'layout_id',
-    'STUDY': 'study_id'
+    'TIME': 'time', 'GERMPLASM': 'germplasm_id', 'UNIT': 'unit_id', 'LOCATION': 'location_id', 'STUDY': 'study_id'
 }
 
 

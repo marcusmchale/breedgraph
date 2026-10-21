@@ -38,7 +38,6 @@ class AnalysisTermType(str, Enum):
     GERMPLASM = "GERMPLASM"
     UNIT = "UNIT"
     LOCATION = "LOCATION"
-    LAYOUT = "LAYOUT"
     LAYOUT_AXIS = "LAYOUT_AXIS"
     RECORD_GROUP = "RECORD_GROUP"
     STUDY = "STUDY"
@@ -344,13 +343,12 @@ class UnitGrouping:
 class PositionGrouping:
     """
     Where the units of records were (domain.services.analysis_places): the nearest location of one of the location
-    types, and optionally the layout of the position placing a unit there and its values on layout axes, by name.
+    types, and optionally the values on layout axes, by name, of the position placing a unit there.
     Units below a unit of one of the subjects are placed where that unit was.
     The time, when given, stands in for each record's time in choosing between a unit's positions.
     """
     location_type_ids: list[int]
     subject_ids: list[int] = field(default_factory=list)
-    layout: bool = False
     axes: list[str] = field(default_factory=list)
     time: datetime64|None = None
 
@@ -359,12 +357,10 @@ class PositionGrouping:
 
     @property
     def references(self) -> list[AnalysisTermReference]:
-        """The terms of the position dimensions: the location, the layout if configured, then each axis"""
-        references = [AnalysisTermReference(type=AnalysisTermType.LOCATION)]
-        if self.layout:
-            references.append(AnalysisTermReference(type=AnalysisTermType.LAYOUT))
-        references += [AnalysisTermReference(type=AnalysisTermType.LAYOUT_AXIS, layout_axis=axis) for axis in self.axes]
-        return references
+        """The terms of the position dimensions: the location, then each axis"""
+        return [AnalysisTermReference(type=AnalysisTermType.LOCATION)] + [
+            AnalysisTermReference(type=AnalysisTermType.LAYOUT_AXIS, layout_axis=axis) for axis in self.axes
+        ]
 
 @dataclass
 class AnalysisGrouping:

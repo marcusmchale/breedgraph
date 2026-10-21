@@ -152,18 +152,13 @@ def test_axis_values_are_nested_in_their_layout():
     assert axes(frame, 3) == [('Row', 101, '1')]
     assert groups(frame)[3]['location_id'] == FIELD_B1
 
-def test_an_axis_of_a_layout_above_and_the_layout():
+def test_an_axis_of_a_layout_above():
     records = [record(1, 1008, '1'), record(2, 1010, '2')]
-    frame, _ = analyse(
-        records, {'location_type_ids': [FIELD], 'layout': True, 'axes': ['Block', 'Row']},
-        [domain_term('LAYOUT'), axis('Block'), axis('Row')]
-    )
-    assert [groups(frame)[r]['layout_id'] for r in (1, 2)] == [111, 112]
+    frame, _ = analyse(records, {'location_type_ids': [FIELD], 'axes': ['Block', 'Row']}, [axis('Block'), axis('Row')])
     assert axes(frame, 1) == [('Block', 110, '1'), ('Row', 111, '3')]
     assert list(frame.data['layout_axis:Block']) == ['110|1', '110|2']
     # rows are numbered per block
     assert list(frame.data['layout_axis:Row']) == ['111|3', '112|3']
-    assert list(frame.data['layout']) == ['111', '112']
 
 def test_positions_without_the_axes_do_not_count():
     records = [record(1, 1000, '1'), record(2, 1012, '2'), record(3, 1001, '3')]
@@ -175,10 +170,6 @@ def test_positions_without_the_axes_do_not_count():
     frame, warnings = analyse(records, {'location_type_ids': [LAB], 'axes': ['Box']}, [axis('Box')])
     assert axes(frame, 2) == [('Box', 120, 'B1')]
     assert unassigned(warnings) == [[1, 3]]
-    # the layout alone needs a layout
-    frame, warnings = analyse(records, {'location_type_ids': [FIELD], 'layout': True}, [domain_term('LAYOUT')])
-    assert unassigned(warnings) == [[1]]
-    assert groups(frame)[2]['layout_id'] == 100
 
 
 """ Time """

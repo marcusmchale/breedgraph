@@ -79,11 +79,6 @@ type PositionGrouping {
   subjectIds: [ID!]!
 
   """
-  Whether the layout of the position is a dimension.
-  """
-  layout: Boolean!
-
-  """
   Names of the layout axes that are dimensions.
   """
   axes: [String!]!

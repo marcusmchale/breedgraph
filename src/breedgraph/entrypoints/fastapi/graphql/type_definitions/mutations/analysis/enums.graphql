@@ -190,12 +190,6 @@ enum AnalysisTermType {
   LOCATION
 
   """
-  The layout of the position placing each unit at its location.
-  Requires grouping.position with layout true.
-  """
-  LAYOUT
-
-  """
   The values on a layout axis, identified by layoutAxis, nested in
   the layout that has the axis. Requires the axis in grouping.position.axes.
   """

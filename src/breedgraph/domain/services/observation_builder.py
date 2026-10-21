@@ -553,8 +553,8 @@ class ObservationBuilder:
     """ Observation metadata """
     def _observation(self, observation: _ObservationRecords) -> Observation:
         group = {
-            'time': None, 'germplasm_id': None, 'unit_id': None, 'location_id': None, 'layout_id': None,
-            'study_id': None, 'record_groups': [], 'layout_axes': []
+            'time': None, 'germplasm_id': None, 'unit_id': None, 'location_id': None, 'study_id': None,
+            'record_groups': [], 'layout_axes': []
         }
         exclusion_start = exclusion_end = None
         for resolver in self.resolvers:
@@ -569,8 +569,6 @@ class ObservationBuilder:
                 group['germplasm_id'] = level.output
             elif term_type == AnalysisTermType.LOCATION:
                 group['location_id'] = level.output
-            elif term_type == AnalysisTermType.LAYOUT:
-                group['layout_id'] = level.output
             elif term_type == AnalysisTermType.LAYOUT_AXIS:
                 group['layout_axes'].append(level.output)
             elif term_type == AnalysisTermType.STUDY:

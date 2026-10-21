@@ -91,7 +91,6 @@ def _with_config_defaults(spec: dict) -> dict:
             grouping['position'] = None
         else:
             position['subject_ids'] = position.get('subject_ids') or []
-            position['layout'] = bool(position.get('layout'))
             position['axes'] = position.get('axes') or []
     return spec
 

@@ -95,15 +95,12 @@ def validate_reference(reference: AnalysisTermReference, grouping: AnalysisGroup
         AnalysisTermType.TIME: ('time', 'grouping.time'),
         AnalysisTermType.GERMPLASM: ('germplasm', 'grouping.germplasm'),
         AnalysisTermType.LOCATION: ('position', 'grouping.position'),
-        AnalysisTermType.LAYOUT: ('position', 'grouping.position'),
         AnalysisTermType.LAYOUT_AXIS: ('position', 'grouping.position'),
     }
     if reference.type in required:
         attr, label = required[reference.type]
         if getattr(grouping, attr) is None:
             return [_invalid(f"{reference.type.value} terms require {label}", path + ['type'])]
-    if reference.type == AnalysisTermType.LAYOUT and not grouping.position.layout:
-        return [_invalid("LAYOUT terms require grouping.position.layout", path + ['type'])]
     if reference.type == AnalysisTermType.LAYOUT_AXIS and reference.layout_axis not in grouping.position.axes:
         return [_invalid(
             f"Axis '{reference.layout_axis}' is not one of the axes in grouping.position.axes", path + ['layoutAxis']

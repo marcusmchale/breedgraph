@@ -204,11 +204,6 @@ class LocationResolver(PositionDimensionResolver):
         return DimensionLevel(key=str(place.location_id), output=place.location_id)
 
 
-class LayoutResolver(PositionDimensionResolver):
-    def _level(self, place: Place) -> DimensionLevel:
-        return DimensionLevel(key=str(place.layout_id), output=place.layout_id)
-
-
 class LayoutAxisResolver(PositionDimensionResolver):
     """An axis's values are nested in the layout that has the axis, so row 3 of one field is not row 3 of another"""
 
@@ -308,16 +303,13 @@ def build_dimension_resolvers(context: AnalysisContext) -> list[DimensionResolve
 
 
 def position_resolvers(context: AnalysisContext, path: list[str]) -> list[PositionDimensionResolver]:
-    """The location dimension, the layout dimension if configured, then one for each axis, sharing their placements"""
+    """The location dimension, then one for each axis, sharing their placements"""
     grouping = context.request.spec.grouping.position
     placer = Placer(grouping, context)
-    location, *others = grouping.references
-    resolvers: list[PositionDimensionResolver] = [LocationResolver(location, placer, path, reports=True)]
-    if grouping.layout:
-        resolvers.append(LayoutResolver(others.pop(0), placer, path))
-    for i, reference in enumerate(others):
-        resolvers.append(LayoutAxisResolver(reference, i, placer, path))
-    return resolvers
+    location, *axes = grouping.references
+    return [LocationResolver(location, placer, path, reports=True)] + [
+        LayoutAxisResolver(reference, i, placer, path) for i, reference in enumerate(axes)
+    ]
 
 
 def context_levels(resolvers: list[DimensionResolver], record: AnalysisRecord) -> dict[str, DimensionLevel | None] | None:

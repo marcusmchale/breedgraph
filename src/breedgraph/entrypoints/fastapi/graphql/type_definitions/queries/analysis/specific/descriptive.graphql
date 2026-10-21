@@ -108,11 +108,6 @@ type AnalysisGroup {
   locationId: ID
 
   """
-  Layout represented by this group, when the layout is a dimension.
-  """
-  layoutId: ID
-
-  """
   Layout axis values represented by this group.
   """
   layoutAxes: [AnalysisLayoutAxisLevel!]!

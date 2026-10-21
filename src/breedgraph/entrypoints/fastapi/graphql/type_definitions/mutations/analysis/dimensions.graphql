@@ -57,12 +57,11 @@ input UnitGroupingInput {
 
 """
 Defines where the units of records were, as the dimensions of a
-LOCATION term, an optional LAYOUT term and a LAYOUT_AXIS term for
-each axis.
+LOCATION term and a LAYOUT_AXIS term for each axis.
 
 A position counts when its location is, or is below, a location of
-one of the location types, and when the layout or axes are
-configured, it is in a layout with a value on each axis. A record is
+one of the location types, and when axes are configured, it is in a
+layout with a value on each axis. A record is
 placed by the nearest unit with a position that counts: its own unit,
 or else the nearest units above it, one on each lineage, which must
 agree. Of a unit's positions that count, the one holding at the
@@ -82,11 +81,6 @@ input PositionGroupingInput {
   that a sample analysed in a lab is placed where its tree was.
   """
   subjectIds: [ID!]
-
-  """
-  Whether the layout of the position is a dimension (a LAYOUT term).
-  """
-  layout: Boolean
 
   """
   Names of layout axes, each a dimension (a LAYOUT_AXIS term). The

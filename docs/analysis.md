@@ -40,8 +40,8 @@ Every analysis operates on **observations**, not on records.
 
 - An observation is identified by:
   - **the unit:** the record's base unit, or its selected parent unit when `grouping.unit` is set, and
-  - **the level of every configured dimension:** time bin, germplasm, the position dimensions (location, layout and
-    layout axes), and each record-group dimension, and
+  - **the level of every configured dimension:** time bin, germplasm, the position dimensions (location and layout
+    axes), and each record-group dimension, and
   - **the study**, only when a `STUDY` term is used. Otherwise records of a unit from different studies are pooled.
 - Each `CONCEPT` term contributes **one value per observation**. Records come from the selected datasets whose concept is the term's concept.
 - **Factors describe the observations of variables.** When an analysis has a term for a variable concept,
@@ -85,7 +85,7 @@ Every analysis operates on **observations**, not on records.
   - To analyse each replicate instead (descriptive statistics, outlier detection, correlation, MDS),
     configure a record-group dimension of the WITHIN_UNIT groupings (§3). `window` doesn't apply there.
   - A replicate followed over time, such as a tagged branch measured on dates further apart than any window, is better recorded as a child unit.
-- Domain terms (`TIME`, `GERMPLASM`, `LOCATION`, `LAYOUT`, `LAYOUT_AXIS`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
+- Domain terms (`TIME`, `GERMPLASM`, `LOCATION`, `LAYOUT_AXIS`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
 - Configuring a dimension changes observation identity even if no term uses it.
 - A record that can't be assigned to a configured dimension is dropped. Each dimension reports one `UNASSIGNED_<DIMENSION>` warning with the count and `recordIds`.
 - Observations are ordered by dataset (as listed in `datasetIds`), then by record ID.
@@ -106,11 +106,11 @@ Every analysis operates on **observations**, not on records.
   - Each unit's germplasm is assigned to the closest selected germplasm: itself or its nearest selected ancestor.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.
 - **Unit** (`grouping.unit`): replaces each base unit with its closest selected parent unit. The base units are still reported in results.
-- **Position** (`grouping.position`): where the units of records were. It gives a `LOCATION` term, a `LAYOUT` term
-  when `layout` is true, and a `LAYOUT_AXIS` term (`layoutAxis`) for each of `axes`.
+- **Position** (`grouping.position`): where the units of records were. It gives a `LOCATION` term and a
+  `LAYOUT_AXIS` term (`layoutAxis`) for each of `axes`.
   - A position **counts** when two things hold:
     - its location is, or is below, a location of one of `locationTypeIds`;
-    - with `layout` or `axes`, it is in a layout that has a value on each axis. The value comes from the position's own
+    - with `axes`, it is in a layout that has a value on each axis. The value comes from the position's own
       layout, or from a layout above it in the layout tree, through the child layouts' positions. Axis names are unique
       along a branch.
   - A record is **placed** by the nearest unit with a position that counts: its own unit, or else the nearest units
@@ -129,7 +129,6 @@ Every analysis operates on **observations**, not on records.
     - `time`, when given, stands in for every record's time.
   - Levels:
     - LOCATION: the nearest location of one of the types, at or above the position's location, by id.
-    - LAYOUT: the layout the position is in, by id, e.g. a planting's own Row and Tree layout, or a shelf.
     - LAYOUT_AXIS: the value on the axis, nested in the layout that has the axis (`layoutId|value`). Row 3 of one field
       isn't row 3 of another, and rows numbered per block stay apart. Combine axes with interactions. The levels are in
       numeric order where the values are numbers.
@@ -242,7 +241,7 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 |---|---|
 | GERMPLASM, UNIT, STUDY | IDs; resolve the names in the UI |
 | TIME | Bin labels |
-| LOCATION, LAYOUT | IDs (`AnalysisGroup.locationId`, `layoutId`); resolve the names in the UI |
+| LOCATION | IDs (`AnalysisGroup.locationId`); resolve the names in the UI |
 | LAYOUT_AXIS | `layoutId\|value`, the value nested in the layout that has the axis; `AnalysisGroup.layoutAxes` has the parts |
 | RECORD_GROUP | A shared level label, a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings, `grouping\|scope\|root\|code` for WITHIN_GRAPH), or `unit\|<unitId>` for a unit level, whose `unitId` is set and `groupingId` null; `AnalysisRecordGroupAssignment` has the parts |
 | CONCEPT | Category or bin labels |

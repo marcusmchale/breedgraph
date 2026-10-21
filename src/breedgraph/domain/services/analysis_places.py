@@ -2,9 +2,8 @@
 Where the units of records were, for position grouping (docs/analysis.md §3).
 
 A position counts for the grouping when its location is, or is below, a location of one of the location types and,
-when the layout or axes are configured, it is in a layout with a value on each axis, from its own layout or one above
-it in the layout tree. Its place is the nearest such location, the layout and the axis values, each value with the
-layout that has the axis.
+when axes are configured, it is in a layout with a value on each axis, from its own layout or one above it in the
+layout tree. Its place is the nearest such location and the axis values, each with the layout that has the axis.
 
 A record is placed by the nearest unit with a position that counts: its own unit, or else the nearest units above it,
 one on each lineage (domain.services.lineages), whose places must agree. So a sample in a lab is placed by its tree
@@ -33,11 +32,10 @@ from breedgraph.domain.services.lineages import nearest_on_each_lineage
 @dataclass(frozen=True)
 class Place:
     """
-    The levels of the position dimensions of a record: the location, the layout when configured, and each configured
-    axis as (axis, the layout with the axis, value), in the order of the grouping's axes
+    The levels of the position dimensions of a record: the location, and each configured axis as (axis, the layout
+    with the axis, value), in the order of the grouping's axes
     """
     location_id: int
-    layout_id: int | None = None
     axes: tuple[tuple[str, int, str], ...] = ()
 
 
@@ -67,7 +65,6 @@ class Placer:
     def __init__(self, grouping: PositionGrouping, context: AnalysisContext):
         self.types = set(grouping.location_type_ids)
         self.subjects = set(grouping.subject_ids)
-        self.layout = grouping.layout
         self.axes = list(grouping.axes)
         self.time = grouping.time
         self.units = context.units
@@ -171,7 +168,7 @@ class Placer:
         location_id = self._typed_location(location)
         if location_id is None:
             return None
-        if not self.layout and not self.axes:
+        if not self.axes:
             return Place(location_id=location_id)
         if position.layout_id is None:
             return None
@@ -185,7 +182,7 @@ class Placer:
                 # a value on a layout above one the user can't see would be unknown
                 return None if complete else UNKNOWN
             axes.append((axis, *values[axis]))
-        return Place(location_id=location_id, layout_id=layout.layout_id if self.layout else None, axes=tuple(axes))
+        return Place(location_id=location_id, axes=tuple(axes))
 
     def _typed_location(self, location: LocationContext) -> int | None:
         """The nearest location of one of the types, the location itself or one above it"""
