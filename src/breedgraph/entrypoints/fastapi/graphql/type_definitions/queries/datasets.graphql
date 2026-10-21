@@ -42,6 +42,28 @@ type DatasetDimensions {
 }
 
 """
+A location that analysis position grouping could place the records of datasets at (Query.datasetsPlaces)
+"""
+type DatasetPlace {
+    location: Location!
+    """ The datasets' recorded units placed there, through their own positions or those of the units above them """
+    unitCount: Int!
+    """ The layouts of the positions placing them, in id order """
+    layouts: [DatasetPlaceLayout!]!
+}
+
+type DatasetPlaceLayout {
+    layout: Layout!
+    """ The datasets' recorded units placed in it """
+    unitCount: Int!
+    """
+    The axis names a position in the layout has values on: its own, then those of the layouts above it, up to one
+    the user can't read
+    """
+    axes: [String!]!
+}
+
+"""
 A dataset. One the user cannot read, asked for by id, is a placeholder: its id, with no study or concept, and no records.
 """
 type Dataset {

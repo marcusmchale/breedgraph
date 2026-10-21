@@ -141,6 +141,9 @@ Every analysis operates on **observations**, not on records.
     A hidden location's type isn't seen, so it isn't matched. A hidden layout's axes aren't seen either, so an axis
     above a hidden layout is unknown. A record on a hidden unit is never placed.
   - A record that can't be placed is unassigned. One `UNASSIGNED_POSITION` warning covers all the position terms.
+  - For the editor, `datasetsPlaces(datasetIds, locationTypeIds)` lists where the selected datasets' records could be
+    placed: the locations of the types, with unit counts, the layouts of the positions there and the axis names those
+    give. It leaves out which unit places a record, and when, so it lists every place an analysis could use.
 - **Record groups** (`grouping.recordGroups`)
   - `name` is unique per analysis. Terms reference the dimension by this name (`recordGroupDimension`), and results use it as the label.
   - Each grouping must belong to the study of a selected dataset. A dimension can use at most one grouping per study, and a grouping can belong to only one dimension.

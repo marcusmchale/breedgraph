@@ -144,6 +144,12 @@ type UnitsPayload {
     errors: [Error!]
 }
 
+type DatasetPlacesPayload {
+    status: QueryStatus!
+    result: [DatasetPlace!]
+    errors: [Error!]
+}
+
 type SubjectUnitsPayload {
     status: QueryStatus!
     result: [SubjectUnits!]

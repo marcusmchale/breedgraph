@@ -11,7 +11,9 @@ from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
     dataset_summaries as dataset_summaries_query,
     dataset_unit_summaries as dataset_unit_summaries_query
 )
-from breedgraph.service_layer.queries.read_models import DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit
+from breedgraph.service_layer.queries.read_models import (
+    DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit, DatasetPlace, DatasetPlaceLayout
+)
 from breedgraph.domain.model.unit_graphs import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_local, local_datetime64, upper, deserialize_time
 from numpy import datetime64
@@ -194,6 +196,31 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 ]
                 async for record in result
             }
+
+    async def _get_places(self, dataset_ids: List[int], location_type_ids: List[int]) -> List[DatasetPlace]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(
+                dataset_queries.read_places(),
+                dataset_ids=dataset_ids,
+                location_type_ids=location_type_ids,
+                **self._access
+            )
+            return [
+                DatasetPlace(
+                    location_id=record['location_id'],
+                    unit_count=record['unit_count'],
+                    layouts=sorted(
+                        (
+                            DatasetPlaceLayout(
+                                layout_id=layout['layout_id'], unit_count=layout['unit_count'], axes=list(layout['axes'])
+                            )
+                            for layout in record['layouts']
+                        ),
+                        key=lambda layout: layout.layout_id
+                    )
+                )
+                async for record in result
+            ]
 
     async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         async with await self.session.begin_transaction() as tx:

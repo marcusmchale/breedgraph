@@ -20,6 +20,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     get_context_lock,
     update_germplasm_map,
     update_locations_map,
+    update_layouts_map,
     update_reference_map
 )
 
@@ -36,8 +37,12 @@ dataset_submission = ObjectType("DatasetSubmission")
 dataset_summary = ObjectType("DatasetSummary")
 datasets_unit = ObjectType("DatasetsUnit")
 submitted_data = ObjectType("SubmittedData")
+dataset_place = ObjectType("DatasetPlace")
+dataset_place_layout = ObjectType("DatasetPlaceLayout")
 
-graphql_resolvers.register_type_resolvers(dataset, record, dataset_submission, dataset_summary, datasets_unit, submitted_data)
+graphql_resolvers.register_type_resolvers(
+    dataset, record, dataset_submission, dataset_summary, datasets_unit, submitted_data, dataset_place, dataset_place_layout
+)
 
 """Datasets resolver"""
 @graphql_query.field("datasets")
@@ -96,6 +101,28 @@ async def get_datasets_units_by_subject(_, info, dataset_ids: List[int], unit_id
             start=start, end=end
         )
     return [{'subject': subject, 'units': units} for subject, units in by_subject.items()]
+
+@graphql_query.field("datasetsPlaces")
+@graphql_payload
+async def get_datasets_places(_, info, dataset_ids: List[int], location_type_ids: List[int]):
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        readable_ids = await _readable_dataset_ids(views, dataset_ids)
+        if not readable_ids:
+            return []
+        return await views.datasets.get_places(
+            dataset_ids=readable_ids, location_type_ids=[int(type_id) for type_id in location_type_ids]
+        )
+
+@dataset_place.field('location')
+async def resolve_place_location(obj, info):
+    await update_locations_map(info.context, location_ids=[obj.location_id])
+    return info.context.get('locations_map').get(obj.location_id)
+
+@dataset_place_layout.field('layout')
+async def resolve_place_layout(obj, info):
+    await update_layouts_map(info.context, layout_ids=[obj.layout_id])
+    return info.context.get('layouts_map').get(obj.layout_id)
 
 @dataset.field('studyId')
 def resolve_study_id(obj, info):

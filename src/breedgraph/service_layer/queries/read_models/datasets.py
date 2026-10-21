@@ -63,6 +63,28 @@ class GroupingCodes:
 
 
 @dataclass
+class DatasetPlaceLayout:
+    """
+    A layout of the positions placing the units of datasets at a location: how many of their recorded units it places,
+    and the axis names a position in it has values on, its own and those of the layouts above it
+    """
+    layout_id: int
+    unit_count: int
+    axes: List[str] = field(default_factory=list)
+
+
+@dataclass
+class DatasetPlace:
+    """
+    A location of one of some location types that analysis position grouping could place the records of datasets
+    at: how many of their recorded units it places, and the layouts of the positions placing them
+    """
+    location_id: int
+    unit_count: int
+    layouts: List[DatasetPlaceLayout] = field(default_factory=list)
+
+
+@dataclass
 class DatasetDimensions:
     """
     What a dataset's records span, read without the records: counts, the time range, the record times and values

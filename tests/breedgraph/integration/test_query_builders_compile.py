@@ -83,6 +83,7 @@ QUERIES = {
     'datasets.read_unit_ids': datasets.read_unit_ids(),
     'datasets.read_unit_level': datasets.read_unit_level(),
     'datasets.read_units_by_subject': datasets.read_units_by_subject(),
+    'datasets.read_places': datasets.read_places(),
     **{f'datasets.dataset_summaries({sorted(fields)})': datasets.dataset_summaries(fields) for fields in _summary_field_sets()},
     **{f'datasets.dataset_unit_summaries({sorted(fields)})': datasets.dataset_unit_summaries(fields) for fields in _summary_field_sets()},
     **{

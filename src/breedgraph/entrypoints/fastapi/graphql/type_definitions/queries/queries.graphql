@@ -193,6 +193,14 @@ type Query {
     For selecting all the recorded units of a subject at once, e.g. every measured tree of a field.
     """
     datasetsUnitsBySubject(datasetIds: [ID!]!, unitIds: [ID!], start: DateTime, end: DateTime): SubjectUnitsPayload!
+    """
+    Where analysis position grouping (PositionGroupingInput) could place the records of readable datasets: the
+    locations of the location types at or above the positions of their recorded units and of the units above them,
+    with the layouts of those positions and the axis names they give. For the analysis editor: which unit places a
+    record, and when, are left to the analysis, so these are every place it could use. Only what the user can read
+    is given.
+    """
+    datasetsPlaces(datasetIds: [ID!]!, locationTypeIds: [ID!]!): DatasetPlacesPayload!
     """ Get the controller data for access controlled entities """
     controlsControllers (
         entityLabel: ControlledModelLabel!

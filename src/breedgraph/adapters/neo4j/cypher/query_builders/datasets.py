@@ -12,6 +12,8 @@ from breedgraph.adapters.neo4j.cypher.query_builders.times import upper as _uppe
 
 DATASET = ControlledModelLabel.DATASET
 UNIT = ControlledModelLabel.UNIT
+LOCATION = ControlledModelLabel.LOCATION
+LAYOUT = ControlledModelLabel.LAYOUT
 EDGE = 'INCLUDES_UNIT'
 
 # A record's period runs from the start of the period of its start to the end of the period of its end, either standing
@@ -353,6 +355,52 @@ def read_units_by_subject():
         WITH subject.id AS subject, unit, unit_readable
         ORDER BY unit.name, unit.id
         RETURN subject, collect(CASE WHEN unit_readable THEN {{id: unit.id, name: unit.name}} ELSE {{id: unit.id, name: 'REDACTED'}} END) AS units
+    """
+
+
+def read_places():
+    """
+    Where analysis position grouping (domain.services.analysis_places) could place the records of the readable
+    datasets $dataset_ids, for the analysis editor: for the positions of their recorded units and of the readable
+    units above them, the nearest location of one of the types $location_type_ids at or above the position's location,
+    with how many recorded units it places, and the layouts of those positions, each with how many it places and the
+    axis names a position in it has values on: its own and those of the layouts above it, up to one the user can't
+    read. Which unit places a record, and when, are left to the analysis, so these are every place it could use. Only
+    readable units, locations and layouts count, and a location of a type is the nearest readable one.
+    """
+    return f"""
+        MATCH (dataset:Dataset)-[:INCLUDES_RECORD]->(:Record)-[:FOR_UNIT]->(unit:Unit)
+        WHERE dataset.id IN $dataset_ids
+        WITH DISTINCT unit
+        MATCH (placed:Unit)-[:{EDGE}*0..]->(unit)
+        WITH placed, collect(unit) AS recorded
+        WHERE {_readable('placed')}
+        MATCH (placed)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
+        OPTIONAL MATCH (position)-[:IN_LAYOUT]->(layout:Layout)
+        WITH location, layout, apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+        WHERE {_readable_as('location', LOCATION)}
+        CALL (location) {{
+          MATCH path = (typed:Location)-[:INCLUDES_LOCATION*0..]->(location)
+          WHERE EXISTS {{ MATCH (typed)-[:OF_LOCATION_TYPE]->(type:LocationType) WHERE type.id IN $location_type_ids }}
+            AND {_readable_as('typed', LOCATION)}
+          RETURN typed
+          ORDER BY length(path)
+          LIMIT 1
+        }}
+        WITH typed, layout, apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+        WITH typed, layout, recorded, layout IS NOT NULL AND {_readable_as('layout', LAYOUT)} AS layout_shown
+        CALL (layout, layout_shown) {{
+          // the longest readable path up from the layout, its own axes first
+          OPTIONAL MATCH path = (:Layout)-[:INCLUDES_LAYOUT*0..]->(layout)
+          WHERE layout_shown AND all(member IN nodes(path) WHERE {_readable_as('member', LAYOUT)})
+          WITH path ORDER BY length(path) DESC LIMIT 1
+          RETURN CASE WHEN path IS NULL THEN [] ELSE apoc.coll.flatten([member IN reverse(nodes(path)) | member.axes]) END AS axes
+        }}
+        WITH typed,
+          collect(CASE WHEN layout_shown THEN {{layout_id: layout.id, unit_count: size(recorded), axes: axes}} END) AS layouts,
+          apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+        RETURN typed.id AS location_id, size(recorded) AS unit_count, layouts
+        ORDER BY location_id
     """
 
 

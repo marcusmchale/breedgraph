@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit
+from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit, DatasetPlace
 from numpy import datetime64
 from breedgraph.domain.model.unit_graphs import UnitOutput
 
@@ -131,6 +131,21 @@ class AbstractDatasetsView(ABC):
             if not unit_ids:
                 return {}
         return await self._get_units_by_subject(dataset_ids=dataset_ids, unit_ids=unit_ids, start=start, end=end)
+
+    async def get_places(self, dataset_ids: List[int], location_type_ids: List[int]) -> List[DatasetPlace]:
+        """
+        Where analysis position grouping could place the records of readable datasets: the locations of the types at
+        or above the positions of their recorded units and the units above them, with the layouts of those positions
+        and the axis names they give, as the user can read them
+        """
+        dataset_ids = [dataset_id for dataset_id in dict.fromkeys(dataset_ids) if dataset_id is not None]
+        if not dataset_ids or not location_type_ids:
+            return []
+        return await self._get_places(dataset_ids=dataset_ids, location_type_ids=list(dict.fromkeys(location_type_ids)))
+
+    @abstractmethod
+    async def _get_places(self, dataset_ids: List[int], location_type_ids: List[int]) -> List[DatasetPlace]:
+        ...
 
     async def get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         """
