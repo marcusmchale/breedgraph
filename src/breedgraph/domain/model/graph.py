@@ -169,6 +169,10 @@ class DiGraphAggregate(Aggregate, Generic[TInput, TStored], ABC):
     def _change_sources(self, node_id: int, sources: Set[int] | Dict[int, Dict]):
         if node_id in sources:
             raise ValueError("Node is in sources, self-loops are not supported")
+        # networkx would add a missing source as a bare node, without a model to store
+        missing = [source_id for source_id in sources if source_id not in self._graph]
+        if missing:
+            raise ValueError(f"Sources not found: {missing}")
         if set(sources).intersection(self.get_descendants(node_id)):
             raise IllegalOperationError("A supplied source is a child, cycles are not supported")
         self._graph.remove_edges_from(list(self._graph.in_edges(node_id)))
@@ -274,14 +278,15 @@ class RootedAggregate(DiGraphAggregate, ABC):
         """
         Splitting may be provided by domain services if this returns True
         We ensure that
-         - child nodes have no relationships to the rest of the graph
+         - nodes below the node have no parents outside it and its descendants,
+           which would keep them joined to the rest of the graph
         """
         subtree = nx.descendants(self._graph, node_id) | {node_id}
-        for node in subtree:
-            for neighbour in self._graph.neighbors(node):
-                if neighbour not in subtree:
-                    return False
-        return True
+        return all(
+            parent in subtree
+            for node in subtree - {node_id}
+            for parent in self._graph.predecessors(node)
+        )
 
 class TreeAggregate(RootedAggregate, ABC):
     """An aggregate where nodes in the graph each have a single source"""

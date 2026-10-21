@@ -15,7 +15,7 @@ attribute is given a new list of some of the same items, doesn't leave its callb
 if it gets an owner again. Objects keep their nested values' callbacks, as one removed may be added somewhere else.
 """
 import networkx as nx
-from numpy import datetime64
+from numpy import datetime64, datetime_data
 from datetime import datetime, date, time, timedelta
 from wrapt import ObjectProxy
 from enum import Enum
@@ -59,6 +59,13 @@ class TrackableProtocol(Protocol):
     def reset_tracking(self) -> None:
         """Reset all tracking information"""
         ...
+
+
+def differs(previous: Any, value: Any) -> bool:
+    """Whether value changes previous: numpy counts 2021-05 and 2021-05-01 as equal, but a time's precision is part of it"""
+    if isinstance(previous, datetime64) and isinstance(value, datetime64):
+        return previous != value or datetime_data(previous) != datetime_data(value)
+    return previous != value
 
 
 def is_trackable(value: Any) -> bool:
@@ -258,7 +265,7 @@ class TrackedObject(ObjectProxy):
         if key not in ('_self_changed', '_self_on_changed') and hasattr(self, key):
             previous = getattr(self.__wrapped__, key, None)
             if previous is not value:
-                if previous != value:
+                if differs(previous, value):
                     self._self_changed.add(key)
                     for callback in list(self._self_on_changed.values()):
                         callback()

@@ -30,10 +30,7 @@ graphql_resolvers.register_type_resolvers(unit, position, subject_units)
 @graphql_query.field("unitsRoots")
 @graphql_payload
 async def get_unit_graphs(_, info, location_ids: List[int]|None = None) -> List[UnitOutput]:
-    await update_units_map(info.context, location_ids=location_ids)
-    units_map = info.context.get('units_map')
-    unit_graph_roots = info.context.get('unit_graph_roots')
-    return [units_map.get(i) for i in unit_graph_roots]
+    return await update_units_map(info.context, location_ids=location_ids or [])
 
 @graphql_query.field("unitsUnits")
 @graphql_payload

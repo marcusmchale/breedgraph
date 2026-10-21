@@ -44,7 +44,7 @@ from dataclasses import dataclass, field, replace
 
 import networkx as nx
 from numpy import datetime64
-from breedgraph.domain.model.time_descriptors import upper
+from breedgraph.domain.model.time_descriptors import upper, same_time, local_datetime64
 
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
@@ -60,6 +60,27 @@ class Position:
     coordinates: List[int|str|float] | None = None  # list of axis values should correspond to layout,
     start: datetime64|None = None
     end: datetime64|None = None
+
+
+def same_position(position: Position, other: Position) -> bool:
+    """
+    Whether two positions are the same value as entered: positions have no identity, so a position is found by its
+    value. Times compare with their precision (numpy counts 2021-05 and 2021-05-01 as equal), and coordinates as the
+    strings the API takes them in, none and an empty list alike.
+    """
+    def coordinates(p: Position):
+        return [str(c) for c in p.coordinates or []]
+
+    def time(t):
+        return None if t is None else local_datetime64(t)
+
+    return (
+        position.location_id == other.location_id
+        and position.layout_id == other.layout_id
+        and coordinates(position) == coordinates(other)
+        and same_time(time(position.start), time(other.start))
+        and same_time(time(position.end), time(other.end))
+    )
 
 @dataclass(eq=False)
 class UnitBase(ABC):
@@ -139,32 +160,44 @@ class UnitGraph(ControlledRootedAggregate):
     def add_position(self, unit_id: int, position: Position):
         self._validate_position(position)
         unit = self.get_unit(unit_id)
+        if any(same_position(position, p) for p in unit.positions):
+            raise ValueError("The unit already has this position")
         unit.positions.append(position)
 
     def remove_position(self, unit_id: int, position: Position):
         unit = self.get_unit(unit_id)
-        try:
-            if self.root == unit and len(unit.positions) == 1:
-                raise IllegalOperationError("Unit graph root units must have at least one position defined to support discovery")
-            unit.positions.remove(position)
-        except ValueError:
+        index = next((i for i, p in enumerate(unit.positions) if same_position(position, p)), None)
+        if index is None:
             raise ValueError("A position matching the provided details was not found, nothing changed")
+        if self.get_root_id() == unit_id and len(unit.positions) == 1:
+            raise IllegalOperationError("Unit graph root units must have at least one position defined to support discovery")
+        del unit.positions[index]
 
     def set_child(self, source_id: int, sink_id: int):
         self._add_edge(source_id, sink_id)
 
     def change_parents(self, unit_id, new_parent_ids):
+        if not new_parent_ids and self.get_parent_ids(unit_id):
+            raise IllegalOperationError(
+                "A unit with parents keeps at least one: to make it the root of a unit graph, split the unit graph"
+            )
         self._change_sources(unit_id, set(new_parent_ids))
 
     def change_children(self, unit_id, new_child_ids):
+        """
+        Make new_child_ids the unit's children, within this unit graph. A child the unit alone holds can't be let go
+        here, as it would be left without parents: splitting the unit graph makes it a root instead.
+        """
         current_child_ids = self.get_children_ids(unit_id)
         to_remove = set(current_child_ids) - set(new_child_ids)
         to_add = set(new_child_ids) - set(current_child_ids)
         for child_id in to_remove:
             current_parents = self.get_parent_ids(child_id)
-            new_parents = set(current_parents) - unit_id
+            new_parents = set(current_parents) - {unit_id}
             self.change_parents(child_id, new_parents)
         for child_id in to_add:
+            if not self.has_unit(child_id):
+                raise ValueError(f"Child {child_id} is not in this unit graph: merge its unit graph instead")
             self.set_child(source_id = unit_id, sink_id=child_id)
 
 
@@ -191,7 +224,7 @@ class UnitGraph(ControlledRootedAggregate):
 
     def yield_unit_ids_by_subject(self, subject_id: int) -> Generator[int, None, None]:
         for unit_id, unit in self.entries.items():
-            if unit.subject_id == subject_id:
+            if unit.subject == subject_id:
                 yield unit_id
 
     @staticmethod

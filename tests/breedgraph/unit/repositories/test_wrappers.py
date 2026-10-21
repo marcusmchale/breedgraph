@@ -341,3 +341,19 @@ def test_a_list_given_back_to_its_owner_attaches_its_items_again():
     list_model[0].rename('again')
     assert tracked_model.list_model.changed == {0}
     assert 'list_model' in tracked_model.changed
+
+
+@dataclass
+class StartedModel:
+    start: object = None
+
+
+def test_a_change_of_time_precision_alone_is_a_change():
+    """numpy counts 2021-05 and 2021-05-01 as equal, but a time is stored with its precision"""
+    from numpy import datetime64
+    tracked_model = tracked(StartedModel(start=datetime64('2021-05')))
+    tracked_model.start = datetime64('2021-05')
+    assert not tracked_model.changed
+
+    tracked_model.start = datetime64('2021-05-01')
+    assert 'start' in tracked_model.changed

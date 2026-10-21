@@ -5,7 +5,7 @@ WITH root.id as root_id, [root] + children AS unit_graph
 UNWIND unit_graph as unit
 
 OPTIONAL CALL (unit) {
-  MATCH (unit)-[:IN_POSITION]->(position:Position)-[AT_LOCATION]->(location:Location)
+  MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
   WITH
     position,
     location,

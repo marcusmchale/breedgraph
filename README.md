@@ -18,8 +18,10 @@ and preserves records for audit purposes.
 
 Surrounding the inner persistence layer, in an outer-repository layer, 
 is a combined group- and role-based [access control](#access-control).
-Domain aggregates composed of controlled domain models
-are redacted prior to presentation to the service layer.
+Repositories return whole aggregates, so that writes and their integrity checks see every member;
+changes to controlled domain models are checked against the user's access when they are stored.
+What users are shown is read through views that check access and redact in the database
+([docs/read-access.md](docs/read-access.md)).
 
 This service layer employs a messaging bus with commands to trigger changes and events
 to asynchronously issue other responses such as emails (aiosmtplib).
@@ -254,17 +256,20 @@ Units have attributes for:
 - subject, an ID for [subject](#subject) in the ontology
 - Optional
   - name
-  - synonyms
   - description
+  - germplasm: an ID for a [germplasm entry](#germplasm-entry)
   - positions: a list of [positions](#position)
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)
-- start: a start date and time for this position (see [times](#times))
 - Optional:
+  - start: a start date and time for this position (see [times](#times))
   - layout: an ID for a [layout](#layout) within a [layout tree](#layout-tree)
   - coordinates: a coordinate list that should correspond to the axes in a layout
   - end: an end date and time for this position
+
+A unit graph's root needs a position, so that the graph can be found by its location.
+Positions have no identity of their own: a position is found by its value, times compared as entered.
 ### Dataset
 Datasets are collections of [record](#data-record) for [units](#unit)
 They have attributes for:

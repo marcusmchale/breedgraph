@@ -1,10 +1,13 @@
 MATCH (captured: Unit)
 WHERE captured.id in $unit_ids
-WITH captured
-MATCH (root: Unit)
-WHERE (root)-[:INCLUDES_UNIT*]->(captured:Unit)
-OR root = captured
-WITH DISTINCT root WHERE NOT (root)<-[:INCLUDES_UNIT]-(:Unit)
+// each unit graph has one root: walk up to it from each unit, rather than down from every unit to each
+CALL (captured) {
+  MATCH (captured)<-[:INCLUDES_UNIT*0..]-(root: Unit)
+  WHERE NOT (root)<-[:INCLUDES_UNIT]-(:Unit)
+  RETURN root
+  LIMIT 1
+}
+WITH DISTINCT root
 
 OPTIONAL MATCH (root)-[:INCLUDES_UNIT*]->(child:Unit)
 WITH root, coalesce(collect(DISTINCT child), []) AS children
@@ -12,7 +15,7 @@ WITH root.id AS root_id, root + children AS unit_graph
 UNWIND unit_graph AS unit
 
 OPTIONAL CALL (unit) {
-  MATCH (unit)-[:IN_POSITION]->(position:Position)-[AT_LOCATION]->(location:Location)
+  MATCH (unit)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
   WITH
     position,
     location,

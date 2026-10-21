@@ -224,27 +224,31 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
             layouts_map.update(await views.layout_trees.get_layouts(unmapped))
         return [layouts_map[layout_id] for layout_id in layout_ids if layout_id in layouts_map]
 
-async def update_units_map(context, location_ids: Iterable[int] | None = None, unit_ids: Iterable[int] | None = None):
+async def update_units_map(
+        context,
+        location_ids: Iterable[int] | None = None,
+        unit_ids: Iterable[int] | None = None
+) -> List[UnitOutput]:
     """
-    Load units into the request's units map through the units view, by id or as the unit graph roots at locations.
+    Load units into the request's units map through the units view, by id or as the unit graph roots at locations,
+    which are returned (each call its own, so aliased root queries in one request don't share them).
     Units are read individually, not by loading their whole unit graph, so the cost follows the ids requested.
     Callers that resolve many objects should pass all their ids in one call (see Dataset.records).
     """
     async with _get_lock(context, '_views_lock'):
         units_map = context.setdefault('units_map', dict())
-        unit_graph_roots = context.setdefault('unit_graph_roots', list())
         views = await get_context_views(context)
 
+        roots = []
         if location_ids is not None:
-            for unit in await views.units.get_unit_graph_roots(location_ids=location_ids):
-                units_map[unit.id] = unit
-                if unit.id not in unit_graph_roots:
-                    unit_graph_roots.append(unit.id)
+            roots = await views.units.get_unit_graph_roots(location_ids=location_ids)
+            units_map.update({unit.id: unit for unit in roots})
 
         if unit_ids is not None:
             unmapped = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None and unit_id not in units_map]
             if unmapped:
                 units_map.update(await views.units.get_units(unit_ids=unmapped))
+        return roots
 
 async def update_unit_names_map(context, unit_ids: Iterable[int]):
     """

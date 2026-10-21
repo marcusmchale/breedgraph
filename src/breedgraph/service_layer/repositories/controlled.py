@@ -238,9 +238,14 @@ class ControlledRepository(
         if isinstance(aggregate, ControlledRootedAggregate):
             await self._check_links(aggregate, controllers)
 
+        # Stored models among the added ones were merged from another aggregate, and keep their controls
+        merged = {(model.label, model.id) for model in aggregate.added_models if isinstance(model, ControlledModel)}
         await self._update_controlled(aggregate)
 
-        controlled_added = [i for i in aggregate.added_models if isinstance(i, ControlledModel)]
+        controlled_added = [
+            i for i in aggregate.added_models
+            if isinstance(i, ControlledModel) and (i.label, i.id) not in merged
+        ]
         if controlled_added:
             await self.controls.set_controls(
                 controlled_added,

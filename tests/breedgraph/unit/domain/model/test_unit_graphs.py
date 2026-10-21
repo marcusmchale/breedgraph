@@ -69,3 +69,93 @@ def test_stored_unit_with_id_zero_keeps_its_id():
     unit_graph = UnitGraph(nodes=[unit])
     assert unit_graph.get_root_id() == 0
     assert unit_graph.get_unit(0) is unit
+
+
+from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.domain.model.unit_graphs import same_position
+
+
+def _graph(edges, positions=None):
+    """A unit graph of stored units 1..n with the given (parent, child) edges; unit 1 is the root"""
+    ids = sorted({i for edge in edges for i in edge} | {1})
+    units = [
+        UnitStored(id=i, name=f"Unit {i}", subject=10 + i, positions=list((positions or {}).get(i, [])))
+        for i in ids
+    ]
+    return UnitGraph(nodes=units, edges=[(parent, child, None) for parent, child in edges])
+
+
+def test_can_split_only_where_nothing_below_has_another_parent():
+    # 1 -> 2 -> 4, 1 -> 3 -> 4: unit 4 has a parent outside 2's branch
+    unit_graph = _graph([(1, 2), (1, 3), (2, 4), (3, 4)])
+    assert not unit_graph.can_split(2)
+    assert unit_graph.can_split(4)
+    # 1 -> 2 -> 5 alone
+    unit_graph = _graph([(1, 2), (2, 5), (1, 3)])
+    assert unit_graph.can_split(2)
+
+
+def test_change_children_within_the_graph():
+    unit_graph = _graph([(1, 2), (1, 3), (2, 4), (3, 4)])
+    # 4 keeps its other parent, 3, when 2 lets it go; 3 becomes a child of 2
+    unit_graph.change_children(2, [3])
+    assert sorted(unit_graph.get_children_ids(2)) == [3]
+    assert unit_graph.get_parent_ids(4) == [3]
+
+
+def test_change_children_refuses_leaving_a_unit_without_parents():
+    unit_graph = _graph([(1, 2), (2, 4)])
+    with pytest.raises(IllegalOperationError):
+        unit_graph.change_children(2, [])
+
+
+def test_change_children_refuses_a_unit_from_another_graph():
+    unit_graph = _graph([(1, 2)])
+    with pytest.raises(ValueError):
+        unit_graph.change_children(2, [99])
+
+
+def test_change_parents_refuses_parents_outside_the_graph_and_none():
+    unit_graph = _graph([(1, 2), (1, 3)])
+    with pytest.raises(ValueError):
+        unit_graph.change_parents(3, [99])
+    with pytest.raises(IllegalOperationError):
+        unit_graph.change_parents(3, [])
+    unit_graph.change_parents(3, [2])
+    assert unit_graph.get_parent_ids(3) == [2]
+
+
+def test_same_position_compares_times_as_entered_and_coordinates_as_strings():
+    a = Position(location_id=1, layout_id=2, coordinates=[1, 'A'], start=datetime64('2021-05'))
+    assert same_position(a, Position(location_id=1, layout_id=2, coordinates=['1', 'A'], start=datetime64('2021-05')))
+    assert not same_position(a, Position(location_id=1, layout_id=2, coordinates=['1', 'A'], start=datetime64('2021-05-01')))
+    assert same_position(Position(location_id=1, coordinates=None), Position(location_id=1, coordinates=[]))
+    assert not same_position(a, Position(location_id=1, layout_id=2, coordinates=['1', 'A'], start=datetime64('2021-05'), end=datetime64('2022')))
+
+
+def test_add_position_refuses_a_duplicate():
+    unit_graph = _graph([(1, 2)], positions={1: [Position(location_id=1)]})
+    unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03-25')))
+    with pytest.raises(ValueError):
+        unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03-25')))
+    # another precision is another position
+    unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03')))
+    assert len(unit_graph.get_unit(2).positions) == 2
+
+
+def test_remove_position_matches_as_entered_and_keeps_a_roots_last_position():
+    unit_graph = _graph([(1, 2)], positions={
+        1: [Position(location_id=1)],
+        2: [Position(location_id=5, start=datetime64('2021-05'))]
+    })
+    with pytest.raises(ValueError):
+        unit_graph.remove_position(2, Position(location_id=5, start=datetime64('2021-05-01')))
+    unit_graph.remove_position(2, Position(location_id=5, start=datetime64('2021-05')))
+    assert unit_graph.get_unit(2).positions == []
+    with pytest.raises(IllegalOperationError):
+        unit_graph.remove_position(1, Position(location_id=1))
+
+
+def test_unit_ids_by_subject():
+    unit_graph = _graph([(1, 2), (1, 3)])
+    assert list(unit_graph.yield_unit_ids_by_subject(12)) == [2]

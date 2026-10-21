@@ -1,9 +1,11 @@
 from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
-from breedgraph.domain.model.unit_graphs import UnitInput, Position
+from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
+
+from typing import List
 
 
 from ..registry import handlers
@@ -67,6 +69,8 @@ async def update_unit(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
+        if unit_graph is None:
+            raise NoResultFoundError("Unit not found")
         unit = unit_graph.get_unit(cmd.unit_id)
 
         # Update unit fields if provided; given as None, the subject and germplasm are removed
@@ -83,8 +87,7 @@ async def update_unit(
 
         # Handle parent/child relationships if provided, children first as we may split unit graphs after
         if cmd.children is not None:
-            # Remove existing child relationships and add new ones
-            unit_graph.change_children(cmd.children)
+            await _change_children(uow, unit_graph, cmd.unit_id, cmd.children)
 
         if cmd.parents is not None:
             if len(cmd.parents) == 0:
@@ -100,6 +103,8 @@ async def update_unit(
             else:
                 # get the new parents unit graph to merge unit graphs
                 new_unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.parents[0])
+                if new_unit_graph is None:
+                    raise NoResultFoundError("Parent unit not found")
                 new_unit_graph.merge_unit_graph(unit_graph, parents=cmd.parents)
 
         await uow.commit()
@@ -111,8 +116,35 @@ async def delete_unit(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
+        if unit_graph is None:
+            raise NoResultFoundError("Unit not found")
         unit_graph.remove_unit(cmd.unit_id)
         await uow.commit()
+
+async def _change_children(uow: AbstractUnitHolder, unit_graph: UnitGraph, unit_id: int, children: List[int]):
+    """
+    Make children the unit's children. A child that only this unit holds leaves as the root of a unit graph of its own
+    (a split, as removing a unit's parents is), and a child from another unit graph must be its root, which is merged
+    in below the unit (as on creation).
+    """
+    current = set(unit_graph.get_children_ids(unit_id))
+    wanted = set(children)
+    splitting = {child_id for child_id in current - wanted if set(unit_graph.get_parent_ids(child_id)) == {unit_id}}
+    for child_id in splitting:
+        await uow.controls.require_access(ControlledModelLabel.UNIT, [child_id], Access.CURATE)
+        await uow.controls.require_access(ControlledModelLabel.UNIT, [unit_id], Access.READ)
+        await uow.restructuring.split_unit_graph(unit_graph, child_id)
+    for child_id in wanted - current:
+        if unit_graph.has_unit(child_id):
+            continue
+        child_unit_graph = await uow.repositories.unit_graphs.get(unit_id=child_id)
+        if not child_unit_graph:
+            raise ValueError("Child unit graph not found")
+        if not child_unit_graph.get_root_id() == child_id:
+            raise ValueError("Merging unit graphs requires all children to be the root of their respective unit graph")
+        unit_graph.merge_unit_graph(unit_graph=child_unit_graph, parents=[unit_id])
+    # the split children keep their edges here: the split removed them in the database
+    unit_graph.change_children(unit_id, wanted | splitting)
 
 @handlers.command_handler()
 async def add_position(
