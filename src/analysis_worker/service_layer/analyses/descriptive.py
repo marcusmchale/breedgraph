@@ -10,7 +10,8 @@ from analysis_worker.service_layer.analyses.checks import single_level_columns, 
 
 # the AnalysisGroup fields of each domain term type
 GROUP_FIELDS = {
-    'TIME': 'time', 'GERMPLASM': 'germplasm_id', 'UNIT': 'unit_id', 'POSITION': 'position', 'STUDY': 'study_id'
+    'TIME': 'time', 'GERMPLASM': 'germplasm_id', 'UNIT': 'unit_id', 'LOCATION': 'location_id', 'LAYOUT': 'layout_id',
+    'STUDY': 'study_id'
 }
 
 
@@ -39,13 +40,15 @@ def _group(job: AnalysisJob, columns: list[dict], index: int) -> dict | None:
     if not columns or any(c['term']['type'] == 'CONCEPT' for c in columns):
         return None
     observation = job.observations[index]['group']
-    group = {field: None for field in GROUP_FIELDS.values()} | {'record_groups': []}
+    group = {field: None for field in GROUP_FIELDS.values()} | {'record_groups': [], 'layout_axes': []}
     for column in columns:
         term = column['term']
         if term['type'] == 'RECORD_GROUP':
             group['record_groups'] += [
                 a for a in observation['record_groups'] if a['dimension'] == term['record_group_dimension']
             ]
+        elif term['type'] == 'LAYOUT_AXIS':
+            group['layout_axes'] += [a for a in observation['layout_axes'] if a['axis'] == term['layout_axis']]
         else:
             field = GROUP_FIELDS[term['type']]
             group[field] = observation[field]

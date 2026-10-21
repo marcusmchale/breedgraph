@@ -83,9 +83,16 @@ def _with_config_defaults(spec: dict) -> dict:
         means['by'] = means.get('by') or []
     for term in spec.get('terms') or []:
         term['transformations'] = term.get('transformations') or []
-    position = (spec.get('grouping') or {}).get('position')
+    grouping = spec.get('grouping') or {}
+    position = grouping.get('position')
     if position is not None:
-        position['positions'] = position.get('positions') or []
+        if 'location_type_ids' not in position:
+            # stored before position grouping took location types (2026-10), with nothing to show it as
+            grouping['position'] = None
+        else:
+            position['subject_ids'] = position.get('subject_ids') or []
+            position['layout'] = bool(position.get('layout'))
+            position['axes'] = position.get('axes') or []
     return spec
 
 
@@ -215,3 +222,7 @@ async def resolve_record_grouping_study(record_grouping: dict, info):
 @analysis_group.field('recordGroups')
 def resolve_group_record_groups(group: dict, info):
     return group.get('record_groups') or []
+
+@analysis_group.field('layoutAxes')
+def resolve_group_layout_axes(group: dict, info):
+    return group.get('layout_axes') or []

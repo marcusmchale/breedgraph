@@ -129,6 +129,18 @@ def _split_by_window(records: list[AnalysisRecord], window: timedelta64) -> list
     return readings
 
 
+def _axis_level_order(key: str) -> tuple:
+    """A layout axis level, layoutId|value, ordered by layout and then by value, numbers before text"""
+    layout_id, _, value = key.partition('|')
+    try:
+        number = parse_number(value)
+    except ValueError:
+        number = None
+    if number is None or not np.isfinite(number):
+        return int(layout_id), True, 0.0, value
+    return int(layout_id), False, number, value
+
+
 def _incompatible(message: str, path: list[str]) -> AnalysisFailed:
     return AnalysisFailed.single(AnalysisErrorCode.INCOMPATIBLE_SCALE, message, path=path)
 
@@ -524,6 +536,10 @@ class ObservationBuilder:
         if term.reference.type == AnalysisTermType.TIME:
             default = TermRepresentationType.ORDINAL
             levels = [label for label in self.context.request.spec.grouping.time.binning.labels if label in set(values)]
+        elif term.reference.type == AnalysisTermType.LAYOUT_AXIS:
+            # by layout, then the values in numeric order where they are numbers, e.g. rows 2 before 10
+            default = TermRepresentationType.CATEGORICAL
+            levels = sorted(set(values), key=_axis_level_order)
         else:
             default = TermRepresentationType.CATEGORICAL
             levels = sorted(set(values))
@@ -537,8 +553,8 @@ class ObservationBuilder:
     """ Observation metadata """
     def _observation(self, observation: _ObservationRecords) -> Observation:
         group = {
-            'time': None, 'germplasm_id': None, 'unit_id': None, 'position': None, 'study_id': None,
-            'record_groups': []
+            'time': None, 'germplasm_id': None, 'unit_id': None, 'location_id': None, 'layout_id': None,
+            'study_id': None, 'record_groups': [], 'layout_axes': []
         }
         exclusion_start = exclusion_end = None
         for resolver in self.resolvers:
@@ -551,8 +567,12 @@ class ObservationBuilder:
                 exclusion_start, exclusion_end = level.start, level.end
             elif term_type == AnalysisTermType.GERMPLASM:
                 group['germplasm_id'] = level.output
-            elif term_type == AnalysisTermType.POSITION:
-                group['position'] = level.output
+            elif term_type == AnalysisTermType.LOCATION:
+                group['location_id'] = level.output
+            elif term_type == AnalysisTermType.LAYOUT:
+                group['layout_id'] = level.output
+            elif term_type == AnalysisTermType.LAYOUT_AXIS:
+                group['layout_axes'].append(level.output)
             elif term_type == AnalysisTermType.STUDY:
                 group['study_id'] = level.output
             elif term_type == AnalysisTermType.RECORD_GROUP:

@@ -9,7 +9,6 @@ in a model validator, so their errors are reported with the field path.
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from breedgraph.domain.model.time_descriptors import PyDT64
-from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.model.analysis import (
     AnalysisType, AnalysisTermType, TermRepresentationType, TermTransformation, TermAggregation, TermEffect,
     TimeAssignment, BinningBoundary, DistanceMetric, CorrelationMethod, OutlierDetectionMethod, ClusteringMethod,
@@ -42,12 +41,14 @@ class AnalysisTermReferenceImport(DomainCheckedModel):
     type: AnalysisTermType
     concept_id: int | None = None
     record_group_dimension: str | None = None
+    layout_axis: str | None = None
 
     def to_domain(self) -> AnalysisTermReference:
         return AnalysisTermReference(
             type=self.type,
             concept_id=self.concept_id,
-            record_group_dimension=self.record_group_dimension
+            record_group_dimension=self.record_group_dimension,
+            layout_axis=self.layout_axis
         )
 
 class BinningImport(DomainCheckedModel):
@@ -116,35 +117,19 @@ class UnitGroupingImport(ImportModel):
     def to_domain(self) -> UnitGrouping:
         return UnitGrouping(unit_ids=self.unit_ids)
 
-class PositionImport(ImportModel):
-    location_id: int
-    layout_id: int | None = None
-    coordinates: list[str | None] | None = None
-    start: PyDT64 | None = None
-    end: PyDT64 | None = None
-
-    def to_domain(self) -> Position:
-        return Position(
-            location_id=self.location_id,
-            layout_id=self.layout_id,
-            coordinates=self.coordinates,
-            start=self.start,
-            end=self.end
-        )
-
 class PositionGroupingImport(ImportModel):
-    location_id: int
-    layout_id: int | None = None
-    axis_indexes: list[int] | None = None
-    positions: list[PositionImport] | None = None
+    location_type_ids: list[int] = Field(min_length=1)
+    subject_ids: list[int] | None = None
+    layout: bool | None = None
+    axes: list[str] | None = None
     time: PyDT64 | None = None
 
     def to_domain(self) -> PositionGrouping:
         return PositionGrouping(
-            location_id=self.location_id,
-            layout_id=self.layout_id,
-            axis_indexes=self.axis_indexes,
-            positions=[p.to_domain() for p in self.positions] if self.positions is not None else None,
+            location_type_ids=self.location_type_ids,
+            subject_ids=list(self.subject_ids or []),
+            layout=bool(self.layout),
+            axes=list(self.axes or []),
             time=self.time
         )
 

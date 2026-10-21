@@ -40,7 +40,8 @@ Every analysis operates on **observations**, not on records.
 
 - An observation is identified by:
   - **the unit:** the record's base unit, or its selected parent unit when `grouping.unit` is set, and
-  - **the level of every configured dimension:** time bin, germplasm, position, and each record-group dimension, and
+  - **the level of every configured dimension:** time bin, germplasm, the position dimensions (location, layout and
+    layout axes), and each record-group dimension, and
   - **the study**, only when a `STUDY` term is used. Otherwise records of a unit from different studies are pooled.
 - Each `CONCEPT` term contributes **one value per observation**. Records come from the selected datasets whose concept is the term's concept.
 - **Factors describe the observations of variables.** When an analysis has a term for a variable concept,
@@ -53,8 +54,8 @@ Every analysis operates on **observations**, not on records.
   - **time:** its time bin, or **every** time bin when it has no start or end (a design factor holds throughout);
   - **record groups:** its level, or every level when it has none in the dimension (no code, or no unit of the
     dimension's subjects, e.g. a factor on the field above the plots);
-  - germplasm and position come from the observed unit (its germplasm may be inherited, see Germplasm in section 3),
-    so they don't constrain it.
+  - germplasm and the position dimensions come from the observed unit (its germplasm may be inherited, and it may be
+    placed by the units above it, see section 3), so they don't constrain it.
   - A factor record that describes no observation is unused, and can leave its dataset `DATASET_FULLY_EXCLUDED`.
   - Several factor records of the same unit and level are duplicates as for any term: aggregate them, e.g. `MODE`.
   - An observation's exclusion rule (`OutlierResult.exclusion`) is built from its own records' units, not from the
@@ -84,7 +85,7 @@ Every analysis operates on **observations**, not on records.
   - To analyse each replicate instead (descriptive statistics, outlier detection, correlation, MDS),
     configure a record-group dimension of the WITHIN_UNIT groupings (§3). `window` doesn't apply there.
   - A replicate followed over time, such as a tagged branch measured on dates further apart than any window, is better recorded as a child unit.
-- Domain terms (`TIME`, `GERMPLASM`, `POSITION`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
+- Domain terms (`TIME`, `GERMPLASM`, `LOCATION`, `LAYOUT`, `LAYOUT_AXIS`, `RECORD_GROUP`) need their grouping to be configured. `UNIT` and `STUDY` need no configuration.
 - Configuring a dimension changes observation identity even if no term uses it.
 - A record that can't be assigned to a configured dimension is dropped. Each dimension reports one `UNASSIGNED_<DIMENSION>` warning with the count and `recordIds`.
 - Observations are ordered by dataset (as listed in `datasetIds`), then by record ID.
@@ -105,13 +106,41 @@ Every analysis operates on **observations**, not on records.
   - Each unit's germplasm is assigned to the closest selected germplasm: itself or its nearest selected ancestor.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.
 - **Unit** (`grouping.unit`): replaces each base unit with its closest selected parent unit. The base units are still reported in results.
-- **Position** (`grouping.position`)
-  - A unit matches if it has a position at `locationId` (and `layoutId`, if given), at `time` or at any time.
-  - The unit's group is:
-    1. the matching explicit `positions` entry, if any;
-    2. otherwise its values on `axisIndexes`;
-    3. otherwise the whole location.
-  - A unit that matches more than one group (e.g. it moved, and `time` is null) is unassigned.
+- **Position** (`grouping.position`): where the units of records were. It gives a `LOCATION` term, a `LAYOUT` term
+  when `layout` is true, and a `LAYOUT_AXIS` term (`layoutAxis`) for each of `axes`.
+  - A position **counts** when two things hold:
+    - its location is, or is below, a location of one of `locationTypeIds`;
+    - with `layout` or `axes`, it is in a layout that has a value on each axis. The value comes from the position's own
+      layout, or from a layout above it in the layout tree, through the child layouts' positions. Axis names are unique
+      along a branch.
+  - A record is **placed** by the nearest unit with a position that counts: its own unit, or else the nearest units
+    above it, one on each lineage. Their places must agree. So a sample measured in a lab is placed by its tree,
+    unless the lab is of one of the types.
+  - With `subjectIds`, a unit below a unit of one of the subjects is placed where that unit was, skipping the units in
+    between.
+    - Example: by Country and Tree, a sample analysed in a lab abroad is placed in its tree's country, not the lab's.
+    - Units of the subjects, and units with none of them above (a field above its trees), are placed as without
+      subjects.
+  - **Positions count at any time.**
+    - A unit may have several positions that count, because it moved between fields or was rotated between benches.
+      The one holding at the record's time places the record. After a move, that is the later-starting one, as the
+      Units pages show it.
+    - A record without a time, or at a time when none of them holds, is placed only if they all give the same levels.
+    - `time`, when given, stands in for every record's time.
+  - Levels:
+    - LOCATION: the nearest location of one of the types, at or above the position's location, by id.
+    - LAYOUT: the layout the position is in, by id, e.g. a planting's own Row and Tree layout, or a shelf.
+    - LAYOUT_AXIS: the value on the axis, nested in the layout that has the axis (`layoutId|value`). Row 3 of one field
+      isn't row 3 of another, and rows numbered per block stay apart. Combine axes with interactions. The levels are in
+      numeric order where the values are numbers.
+  - Read access (read-access.md, rule 3): some things the user can't see stop a placement, rather than letting it take
+    a place from further up, which could be wrong:
+    - a hidden unit with positions;
+    - a position at a location or in a layout the user can't read.
+
+    A hidden location's type isn't seen, so it isn't matched. A hidden layout's axes aren't seen either, so an axis
+    above a hidden layout is unknown. A record on a hidden unit is never placed.
+  - A record that can't be placed is unassigned. One `UNASSIGNED_POSITION` warning covers all the position terms.
 - **Record groups** (`grouping.recordGroups`)
   - `name` is unique per analysis. Terms reference the dimension by this name (`recordGroupDimension`), and results use it as the label.
   - Each grouping must belong to the study of a selected dataset. A dimension can use at most one grouping per study, and a grouping can belong to only one dimension.
@@ -187,7 +216,8 @@ Requirements by analysis:
 - Within a rule, **all** given criteria must match. Within a list criterion, **any** element may match.
 - Matching is exact: excluding a germplasm doesn't exclude its descendants, and excluding a unit doesn't exclude its children. `unitIds` and `germplasmIds` refer to the record's base unit, and its germplasm may be inherited (section 3).
 - **Time.** `start` (inclusive) and `end` (exclusive) are compared with the record's start/end interval, which matches if it overlaps. Null means unbounded. A record with no time never matches a time-bounded rule.
-- **Positions.** Position criteria use the unit's position history, not the record time.
+- **Positions.** Position criteria use the unit's own position history, not the record time. Unlike position
+  grouping, they match a location and layout exactly, with axes by index.
   - A position interval matching the criterion must overlap the rule's `[start, end]`.
   - If a rule has only position criteria and time bounds, record time isn't checked.
 - **Feedback.** Each rule reports an `EXCLUDED_BY_CONFIG` warning with its match count. Show it next to the rule; zero matches usually means a mistake.
@@ -209,7 +239,8 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 |---|---|
 | GERMPLASM, UNIT, STUDY | IDs; resolve the names in the UI |
 | TIME | Bin labels |
-| POSITION | `location\|layout\|coordinates` key; `AnalysisGroup.position` has the structured position |
+| LOCATION, LAYOUT | IDs (`AnalysisGroup.locationId`, `layoutId`); resolve the names in the UI |
+| LAYOUT_AXIS | `layoutId\|value`, the value nested in the layout that has the axis; `AnalysisGroup.layoutAxes` has the parts |
 | RECORD_GROUP | A shared level label, a `grouping\|scope\|code` key (`grouping\|scope\|unit\|code` for WITHIN_UNIT groupings, `grouping\|scope\|root\|code` for WITHIN_GRAPH), or `unit\|<unitId>` for a unit level, whose `unitId` is set and `groupingId` null; `AnalysisRecordGroupAssignment` has the parts |
 | CONCEPT | Category or bin labels |
 

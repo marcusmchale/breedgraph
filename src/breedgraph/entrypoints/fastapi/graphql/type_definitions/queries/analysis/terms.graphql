@@ -74,6 +74,11 @@ type AnalysisTermReference {
   Record group dimension when the term represents a record group.
   """
   recordGroupDimension: AnalysisRecordGroupDimension
+
+  """
+  Name of the layout axis when the term represents a layout axis.
+  """
+  layoutAxis: String
 }
 
 

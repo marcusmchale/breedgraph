@@ -56,40 +56,48 @@ input UnitGroupingInput {
 }
 
 """
-Defines how positions are resolved into analytical groups.
+Defines where the units of records were, as the dimensions of a
+LOCATION term, an optional LAYOUT term and a LAYOUT_AXIS term for
+each axis.
 
-Positions may represent geographic locations, layout coordinates,
-or both.
+A position counts when its location is, or is below, a location of
+one of the location types, and when the layout or axes are
+configured, it is in a layout with a value on each axis. A record is
+placed by the nearest unit with a position that counts: its own unit,
+or else the nearest units above it, one on each lineage, which must
+agree. Of a unit's positions that count, the one holding at the
+record's time places it; without a time, or when none holds then,
+they must agree. Records that can't be placed are excluded from the
+analysis and reported in a warning.
 """
 input PositionGroupingInput {
   """
-  ID of the Location in the LocationTree hierarchy.
+  Location types from the ontology. A record's location is the
+  nearest location of one of them, at or above its unit's position.
   """
-  locationId: ID!
+  locationTypeIds: [ID!]!
 
   """
-  Optional ID of the Layout in the LayoutTree hierarchy.
+  Subjects whose units place the units below them, e.g. Tree, so
+  that a sample analysed in a lab is placed where its tree was.
   """
-  layoutId: ID
+  subjectIds: [ID!]
 
   """
-  Layout axes used to define position groups.
-
-  Positions having equal values for all selected axes belong
-  to the same group.
+  Whether the layout of the position is a dimension (a LAYOUT term).
   """
-  axisIndexes: [Int!]
+  layout: Boolean
 
   """
-  Optional explicit positions defining groups. This overrides axisIndexes where the position match is found.
+  Names of layout axes, each a dimension (a LAYOUT_AXIS term). The
+  value comes from the position's layout or a layout above it, and
+  is nested in the layout that has the axis.
   """
-  positions: [PositionInput!]
+  axes: [String!]
 
   """
-  Time at which the position is evaluated.
-
-  When null, a unit is considered to match the defined position
-  if it occupied that position at any time.
+  Stands in for each record's time in choosing between a unit's
+  positions.
   """
   time: DateTime
 }

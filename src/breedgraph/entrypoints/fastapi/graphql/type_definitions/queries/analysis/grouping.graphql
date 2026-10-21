@@ -69,30 +69,27 @@ type UnitGrouping {
 
 type PositionGrouping {
   """
-  ID of the Location in the LocationTree hierarchy.
+  Location types whose nearest location places each record.
   """
-  locationId: ID!
+  locationTypeIds: [ID!]!
 
   """
-  ID of the Layout in the LayoutTree hierarchy.
+  Subjects whose units place the units below them.
   """
-  layoutId: ID
+  subjectIds: [ID!]!
 
   """
-  Layout axes used to define position groups.
+  Whether the layout of the position is a dimension.
   """
-  axisIndexes: [Int!]
+  layout: Boolean!
 
   """
-  Explicit positions defining groups.
+  Names of the layout axes that are dimensions.
   """
-  positions: [Position!]!
+  axes: [String!]!
 
   """
-  Time at which positions are evaluated.
-
-  When null, a unit is grouped according to whether it occupies
-  the specified position at any time.
+  Stands in for each record's time in choosing between positions.
   """
   time: DateTime
 }

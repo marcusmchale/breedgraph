@@ -37,7 +37,9 @@ class AnalysisTermType(str, Enum):
     TIME = "TIME"
     GERMPLASM = "GERMPLASM"
     UNIT = "UNIT"
-    POSITION = "POSITION"
+    LOCATION = "LOCATION"
+    LAYOUT = "LAYOUT"
+    LAYOUT_AXIS = "LAYOUT_AXIS"
     RECORD_GROUP = "RECORD_GROUP"
     STUDY = "STUDY"
 
@@ -123,14 +125,16 @@ class AnalysisTermReference:
     type: AnalysisTermType
     concept_id: int|None = None  # Only set when type == CONCEPT
     record_group_dimension: str|None = None  # Only set when type == RECORD_GROUP, name of the dimension
+    layout_axis: str|None = None  # Only set when type == LAYOUT_AXIS, name of the axis
 
     def __post_init__(self):
         requires = {
             AnalysisTermType.CONCEPT: "concept_id",
             AnalysisTermType.RECORD_GROUP: "record_group_dimension",
+            AnalysisTermType.LAYOUT_AXIS: "layout_axis",
         }
         required = requires.get(self.type)
-        for attr in ("concept_id", "record_group_dimension"):
+        for attr in ("concept_id", "record_group_dimension", "layout_axis"):
             value = getattr(self, attr)
             if attr == required and value is None:
                 raise ValueError(f"{attr} is required for {self.type.value} terms")
@@ -144,13 +148,16 @@ class AnalysisTermReference:
             return f"concept:{self.concept_id}"
         if self.type == AnalysisTermType.RECORD_GROUP:
             return f"record_group:{self.record_group_dimension}"
+        if self.type == AnalysisTermType.LAYOUT_AXIS:
+            return f"layout_axis:{self.layout_axis}"
         return self.type.value.lower()
 
     def model_dump(self) -> dict:
         return {
             'type': self.type.value,
             'concept_id': self.concept_id,
-            'record_group_dimension': self.record_group_dimension
+            'record_group_dimension': self.record_group_dimension,
+            'layout_axis': self.layout_axis
         }
 
 
@@ -335,11 +342,29 @@ class UnitGrouping:
 
 @dataclass
 class PositionGrouping:
-    location_id: int
-    layout_id: int|None = None
-    axis_indexes: list[int]|None = None
-    positions: list[Position]|None = None
+    """
+    Where the units of records were (domain.services.analysis_places): the nearest location of one of the location
+    types, and optionally the layout of the position placing a unit there and its values on layout axes, by name.
+    Units below a unit of one of the subjects are placed where that unit was.
+    The time, when given, stands in for each record's time in choosing between a unit's positions.
+    """
+    location_type_ids: list[int]
+    subject_ids: list[int] = field(default_factory=list)
+    layout: bool = False
+    axes: list[str] = field(default_factory=list)
     time: datetime64|None = None
+
+    def __post_init__(self):
+        self.axes = [(axis or '').strip() for axis in self.axes]
+
+    @property
+    def references(self) -> list[AnalysisTermReference]:
+        """The terms of the position dimensions: the location, the layout if configured, then each axis"""
+        references = [AnalysisTermReference(type=AnalysisTermType.LOCATION)]
+        if self.layout:
+            references.append(AnalysisTermReference(type=AnalysisTermType.LAYOUT))
+        references += [AnalysisTermReference(type=AnalysisTermType.LAYOUT_AXIS, layout_axis=axis) for axis in self.axes]
+        return references
 
 @dataclass
 class AnalysisGrouping:

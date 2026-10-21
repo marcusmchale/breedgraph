@@ -16,6 +16,11 @@ input AnalysisTermReferenceInput {
   Name of a dimension in grouping.recordGroups when type is RECORD_GROUP.
   """
   recordGroupDimension: String
+
+  """
+  Name of an axis in grouping.position.axes when type is LAYOUT_AXIS.
+  """
+  layoutAxis: String
 }
 
 

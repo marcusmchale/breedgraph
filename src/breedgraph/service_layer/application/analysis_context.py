@@ -4,7 +4,9 @@ Loads the data required to prepare an analysis, within a unit of work scoped to 
 from breedgraph.domain.model.analysis import (
     AnalysisRequest, AnalysisMessage, AnalysisErrorCode, AnalysisWarningCode, AnalysisFailed, AnalysisTermType
 )
-from breedgraph.domain.model.analysis_context import AnalysisContext, ConceptContext, UnitContext
+from breedgraph.domain.model.analysis_context import (
+    AnalysisContext, ConceptContext, UnitContext, LocationContext, LayoutContext
+)
 from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, FactorStored
@@ -36,6 +38,14 @@ def _nearest_seen(unit_graph: UnitGraph, unit_id: int, seen: set[int]) -> list[i
     return nearest_on_each_lineage(unit_id, unit_graph.get_parent_ids, lambda u: u in seen)
 
 
+def _hidden_positioned(unit_graph: UnitGraph, redacted: UnitGraph) -> set[int]:
+    """The units with positions the user cannot see: hidden ones, which stop a placement (docs/read-access.md, rule 3)"""
+    return {
+        unit_id for unit_id, unit in unit_graph.entries.items()
+        if unit.positions and not (redacted.has_unit(unit_id) and redacted.get_unit(unit_id).positions)
+    }
+
+
 class AnalysisContextLoader:
 
     def __init__(self, uow: AbstractUnitHolder, user_id: int, warnings: list[AnalysisMessage]):
@@ -58,10 +68,13 @@ class AnalysisContextLoader:
         self._raise_errors()
 
         studies = await self._load_studies({dataset.study for dataset in datasets.values()})
-        units = await self._load_units(request, datasets, concepts, spec_path)
+        hidden_positioned: set[int] = set()
+        units = await self._load_units(request, datasets, concepts, spec_path, hidden_positioned)
         germplasm_descendants = await self._load_germplasm(request, spec_path)
         await self._check_subjects(request, spec_path)
+        await self._check_position_grouping(request, spec_path)
         self._raise_errors()
+        locations, layouts = await self._load_places(request, units)
 
         return AnalysisContext(
             request=request,
@@ -69,7 +82,10 @@ class AnalysisContextLoader:
             concepts=concepts,
             units=units,
             studies=studies,
-            germplasm_descendants=germplasm_descendants
+            germplasm_descendants=germplasm_descendants,
+            locations=locations,
+            layouts=layouts,
+            hidden_positioned=hidden_positioned
         )
 
     async def _load_datasets(self, request: AnalysisRequest) -> dict[int, DatasetStored]:
@@ -170,8 +186,12 @@ class AnalysisContextLoader:
             request: AnalysisRequest,
             datasets: dict[int, DatasetStored],
             concepts: dict[int, ConceptContext],
-            spec_path: list[str]
+            spec_path: list[str],
+            hidden_positioned: set[int]
     ) -> dict[int, UnitContext]:
+        """
+        :param hidden_positioned: set to which the hidden units with positions are added, for position grouping
+        """
         unit_ids = {
             record.unit
             for dataset in datasets.values() if dataset.concept in concepts
@@ -181,12 +201,18 @@ class AnalysisContextLoader:
         unit_ids |= set(selected)
 
         recorded = unit_ids - set(selected)
+        placing = request.spec.grouping.position is not None
         units = {}
         if unit_ids:
             async for unit_graph in self.uow.repositories.unit_graphs.get_all(unit_ids=list(unit_ids)):
                 # Units the user cannot read are left out, and ancestors are those the user can read
                 redacted = await self.uow.repositories.unit_graphs.redacted(unit_graph)
                 germplasm_of = _germplasm_seen(unit_graph, redacted)
+                if placing:
+                    hidden = _hidden_positioned(unit_graph, redacted)
+                    hidden_positioned |= hidden
+                    # a placement passes through hidden units without positions and stops at those with them
+                    shown = set(redacted.entries) | hidden
                 for unit_id, unit in redacted.entries.items():
                     # its own germplasm or the one its lineages agree on, walked on the whole graph: a hidden unit
                     # with germplasm is where a lineage stops, unknown, so the unit takes none
@@ -199,7 +225,10 @@ class AnalysisContextLoader:
                         ancestor_ids=redacted.get_ancestors(unit_id),
                         parent_ids=redacted.get_parent_ids(unit_id),
                         # Redaction keeps a hidden root as a placeholder, so this is the root whatever the user reads
-                        root_id=redacted.get_root_id()
+                        root_id=redacted.get_root_id(),
+                        place_parent_ids=nearest_on_each_lineage(
+                            unit_id, unit_graph.get_parent_ids, lambda u: u in shown
+                        ) if placing else []
                     )
                 # A readable dataset's records are readable, their hidden units placeholders (docs/read-access.md):
                 # such a unit hangs from the nearest units above it that the user can read, without its subject,
@@ -210,7 +239,8 @@ class AnalysisContextLoader:
                         unit_id=unit_id,
                         ancestor_ids=ancestor_ids,
                         parent_ids=_nearest_seen(unit_graph, unit_id, set(redacted.entries)),
-                        root_id=redacted.get_root_id()
+                        root_id=redacted.get_root_id(),
+                        readable=False
                     )
 
         for i, unit_id in enumerate(selected):
@@ -239,6 +269,85 @@ class AnalysisContextLoader:
                 continue
             descendants[germplasm_id] = set(descendant_ids)
         return descendants
+
+    async def _check_position_grouping(self, request: AnalysisRequest, spec_path: list[str]):
+        """The location types and subjects of position grouping must be in the ontology"""
+        grouping = request.spec.grouping.position
+        if grouping is None:
+            return
+        path = spec_path + ['grouping', 'position']
+        for i, type_id in enumerate(grouping.location_type_ids):
+            if await self.uow.ontology.get_entry(type_id, label=OntologyEntryLabel.LOCATION_TYPE) is None:
+                self.errors.append(AnalysisMessage(
+                    code=AnalysisErrorCode.CONFIG_INVALID,
+                    message=f"Location type {type_id} was not found",
+                    path=path + ['locationTypeIds', str(i)]
+                ))
+        for i, subject_id in enumerate(grouping.subject_ids):
+            if await self.uow.ontology.get_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
+                self.errors.append(AnalysisMessage(
+                    code=AnalysisErrorCode.CONFIG_INVALID,
+                    message=f"Subject {subject_id} was not found",
+                    path=path + ['subjectIds', str(i)]
+                ))
+
+    async def _load_places(
+            self,
+            request: AnalysisRequest,
+            units: dict[int, UnitContext]
+    ) -> tuple[dict[int, LocationContext], dict[int, LayoutContext]]:
+        """
+        For position grouping, the location trees and layout trees of the units' positions as the user sees them:
+        hidden members skipped, a hidden root kept as a placeholder (docs/read-access.md, rules 3 and 4)
+        """
+        grouping = request.spec.grouping.position
+        if grouping is None:
+            return {}, {}
+        positions = [position for unit in units.values() for position in unit.positions]
+        read_teams = self.uow.controls.access_teams[Access.READ]
+
+        locations: dict[int, LocationContext] = {}
+        for location_id in sorted({position.location_id for position in positions}):
+            if location_id in locations:
+                continue
+            tree = await self.uow.repositories.location_trees.get(location_id=location_id)
+            if tree is None:
+                continue
+            redacted = await self.uow.repositories.location_trees.redacted(tree)
+            controllers = await self.uow.controls.get_controllers(ControlledModelLabel.LOCATION, list(redacted.entries))
+            for node_id, location in redacted.entries.items():
+                controller = controllers.get(node_id)
+                readable = controller is not None and controller.has_access(Access.READ, self.user_id, read_teams)
+                locations[node_id] = LocationContext(
+                    location_id=node_id,
+                    type_id=location.type if readable else None,
+                    parent_id=redacted.get_parent_id(node_id),
+                    readable=readable
+                )
+
+        layouts: dict[int, LayoutContext] = {}
+        if not grouping.layout and not grouping.axes:
+            return locations, layouts
+        for layout_id in sorted({position.layout_id for position in positions if position.layout_id is not None}):
+            if layout_id in layouts:
+                continue
+            tree = await self.uow.repositories.layout_trees.get(layout_id=layout_id)
+            if tree is None:
+                continue
+            redacted = await self.uow.repositories.layout_trees.redacted(tree)
+            controllers = await self.uow.controls.get_controllers(ControlledModelLabel.LAYOUT, list(redacted.entries))
+            for node_id, layout in redacted.entries.items():
+                controller = controllers.get(node_id)
+                readable = controller is not None and controller.has_access(Access.READ, self.user_id, read_teams)
+                layouts[node_id] = LayoutContext(
+                    layout_id=node_id,
+                    axes=list(layout.axes or []) if readable else [],
+                    parent_id=redacted.get_parent_id(node_id),
+                    # where a hidden layout was skipped, the joined edge has no position
+                    position=redacted.get_position(node_id),
+                    readable=readable
+                )
+        return locations, layouts
 
     async def _check_subjects(self, request: AnalysisRequest, spec_path: list[str]):
         """The subjects whose units are levels of record group dimensions must be subjects of the ontology"""

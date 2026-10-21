@@ -7,7 +7,7 @@ and return CONFIG_INVALID messages with input paths.
 """
 from breedgraph.domain.model.analysis import (
     AnalysisRequest, AnalysisSpec, AnovaSpec, DescriptiveSpec, CorrelationSpec, MDSSpec, OutlierSpec,
-    AnalysisGrouping, AnalysisTerm, AnalysisTermReference, AnalysisTermType, TermRepresentationType,
+    AnalysisGrouping, PositionGrouping, AnalysisTerm, AnalysisTermReference, AnalysisTermType, TermRepresentationType,
     TermAggregation, TermEffect, EstimatedMeans, EstimatedMeansContrast, InteractionTerm,
     AnalysisMessage, AnalysisErrorCode
 )
@@ -23,6 +23,8 @@ def _describe(reference: AnalysisTermReference) -> str:
         return f"concept {reference.concept_id}"
     if reference.type == AnalysisTermType.RECORD_GROUP:
         return f"record group dimension '{reference.record_group_dimension}'"
+    if reference.type == AnalysisTermType.LAYOUT_AXIS:
+        return f"layout axis '{reference.layout_axis}'"
     return reference.type.value
 
 
@@ -66,6 +68,24 @@ def validate_dimensions(grouping: AnalysisGrouping, path: Path) -> list[Analysis
         messages.append(_invalid("Units must not be listed more than once", path + ['unit', 'unitIds']))
     if grouping.germplasm is not None and len(set(grouping.germplasm.germplasm_ids)) != len(grouping.germplasm.germplasm_ids):
         messages.append(_invalid("Germplasm must not be listed more than once", path + ['germplasm', 'germplasmIds']))
+    if grouping.position is not None:
+        messages += _validate_position(grouping.position, path + ['position'])
+    return messages
+
+
+def _validate_position(position: PositionGrouping, path: Path) -> list[AnalysisMessage]:
+    messages = []
+    if len(set(position.location_type_ids)) != len(position.location_type_ids):
+        messages.append(_invalid("Location types must not be listed more than once", path + ['locationTypeIds']))
+    if len(set(position.subject_ids)) != len(position.subject_ids):
+        messages.append(_invalid("Subjects must not be listed more than once", path + ['subjectIds']))
+    seen: set[str] = set()
+    for i, axis in enumerate(position.axes):
+        if not axis:
+            messages.append(_invalid("Axis names must not be empty", path + ['axes', str(i)]))
+        elif axis in seen:
+            messages.append(_invalid(f"Axis '{axis}' is listed more than once", path + ['axes', str(i)]))
+        seen.add(axis)
     return messages
 
 
@@ -74,12 +94,20 @@ def validate_reference(reference: AnalysisTermReference, grouping: AnalysisGroup
     required = {
         AnalysisTermType.TIME: ('time', 'grouping.time'),
         AnalysisTermType.GERMPLASM: ('germplasm', 'grouping.germplasm'),
-        AnalysisTermType.POSITION: ('position', 'grouping.position'),
+        AnalysisTermType.LOCATION: ('position', 'grouping.position'),
+        AnalysisTermType.LAYOUT: ('position', 'grouping.position'),
+        AnalysisTermType.LAYOUT_AXIS: ('position', 'grouping.position'),
     }
     if reference.type in required:
         attr, label = required[reference.type]
         if getattr(grouping, attr) is None:
             return [_invalid(f"{reference.type.value} terms require {label}", path + ['type'])]
+    if reference.type == AnalysisTermType.LAYOUT and not grouping.position.layout:
+        return [_invalid("LAYOUT terms require grouping.position.layout", path + ['type'])]
+    if reference.type == AnalysisTermType.LAYOUT_AXIS and reference.layout_axis not in grouping.position.axes:
+        return [_invalid(
+            f"Axis '{reference.layout_axis}' is not one of the axes in grouping.position.axes", path + ['layoutAxis']
+        )]
     if reference.type == AnalysisTermType.RECORD_GROUP:
         if grouping.get_record_group_dimension(reference.record_group_dimension) is None:
             return [_invalid(

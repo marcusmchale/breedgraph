@@ -102,7 +102,7 @@ class AnalysisJob:
 
 
 def same_reference(a: dict, b: dict) -> bool:
-    return all(a.get(k) == b.get(k) for k in ('type', 'concept_id', 'record_group_dimension'))
+    return all(a.get(k) == b.get(k) for k in ('type', 'concept_id', 'record_group_dimension', 'layout_axis'))
 
 
 def record_ids(observations: list[dict], indexes) -> list[int]:

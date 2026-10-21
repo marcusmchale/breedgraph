@@ -27,8 +27,8 @@ def term(reference: dict, effect: str | None = None, slopes: list[dict] | None =
 def job(analysis_type: str, config: dict, columns: list[dict], rows: list[list]) -> AnalysisJob:
     observations = [
         {
-            'group': {'time': None, 'germplasm_id': None, 'unit_id': i, 'position': None, 'study_id': None,
-                      'record_groups': []},
+            'group': {'time': None, 'germplasm_id': None, 'unit_id': i, 'location_id': None, 'layout_id': None,
+                      'study_id': None, 'record_groups': [], 'layout_axes': []},
             'record_ids': [i],
             'unit_ids': [i],
             'exclusion': {'unit_ids': [i], 'start': None, 'end': None, 'record_groups': None}

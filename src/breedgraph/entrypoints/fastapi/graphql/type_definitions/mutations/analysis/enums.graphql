@@ -184,9 +184,22 @@ enum AnalysisTermType {
   UNIT
 
   """
-  The position dimension. Requires grouping.position.
+  Where the units were: the nearest location of one of the location
+  types of grouping.position. Requires grouping.position.
   """
-  POSITION
+  LOCATION
+
+  """
+  The layout of the position placing each unit at its location.
+  Requires grouping.position with layout true.
+  """
+  LAYOUT
+
+  """
+  The values on a layout axis, identified by layoutAxis, nested in
+  the layout that has the axis. Requires the axis in grouping.position.axes.
+  """
+  LAYOUT_AXIS
 
   """
   A record group dimension, identified by recordGroupDimension.

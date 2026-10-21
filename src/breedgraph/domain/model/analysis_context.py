@@ -24,6 +24,28 @@ class UnitContext:
     ancestor_ids: list[int] = field(default_factory=list)  # closest first
     parent_ids: list[int] = field(default_factory=list)  # the nearest units above it that the user can read
     root_id: int | None = None  # root of its graph, even if hidden from the user, for WITHIN_GRAPH codes
+    readable: bool = True  # False for a placeholder of a hidden unit with records
+    # the nearest units above it that the user can read or that are hidden with positions, which stop a placement
+    # (docs/read-access.md, rule 3); only loaded for position grouping
+    place_parent_ids: list[int] = field(default_factory=list)
+
+@dataclass
+class LocationContext:
+    """A location in the location tree as the user sees it, hidden locations skipped (docs/read-access.md, rule 3)"""
+    location_id: int
+    type_id: int | None = None
+    parent_id: int | None = None
+    readable: bool = True  # False for the placeholder of a hidden root
+
+@dataclass
+class LayoutContext:
+    """A layout in its layout tree as the user sees it, hidden layouts skipped (docs/read-access.md, rule 3)"""
+    layout_id: int
+    axes: list[str] = field(default_factory=list)
+    parent_id: int | None = None
+    # its position in the parent layout's axes; None for a root, or where a hidden layout was skipped
+    position: list | None = None
+    readable: bool = True  # False for the placeholder of a hidden root
 
 @dataclass
 class ConceptContext:
@@ -56,6 +78,11 @@ class AnalysisContext:
     studies: dict[int, StudyStored]
     # selected germplasm ID -> IDs of its descendants, for germplasm grouping
     germplasm_descendants: dict[int, set[int]] = field(default_factory=dict)
+    # for position grouping: the locations and layouts of the units' positions with those above them, and the hidden
+    # units with positions, which stop a placement
+    locations: dict[int, LocationContext] = field(default_factory=dict)
+    layouts: dict[int, LayoutContext] = field(default_factory=dict)
+    hidden_positioned: set[int] = field(default_factory=set)
 
     @property
     def dataset_studies(self) -> dict[int, int]:

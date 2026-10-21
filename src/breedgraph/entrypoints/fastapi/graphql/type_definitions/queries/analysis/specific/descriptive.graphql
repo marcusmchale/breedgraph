@@ -103,9 +103,19 @@ type AnalysisGroup {
   unitId: ID
 
   """
-  Position represented by this group.
+  Location represented by this group.
   """
-  position: Position
+  locationId: ID
+
+  """
+  Layout represented by this group, when the layout is a dimension.
+  """
+  layoutId: ID
+
+  """
+  Layout axis values represented by this group.
+  """
+  layoutAxes: [AnalysisLayoutAxisLevel!]!
 
   """
   Study represented by this group, when a STUDY term is used.
@@ -117,6 +127,24 @@ type AnalysisGroup {
   """
   recordGroups: [AnalysisRecordGroupAssignment!]!
 
+}
+
+
+"""
+The value of a layout axis represented by a group.
+"""
+type AnalysisLayoutAxisLevel {
+  """
+  Name of the axis.
+  """
+  axis: String!
+
+  """
+  ID of the layout that has the axis; values are nested in it.
+  """
+  layoutId: ID!
+
+  value: String!
 }
 
 

@@ -191,26 +191,6 @@ def test_germplasm_dimension_assigns_closest_selected():
     assert [o.group['germplasm_id'] for o in frame.observations] == [2, 2]
     assert [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_GERMPLASM] == [[3]]
 
-def test_position_dimension_by_axes():
-    units = {
-        100: UnitContext(100, positions=[Position(location_id=1, layout_id=2, coordinates=['1', 'a'])]),
-        101: UnitContext(101, positions=[Position(location_id=1, layout_id=2, coordinates=['1', 'b'])]),
-        102: UnitContext(102, positions=[Position(location_id=5)]),
-    }
-    ctx = context(
-        descriptive(
-            [concept_term(10), domain_term('POSITION')],
-            grouping={'position': {'location_id': 1, 'layout_id': 2, 'axis_indexes': [0]}}
-        ),
-        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '2'), record(3, 102, '3')])],
-        units=units
-    )
-    frame, warnings = prepare(ctx)
-    # same row on axis 0, distinct observation units
-    assert frame.data['position'].nunique() == 1
-    assert frame.observations[0].group['position'] == {'location_id': 1, 'layout_id': 2, 'coordinates': ['1', None]}
-    assert AnalysisWarningCode.UNASSIGNED_POSITION in codes(warnings)
-
 def test_study_only_with_study_term():
     datasets = [dataset(1, 1, 10, [record(1, 100, '1')]), dataset(2, 2, 10, [record(2, 100, '2')])]
     with pytest.raises(AnalysisFailed):
@@ -786,7 +766,9 @@ def test_job_payload_is_json_with_nulls():
     assert payload['analysis_type'] == 'DESCRIPTIVE_STATISTICS'
     assert payload['rows'] == [[1.0, 3.0], [2.0, None]]
     assert [c['name'] for c in payload['columns']] == ['concept:10', 'concept:11']
-    assert payload['config']['terms'][0]['reference'] == {'type': 'CONCEPT', 'concept_id': 10, 'record_group_dimension': None}
+    assert payload['config']['terms'][0]['reference'] == {
+        'type': 'CONCEPT', 'concept_id': 10, 'record_group_dimension': None, 'layout_axis': None
+    }
     assert payload['observations'][0]['exclusion'] == {'unit_ids': [100], 'start': None, 'end': None, 'record_groups': None}
 
 

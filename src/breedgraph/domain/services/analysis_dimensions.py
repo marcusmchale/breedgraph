@@ -12,13 +12,13 @@ from numpy import datetime64, timedelta64
 
 from breedgraph.domain.model.analysis import (
     AnalysisTermType, AnalysisTermReference, AnalysisMessage, AnalysisWarningCode, AnalysisErrorCode, AnalysisFailed,
-    TimeSpecification, TimeAssignment, GermplasmGrouping, UnitGrouping, PositionGrouping, RecordGroupDimension,
-    RecordGroupMember, AnovaSpec, intervals_overlap
+    TimeSpecification, TimeAssignment, GermplasmGrouping, UnitGrouping, RecordGroupDimension,
+    RecordGroupMember, AnovaSpec
 )
 from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord
 from breedgraph.domain.model.time_descriptors import upper
-from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime
+from breedgraph.domain.services.analysis_places import Placer, Place
 from breedgraph.domain.services.record_grouping_resolver import RecordGroupDimensionResolver
 
 
@@ -173,72 +173,54 @@ class GermplasmResolver(DimensionResolver):
         return DimensionLevel(key=str(selected), output=selected)
 
 
-class PositionResolver(DimensionResolver):
+class PositionDimensionResolver(DimensionResolver):
     """
-    Assigns the base unit of each record to a position group.
-
-    Units are matched by location (and layout), at the specified time or at any time.
-    Groups are defined by an explicit matching position, otherwise by the values of the
-    selected layout axes, otherwise by the location (and layout).
-    A unit matching more than one group is not assigned.
+    A level of where the record's unit was, from the place shared by the position dimensions
+    (domain.services.analysis_places). Every position dimension is assigned or none is, so the location dimension
+    alone reports the records it could not place.
     """
     warning_code = AnalysisWarningCode.UNASSIGNED_POSITION
-    description = "a position"
+    description = "a position at a location of the selected types"
 
-    def __init__(self, grouping: PositionGrouping, path: list[str]):
-        super().__init__(AnalysisTermReference(type=AnalysisTermType.POSITION), path)
-        self.grouping = grouping
-        self._assigned: dict[int, DimensionLevel | None] = {}
-
-    def _matches(self, position: Position) -> bool:
-        grouping = self.grouping
-        if position.location_id != grouping.location_id:
-            return False
-        if grouping.layout_id is not None and position.layout_id != grouping.layout_id:
-            return False
-        if grouping.time is not None:
-            # the position is occupied at some point in the period of the time
-            return intervals_overlap(position.start, position.end, grouping.time, grouping.time)
-        return True
-
-    @staticmethod
-    def _coordinates(position: Position) -> list[str | None]:
-        return [str(c) if c is not None else None for c in position.coordinates or []]
-
-    def _group(self, position: Position) -> tuple[str, dict]:
-        grouping = self.grouping
-        coordinates = self._coordinates(position)
-        for explicit in grouping.positions or []:
-            explicit_coordinates = self._coordinates(explicit)
-            if (
-                    explicit.location_id == position.location_id
-                    and (explicit.layout_id is None or explicit.layout_id == position.layout_id)
-                    and explicit_coordinates == coordinates[:len(explicit_coordinates)]
-            ):
-                return self._level(explicit.location_id, explicit.layout_id, explicit_coordinates)
-        if grouping.axis_indexes:
-            # values of unselected axes are not part of the group
-            selected = [c if i in grouping.axis_indexes else None for i, c in enumerate(coordinates)]
-            return self._level(position.location_id, position.layout_id, selected)
-        return self._level(position.location_id, grouping.layout_id, None)
-
-    @staticmethod
-    def _level(location_id: int, layout_id: int | None, coordinates: list[str | None] | None) -> tuple[str, dict]:
-        key = f"{location_id}|{layout_id if layout_id is not None else '*'}|{','.join(c or '' for c in coordinates or [])}"
-        return key, {'location_id': location_id, 'layout_id': layout_id, 'coordinates': coordinates}
+    def __init__(self, reference: AnalysisTermReference, placer: Placer, path: list[str], reports: bool = False):
+        super().__init__(reference, path)
+        self.placer = placer
+        self.reports = reports
 
     def _assign(self, record: AnalysisRecord) -> DimensionLevel | None:
-        unit = record.unit
-        if unit is None:
-            return None
-        if unit.unit_id not in self._assigned:
-            groups = dict(self._group(p) for p in unit.positions if self._matches(p))
-            if len(groups) == 1:
-                key, output = next(iter(groups.items()))
-                self._assigned[unit.unit_id] = DimensionLevel(key=key, output=output)
-            else:
-                self._assigned[unit.unit_id] = None
-        return self._assigned[unit.unit_id]
+        place = self.placer.place(record)
+        return self._level(place) if place is not None else None
+
+    @abstractmethod
+    def _level(self, place: Place) -> DimensionLevel:
+        ...
+
+    def warnings(self) -> list[AnalysisMessage]:
+        return super().warnings() if self.reports else []
+
+
+class LocationResolver(PositionDimensionResolver):
+    def _level(self, place: Place) -> DimensionLevel:
+        return DimensionLevel(key=str(place.location_id), output=place.location_id)
+
+
+class LayoutResolver(PositionDimensionResolver):
+    def _level(self, place: Place) -> DimensionLevel:
+        return DimensionLevel(key=str(place.layout_id), output=place.layout_id)
+
+
+class LayoutAxisResolver(PositionDimensionResolver):
+    """An axis's values are nested in the layout that has the axis, so row 3 of one field is not row 3 of another"""
+
+    def __init__(self, reference: AnalysisTermReference, index: int, placer: Placer, path: list[str]):
+        super().__init__(reference, placer, path)
+        self.index = index
+
+    def _level(self, place: Place) -> DimensionLevel:
+        axis, layout_id, value = place.axes[self.index]
+        return DimensionLevel(
+            key=f"{layout_id}|{value}", output={'axis': axis, 'layout_id': layout_id, 'value': value}
+        )
 
 
 class StudyResolver(DimensionResolver):
@@ -317,11 +299,24 @@ def build_dimension_resolvers(context: AnalysisContext) -> list[DimensionResolve
     if grouping.germplasm is not None:
         resolvers.append(GermplasmResolver(grouping.germplasm, context.germplasm_descendants, path + ['germplasm']))
     if grouping.position is not None:
-        resolvers.append(PositionResolver(grouping.position, path + ['position']))
+        resolvers += position_resolvers(context, path + ['position'])
     for i, dimension in enumerate(grouping.record_groups):
         resolvers.append(RecordGroupResolver(dimension, context, path + ['recordGroups', str(i)]))
     if any(t.reference.type == AnalysisTermType.STUDY for t in spec.terms):
         resolvers.append(StudyResolver([context.request.analysis_type.input_field, 'terms']))
+    return resolvers
+
+
+def position_resolvers(context: AnalysisContext, path: list[str]) -> list[PositionDimensionResolver]:
+    """The location dimension, the layout dimension if configured, then one for each axis, sharing their placements"""
+    grouping = context.request.spec.grouping.position
+    placer = Placer(grouping, context)
+    location, *others = grouping.references
+    resolvers: list[PositionDimensionResolver] = [LocationResolver(location, placer, path, reports=True)]
+    if grouping.layout:
+        resolvers.append(LayoutResolver(others.pop(0), placer, path))
+    for i, reference in enumerate(others):
+        resolvers.append(LayoutAxisResolver(reference, i, placer, path))
     return resolvers
 
 
@@ -339,7 +334,7 @@ def context_levels(resolvers: list[DimensionResolver], record: AnalysisRecord) -
         return None
     levels = {}
     for resolver in resolvers:
-        if isinstance(resolver, (GermplasmResolver, PositionResolver)):
+        if isinstance(resolver, (GermplasmResolver, PositionDimensionResolver)):
             levels[resolver.name] = None
         else:
             # unlike assign, a level the record has none of is not reported: the record applies across it

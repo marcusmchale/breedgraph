@@ -141,6 +141,9 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
   context, hung from its nearest readable ancestors (for unit grouping and the factors describing it), without its
   germplasm or positions, so it is not assigned to a germplasm or position group. A readable unit's germplasm is its
   own or the one it inherits, as rule 3 gives it, so a unit below a hidden one with germplasm is unassigned too.
+  Position grouping places a readable unit by its own positions or those of the units above it, in the same way:
+  a placement stops at a hidden unit with positions, and at a position at a location or in a layout the user cannot
+  read. Hidden locations' types and hidden layouts' axes are not matched.
   Germplasm grouping takes the readable descendants of a selected germplasm, which must be readable or a crop.
 
 ## 4. Status
