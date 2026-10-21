@@ -5,7 +5,7 @@ Two Neo4j dumps for development, kept in `test_databases/` under `NEO4J_ARCHIVE_
 
 | Dump | What it holds | Sharing |
 |---|---|---|
-| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests and its replicates study, generated, optionally with data at scale | **Public** when built from a fresh store (below): synthetic, with known credentials. breedview's e2e and performance tests run against it |
+| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests with its replicates, arrivals and positions studies, generated, optionally with data at scale | **Public** when built from a fresh store (below): synthetic, with known credentials. breedview's e2e and performance tests run against it |
 | `test_database_breedcafs.dump`, `test_database_breedcafs.manifest.json`, `test_database_breedcafs_files/` | The same scenario plus a rehearsal of the BreedCAFS migration | **Private**: BreedCAFS data and Person data, `PRIVATE` under the migration team. Never share it or publish it like the public dump |
 
 There is one Neo4j instance (Community allows one active database). The dev database is switched between dumps
