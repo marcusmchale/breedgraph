@@ -12,7 +12,7 @@ from breedgraph.domain.model.ontology import (
     OntologyRelationshipLabel,
     LifecyclePhase
 )
-from breedgraph.domain.model.references import DataFormat
+from breedgraph.domain.model.references import DataFormat, TextFormat
 from breedgraph.domain.model.submissions import SubmissionStatus
 
 # Import query and mutation objects (this triggers all resolver registration)
@@ -51,6 +51,7 @@ graphql_resolvers.register_enums(EnumType("LifecyclePhase", LifecyclePhase))
 graphql_resolvers.register_enums(EnumType('OntologyRole', OntologyRole))
 graphql_resolvers.register_enums(EnumType("SubmissionStatus", SubmissionStatus))
 graphql_resolvers.register_enums(EnumType("DataFormat", DataFormat))
+graphql_resolvers.register_enums(EnumType("TextFormat", TextFormat))
 
 
 # Export only what's needed

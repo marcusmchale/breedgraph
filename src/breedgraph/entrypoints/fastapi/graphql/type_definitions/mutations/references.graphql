@@ -10,6 +10,18 @@ enum DataFormat {
 input LegalReferenceInput {
     description: String
     text: String!
+    """ PLAIN when omitted """
+    textFormat: TextFormat
+}
+
+"""
+A legal reference given as a file: a .txt (UTF-8 text), .md (markdown) or .pdf (with text, not a scan), of at most
+5 MB unless configured otherwise. Its text is read on upload, so a wrong file is refused at once
+"""
+input LegalFileReferenceInput {
+    """ The file's name when omitted """
+    description: String
+    file: Upload!
 }
 
 input ExternalReferenceInput {
@@ -51,7 +63,16 @@ input DataFileReferenceInput {
 input LegalReferenceUpdate {
     id: ID!
     description: String
-    text: String!
+    """ Omitted or unchanged, the text stays as it is. New typed text replaces a file the reference was read from """
+    text: String
+    textFormat: TextFormat
+}
+
+""" New text for a legal reference, read from a file as for LegalFileReferenceInput """
+input LegalFileReferenceUpdate {
+    id: ID!
+    description: String
+    file: Upload!
 }
 
 input ExternalReferenceUpdate {
@@ -120,8 +141,19 @@ extend type Mutation {
         controlTeamId: ID!
         release: ReadRelease
     ): FileIdPayload!
+    """
+    A legal reference with the text of a .txt, .md or .pdf file. Returns the key that follows the file's saving, as for
+    referencesCreateFile; the reference and its text exist at once
+    """
+    referencesCreateLegalFile(
+        reference: LegalFileReferenceInput!
+        controlTeamId: ID!
+        release: ReadRelease
+    ): FileIdPayload!
     
     referencesUpdateLegal(reference: LegalReferenceUpdate!): BooleanPayload!
+    """ New text from a file, applied with the file once it is saved; returns the key that follows the saving """
+    referencesUpdateLegalFile(reference: LegalFileReferenceUpdate!): FileIdPayload!
     referencesUpdateExternal(reference: ExternalReferenceUpdate!): BooleanPayload!
     referencesUpdateExternalData(reference: ExternalDataReferenceUpdate!): BooleanPayload!
 

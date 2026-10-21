@@ -5,6 +5,11 @@ FILE_DOWNLOAD_SALT = os.environ.get('FILE_DOWNLOAD_SALT', 'file_download_salt')
 FILE_DOWNLOAD_EXPIRES = int(os.environ.get('FILE_DOWNLOAD_EXPIRES', 1440))  # minutes
 MAX_CONCURRENT_UPLOADS = int(os.environ.get('MAX_CONCURRENT_UPLOADS', 5))
 
+# Legal references given as files (.txt, .md or .pdf), whose text is read on upload: the largest file, in bytes, and the
+# most pages of a PDF
+LEGAL_FILE_SIZE_LIMIT = int(os.environ.get('LEGAL_FILE_SIZE_LIMIT', 5000000))
+LEGAL_FILE_PAGE_LIMIT = int(os.environ.get('LEGAL_FILE_PAGE_LIMIT', 200))
+
 # bytes for file size above which local copies of the file will be removed after local storage duration
 LOCAL_SIZE_LIMIT = int(os.environ.get('LOCAL_SIZE_LIMIT', 10000000))
 # days to temporarily keep a file larger than archival file size on the web server

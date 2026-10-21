@@ -1,5 +1,5 @@
 from breedgraph.domain.model.contributions import ContributionInput
-from breedgraph.domain.model.references import DataFormat
+from breedgraph.domain.model.references import DataFormat, TextFormat
 from breedgraph.domain.model.controls import ReadRelease
 
 from .base import Command
@@ -10,8 +10,16 @@ class CreateLegalReference(Command):
     release: ReadRelease = ReadRelease.PRIVATE
 
     description: str | None = None
-    
+
     text: str
+    text_format: TextFormat = TextFormat.PLAIN
+
+    # read from a file: its hash, name and content type, and its key in the state store, which UploadCompleted links
+    # to the reference once the file is saved. Typed text is hashed itself.
+    content_hash: str | None = None
+    filename: str | None = None
+    content_type: str | None = None
+    uuid: str | None = None
 
 class CreateExternalReference(Command):
     agent_id: int
@@ -80,7 +88,12 @@ class UpdateLegalReference(Command):
 
     description: str | None = None
 
+    # typed text replaces a file the reference was given as; with a filename, it was read from a new file
     text: str | None = None
+    text_format: TextFormat | None = None
+    content_hash: str | None = None
+    filename: str | None = None
+    content_type: str | None = None
 
 
 class UpdateExternalReference(Command):

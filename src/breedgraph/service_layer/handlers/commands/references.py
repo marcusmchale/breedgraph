@@ -10,12 +10,15 @@ from breedgraph.service_layer.application.aggregate_restructuring import Abstrac
 from breedgraph.domain import commands, events
 
 from breedgraph.domain.model.references import (
+    ReferenceType, text_hash,
     LegalReferenceInput, LegalReferenceStored,
     ExternalReferenceInput, ExternalReferenceStored,
     ExternalDataInput, ExternalDataStored,
     FileReferenceInput, FileReferenceStored,
     DataFileInput, DataFileStored
 )
+from breedgraph.service_layer.infrastructure import FileManagementService, AbstractFileArchivalService
+from breedgraph.service_layer.application.file_deletion import delete_file_and_archive
 
 from ..registry import handlers
 
@@ -41,15 +44,23 @@ def _contributions(cmd) -> list[Contribution] | None:
 @handlers.command_handler(commands.references.CreateLegalReference)
 async def create_legal_reference(
     cmd: commands.references.CreateLegalReference,
-    uow_factory: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory,
+    state_store: AbstractStateStore
 ) -> int:
     logger.debug(f'f"Creating legal reference for user {cmd.agent_id}')
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         reference = LegalReferenceInput(
             description=cmd.description,
-            text=cmd.text
+            text=cmd.text,
+            text_format=cmd.text_format,
+            content_hash=cmd.content_hash or text_hash(cmd.text),
+            filename=cmd.filename,
+            content_type=cmd.content_type
         )
         stored_reference: LegalReferenceStored = await uow.repositories.references.create(reference)
+        if cmd.uuid is not None:
+            # read from a file, which UploadCompleted links to the reference once it is saved, as for file references
+            await state_store.set_file_reference_id(cmd.uuid, stored_reference.id)
         await uow.commit()
         return stored_reference.id
 
@@ -142,14 +153,41 @@ async def create_data_file_reference(
 @handlers.command_handler(commands.references.UpdateLegalReference)
 async def update_legal_reference(
     cmd: commands.references.UpdateLegalReference,
-    uow_factory: AbstractUnitOfWorkFactory
+    uow_factory: AbstractUnitOfWorkFactory,
+    file_management: FileManagementService,
+    archival_service: AbstractFileArchivalService
 ) -> None:
+    """
+    New text changes the content hash, so acceptances of the reference no longer hold and are asked for again.
+    Read from a new file, it is applied once the file is saved, and UploadCompleted then puts the file in place of the
+    old one; typed, it replaces any file the reference was given as. The same text again changes nothing.
+    """
     logger.debug(f'f"Updating legal reference for user {cmd.agent_id}')
+    replaced_file_id = None
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: LegalReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
+        if reference.type != ReferenceType.LEGAL:
+            raise IllegalOperationError(f"Reference {cmd.reference_id} is not a legal reference")
         reference.description = cmd.description or reference.description
-        reference.text = cmd.text or reference.text
+        if cmd.text_format is not None:
+            reference.text_format = cmd.text_format
+        if cmd.filename is not None:
+            reference.text = cmd.text
+            reference.content_hash = cmd.content_hash
+            reference.filename = cmd.filename
+            reference.content_type = cmd.content_type
+        elif cmd.text is not None and cmd.text != reference.text:
+            replaced_file_id = reference.file_id
+            reference.text = cmd.text
+            reference.content_hash = text_hash(cmd.text)
+            reference.filename = None
+            reference.content_type = None
+            reference.file_id = None
         await uow.commit()
+
+    if replaced_file_id:
+        # deleted once the reference no longer points to it
+        await delete_file_and_archive(replaced_file_id, file_management, archival_service)
 
 @handlers.command_handler(commands.references.UpdateExternalReference)
 async def update_external_reference(

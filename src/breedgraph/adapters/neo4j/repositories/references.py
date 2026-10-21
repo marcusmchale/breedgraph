@@ -19,7 +19,9 @@ from breedgraph.domain.model.references import (
     DataFileStored,
     ExternalDataStored,
     LegalReferenceStored,
-    DataFormat
+    DataFormat,
+    TextFormat,
+    text_hash
 )
 
 import logging
@@ -66,14 +68,19 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             raise ValueError("No reference record provided")
 
 
+        reference_type = ReferenceType(record['type'])
         if 'format' in record:
             record['format'] = DataFormat(record['format'])
+        if 'text_format' in record:
+            record['text_format'] = TextFormat(record['text_format'])
         if 'schema' in record:
             record['schema'] = json.loads(record['schema'])
         # the retention job's mark (remove_unused_files), not part of the reference
         record.pop('unused_since', None)
+        # legal text written before content hashes were kept was typed, so its hash is that of the text
+        if reference_type == ReferenceType.LEGAL and record.get('content_hash') is None and record.get('text') is not None:
+            record['content_hash'] = text_hash(record['text'])
 
-        reference_type = ReferenceType(record['type'])
         if not reference_type in REFERENCE_TYPE_MAP:
             raise ValueError("Reference type not found")
         else:

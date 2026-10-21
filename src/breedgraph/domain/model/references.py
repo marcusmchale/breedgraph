@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace, field
 from enum import Enum
+import hashlib
 import json
 
 from breedgraph.service_layer.tracking.wrappers import asdict
@@ -37,6 +38,8 @@ class ReferenceBase(ABC):
         d = asdict(self)
         if 'format' in d:
             d['format'] = d['format'].value
+        if 'text_format' in d:
+            d['text_format'] = d['text_format'].value
         if 'schema' in d and d['schema'] is not None:
             d['schema'] = json.dumps(d['schema'])
         if isinstance(d['type'], ReferenceType):
@@ -83,10 +86,33 @@ class ReferenceStoredBase(ControlledModel, ControlledAggregate, ABC):
 """
 Legal reference
 """
+class TextFormat(str, Enum):
+    """How a legal reference's text is written: shown as it is, or rendered as markdown"""
+    PLAIN = "PLAIN"
+    MARKDOWN = "MARKDOWN"
+
+
+def text_hash(text: str) -> str:
+    """The content hash of typed text: the SHA-256 of its UTF-8, as a file's is of its bytes"""
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
 @dataclass(eq=False)
 class LegalReference(ReferenceBase):
+    """
+    Legal text, such as a study's licence: typed, or read from a .txt, .md or .pdf file, which is kept for download.
+    Its content hash names the text an acceptance of it agrees to (docs/licences.md).
+    """
     type: ReferenceType = ReferenceType.LEGAL
     text: str = None
+    # text_format, as format is a data reference's (DataFormat), and GraphQL selects both on the same interface
+    text_format: TextFormat = TextFormat.PLAIN
+    # the SHA-256 of the file the text was read from, or of the typed text
+    content_hash: str | None = None
+    # given as a file: its name and type, and its name in the file store once saved
+    filename: str | None = None
+    content_type: str | None = None
+    file_id: str | None = None
 
 @dataclass
 class LegalReferenceInput(LegalReference, EnumLabeledModel):
@@ -99,7 +125,11 @@ class LegalReferenceStored(LegalReference, ReferenceStoredBase):
         return replace(
             self,
             description=self.redacted_str,
-            text=self.redacted_str
+            text=self.redacted_str,
+            content_hash=None,
+            filename=None,
+            content_type=None,
+            file_id=None
         )
 
 

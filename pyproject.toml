@@ -32,6 +32,8 @@ api = [
     "aiosmtplib==5.1.2",
     "python-multipart>=0.0.32",
     "aiofiles~=25.1.0",
+    # the text of licences and other legal references given as PDF files
+    "pypdf~=6.21.2",
 
     "wrapt==2.2.2",
 

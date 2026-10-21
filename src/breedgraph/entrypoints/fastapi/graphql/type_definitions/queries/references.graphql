@@ -11,11 +11,32 @@ enum ReferenceType {
     DATA_FILE
 }
 
+""" How a legal reference's text is written """
+enum TextFormat {
+    """ Shown as it is written """
+    PLAIN
+    """ Rendered as markdown """
+    MARKDOWN
+}
+
+"""
+Legal text, such as a study's licence: typed, or read from a .txt, .md or .pdf file, which is kept for download
+"""
 type LegalReference implements ReferenceInterface {
     id: ID!
     description: String
 
     text: String
+    textFormat: TextFormat!
+    """
+    The SHA-256 of the file the text was read from, or of the typed text: what accepting the reference names. It
+    changes with the text. Null on a placeholder
+    """
+    contentHash: String
+    """ Read from a file: its name and type, and its id for referencesFileDownload once it is saved """
+    filename: String
+    contentType: String
+    fileId: ID
 }
 
 type ExternalReference implements ReferenceInterface {

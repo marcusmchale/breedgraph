@@ -3,8 +3,10 @@ from datetime import datetime
 
 from fastapi import UploadFile
 
+from breedgraph.config import LEGAL_FILE_SIZE_LIMIT
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.archive import FileArchivalRecord, LocalState, ArchiveState
+from breedgraph.service_layer.infrastructure.legal_files import LegalText, LegalFileInvalid, read_legal_file
 from breedgraph.service_layer.messagebus import MessageBus
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.references import (
@@ -72,7 +74,7 @@ def start_updating_file(
         key: str,
         reference_id: int,
         file: UploadFile,
-        cmd: UpdateFileReference | UpdateDataFileReference
+        cmd: UpdateFileReference | UpdateDataFileReference | UpdateLegalReference
 ):
     # if there is a file, then don't perform the update until after the file is saved
     # otherwise the reference may be in an inconsistent state,
@@ -111,7 +113,7 @@ async def start_file_ref_update(
         bus: MessageBus,
         reference_id: int,
         file: UploadFile,
-        cmd: UpdateFileReference | UpdateDataFileReference
+        cmd: UpdateFileReference | UpdateDataFileReference | UpdateLegalReference
 ):
     if not file:
         await bus.handle(cmd)
@@ -151,6 +153,60 @@ async def create_legal_reference(
     cmd = CreateLegalReference(agent_id=user_id, write_team=control_team_id, release=release, **reference)
     reference_id: int = await info.context['bus'].handle(cmd)
     return reference_id
+
+
+# Reading a legal file is quick unless it is made to be slow, which the request should not wait out
+LEGAL_FILE_READ_SECONDS = 30
+
+async def read_legal_upload(file: UploadFile | None) -> LegalText:
+    """
+    A legal file's text, checked before anything is stored, so a wrong file is refused at once. The upload is read
+    from the start again afterwards, to be saved as other files are.
+    """
+    if not file or not file.filename:
+        raise LegalFileInvalid("A legal reference's file is required, with its name")
+    data = await file.read(LEGAL_FILE_SIZE_LIMIT + 1)
+    await file.seek(0)
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(read_legal_file, file.filename, data), LEGAL_FILE_READ_SECONDS)
+    except asyncio.TimeoutError:
+        raise LegalFileInvalid(f"{file.filename} took too long to read: give its text as a .txt or .md file")
+
+
+@graphql_mutation.field("referencesCreateLegalFile")
+@graphql_payload
+@require_authentication
+async def create_legal_file_reference(
+        _,
+        info,
+        reference: dict,
+        control_team_id: int | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
+) -> str:
+    """A legal reference with the text of a .txt, .md or .pdf file; the file is saved and archived as others are"""
+    user_id = info.context.get('user_id')
+    bus: MessageBus = info.context.get('bus')
+    logger.debug(f'User {user_id} creates legal reference from a file')
+    file: UploadFile | None = reference.get('file')
+    legal_text = await read_legal_upload(file)
+    key = await bus.state_store.store_file(agent_id=user_id, filename=file.filename)
+    await bus.handle(CreateLegalReference(
+        agent_id=user_id,
+        write_team=control_team_id,
+        release=release,
+        description=reference.get('description') or file.filename,
+        text=legal_text.text,
+        text_format=legal_text.text_format,
+        content_hash=legal_text.content_hash,
+        filename=file.filename,
+        content_type=legal_text.content_type,
+        uuid=key
+    ))
+    reference_id = await bus.state_store.get_file_reference_id(key)
+    if not reference_id:
+        raise ValueError("File reference id is invalid")
+    start_creating_file(user_id=user_id, bus=bus, key=key, reference_id=reference_id, file=file)
+    return key
 
 
 @graphql_mutation.field("referencesCreateExternal")
@@ -314,6 +370,33 @@ async def update_legal_reference(
     cmd = UpdateLegalReference(agent_id=user_id, **reference)
     await info.context['bus'].handle(cmd)
     return True
+
+
+@graphql_mutation.field("referencesUpdateLegalFile")
+@graphql_payload
+@require_authentication
+async def update_legal_file_reference(
+        _,
+        info,
+        reference: dict
+) -> str:
+    """New text from a .txt, .md or .pdf file, applied with the file once it is saved"""
+    user_id = info.context.get('user_id')
+    bus: MessageBus = info.context.get('bus')
+    logger.debug(f'User {user_id} updates legal reference from a file')
+    file: UploadFile | None = reference.get('file')
+    legal_text = await read_legal_upload(file)
+    cmd = UpdateLegalReference(
+        agent_id=user_id,
+        reference_id=reference.get('id'),
+        description=reference.get('description'),
+        text=legal_text.text,
+        text_format=legal_text.text_format,
+        content_hash=legal_text.content_hash,
+        filename=file.filename,
+        content_type=legal_text.content_type
+    )
+    return await start_file_ref_update(user_id=user_id, bus=bus, reference_id=reference.get('id'), file=file, cmd=cmd)
 
 
 @graphql_mutation.field("referencesUpdateExternal")
