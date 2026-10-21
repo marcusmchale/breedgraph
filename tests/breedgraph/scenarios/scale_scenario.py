@@ -9,6 +9,10 @@ READ affiliation and the scripts measure the same access checks.
                                            read-policy field (field_coordinates)
     each field: a unit graph rooted at a field unit (subject Field) positioned at the field,
         holding trees (subject Tree), each holding leaves (subject Leaf)
+    scale_lab                              a lab below state; in every field but 01, the first trees each hold a
+                                           sample (subject Sample) positioned at the lab from SAMPLE_DATE: one arrival
+                                           of samples from many unit graphs
+    field 02's trees are positioned at their field themselves, so each is a candidate the arrivals query rules out
     scale_program > scale_trial > scale_study_01 .. scale_study_NN, one study per field
     scale_study_01: datasets_per_concept datasets of the height variable, each recording every tree of field 01
         at records_per_unit dates
@@ -35,6 +39,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 FIRST_DATE = datetime64('2024-01-15')
+SAMPLE_DATE = datetime64('2024-09-01')
+POSITIONED_FIELD = 2
 
 
 @dataclass
@@ -44,6 +50,7 @@ class ScaleParameters:
     leaves_per_tree: int = 4
     datasets_per_concept: int = 5
     records_per_unit: int = 5
+    samples_per_field: int = 5
 
 
 @dataclass
@@ -70,6 +77,11 @@ def field_coordinates(number: int) -> list[tuple[float, float]]:
 
 def study_key(number: int) -> str:
     return f"scale_study_{number:02d}"
+
+
+def samples_in(parameters: ScaleParameters, number: int) -> int:
+    """How many samples a field's trees hold: none in field 01, which the performance scripts measure"""
+    return 0 if number == 1 else min(parameters.samples_per_field, parameters.trees_per_field)
 
 
 class ScaleScenarioBuilder:
@@ -105,6 +117,9 @@ class ScaleScenarioBuilder:
         names = {field_key(n): f"Readpolicy scale field {n:02d}" for n in range(1, self.scale.parameters.fields + 1)}
         async with self._uow() as uow:
             location_tree = await uow.repositories.location_trees.get(location_id=b['state'])
+            location_tree.add_location(
+                LocationInput(name="Readpolicy scale lab", type=b['ontology_location_lab']), parent_id=b['state']
+            )
             for number in range(1, self.scale.parameters.fields + 1):
                 location_tree.add_location(LocationInput(
                     name=names[field_key(number)],
@@ -117,7 +132,7 @@ class ScaleScenarioBuilder:
         async with self.uow_factory.get_uow() as uow:
             location_tree = await uow.repositories.location_trees.get(location_id=b['state'])
             by_name = {location.name: location.id for location in location_tree.entries.values()}
-        for key, name in names.items():
+        for key, name in {**names, 'scale_lab': "Readpolicy scale lab"}.items():
             self._name(key, name)
             self.scale.ids[key] = by_name[name]
 
@@ -132,19 +147,31 @@ class ScaleScenarioBuilder:
                 positions=[Position(location_id=self.scale.ids[field_key(number)])]
             ))
             root_id = unit_graph.get_root_id()
+            field_positions = [Position(location_id=self.scale.ids[field_key(number)])] if number == POSITIONED_FIELD else []
+            samples = samples_in(p, number)
             for tree in range(1, p.trees_per_field + 1):
                 tree_temp = unit_graph.add_unit(
-                    UnitInput(name=f"{prefix} T{tree:04d}", subject=b['ontology_subject_tree']), parents=[root_id]
+                    UnitInput(name=f"{prefix} T{tree:04d}", subject=b['ontology_subject_tree'], positions=list(field_positions)),
+                    parents=[root_id]
                 )
                 for leaf in range(1, p.leaves_per_tree + 1):
                     unit_graph.add_unit(
                         UnitInput(name=f"{prefix} T{tree:04d} L{leaf}", subject=b['ontology_subject_leaf']),
                         parents=[tree_temp]
                     )
+                if tree <= samples:
+                    unit_graph.add_unit(
+                        UnitInput(
+                            name=f"{prefix} T{tree:04d} S",
+                            subject=b['ontology_subject_sample'],
+                            positions=[Position(location_id=self.scale.ids['scale_lab'], start=SAMPLE_DATE)]
+                        ),
+                        parents=[tree_temp]
+                    )
             await uow.commit()
             root_id = unit_graph.get_root_id()
         self.scale.ids[f"scale_field_unit_{number:02d}"] = root_id
-        self.scale.unit_count += 1 + p.trees_per_field * (1 + p.leaves_per_tree)
+        self.scale.unit_count += 1 + p.trees_per_field * (1 + p.leaves_per_tree) + samples
 
         async with self.uow_factory.get_uow() as uow:
             unit_graph = await uow.repositories.unit_graphs.get(unit_id=root_id)

@@ -4,7 +4,8 @@ Build the public, synthetic test database on an empty Neo4j and Redis: the read-
 tests (tests/breedgraph/scenarios/read_policy_scenario.py), so the tests and this database describe the same world.
 Every name and value is generated; nothing comes from real data. breedview's e2e tests run against a dump of it.
 It also holds a study with record group codes of every extent and scope
-(tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry.
+(tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry, and units that came to
+locations at dated positions (tests/breedgraph/scenarios/arrival_scenario.py), in its "arrivals" entry.
 
 Writes a manifest (JSON) with the accounts' credentials, the ids of every entity by its scenario name, the controls
 each entity was written under, what each viewer can read, and the files. The files themselves are written to
@@ -57,6 +58,10 @@ from load_state_store import is_redis_empty
 from tests.breedgraph.scenarios.replicate_scenario import (
     ReplicateScenarioBuilder, ReplicateScenario, DATASETS as REPLICATE_DATASETS, GROUPINGS, PROGRAM, TRIAL, STUDY,
     CONCEPTS, EXPECTED_CASES, EXPECTED_WINDOWED_READINGS, EXPECTED_PLOT_MEANS, BLOCK, BATCH, level_keys
+)
+from tests.breedgraph.scenarios.arrival_scenario import (
+    ArrivalScenarioBuilder, ArrivalScenario, EXPECTED_ARRIVALS, EXPECTED_LIGHT, STORE, LAB_STORE,
+    PROGRAM as ARRIVAL_PROGRAM, TRIAL as ARRIVAL_TRIAL, STUDY as ARRIVAL_STUDY, expected_germplasm
 )
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
@@ -187,6 +192,38 @@ def replicates_manifest(replicates: ReplicateScenario, scenario: ReadPolicyScena
     }
 
 
+def arrivals_manifest(arrivals: ArrivalScenario, scenario: ReadPolicyScenario) -> dict:
+    """
+    Units that came to locations at dated positions, and the germplasm and factor records that come down to them
+    (tests/breedgraph/scenarios/arrival_scenario.py). Arrivals list their units by name, newest first and undated (a
+    null start) last, as each viewer sees them; germplasm is given by the read-policy germplasm's names (entities).
+    """
+    return {
+        'program': {'id': arrivals.ids['program'], 'name': ARRIVAL_PROGRAM},
+        'trial': {'id': arrivals.ids['trial'], 'name': ARRIVAL_TRIAL},
+        'study': {'id': arrivals.ids['study'], 'name': ARRIVAL_STUDY},
+        'locations': {
+            location: {'id': arrivals.ids[STORE], 'name': LAB_STORE} if location == STORE else {'id': scenario[location]}
+            for location in EXPECTED_ARRIVALS
+        },
+        'units': dict(sorted(arrivals.units.items())),
+        'datasets': arrivals.datasets,
+        'expected': {
+            'arrivals': {
+                location: {
+                    viewer: [{'start': start, 'units': units} for start, units in arrivals_seen]
+                    for viewer, arrivals_seen in by_viewer.items()
+                }
+                for location, by_viewer in EXPECTED_ARRIVALS.items()
+            },
+            'germplasm': {
+                viewer: expected_germplasm(arrivals, viewer) for viewer in ('admin', 'writer', 'stranger', 'outsider')
+            },
+            'light': EXPECTED_LIGHT,
+        },
+    }
+
+
 def perf_manifest(scale: ScaleScenario) -> dict:
     """The defaults of breedview's performance scripts (perf in its fixture): a large study, its variable, a large field"""
     return {
@@ -199,6 +236,7 @@ def perf_manifest(scale: ScaleScenario) -> dict:
 def manifest(
         scenario: ReadPolicyScenario,
         replicates: ReplicateScenario,
+        arrivals: ArrivalScenario,
         seed: int,
         password: str,
         files_dir: Path,
@@ -260,6 +298,7 @@ def manifest(
             for name, (file_id, _) in scenario.files.items()
         },
         'replicates': replicates_manifest(replicates, scenario),
+        'arrivals': arrivals_manifest(arrivals, scenario),
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
 
@@ -330,6 +369,8 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         ).build()
         logger.info("Building the replicates study")
         replicates = await ReplicateScenarioBuilder(uow_factory, scenario).build()
+        logger.info("Building the arrivals")
+        arrivals = await ArrivalScenarioBuilder(uow_factory, scenario).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
@@ -338,7 +379,7 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
-        contents = manifest(scenario, replicates, seed, password, files_dir, scale)
+        contents = manifest(scenario, replicates, arrivals, seed, password, files_dir, scale)
         await add_names(driver, contents)
     finally:
         await connection.aclose()

@@ -83,10 +83,12 @@ python scripts/build_test_database.py --manifest instance/neo4j_archive/test_dat
   made-up coordinates on the Qazvin plain (`LOCATION_COORDINATES`), so the location map shows pins and a polygon;
   the states have none. Detailed maps of these countries come from `scripts/map_tiles.py --regions` (README.md,
   Maps), as the build sends no events.
-- It adds the replicates study (`replicate_scenario.py`, below).
+- It adds the replicates study (`replicate_scenario.py`, below) and the arrivals (`arrival_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
-  20 fields, 100,020 units and 44,000 records, each field a made-up plot beside the scenario's field. The sizes can
-  be set (`--fields`, `--trees-per-field`, …).
+  20 fields, 100,115 units and 44,000 records, each field a made-up plot beside the scenario's field. Field 02's trees
+  are positioned at their field themselves, and the first five trees of every field but 01 each hold a sample at a
+  scale lab from one date: one arrival of 95 units from 19 unit graphs. The sizes can be set (`--fields`,
+  `--trees-per-field`, `--samples-per-field`, …).
   The manifest's `perf` entry names the study, concept and field those scripts use.
 - `--seed` (default 1) seeds the generated names, so a build is repeatable.
 - It refuses to overwrite an existing manifest: move the old one aside, or build to another path.
@@ -99,7 +101,8 @@ scripts/backup.sh
 ```
 
 and move the dump it reports (`neo4j-<date>.dump`, in `NEO4J_ARCHIVE_PATH`) beside the manifest as
-`test_databases/test_database.dump`.
+`test_databases/test_database.dump`. With `ENCRYPTION_RECIPIENT` set, `backup.sh` writes an encrypted
+`neo4j-<date>.dump.age` instead: the test database is public, so dump it with `ENCRYPTION_RECIPIENT= scripts/backup.sh`.
 
 ### The replicates study
 
@@ -144,6 +147,28 @@ entry gives what analyses report, checked by `tests/breedgraph/e2e/analysis/test
 - `plot_means`: `same_time` by plot (`grouping.unit`) with a term MEAN, pooled and as the mean of tree means;
 - `levels`: the nested level keys (docs/analysis.md §6) of a record group dimension of each grouping, by dataset;
 - `blocks`: the Block levels of `blocks`, with "Block 1" shared, and its Batch levels.
+
+### The arrivals
+
+Units that came to locations at dated positions, for the Units page's arrivals, moving units in bulk, and germplasm
+and factors coming down the unit graph (`tests/breedgraph/scenarios/arrival_scenario.py` draws them). Controlled by
+the child team and released REGISTERED, so every account reads them and `readpolicy_writer` curates them, except
+"Arrival Sample Hidden", which is PRIVATE: only the admin and the writer read it.
+
+- **Locations:** "Arrival Lab Store", below the scenario's lab.
+- **Units:** one unit graph, "Arrival Field" at the registered field, with a plot of four trees. Samples of Tree A and
+  Tree B reached the lab on 2025-03-25; one was taken from a sample there; one moved on to the lab store on
+  2025-05-02 and one was used up; Tree B visited the lab in 2024 and went back; "Arrival Pooled" is from Tree A and
+  Tree B, whose germplasm differ, "Arrival Pooled Same" from Tree A and Tree C, whose agree. The hidden sample's
+  extract is an arrival for whoever can't read the sample. Two samples of "Arrival Move Tree" reached the lab on
+  2025-06-10, for tests that move them and put them back.
+- **Study:** "Readpolicy arrivals program" → "trial" → "study", with the light factor on the trees and the height
+  variable on samples.
+
+The manifest's `arrivals` entry gives the ids of the program, trial, study, locations, units by name and datasets.
+Its `expected` entry gives each location's arrivals as each viewer sees them (start as entered, null for undated,
+newest first; units by name), the germplasm each unit takes and the unit it comes from, and the light that describes
+each height record (none for "Arrival Pooled", its trees' records differing).
 
 ## Building the BreedCAFS dump
 

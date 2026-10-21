@@ -230,6 +230,8 @@ class OntologyBuilder:
             tree_subject = await ontology_service.create_entry(SubjectInput(name="Tree"), parents=[field_subject.id, plot_subject.id])
             leaf_subject = await ontology_service.create_entry(SubjectInput(name="Leaf"), parents=[tree_subject.id])
             rhizosphere_subject = await ontology_service.create_entry(SubjectInput(name="Rhizosphere"), parents=[tree_subject.id])
+            # material taken from a tree or a leaf, e.g. for a lab, and what is taken from it in turn
+            sample_subject = await ontology_service.create_entry(SubjectInput(name="Sample"), parents=[tree_subject.id, leaf_subject.id])
             await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added subject types")
             await uow.commit()
             return {
@@ -237,7 +239,8 @@ class OntologyBuilder:
                 'ontology_subject_plot': plot_subject.id,
                 'ontology_subject_tree': tree_subject.id,
                 'ontology_subject_leaf': leaf_subject.id,
-                'ontology_subject_rhizosphere': rhizosphere_subject.id
+                'ontology_subject_rhizosphere': rhizosphere_subject.id,
+                'ontology_subject_sample': sample_subject.id
             }
 
     async def variable_tree_height(self, user_id: int) -> Dict[str, int]:

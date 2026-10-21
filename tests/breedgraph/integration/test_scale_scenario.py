@@ -5,7 +5,7 @@ read back, for the admin, who reads the child team's private data, and for the o
 import pytest
 import pytest_asyncio
 
-from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleParameters, field_key, study_key
+from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleParameters, field_key, study_key, samples_in
 
 PARAMETERS = ScaleParameters(fields=2, trees_per_field=3, leaves_per_tree=2, datasets_per_concept=2, records_per_unit=3)
 
@@ -17,7 +17,9 @@ async def scale(read_policy, uow_factory):
 
 def test_counts(scale):
     p = PARAMETERS
-    assert scale.unit_count == p.fields * (1 + p.trees_per_field * (1 + p.leaves_per_tree))
+    samples = sum(samples_in(p, number) for number in range(1, p.fields + 1))
+    assert samples == (p.fields - 1) * min(p.samples_per_field, p.trees_per_field)
+    assert scale.unit_count == p.fields * (1 + p.trees_per_field * (1 + p.leaves_per_tree)) + samples
     large = p.datasets_per_concept * p.trees_per_field * p.records_per_unit
     assert scale.record_count == large + (p.fields - 1) * p.trees_per_field
 
