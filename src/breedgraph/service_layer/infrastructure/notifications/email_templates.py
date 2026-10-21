@@ -138,7 +138,8 @@ class AffiliationRequestedMessage(Email):
         body = (
             f'Admin notification:\n'
             f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.name}.\n'
-            f'Please consider authorising this request.'
+            f'Please approve or reject the request at:\n'
+            f'{get_vue_url()}access?tab=requests'
         )
         self.message.set_content(body)
 
@@ -163,7 +164,8 @@ class ControlTransferOfferedMessage(Email):
             f'Admin notification:\n'
             f'{offering_user.fullname} offered control of {entity_count} '
             f'{"entry" if entity_count == 1 else "entries"} to {team.name}.\n'
-            f'Please review the offer at {get_vue_url()}.'
+            f'Please review the offer at:\n'
+            f'{get_vue_url()}access?tab=offers'
         )
         self.message.set_content(body)
 
