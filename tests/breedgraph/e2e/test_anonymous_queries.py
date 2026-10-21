@@ -33,6 +33,7 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'datasetsSummaries': ('query ($id: ID!) { datasetsSummaries(studyId: $id) { status errors { name message } } }', {'id': ids['study_public']}, True),
         'datasetsUnits': ('query ($ids: [ID!]!) { datasetsUnits(datasetIds: $ids) { status errors { name message } } }', {'ids': [ids['dataset_public']]}, True),
         'datasetsUnitsBySubject': ('query ($ids: [ID!]!) { datasetsUnitsBySubject(datasetIds: $ids) { status errors { name message } } }', {'ids': [ids['dataset_public']]}, True),
+        'datasetsPlaces': ('query ($ids: [ID!]!, $types: [ID!]!) { datasetsPlaces(datasetIds: $ids, locationTypeIds: $types) { status errors { name message } } }', {'ids': [ids['dataset_public']], 'types': [ids['ontology_location_field']]}, True),
         'germplasmCrops': ('query { germplasmCrops { status errors { name message } } }', {}, True),
         'germplasmEntries': ('query ($ids: [ID!]) { germplasmEntries(ids: $ids) { status errors { name message } } }', {'ids': [ids['crop']]}, True),
         'ontology': ('query { ontology { status errors { name message } } }', {}, True),

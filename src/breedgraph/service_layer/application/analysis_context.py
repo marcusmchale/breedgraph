@@ -307,12 +307,14 @@ class AnalysisContextLoader:
         read_teams = self.uow.controls.access_teams[Access.READ]
 
         locations: dict[int, LocationContext] = {}
+        loaded: set[int] = set()  # every location of the trees read, hidden ones too
         for location_id in sorted({position.location_id for position in positions}):
-            if location_id in locations:
+            if location_id in loaded:
                 continue
             tree = await self.uow.repositories.location_trees.get(location_id=location_id)
             if tree is None:
                 continue
+            loaded |= set(tree.entries)
             redacted = await self.uow.repositories.location_trees.redacted(tree)
             controllers = await self.uow.controls.get_controllers(ControlledModelLabel.LOCATION, list(redacted.entries))
             for node_id, location in redacted.entries.items():
@@ -328,12 +330,14 @@ class AnalysisContextLoader:
         layouts: dict[int, LayoutContext] = {}
         if not grouping.axes:
             return locations, layouts
+        loaded = set()
         for layout_id in sorted({position.layout_id for position in positions if position.layout_id is not None}):
-            if layout_id in layouts:
+            if layout_id in loaded:
                 continue
             tree = await self.uow.repositories.layout_trees.get(layout_id=layout_id)
             if tree is None:
                 continue
+            loaded |= set(tree.entries)
             redacted = await self.uow.repositories.layout_trees.redacted(tree)
             controllers = await self.uow.controls.get_controllers(ControlledModelLabel.LAYOUT, list(redacted.entries))
             for node_id, layout in redacted.entries.items():

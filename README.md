@@ -280,6 +280,8 @@ A position holds from the start of its start's period to the end of its end's, a
 A unit is where its own position at a time puts it, the later-starting one where a move ends one position and starts
 another at the same time; without a position of its own then, it is where its parent is. A position that ended with
 nothing after it means the unit left, e.g. a sample used up; a unit that comes back is given a position there.
+Analyses group records by where their units were in a way of their own: at locations of chosen types and by layout
+axes, a sample by its tree where its own position doesn't count (docs/analysis.md §3).
 
 Positions are written apart from the rest of the unit graph, so that a batch of samples moves in one request without
 their unit graphs loaded, and an edit of a unit can't undo a move it never saw. A **move** of units to a position from
