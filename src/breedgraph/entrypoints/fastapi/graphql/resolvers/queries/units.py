@@ -97,7 +97,8 @@ async def resolve_arrival_units_by_subject(obj: UnitArrival, info):
 async def get_units(_, info, ids: List[int]) -> List[UnitOutput]:
     await update_units_map(info.context, unit_ids=ids)
     units_map = info.context.get('units_map')
-    return [units_map.get(i) for i in ids]
+    # an id of no unit (one deleted while a page still shows it) is left out, not a null failing the whole result
+    return [units_map[i] for i in ids if i in units_map]
 
 @graphql_query.field("unitsDescendantsBySubject")
 @graphql_payload

@@ -234,6 +234,7 @@ async def update_units_map(
     which are returned (each call its own, so aliased root queries in one request don't share them).
     Units are read individually, not by loading their whole unit graph, so the cost follows the ids requested.
     Callers that resolve many objects should pass all their ids in one call (see Dataset.records).
+    Hidden units asked for come back as the view's placeholders; ids of units that do not exist are not mapped.
     """
     async with _get_lock(context, '_views_lock'):
         units_map = context.setdefault('units_map', dict())

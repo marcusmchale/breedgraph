@@ -37,8 +37,10 @@ In detail:
 2. **References across aggregates give placeholders.** When a readable entity refers to an entity in another
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
-   study's or ontology entry's reference, a hidden entity asked for directly by id. A reference placeholder keeps its
-   type as well (legal, external, file and so on), as GraphQL needs it to choose the reference's type. References to teams are the exception (rule 7).
+   study's or ontology entry's reference, a hidden entity asked for directly by id. A query by a list of ids leaves out
+   ids of no entity (one deleted since it was read, say): they are not hidden, so there is nothing to stand in for.
+   A reference placeholder keeps its type as well (legal, external, file and so on), as GraphQL needs it to choose the
+   reference's type. References to teams are the exception (rule 7).
    Readers of a Person by release see its attribution only (docs/person.md §3). Persons are the other exception:
    they are released at most to registered users, and anonymous users get no references to them at all, neither
    contacts nor contributions (`query_builders.access.signed_in_only`), rather than placeholders.

@@ -85,6 +85,22 @@ async def test_units_by_id(client, login_token_factory, read_policy, viewer):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', ('admin', 'anonymous'))
+async def test_units_by_id_leave_out_missing_ids(client, login_token_factory, read_policy, viewer):
+    """An id of no unit, as of one deleted while a page still shows it, is left out; a hidden unit is a placeholder"""
+    missing = max(read_policy.ids.values()) + 1000
+    names = ['tree_public', 'leaf_private']
+    result = await query(
+        client, login_token_factory, read_policy, viewer, 'unitsUnits',
+        "query ($ids: [ID!]) { unitsUnits(ids: $ids) { status result { id name } errors { name message } } }",
+        {'ids': [read_policy[names[0]], missing, read_policy[names[1]]]}
+    )
+    assert [int(unit['id']) for unit in result] == [read_policy[name] for name in names]
+    for name, unit in zip(names, result):
+        assert (unit['name'] != REDACTED) == read_policy.readable(viewer, name), f"{viewer}: {name}"
+
+
+@pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('viewer', VIEWERS)
 async def test_unit_graphs_at_locations(client, login_token_factory, read_policy, viewer):
     text = (
