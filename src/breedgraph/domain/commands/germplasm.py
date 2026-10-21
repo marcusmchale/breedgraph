@@ -38,6 +38,7 @@ class CreateGermplasm(Command):
 
     origin_id: int | None = None  # internal location
     time: PyDT64|None = None
+    unit_id: int | None = None  # internal unit it came from
 
     reproduction: Reproduction | None = None
     control_method_ids: List[int] | None = None
@@ -56,6 +57,7 @@ class UpdateGermplasm(Command):
 
     origin_id: int | None = None  # internal location; unchanged unless set, and set to None to remove (model_fields_set)
     time: PyDT64|None = None
+    unit_id: int | None = None  # internal unit it came from; unchanged unless set, and set to None to remove (model_fields_set)
 
     reproduction: Reproduction | None = None
     control_method_ids: List[int] | None = None

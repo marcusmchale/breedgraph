@@ -38,6 +38,7 @@ from tests.breedgraph.scenarios.replicate_scenario import ReplicateScenario, Rep
 from tests.breedgraph.scenarios.arrival_scenario import ArrivalScenario, ArrivalScenarioBuilder
 from tests.breedgraph.scenarios.position_scenario import PositionScenario, PositionScenarioBuilder
 from breedgraph.domain.model.controls import Access
+from breedgraph.domain.commands.germplasm import UpdateGermplasm
 from breedgraph.domain.model.team_trees import TeamInput
 
 from typing import Dict, cast, AsyncGenerator, Any
@@ -474,6 +475,25 @@ async def read_policy(isolated_state, bus, uow_factory, state_store) -> ReadPoli
     return await ReadPolicyScenarioBuilder(
         uow_factory, state_store, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
     ).build()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def germplasm_units(read_policy, bus) -> Dict[str, str]:
+    """
+    Germplasm entries of the read-policy scenario linked to units they came from (GermplasmEntry.unit), each by one
+    who curates the entry and reads the unit: the entry's name to the unit's
+    """
+    links = {
+        # entry: (unit, linked by)
+        'crop_line': ('tree_registered', 'writer'),  # both registered
+        'crop_line_public': ('plant_private', 'admin'),  # a public entry from a private unit
+        'crop_middle': ('field_unit', 'writer'),  # both private
+    }
+    for entry, (unit, viewer) in links.items():
+        await bus.handle(UpdateGermplasm(
+            agent_id=read_policy.user(viewer), germplasm_id=read_policy[entry], unit_id=read_policy[unit]
+        ))
+    return {entry: unit for entry, (unit, _) in links.items()}
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")

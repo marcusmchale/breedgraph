@@ -27,6 +27,11 @@ class AbstractDependencyGuards(ABC):
         ...
 
     @abstractmethod
+    async def germplasm_from_unit(self, unit_id: int) -> bool:
+        """Check if any germplasm entry came from a unit"""
+        ...
+
+    @abstractmethod
     async def team_controls_entities(self, team_id: int) -> bool:
         """Check if a team currently controls any entities"""
         ...

@@ -264,6 +264,8 @@ Units have attributes for:
 A unit without germplasm of its own takes that of the units above it, so a sample needs none: on each path up its
 parents, the first unit with germplasm, and these must agree (a sample pooled from trees of two varieties has none).
 A unit's own germplasm overrides what it would take, e.g. a seedling raised from a cross.
+Germplasm produced here, e.g. a selection made from a tree, can name the unit it came from (a
+[germplasm entry](#germplasm-entry)'s unit); that unit then cannot be deleted.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)
@@ -335,6 +337,9 @@ though further details may be specified on the individual entries.
 Germplasm entries have attributes for:
 - origin: an ID for a [location](#location) within a [location tree](#location-tree)
 - time: to describe when this germplasm was sourced from origin.
+- unit: an ID for the [unit](#unit) it came from, for germplasm produced by the breeding recorded in BreedGraph,
+  e.g. the plant a selection was made from, or the seed of a cross; origin and time describe germplasm sourced from
+  elsewhere
 - reproduction: one of CLONAL, ASEXUAL or APOMIXIS used to describe the maintainence of this germplasm
 - methods: a list of [germplasm methods](#germplasmmethod) in the ontology, describing the protocol for the generation of this germplasm
   - e.g. clonal propagation via tissue culture, controlled self-fertilisation, uncontrolled pollination

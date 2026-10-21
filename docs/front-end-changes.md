@@ -16,6 +16,22 @@ breedview's master (`239b60d`) implements every API change up to 2026-10-21.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Germplasm entries from units
+
+A germplasm entry can name the unit it came from, for germplasm produced by the breeding recorded here (the plant a
+selection was made from, the seed of a cross), as `origin` and `time` describe germplasm sourced from elsewhere. New:
+
+- `GermplasmEntry.unit: Unit`, through the units view: a placeholder (name `REDACTED`, no subject) where the unit is
+  hidden from the user. The units of a list of entries are read at once.
+- `GermplasmInput.unitId` for `germplasmCreateEntry`, and `GermplasmUpdate.unitId` for `germplasmUpdateEntry`: omitted,
+  the unit is unchanged, and null removes it, as for `originId`. Linking needs read access to the unit.
+- `unitsDeleteUnit` refuses a unit that germplasm came from ("Germplasm came from this unit, so it may not be
+  deleted."), once the user is found to curate it.
+
+Nothing breaks. Work in breedview: a unit picker in the germplasm form (locations opened down to their unit graphs and
+arrivals, as the dataset unit picker offers them), and the unit on the germplasm card, linked to it on the Units page
+where it is now, or marked as hidden.
+
 ## Checking the front end against the API
 
 ```bash

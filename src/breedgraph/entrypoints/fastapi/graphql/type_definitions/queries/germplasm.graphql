@@ -13,6 +13,11 @@ type GermplasmEntry {
     time: DateTime
     reproduction: Reproduction
     origin: Location
+    """
+    The unit it came from, for germplasm produced by the breeding recorded here, e.g. the plant a selection was made
+    from: a placeholder when hidden from you
+    """
+    unit: Unit
     controlMethods: [ControlMethod!]
     references: [ReferenceInterface!]
     sources: [GermplasmRelationship!]

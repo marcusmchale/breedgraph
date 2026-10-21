@@ -6,7 +6,8 @@ in it, a hidden crop with a public child, and a public hybrid with the hidden cr
 A readable entry is linked to its nearest readable sources and sinks (or crops, for sources) through hidden entries
 only: a direct link keeps its type, one through hidden entries is UNKNOWN (rule 3). A hidden crop is a placeholder
 holding the readable entries below it (rule 4); other hidden entries are bare placeholders by id (rule 2) and are
-left out of lists (rule 5).
+left out of lists (rule 5). A readable entry gives the unit it came from by id, hidden or not (a reference to another
+aggregate, a placeholder in the units view); a placeholder gives none.
 """
 import pytest
 
@@ -92,3 +93,20 @@ async def test_crops(views_factory, read_policy, viewer):
     assert set(crops) == {read_policy[name] for name in expected}
     for name in expected:
         assert_entry(read_policy, viewer, name, crops[read_policy[name]])
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', VIEWERS)
+async def test_entries_give_their_units(views_factory, read_policy, germplasm_units, viewer):
+    async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
+        entries = {entry.id: entry for entry in await views.germplasm.get_entries(
+            entry_ids=[read_policy[name] for name in germplasm_units]
+        )}
+        units = await views.units.get_units(unit_ids=[read_policy[unit] for unit in germplasm_units.values()])
+    for name, unit in germplasm_units.items():
+        entry = entries[read_policy[name]]
+        if read_policy.readable(viewer, name):
+            assert entry.unit == read_policy[unit], f"{viewer}: {name}"
+            assert (units[entry.unit].name != REDACTED) == read_policy.readable(viewer, unit), f"{viewer}: {unit}"
+        else:
+            assert entry.unit is None, f"{viewer}: {name}"

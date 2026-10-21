@@ -36,9 +36,10 @@ In detail:
    (a dataset's records, a study's groupings).
 2. **References across aggregates give placeholders.** When a readable entity refers to an entity in another
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
-   `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, a record's,
-   study's or ontology entry's reference, a hidden entity asked for directly by id. A query by a list of ids leaves out
-   ids of no entity (one deleted since it was read, say): they are not hidden, so there is nothing to stand in for.
+   `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, the unit a
+   germplasm entry came from, a record's, study's or ontology entry's reference, a hidden entity asked for directly by
+   id. A query by a list of ids leaves out ids of no entity (one deleted since it was read, say): they are not hidden,
+   so there is nothing to stand in for.
    A reference placeholder keeps its type as well (legal, external, file and so on), as GraphQL needs it to choose the
    reference's type. References to teams are the exception (rule 7).
    Readers of a Person by release see its attribution only (docs/person.md §3). Persons are the other exception:
@@ -99,13 +100,15 @@ In detail:
 10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
    aggregates, team trees included, so write handlers and integrity checks see members the writer cannot read:
    deleting a location with hidden children, or a location tree, layout tree or unit graph root with hidden members, is refused, and
-   removal needs curate access to hidden members too. A hidden aggregate still cannot be found by a filter other than
+   removal needs curate access to hidden members too. So is deleting a germplasm entry that units are of, or a unit
+   that germplasm came from, whether or not the writer can read them; a unit is checked only once its removal is
+   authorised, so only its curators learn of germplasm from it. A hidden aggregate still cannot be found by a filter other than
    its id. Where redaction used to hide a member from the writer, one rule now applies: **you can only link to what
    you can read.** Each added or removed edge in a rooted aggregate (location trees, layout trees, unit graphs) needs read access
    to both stored ends, a new member needs read access to its parent, and attaching a merged unit graph's root needs curate
    access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
-   unit to its germplasm, a germplasm entry to its origin location, a layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
+   unit to its germplasm, a germplasm entry to its origin location and the unit it came from, a layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
    and citing a reference (`AccessControlService.require_read`): references of datasets and their records, of programs,
    trials, studies and germplasm entries, a study's licence, and the references, licence and copyright of the ontology.
    Only references added are checked, so an entry can still be edited while it cites one the editor cannot read.

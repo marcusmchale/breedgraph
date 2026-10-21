@@ -31,6 +31,12 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
         record = await result.single()
         return record.get('in_use')
 
+    async def germplasm_from_unit(self, unit_id: int) -> bool:
+        query = queries['guards']['germplasm_from_unit']
+        result = await self.tx.run(query, unit_id=unit_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
     async def team_controls_entities(self, team_id: int) -> bool:
         query = queries['guards']['team_controls_entities']
         result = await self.tx.run(query, team_id=team_id)

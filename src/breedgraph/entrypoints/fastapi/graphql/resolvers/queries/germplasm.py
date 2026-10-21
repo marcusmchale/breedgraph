@@ -5,10 +5,12 @@ from breedgraph.service_layer.queries.read_models.germplasm import GermplasmEntr
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
-    update_germplasm_map, update_locations_map, update_ontology_map, update_reference_map
+    update_germplasm_map, update_locations_map, update_ontology_map, update_reference_map, update_units_map
 )
 
 from typing import List
+
+import asyncio
 
 import logging
 
@@ -124,6 +126,7 @@ async def resolve_reproduction(obj, info):
     time: DateTime
     reproduction: Reproduction
     origin: Location
+    unit: Unit
     controlMethods: [ControlMethod!]
     references: [ReferenceInterface!]
     sources: [GermplasmRelationship!]
@@ -160,6 +163,23 @@ async def resolve_germplasm_origin(obj: GermplasmEntryOutput|GermplasmEntryRef, 
     locations_map = info.context.get('locations_map')
     location = locations_map.get(obj.origin)
     return location
+
+@germplasm_entry.field("unit")
+async def resolve_germplasm_unit(obj: GermplasmEntryOutput|GermplasmEntryRef, info):
+    """
+    Read at once for the entries of a list: each asks for its unit and yields once, so the others of its list ask
+    before the first of them reads them all (as Unit.inheritedGermplasm does)
+    """
+    if isinstance(obj, GermplasmEntryRef):
+        obj = await obj.get(info)
+
+    if obj.unit is None:
+        return None
+    asked = info.context.setdefault('_germplasm_units_asked', set())
+    asked.add(obj.unit)
+    await asyncio.sleep(0)
+    await update_units_map(info.context, unit_ids=list(asked))
+    return info.context.get('units_map', {}).get(obj.unit)
 
 @germplasm_entry.field("references")
 async def resolve_germplasm_references(obj: GermplasmEntryOutput, info):

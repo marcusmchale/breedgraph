@@ -23,8 +23,16 @@ CALL (entry) {
   RETURN
     collect(reference.id) AS references
 }
+// Link the unit it came from (optional)
+CALL (entry) {
+  MATCH (unit: Unit {id: $unit})
+  CREATE (entry)-[from_unit:FROM_UNIT {time:datetime.transaction()}]->(unit)
+  RETURN
+    collect(unit.id)[0] AS unit
+}
 RETURN entry {
        .*,
          control_methods: control_methods,
-         references:references
+         references:references,
+         unit: unit
      }

@@ -27,4 +27,17 @@ CALL {
   MERGE (entry)<-[ref_for:REFERENCE_FOR]-(reference)
   ON CREATE SET ref_for.time = datetime.transaction()
 }
+// Link the unit it came from
+CALL {
+  WITH entry
+  MATCH (entry)-[from_unit:FROM_UNIT]->(unit:Unit)
+    WHERE $unit IS NULL OR NOT unit.id = $unit
+  DELETE from_unit
+}
+CALL {
+  WITH entry
+  MATCH (unit:Unit {id: $unit})
+  MERGE (entry)-[from_unit:FROM_UNIT]->(unit)
+  ON CREATE SET from_unit.time = datetime.transaction()
+}
 RETURN NULL

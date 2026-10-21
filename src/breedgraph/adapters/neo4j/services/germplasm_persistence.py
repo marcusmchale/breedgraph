@@ -52,8 +52,9 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         })
         control_methods = params.pop('control_methods', [])
         references = params.pop('references', [])
+        unit = params.pop('unit', None)
         result = await self.tx.run(
-            query, params = params, control_methods=control_methods, references=references
+            query, params = params, control_methods=control_methods, references=references, unit=unit
         )
         record = await result.single(strict=True)
         return self.record_to_entry(record)
@@ -90,7 +91,10 @@ class Neo4jGermplasmPersistenceService(GermplasmPersistenceService):
         entry_id = params.pop('id')
         control_methods = params.pop('control_methods', [])
         references = params.pop('references', [])
-        await self.tx.run(query, props = params, entry_id = entry_id, control_methods=control_methods, references=references)
+        unit = params.pop('unit', None)
+        await self.tx.run(
+            query, props = params, entry_id = entry_id, control_methods=control_methods, references=references, unit=unit
+        )
 
     async def delete_entry(self, entry_id: int) -> None:
         """Delete an existing germplasm entry."""

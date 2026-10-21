@@ -1,4 +1,4 @@
-from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError
+from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, ProtectedNodeError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
 from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph
@@ -120,6 +120,11 @@ async def delete_unit(
         unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
         if unit_graph is None:
             raise NoResultFoundError("Unit not found")
+        # germplasm that came from the unit keeps it, as units keep their germplasm; checked after the access needed to
+        # remove it, so only those who could remove the unit learn of germplasm they may not see
+        await uow.controls.require_access(ControlledModelLabel.UNIT, [cmd.unit_id], Access.CURATE)
+        if await uow.guards.germplasm_from_unit(cmd.unit_id):
+            raise ProtectedNodeError("Germplasm came from this unit, so it may not be deleted.")
         unit_graph.remove_unit(cmd.unit_id)
         await uow.commit()
 

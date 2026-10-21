@@ -5,6 +5,8 @@ from breedgraph.adapters.neo4j.cypher.query_builders.access import readable as _
 # read as one structure, a pedigree, though each entry is written on its own (GermplasmApplicationService). An entry
 # the user can read is returned in full, its sources and sinks the nearest entries they can read along paths through
 # hidden entries only: a direct relationship keeps its type and description, one through hidden entries is UNKNOWN.
+# The unit it came from is a reference to another aggregate, given by id even when hidden (the units view gives the
+# placeholder).
 # A crop (an entry without sources) is kept even when hidden, as a placeholder holding the readable entries below
 # it, and so can be a source; any other hidden entry asked for by id is a bare placeholder, its id and a REDACTED
 # name. Lists of entries leave hidden ones out.
@@ -78,6 +80,7 @@ def _entry(entry: str = 'entry') -> str:
             .*,
             control_methods: [({entry})-[:USES_CONTROL_METHOD]->(method:ControlMethod) | method.id],
             references: [(reference:Reference)-[:REFERENCE_FOR]->({entry}) | reference.id],
+            unit: [({entry})-[:FROM_UNIT]->(unit:Unit) | unit.id][0],
             sources: sources,
             sinks: sinks
           }}

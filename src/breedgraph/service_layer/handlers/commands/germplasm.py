@@ -20,6 +20,7 @@ async def create_germplasm_entry(
         germplasm_service = uow.germplasm
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         await uow.controls.require_read(ControlledModelLabel.LOCATION, [cmd.origin_id])
+        await uow.controls.require_read(ControlledModelLabel.UNIT, [cmd.unit_id])
         entry = GermplasmInput(
             name=cmd.name,
             description=cmd.description,
@@ -27,6 +28,7 @@ async def create_germplasm_entry(
             references=cmd.reference_ids or [],
             origin=cmd.origin_id,
             time=cmd.time,
+            unit=cmd.unit_id,
             reproduction=cmd.reproduction,
             control_methods=cmd.control_method_ids or []
         )
@@ -69,6 +71,9 @@ async def update_germplasm_entry(
             entry.origin = cmd.origin_id
         if cmd.time is not None and not cmd.time == entry.time:
             entry.time = cmd.time
+        if 'unit_id' in cmd.model_fields_set and not cmd.unit_id == entry.unit:
+            await uow.controls.require_read(ControlledModelLabel.UNIT, [cmd.unit_id])
+            entry.unit = cmd.unit_id
         if cmd.reproduction is not None and not cmd.reproduction == entry.reproduction:
             entry.reproduction = cmd.reproduction
         if cmd.control_method_ids is not None and not set(cmd.control_method_ids) == set(entry.control_methods):

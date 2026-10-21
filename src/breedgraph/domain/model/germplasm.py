@@ -55,6 +55,7 @@ class GermplasmBase(ABC):
 
     origin: int | None = None
     time: datetime64 | None = None
+    unit: int | None = None
 
     reproduction: Reproduction | None = None
     control_methods: List[int] = field(default_factory=list)
@@ -67,12 +68,18 @@ class GermplasmBase(ABC):
             - note we are not storing location information specifically in the ontology
               but this detail can be added in the description or references
         hybrids, e.g. Centramericano (H1)
+        selections and crosses made in a breeding program recorded here
         etc.
         
     Origin should be a reference to a Location in Location trees
         where this Germplasm was sourced or created.
         
     Time should be the time of sourcing/creation at origin.
+
+    Unit should be a reference to a Unit in Unit graphs that this Germplasm came from,
+        where the breeding that produced it is recorded here,
+        e.g. the plant a selection was made from, or the seed of a cross.
+        Origin and time describe germplasm sourced from elsewhere, before or outside of these records.
 
     Control Methods should be references to ControlMethods in the Ontology that define protocols, e.g.
       - crossing
@@ -119,6 +126,7 @@ class GermplasmStored(GermplasmBase, ControlledModel):
                 reproduction = None,
                 origin = None,
                 time = None,
+                unit = None,
                 control_methods = list(),
                 references = list()
             )

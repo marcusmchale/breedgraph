@@ -25,6 +25,7 @@ class GermplasmEntryOutput:
 
     origin: int | None = None
     time: datetime64 | None = None
+    unit: int | None = None
 
     reproduction: Reproduction | None = None
     control_methods: tuple[int, ...] = ()

@@ -33,6 +33,11 @@ input GermplasmInput {
     """
     time: DateTime
     """
+    The unit it came from, a reference to a Unit in a unit graph, for germplasm produced by the breeding recorded here:
+    e.g. the plant a selection was made from, or the seed of a cross
+    """
+    unitId: ID
+    """
     Reproduction of germplasm, summarises the genetic impacts/requirements for maintenance
     """
     reproduction: Reproduction
@@ -54,6 +59,8 @@ input GermplasmUpdate {
     """ Omitted, the origin is unchanged; null removes it """
     originId: ID
     time: DateTime
+    """ Omitted, the unit is unchanged; null removes it """
+    unitId: ID
     reproduction: Reproduction
     controlMethodIds: [ID!]
     referenceIds: [ID!]
