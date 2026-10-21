@@ -1,2 +1,3 @@
 from .ontology import OntologyPersistenceService
 from .germplasm import GermplasmPersistenceService
+from .unit_positions import UnitPositionsPersistenceService

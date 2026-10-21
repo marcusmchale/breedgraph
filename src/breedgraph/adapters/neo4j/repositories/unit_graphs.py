@@ -51,8 +51,8 @@ class Neo4jUnitGraphsRepository(Neo4jControlledRepository[UnitInput, UnitGraph])
     async def _update_unit(self, unit: UnitStored):
         logger.debug(f"Set unit: {unit}")
         unit_data = unit.model_dump()
-        for position in unit_data.get('positions', []):
-            self.serialize_dt64(position, to_neo4j=True)
+        # positions are written outside the unit graph (application.unit_positions), as only new units' are here
+        unit_data.pop('positions', None)
         await self.tx.run(queries['unit_graphs']['set_unit'], **unit_data)
 
     async def _delete_units(self, unit_ids: List[int]) -> None:

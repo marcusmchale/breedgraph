@@ -16,7 +16,7 @@ from neo4j import GraphDatabase
 
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders import (
-    layout_trees, unit_graphs, controls, datasets, germplasm, people, programs, references, location_trees
+    layout_trees, unit_graphs, unit_positions, controls, datasets, germplasm, people, programs, references, location_trees
 )
 
 ENV_FILE = Path(__file__).parents[3] / 'instance' / 'private.breedgraph.env'
@@ -53,6 +53,10 @@ QUERIES = {
     **{f'unit_graphs.read_arrival_unit_ids(related={related})': unit_graphs.read_arrival_unit_ids(related) for related in (False, True)},
     'unit_graphs.read_arrival_units_by_subject': unit_graphs.read_arrival_units_by_subject(),
     'unit_graphs.read_inherited_germplasm': unit_graphs.read_inherited_germplasm(),
+    'unit_positions.read_positions_locked': unit_positions.read_positions_locked(),
+    'unit_positions.create_positions': unit_positions.create_positions(),
+    'unit_positions.change_positions': unit_positions.change_positions(),
+    'unit_positions.delete_positions': unit_positions.delete_positions(),
     'location_trees.read_locations': location_trees.read_locations(),
     'location_trees.read_location_trees': location_trees.read_location_trees(),
     'location_trees.read_locations_by_type': location_trees.read_locations_by_type(),

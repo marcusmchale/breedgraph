@@ -4,6 +4,8 @@ from breedgraph.domain import commands
 from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
+from breedgraph.domain.services.unit_positions import validate_position
+from breedgraph.service_layer.application.unit_positions import ArrivalSelection
 
 from typing import List
 
@@ -26,6 +28,18 @@ async def create_unit(
             name = cmd.name,
             description = cmd.description
         )
+        # written with the unit: the unit graph repository writes positions only for new units
+        if cmd.location_id:
+            position = Position(
+                location_id=cmd.location_id,
+                layout_id=cmd.layout_id,
+                coordinates=cmd.coordinates,
+                start=cmd.start,
+                end=cmd.end
+            )
+            validate_position(position)
+            await _validate_position_layout(uow, position)
+            unit_input.positions.append(position)
         if cmd.parents:
             unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.parents[0])
             if not unit_graph:
@@ -47,18 +61,6 @@ async def create_unit(
                 if not child_unit_graph.get_root_id() == child:
                     raise ValueError("Merging unit graphs requires all children to be the root of their respective unit graph")
                 unit_graph.merge_unit_graph(unit_graph=child_unit_graph, parents=[unit_id])
-
-        if cmd.location_id:
-            position = Position(
-                location_id=cmd.location_id,
-                layout_id=cmd.layout_id,
-                coordinates=cmd.coordinates,
-                start=cmd.start,
-                end=cmd.end
-            )
-
-            await _validate_position_layout(uow, position)
-            unit_graph.add_position(unit_id, position)
 
         await uow.commit()
 
@@ -152,10 +154,6 @@ async def add_position(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
-        if not unit_graph:
-            raise ValueError("Unit graph not found")
-
         position = Position(
             location_id=cmd.location_id,
             layout_id=cmd.layout_id,
@@ -163,9 +161,57 @@ async def add_position(
             start=cmd.start,
             end=cmd.end
         )
+        validate_position(position)
         await _validate_position_layout(uow, position)
-        unit_graph.add_position(cmd.unit_id, position)
+        await uow.positions.add_position(cmd.unit_id, position)
         await uow.commit()
+
+@handlers.command_handler()
+async def move_units(
+        cmd: commands.unit_graphs.MoveUnits,
+        uow_factory: AbstractUnitOfWorkFactory
+) -> List[int]:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        unit_ids = await _selected_unit_ids(uow, cmd.units)
+        position = Position(
+            location_id=cmd.location_id,
+            layout_id=cmd.layout_id,
+            coordinates=cmd.coordinates,
+            start=cmd.start,
+            end=cmd.end
+        )
+        validate_position(position)
+        # one destination for them all, validated once
+        await _validate_position_layout(uow, position)
+        moved = await uow.positions.move_units(unit_ids, position)
+        await uow.commit()
+        return moved
+
+@handlers.command_handler()
+async def change_positions(
+        cmd: commands.unit_graphs.ChangePositions,
+        uow_factory: AbstractUnitOfWorkFactory
+) -> List[int]:
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        unit_ids = await _selected_unit_ids(uow, cmd.units)
+
+        async def validate_place(position: Position):
+            await _validate_position_layout(uow, position)
+
+        changed = await uow.positions.change_positions(
+            unit_ids, at=cmd.at.given(), change=cmd.change.given(), validate_place=validate_place
+        )
+        await uow.commit()
+        return changed
+
+async def _selected_unit_ids(uow: AbstractUnitHolder, selection: commands.unit_graphs.UnitsSelection) -> List[int]:
+    arrival = selection.arrival
+    return await uow.positions.selected_unit_ids(
+        selection.unit_ids,
+        None if arrival is None else ArrivalSelection(
+            location_id=arrival.location_id, start=arrival.start, unit_id=arrival.unit_id
+        )
+    )
 
 async def _validate_position_layout(uow: AbstractUnitHolder, position: Position):
     # A position links the unit to a location and layout, so the user must be able to read them
@@ -201,9 +247,6 @@ async def remove_position(
         uow_factory: AbstractUnitOfWorkFactory
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
-        if not unit_graph:
-            raise ValueError("Unit graph not found")
         position = Position(
             location_id=cmd.location_id,
             layout_id=cmd.layout_id,
@@ -211,5 +254,5 @@ async def remove_position(
             start=cmd.start,
             end=cmd.end
         )
-        unit_graph.remove_position(unit_id=cmd.unit_id, position=position)
+        await uow.positions.remove_position(cmd.unit_id, position)
         await uow.commit()

@@ -14,7 +14,8 @@ from breedgraph.service_layer.application import (
     AbstractAccessControlService,
     OntologyApplicationService,
     GermplasmApplicationService,
-    AbstractAggregateRestructuringService
+    AbstractAggregateRestructuringService,
+    UnitPositionsService
 )
 
 from breedgraph.service_layer.infrastructure import (
@@ -30,6 +31,7 @@ from breedgraph.adapters.neo4j.services import (
     Neo4jAccessControlService,
     Neo4jOntologyPersistenceService,
     Neo4jGermplasmPersistenceService,
+    Neo4jUnitPositionsPersistenceService,
     Neo4jAggregateRestructuringService,
     Neo4jDependencyGuards
 )
@@ -50,6 +52,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             controls: AbstractAccessControlService,
             ontology: OntologyApplicationService,
             germplasm: GermplasmApplicationService,
+            positions: UnitPositionsService,
             restructuring: AbstractAggregateRestructuringService,
             guards: AbstractDependencyGuards,
             constraints: AbstractConstraintsHandler,
@@ -61,6 +64,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
         self.controls = controls
         self.ontology = ontology
         self.germplasm = germplasm
+        self.positions = positions
         self.restructuring = restructuring
         self.guards = guards
         self.constraints = constraints
@@ -103,6 +107,11 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             write_team=write_team
         )
 
+        positions = UnitPositionsService(
+            persistence_service=Neo4jUnitPositionsPersistenceService(tx),
+            access_control_service=access_control_service
+        )
+
         restructuring = Neo4jAggregateRestructuringService(tx)
         guards = Neo4jDependencyGuards(tx)
         constraints = Neo4jConstraintsHandler(tx, user_id)
@@ -113,6 +122,7 @@ class Neo4jUnitHolder(AbstractUnitHolder):
             controls=access_control_service,
             ontology=ontology_service,
             germplasm=germplasm_service,
+            positions=positions,
             restructuring=restructuring,
             guards=guards,
             constraints=constraints,

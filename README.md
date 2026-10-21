@@ -281,6 +281,13 @@ A unit is where its own position at a time puts it, the later-starting one where
 another at the same time; without a position of its own then, it is where its parent is. A position that ended with
 nothing after it means the unit left, e.g. a sample used up; a unit that comes back is given a position there.
 
+Positions are written apart from the rest of the unit graph, so that a batch of samples moves in one request without
+their unit graphs loaded, and an edit of a unit can't undo a move it never saw. A **move** of units to a position from
+a start ends each unit's own positions holding then at that start, unless they end by then, and adds the position; it
+is refused for a unit with a position from that start or later. A **change** finds one position of each unit by the
+values given and replaces those given, e.g. to end an arrival there or correct its start. Either takes the units given,
+or an arrival's, and takes their write locks first, so writes to the same units follow one another.
+
 Units that came to a location together from elsewhere in their unit graphs, e.g. samples from the trees of a field
 sent to a lab, are an **arrival**: the units, other than roots, with a position at the location from the same start
 whose parents were not there then. An arrival is known by its location and start, so it needs no record of its own,

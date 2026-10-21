@@ -52,6 +52,26 @@ Work in breedview: show the inherited germplasm where a unit's germplasm is show
 unit it comes from), and use it in dataset tables; refresh it after a unit's germplasm or parents change; a hint for
 `FACTOR_LINEAGES_DIFFER`; the curation table's factor columns by the same rule.
 
+## Moving units, and changing positions
+
+Positions are written apart from the rest of the unit graph (`application.unit_positions`), so a batch of samples
+moves in one request, and editing a unit (`unitsUpdateUnit`) never changes its positions. New:
+
+- `unitsMoveUnits(units: UnitsSelection!, position: PositionInput!): UnitsPayload!` moves the units to the position
+  from its start: each unit's own positions holding then end at that start (unless they end by then), and the
+  position is added. Refused for a unit with a position from that start or later, and unless the user curates every
+  unit; the units refused are named.
+- `unitsChangePositions(units: UnitsSelection!, at: PositionMatchInput!, change: PositionChangeInput!): UnitsPayload!`
+  changes one position of each unit, the one matching `at` (the fields given, as entered), e.g. to end an arrival
+  (`change: { end }`) or correct its start or place. Refused where a unit has none or several matching. In `change`,
+  each field given replaces the value, null removes it, and those omitted are kept.
+- `input UnitsSelection { unitIds, arrival }`, one of the two: an arrival takes the units of it the user can read.
+- Both return the units changed, in name order, with whatever of them is asked for, e.g. their positions for the
+  cache. `unitsAddPosition` and `unitsRemovePosition` are unchanged, and written the same way.
+
+Work in breedview: move an arrival on, end it there and correct it; move one unit, end its position and edit one in
+its history; receive units at a location; after a write, the lists of units by location and the units' positions.
+
 ## Checking the front end against the API
 
 ```bash

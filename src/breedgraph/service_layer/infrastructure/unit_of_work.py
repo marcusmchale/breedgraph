@@ -9,7 +9,8 @@ from breedgraph.service_layer.application import (
     OntologyApplicationService,
     GermplasmApplicationService,
     AbstractAggregateRestructuringService,
-    AbstractAccessControlService
+    AbstractAccessControlService,
+    UnitPositionsService
 )
 
 from .constraints import AbstractConstraintsHandler
@@ -33,6 +34,7 @@ class AbstractUnitHolder(ABC):
     controls: AbstractAccessControlService
     ontology: OntologyApplicationService
     germplasm: GermplasmApplicationService
+    positions: UnitPositionsService
     repositories: AbstractRepoHolder
     restructuring: AbstractAggregateRestructuringService
     guards: AbstractDependencyGuards

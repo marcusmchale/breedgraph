@@ -75,13 +75,10 @@ from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.unit_graphs import same_position
 
 
-def _graph(edges, positions=None):
+def _graph(edges):
     """A unit graph of stored units 1..n with the given (parent, child) edges; unit 1 is the root"""
     ids = sorted({i for edge in edges for i in edge} | {1})
-    units = [
-        UnitStored(id=i, name=f"Unit {i}", subject=10 + i, positions=list((positions or {}).get(i, [])))
-        for i in ids
-    ]
+    units = [UnitStored(id=i, name=f"Unit {i}", subject=10 + i) for i in ids]
     return UnitGraph(nodes=units, edges=[(parent, child, None) for parent, child in edges])
 
 
@@ -131,29 +128,6 @@ def test_same_position_compares_times_as_entered_and_coordinates_as_strings():
     assert not same_position(a, Position(location_id=1, layout_id=2, coordinates=['1', 'A'], start=datetime64('2021-05-01')))
     assert same_position(Position(location_id=1, coordinates=None), Position(location_id=1, coordinates=[]))
     assert not same_position(a, Position(location_id=1, layout_id=2, coordinates=['1', 'A'], start=datetime64('2021-05'), end=datetime64('2022')))
-
-
-def test_add_position_refuses_a_duplicate():
-    unit_graph = _graph([(1, 2)], positions={1: [Position(location_id=1)]})
-    unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03-25')))
-    with pytest.raises(ValueError):
-        unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03-25')))
-    # another precision is another position
-    unit_graph.add_position(2, Position(location_id=5, start=datetime64('2025-03')))
-    assert len(unit_graph.get_unit(2).positions) == 2
-
-
-def test_remove_position_matches_as_entered_and_keeps_a_roots_last_position():
-    unit_graph = _graph([(1, 2)], positions={
-        1: [Position(location_id=1)],
-        2: [Position(location_id=5, start=datetime64('2021-05'))]
-    })
-    with pytest.raises(ValueError):
-        unit_graph.remove_position(2, Position(location_id=5, start=datetime64('2021-05-01')))
-    unit_graph.remove_position(2, Position(location_id=5, start=datetime64('2021-05')))
-    assert unit_graph.get_unit(2).positions == []
-    with pytest.raises(IllegalOperationError):
-        unit_graph.remove_position(1, Position(location_id=1))
 
 
 def test_unit_ids_by_subject():

@@ -24,6 +24,33 @@ input ArrivalInput {
     unitId: ID
 }
 
+""" Units whose positions change: by id, or an arrival's, those of its units you can read """
+input UnitsSelection {
+    unitIds: [ID!]
+    arrival: ArrivalInput
+}
+
+"""
+A position found by its value: the fields given must match as entered, a time with its precision, and those omitted
+match any; null matches none, e.g. end: null for a position that has no end
+"""
+input PositionMatchInput {
+    locationId: ID!
+    layoutId: ID
+    coordinates: [String]
+    start: DateTime
+    end: DateTime
+}
+
+""" What changes in a position: each field given replaces the value (null removes it), those omitted are kept """
+input PositionChangeInput {
+    locationId: ID
+    layoutId: ID
+    coordinates: [String]
+    start: DateTime
+    end: DateTime
+}
+
 input UnitInput {
     """
     ID of Subject in the ontology
@@ -72,4 +99,22 @@ extend type Mutation {
         id: ID!
         position: PositionInput!
     ): BooleanPayload!
+    """
+    Moves the units to the position from its start, e.g. an arrival's samples on to another lab: each unit's own
+    positions holding then end at that start (unless they end by then), and the position is added. Refused for a unit
+    with a position from that start or later, and unless you curate every unit. Returns the units moved.
+    """
+    unitsMoveUnits(
+        units: UnitsSelection!
+        position: PositionInput!
+    ): UnitsPayload!
+    """
+    Changes one position of each unit, the one matching at, e.g. to end an arrival there or correct its start: refused
+    where a unit has none or several matching, unless you curate every unit. Returns the units changed.
+    """
+    unitsChangePositions(
+        units: UnitsSelection!
+        at: PositionMatchInput!
+        change: PositionChangeInput!
+    ): UnitsPayload!
 }

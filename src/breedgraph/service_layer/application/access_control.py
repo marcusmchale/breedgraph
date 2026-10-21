@@ -195,6 +195,15 @@ class AbstractAccessControlService(ABC):
                 user_id=self.user_id
             )
 
+    async def record_writes_by_id(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> None:
+        """Write stamps for models written outside their aggregate's repository, e.g. units' positions, by id"""
+        model_ids = [model_id for model_id in dict.fromkeys(model_ids) if model_id is not None]
+        if not model_ids:
+            return
+        if self.user_id is None:
+            raise IllegalOperationError("User id required to record writes")
+        await self._record_writes(label=label, model_ids=model_ids, user_id=self.user_id)
+
     @abstractmethod
     async def _record_writes(
             self,

@@ -44,7 +44,7 @@ from dataclasses import dataclass, field, replace
 
 import networkx as nx
 from numpy import datetime64
-from breedgraph.domain.model.time_descriptors import upper, same_time, local_datetime64
+from breedgraph.domain.model.time_descriptors import same_time, local_datetime64
 
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
@@ -174,22 +174,6 @@ class UnitGraph(ControlledRootedAggregate):
     def get_unit(self, unit_id: int):
         return self._graph.nodes[unit_id].get('model')
 
-    def add_position(self, unit_id: int, position: Position):
-        self._validate_position(position)
-        unit = self.get_unit(unit_id)
-        if any(same_position(position, p) for p in unit.positions):
-            raise ValueError("The unit already has this position")
-        unit.positions.append(position)
-
-    def remove_position(self, unit_id: int, position: Position):
-        unit = self.get_unit(unit_id)
-        index = next((i for i, p in enumerate(unit.positions) if same_position(position, p)), None)
-        if index is None:
-            raise ValueError("A position matching the provided details was not found, nothing changed")
-        if self.get_root_id() == unit_id and len(unit.positions) == 1:
-            raise IllegalOperationError("Unit graph root units must have at least one position defined to support discovery")
-        del unit.positions[index]
-
     def set_child(self, source_id: int, sink_id: int):
         self._add_edge(source_id, sink_id)
 
@@ -243,12 +227,3 @@ class UnitGraph(ControlledRootedAggregate):
         for unit_id, unit in self.entries.items():
             if unit.subject == subject_id:
                 yield unit_id
-
-    @staticmethod
-    def _validate_position(position: Position):
-        if not position.location_id:
-            raise ValueError("Positions require location_id")
-
-        if position.start and position.end:
-            if position.start >= upper(position.end):
-                raise ValueError("Start cannot be after end")

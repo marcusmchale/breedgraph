@@ -4,9 +4,15 @@ from breedgraph.domain.commands.unit_graphs import (
     UpdateUnit,
     DeleteUnit,
     AddPosition,
-    RemovePosition
+    RemovePosition,
+    MoveUnits,
+    ChangePositions
 )
+from breedgraph.domain.model.unit_graphs import UnitOutput
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_units_map
 from breedgraph.domain.model.controls import ReadRelease
+
+from typing import List
 
 
 import logging
@@ -122,3 +128,39 @@ async def remove_position(
     )
     await info.context['bus'].handle(cmd)
     return True
+
+
+async def _units(info, unit_ids: List[int]) -> List[UnitOutput]:
+    """The units as they now are, read once the command has committed"""
+    await update_units_map(info.context, unit_ids=unit_ids)
+    units_map = info.context.get('units_map', {})
+    return [units_map[unit_id] for unit_id in unit_ids if unit_id in units_map]
+
+@graphql_mutation.field("unitsMoveUnits")
+@graphql_payload
+@require_authentication
+async def move_units(
+        _,
+        info,
+        units: dict,
+        position: dict
+) -> List[UnitOutput]:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} moves units: {units} to {position}")
+    cmd = MoveUnits(agent_id=user_id, units=units, **position)
+    return await _units(info, await info.context['bus'].handle(cmd))
+
+@graphql_mutation.field("unitsChangePositions")
+@graphql_payload
+@require_authentication
+async def change_positions(
+        _,
+        info,
+        units: dict,
+        at: dict,
+        change: dict
+) -> List[UnitOutput]:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} changes positions of units: {units} at {at}: {change}")
+    cmd = ChangePositions(agent_id=user_id, units=units, at=at, change=change)
+    return await _units(info, await info.context['bus'].handle(cmd))

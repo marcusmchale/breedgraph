@@ -114,6 +114,11 @@ In detail:
    repository redact explicitly: team trees with `TeamTree.redacted` (the teams map, and the teams a user may
    give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused
    for a team the user cannot see.
+   Units' positions are written outside the unit graph aggregate (`application.unit_positions`), many units in one
+   transaction, as germplasm entries are written outside a pedigree: changing them needs curate access to every unit,
+   all or none (those refused are named; those the user cannot read are reported as not found, by id), and read access
+   to a new location and layout. Selected by arrival, a write takes only the units the user can read, so hidden units
+   stay where they are.
 
 ## 3. Datasets under this policy
 
