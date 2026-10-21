@@ -4,8 +4,10 @@ Build the public, synthetic test database on an empty Neo4j and Redis: the read-
 tests (tests/breedgraph/scenarios/read_policy_scenario.py), so the tests and this database describe the same world.
 Every name and value is generated; nothing comes from real data. breedview's e2e tests run against a dump of it.
 It also holds a study with record group codes of every extent and scope
-(tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry, and units that came to
-locations at dated positions (tests/breedgraph/scenarios/arrival_scenario.py), in its "arrivals" entry.
+(tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry, units that came to
+locations at dated positions (tests/breedgraph/scenarios/arrival_scenario.py), in its "arrivals" entry, and units at
+positions in layouts for analysis position grouping (tests/breedgraph/scenarios/position_scenario.py), in its
+"positions" entry.
 
 Writes a manifest (JSON) with the accounts' credentials, the ids of every entity by its scenario name, the controls
 each entity was written under, what each viewer can read, and the files. The files themselves are written to
@@ -62,6 +64,10 @@ from tests.breedgraph.scenarios.replicate_scenario import (
 from tests.breedgraph.scenarios.arrival_scenario import (
     ArrivalScenarioBuilder, ArrivalScenario, EXPECTED_ARRIVALS, EXPECTED_LIGHT, STORE, LAB_STORE,
     PROGRAM as ARRIVAL_PROGRAM, TRIAL as ARRIVAL_TRIAL, STUDY as ARRIVAL_STUDY, expected_germplasm
+)
+from tests.breedgraph.scenarios.position_scenario import (
+    PositionScenarioBuilder, PositionScenario, CASES as POSITION_CASES, PROGRAM as POSITION_PROGRAM,
+    TRIAL as POSITION_TRIAL, STUDY as POSITION_STUDY, level_key, grouping_input, term_inputs
 )
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
@@ -224,6 +230,45 @@ def arrivals_manifest(arrivals: ArrivalScenario, scenario: ReadPolicyScenario) -
     }
 
 
+def positions_manifest(positions: PositionScenario, scenario: ReadPolicyScenario) -> dict:
+    """
+    Units at positions in layouts, and what analyses of them report (tests/breedgraph/scenarios/position_scenario.py):
+    for each case, its datasets, its position grouping and terms as GraphQL input, the levels each viewer finds, with
+    the count and mean of their observations, and the values of the records that can't be placed
+    """
+    def level(position_level, count, mean) -> dict:
+        parts = {'key': level_key(positions, scenario, position_level), 'count': count, 'mean': mean}
+        if position_level.location is not None:
+            # a location of the read-policy scenario is named by its entity key
+            parts['location'] = position_level.location
+        else:
+            parts['layout'], parts['axis'], parts['value'] = position_level.layout, position_level.axis, position_level.value
+        return parts
+
+    return {
+        'program': {'id': positions.ids['program'], 'name': POSITION_PROGRAM},
+        'trial': {'id': positions.ids['trial'], 'name': POSITION_TRIAL},
+        'study': {'id': positions.ids['study'], 'name': POSITION_STUDY},
+        'locations': dict(sorted(positions.locations.items())),
+        'layouts': dict(sorted(positions.layouts.items())),
+        'units': dict(sorted(positions.units.items())),
+        'datasets': positions.datasets,
+        'expected': {
+            case.key: {
+                'datasets': case.datasets,
+                'grouping': grouping_input(case, scenario),
+                'terms': term_inputs(case),
+                'levels': {
+                    viewer: [level(position_level, count, mean) for position_level, (count, mean) in levels.items()]
+                    for viewer, levels in case.expected.items()
+                },
+                'unassigned': case.unassigned,
+            }
+            for case in POSITION_CASES
+        },
+    }
+
+
 def perf_manifest(scale: ScaleScenario) -> dict:
     """The defaults of breedview's performance scripts (perf in its fixture): a large study, its variable, a large field"""
     return {
@@ -237,6 +282,7 @@ def manifest(
         scenario: ReadPolicyScenario,
         replicates: ReplicateScenario,
         arrivals: ArrivalScenario,
+        positions: PositionScenario,
         seed: int,
         password: str,
         files_dir: Path,
@@ -299,6 +345,7 @@ def manifest(
         },
         'replicates': replicates_manifest(replicates, scenario),
         'arrivals': arrivals_manifest(arrivals, scenario),
+        'positions': positions_manifest(positions, scenario),
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
 
@@ -371,6 +418,8 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         replicates = await ReplicateScenarioBuilder(uow_factory, scenario).build()
         logger.info("Building the arrivals")
         arrivals = await ArrivalScenarioBuilder(uow_factory, scenario).build()
+        logger.info("Building the positions")
+        positions = await PositionScenarioBuilder(uow_factory, scenario).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
@@ -379,7 +428,7 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
-        contents = manifest(scenario, replicates, arrivals, seed, password, files_dir, scale)
+        contents = manifest(scenario, replicates, arrivals, positions, seed, password, files_dir, scale)
         await add_names(driver, contents)
     finally:
         await connection.aclose()

@@ -36,6 +36,7 @@ from tests.breedgraph.scenarios import (
 from tests.breedgraph.scenarios.read_policy_scenario import ReadPolicyScenario, ReadPolicyScenarioBuilder
 from tests.breedgraph.scenarios.replicate_scenario import ReplicateScenario, ReplicateScenarioBuilder
 from tests.breedgraph.scenarios.arrival_scenario import ArrivalScenario, ArrivalScenarioBuilder
+from tests.breedgraph.scenarios.position_scenario import PositionScenario, PositionScenarioBuilder
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.team_trees import TeamInput
 
@@ -486,3 +487,10 @@ async def arrivals(read_policy, uow_factory) -> ArrivalScenario:
     """Units that came to locations at dated positions, on the read-policy scenario: see
     tests/breedgraph/scenarios/arrival_scenario.py"""
     return await ArrivalScenarioBuilder(uow_factory, read_policy).build()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def positions(read_policy, uow_factory) -> PositionScenario:
+    """Units at positions in layouts, for analysis position grouping, on the read-policy scenario: see
+    tests/breedgraph/scenarios/position_scenario.py"""
+    return await PositionScenarioBuilder(uow_factory, read_policy).build()

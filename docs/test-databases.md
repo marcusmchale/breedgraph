@@ -83,7 +83,8 @@ python scripts/build_test_database.py --manifest instance/neo4j_archive/test_dat
   made-up coordinates on the Qazvin plain (`LOCATION_COORDINATES`), so the location map shows pins and a polygon;
   the states have none. Detailed maps of these countries come from `scripts/map_tiles.py --regions` (README.md,
   Maps), as the build sends no events.
-- It adds the replicates study (`replicate_scenario.py`, below) and the arrivals (`arrival_scenario.py`, below).
+- It adds the replicates study (`replicate_scenario.py`, below), the arrivals (`arrival_scenario.py`, below) and the
+  positions (`position_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
   20 fields, 100,115 units and 44,000 records, each field a made-up plot beside the scenario's field. Field 02's trees
   are positioned at their field themselves, and the first five trees of every field but 01 each hold a sample at a
@@ -169,6 +170,31 @@ The manifest's `arrivals` entry gives the ids of the program, trial, study, loca
 Its `expected` entry gives each location's arrivals as each viewer sees them (start as entered, null for undated,
 newest first; units by name), the germplasm each unit takes and the unit it comes from, and the light that describes
 each height record (none for "Arrival Pooled", its trees' records differing).
+
+### The positions
+
+Units at positions in layouts, for analysis position grouping (docs/analysis.md §3;
+`tests/breedgraph/scenarios/position_scenario.py` draws them). Controlled by the child team and released REGISTERED, so
+every signed-in account reads them, written by `readpolicy_writer`.
+
+- **Locations:** three fields and a greenhouse (a research centre) below the scenario's state in Iran, which only the
+  child team reads, so other viewers see them joined to the country; and a lab below `state_public` in the Isle of
+  Man (`country_private`), a hidden root for those viewers.
+- **Layouts:** Row and Tree layouts in field North; field South laid out in blocks (axis Block), each block with Row
+  and Tree layouts of its own; two plantings side by side in field East, each with its own rows; benches in the
+  greenhouse; a freezer in the lab (Box, Slot).
+- **Units:** trees in those layouts; a sample of one tree and one pooled from trees in two rows, in the lab's freezer;
+  a tree moved from field North to field East on 2024-03-01; two greenhouse plants swapped between benches on
+  2024-05-01.
+- **Study:** "Readpolicy positions program" → "trial" → "study", with the height variable on the trees and plants
+  and the width variable on the samples, every value distinct.
+
+The manifest's `positions` entry gives the ids of the program, trial, study, locations, layouts and units by name, and
+the datasets. Its `expected` entry gives each case (`CASES`): its datasets, its position grouping and terms as GraphQL
+input, and for each viewer the levels (`key` as analysis results give it, with the location by name or read-policy
+entity key, or the layout, axis and value), the count and mean of their observations (every analysis takes the MEAN of
+its concept), and the values of the records that can't be placed. `tests/breedgraph/e2e/analysis/test_position_analyses.py`
+checks them.
 
 ## Building the BreedCAFS dump
 
