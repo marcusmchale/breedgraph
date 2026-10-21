@@ -1,10 +1,11 @@
 from neo4j import AsyncResult, AsyncSession
-from typing import List, Dict
+from numpy import datetime64
+from typing import List, Dict, Tuple
 
 from breedgraph.adapters.neo4j.cypher.query_builders import unit_graphs as unit_graph_queries
-from breedgraph.domain.model.unit_graphs import UnitOutput, Position
+from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival, Position, arrival_key
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.time_descriptors import deserialize_time
+from breedgraph.domain.model.time_descriptors import deserialize_time, serialize_npdt64
 from breedgraph.service_layer.queries.views.units import AbstractUnitsView
 
 
@@ -77,3 +78,57 @@ class Neo4jUnitsView(AbstractUnitsView):
 
     async def _get_unit_graph_roots(self, location_ids: List[int]) -> List[UnitOutput]:
         return await self._read(unit_graph_queries.read_unit_graph_roots(), location_ids=location_ids)
+
+    async def _get_arrivals(self, location_ids: List[int], unit_id: int | None) -> List[UnitArrival]:
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_unit_arrivals(related=unit_id is not None),
+            location_ids=location_ids, unit_id=unit_id, read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        return [
+            UnitArrival(
+                location_id=record['location_id'],
+                start=deserialize_time(*record['start']),
+                unit_count=record['unit_count'],
+                root_ids=list(record['root_ids'])
+            )
+            async for record in result
+        ]
+
+    async def _get_arrival_units(
+            self, location_id: int, start: datetime64 | None, unit_id: int | None, offset: int, limit: int
+    ) -> List[UnitOutput]:
+        return await self._read(
+            unit_graph_queries.read_arrival_units(related=unit_id is not None),
+            location_id=location_id, start=serialize_npdt64(start, to_neo4j=True), unit_id=unit_id,
+            offset=offset, limit=limit
+        )
+
+    async def _get_arrival_units_by_subject(
+            self, arrivals: List[Tuple[int, datetime64 | None]]
+    ) -> Dict[Tuple[int, str | None], Dict[int | None, List[UnitOutput]]]:
+        keys = {}
+        for location_id, start in arrivals:
+            keys[arrival_key(location_id, start)] = {
+                'location_id': location_id, 'start': serialize_npdt64(start, to_neo4j=True)
+            }
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_arrival_units_by_subject(),
+            arrivals=list(keys.values()), read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        found = {key: {} for key in keys}
+        async for record in result:
+            arrival = record['arrival']
+            start = deserialize_time(arrival['start']['time'], arrival['start']['unit'], arrival['start']['step'])
+            found[arrival_key(arrival['location_id'], start)][record['subject']] = [
+                UnitOutput(id=unit['id'], name=unit['name'], subject=record['subject']) for unit in record['units']
+            ]
+        return found
+
+    async def _get_arrival_unit_ids(self, location_id: int, start: datetime64 | None, unit_id: int | None) -> List[int]:
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_arrival_unit_ids(related=unit_id is not None),
+            location_id=location_id, start=serialize_npdt64(start, to_neo4j=True), unit_id=unit_id,
+            read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        record = await result.single()
+        return list(record['unit_ids']) if record else []

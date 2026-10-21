@@ -61,7 +61,10 @@ In detail:
    unit or location, by subject or type; the descendants of a germplasm, for analysis grouping; the program or trial
    holding a trial or study) starts only from one the user can read, or from a hidden root rule 4 keeps (and a trial
    holding readable studies); from any other hidden entity it finds nothing, as for a missing id, rather than show
-   what lies below or above it.
+   what lies below or above it. Units by location (the unit graph roots at a location, and its arrivals: the units
+   that came there from elsewhere in their unit graphs) are searches from the location, so a location the user cannot
+   read gives none; an arrival lists readable units only, judging where their parents were through the units the user
+   can read, so a readable unit below a hidden one that came with it is listed in its place.
 6. **Counts follow what is released.** A count of things a readable entity holds counts them all (a released dataset's
    records); a count over a tree counts what rules 2 to 4 would show.
 7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is

@@ -12,7 +12,7 @@ from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders im
     update_germplasm_map
 )
 
-from breedgraph.domain.model.unit_graphs import UnitOutput
+from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival, arrival_key
 from breedgraph.service_layer.queries.read_models import OntologyViewMode
 
 from typing import List
@@ -25,12 +25,70 @@ from ..registry import graphql_resolvers
 unit = ObjectType("Unit")
 position = ObjectType("Position")
 subject_units = ObjectType("SubjectUnits")
-graphql_resolvers.register_type_resolvers(unit, position, subject_units)
+unit_arrival = ObjectType("UnitArrival")
+graphql_resolvers.register_type_resolvers(unit, position, subject_units, unit_arrival)
+
+ARRIVAL_UNITS_LIMIT = 1000
 
 @graphql_query.field("unitsRoots")
 @graphql_payload
 async def get_unit_graphs(_, info, location_ids: List[int]|None = None) -> List[UnitOutput]:
     return await update_units_map(info.context, location_ids=location_ids or [])
+
+@graphql_query.field("unitsArrivals")
+@graphql_payload
+async def get_unit_arrivals(_, info, location_ids: List[int], unit_id: int | None = None) -> List[UnitArrival]:
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        arrivals = await views.units.get_arrivals(location_ids=location_ids, unit_id=unit_id)
+    # their units by subject are read for every arrival of the request at once (UnitArrival.unitsBySubject)
+    info.context.setdefault('unit_arrivals', []).extend(arrivals)
+    return arrivals
+
+@graphql_query.field("unitsArrivalUnits")
+@graphql_payload
+async def get_arrival_units(_, info, arrival: dict, offset: int | None = None, limit: int | None = None) -> List[UnitOutput]:
+    limit = min(100 if limit is None else limit, ARRIVAL_UNITS_LIMIT)
+    unit_id = arrival.get('unit_id')
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        units = await views.units.get_arrival_units(
+            location_id=int(arrival['location_id']),
+            start=arrival.get('start'),
+            unit_id=int(unit_id) if unit_id is not None else None,
+            offset=offset or 0,
+            limit=limit
+        )
+    info.context.setdefault('units_map', dict()).update({u.id: u for u in units})
+    return units
+
+@unit_arrival.field("location")
+async def resolve_arrival_location(obj: UnitArrival, info):
+    await update_locations_map(info.context, location_ids=[obj.location_id])
+    return info.context.get('locations_map').get(obj.location_id)
+
+@unit_arrival.field("roots")
+async def resolve_arrival_roots(obj: UnitArrival, info):
+    await update_units_map(info.context, unit_ids=obj.root_ids)
+    units_map = info.context.get('units_map')
+    return [units_map[i] for i in obj.root_ids if i in units_map]
+
+@unit_arrival.field("unitsBySubject")
+async def resolve_arrival_units_by_subject(obj: UnitArrival, info):
+    """Read once for every arrival of the request, as a picker lists all those at the locations it was given"""
+    key = arrival_key(obj.location_id, obj.start)
+    async with _get_lock(info.context, '_arrival_units_lock'):
+        by_arrival = info.context.setdefault('arrival_units_by_subject', {})
+        if key not in by_arrival:
+            pending = {
+                arrival_key(a.location_id, a.start): (a.location_id, a.start)
+                for a in [obj, *info.context.get('unit_arrivals', [])]
+            }
+            pending = [arrival for k, arrival in pending.items() if k not in by_arrival]
+            async with get_context_lock(info.context):
+                views = await get_context_views(info.context)
+                by_arrival.update(await views.units.get_arrival_units_by_subject(pending))
+    return [{'subject': subject, 'units': units} for subject, units in by_arrival.get(key, {}).items()]
 
 @graphql_query.field("unitsUnits")
 @graphql_payload

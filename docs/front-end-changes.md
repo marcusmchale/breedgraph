@@ -15,6 +15,26 @@ breedview's master (`4295316`) implements every API change up to 2026-10-20.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Arrivals, and units at locations the user cannot read
+
+Units that came to a location together from elsewhere in their unit graphs (samples sent to a lab) were found by no
+query: `unitsRoots` lists only unit graph roots. New:
+
+- `unitsArrivals(locationIds: [ID!]!, unitId: ID): UnitArrivalsPayload!`, each `UnitArrival` with `location`, `start`
+  (as entered; null for the units there without a start), `unitCount`, `roots` and `unitsBySubject`. Newest first,
+  undated last. With `unitId`, only the units at, below or above it: where a tree's samples went, or the arrival that
+  brought a unit's parent.
+- `unitsArrivalUnits(arrival: ArrivalInput!, offset: Int, limit: Int): UnitsPayload!`, a page of an arrival's units by
+  name (`limit` at most 1000, default 100); `ArrivalInput { locationId, start, unitId }`, `start` as the arrival gave it.
+
+An arrival is the readable non-root units with a position at the location from that start whose parents were not
+there then: a unit is where its own position at a time puts it, else where its parent is. A unit taken from one
+already there is not an arrival, and one that comes back later is a new one. `unitsRoots` and `unitsArrivals` give
+nothing at a location the user cannot read.
+
+Work in breedview: the Units page (unit graphs and arrivals at a location), links from a tree to the arrivals its
+units went to, and arrivals in the dataset unit picker.
+
 ## Checking the front end against the API
 
 ```bash

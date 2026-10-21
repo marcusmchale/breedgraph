@@ -150,6 +150,12 @@ type SubjectUnitsPayload {
     errors: [Error!]
 }
 
+type UnitArrivalsPayload {
+    status: QueryStatus!
+    result: [UnitArrival!]
+    errors: [Error!]
+}
+
 type UnitPayload {
     status: QueryStatus!
     result: Unit

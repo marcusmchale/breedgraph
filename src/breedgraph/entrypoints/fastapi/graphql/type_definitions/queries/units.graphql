@@ -39,3 +39,20 @@ type SubjectUnits {
     subject: Subject
     units: [Unit!]!
 }
+
+"""
+Units that came to a location together from elsewhere in their unit graphs, e.g. samples sent to a lab: the readable
+units, not unit graph roots, with a position at the location from the same start, as entered, whose parents were not
+there then. A unit is where its own position at a time puts it, else where its parent is. Positions have no identity,
+so an arrival is known by its location and start: read its units with unitsArrivalUnits.
+"""
+type UnitArrival {
+    location: Location!
+    """ The start of their positions there, as entered; null for units there without one """
+    start: DateTime
+    unitCount: Int!
+    """ The roots of the unit graphs they came from, placeholders where hidden """
+    roots: [Unit!]!
+    """ Its units by subject, as id and name, e.g. for selecting them all at once """
+    unitsBySubject: [SubjectUnits!]!
+}

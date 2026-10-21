@@ -131,6 +131,23 @@ class UnitOutput(UnitBase, EnumLabeledModel, StoredModel):
     children: list[int] = field(default_factory=list)
 
 
+@dataclass
+class UnitArrival:
+    """
+    Units that came to a location together from elsewhere in their unit graphs, e.g. samples sent to a lab: known by the
+    location and the start of their positions there, as entered (None for positions without one)
+    """
+    location_id: int
+    start: datetime64 | None
+    unit_count: int = 0
+    root_ids: List[int] = field(default_factory=list)
+
+
+def arrival_key(location_id: int, start: datetime64 | None) -> tuple[int, str | None]:
+    """An arrival's key: its location and its start as entered, as text"""
+    return location_id, None if start is None else str(start)
+
+
 TInput = UnitInput
 TStored = UnitStored
 class UnitGraph(ControlledRootedAggregate):

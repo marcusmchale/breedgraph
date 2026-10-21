@@ -1,5 +1,6 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders.access import readable
+from breedgraph.adapters.neo4j.cypher.query_builders.times import upper
 
 # Units as the user may see them, without reading whole unit graphs. A unit the user can read is returned in full, its
 # parents and children being the nearest readable units along paths through hidden units only, as the repository's
@@ -9,6 +10,7 @@ from breedgraph.adapters.neo4j.cypher.query_builders.access import readable
 # as a bare placeholder.
 
 UNIT = ControlledModelLabel.UNIT
+LOCATION = ControlledModelLabel.LOCATION
 EDGE = 'INCLUDES_UNIT'
 
 
@@ -108,10 +110,13 @@ def read_units():
 
 
 def read_unit_graph_roots():
-    """The roots of the unit graphs positioned at locations $location_ids that the user can read a unit in"""
+    """
+    The roots of the unit graphs positioned at locations $location_ids that the user can read a unit in; nothing at a
+    location the user cannot read, as for any search from it (docs/read-access.md, rule 5)
+    """
     return f"""
         MATCH (unit:Unit)-[:IN_POSITION]->(:Position)-[:AT_LOCATION]->(location:Location)
-        WHERE location.id IN $location_ids AND NOT (unit)<-[:{EDGE}]-(:Unit)
+        WHERE location.id IN $location_ids AND NOT (unit)<-[:{EDGE}]-(:Unit) AND {readable('location', LOCATION)}
         WITH DISTINCT unit
         {_project()}
         WITH unit, unit_readable, is_root, parents, children, positions WHERE unit_readable OR size(children) > 0
@@ -169,4 +174,135 @@ def read_unit_ancestors():
         WITH unit, ancestor, min(length(path)) AS distance
         ORDER BY unit.id, distance, ancestor.id
         RETURN unit.id AS unit_id, collect(ancestor.id) AS ancestor_ids
+    """
+
+
+# Arrivals: the units that came to a location together, from elsewhere in their unit graphs (README, Unit graph). A unit
+# is where its own position holding at a time puts it, else where its parent is; an arrival at a location from a start
+# is the readable units, not roots, with a position there from that start (as entered: value, unit and step) whose
+# parents were not there then. Positions have no identity, so an arrival is known by its location and start.
+
+# the order of a start's precision, finest first, for arrivals that start at the same instant
+_PRECISION = "CASE {unit} WHEN 'ns' THEN 0 WHEN 'us' THEN 1 WHEN 'ms' THEN 2 WHEN 's' THEN 3 WHEN 'm' THEN 4 " \
+             "WHEN 'h' THEN 5 WHEN 'D' THEN 6 WHEN 'W' THEN 7 WHEN 'M' THEN 8 WHEN 'Y' THEN 9 ELSE 10 END"
+
+
+def _holds(held: str, at: str) -> str:
+    """Whether the position held holds at the stored time at, the start of its period; with no time, at any time"""
+    return f"""(
+          {at} IS NULL
+          OR (({held}.start IS NULL OR {held}.start <= {at}) AND ({held}.end IS NULL OR {at} < {upper(held + '.end')}))
+        )"""
+
+
+def _came_from_elsewhere(unit: str = 'unit', location: str = 'location', at: str = 'arrived') -> str:
+    """
+    Whether no unit above unit was at location at the stored time at: walking up through hidden units other than the
+    root and units with no position of their own holding then (they are where their parents are), no unit the user can
+    read, nor the root, has a position at location holding then. With no time, none was ever there. The inner variables
+    are named apart from the outer ones, which a subquery would otherwise take for the same.
+    """
+    return f"""NOT EXISTS {{
+          MATCH ({unit})
+            (()<-[:{EDGE}]-(passed:Unit WHERE
+              ((:Unit)-[:{EDGE}]->(passed) AND NOT {_readable('passed')})
+              OR NOT EXISTS {{ MATCH (passed)-[:IN_POSITION]->(passed_held:Position) WHERE {_holds('passed_held', at)} }}
+            )){{0,}}
+            ()<-[:{EDGE}]-(placed:Unit)-[:IN_POSITION]->(placed_held:Position)-[:AT_LOCATION]->({location})
+          WHERE ({_readable('placed')} OR NOT (:Unit)-[:{EDGE}]->(placed)) AND {_holds('placed_held', at)}
+        }}"""
+
+
+def _related(unit: str = 'unit') -> str:
+    """Whether unit is $unit_id, or below or above it"""
+    return f"""(
+          EXISTS {{ MATCH (:Unit {{id: $unit_id}})-[:{EDGE}*0..]->({unit}) }}
+          OR EXISTS {{ MATCH ({unit})-[:{EDGE}*1..]->(:Unit {{id: $unit_id}}) }}
+        )"""
+
+
+def _arrived(location_match: str, start_match: str, related: bool, carried: str = '') -> str:
+    """
+    Rows of location, unit, position and arrived (the start of its position there), for the arrivals at the locations
+    location_match finds, from the starts start_match allows, carrying the variables carried ("arrival, "): nothing at a
+    location the user cannot read
+    """
+    return f"""
+        {location_match}
+        WITH {carried}location WHERE {readable('location', LOCATION)}
+        MATCH (location)<-[:AT_LOCATION]-(position:Position)<-[:IN_POSITION]-(unit:Unit)
+        WHERE {start_match} AND (:Unit)-[:{EDGE}]->(unit) AND {_readable('unit')}{' AND ' + _related() if related else ''}
+        WITH {carried}location, unit, position, position.start AS arrived
+        WHERE {_came_from_elsewhere()}
+    """
+
+
+def _entered_start(position: str, start: str) -> str:
+    """Whether position starts at start as entered: a map of time, unit and step, all null for no start"""
+    return f"""(CASE WHEN {start}.time IS NULL THEN {position}.start IS NULL
+          ELSE {position}.start = {start}.time AND {position}.start_unit = {start}.unit AND {position}.start_step = {start}.step
+        END)"""
+
+
+def read_unit_arrivals(related: bool = False):
+    """
+    The arrivals at the locations $location_ids: each location id and start as entered, how many units came, and the
+    roots of the unit graphs they came from; newest first, the finer start first at one instant, undated last. With
+    related, only the units at, below or above $unit_id
+    """
+    return f"""
+        {_arrived('MATCH (location:Location) WHERE location.id IN $location_ids', 'true', related)}
+        WITH location, arrived, position.start_unit AS arrived_unit, position.start_step AS arrived_step,
+          collect(DISTINCT unit) AS units
+        CALL (units) {{
+          UNWIND units AS arrived_unit_node
+          MATCH (arrived_unit_node)<-[:{EDGE}*1..]-(root:Unit) WHERE NOT (:Unit)-[:{EDGE}]->(root)
+          RETURN collect(DISTINCT root.id) AS root_ids
+        }}
+        RETURN location.id AS location_id, [arrived, arrived_unit, arrived_step] AS start, size(units) AS unit_count,
+          root_ids
+        ORDER BY arrived IS NULL, arrived DESC, {_PRECISION.format(unit='arrived_unit')}, location_id
+    """
+
+
+def read_arrival_units(related: bool = False):
+    """
+    A page of the units of the arrival at $location_id from $start (time, unit and step as entered, all null for
+    the undated one), by name then id, from $offset, at most $limit; with related, only those at, below or above $unit_id
+    """
+    return f"""
+        {_arrived('MATCH (location:Location {id: $location_id})', _entered_start('position', '$start'), related)}
+        WITH DISTINCT unit
+        ORDER BY unit.name, unit.id
+        SKIP $offset LIMIT $limit
+        {_project()}
+        RETURN {_unit()} AS unit
+        ORDER BY unit.name, unit.id
+    """
+
+
+def read_arrival_units_by_subject():
+    """
+    For each arrival in $arrivals ({location_id, start: {time, unit, step}}), its units grouped by subject, as id and
+    name, for selecting them all at once
+    """
+    return f"""
+        UNWIND $arrivals AS arrival
+        {_arrived(
+            'MATCH (location:Location {id: arrival.location_id})', _entered_start('position', 'arrival.start'), False,
+            carried='arrival, '
+        )}
+        WITH DISTINCT arrival, unit
+        OPTIONAL MATCH (unit)-[:OF_SUBJECT]->(subject:Subject)
+        WITH arrival, subject.id AS subject, unit
+        ORDER BY unit.name, unit.id
+        RETURN arrival, subject, collect({{id: unit.id, name: unit.name}}) AS units
+    """
+
+
+def read_arrival_unit_ids(related: bool = False):
+    """The ids of the units of the arrival at $location_id from $start, as read_arrival_units has them"""
+    return f"""
+        {_arrived('MATCH (location:Location {id: $location_id})', _entered_start('position', '$start'), related)}
+        RETURN collect(DISTINCT unit.id) AS unit_ids
     """

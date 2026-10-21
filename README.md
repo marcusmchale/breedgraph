@@ -270,6 +270,17 @@ Positions have attributes for:
 
 A unit graph's root needs a position, so that the graph can be found by its location.
 Positions have no identity of their own: a position is found by its value, times compared as entered.
+
+A position holds from the start of its start's period to the end of its end's, a missing start or end leaving it open.
+A unit is where its own position at a time puts it, the later-starting one where a move ends one position and starts
+another at the same time; without a position of its own then, it is where its parent is. A position that ended with
+nothing after it means the unit left, e.g. a sample used up; a unit that comes back is given a position there.
+
+Units that came to a location together from elsewhere in their unit graphs, e.g. samples from the trees of a field
+sent to a lab, are an **arrival**: the units, other than roots, with a position at the location from the same start
+whose parents were not there then. An arrival is known by its location and start, so it needs no record of its own,
+and its units stay in their unit graph, below the units they came from. A unit taken from one already there is not an
+arrival; one that comes back later is a new one.
 ### Dataset
 Datasets are collections of [record](#data-record) for [units](#unit)
 They have attributes for:

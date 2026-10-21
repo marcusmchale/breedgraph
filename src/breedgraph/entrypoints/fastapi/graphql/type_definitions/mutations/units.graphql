@@ -15,6 +15,15 @@ input PositionInput {
     end: DateTime
 }
 
+""" An arrival: the units that came to a location from one start (UnitArrival) """
+input ArrivalInput {
+    locationId: ID!
+    """ The start as entered, e.g. 2025-03 for an arrival of March 2025; null for the units there without one """
+    start: DateTime
+    """ Only the arrival's units at, below or above this unit, e.g. the samples of one tree """
+    unitId: ID
+}
+
 input UnitInput {
     """
     ID of Subject in the ontology

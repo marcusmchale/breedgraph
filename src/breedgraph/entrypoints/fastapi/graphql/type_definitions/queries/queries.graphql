@@ -133,10 +133,18 @@ type Query {
     """ Get a layout details by ID """
     layoutsLayouts(ids: [ID!]): LayoutsPayload! # see team
     """
-    Get a list of unit graph "root" units.
-    These are the top-level units of the unit graphs.
+    Get a list of unit graph "root" units: the top-level units of the unit graphs, here those with a position of their
+    own at these locations, at any time. None at a location you cannot read.
     """
     unitsRoots(locationIds: [ID!]): UnitsPayload!
+    """
+    The arrivals at these locations: units, not unit graph roots, that came there together from elsewhere in their unit
+    graphs (UnitArrival); newest first, undated last. With unitId, only the units at, below or above it, e.g. where the
+    samples of a tree went. None at a location you cannot read.
+    """
+    unitsArrivals(locationIds: [ID!]!, unitId: ID): UnitArrivalsPayload!
+    """ A page of an arrival's units, by name: limit at most 1000 (default 100) """
+    unitsArrivalUnits(arrival: ArrivalInput!, offset: Int, limit: Int): UnitsPayload!
     """ Get units by ID. """
     unitsUnits(ids: [ID!]): UnitsPayload!
     """
