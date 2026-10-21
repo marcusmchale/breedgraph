@@ -129,6 +129,11 @@ Raising a release is always allowed, and a reference no longer cited is free aga
 This complements read-access rule 2 (placeholders): a citation of a reference that some readers cannot see still shows to them
 as a placeholder, but a citation cannot be turned into one later by lowering the reference's release.
 
+A study's licence is held to more than this floor (read-access rule 10): it is a legal reference released at least as widely
+as the study **and each of its datasets**, whichever side changes. Its release can't be lowered below theirs; they can't be
+released more widely than it, by a release, a transfer or renouncing control; a study can't be given a less widely released
+licence; and a dataset can't be created in, or moved to, such a study. Releases count as they result, when the change commits.
+
 ## 7. BreedCAFS migration
 
 BreedCAFS records give two sources of attribution (`breedcafs_migration/1_7_Extract_Persons.md`):
@@ -171,6 +176,7 @@ The Data curation Role is seeded (§3), so the migration finds it by name.
 | References | File, data file and external data references get contributions; external and legal references do not (§2). |
 | Removing a cited reference | Refused. A reference in use cannot be deleted: cited (`REFERENCE_FOR`, kept for earlier ontology versions after an entry drops it) or used as a licence or copyright (`USES_LICENCE`, `USES_COPYRIGHT`). |
 | Lowering a cited reference's release | Refused below the release of what cites it; the ontology counts as `PUBLIC` (§6). |
+| A study's licence | A legal reference, released at least as widely as the study and each of its datasets, whichever side changes (§6). |
 | Citing a reference | Requires read access to it (`docs/read-access.md`, rule 10); on updates, only references added are checked. |
 
 ## 10. Open questions

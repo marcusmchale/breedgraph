@@ -26,6 +26,19 @@ def _current_controls(entity: str, label: ControlledModelLabel) -> str:
 _LEAST_RELEASE = "reduce(least = 2, c IN controls | CASE WHEN c.release < least THEN c.release ELSE least END)"
 
 
+def least_release(entity: str, label: ControlledModelLabel, alias: str) -> str:
+    """
+    A call setting alias to entity's release as Controller.release gives it and visible() compares it: the least of
+    its current controls' releases, PUBLIC when it has none
+    """
+    return f"""
+        CALL ({entity}) {{
+          {_current_controls(entity, label)}
+          RETURN {_LEAST_RELEASE} AS {alias}
+        }}
+    """
+
+
 def visible(entity: str, label: ControlledModelLabel, alias: str) -> str:
     """
     A call setting alias to whether the user can read entity: with no current controls, when the least of its current

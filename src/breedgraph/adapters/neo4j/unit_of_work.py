@@ -139,6 +139,8 @@ class Neo4jUnitHolder(AbstractUnitHolder):
     async def commit(self):
         logger.debug("Transaction commit")
         await self._commit_repositories()
+        # once everything is written, on the releases that result; a refusal leaves the transaction to roll back
+        await self.controls.require_released_licences()
         await self.tx.commit()
         self.committed = True
 

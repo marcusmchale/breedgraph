@@ -80,6 +80,10 @@ class MockAccessControlService(AbstractAccessControlService):
         """The mock records no citations"""
         return {}
 
+    async def _get_licence_violations(self, study_ids: List[int], dataset_ids: List[int], reference_ids: List[int]) -> List:
+        """The mock records no licences"""
+        return []
+
     async def _get_scope_entity_ids(self, scope) -> List[int]:
         """The entities of the scope's label its team controls, at its release when given (units below are not modelled)"""
         return sorted(

@@ -12,7 +12,9 @@ from breedgraph.domain.model.control_transfers import (
     ControlledEntity, ControlScope, ControlTransferInput, ControlTransferStored, ControlTransferStatus
 )
 from breedgraph.domain.model.time_descriptors import WriteStamp, deserialize_time
-from breedgraph.service_layer.application.access_control import AbstractAccessControlService, TeamTreeRoot
+from breedgraph.service_layer.application.access_control import (
+    AbstractAccessControlService, TeamTreeRoot, LicenceViolation
+)
 
 
 class Neo4jAccessControlService(AbstractAccessControlService):
@@ -100,6 +102,25 @@ class Neo4jAccessControlService(AbstractAccessControlService):
                     by_label[ControlledModelLabel(citer['label'])].add(citer['id'])
             citers[record['reference_id']] = (record['public'], dict(by_label))
         return citers
+
+    async def _get_licence_violations(
+            self, study_ids: List[int], dataset_ids: List[int], reference_ids: List[int]
+    ) -> List[LicenceViolation]:
+        result = await self.tx.run(
+            controls.licence_release_violations(),
+            study_ids=study_ids,
+            dataset_ids=dataset_ids,
+            reference_ids=reference_ids
+        )
+        return [
+            LicenceViolation(
+                study_id=record['study_id'],
+                licence_id=record['licence_id'],
+                licence_release=ReadRelease(record['licence_release']),
+                data_release=ReadRelease(record['data_release'])
+            )
+            async for record in result
+        ]
 
     async def _get_controllers(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> dict[int, Controller]:
         if not model_ids:

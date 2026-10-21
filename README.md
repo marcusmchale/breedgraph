@@ -394,7 +394,7 @@ Studies collect [datasets](#dataset) with attributes for:
 - factors: a list of [dataset](#dataset) IDs, typically corresponding to a [parameter](#parameter) or [event](#eventtype).
 - observations: a list of [dataset](#dataset) IDs, typically corresponding to a [variable](#variable).
 - design: a reference to the [design](#design) in the ontology
-- licence: a [reference](#reference) that describes legal terms for usage of datasets (factors/observations) from this experiment
+- licence: a legal [reference](#reference) that describes legal terms for usage of datasets (factors/observations) from this experiment, released at least as widely as the study and its datasets
 - references: a list of other supporting [references](#reference)
 ### Location tree
 A location tree is a tree of [locations](#location) with a single root, typically a country. 

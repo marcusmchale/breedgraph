@@ -11,6 +11,7 @@ from breedgraph.domain.model.programs import (
     RecordGroupingInput
 )
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
+from breedgraph.domain.model.references import ReferenceType
 from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
@@ -215,6 +216,18 @@ async def delete_trial(
 
 
 # Study Handlers
+async def _verify_licence(uow, licence_id: int | None) -> None:
+    """
+    A study's licence is a legal reference the user can read. That it is released at least as widely as the study and
+    its datasets is checked as the unit of work commits (docs/read-access.md, rule 10).
+    """
+    if licence_id is None:
+        return
+    await uow.controls.require_read(ControlledModelLabel.REFERENCE, [licence_id])
+    licence = await uow.repositories.references.get(reference_id=licence_id)
+    if licence is None or licence.type != ReferenceType.LEGAL:
+        raise IllegalOperationError(f"Reference {licence_id} is not a legal reference, so it cannot be a study's licence")
+
 @handlers.command_handler()
 async def create_study(
         cmd: commands.programs.CreateStudy,
@@ -228,7 +241,8 @@ async def create_study(
         trial = program.trials.get(cmd.trial_id)
         if trial is None:
             raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
-        await uow.controls.require_read(ControlledModelLabel.REFERENCE, [*(cmd.reference_ids or []), cmd.licence_id])
+        await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
+        await _verify_licence(uow, cmd.licence_id)
 
         study = StudyInput(
             name=cmd.name,
@@ -276,7 +290,7 @@ async def update_study(
             study.design_id = cmd.design_id
         if 'licence_id' in cmd.model_fields_set:
             if cmd.licence_id != study.licence_id:
-                await uow.controls.require_read(ControlledModelLabel.REFERENCE, [cmd.licence_id])
+                await _verify_licence(uow, cmd.licence_id)
             study.licence_id = cmd.licence_id
         if cmd.reference_ids is not None:
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(study.reference_ids or []))

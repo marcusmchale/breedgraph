@@ -24,10 +24,23 @@ class TeamTreeRoot:
     root_id: int
 
 
+@dataclass(frozen=True)
+class LicenceViolation:
+    """A study whose licence is released less widely than the study or one of its datasets (docs/read-access.md, rule 10)"""
+    study_id: int
+    licence_id: int
+    licence_release: ReadRelease
+    data_release: ReadRelease
+
+
 # The widest release of some kinds of entity. Persons are never shown to anonymous users (docs/person.md §3)
 RELEASE_CEILINGS: Dict[ControlledModelLabel, ReadRelease] = {
     ControlledModelLabel.PERSON: ReadRelease.REGISTERED
 }
+
+# The models whose releases decide whether a study's licence is released widely enough: the study, its datasets and
+# the licence itself
+LICENCE_RULE_LABELS = frozenset({ControlledModelLabel.STUDY, ControlledModelLabel.DATASET, ControlledModelLabel.REFERENCE})
 
 
 class AbstractAccessControlService(ABC):
@@ -39,6 +52,8 @@ class AbstractAccessControlService(ABC):
 
     def __init__(self):
         self.events: List = []
+        # the models whose controls or links changed, by label, for require_released_licences
+        self._licence_checks: Dict[ControlledModelLabel, Set[int]] = defaultdict(set)
 
     @staticmethod
     async def _parse_input_to_models_by_label(
@@ -122,6 +137,7 @@ class AbstractAccessControlService(ABC):
         if not model_ids:
             return
 
+        self.defer_licence_check(label, model_ids)
         # for models with existing controllers we need to filter out control teams provided that are not already in the controller.
         # this is per model so if we want to batch process we need to either split or do it in the query.
         await self._set_controls(
@@ -273,6 +289,55 @@ class AbstractAccessControlService(ABC):
         """For each reference: whether the ontology cites it, and the ids of the controlled models citing it by label"""
         ...
 
+    def defer_licence_check(self, label: ControlledModelLabel, model_ids: Iterable[int]) -> None:
+        """
+        Note models whose controls or links change, for require_released_licences to check as the unit of work
+        commits. Every control change passes here; the repositories add the studies whose licence changes and the
+        datasets moved to another study.
+        """
+        if label in LICENCE_RULE_LABELS:
+            self._licence_checks[label].update(model_id for model_id in model_ids if model_id is not None)
+
+    async def require_released_licences(self) -> None:
+        """
+        A study's licence is released at least as widely as the study and every dataset of the study, so that whoever
+        reads them by release can read the terms they are under rather than a placeholder (docs/read-access.md,
+        rule 10). The rule spans three aggregates and every controlling team, so it is checked as the unit of work
+        commits, on the releases that result, over the models noted by defer_licence_check. The refusal names the
+        licence, never a study or dataset: the release of the data it is the licence of is at least registered, so
+        every writer could see that much.
+        """
+        checks, self._licence_checks = self._licence_checks, defaultdict(set)
+        if not checks:
+            return
+        violations = await self._get_licence_violations(
+            study_ids=sorted(checks.get(ControlledModelLabel.STUDY, ())),
+            dataset_ids=sorted(checks.get(ControlledModelLabel.DATASET, ())),
+            reference_ids=sorted(checks.get(ControlledModelLabel.REFERENCE, ()))
+        )
+        if not violations:
+            return
+        violation = violations[0]
+        if violation.licence_id in checks.get(ControlledModelLabel.REFERENCE, ()):
+            raise IllegalOperationError(
+                f"Reference {violation.licence_id} is the licence of data released as {violation.data_release.name}, "
+                f"so its release cannot be lower"
+            )
+        raise IllegalOperationError(
+            f"Reference {violation.licence_id} is released as {violation.licence_release.name}, "
+            f"so it cannot be the licence of data released as {violation.data_release.name}"
+        )
+
+    @abstractmethod
+    async def _get_licence_violations(
+            self, study_ids: List[int], dataset_ids: List[int], reference_ids: List[int]
+    ) -> List[LicenceViolation]:
+        """
+        The studies among study_ids, those of the datasets dataset_ids and those licensed by the references
+        reference_ids whose licence is released less widely than the study or one of its datasets
+        """
+        ...
+
     async def require_read(self, label: ControlledModelLabel, model_ids: Iterable[int | None] | None) -> None:
         """
         For links to another aggregate, such as citing a reference: you can only link to what you can read.
@@ -326,6 +391,7 @@ class AbstractAccessControlService(ABC):
             if controller.teams.intersection(team_ids):
                 raise IllegalOperationError(f"Teams already control {label} {model_id}")
 
+        self.defer_licence_check(label, model_ids)
         await self._add_controls(
             label=label,
             model_ids=model_ids,
@@ -372,6 +438,8 @@ class AbstractAccessControlService(ABC):
             if not controller.teams - team_ids:
                 raise IllegalOperationError(f"At least one control team must remain for {label} {model_id}")
 
+        # ending a control can widen the release that results, as the least of those that remain
+        self.defer_licence_check(label, model_ids)
         await self._end_controls(
             label=label,
             model_ids=model_ids,

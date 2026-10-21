@@ -5,6 +5,7 @@ from neo4j import AsyncResult, Record
 
 from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.domain.model import DatasetScope, GroupingScope, RecordGroupExtent
+from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.model.programs import (
     StudyInput, StudyStored,
     TrialInput, TrialStored,
@@ -157,6 +158,9 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             licence_id=licence_id,
             design_id=design_id
         )
+        # a new licence changes no controls, so it is noted for the check of its release as the unit of work commits
+        if 'licence_id' in study.changed:
+            self.controls.defer_licence_check(ControlledModelLabel.STUDY, [study_id])
         if 'groupings' in study.changed:
             added_groupings = [groupings[i] for i in study.groupings.added]
             await self.tx.run(

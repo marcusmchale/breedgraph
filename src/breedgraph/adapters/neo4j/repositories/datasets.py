@@ -3,6 +3,7 @@ import logging
 from neo4j import AsyncResult, Record
 
 from breedgraph.domain.model.contributions import contributions_from
+from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.model.datasets import (
     DataRecordStored, DatasetInput, DatasetStored, RecordGroup
 )
@@ -69,6 +70,9 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
             logger.debug(f"Set dataset: {dataset}")
             params = dataset.model_dump()
             await self.tx.run(queries['datasets']['set_dataset'], params)
+            # moved to another study, it may now be under a licence released less widely: checked as the unit of work commits
+            if 'study' in dataset.changed:
+                self.controls.defer_licence_check(ControlledModelLabel.DATASET, [dataset.id])
 
         if 'records' in dataset.changed:
             if dataset.records.changed:

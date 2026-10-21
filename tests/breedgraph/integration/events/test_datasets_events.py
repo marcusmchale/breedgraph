@@ -134,6 +134,95 @@ async def test_a_reference_cited_by_a_record_keeps_the_release_of_its_dataset(
     await bus.handle(set_release(ReadRelease.REGISTERED))
 
 
+
+async def licensed_study(bus, uow_factory, context, name: str, release, licence_release) -> int:
+    """A new study in the context's trial, released as given, with a new legal licence released as given"""
+    from breedgraph.domain.commands.programs import CreateStudy
+    from breedgraph.domain.commands.references import CreateLegalReference
+
+    licence_id = await bus.handle(CreateLegalReference(
+        agent_id=context['user_id'], write_team=context['team_id'], release=licence_release, text='Use with attribution'
+    ))
+    await bus.handle(CreateStudy(
+        agent_id=context['user_id'], write_team=context['team_id'], release=release,
+        trial_id=context['trial_id'], name=name, licence_id=licence_id
+    ))
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        program = await uow.repositories.programs.get(trial_id=context['trial_id'])
+        return next(study.id for study in program.get_trial(context['trial_id']).studies.values() if study.name == name)
+
+
+async def submit_dataset(bus, event_queue, state_store, context, study_id: int, release) -> str:
+    submission_id = await state_store.store_submission(agent_id=context['user_id'], submission={
+        'study_id': study_id,
+        'concept_id': context['concept_id'],
+        'records': [{'unit_id': context['unit_id'], 'value': '1', 'start': '2014'}]
+    })
+    await bus.handle(DatasetSubmitted(
+        agent_id=context['user_id'], write_team=context['team_id'], release=release, submission_id=submission_id
+    ))
+    await event_queue.join()
+    return submission_id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_dataset_is_not_created_above_the_licence_of_its_study(
+        bus,
+        event_queue,
+        uow_factory,
+        views_factory,
+        state_store,
+        lorem_text_generator,
+        dataset_build_context
+):
+    """docs/read-access.md, rule 10: the check runs as the submission commits, so nothing of the dataset is kept"""
+    from breedgraph.domain.model.controls import ReadRelease
+
+    context = dataset_build_context
+    user_id = context['user_id']
+    study_id = await licensed_study(
+        bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.REGISTERED, ReadRelease.REGISTERED
+    )
+
+    refused = await submit_dataset(bus, event_queue, state_store, context, study_id, ReadRelease.PUBLIC)
+    assert await state_store.get_status(agent_id=user_id, key=refused) == SubmissionStatus.FAILED
+    assert 'cannot be the licence of data released as PUBLIC' in str(await state_store.get_errors(agent_id=user_id, key=refused))
+    async with views_factory.get_views(user_id=user_id) as views:
+        assert await views.datasets.get_dataset_summaries(study_id=study_id) == []
+
+    accepted = await submit_dataset(bus, event_queue, state_store, context, study_id, ReadRelease.REGISTERED)
+    assert await state_store.get_status(agent_id=user_id, key=accepted) == SubmissionStatus.COMPLETED
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_dataset_is_not_moved_into_a_study_with_a_narrower_licence(
+        bus,
+        event_queue,
+        uow_factory,
+        state_store,
+        lorem_text_generator,
+        dataset_build_context
+):
+    from breedgraph.domain.events.datasets import DatasetUpdateSubmitted
+    from breedgraph.domain.model.controls import ReadRelease
+
+    context = dataset_build_context
+    user_id = context['user_id']
+    submitted = await submit_dataset(bus, event_queue, state_store, context, context['study_id'], ReadRelease.PUBLIC)
+    assert await state_store.get_status(agent_id=user_id, key=submitted) == SubmissionStatus.COMPLETED
+    dataset_id = await state_store.get_submission_dataset_id(agent_id=user_id, submission_id=submitted)
+    target_id = await licensed_study(
+        bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.PRIVATE, ReadRelease.PRIVATE
+    )
+
+    update_id = await state_store.store_submission(agent_id=user_id, submission={'dataset_id': dataset_id, 'study_id': target_id})
+    await bus.handle(DatasetUpdateSubmitted(agent_id=user_id, submission_id=update_id))
+    await event_queue.join()
+    assert await state_store.get_status(agent_id=user_id, key=update_id) == SubmissionStatus.FAILED
+    assert 'cannot be the licence of data released as PUBLIC' in str(await state_store.get_errors(agent_id=user_id, key=update_id))
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        assert (await uow.repositories.datasets.get(dataset_id=dataset_id)).study == context['study_id']
+
 @pytest.mark.asyncio(loop_scope="session")
 async def test_contributions_credit_readable_persons_with_roles(
         bus,

@@ -38,7 +38,7 @@ In detail:
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, the unit a
    germplasm entry came from, a record's, study's or ontology entry's reference, a hidden entity asked for directly by
-   id. A query by a list of ids leaves out ids of no entity (one deleted since it was read, say): they are not hidden,
+   id. A study's licence is never a placeholder for those who read the study or its datasets by release (rule 10). A query by a list of ids leaves out ids of no entity (one deleted since it was read, say): they are not hidden,
    so there is nothing to stand in for.
    A reference placeholder keeps its type as well (legal, external, file and so on), as GraphQL needs it to choose the
    reference's type. References to teams are the exception (rule 7).
@@ -115,6 +115,16 @@ In detail:
    In turn, a reference's release cannot be lowered, by setting it or by a control transfer, below the release of what cites it
    (the ontology counts as public, a record counts as its dataset), so a citation is never hidden later from those who can see
    what cites it (`AccessControlService._require_release_floor`).
+   A study's licence is held to more: **it is a legal reference released at least as widely as the study and every
+   dataset of the study**, so whoever reads them by release can read the terms they are under, not a placeholder
+   (rule 2). Those who read them through a controlling team make their own agreements, so a private study can have a
+   licence private to another team. Giving a study a licence, creating a dataset or moving one to another study,
+   setting a release, a control transfer and renouncing control are refused if they would leave a study or one of its
+   datasets released more widely than its licence. The rule spans three aggregates and every controlling team, so it is
+   checked as the unit of work commits, on the releases that result, over the studies, datasets and references the
+   transaction touched (`AccessControlService.require_released_licences`); the refusal rolls the transaction back. It
+   names the licence and the release of the data, never a study or dataset. `scripts/check_study_licences.py` reports
+   studies that break it, from before it or written by other means.
    Changing or removing a controlled model needs curate access, which includes read. The few reads that still use a
    repository redact explicitly: team trees with `TeamTree.redacted` (the teams map, and the teams a user may
    give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused

@@ -1,5 +1,7 @@
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable
+from breedgraph.adapters.neo4j.cypher.query_builders.access import (
+    visible as _visible, readable as _readable, least_release as _least_release
+)
 
 def set_controls(label: ControlledModelLabel):
     return f"""
@@ -127,6 +129,40 @@ def get_controllers(label:ControlledModelLabel):
             [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
             {{user:user.id, time: write.time}}] as writes
    """
+
+
+def licence_release_violations() -> str:
+    """
+    The studies among $study_ids, those of the datasets $dataset_ids and those licensed by the references
+    $reference_ids whose licence is released less widely than the study or one of its datasets (docs/read-access.md,
+    rule 10): each with its licence, the licence's release and the widest release among the study and its datasets.
+    Releases are as visible() compares them. A study without a licence is never one of them, nor is the ontology.
+    """
+    return f"""
+        CALL () {{
+          MATCH (study:Study) WHERE study.id IN $study_ids
+          RETURN study
+          UNION
+          MATCH (dataset:Dataset)-[:FOR_STUDY]->(study:Study) WHERE dataset.id IN $dataset_ids
+          RETURN study
+          UNION
+          MATCH (study:Study)-[:USES_LICENCE]->(licence:Reference) WHERE licence.id IN $reference_ids
+          RETURN study
+        }}
+        MATCH (study)-[:USES_LICENCE]->(licence:Reference)
+        {_least_release('licence', ControlledModelLabel.REFERENCE, 'licence_release')}
+        {_least_release('study', ControlledModelLabel.STUDY, 'study_release')}
+        CALL (study) {{
+          MATCH (dataset:Dataset)-[:FOR_STUDY]->(study)
+          {_least_release('dataset', ControlledModelLabel.DATASET, 'dataset_release')}
+          RETURN max(dataset_release) AS datasets_release
+        }}
+        WITH study, licence, licence_release,
+          CASE WHEN datasets_release > study_release THEN datasets_release ELSE study_release END AS data_release
+        WHERE licence_release < data_release
+        RETURN study.id AS study_id, licence.id AS licence_id, licence_release, data_release
+        ORDER BY licence_id, study_id
+    """
 
 
 def read_controllers(label: ControlledModelLabel):

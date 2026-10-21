@@ -101,7 +101,8 @@ A team that currently controls entities cannot be deleted. Once it controls none
 | Entity | Rule |
 |---|---|
 | Person | The release chosen on acceptance can be at most REGISTERED, as for every Person (`person.md` §3). Control teams may span team trees: the University holds every Person whichever teams control it (`person.md` §2), so a transfer changes access, not the data controller. |
-| Reference | The release chosen on acceptance can't be below that of what cites it (`contributions.md` §6). |
+| Reference | The release chosen on acceptance can't be below that of what cites it (`contributions.md` §6), and a study's licence can't end up released less widely than the study or its datasets. |
+| Study, Dataset | A transfer or renouncing control can't leave a study, or a dataset of it, released more widely than the study's licence (`read-access.md` rule 10). The release that results counts: the least of the controls that remain. |
 | Others | None. Control teams may span team trees. |
 
 Until 2026-10-19, Persons also had to stay within one team tree whose root had declared a legal entity, its data

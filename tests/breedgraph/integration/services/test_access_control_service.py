@@ -383,3 +383,62 @@ async def test_setting_the_release_of_an_uncontrolled_entity_is_refused(uow_fact
     async with uow_factory.get_uow() as uow:
         controller = await uow.controls.get_controller(ControlledModelLabel.PROGRAM, -1)
     assert controller is None or not controller.teams
+
+
+async def create_licensed_study(uow_factory, user_id: int, team_id: int, licence_release: ReadRelease) -> ControlledEntity:
+    """A private study whose licence, a legal reference of the same team, is released as given"""
+    from breedgraph.domain.model.programs import StudyInput
+    from tests.breedgraph.scenarios.reference_builder import ReferenceBuilder
+
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id, release=licence_release) as uow:
+        licence = await uow.repositories.references.create(ReferenceBuilder.legal_reference_input())
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
+        program = await uow.repositories.programs.create(ProgramBuilder.program_input())
+        program.add_trial(ProgramBuilder.trial_input())
+        await uow.repositories.programs.update_seen()
+        trial_id = list(program.trials.keys())[0]
+        program.add_study(trial_id=trial_id, study=StudyInput(name=ProgramBuilder.program_input().name, licence_id=licence.id))
+        await uow.repositories.programs.update_seen()
+        study_id = list(program.get_trial(trial_id).studies.keys())[0]
+        await uow.commit()
+    return ControlledEntity(label=ControlledModelLabel.STUDY, id=study_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_transfer_cannot_release_a_study_beyond_its_licence(uow_factory, control_transfer_context):
+    """docs/read-access.md, rule 10: checked as the unit of work commits, on the release that results"""
+    context = control_transfer_context
+    study = await create_licensed_study(uow_factory, context['user_id_1'], context['team_id_1'], ReadRelease.PRIVATE)
+    transfer_id = await offer(uow_factory, context, [study])
+
+    async with uow_factory.get_uow(user_id=context['user_id_2']) as uow:
+        await uow.controls.accept_transfer(transfer_id, to_teams={context['team_id_2']}, release=ReadRelease.REGISTERED)
+        with pytest.raises(IllegalOperationError, match="cannot be the licence of data released as REGISTERED"):
+            await uow.commit()
+    assert await control_teams(uow_factory, study) == {context['team_id_1']}
+    async with uow_factory.get_uow(user_id=context['user_id_1']) as uow:
+        assert (await uow.controls.get_transfer(transfer_id)).status == ControlTransferStatus.PENDING
+
+    async with uow_factory.get_uow(user_id=context['user_id_2']) as uow:
+        await uow.controls.accept_transfer(transfer_id, to_teams={context['team_id_2']}, release=ReadRelease.PRIVATE)
+        await uow.commit()
+    assert await control_teams(uow_factory, study) == {context['team_id_2']}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_renouncing_cannot_widen_a_study_beyond_its_licence(uow_factory, control_transfer_context):
+    """A study's release is the least of its controls', so the private team holds it within its licence until it leaves"""
+    context = control_transfer_context
+    study = await create_licensed_study(uow_factory, context['user_id_1'], context['team_id_1'], ReadRelease.REGISTERED)
+    transfer_id = await offer(uow_factory, context, [study], keep_from_teams=True)
+    async with uow_factory.get_uow(user_id=context['user_id_2']) as uow:
+        await uow.controls.accept_transfer(transfer_id, to_teams={context['team_id_2']}, release=ReadRelease.PUBLIC)
+        await uow.commit()
+    assert await control_teams(uow_factory, study) == {context['team_id_1'], context['team_id_2']}
+
+    async with uow_factory.get_uow(user_id=context['user_id_1']) as uow:
+        await uow.controls.renounce_controls(entities=[study], team_ids={context['team_id_1']})
+        with pytest.raises(IllegalOperationError, match="cannot be the licence of data released as PUBLIC"):
+            await uow.commit()
+    assert await control_teams(uow_factory, study) == {context['team_id_1'], context['team_id_2']}

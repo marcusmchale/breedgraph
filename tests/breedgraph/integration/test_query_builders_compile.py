@@ -95,6 +95,7 @@ QUERIES = {
         )
     },
     'controls.read_controlled_counts': controls.read_controlled_counts(),
+    'controls.licence_release_violations': controls.licence_release_violations(),
     'controls.read_controlled_unit_roots': controls.read_controlled_unit_roots(),
     'controls.read_controlled_unit_children': controls.read_controlled_unit_children(),
     'controls.scope_entity_ids(UNIT, below_units)': controls.scope_entity_ids(ControlledModelLabel.UNIT, below_units=True),
