@@ -1,0 +1,9 @@
+extend type Mutation {
+    """
+    Accept the Terms of Use, named by their contentHash; refused if they have changed since they were read. Everything
+    but reading and accepting the Terms, and introspection, is refused until they are accepted (TERMS_NOT_ACCEPTED).
+    The acceptance is kept in a cookie for the user, or for a visitor who isn't signed in, and nothing is stored about
+    who accepted.
+    """
+    termsAccept(contentHash: String!): BooleanPayload!
+}

@@ -21,6 +21,8 @@ from breedgraph.service_layer.infrastructure.brute_force_protection import Brute
 from breedgraph.adapters.nominatim import NominatimGeocodingService
 
 from breedgraph.service_layer.messagebus import MessageBus
+from breedgraph.service_layer.application.terms_of_use import load_terms_of_use
+from breedgraph.service_layer.application.acceptance_tokens import AcceptanceTokens
 
 import logging
 
@@ -50,6 +52,15 @@ async def lifespan(fast_api_app: FastAPI):
     logger.debug("Load graphql schema")
     graphql_schema = create_graphql_schema()
     fast_api_app.graphql_schema = graphql_schema
+
+    # the Terms of Use everyone accepts, and the signer of what people accept (docs/licences.md §4)
+    fast_api_app.terms_of_use = load_terms_of_use(config.TERMS_OF_USE_PATH)
+    fast_api_app.acceptance_tokens = AcceptanceTokens(
+        secret_key=config.SECRET_KEY,
+        salt=config.ACCEPTANCE_SALT,
+        signed_in_minutes=config.ACCEPTANCE_EXPIRES_SIGNED_IN,
+        anonymous_minutes=config.ACCEPTANCE_EXPIRES_ANONYMOUS
+    )
 
     yield
 

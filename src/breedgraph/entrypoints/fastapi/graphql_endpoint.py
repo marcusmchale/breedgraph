@@ -2,6 +2,8 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from ariadne import graphql, combine_multipart_data
+from graphql import GraphQLError, ValidationRule
+from graphql.language import FieldNode, OperationDefinitionNode
 
 from typing import Optional, Dict, Any
 
@@ -12,6 +14,7 @@ from breedgraph.config import GQL_API_PATH, ENVIRONMENT, Environment
 # logging
 import logging
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import close_context
+from breedgraph.entrypoints.fastapi.graphql.acceptances import terms_accepted
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,31 @@ router = APIRouter()
 
 # Debug errors carry a stack trace and the local variables of the raising frame, so only in development
 GRAPHQL_DEBUG = ENVIRONMENT is Environment.DEVELOPMENT
+
+# What may be asked before the Terms of Use are accepted: reading and accepting them, and introspection
+TERMS_FREE_FIELDS = frozenset({'termsOfUse', 'termsAccept', '__schema', '__type', '__typename'})
+TERMS_NOT_ACCEPTED = 'TERMS_NOT_ACCEPTED'
+
+
+class TermsOfUseRequired(ValidationRule):
+    """
+    Refuses an operation asking for anything but the Terms of Use, for a request whose user hasn't accepted the current
+    Terms (docs/licences.md §4). Everyone accepts them first, through the website or the API.
+    """
+    def enter_operation_definition(self, node: OperationDefinitionNode, *_args):
+        if any(
+            not (isinstance(selection, FieldNode) and selection.name.value in TERMS_FREE_FIELDS)
+            for selection in node.selection_set.selections
+        ):
+            self.report_error(GraphQLError(
+                "Accept the Terms of Use first: read them with termsOfUse, and accept them with termsAccept",
+                node,
+                extensions={'code': TERMS_NOT_ACCEPTED}
+            ))
+
+
+def validation_rules(context, _document, _data):
+    return None if terms_accepted(context) else [TermsOfUseRequired]
 
 
 async def get_user_id(request: Request) -> Optional[AccountStored]:
@@ -49,7 +77,11 @@ async def get_context_value(request: Request):
         "geocoding_service": request.app.geocoding_service,
         "user_id": await get_user_id(request),
         "cached_uow": None,
-        "cookies_to_set": []  # List to store cookies that should be set
+        "cookies_to_set": [],  # List to store cookies that should be set
+        # the Terms of Use and what the user has accepted (graphql/acceptances.py), read when first needed
+        "terms_of_use": request.app.terms_of_use,
+        "acceptance_tokens": request.app.acceptance_tokens,
+        "acceptances": None
     }
     logger.debug(f"GraphQL context builder - user {context['user_id']}")
     return context
@@ -110,8 +142,13 @@ async def graphql_server(request: Request):
             data,
             context_value=context,
             debug=GRAPHQL_DEBUG,
+            validation_rules=validation_rules,
         )
-        status_code = 200 if success else 400
+        # Asking before accepting the Terms of Use is not a malformed request, so it is answered as one that ran
+        terms_refused = not success and all(
+            (error.get('extensions') or {}).get('code') == TERMS_NOT_ACCEPTED for error in result.get('errors') or []
+        )
+        status_code = 200 if success or terms_refused else 400
         # Create the response with the GraphQL result
         json_response = JSONResponse(content=result, status_code=status_code)
         # Set any cookies that were queued during GraphQL execution

@@ -262,4 +262,7 @@ type Query {
     analysisSubmission(id: ID!): AnalysisSubmissionPayload!
     " Get the IDs of the user's analysis submissions that have not expired, most recently updated first "
     analysisRecentSubmissions: AnalysisSubmissionIdsPayload!
+
+    """ The Terms of Use, and whether the request's user has accepted them: open before they are accepted """
+    termsOfUse: TermsOfUsePayload!
 }

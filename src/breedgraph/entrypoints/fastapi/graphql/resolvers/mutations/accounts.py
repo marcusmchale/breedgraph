@@ -21,6 +21,7 @@ from breedgraph.domain.model.accounts import OntologyRole
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.acceptances import save_acceptances
 
 
 from breedgraph.config import LOGIN_EXPIRES
@@ -111,6 +112,22 @@ async def reset_password(
     await info.context['bus'].handle(cmd)
     return True
 
+def _carry_terms_over(context, user_id: int) -> None:
+    """
+    The Terms of Use accepted in this browser before signing in hold for the account signing in, so nobody is asked
+    twice in a row (docs/licences.md §4). Licences are not carried over: they stay with whoever accepted them.
+    """
+    tokens = context['acceptance_tokens']
+    terms_hash = context['terms_of_use'].content_hash
+    cookies = context['request'].cookies
+    if not tokens.read(cookies, None).accepts_terms(terms_hash):
+        return
+    acceptances = tokens.read(cookies, user_id)
+    if not acceptances.accepts_terms(terms_hash):
+        acceptances.terms = terms_hash
+        save_acceptances(context, acceptances)
+
+
 @graphql_mutation.field("accountsLogin")
 @graphql_payload
 async def login(
@@ -169,6 +186,7 @@ async def login(
                 "path": "/"
             }
             info.context["cookies_to_set"].append(cookie_data)
+            _carry_terms_over(info.context, account.user.id)
 
             logger.debug(f"Auth token cookie queued for user {account.user.id}")
             return True

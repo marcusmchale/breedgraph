@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from itsdangerous import URLSafeTimedSerializer
 
 from breedgraph.main import app
+from tests.breedgraph.e2e.utils import terms_cookie
 from breedgraph.domain.model.accounts import UserInput, AccountInput, OntologyRole
 from breedgraph.domain.model.ontology import *
 
@@ -62,7 +63,8 @@ async def csrf_token() -> str | bytes:
 def csrf_headers(csrf_token) -> dict:
     return {
         "X-CSRF-Token": csrf_token,
-        "Cookie": f"csrf_token={csrf_token}"
+        # requests sent without headers of their own accept the Terms of Use as a visitor who isn't signed in
+        "Cookie": f"csrf_token={csrf_token}; {terms_cookie(None)}"
     }
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")

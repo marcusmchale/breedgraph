@@ -501,6 +501,9 @@ To test with the uvicorn server, go to the root of the project, export the envir
 Values in ./instance/private.breedgraph.env override them, and this file is not tracked by git.
 If you are cloning this project, create ./instance/private.breedgraph.env
 with your own values for secrets, the neo4j connection, mail hosting and log file creation.
+Among the secrets, `ACCEPTANCE_SALT` signs the cookies that hold acceptances of the Terms of Use and of study licences
+(docs/licences.md §4); the API refuses to start without it. The Terms the API serves are
+`src/breedgraph/legal/terms_of_use.md`, unless `TERMS_OF_USE_PATH` names another file.
 
 
 ### Nginx

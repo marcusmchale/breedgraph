@@ -20,6 +20,7 @@ from . import germplasm
 from . import references
 from . import analysis
 from . import people
+from . import terms
 from . import contributions
 
 # Export only the main query object

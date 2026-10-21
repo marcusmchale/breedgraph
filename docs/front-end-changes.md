@@ -16,6 +16,24 @@ breedview's master (`6ced55d`) implements every API change up to legal reference
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## The Terms of Use
+
+Everyone accepts the Terms of Use before using BreedGraph (docs/licences.md §4). **This breaks the front end**: every
+GraphQL operation is refused, with errors whose `extensions.code` is `TERMS_NOT_ACCEPTED` (on HTTP 200, with no
+data), until the request's user has accepted the current Terms. New:
+
+- `termsOfUse: TermsOfUsePayload!`, open before accepting: `text` (markdown), `contentHash` and `accepted`.
+- `termsAccept(contentHash: String!): BooleanPayload!`, open before accepting; refused if the Terms changed since they
+  were read. It sets the acceptance cookie (`acceptances` signed out, `acceptances_<user id>` signed in), which the
+  browser sends from then on.
+- `accountsLogin` carries a current acceptance over from the signed-out cookie, so a visitor who accepted and then
+  signs in isn't asked again.
+
+Work in breedview: before anything else (but the privacy notice and the Terms themselves), show the Terms, rendered,
+with a checkbox and Accept, calling `termsAccept` with their `contentHash`; a `/terms` page; ask again when a
+`TERMS_NOT_ACCEPTED` error comes back (the Terms changed, or a signed-out acceptance lapsed); and accept the Terms in the
+e2e harness (`loginAs`, `register` and the anonymous tests).
+
 ## Checking the front end against the API
 
 ```bash

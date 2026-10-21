@@ -1,0 +1,15 @@
+""" The Terms of Use, which everyone accepts before using BreedGraph, through the website or the API (docs/licences.md §4) """
+type TermsOfUse {
+    """ The published text, in markdown """
+    text: String!
+    """ Its SHA-256, which termsAccept names: it changes with the text, and everyone is then asked again """
+    contentHash: String!
+    """ Whether the request carries an acceptance of this text, for its user or for a visitor who isn't signed in """
+    accepted: Boolean!
+}
+
+type TermsOfUsePayload {
+    status: QueryStatus!
+    result: TermsOfUse
+    errors: [Error!]
+}
