@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 
 from pathlib import Path
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadData
 
 from breedgraph.config import (
     FILE_STORAGE_PATH,
@@ -46,4 +46,8 @@ async def download_file(token: str, request: Request):
     except SignatureExpired as e:
         logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
         raise HTTPException(status_code=401, detail="Download token has expired")
+    except BadData:
+        # tampered with, or not a download token at all
+        logger.warning("Download refused: the token was not issued for a download")
+        raise HTTPException(status_code=401, detail="Invalid download token")
 
