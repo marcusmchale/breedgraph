@@ -133,10 +133,12 @@ def get_controllers(label:ControlledModelLabel):
 
 def licence_release_violations() -> str:
     """
-    The studies among $study_ids, those of the datasets $dataset_ids and those licensed by the references
-    $reference_ids whose licence is released less widely than the study or one of its datasets (docs/read-access.md,
-    rule 10): each with its licence, the licence's release and the widest release among the study and its datasets.
-    Releases are as visible() compares them. A study without a licence is never one of them, nor is the ontology.
+    The studies among $study_ids, those of the datasets $dataset_ids, and those licensed by, or whose datasets or their
+    records cite, the references $reference_ids, whose licence is released less widely than the study, one of its
+    datasets, or a file reference those datasets or their records cite (docs/read-access.md, rule 10). Each comes with
+    its licence, the licence's release, the widest release among the study and its datasets, and the widest among the
+    files they cite (null for none) with, when the licence is released less widely than that, one such file. Releases
+    are as visible() compares them. A study without a licence is never one of them, nor is the ontology.
     """
     return f"""
         CALL () {{
@@ -148,6 +150,13 @@ def licence_release_violations() -> str:
           UNION
           MATCH (study:Study)-[:USES_LICENCE]->(licence:Reference) WHERE licence.id IN $reference_ids
           RETURN study
+          UNION
+          MATCH (cited:Reference)-[:REFERENCE_FOR]->(:Dataset)-[:FOR_STUDY]->(study:Study) WHERE cited.id IN $reference_ids
+          RETURN study
+          UNION
+          MATCH (cited:Reference)-[:REFERENCE_FOR]->(:Record)<-[:INCLUDES_RECORD]-(:Dataset)-[:FOR_STUDY]->(study:Study)
+          WHERE cited.id IN $reference_ids
+          RETURN study
         }}
         MATCH (study)-[:USES_LICENCE]->(licence:Reference)
         {_least_release('licence', ControlledModelLabel.REFERENCE, 'licence_release')}
@@ -157,10 +166,22 @@ def licence_release_violations() -> str:
           {_least_release('dataset', ControlledModelLabel.DATASET, 'dataset_release')}
           RETURN max(dataset_release) AS datasets_release
         }}
-        WITH study, licence, licence_release,
+        // the files its data cites, found from the file references, which are few, rather than from its records
+        CALL (study) {{
+          MATCH (file:Reference) WHERE file.file_id IS NOT NULL AND (
+            EXISTS {{ MATCH (file)-[:REFERENCE_FOR]->(:Dataset)-[:FOR_STUDY]->(study) }}
+            OR EXISTS {{ MATCH (file)-[:REFERENCE_FOR]->(:Record)<-[:INCLUDES_RECORD]-(:Dataset)-[:FOR_STUDY]->(study) }}
+          )
+          {_least_release('file', ControlledModelLabel.REFERENCE, 'file_release')}
+          WITH file, file_release
+          ORDER BY file_release DESC, file.id
+          RETURN collect(file_release)[0] AS cited_release, collect(file.id)[0] AS widest_cited
+        }}
+        WITH study, licence, licence_release, cited_release, widest_cited,
           CASE WHEN datasets_release > study_release THEN datasets_release ELSE study_release END AS data_release
-        WHERE licence_release < data_release
-        RETURN study.id AS study_id, licence.id AS licence_id, licence_release, data_release
+        WHERE licence_release < data_release OR licence_release < cited_release
+        RETURN study.id AS study_id, licence.id AS licence_id, licence_release, data_release, cited_release,
+          CASE WHEN licence_release < cited_release THEN widest_cited END AS cited_reference_id
         ORDER BY licence_id, study_id
     """
 

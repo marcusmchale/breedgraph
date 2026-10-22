@@ -214,11 +214,14 @@ not asked to accept the licences; the stranger and the outsider are, and anonymo
   "Readpolicy licensed data", a PUBLIC CSV file.
 - **"Readpolicy registered licensed study"**, REGISTERED: its licence is "Readpolicy PDF licence", REGISTERED, read
   from `licence.pdf`, a PDF of two pages made by `tests/breedgraph/utilities/documents.py`; its height dataset,
-  REGISTERED, has a record on `tree_public`.
+  REGISTERED, has a record on `tree_public`. A second dataset, PRIVATE, has a record on `tree_public` citing
+  "Readpolicy privately cited data", a REGISTERED CSV file the study also lists among its references: the stranger
+  and the outsider read the file, on the study's page, but not the dataset, and still accept the PDF licence before
+  downloading it (docs/licences.md §5).
 
 The manifest's `licences` entry gives the program, the trial, each study with its release, licence (id, name,
-filename, file id and path) and dataset, and the data file. The licence files and the data file are copied beside the
-manifest with the read-policy scenario's files. `tests/breedgraph/integration/views/test_licence_scenario.py` checks who
+filename, file id and path) and dataset, the data file, and the privately cited file. The licence files and the data
+files are copied beside the manifest with the read-policy scenario's files. `tests/breedgraph/integration/views/test_licence_scenario.py` checks who
 must accept the licences.
 
 ### The spectra

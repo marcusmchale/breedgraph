@@ -118,16 +118,18 @@ In detail:
    In turn, a reference's release cannot be lowered, by setting it or by a control transfer, below the release of what cites it
    (the ontology counts as public, a record counts as its dataset), so a citation is never hidden later from those who can see
    what cites it (`AccessControlService._require_release_floor`).
-   A study's licence is held to more: **it is a legal reference released at least as widely as the study and every
-   dataset of the study**, so whoever reads them by release can read the terms they are under, not a placeholder
-   (rule 2). Those who read them through a controlling team make their own agreements, so a private study can have a
-   licence private to another team. Giving a study a licence, creating a dataset or moving one to another study,
-   setting a release, a control transfer and renouncing control are refused if they would leave a study or one of its
-   datasets released more widely than its licence. The rule spans three aggregates and every controlling team, so it is
-   checked as the unit of work commits, on the releases that result, over the studies, datasets and references the
-   transaction touched (`AccessControlService.require_released_licences`); the refusal rolls the transaction back. It
-   names the licence and the release of the data, never a study or dataset. `scripts/check_study_licences.py` reports
-   studies that break it, from before it or written by other means.
+   A study's licence is held to more: **it is a legal reference released at least as widely as the study, every
+   dataset of the study, and every file its datasets or their records cite**, so whoever reads them by release can read
+   the terms they are under, not a placeholder (rule 2), and accept them before downloading a file that holds the
+   study's data (docs/licences.md §5). Those who read them through a controlling team make their own agreements, so a
+   private study can have a licence private to another team. Giving a study a licence, creating a dataset or moving
+   one to another study, citing a file from a dataset or its records, setting a release, a control transfer and
+   renouncing control are refused if they would leave a study, one of its datasets, or a file they cite, released more
+   widely than its licence. The rule spans several aggregates and every controlling team, so it is checked as the unit
+   of work commits, on the releases that result, over the studies, datasets and references the transaction touched or
+   newly cited (`AccessControlService.require_released_licences`); the refusal rolls the transaction back. It names
+   the licence, the release of the data and a file cited, never a study or dataset. `scripts/check_study_licences.py`
+   reports studies that break it, from before it or written by other means.
    Changing or removing a controlled model needs curate access, which includes read. The few reads that still use a
    repository redact explicitly: team trees with `TeamTree.redacted` (the teams map, and the teams a user may
    give a Person), analysis contexts with `ControlledRepository.redacted`, and a request for an affiliation is refused

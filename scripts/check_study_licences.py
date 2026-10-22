@@ -1,10 +1,11 @@
 """
 Check the licences of studies (docs/read-access.md, rule 10). Read only: it reports, and changes nothing.
 
-A study's licence is a legal reference released at least as widely as the study and every dataset of the study. The
-rule is checked as changes commit, on the studies they touch, so data written before it, or by other means, may break
-it; while a study does, changes to its releases, its datasets and its licence are refused until one change sets it
-right. Run it before deploying, and after migrations.
+A study's licence is a legal reference released at least as widely as the study, every dataset of the study, and every
+file reference they or their records cite (a reference with a file, which holds data). The rule is checked as changes
+commit, on the studies they touch, so data written before it, or by other means, may break it; while a study does,
+changes to its releases, its datasets, its licence and the files they cite are refused until one change sets it right.
+Run it before deploying, and after migrations.
 
 Usage, with the instance env files sourced:  python scripts/check_study_licences.py
 Exits non-zero when anything is reported.
@@ -38,7 +39,7 @@ async def main() -> int:
         async with driver.session(database=DATABASE_NAME) as session:
             study_ids = (await (await session.run(LICENSED_STUDIES)).single())['study_ids']
             checks = {
-                'Study licences released less widely than the study or its datasets': (
+                'Study licences released less widely than the study, its datasets or the files they cite': (
                     licence_release_violations(),
                     {'study_ids': study_ids, 'dataset_ids': [], 'reference_ids': []}
                 ),

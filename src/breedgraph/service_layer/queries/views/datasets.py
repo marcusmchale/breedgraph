@@ -149,8 +149,9 @@ class AbstractDatasetsView(ABC):
 
     async def get_file_licences(self, file_id: str) -> List[FileLicence]:
         """
-        The licences of the readable datasets citing a file, directly or through their records, with whether the
-        user is exempt from each for its dataset: what downloading the file needs accepted (docs/licences.md §5)
+        The licences of the datasets citing a file, directly or through their records, whether the user can see them
+        or not, with whether the user is exempt from each for its dataset, or as the file's owners: what downloading
+        the file needs accepted (docs/licences.md §5)
         """
         return await self._get_file_licences(file_id=file_id)
 

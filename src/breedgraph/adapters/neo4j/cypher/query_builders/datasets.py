@@ -174,8 +174,10 @@ _LICENCE_EXEMPT = (
 
 def read_file_licences():
     """
-    The licences of the readable datasets citing the file $file_id, directly or through their records, each with
-    whether the user is exempt from it for that dataset (see _LICENCE_EXEMPT): what downloading the file needs accepted
+    The licences of the datasets citing the file $file_id, directly or through their records, whether the user can see
+    them or not, each with whether the user is exempt from it for that dataset (see _LICENCE_EXEMPT), and whether they
+    read the file's reference through a controlling team, as its owners, which exempts them from all: what downloading
+    the file needs accepted (docs/licences.md §5)
     """
     return f"""
         MATCH (reference:Reference {{file_id: $file_id}})
@@ -186,10 +188,9 @@ def read_file_licences():
           MATCH (reference)-[:REFERENCE_FOR]->(:Record)<-[:INCLUDES_RECORD]-(dataset:Dataset)
           RETURN dataset
         }}
-        {_visible('dataset', DATASET, 'dataset_visible')}
-        WITH dataset WHERE dataset_visible
         MATCH (dataset)-[:FOR_STUDY]->(:Study)-[:USES_LICENCE]->(licence:Reference)
-        RETURN dataset.id AS dataset_id, licence.id AS licence_id, {_LICENCE_EXEMPT} AS exempt
+        RETURN dataset.id AS dataset_id, licence.id AS licence_id, {_LICENCE_EXEMPT} AS exempt,
+          {_read_by_team('reference', ControlledModelLabel.REFERENCE)} AS file_owner
         ORDER BY dataset_id
     """
 

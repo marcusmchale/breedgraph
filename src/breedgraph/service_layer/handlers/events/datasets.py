@@ -127,18 +127,22 @@ async def dataset_update_submitted(
             if contributions is not None:
                 await verify_contributions(uow, contributions, stored=dataset.contributions)
                 dataset.contributions = contributions_from(contributions)
+            # a reference newly cited, by the dataset or its records, may be a file released more widely than the study's
+            # licence: checked as the unit of work commits (docs/read-access.md, rule 10)
             if dataset_import.reference_ids is not None:
-                await uow.controls.require_read(
-                    ControlledModelLabel.REFERENCE, set(dataset_import.reference_ids) - set(dataset.references or [])
-                )
+                cited = set(dataset_import.reference_ids) - set(dataset.references or [])
+                await uow.controls.require_read(ControlledModelLabel.REFERENCE, cited)
+                uow.controls.defer_licence_check(ControlledModelLabel.REFERENCE, cited)
                 dataset.references = dataset_import.reference_ids
             # only the references a record does not already cite need checking
             stored_references = {record.id: set(record.references or []) for record in dataset.records}
-            await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
+            cited = [
                 reference_id
                 for record in dataset_import.records
                 for reference_id in set(record.reference_ids or []) - stored_references.get(record.id, set())
-            ])
+            ]
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, cited)
+            uow.controls.defer_licence_check(ControlledModelLabel.REFERENCE, cited)
             # a record moves only to a unit the user can read: another, or one that isn't there, is not found
             stored_units = {record.id: record.unit for record in dataset.records}
             await uow.controls.require_read(ControlledModelLabel.UNIT, [
@@ -184,9 +188,10 @@ async def dataset_records_submitted(
             records_import = DatasetRecordsImport(**submission)
             # record inputs, as for a new dataset's records: add_records parses them with the dataset's scale
             records = records_import.records_to_input()
-            await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
-                reference_id for record in records for reference_id in record.references or []
-            ])
+            cited = [reference_id for record in records for reference_id in record.references or []]
+            await uow.controls.require_read(ControlledModelLabel.REFERENCE, cited)
+            # a file they cite may be released more widely than the study's licence: checked as the unit of work commits
+            uow.controls.defer_licence_check(ControlledModelLabel.REFERENCE, cited)
             # as for a new dataset, each record is on a unit the user can read
             await uow.controls.require_read(ControlledModelLabel.UNIT, [record.unit for record in records])
             dataset = await uow.repositories.datasets.get(dataset_id=records_import.dataset_id)

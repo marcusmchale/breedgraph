@@ -1,7 +1,10 @@
 """
-A study's licence is a legal reference released at least as widely as the study and every dataset of the study
-(docs/read-access.md, rule 10). The rule is checked as the unit of work commits, on the releases that result.
+A study's licence is a legal reference released at least as widely as the study, every dataset of the study and every
+file they or their records cite (docs/read-access.md, rule 10). The rule is checked as the unit of work commits, on the
+releases that result.
 """
+import uuid
+
 import pytest
 
 from breedgraph.custom_exceptions import IllegalOperationError
@@ -9,6 +12,8 @@ from breedgraph.domain.commands.controls import SetRelease
 from breedgraph.domain.commands.programs import CreateStudy, UpdateStudy
 from breedgraph.domain.commands.references import CreateLegalReference, CreateExternalReference
 from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
+from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
+from breedgraph.domain.model.references import FileReferenceInput
 
 from tests.breedgraph.scenarios.dataset_builder import DatasetBuilder
 
@@ -142,3 +147,48 @@ async def test_a_licence_cannot_be_released_below_the_datasets_of_its_study(bus,
     with pytest.raises(IllegalOperationError, match=f"Reference {licence_id} is the licence of data released as PUBLIC"):
         await bus.handle(set_release(context, ControlledModelLabel.REFERENCE, licence_id, ReadRelease.REGISTERED))
     assert await release_of(uow_factory, ControlledModelLabel.REFERENCE, licence_id) == ReadRelease.PUBLIC
+
+
+async def dataset_citing_a_file(uow_factory, context, study_id: int, release: ReadRelease, file_release: ReadRelease):
+    """A dataset of the study, released as given, whose record cites a new data file released as given: their ids"""
+    async with uow_factory.get_uow(user_id=context['user_id'], write_team=context['team_id'], release=file_release) as uow:
+        data_file = await uow.repositories.references.create(FileReferenceInput(
+            description='Raw data', filename='raw.csv', content_type='text/csv', file_id=uuid.uuid4().hex
+        ))
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=context['user_id'], write_team=context['team_id'], release=release) as uow:
+        dataset = await uow.repositories.datasets.create(DatasetInput(
+            concept=context['concept_id'], study=study_id,
+            records=[DataRecordInput(unit_id=context['unit_id'], value='12', reference_ids=[data_file.id])]
+        ))
+        await uow.commit()
+    return dataset.id, data_file.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_file_cited_by_licensed_data_is_not_released_beyond_its_licence(bus, uow_factory, dataset_build_context, lorem_text_generator):
+    """A private dataset's file read by registered users holds the dataset's data: they can read its licence"""
+    context = dataset_build_context
+    licence_id = await legal_reference(bus, context, ReadRelease.REGISTERED)
+    study_id = await create_study(bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.PRIVATE, licence_id)
+
+    with pytest.raises(IllegalOperationError, match="is cited by data under licence"):
+        await dataset_citing_a_file(uow_factory, context, study_id, ReadRelease.PRIVATE, ReadRelease.PUBLIC)
+    dataset_id, file_id = await dataset_citing_a_file(uow_factory, context, study_id, ReadRelease.PRIVATE, ReadRelease.REGISTERED)
+
+    with pytest.raises(
+            IllegalOperationError,
+            match=f"Reference {file_id}, released as PUBLIC, is cited by data under licence {licence_id}, released as REGISTERED"
+    ):
+        await bus.handle(set_release(context, ControlledModelLabel.REFERENCE, file_id, ReadRelease.PUBLIC))
+    assert await release_of(uow_factory, ControlledModelLabel.REFERENCE, file_id) == ReadRelease.REGISTERED
+
+    # the licence holds the file's release up, though the study and its dataset are private
+    with pytest.raises(IllegalOperationError, match=f"Reference {licence_id} is the licence of data citing a file released as REGISTERED"):
+        await bus.handle(set_release(context, ControlledModelLabel.REFERENCE, licence_id, ReadRelease.PRIVATE))
+    assert await release_of(uow_factory, ControlledModelLabel.REFERENCE, licence_id) == ReadRelease.REGISTERED
+
+    # released as widely, the licence lets the file be
+    await bus.handle(set_release(context, ControlledModelLabel.REFERENCE, licence_id, ReadRelease.PUBLIC))
+    await bus.handle(set_release(context, ControlledModelLabel.REFERENCE, file_id, ReadRelease.PUBLIC))
+    assert await release_of(uow_factory, ControlledModelLabel.REFERENCE, file_id) == ReadRelease.PUBLIC

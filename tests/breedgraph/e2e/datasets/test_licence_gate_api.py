@@ -2,6 +2,8 @@
 The licence gate (docs/licences.md §5): a dataset's records and dimensions, analyses of it and downloads of the files
 its records cite need its study's licence accepted at its current text, through licencesAccept, unless the user reads
 the dataset or its study through a controlling team. Acceptances are kept in the same cookie as the Terms of Use.
+A file's download needs the licences of every dataset citing it, seen or not, unless the user owns the file; the
+download state lists those still to accept.
 """
 import uuid
 from http.cookies import SimpleCookie
@@ -12,6 +14,7 @@ import pytest_asyncio
 from breedgraph.config import GQL_API_PATH
 from breedgraph.domain.commands.programs import CreateStudy
 from breedgraph.domain.commands.references import CreateLegalReference, UpdateLegalReference
+from breedgraph.config import FILE_STORAGE_PATH
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.domain.model.references import FileReferenceInput
@@ -19,6 +22,7 @@ from breedgraph.domain.model.references import FileReferenceInput
 from tests.breedgraph.e2e.utils import get_verified_payload, terms_cookie
 from tests.breedgraph.e2e.analysis.test_analysis_api import descriptive_analysis
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
+from tests.breedgraph.scenarios.read_policy_scenario import store_file
 
 DATASET = """
     query ($ids: [ID!]) { datasets(ids: $ids) { status result {
@@ -27,6 +31,7 @@ DATASET = """
 """
 ACCEPT = "mutation ($licences: [LicenceAcceptanceInput!]!) { licencesAccept(licences: $licences) { status errors { message } } }"
 DOWNLOAD = "query ($id: ID!) { referencesFileDownload(fileId: $id) { status errors { name message } } }"
+STATE = "query ($id: ID!) { referencesFileDownloadState(fileId: $id) { status result { status licences { id contentHash } } errors { message } } }"
 SUBMIT = "mutation ($analysis: AnalysisInput!) { analysisSubmit(analysis: $analysis) { status errors { name message path } } }"
 
 
@@ -191,3 +196,79 @@ async def test_a_changed_licence_is_asked_for_again(licensed, client, login_toke
     ))
     dataset, errors = await read_dataset(client, accepted, licensed['dataset_id'])
     assert dataset['licence']['accepted'] is False and dataset['records'] is None and errors
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def hidden_citer(dataset_build_context, uow_factory, bus):
+    """
+    A registered data file of another team's, cited only by a private dataset of a registered study with a registered
+    licence: registered users read the file, and the licence, but not the dataset
+    """
+    context = dataset_build_context
+    user_id, team_id = context['user_id'], context['team_id']
+    owner = await AccountBuilder(uow_factory=uow_factory).account_with_affiliations()
+    licence_id = await bus.handle(CreateLegalReference(
+        agent_id=user_id, write_team=team_id, release=ReadRelease.REGISTERED, description='Data licence', text='Credit us.'
+    ))
+    name = f'Privately cited study {uuid.uuid4().hex[:8]}'
+    await bus.handle(CreateStudy(
+        agent_id=user_id, write_team=team_id, release=ReadRelease.REGISTERED, trial_id=context['trial_id'], name=name,
+        licence_id=licence_id
+    ))
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        program = await uow.repositories.programs.get(trial_id=context['trial_id'])
+        study_id = next(s.id for s in program.get_trial(context['trial_id']).studies.values() if s.name == name)
+    file_id = uuid.uuid4().hex
+    async with uow_factory.get_uow(user_id=owner['user_id'], write_team=owner['team_id'], release=ReadRelease.REGISTERED) as uow:
+        data_file = await uow.repositories.references.create(FileReferenceInput(
+            description='Raw data', filename='raw.csv', content_type='text/csv', file_id=file_id
+        ))
+        await uow.commit()
+    await store_file(FILE_STORAGE_PATH, bus.archival_service, file_id, b"unit,height\ntree,12\n")
+    async with uow_factory.get_uow(user_id=user_id, write_team=team_id, release=ReadRelease.PRIVATE) as uow:
+        await uow.repositories.datasets.create(DatasetInput(
+            concept=context['concept_id'], study=study_id,
+            records=[DataRecordInput(unit_id=context['unit_id'], value='12', reference_ids=[data_file.id])]
+        ))
+        await uow.commit()
+    return {
+        'licence_id': licence_id,
+        'file_id': file_id,
+        'file_owner_id': owner['user_id'],
+        'outsider_id': await AccountBuilder(uow_factory=uow_factory).account()
+    }
+
+
+async def download_state(client, headers: dict, file_id: str) -> dict:
+    payload = get_verified_payload(await post(client, headers, STATE, {'id': file_id}), "referencesFileDownloadState")
+    assert payload['status'] == 'SUCCESS', payload['errors']
+    return payload['result']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_file_needs_the_licence_of_a_dataset_citing_it_the_user_cannot_see(hidden_citer, client, login_token_factory):
+    outsider = hidden_citer['outsider_id']
+    token = login_token_factory(outsider)
+    headers = accepting_terms(client, token, outsider)
+
+    state = await download_state(client, headers, hidden_citer['file_id'])
+    assert [licence['id'] for licence in state['licences']] == [str(hidden_citer['licence_id'])]
+    download = get_verified_payload(await post(client, headers, DOWNLOAD, {'id': hidden_citer['file_id']}), "referencesFileDownload")
+    assert (download['status'], download['errors'][0]['name']) == ('ERROR', 'LicenceNotAcceptedError')
+
+    # the licence is readable to whoever reads the file, so it can be accepted from the download, without the dataset
+    response = await accept(client, headers, hidden_citer['licence_id'], state['licences'][0]['contentHash'])
+    assert get_verified_payload(response, "licencesAccept")['status'] == 'SUCCESS'
+    accepted = cookies(client, token, **{f'acceptances_{outsider}': set_cookie(response, f'acceptances_{outsider}')})
+    assert (await download_state(client, accepted, hidden_citer['file_id']))['licences'] == []
+    download = get_verified_payload(await post(client, accepted, DOWNLOAD, {'id': hidden_citer['file_id']}), "referencesFileDownload")
+    assert download['status'] == 'SUCCESS', download['errors']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_files_owners_need_not_accept_the_licences_of_data_citing_it(hidden_citer, client, login_token_factory):
+    owner = hidden_citer['file_owner_id']
+    headers = accepting_terms(client, login_token_factory(owner), owner)
+    assert (await download_state(client, headers, hidden_citer['file_id']))['licences'] == []
+    download = get_verified_payload(await post(client, headers, DOWNLOAD, {'id': hidden_citer['file_id']}), "referencesFileDownload")
+    assert download['status'] == 'SUCCESS', download['errors']

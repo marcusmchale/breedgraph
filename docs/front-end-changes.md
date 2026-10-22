@@ -16,6 +16,18 @@ breedview's master (`859c7a4`) implements every API change up to 2026-10-22.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Licences of files
+
+A file a licensed dataset cites, directly or through its records, now needs the licence of every dataset citing it
+accepted before it downloads, whether the user can see the dataset or not; owners of the file, or of a dataset citing
+it, are exempt (docs/licences.md §5). Nothing breaks: `referencesFileDownload` was already refused with a message, and
+now is in more cases, where the user may not see the dataset whose licence it needs.
+
+- `FileDownloadState.licences: [LegalReference!]!`: the licences still to accept before the download, readable to
+  whoever reads the file. Work: read it in the download's first step (`referencesFileDownloadState`), and when it isn't
+  empty, show each licence's text with one box to tick for them all, as `LicenceAgreement` does, accept them with
+  `licencesAccept`, then go on with the download.
+
 ## Checking the front end against the API
 
 ```bash

@@ -15,7 +15,14 @@ visitors for the public study.
         │                                                    record cites Readpolicy licensed data, a PUBLIC CSV file
         └── Readpolicy registered licensed study  REGISTERED  licence: Readpolicy PDF licence, REGISTERED, read from
             │                                                  licence.pdf
-            └── height dataset                  REGISTERED  on tree_public
+            ├── height dataset                  REGISTERED  on tree_public
+            └── privately cited dataset         PRIVATE     on tree_public; its record cites Readpolicy privately
+                                                             cited data, a REGISTERED CSV file, which the study lists
+                                                             among its references
+
+Registered users read the privately cited data file, on the study's page, but not the dataset citing it: downloading
+the file still needs the PDF licence, which they can read, as a study's licence is released at least as widely as the
+files its data cites.
 """
 import uuid
 from dataclasses import dataclass, field
@@ -34,6 +41,7 @@ from .read_policy_scenario import ReadPolicyScenario, store_file
 PROGRAM = "Readpolicy licences program"
 TRIAL = "Readpolicy licences trial"
 DATA_FILE = "Readpolicy licensed data"
+PRIVATELY_CITED_FILE = "Readpolicy privately cited data"
 
 MARKDOWN_LICENCE = b"""# Readpolicy data licence
 
@@ -138,4 +146,30 @@ class LicenceScenarioBuilder:
                 ))
                 await uow.commit()
             ids.update({f'{key}_study': study_id, f'{key}_licence': licence.id, f'{key}_dataset': dataset.id})
+        await self._privately_cited()
         return self.licences
+
+    async def _privately_cited(self):
+        """A registered data file cited only by a private dataset of the registered licensed study"""
+        ids = self.licences.ids
+        file_id = uuid.uuid4().hex
+        async with self._uow(ReadRelease.REGISTERED) as uow:
+            data_file = await uow.repositories.references.create(FileReferenceInput(
+                description=PRIVATELY_CITED_FILE, filename='privately_cited_data.csv', content_type='text/csv',
+                file_id=file_id
+            ))
+            await uow.commit()
+        await self._store(PRIVATELY_CITED_FILE, file_id, b"unit,height\ntree_public,299\n")
+        async with self._uow(ReadRelease.PRIVATE) as uow:
+            dataset = await uow.repositories.datasets.create(DatasetInput(
+                concept=self.base['ontology_variable_height'],
+                study=ids['registered_study'],
+                records=[DataRecordInput(unit_id=self.base['tree_public'], value='299', reference_ids=[data_file.id])]
+            ))
+            await uow.commit()
+        # listed among the study's references, so that the file shows on its page
+        async with self._uow(ReadRelease.REGISTERED) as uow:
+            program = await uow.repositories.programs.get(program_id=ids['program'])
+            program.get_study(ids['registered_study']).reference_ids.append(data_file.id)
+            await uow.commit()
+        ids.update({'privately_cited_file': data_file.id, 'privately_cited_dataset': dataset.id})

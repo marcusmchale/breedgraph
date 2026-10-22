@@ -112,6 +112,12 @@ type FileRetrieval {
 type FileDownloadState {
     status: FileStatus!
     progress: FileRetrieval
+    """
+    The study licences to accept before the file can be downloaded (licencesAccept): those of the datasets citing it,
+    directly or through their records, whether you can see them or not. Empty when there are none, when they are
+    accepted, or when you read the file, or a dataset citing it or its study, through a controlling team.
+    """
+    licences: [LegalReference!]!
 }
 
 type FileDownload {

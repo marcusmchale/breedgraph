@@ -53,10 +53,14 @@ class DatasetRead:
 
 @dataclass
 class FileLicence:
-    """The licence of a readable dataset citing a file, and whether the user is exempt from it for that dataset"""
+    """
+    The licence of a dataset citing a file, whether the user can see the dataset or not, whether the user is exempt
+    from it for that dataset, and whether they read the file's reference through a controlling team, as its owners
+    """
     dataset_id: int
     licence_id: int
     exempt: bool
+    file_owner: bool = False
 
 
 @dataclass

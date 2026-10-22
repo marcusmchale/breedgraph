@@ -73,7 +73,7 @@ from tests.breedgraph.scenarios.position_scenario import (
 )
 from tests.breedgraph.scenarios.licence_scenario import (
     LicenceScenarioBuilder, LicenceScenario, STUDIES as LICENSED_STUDIES, PROGRAM as LICENCE_PROGRAM,
-    TRIAL as LICENCE_TRIAL, DATA_FILE
+    TRIAL as LICENCE_TRIAL, DATA_FILE, PRIVATELY_CITED_FILE
 )
 from tests.breedgraph.scenarios.spectra_scenario import (
     SpectraScenarioBuilder, SpectraScenario, FILES as SPECTRA_FILES, RECORDS as SPECTRA_RECORDS,
@@ -283,8 +283,9 @@ def positions_manifest(positions: PositionScenario, scenario: ReadPolicyScenario
 def licences_manifest(licences: LicenceScenario, files_dir: Path) -> dict:
     """
     Studies with licences given as files (tests/breedgraph/scenarios/licence_scenario.py): each study with its release,
-    licence and height dataset, and the data file a record of the public one cites. The files are copied beside the
-    manifest with the read-policy scenario's.
+    licence and height dataset, the data file a record of the public one cites, and the registered data file cited
+    only by a private dataset of the registered one. The files are copied beside the manifest with the read-policy
+    scenario's.
     """
     ids = licences.ids
     return {
@@ -304,6 +305,10 @@ def licences_manifest(licences: LicenceScenario, files_dir: Path) -> dict:
             for key, (study_name, release, licence_name, filename, _) in LICENSED_STUDIES.items()
         },
         'data_file': {'id': ids['data_file'], 'name': DATA_FILE, 'file_id': licences.files[DATA_FILE][0]},
+        'privately_cited_file': {
+            'id': ids['privately_cited_file'], 'name': PRIVATELY_CITED_FILE,
+            'file_id': licences.files[PRIVATELY_CITED_FILE][0], 'study': 'registered'
+        },
     }
 
 

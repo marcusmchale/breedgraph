@@ -7,11 +7,13 @@ It is not legal advice: whether agreeing in BreedGraph binds anyone is for the U
 
 ## 1. A licence is readable by whoever reads the data by release
 
-A study's licence is a legal reference released at least as widely as the study and every dataset of the study, so
-whoever reads them by release (registered users, or everyone) can read the terms they are under, not a placeholder.
-Those who read them through a controlling team make their own agreements outside BreedGraph, so a private study can
-have a licence private to another team. The rule is checked as the unit of work commits, on the releases that result;
-docs/read-access.md rule 10 has the details, and `scripts/check_study_licences.py` reports studies that break it.
+A study's licence is a legal reference released at least as widely as the study, every dataset of the study, and every
+file its datasets or their records cite (a reference with a file, which holds data, §5). So whoever reads them by
+release (registered users, or everyone) can read the terms they are under, not a placeholder, and can accept them
+before downloading such a file even when they cannot see the dataset citing it. Those who read them through a
+controlling team make their own agreements outside BreedGraph, so a private study can have a licence private to another
+team. The rule is checked as the unit of work commits, on the releases that result; docs/read-access.md rule 10 has the
+details, and `scripts/check_study_licences.py` reports studies that break it.
 
 ## 2. The text of a legal reference
 
@@ -99,12 +101,16 @@ readable by whoever reads the data by release (§1). Nothing changes for dataset
 
 - **Exempt** are those who read the dataset, or its study, through a controlling team, an affiliation rather than a
   release: the data's owners, who make their own agreements. `Dataset.licenceRequired` says whether the user must
-  accept `Dataset.licence`. A file cited by several datasets opens if the user is exempt for one of them, and otherwise
-  needs every licence of the readable datasets citing it.
+  accept `Dataset.licence`.
+- **A file counts every dataset citing it**, directly or through its records, whether the user can see the dataset or
+  not: a file released more widely than the data citing it still holds that data. It opens if the user is exempt for one
+  of them, or reads the file itself through a controlling team, as its owners; otherwise it needs every licence of the
+  datasets citing it. §1 keeps those licences readable to whoever reads the file by release, and
+  `FileDownloadState.licences` lists those still to accept, so they can be accepted before the download, without
+  finding the data. The datasets themselves are not shown.
 - **Download links come only from `referencesFileDownload`.** The email that tells people an archived file they asked
   for has been retrieved links to the site, not to the file, so the download is checked like any other.
 - `licencesAccept(licences: [{id, contentHash}])` checks that each is a legal reference the user can read, at its
   current hash, all or none, and adds them to the identity's token, beside the Terms (§4). Keyed by licence id, a
   licence shared by many studies is one acceptance. `LegalReference.accepted` says whether the request carries an
   acceptance of the reference's current text.
-- Files cited only by datasets the reader can't see are not gated: the file's own release decides.

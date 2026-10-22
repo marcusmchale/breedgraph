@@ -5,7 +5,9 @@ from datetime import datetime, timedelta, timezone
 from breedgraph.adapters.redis.state_store import SubmissionStatus
 
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
-from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import get_context_views, get_context_lock
+from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
+    get_context_views, get_context_lock, update_reference_map
+)
 
 
 from breedgraph.domain.model.references import (
@@ -180,17 +182,24 @@ def resolve_accepted(obj, info) -> bool:
     return request_acceptances(info.context).accepts_licence(obj.id, obj.content_hash)
 
 
-async def _require_file_licences_accepted(info, file_id: str) -> None:
+async def _file_licences_to_accept(info, file_id: str) -> list[int]:
     """
-    A file cited by a licensed dataset, or by its records, holds its data: downloading it needs the licence accepted,
-    unless the user is exempt from it for one of the datasets citing it (docs/licences.md §5)
+    A file cited by a licensed dataset, or by its records, holds its data: downloading it needs the licences of every
+    dataset citing it accepted, whether the user can see the dataset or not, unless they are exempt from one of them, or
+    read the file through a controlling team, as its owners (docs/licences.md §5). The licences not accepted yet, by
+    id; whoever reads the file by release can read them (docs/read-access.md, rule 10)
     """
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
         licences = await views.datasets.get_file_licences(file_id)
-    if not licences or any(licence.exempt for licence in licences):
-        return
-    missing = await licences_not_accepted(info.context, [licence.licence_id for licence in licences])
+    if not licences or any(licence.exempt or licence.file_owner for licence in licences):
+        return []
+    return await licences_not_accepted(info.context, [licence.licence_id for licence in licences])
+
+
+async def _require_file_licences_accepted(info, file_id: str) -> None:
+    """Refuse the file's download until the licences it needs are accepted (_file_licences_to_accept)"""
+    missing = await _file_licences_to_accept(info, file_id)
     if missing:
         raise LicenceNotAcceptedError(
             f"This file holds data under licences not accepted yet: reference {', '.join(str(i) for i in missing)}. "
@@ -241,9 +250,14 @@ async def get_file_download_state(_, info, file_id: str):
                 "progress": record.local_completion
             }
 
+    # the licences to accept first, which the front end offers before the download (docs/licences.md §5)
+    licence_ids = await _file_licences_to_accept(info, file_id)
+    await update_reference_map(info.context, reference_ids=licence_ids)
+    reference_map = info.context.get('reference_map', {})
     return {
         "status": status,
-        "progress": retrieval
+        "progress": retrieval,
+        "licences": [reference_map[licence_id] for licence_id in licence_ids if licence_id in reference_map]
     }
 
 

@@ -117,7 +117,9 @@ class Neo4jAccessControlService(AbstractAccessControlService):
                 study_id=record['study_id'],
                 licence_id=record['licence_id'],
                 licence_release=ReadRelease(record['licence_release']),
-                data_release=ReadRelease(record['data_release'])
+                data_release=ReadRelease(record['data_release']),
+                cited_release=None if record['cited_release'] is None else ReadRelease(record['cited_release']),
+                cited_reference_id=record['cited_reference_id']
             )
             async for record in result
         ]

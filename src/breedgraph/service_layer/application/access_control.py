@@ -26,11 +26,17 @@ class TeamTreeRoot:
 
 @dataclass(frozen=True)
 class LicenceViolation:
-    """A study whose licence is released less widely than the study or one of its datasets (docs/read-access.md, rule 10)"""
+    """
+    A study whose licence is released less widely than the study, one of its datasets, or a file reference they or
+    their records cite (docs/read-access.md, rule 10): the widest of the files, and one of them when the licence is
+    released less widely than it
+    """
     study_id: int
     licence_id: int
     licence_release: ReadRelease
     data_release: ReadRelease
+    cited_release: ReadRelease | None = None
+    cited_reference_id: int | None = None
 
 
 # The widest release of some kinds of entity. Persons are never shown to anonymous users (docs/person.md §3)
@@ -38,8 +44,8 @@ RELEASE_CEILINGS: Dict[ControlledModelLabel, ReadRelease] = {
     ControlledModelLabel.PERSON: ReadRelease.REGISTERED
 }
 
-# The models whose releases decide whether a study's licence is released widely enough: the study, its datasets and
-# the licence itself
+# The models whose releases decide whether a study's licence is released widely enough: the study, its datasets, the
+# licence itself and the file references they cite
 LICENCE_RULE_LABELS = frozenset({ControlledModelLabel.STUDY, ControlledModelLabel.DATASET, ControlledModelLabel.REFERENCE})
 
 
@@ -293,19 +299,20 @@ class AbstractAccessControlService(ABC):
         """
         Note models whose controls or links change, for require_released_licences to check as the unit of work
         commits. Every control change passes here; the repositories add the studies whose licence changes and the
-        datasets moved to another study.
+        datasets moved to another study, and the dataset handlers the references a dataset or its records newly cite.
         """
         if label in LICENCE_RULE_LABELS:
             self._licence_checks[label].update(model_id for model_id in model_ids if model_id is not None)
 
     async def require_released_licences(self) -> None:
         """
-        A study's licence is released at least as widely as the study and every dataset of the study, so that whoever
-        reads them by release can read the terms they are under rather than a placeholder (docs/read-access.md,
-        rule 10). The rule spans three aggregates and every controlling team, so it is checked as the unit of work
-        commits, on the releases that result, over the models noted by defer_licence_check. The refusal names the
-        licence, never a study or dataset: the release of the data it is the licence of is at least registered, so
-        every writer could see that much.
+        A study's licence is released at least as widely as the study, every dataset of the study and every file
+        reference they or their records cite, so that whoever reads them by release can read the terms they are under
+        rather than a placeholder, and accept them before downloading a file that holds the study's data
+        (docs/read-access.md, rule 10; docs/licences.md §5). The rule spans several aggregates and every controlling
+        team, so it is checked as the unit of work commits, on the releases that result, over the models noted by
+        defer_licence_check. The refusal names the licence, and a file cited, never a study or dataset: the release of
+        the data it is the licence of is at least registered, so every writer could see that much.
         """
         checks, self._licence_checks = self._licence_checks, defaultdict(set)
         if not checks:
@@ -318,10 +325,22 @@ class AbstractAccessControlService(ABC):
         if not violations:
             return
         violation = violations[0]
+        files_wider = violation.cited_reference_id is not None
         if violation.licence_id in checks.get(ControlledModelLabel.REFERENCE, ()):
+            if violation.licence_release < violation.data_release:
+                raise IllegalOperationError(
+                    f"Reference {violation.licence_id} is the licence of data released as {violation.data_release.name}, "
+                    f"so its release cannot be lower"
+                )
             raise IllegalOperationError(
-                f"Reference {violation.licence_id} is the licence of data released as {violation.data_release.name}, "
-                f"so its release cannot be lower"
+                f"Reference {violation.licence_id} is the licence of data citing a file released as "
+                f"{violation.cited_release.name}, so its release cannot be lower"
+            )
+        if files_wider and not violation.licence_release < violation.data_release:
+            raise IllegalOperationError(
+                f"Reference {violation.cited_reference_id}, released as {violation.cited_release.name}, is cited by data "
+                f"under licence {violation.licence_id}, released as {violation.licence_release.name}: a licence is "
+                f"released at least as widely as the files its data cites"
             )
         raise IllegalOperationError(
             f"Reference {violation.licence_id} is released as {violation.licence_release.name}, "
@@ -333,8 +352,9 @@ class AbstractAccessControlService(ABC):
             self, study_ids: List[int], dataset_ids: List[int], reference_ids: List[int]
     ) -> List[LicenceViolation]:
         """
-        The studies among study_ids, those of the datasets dataset_ids and those licensed by the references
-        reference_ids whose licence is released less widely than the study or one of its datasets
+        The studies among study_ids, those of the datasets dataset_ids, and those licensed by, or whose datasets or
+        records cite, the references reference_ids, whose licence is released less widely than the study, one of its
+        datasets or a file reference they or their records cite
         """
         ...
 

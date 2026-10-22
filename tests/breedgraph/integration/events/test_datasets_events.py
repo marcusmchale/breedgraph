@@ -266,3 +266,72 @@ async def test_contributions_credit_readable_persons_with_roles(
     ):
         submission_id = await submit(contributions)
         assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.FAILED
+
+
+async def data_file(uow_factory, context, release) -> int:
+    """A file reference of the context's team, released as given"""
+    import uuid
+    from breedgraph.domain.model.references import FileReferenceInput
+
+    async with uow_factory.get_uow(user_id=context['user_id'], write_team=context['team_id'], release=release) as uow:
+        reference = await uow.repositories.references.create(FileReferenceInput(
+            description='Raw data', filename='raw.csv', content_type='text/csv', file_id=uuid.uuid4().hex
+        ))
+        await uow.commit()
+        return reference.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_data_cannot_cite_a_file_released_beyond_the_licence_of_its_study(
+        bus,
+        event_queue,
+        uow_factory,
+        state_store,
+        lorem_text_generator,
+        dataset_build_context
+):
+    """
+    docs/read-access.md, rule 10: a file cited by a dataset or its records holds its data, so its study's licence is
+    released at least as widely, and readable to whoever reads the file; checked as records added or updated commit
+    """
+    from breedgraph.domain.events.datasets import DatasetRecordsSubmitted, DatasetUpdateSubmitted
+    from breedgraph.domain.model.controls import ReadRelease
+
+    context = dataset_build_context
+    user_id = context['user_id']
+    study_id = await licensed_study(
+        bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.REGISTERED, ReadRelease.REGISTERED
+    )
+    submitted = await submit_dataset(bus, event_queue, state_store, context, study_id, ReadRelease.PRIVATE)
+    dataset_id = await state_store.get_submission_dataset_id(agent_id=user_id, submission_id=submitted)
+    public_file = await data_file(uow_factory, context, ReadRelease.PUBLIC)
+    registered_file = await data_file(uow_factory, context, ReadRelease.REGISTERED)
+
+    async def add_record(reference_id: int) -> str:
+        submission_id = await state_store.store_submission(agent_id=user_id, submission={
+            'dataset_id': dataset_id,
+            'records': [{'unit_id': context['unit_id'], 'value': '2', 'start': '2015', 'reference_ids': [reference_id]}]
+        })
+        await bus.handle(DatasetRecordsSubmitted(agent_id=user_id, submission_id=submission_id))
+        await event_queue.join()
+        return submission_id
+
+    async def cite(reference_id: int) -> str:
+        submission_id = await state_store.store_submission(agent_id=user_id, submission={
+            'dataset_id': dataset_id, 'reference_ids': [reference_id]
+        })
+        await bus.handle(DatasetUpdateSubmitted(agent_id=user_id, submission_id=submission_id))
+        await event_queue.join()
+        return submission_id
+
+    for submission_id in (await add_record(public_file), await cite(public_file)):
+        assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.FAILED
+        assert f'Reference {public_file}, released as PUBLIC, is cited by data under licence' in str(
+            await state_store.get_errors(agent_id=user_id, key=submission_id)
+        )
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
+        assert len(dataset.records) == 1 and not dataset.references
+
+    for submission_id in (await add_record(registered_file), await cite(registered_file)):
+        assert await state_store.get_status(agent_id=user_id, key=submission_id) == SubmissionStatus.COMPLETED
