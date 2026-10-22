@@ -3,6 +3,7 @@ import os
 FILE_STORAGE_PATH = os.environ.get('FILE_STORAGE_PATH')
 FILE_DOWNLOAD_SALT = os.environ.get('FILE_DOWNLOAD_SALT', 'file_download_salt')
 FILE_DOWNLOAD_EXPIRES = int(os.environ.get('FILE_DOWNLOAD_EXPIRES', 1440))  # minutes
+# the most uploaded files saved at once: an upload asked for while they are all taken is refused, to try again later
 MAX_CONCURRENT_UPLOADS = int(os.environ.get('MAX_CONCURRENT_UPLOADS', 5))
 
 # Legal references given as files (.txt, .md or .pdf), whose text is read on upload: the largest file, in bytes, and the

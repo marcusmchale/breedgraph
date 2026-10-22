@@ -5,7 +5,7 @@ import asyncio
 import hashlib
 
 from pathlib import Path
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile
 from typing import Callable
 
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
@@ -14,7 +14,7 @@ from breedgraph.config import (
     FILE_STORAGE_PATH,
     MAX_CONCURRENT_UPLOADS
 )
-from breedgraph.custom_exceptions import IllegalOperationError
+from breedgraph.custom_exceptions import IllegalOperationError, TooManyUploadsError
 from breedgraph.domain.model.submissions import SubmissionStatus
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,16 @@ class FileManagementService:
         self.state_store = state_store
         self.upload_semaphore = asyncio.Semaphore(MAX_CONCURRENT_UPLOADS)
 
+    def require_capacity(self) -> None:
+        """
+        Refuse an upload while as many files as may be saved at once are being saved, or waiting to be. Checked as the
+        upload is asked for, before anything is stored, while the request can still be answered with why; an upload
+        accepted then waits its turn in save_file, which runs in the background.
+        """
+        if self.upload_semaphore.locked():
+            logger.warning('Processing too many files for upload, rejecting another')
+            raise TooManyUploadsError('Too many files are being uploaded at once; please try again in a few minutes')
+
     async def save_file(
             self,
             uuid: str,
@@ -37,12 +47,7 @@ class FileManagementService:
             on_complete: Callable | None = None,
             on_failed: Callable | None = None
     ):
-        if not self.upload_semaphore.locked():
-            logger.debug(f'Processing file for upload: {uuid}')
-        else:
-            logger.warning(f'Processing too many files for upload, rejecting: {uuid}')
-            raise HTTPException(status_code=503, detail='Too many concurrent uploads')
-
+        logger.debug(f'Processing file for upload: {uuid}')
         async with self.upload_semaphore:
             try:
                 file_path = Path(self.file_storage_path, uuid)

@@ -38,3 +38,8 @@ class LicenceNotAcceptedError(Exception):
     (docs/licences.md §5): accept it with licencesAccept
     """
     pass
+
+
+class TooManyUploadsError(Exception):
+    """An upload asked for while as many files as may be saved at once are being saved (MAX_CONCURRENT_UPLOADS)"""
+    pass

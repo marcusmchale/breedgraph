@@ -122,6 +122,7 @@ async def start_file_ref_update(
         if not file.filename:
             raise ValueError("File must have a name")
 
+        bus.file_management.require_capacity()
         key = await bus.state_store.store_file(
             agent_id=user_id,
             filename=file.filename,
@@ -188,6 +189,7 @@ async def create_legal_file_reference(
     bus: MessageBus = info.context.get('bus')
     logger.debug(f'User {user_id} creates legal reference from a file')
     file: UploadFile | None = reference.get('file')
+    bus.file_management.require_capacity()
     legal_text = await read_legal_upload(file)
     key = await bus.state_store.store_file(agent_id=user_id, filename=file.filename)
     await bus.handle(CreateLegalReference(
@@ -271,6 +273,7 @@ async def create_file_reference(
     if not file.content_type:
         raise ValueError("File must have content type")
 
+    bus.file_management.require_capacity()
     key = await bus.state_store.store_file(
         agent_id=user_id,
         filename=file.filename
@@ -324,6 +327,7 @@ async def create_data_file_reference(
     if not file.content_type:
         raise ValueError("File must have content type")
 
+    bus.file_management.require_capacity()
     key = await bus.state_store.store_file(
         agent_id=user_id,
         filename=file.filename
