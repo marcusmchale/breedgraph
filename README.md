@@ -303,6 +303,13 @@ changes, such as a new trial, site or team.
 
 A unit can't be deleted while anything else refers to it: records for it, which would be left without a unit (remove
 them first), germplasm that came from it, or units derived from it.
+
+Children can be added to many units at once, as for a sampling event: the leaves taken from each tree of a field on
+one day. Each is named from a template of its parent's name, its subject and its number among its parent's new
+children ("{parent} - {subject} {n}" names the first leaf of Tree 1 "Tree 1 - Leaf 1"). Given the day, each has a
+position at its parent's place then, from then (where its parent is, by its own position or the one it takes from the
+units above it), which keeps the day it was taken; moving the samples on to a lab later makes them an arrival there.
+Without one, they are where their parents are.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)

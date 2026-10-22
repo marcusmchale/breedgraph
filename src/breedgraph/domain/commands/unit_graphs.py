@@ -3,7 +3,7 @@ from typing import List
 from pydantic import BaseModel, model_validator
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.unit_graphs import UnitDerivation, DerivationStage
+from breedgraph.domain.model.unit_graphs import UnitDerivation, DerivationStage, CHILD_NAME_TEMPLATE
 
 from breedgraph.custom_exceptions import IllegalOperationError
 
@@ -154,3 +154,24 @@ class DeriveUnits(Command):
 
     start: PyDT64 | None = None
     end: PyDT64 | None = None
+
+
+class AddChildren(Command):
+    """
+    Adds count children of the subject to each of the parents, e.g. the leaf samples taken from the trees of a field,
+    named from the template (CHILD_NAME_TEMPLATE), or unnamed without one. With a start, each child is at its parent's
+    place then, from then, e.g. the day the samples were taken; without one, the children are where their parents are.
+    Their germplasm is the one given, else what they take from their parents. Returns the ids of the children, by
+    parent in the order given.
+    """
+    agent_id: int
+    write_team: int
+    release: ReadRelease = ReadRelease.PRIVATE
+    parents: UnitsSelection
+
+    subject_id: int
+    count: int = 1
+    name: str | None = CHILD_NAME_TEMPLATE
+    description: str | None = None
+    germplasm_id: int | None = None
+    start: PyDT64 | None = None

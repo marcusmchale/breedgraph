@@ -43,6 +43,7 @@ that become plantlets in a field, or seed that becomes seedlings, is a new unit 
 (derived_from), rather than their child or a split from their unit graph. Being derived passes nothing down: the new
 unit is in a unit graph of its own team's, and its derivation is kept as its history.
 """
+import re
 from abc import ABC
 from enum import Enum
 from dataclasses import dataclass, field, replace
@@ -194,6 +195,18 @@ class UnitArrival:
 def arrival_key(location_id: int, start: datetime64 | None) -> tuple[int, str | None]:
     """An arrival's key: its location and its start as entered, as text"""
     return location_id, None if start is None else str(start)
+
+
+# The name of a child added with others to each of some units, e.g. "Tree 12 - Leaf 1": {parent} is its parent's name,
+# {subject} its own subject's and {n} its number among its parent's new children, from 1
+CHILD_NAME_TEMPLATE = '{parent} - {subject} {n}'
+_CHILD_NAME_PLACEHOLDER = re.compile(r'\{(parent|subject|n)\}')
+
+
+def child_name(template: str, parent: str, subject: str, n: int) -> str:
+    """A child's name from the template, its placeholders filled in once: other braces are kept as they are"""
+    values = {'parent': parent, 'subject': subject, 'n': str(n)}
+    return _CHILD_NAME_PLACEHOLDER.sub(lambda match: values[match.group(1)], template)
 
 
 TInput = UnitInput

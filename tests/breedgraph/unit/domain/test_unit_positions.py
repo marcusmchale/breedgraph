@@ -5,9 +5,9 @@ import pytest
 from numpy import datetime64
 
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
-from breedgraph.domain.model.unit_graphs import Position
+from breedgraph.domain.model.unit_graphs import Position, CHILD_NAME_TEMPLATE, child_name
 from breedgraph.domain.services.unit_positions import (
-    StoredPosition, UnitPositions, plan_move, plan_change, plan_add, plan_remove, named
+    StoredPosition, UnitPositions, plan_move, plan_change, plan_add, plan_remove, named, place_at
 )
 
 LAB, STORE, FIELD = 1, 2, 3
@@ -112,3 +112,58 @@ def test_refusals_name_a_few_units_and_count_the_rest():
     assert named([unit(1)]) == 'Sample 1'
     assert named([unit(1), unit(2, name='Tree')]) == 'Sample 1 and Tree'
     assert named([unit(i) for i in range(1, 9)]) == 'Sample 1, Sample 2, Sample 3, Sample 4, Sample 5 and 3 more'
+
+
+# A field with a tree at a grid position in it, a sample of the tree sent to the lab, and a sample pooled from the tree
+# and a tree that visited the lab: (parents, positions) by unit id
+FIELD_UNIT, TREE, SAMPLE, VISITOR, POOLED, HIDDEN_UNIT, BELOW_HIDDEN = 1, 2, 3, 4, 5, 6, 7
+GRAPH = {
+    FIELD_UNIT: ([], [at(FIELD)]),
+    TREE: ([FIELD_UNIT], [at(FIELD, '2024', layout_id=10, coordinates=['3', '5'])]),
+    SAMPLE: ([TREE], [at(LAB, '2025-03-25')]),
+    VISITOR: ([FIELD_UNIT], [at(LAB, '2024-06', '2024-07'), at(FIELD, '2024-07')]),
+    POOLED: ([TREE, VISITOR], []),
+    HIDDEN_UNIT: ([FIELD_UNIT], [at(STORE, '2025-01')]),
+    BELOW_HIDDEN: ([HIDDEN_UNIT], []),
+}
+
+
+def placed(unit_id: int, time: str, hidden=()) -> Position | None:
+    return place_at(
+        unit_id,
+        datetime64(time),
+        positions_of=lambda u: GRAPH[u][1],
+        parents_of=lambda u: GRAPH[u][0],
+        hidden=lambda u: u in hidden
+    )
+
+
+def test_a_unit_is_placed_by_its_own_position_then_or_the_units_above_it():
+    # its own position, with its layout and coordinates: not its times
+    assert placed(TREE, '2025-05-03') == Position(location_id=FIELD, layout_id=10, coordinates=['3', '5'])
+    # before the tree's position starts, it is where its field is
+    assert placed(TREE, '2023-05-03') == Position(location_id=FIELD)
+    # a sample at the lab from its arrival, and with its tree before it
+    assert placed(SAMPLE, '2025-04-01') == Position(location_id=LAB)
+    assert placed(SAMPLE, '2025-03-01') == Position(location_id=FIELD, layout_id=10, coordinates=['3', '5'])
+    # a visit: at the lab during it, back in the field after it, the later-starting position once a move starts it
+    assert placed(VISITOR, '2024-06-15') == Position(location_id=LAB)
+    assert placed(VISITOR, '2024-07') == Position(location_id=FIELD)
+
+
+def test_a_place_cant_be_told_where_lineages_differ_or_a_hidden_unit_stops_the_walk():
+    # pooled from the tree in the field and a tree visiting the lab: placed only when they agree
+    assert placed(POOLED, '2024-06-15') is None
+    assert placed(POOLED, '2025-05-03') is None  # the field, but at different grid positions and layouts
+    # a hidden unit with positions stops the walk, whether or not they hold then; without positions it is passed
+    assert placed(BELOW_HIDDEN, '2025-05-03') == Position(location_id=STORE)
+    assert placed(BELOW_HIDDEN, '2025-05-03', hidden={HIDDEN_UNIT}) is None
+    assert placed(BELOW_HIDDEN, '2024-05-03', hidden={HIDDEN_UNIT}) is None
+    assert placed(TREE, '2025-05-03', hidden={HIDDEN_UNIT}) is not None
+
+
+def test_children_are_named_from_the_template():
+    assert child_name(CHILD_NAME_TEMPLATE, 'Tree 1', 'Leaf', 1) == 'Tree 1 - Leaf 1'
+    assert child_name('{parent}/{n}', 'T12', 'Leaf', 3) == 'T12/3'
+    # each placeholder is filled in once, so braces in a parent's name, and other braces, are kept
+    assert child_name('{parent} {n} {x}', 'Tree {n}', 'Leaf', 2) == 'Tree {n} 2 {x}'

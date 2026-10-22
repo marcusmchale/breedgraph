@@ -7,9 +7,10 @@ from breedgraph.domain.commands.unit_graphs import (
     RemovePosition,
     MoveUnits,
     ChangePositions,
-    DeriveUnits
+    DeriveUnits,
+    AddChildren
 )
-from breedgraph.domain.model.unit_graphs import UnitOutput
+from breedgraph.domain.model.unit_graphs import UnitOutput, CHILD_NAME_TEMPLATE
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_units_map
 from breedgraph.domain.model.controls import ReadRelease
 
@@ -200,5 +201,38 @@ async def derive_units(
         **({'stage': stage} if stage is not None else {}),
         **({'copy_germplasm': copy_germplasm} if copy_germplasm is not None else {}),
         **(position or {})
+    )
+    return await _units(info, await info.context['bus'].handle(cmd))
+
+@graphql_mutation.field("unitsAddChildren")
+@graphql_payload
+@require_authentication
+async def add_children(
+        _,
+        info,
+        parents: dict,
+        subject_id: int,
+        control_team_id: int,
+        count: int | None = None,
+        name: str | None = CHILD_NAME_TEMPLATE,
+        description: str | None = None,
+        germplasm_id: int | None = None,
+        start=None,
+        release: ReadRelease = ReadRelease.PRIVATE
+) -> List[UnitOutput]:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} adds children to: {parents}")
+    cmd = AddChildren(
+        agent_id=user_id,
+        write_team=control_team_id,
+        release=release,
+        parents=parents,
+        subject_id=subject_id,
+        description=description,
+        germplasm_id=germplasm_id,
+        start=start,
+        # a name given as null leaves them unnamed; a count given as null is the default
+        name=name,
+        **({'count': count} if count is not None else {})
     )
     return await _units(info, await info.context['bus'].handle(cmd))

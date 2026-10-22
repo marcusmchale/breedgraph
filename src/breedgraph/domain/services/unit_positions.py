@@ -10,15 +10,20 @@ write finds it again in the same transaction.
 - A change finds one position of each unit by the fields given and replaces the fields given.
 - Adding a position refuses one the unit has; removing one refuses a unit graph root's last, as roots are found by
   their positions.
+
+Where a unit is at a time (place_at) is found as the Units pages show it, e.g. for children placed where their parents
+were when they were taken.
 """
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List
 
 from numpy import datetime64
 
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
 from breedgraph.domain.model.time_descriptors import upper, same_time, local_datetime64
 from breedgraph.domain.model.unit_graphs import Position, same_position
+from breedgraph.domain.services.analysis_places import position_order
+from breedgraph.domain.services.lineages import lineage_value, HIDDEN
 
 POSITION_FIELDS = ('location_id', 'layout_id', 'coordinates', 'start', 'end')
 PLACE_FIELDS = ('location_id', 'layout_id', 'coordinates')
@@ -60,6 +65,43 @@ def validate_position(position: Position) -> None:
 def holds_at(position: Position, time: datetime64) -> bool:
     """Whether the position holds at the start of the time's period: from its start's period to the end of its end's"""
     return (position.start is None or position.start <= time) and (position.end is None or time < upper(position.end))
+
+
+def place_at(
+        unit_id: int,
+        time: datetime64,
+        positions_of: Callable[[int], List[Position]],
+        parents_of: Callable[[int], Iterable[int]],
+        hidden: Callable[[int], bool]
+) -> Position | None:
+    """
+    Where a unit is at a time (README, Position): its own position holding then, the later-starting one after a move,
+    else the place the nearest units above it with one then agree on, one on each lineage. A unit the user can't read
+    that has positions stops the walk, as in analysis (docs/analysis.md §3), since a place from further up could be
+    wrong. Only the place is given: the location, layout and coordinates. None when there is no place then, the
+    lineages differ, or a hidden unit stops the walk.
+    """
+    def holding(unit: int) -> Position | None:
+        found = [position for position in positions_of(unit) if holds_at(position, time)]
+        return max(found, key=position_order) if found else None
+
+    def place_of(unit: int):
+        if hidden(unit):
+            return HIDDEN if positions_of(unit) else None
+        position = holding(unit)
+        if position is None:
+            return None
+        return position.location_id, position.layout_id, tuple(str(c) for c in position.coordinates or [])
+
+    place, source = lineage_value(unit_id, parents_of, place_of)
+    if place is None or place is HIDDEN:
+        return None
+    position = holding(source)
+    return Position(
+        location_id=position.location_id,
+        layout_id=position.layout_id,
+        coordinates=list(position.coordinates) if position.coordinates else None
+    )
 
 
 def matches(position: Position, at: Dict[str, Any]) -> bool:

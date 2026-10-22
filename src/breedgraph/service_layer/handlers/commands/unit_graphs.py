@@ -1,10 +1,10 @@
 from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, ProtectedNodeError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
-from breedgraph.domain.model.unit_graphs import UnitInput, UnitStored, Position, UnitGraph, UnitDerivation
+from breedgraph.domain.model.unit_graphs import UnitInput, UnitStored, Position, UnitGraph, UnitDerivation, child_name
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
-from breedgraph.domain.services.unit_positions import validate_position
+from breedgraph.domain.services.unit_positions import validate_position, place_at
 from breedgraph.domain.services.lineages import seen_germplasm
 from breedgraph.service_layer.application.unit_positions import ArrivalSelection
 
@@ -302,6 +302,110 @@ async def derive_units(
                 for unit_id, unit in unit_graph.entries.items() if unit_id not in existing
             }
         return [derived[source_id] for source_id in source_ids]
+
+# children added to each unit at once, at most
+MAX_CHILDREN = 100
+
+@handlers.command_handler()
+async def add_children(
+        cmd: commands.unit_graphs.AddChildren,
+        uow_factory: AbstractUnitOfWorkFactory
+) -> List[int]:
+    if not 1 <= cmd.count <= MAX_CHILDREN:
+        raise ValueError(f"Add from 1 to {MAX_CHILDREN} children to each unit")
+    template = (cmd.name or '').strip() or None
+    if template is not None and cmd.count > 1 and '{n}' not in template:
+        raise ValueError("With more than one child to each unit, the name needs {n} to tell them apart")
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        parent_ids = await _selected_unit_ids(uow, cmd.parents)
+        await uow.controls.require_read(ControlledModelLabel.UNIT, parent_ids)
+        await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
+        subject = await uow.ontology.get_entry(entry_id=cmd.subject_id, label=OntologyEntryLabel.SUBJECT)
+        if subject is None:
+            raise NoResultFoundError("Subject not found")
+
+        # the unit graph of each parent, which its children join
+        graphs: Dict[int, UnitGraph] = {}
+        async for unit_graph in uow.repositories.unit_graphs.get_all(unit_ids=parent_ids):
+            for parent_id in parent_ids:
+                if unit_graph.has_unit(parent_id):
+                    graphs[parent_id] = unit_graph
+        missing = [str(parent_id) for parent_id in parent_ids if parent_id not in graphs]
+        if missing:
+            raise NoResultFoundError(f"Unit {', '.join(missing[:10])} was not found")
+        names = await _unit_names(uow, graphs, parent_ids)
+
+        places = {}
+        if cmd.start is not None:
+            places = await _places_at(uow, graphs, parent_ids, cmd.start, names)
+            # validated once for each place, as the children of a field's trees share theirs
+            for position in {(p.location_id, p.layout_id, tuple(p.coordinates or [])): p for p in places.values()}.values():
+                await _validate_position_layout(uow, position)
+
+        existing = {graph.get_root_id(): set(graph.entries) for graph in graphs.values()}
+        for parent_id in parent_ids:
+            for n in range(1, cmd.count + 1):
+                unit_input = UnitInput(
+                    subject=cmd.subject_id,
+                    germplasm=cmd.germplasm_id,
+                    name=None if template is None else child_name(template, names[parent_id], subject.name, n),
+                    description=cmd.description,
+                    positions=[replace(places[parent_id], start=cmd.start)] if cmd.start is not None else []
+                )
+                graphs[parent_id].add_unit(unit_input, parents=[parent_id])
+
+        await uow.commit()
+        # stored on commit: each child known by its parent
+        children = {parent_id: [] for parent_id in parent_ids}
+        for graph in {graph.get_root_id(): graph for graph in graphs.values()}.values():
+            for unit_id in sorted(set(graph.entries) - existing[graph.get_root_id()]):
+                children[graph.get_parent_ids(unit_id)[0]].append(unit_id)
+        return [child_id for parent_id in parent_ids for child_id in children[parent_id]]
+
+async def _unit_names(uow: AbstractUnitHolder, graphs: Dict[int, UnitGraph], unit_ids: List[int]) -> Dict[int, str]:
+    """Each unit's name, or for one without a name its subject and id, as the Units pages show it"""
+    units = {unit_id: graphs[unit_id].get_unit(unit_id) for unit_id in unit_ids}
+    subjects = {}
+    for subject_id in {unit.subject for unit in units.values() if not unit.name and unit.subject is not None}:
+        entry = await uow.ontology.get_entry(entry_id=subject_id, label=OntologyEntryLabel.SUBJECT)
+        subjects[subject_id] = entry.name if entry is not None else 'Unit'
+    return {
+        unit_id: unit.name or f"{subjects.get(unit.subject, 'Unit')} {unit_id}"
+        for unit_id, unit in units.items()
+    }
+
+async def _places_at(
+        uow: AbstractUnitHolder,
+        graphs: Dict[int, UnitGraph],
+        unit_ids: List[int],
+        time,
+        names: Dict[int, str]
+) -> Dict[int, Position]:
+    """Where each unit is at the time, as the user sees it (place_at); refused for those whose place can't be told"""
+    above = {u for unit_id in unit_ids for u in graphs[unit_id].get_ancestors(unit_id)}
+    readable = await _readable(uow, ControlledModelLabel.UNIT, above | set(unit_ids))
+    places, unplaced = {}, []
+    for unit_id in unit_ids:
+        graph = graphs[unit_id]
+        place = place_at(
+            unit_id,
+            time,
+            positions_of=lambda u, graph=graph: graph.get_unit(u).positions,
+            parents_of=graph.get_parent_ids,
+            hidden=lambda u: u not in readable
+        )
+        if place is None:
+            unplaced.append(names[unit_id])
+        else:
+            places[unit_id] = place
+    if unplaced:
+        listed = ', '.join(sorted(unplaced, key=str.casefold)[:5])
+        more = f" and {len(unplaced) - 5} more" if len(unplaced) > 5 else ''
+        raise ValueError(
+            f"Where {listed}{more} {'was' if len(unplaced) == 1 else 'were'} at {time} can't be told, "
+            f"so their children can't be placed there: add them without a start, to be where their parents are"
+        )
+    return places
 
 async def _units_as_seen(
         uow: AbstractUnitHolder, unit_ids: List[int], with_germplasm: bool = True

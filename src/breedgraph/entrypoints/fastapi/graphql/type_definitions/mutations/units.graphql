@@ -154,4 +154,26 @@ extend type Mutation {
         controlTeamId: ID!
         release: ReadRelease
     ): UnitsPayload!
+    """
+    Adds count children (1 to 100) of the subject to each of the parents in one go, all or none, e.g. three leaf
+    samples from each tree of a field on the day they were taken. Each is named from the template: {parent} is its
+    parent's name (or its subject and id), {subject} the subject's name and {n} its number among its parent's new
+    children, from 1, so the default names the first leaf of Tree 1 "Tree 1 - Leaf 1"; null leaves them unnamed. With
+    more than one child to each parent, the name needs {n}. With a start, each child has a position at its parent's
+    place then, its own or the one it takes from the units above it, from then: refused for a parent whose place then
+    can't be told, its lineages differing or hidden. Without one, the children are where their parents are. Their
+    germplasm is the one given, else what they take from their parents. Needs read access to every parent, and to the
+    germplasm given. Returns the children, by parent in the order given.
+    """
+    unitsAddChildren(
+        parents: UnitsSelection!
+        subjectId: ID!
+        count: Int = 1
+        name: String = "{parent} - {subject} {n}"
+        description: String
+        germplasmId: ID
+        start: DateTime
+        controlTeamId: ID!
+        release: ReadRelease
+    ): UnitsPayload!
 }

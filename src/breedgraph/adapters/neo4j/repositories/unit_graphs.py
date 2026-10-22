@@ -121,7 +121,8 @@ class Neo4jUnitGraphsRepository(Neo4jControlledRepository[UnitInput, UnitGraph])
         if not unit_graph.changed:
             return
 
-        for unit_id in unit_graph._graph.added_nodes:
+        # in the order they were added, temporary ids counting down from -1, so stored ids follow it
+        for unit_id in sorted(unit_graph._graph.added_nodes, reverse=True):
             unit = unit_graph.get_entry(unit_id)
 
             if isinstance(unit, UnitInput):
