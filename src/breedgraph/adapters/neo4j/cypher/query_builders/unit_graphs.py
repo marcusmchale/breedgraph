@@ -289,21 +289,28 @@ def _entered_start(position: str, start: str) -> str:
 
 def read_unit_arrivals(related: bool = False):
     """
-    The arrivals at the locations $location_ids: each location id and start as entered, how many units came, and the
-    roots of the unit graphs they came from; newest first, the finer start first at one instant, undated last. With
-    related, only the units at, below or above $unit_id
+    The arrivals at the locations $location_ids: each location id and start as entered, how many units came, how many
+    of them have units derived from them that the user can read, how many are pending (still there, with nothing
+    derived from them), and the roots of the unit graphs they came from; newest first, the finer start first at one
+    instant, undated last. With related, only the units at, below or above $unit_id
     """
     return f"""
         {_arrived('MATCH (location:Location) WHERE location.id IN $location_ids', 'true', related)}
+        WITH location, unit, position, arrived,
+          EXISTS {{ MATCH (derivative:Unit)-[:DERIVED_FROM]->(unit) WHERE {_readable('derivative')} }} AS derived
+        WITH location, unit, position, arrived, derived,
+          NOT derived AND (position.end IS NULL OR localdatetime.transaction() < {upper('position.end')}) AS pending
         WITH location, arrived, position.start_unit AS arrived_unit, position.start_step AS arrived_step,
-          collect(DISTINCT unit) AS units
+          collect(DISTINCT unit) AS units,
+          collect(DISTINCT CASE WHEN derived THEN unit END) AS derived_units,
+          collect(DISTINCT CASE WHEN pending THEN unit END) AS pending_units
         CALL (units) {{
           UNWIND units AS arrived_unit_node
           MATCH (arrived_unit_node)<-[:{EDGE}*1..]-(root:Unit) WHERE NOT (:Unit)-[:{EDGE}]->(root)
           RETURN collect(DISTINCT root.id) AS root_ids
         }}
         RETURN location.id AS location_id, [arrived, arrived_unit, arrived_step] AS start, size(units) AS unit_count,
-          root_ids
+          size(derived_units) AS derived_unit_count, size(pending_units) AS pending_unit_count, root_ids
         ORDER BY arrived IS NULL, arrived DESC, {_PRECISION.format(unit='arrived_unit')}, location_id
     """
 

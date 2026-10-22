@@ -121,6 +121,8 @@ class Neo4jUnitsView(AbstractUnitsView):
                 location_id=record['location_id'],
                 start=deserialize_time(*record['start']),
                 unit_count=record['unit_count'],
+                derived_unit_count=record['derived_unit_count'],
+                pending_unit_count=record['pending_unit_count'],
                 root_ids=list(record['root_ids'])
             )
             async for record in result

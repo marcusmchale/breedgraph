@@ -5,7 +5,7 @@ stops at the first unit with what is sought, so a unit nearer the root doesn't c
 lineage; the units found on separate lineages must agree, or none applies (a sample pooled from trees of two
 treatments, or of two varieties, takes neither).
 """
-from typing import Callable, Hashable, Iterable, TypeVar
+from typing import Any, Callable, Hashable, Iterable, TypeVar
 
 V = TypeVar('V', bound=Hashable)
 
@@ -52,3 +52,30 @@ def lineage_value(
     if len(values) != 1:
         return None, None
     return values.pop(), sources[0]
+
+
+# germplasm on a unit the user cannot read: where a lineage stops, unknown
+HIDDEN = object()
+
+
+def germplasm_seen(unit_graph: Any, redacted: Any) -> Callable[[int], Any]:
+    """
+    A unit's germplasm as the user sees it, for lineage_value: HIDDEN where it has some the user cannot read. The unit
+    graph is whole, and redacted is the user's copy of it (UnitGraph.redacted)
+    """
+    def germplasm_of(unit_id: int):
+        germplasm = unit_graph.get_unit(unit_id).germplasm
+        if germplasm is None:
+            return None
+        seen = redacted.get_unit(unit_id).germplasm if redacted.has_unit(unit_id) else None
+        return germplasm if seen == germplasm else HIDDEN
+    return germplasm_of
+
+
+def seen_germplasm(unit_graph: Any, redacted: Any, unit_id: int) -> int | None:
+    """
+    The germplasm of a unit, its own or the one the nearest units above it agree on, as the user sees it: none where
+    a lineage stops at a unit whose germplasm is hidden (Unit.inheritedGermplasm)
+    """
+    germplasm, _ = lineage_value(unit_id, unit_graph.get_parent_ids, germplasm_seen(unit_graph, redacted))
+    return None if germplasm is HIDDEN else germplasm

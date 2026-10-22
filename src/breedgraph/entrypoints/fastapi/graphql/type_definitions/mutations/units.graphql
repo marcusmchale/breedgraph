@@ -131,4 +131,23 @@ extend type Mutation {
         at: PositionMatchInput!
         change: PositionChangeInput!
     ): UnitsPayload!
+    """
+    Creates a unit derived from each of the units, e.g. plantlets in a field from the microcuttings of an arrival:
+    each a child of parentIds (e.g. a field-season unit), or with no parents the root of a unit graph of its own at
+    the position. Each takes its source's name and subject (or subjectId), and the germplasm its source has or takes
+    from the units above it, where you can read it; set them apart afterwards with unitsUpdateUnit and the positions
+    of each with unitsAddPosition. The units derived from are left as they are: end or move them with
+    unitsChangePositions or unitsMoveUnits. Needs read access to every unit. Returns the units created, in the order
+    of the units they came from.
+    """
+    unitsDeriveUnits(
+        units: UnitsSelection!
+        parentIds: [ID!]
+        position: PositionInput
+        subjectId: ID
+        sourceType: GermplasmSourceType = UNKNOWN
+        description: String
+        controlTeamId: ID!
+        release: ReadRelease
+    ): UnitsPayload!
 }

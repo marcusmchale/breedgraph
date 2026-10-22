@@ -274,7 +274,8 @@ factor records describe it in analysis, and it shares the WITHIN_GRAPH codes of 
 a context of its own is a new unit **derived from** the units it came from, rather than their child: microcuttings from
 a lab that become plantlets in a field, seed that becomes seedlings, a cutting rooted elsewhere. The derived unit is in
 a unit graph of its own team's, as its root or under a unit there (e.g. a field-season unit), and nothing comes down a
-derivation: its germplasm is its own, and analysis doesn't follow it. The derivation is kept as the unit's history. A
+derivation: its germplasm is its own (deriving the units of an arrival at once copies the germplasm each source has or
+takes, where the user can read it), and analysis doesn't follow it. The derivation is kept as the unit's history. A
 unit stays a child where its parent's context describes its observations: a sample sent for analysis describes its
 tree. Deriving needs read access to the units derived from, and leaves them as they are, so a lot can be split, some
 of it derived at one place and the rest moved on. A unit is not derived from itself, from the units above or below it
@@ -309,7 +310,9 @@ Units that came to a location together from elsewhere in their unit graphs, e.g.
 sent to a lab, are an **arrival**: the units, other than roots, with a position at the location from the same start
 whose parents were not there then. An arrival is known by its location and start, so it needs no record of its own,
 and its units stay in their unit graph, below the units they came from. A unit taken from one already there is not an
-arrival; one that comes back later is a new one.
+arrival; one that comes back later is a new one. An arrival counts its units with units derived from them, and those
+pending: still there, with nothing derived from them. With none pending, it is settled: its units were derived from,
+moved on or used up.
 ### Dataset
 Datasets are collections of [record](#data-record) for [units](#unit)
 They have attributes for:

@@ -83,6 +83,13 @@ type UnitArrival {
     """ The start of their positions there, as entered; null for units there without one """
     start: DateTime
     unitCount: Int!
+    """ Its units with units derived from them that you can read, e.g. microcuttings planted as plantlets """
+    derivedUnitCount: Int!
+    """
+    Its units still there, with nothing derived from them: none when the arrival is settled, its units derived from,
+    moved on or used up
+    """
+    pendingUnitCount: Int!
     """ The roots of the unit graphs they came from, placeholders where hidden """
     roots: [Unit!]!
     """ Its units by subject, as id and name, e.g. for selecting them all at once """

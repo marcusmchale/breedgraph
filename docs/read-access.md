@@ -70,7 +70,8 @@ In detail:
    what lies below or above it. Units by location (the unit graph roots at a location, and its arrivals: the units
    that came there from elsewhere in their unit graphs) are searches from the location, so a location the user cannot
    read gives none; an arrival lists readable units only, judging where their parents were through the units the user
-   can read, so a readable unit below a hidden one that came with it is listed in its place.
+   can read, so a readable unit below a hidden one that came with it is listed in its place. Its count of units
+   derived from counts those with a derived unit the user can read.
 6. **Counts follow what is released.** A count of things a readable entity holds counts them all (a released dataset's
    records); a count over a tree counts what rules 2 to 4 would show.
 7. **A reference to a team resolves to the nearest team you can see.** A controlling team hidden from the user is

@@ -6,7 +6,8 @@ from breedgraph.domain.commands.unit_graphs import (
     AddPosition,
     RemovePosition,
     MoveUnits,
-    ChangePositions
+    ChangePositions,
+    DeriveUnits
 )
 from breedgraph.domain.model.unit_graphs import UnitOutput
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import update_units_map
@@ -165,4 +166,34 @@ async def change_positions(
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} changes positions of units: {units} at {at}: {change}")
     cmd = ChangePositions(agent_id=user_id, units=units, at=at, change=change)
+    return await _units(info, await info.context['bus'].handle(cmd))
+
+@graphql_mutation.field("unitsDeriveUnits")
+@graphql_payload
+@require_authentication
+async def derive_units(
+        _,
+        info,
+        units: dict,
+        control_team_id: int,
+        parent_ids: List[int] | None = None,
+        position: dict | None = None,
+        subject_id: int | None = None,
+        source_type: str | None = None,
+        description: str | None = None,
+        release: ReadRelease = ReadRelease.PRIVATE
+) -> List[UnitOutput]:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} derives units from: {units}")
+    cmd = DeriveUnits(
+        agent_id=user_id,
+        write_team=control_team_id,
+        release=release,
+        units=units,
+        parents=parent_ids,
+        subject_id=subject_id,
+        description=description,
+        **({'source_type': source_type} if source_type is not None else {}),
+        **(position or {})
+    )
     return await _units(info, await info.context['bus'].handle(cmd))

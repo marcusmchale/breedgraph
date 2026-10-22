@@ -1,13 +1,15 @@
 from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, ProtectedNodeError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
-from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph, UnitDerivation
+from breedgraph.domain.model.unit_graphs import UnitInput, UnitStored, Position, UnitGraph, UnitDerivation
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.domain.services.unit_positions import validate_position
+from breedgraph.domain.services.lineages import seen_germplasm
 from breedgraph.service_layer.application.unit_positions import ArrivalSelection
 
-from typing import List
+from dataclasses import replace
+from typing import List, Dict, Iterable, Set, Tuple
 
 
 from ..registry import handlers
@@ -238,6 +240,90 @@ async def change_positions(
         )
         await uow.commit()
         return changed
+
+@handlers.command_handler()
+async def derive_units(
+        cmd: commands.unit_graphs.DeriveUnits,
+        uow_factory: AbstractUnitOfWorkFactory
+) -> List[int]:
+    async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        source_ids = await _selected_unit_ids(uow, cmd.units)
+        await uow.controls.require_read(ControlledModelLabel.UNIT, source_ids)
+        sources = await _units_as_seen(uow, source_ids)
+
+        position = None
+        if cmd.location_id:
+            position = Position(
+                location_id=cmd.location_id,
+                layout_id=cmd.layout_id,
+                coordinates=cmd.coordinates,
+                start=cmd.start,
+                end=cmd.end
+            )
+            validate_position(position)
+            await _validate_position_layout(uow, position)
+        elif not cmd.parents:
+            raise ValueError("Derived units need parents, or a position to be the roots of unit graphs of their own")
+
+        unit_graph = None
+        if cmd.parents:
+            unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.parents[0])
+            if unit_graph is None:
+                raise NoResultFoundError("Parent unit not found")
+            existing = set(unit_graph.entries)
+
+        derived = {}
+        for source_id in source_ids:
+            source, germplasm = sources[source_id]
+            unit_input = UnitInput(
+                subject=cmd.subject_id if cmd.subject_id is not None else source.subject,
+                germplasm=germplasm,
+                name=source.name,
+                positions=[replace(position)] if position else [],
+                derived_from=[
+                    UnitDerivation(unit_id=source_id, source_type=cmd.source_type, description=cmd.description)
+                ]
+            )
+            if unit_graph is not None:
+                unit_id = unit_graph.add_unit(unit_input, parents=cmd.parents)
+                unit_graph.check_derived_from(unit_id, [source_id])
+            else:
+                derived[source_id] = (await uow.repositories.unit_graphs.create(unit_input)).get_root_id()
+
+        await uow.commit()
+        if unit_graph is not None:
+            # stored on commit: each new unit is known by the unit it came from
+            derived = {
+                unit.derived_from[0].unit_id: unit_id
+                for unit_id, unit in unit_graph.entries.items() if unit_id not in existing
+            }
+        return [derived[source_id] for source_id in source_ids]
+
+async def _units_as_seen(uow: AbstractUnitHolder, unit_ids: List[int]) -> Dict[int, Tuple[UnitStored, int | None]]:
+    """
+    Each of the units the user reads, with the germplasm it has or takes from the units above it as the user sees it
+    (Unit.inheritedGermplasm), where they can read that germplasm
+    """
+    found = {}
+    async for unit_graph in uow.repositories.unit_graphs.get_all(unit_ids=unit_ids):
+        redacted = await uow.repositories.unit_graphs.redacted(unit_graph)
+        for unit_id in unit_ids:
+            if redacted.has_unit(unit_id):
+                found[unit_id] = (redacted.get_unit(unit_id), seen_germplasm(unit_graph, redacted, unit_id))
+    readable = await _readable(
+        uow, ControlledModelLabel.GERMPLASM, {germplasm for _, germplasm in found.values() if germplasm is not None}
+    )
+    return {unit_id: (unit, germplasm if germplasm in readable else None) for unit_id, (unit, germplasm) in found.items()}
+
+async def _readable(uow: AbstractUnitHolder, label: ControlledModelLabel, model_ids: Iterable[int]) -> Set[int]:
+    model_ids = list(model_ids)
+    if not model_ids:
+        return set()
+    controllers = await uow.controls.get_controllers(label, model_ids)
+    return {
+        model_id for model_id, controller in controllers.items()
+        if controller.has_access(Access.READ, uow.controls.user_id, uow.controls.access_teams[Access.READ])
+    }
 
 async def _selected_unit_ids(uow: AbstractUnitHolder, selection: commands.unit_graphs.UnitsSelection) -> List[int]:
     arrival = selection.arrival

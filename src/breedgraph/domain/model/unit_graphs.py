@@ -166,6 +166,9 @@ class UnitArrival:
     location_id: int
     start: datetime64 | None
     unit_count: int = 0
+    # its units with units derived from them, and those still there with none: settled when none is pending
+    derived_unit_count: int = 0
+    pending_unit_count: int = 0
     root_ids: List[int] = field(default_factory=list)
 
 

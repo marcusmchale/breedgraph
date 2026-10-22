@@ -29,6 +29,14 @@ breaks: every change adds to the schema, and a unit with units derived from it c
   (`sourceType` defaults to UNKNOWN). On update, omitted leaves them unchanged and an empty list removes them all. Refused
   for the unit itself, the units above or below it in its unit graph, and units derived from it. Work: a picker in the
   unit form, with the child-or-derived guidance from the README (a sample stays a child of its tree).
+- `unitsDeriveUnits(units, parentIds, position, subjectId, sourceType, description, controlTeamId, release)`: a unit
+  derived from each unit given, or of an arrival (`UnitsSelection`), under `parentIds` (e.g. a field-season unit) or each
+  a root at `position`, with its source's name and subject (or `subjectId`) and the germplasm its source has or takes
+  where the user reads it. Returns the units created. The units derived from are left where they are. Work: a "derive"
+  action on an arrival and on a selection of units, then offering to end the arrival with `unitsChangePositions` or move
+  the rest on with `unitsMoveUnits`, and setting positions in the new field with `unitsAddPosition`.
+- `UnitArrival.derivedUnitCount` and `pendingUnitCount`. Work: show them, and fold away settled arrivals (none pending),
+  keeping them reachable.
 - `unitsDeleteUnit` is refused for a unit with units derived from it ("Units are derived from this unit"). Work: show
   the message.
 

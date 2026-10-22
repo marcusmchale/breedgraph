@@ -12,26 +12,11 @@ from breedgraph.domain.model.datasets import DatasetStored
 from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, FactorStored
 from breedgraph.domain.model.programs import StudyStored
 from breedgraph.domain.model.unit_graphs import UnitGraph
-from breedgraph.domain.services.lineages import lineage_value, nearest_on_each_lineage
+from breedgraph.domain.services.lineages import lineage_value, nearest_on_each_lineage, germplasm_seen, HIDDEN
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitHolder
 
 import logging
 logger = logging.getLogger(__name__)
-
-# germplasm on a unit the user cannot read: where a lineage stops, unknown
-HIDDEN = object()
-
-
-def _germplasm_seen(unit_graph: UnitGraph, redacted: UnitGraph):
-    """A unit's germplasm as the user sees it, for lineage_value: HIDDEN where it has some the user cannot read"""
-    def germplasm_of(unit_id: int):
-        germplasm = unit_graph.get_unit(unit_id).germplasm
-        if germplasm is None:
-            return None
-        seen = redacted.get_unit(unit_id).germplasm if redacted.has_unit(unit_id) else None
-        return germplasm if seen == germplasm else HIDDEN
-    return germplasm_of
-
 
 def _nearest_seen(unit_graph: UnitGraph, unit_id: int, seen: set[int]) -> list[int]:
     """The nearest units above a hidden unit that the user can read, one on each lineage"""
@@ -207,7 +192,7 @@ class AnalysisContextLoader:
             async for unit_graph in self.uow.repositories.unit_graphs.get_all(unit_ids=list(unit_ids)):
                 # Units the user cannot read are left out, and ancestors are those the user can read
                 redacted = await self.uow.repositories.unit_graphs.redacted(unit_graph)
-                germplasm_of = _germplasm_seen(unit_graph, redacted)
+                germplasm_of = germplasm_seen(unit_graph, redacted)
                 if placing:
                     hidden = _hidden_positioned(unit_graph, redacted)
                     hidden_positioned |= hidden

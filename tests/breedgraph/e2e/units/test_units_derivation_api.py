@@ -4,7 +4,9 @@ Units derived from others through GraphQL (README, Unit), on the arrivals scenar
 arrived at the lab in the child team's. A derivation passes nothing down, so a derived unit takes no germplasm from the
 unit it came from; linking needs read access to it, a hidden source shows as a placeholder, and derivatives list only
 units the viewer can read. A unit is not derived from its own context, nor from a unit derived from it, and a unit with
-derivatives can't be deleted.
+derivatives can't be deleted. unitsDeriveUnits derives a unit from each unit of an arrival, or of a list, at once, each
+with the germplasm its source has or takes where the deriving user can read it, and arrivals count the units derived
+from and those still pending.
 """
 import pytest
 
@@ -221,3 +223,129 @@ async def test_derivations_refused(client, login_token_factory, read_policy, arr
     # the last in a line of derivations can go, and its link with it
     await succeeds(client, login_token_factory, stranger, DELETE, {'id': second}, 'unitsDeleteUnit')
     assert (await read(client, login_token_factory, stranger, first))['derivatives'] == []
+
+
+DERIVE = """
+mutation (
+  $units: UnitsSelection!, $parentIds: [ID!], $position: PositionInput, $subjectId: ID,
+  $sourceType: GermplasmSourceType, $description: String, $controlTeamId: ID!, $release: ReadRelease
+) {
+  unitsDeriveUnits(
+    units: $units, parentIds: $parentIds, position: $position, subjectId: $subjectId, sourceType: $sourceType,
+    description: $description, controlTeamId: $controlTeamId, release: $release
+  ) {
+    status errors { name message }
+    result {
+      id name
+      subject { id }
+      germplasm { id }
+      parents { id }
+      positions { location { id } }
+      derivedFrom { unit { id } sourceType description }
+    }
+  }
+}
+"""
+ARRIVALS = """
+query ($locationIds: [ID!]!) {
+  unitsArrivals(locationIds: $locationIds) {
+    status errors { message }
+    result { start unitCount derivedUnitCount pendingUnitCount }
+  }
+}
+"""
+
+
+async def arrival_counts(client, login_token_factory, user_id, location_id: int, start: str) -> tuple:
+    arrivals = await succeeds(client, login_token_factory, user_id, ARRIVALS, {'locationIds': [location_id]}, 'unitsArrivals')
+    (arrival,) = [arrival for arrival in arrivals if arrival['start'] == start]
+    return arrival['unitCount'], arrival['derivedUnitCount'], arrival['pendingUnitCount']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_an_arrival_derived_under_a_field_season(client, login_token_factory, read_policy, arrivals):
+    from tests.breedgraph.scenarios.arrival_scenario import EXPECTED_ARRIVALS, LAB, expected_germplasm
+
+    stranger, writer, lab = read_policy['stranger'], read_policy['writer'], read_policy[LAB]
+    start = '2025-03-25'
+    names = dict(EXPECTED_ARRIVALS[LAB]['stranger'])[start]
+    # A2 moved on and A3 was used up; the others are still there
+    assert await arrival_counts(client, login_token_factory, stranger, lab, start) == (6, 0, 4)
+
+    field_id = await field_season(client, login_token_factory, read_policy, 'Derived Field Season')
+    derived = await succeeds(client, login_token_factory, stranger, DERIVE, {
+        'units': {'arrival': {'locationId': lab, 'start': start}},
+        'parentIds': [field_id],
+        'sourceType': 'TISSUE',
+        'description': 'Microcuttings',
+        'controlTeamId': read_policy['other'],
+        'release': 'REGISTERED'
+    }, 'unitsDeriveUnits')
+
+    assert sorted(unit['name'] for unit in derived) == sorted(names)
+    germplasm = expected_germplasm(arrivals, 'stranger')
+    for unit in derived:
+        source = arrivals.units[unit['name']]
+        assert unit['derivedFrom'] == [
+            {'unit': {'id': str(source)}, 'sourceType': 'TISSUE', 'description': 'Microcuttings'}
+        ]
+        assert unit['parents'] == [{'id': str(field_id)}]
+        assert unit['positions'] == []
+        assert unit['subject'] == {'id': str(read_policy['ontology_subject_sample'])}
+        # the germplasm its source has or takes, as the stranger sees it, is its own
+        expected = germplasm.get(unit['name'])
+        assert unit['germplasm'] == (None if expected is None else {'id': str(read_policy[expected['germplasm']])}), unit['name']
+
+    # the samples stay where they were, and the arrival is settled for the stranger; the writer, who reads the hidden
+    # sample in it, has that one still pending
+    sample = await succeeds(client, login_token_factory, stranger, """
+        query ($ids: [ID!]) { unitsUnits(ids: $ids) { status result { positions { start end } } errors { message } } }
+    """, {'ids': [arrivals.units['Arrival Sample A1']]}, 'unitsUnits')
+    assert sample[0]['positions'] == [{'start': start, 'end': None}]
+    assert await arrival_counts(client, login_token_factory, stranger, lab, start) == (6, 6, 0)
+    assert await arrival_counts(client, login_token_factory, writer, lab, start) == (6, 5, 1)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_units_derived_as_roots_take_only_germplasm_one_reads(client, login_token_factory, read_policy, arrivals):
+    stranger, writer = read_policy['stranger'], read_policy['writer']
+    tree = read_policy['tree_registered']
+
+    async def derive(user_id, team: str) -> dict:
+        (unit,) = await succeeds(client, login_token_factory, user_id, DERIVE, {
+            'units': {'unitIds': [tree]},
+            'position': {'locationId': read_policy['field_registered']},
+            'subjectId': read_policy['ontology_subject_tree'],
+            'controlTeamId': read_policy[team],
+            'release': 'REGISTERED'
+        }, 'unitsDeriveUnits')
+        return unit
+
+    # crop_middle, the tree's germplasm, is private to the child team
+    from_stranger = await derive(stranger, 'other')
+    assert from_stranger['germplasm'] is None
+    assert from_stranger['parents'] == []
+    assert from_stranger['positions'] == [{'location': {'id': str(read_policy['field_registered'])}}]
+    assert from_stranger['derivedFrom'] == [{'unit': {'id': str(tree)}, 'sourceType': 'UNKNOWN', 'description': None}]
+    from_writer = await derive(writer, 'child')
+    assert from_writer['germplasm'] == {'id': str(read_policy['crop_middle'])}
+    assert from_writer['name'] == from_stranger['name'] == (await read(client, login_token_factory, writer, tree))['name']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_deriving_units_refused(client, login_token_factory, read_policy, arrivals):
+    stranger = read_policy['stranger']
+    field_id = await field_season(client, login_token_factory, read_policy, 'Derived Field Refused Batch')
+    base = {'controlTeamId': read_policy['other'], 'parentIds': [field_id]}
+    # a unit the stranger cannot read, and a unit within the field season itself, its own context
+    await fails(client, login_token_factory, stranger, DERIVE, {
+        **base, 'units': {'unitIds': [arrivals.units['Arrival Sample Hidden']]}
+    }, 'unitsDeriveUnits')
+    assert 'context' in await fails(client, login_token_factory, stranger, DERIVE, {
+        **base, 'units': {'unitIds': [field_id]}
+    }, 'unitsDeriveUnits')
+    # neither parents nor a position
+    await fails(client, login_token_factory, stranger, DERIVE, {
+        'controlTeamId': read_policy['other'], 'units': {'unitIds': [arrivals.units['Arrival Sample A1']]}
+    }, 'unitsDeriveUnits')
+    assert (await read(client, login_token_factory, stranger, field_id))['derivatives'] == []
