@@ -50,13 +50,15 @@ Everyone accepts the Terms of Use before using BreedGraph, through the website o
 before their data (§5). The Terms forbid sharing accounts and acceptances, and passing data on outside its licence;
 they can later ask for credit for information anyone can see, such as germplasm and locations. Their draft for review
 is `docs/legal/terms-of-use.md`; the API serves the published copy (`src/breedgraph/legal/terms_of_use.md`, or the file
-`TERMS_OF_USE_PATH` names), read once at start-up with its SHA-256.
+`TERMS_OF_USE_PATH` names), read once at start-up with its SHA-256. It serves the privacy notice the same way
+(`src/breedgraph/legal/privacy_notice.md`, or the file `PRIVACY_NOTICE_PATH` names; drafted in
+`docs/legal/privacy-notice.md`), as `privacyNotice`, without a hash: it is for reading, and nobody accepts it.
 
 **The gate.** Every GraphQL operation is refused, with the error code `TERMS_NOT_ACCEPTED` (on HTTP 200), unless the
-request's user has accepted the current Terms; only `termsOfUse`, `termsAccept` and introspection are open before
-(`graphql_endpoint.py`, a validation rule added for such requests). REST endpoints are not gated: CSRF, email
-verification and password reset links, map tiles, the workers' endpoints, and downloads, whose URLs are issued through
-GraphQL. In-process GraphQL calls in tests and scripts pass no such rule.
+request's user has accepted the current Terms; only `termsOfUse`, `termsAccept`, `privacyNotice` and introspection are
+open before (`graphql_endpoint.py`, a validation rule added for such requests). REST endpoints are not gated: CSRF,
+email verification and password reset links, map tiles, the workers' endpoints, and downloads, whose URLs are issued
+through GraphQL. In-process GraphQL calls in tests and scripts pass no such rule.
 
 **No records.** Nothing is stored about who accepted what. What a browser's user has accepted is one signed token
 (itsdangerous, `ACCEPTANCE_SALT`) per identity, in a cookie (`service_layer/application/acceptance_tokens.py`):

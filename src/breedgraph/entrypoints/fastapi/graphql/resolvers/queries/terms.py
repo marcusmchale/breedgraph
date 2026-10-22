@@ -9,3 +9,9 @@ from . import graphql_query
 async def get_terms_of_use(_, info) -> dict:
     terms = info.context['terms_of_use']
     return {'text': terms.text, 'content_hash': terms.content_hash, 'accepted': terms_accepted(info.context)}
+
+
+@graphql_query.field("privacyNotice")
+@graphql_payload
+async def get_privacy_notice(_, info) -> dict:
+    return {'text': info.context['privacy_notice']}

@@ -16,6 +16,15 @@ breedview's master (`72a904d`) implements every API change up to 2026-10-22.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## The privacy notice from the API
+
+The API serves the privacy notice as it does the Terms of Use: `privacyNotice` returns `PrivacyNotice { text }`
+(markdown), to anyone, before the Terms are accepted too (docs/licences.md §4). Nothing breaks: until breedview reads
+it, breedview shows its own copy, `public/privacy_notice.md`, which is no longer kept up to date.
+
+Work in breedview: `usePrivacyNotice.js` reads `privacyNotice` instead of fetching `/privacy_notice.md`, and
+`public/privacy_notice.md` goes.
+
 ## Checking the front end against the API
 
 ```bash

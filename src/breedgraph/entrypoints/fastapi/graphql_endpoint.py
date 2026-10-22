@@ -23,15 +23,16 @@ router = APIRouter()
 # Debug errors carry a stack trace and the local variables of the raising frame, so only in development
 GRAPHQL_DEBUG = ENVIRONMENT is Environment.DEVELOPMENT
 
-# What may be asked before the Terms of Use are accepted: reading and accepting them, and introspection
-TERMS_FREE_FIELDS = frozenset({'termsOfUse', 'termsAccept', '__schema', '__type', '__typename'})
+# What may be asked before the Terms of Use are accepted: reading and accepting them, reading the privacy notice, and
+# introspection
+TERMS_FREE_FIELDS = frozenset({'termsOfUse', 'termsAccept', 'privacyNotice', '__schema', '__type', '__typename'})
 TERMS_NOT_ACCEPTED = 'TERMS_NOT_ACCEPTED'
 
 
 class TermsOfUseRequired(ValidationRule):
     """
-    Refuses an operation asking for anything but the Terms of Use, for a request whose user hasn't accepted the current
-    Terms (docs/licences.md §4). Everyone accepts them first, through the website or the API.
+    Refuses an operation asking for anything but the Terms of Use and the privacy notice, for a request whose user
+    hasn't accepted the current Terms (docs/licences.md §4). Everyone accepts them first, through the website or the API.
     """
     def enter_operation_definition(self, node: OperationDefinitionNode, *_args):
         if any(
@@ -78,8 +79,10 @@ async def get_context_value(request: Request):
         "user_id": await get_user_id(request),
         "cached_uow": None,
         "cookies_to_set": [],  # List to store cookies that should be set
-        # the Terms of Use and what the user has accepted (graphql/acceptances.py), read when first needed
+        # the published Terms of Use and privacy notice, and what the user has accepted (graphql/acceptances.py), read
+        # when first needed
         "terms_of_use": request.app.terms_of_use,
+        "privacy_notice": request.app.privacy_notice,
         "acceptance_tokens": request.app.acceptance_tokens,
         "acceptances": None
     }

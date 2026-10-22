@@ -56,6 +56,7 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'locationsLocationsByType': ('query ($id: ID!) { locationsLocationsByType(locationTypeId: $id) { status errors { name message } } }', {'id': ids['ontology_location_field']}, True),
         # open before the Terms are accepted, as everything else is once they are (docs/licences.md §4)
         'termsOfUse': ('query { termsOfUse { status errors { name message } } }', {}, True),
+        'privacyNotice': ('query { privacyNotice { status errors { name message } } }', {}, True),
     }
 
 

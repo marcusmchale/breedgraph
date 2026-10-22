@@ -5,9 +5,11 @@ It proposes answers rather than leaving them open; the notes at the end list wha
 is a fact to fill in before publishing.
 It describes the system as implemented; see `docs/person.md` for the design and `docs/read-access.md` for who can read what.
 
-When complete, it replaces the text in breedview `public/privacy_notice.md`.
-To publish it, copy the notice, from its title to the end of "Changes to this notice", to that file.
-breedview renders the file with a small markdown renderer (`composables/system/markdown.js`, shared with the Terms of Use and licences) that handles headings, bold, italics, `-` and numbered lists, http, https and mailto links, and `---` rules only, so the notice has no tables or nested lists.
+The API serves the published copy, `src/breedgraph/legal/privacy_notice.md` (or the file `PRIVACY_NOTICE_PATH` names),
+to the website and to anyone using the API, before they accept the Terms of Use too. When complete, this notice replaces
+that copy: to publish it, copy the notice, from its title to the end of "Changes to this notice", to that file, and
+restart the API.
+breedview renders it with a small markdown renderer (`composables/system/markdown.js`, shared with the Terms of Use and licences) that handles headings, bold, italics, `-` and numbered lists, http, https and mailto links, and `---` rules only, so the notice has no tables or nested lists.
 
 ---
 

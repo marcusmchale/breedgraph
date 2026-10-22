@@ -1,6 +1,7 @@
 """
-The Terms of Use, accepted by everyone before anything else (docs/licences.md §4): the gate on every GraphQL operation,
-termsOfUse and termsAccept, the acceptance cookies of visitors and of users, and their carrying over at sign-in
+The Terms of Use, accepted by everyone before anything else (docs/licences.md §4): the gate on every GraphQL operation
+but the Terms and the privacy notice, termsOfUse and termsAccept, the acceptance cookies of visitors and of users, and
+their carrying over at sign-in
 """
 import bcrypt
 import pytest
@@ -13,6 +14,7 @@ from tests.breedgraph.e2e.utils import with_auth, get_verified_payload
 
 TERMS = "query { termsOfUse { status result { text contentHash accepted } errors { message } } }"
 ACCEPT = "mutation ($hash: String!) { termsAccept(contentHash: $hash) { status result errors { message } } }"
+PRIVACY_NOTICE = "query { privacyNotice { status result { text } errors { message } } }"
 SOMETHING_ELSE = "query { references(ids: []) { status errors { message } } }"
 
 
@@ -45,13 +47,17 @@ async def post(client, headers: dict, query: str, variables: dict | None = None)
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_everything_but_the_terms_is_refused_until_they_are_accepted(client, test_app):
+async def test_only_the_terms_and_the_privacy_notice_are_open_until_the_terms_are_accepted(client, test_app):
     headers = with_auth(client.headers["X-CSRF-Token"], accept_terms=False)
 
     terms = get_verified_payload(await post(client, headers, TERMS), "termsOfUse")['result']
     assert terms['text'].startswith('# BreedGraph Terms of Use')
     assert terms['contentHash'] == test_app.terms_of_use.content_hash
     assert terms['accepted'] is False
+
+    # the Terms point to the privacy notice, so it is read before they are accepted
+    notice = get_verified_payload(await post(client, headers, PRIVACY_NOTICE), "privacyNotice")['result']
+    assert notice['text'] == test_app.privacy_notice and notice['text'].startswith('# BreedGraph privacy notice')
 
     introspection = await post(client, headers, "query { __schema { queryType { name } } }")
     assert introspection.json()['data']['__schema']['queryType']['name'] == 'Query'

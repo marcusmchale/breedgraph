@@ -265,4 +265,6 @@ type Query {
 
     """ The Terms of Use, and whether the request's user has accepted them: open before they are accepted """
     termsOfUse: TermsOfUsePayload!
+    """ The privacy notice: open to everyone, before the Terms of Use are accepted too """
+    privacyNotice: PrivacyNoticePayload!
 }

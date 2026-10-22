@@ -13,3 +13,15 @@ type TermsOfUsePayload {
     result: TermsOfUse
     errors: [Error!]
 }
+
+""" How BreedGraph uses personal data, for anyone to read, before accepting the Terms of Use too """
+type PrivacyNotice {
+    """ The published text, in markdown """
+    text: String!
+}
+
+type PrivacyNoticePayload {
+    status: QueryStatus!
+    result: PrivacyNotice
+    errors: [Error!]
+}

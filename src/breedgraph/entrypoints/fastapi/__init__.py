@@ -53,8 +53,10 @@ async def lifespan(fast_api_app: FastAPI):
     graphql_schema = create_graphql_schema()
     fast_api_app.graphql_schema = graphql_schema
 
-    # the Terms of Use everyone accepts, and the signer of what people accept (docs/licences.md §4)
+    # the Terms of Use everyone accepts, the privacy notice anyone may read before them, and the signer of what people
+    # accept (docs/licences.md §4)
     fast_api_app.terms_of_use = load_terms_of_use(config.TERMS_OF_USE_PATH)
+    fast_api_app.privacy_notice = Path(config.PRIVACY_NOTICE_PATH).read_text(encoding='utf-8')
     fast_api_app.acceptance_tokens = AcceptanceTokens(
         secret_key=config.SECRET_KEY,
         salt=config.ACCEPTANCE_SALT,
