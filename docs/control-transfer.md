@@ -20,6 +20,9 @@ It applies to every controlled entity. Person adds one extra rule (§5); see `pe
 - **The unit of transfer is a controlled model, not an aggregate.**
   Models within an aggregate have their own controls, e.g. a Trial may be controlled by a different team from its Program.
   Transferring a Program moves control of the Program only; its Trials and Studies are managed independently.
+  Each is edited or removed with curate access to it alone, and adding a Trial or Study needs curate access to the
+  Program or Trial it is added to. Writes are stamped on the models changed.
+  So a Study given to another team is that team's to edit and remove, and no longer the Trial team's.
   To move several models together, list each of them in one transfer.
 - **Only the offering teams' control moves.**
   Other teams controlling the same model keep their control.

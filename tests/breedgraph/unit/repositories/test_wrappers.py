@@ -1,6 +1,11 @@
 import pytest
 
 from dataclasses import dataclass, field
+from breedgraph.domain.model import RecordGroupExtent
+from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.domain.model.programs import (
+    ProgramStored, TrialStored, StudyStored, StudyInput, RecordGroupingStored, GroupingScope
+)
 from breedgraph.service_layer.tracking.wrappers import tracked
 from typing import List, Set, Dict
 from datetime import datetime, date, timezone
@@ -357,3 +362,75 @@ def test_a_change_of_time_precision_alone_is_a_change():
 
     tracked_model.start = datetime64('2021-05-01')
     assert 'start' in tracked_model.changed
+
+
+""" Changed models: those changed themselves, so an edit to a study of a program's trial is the study's change alone """
+PROGRAM, TRIAL, STUDY = ControlledModelLabel.PROGRAM, ControlledModelLabel.TRIAL, ControlledModelLabel.STUDY
+
+
+def tracked_program():
+    grouping = RecordGroupingStored(id=7, type=1, name='g', scope=GroupingScope.STUDY_WIDE, extent=RecordGroupExtent.SHARED)
+    study = StudyStored(id=3, name='s', groupings=[grouping])
+    return tracked(ProgramStored(id=1, name='p', trials={2: TrialStored(id=2, name='t', studies={3: study})}))
+
+
+def labelled(models) -> list[tuple[ControlledModelLabel, int | None]]:
+    """The programs, trials and studies among models, by label and id"""
+    return [(model.label, getattr(model, 'id', None)) for model in models if model.label in (PROGRAM, TRIAL, STUDY)]
+
+
+@pytest.mark.parametrize('edit', ['name', 'list appended to', 'list given', 'grouping'])
+def test_an_edit_to_a_study_changes_the_study_alone(edit):
+    program = tracked_program()
+    study = program.trials[2].studies[3]
+    if edit == 'name':
+        study.name = 'renamed'
+    elif edit == 'list appended to':
+        study.reference_ids.append(9)
+    elif edit == 'list given':
+        # as the handlers give a study its references
+        study.reference_ids = [9]
+    else:
+        # groupings are part of the study, with no controls of their own
+        study.groupings[0].name = 'renamed'
+    assert labelled(program.changed_models) == [(STUDY, 3)]
+    # the trial and program still hear of it, as their repository writes the study
+    assert 'studies' in program.trials[2].changed and 'trials' in program.changed
+
+
+@pytest.mark.parametrize('edit', ['name', 'list given'])
+def test_an_edit_to_a_trial_changes_the_trial_alone(edit):
+    program = tracked_program()
+    if edit == 'name':
+        program.trials[2].name = 'renamed'
+    else:
+        program.trials[2].contact_ids = [5]
+    assert labelled(program.changed_models) == [(TRIAL, 2)]
+
+
+def test_a_model_given_a_new_list_is_changed():
+    tracked_model = tracked(SimpleModel(id=1, things=['a']))
+    tracked_model.things = ['b']
+    assert [model.id for model in tracked_model.changed_models] == [1]
+
+
+def test_adding_a_study_changes_its_trial():
+    program = tracked_program()
+    program.add_study(trial_id=2, study=StudyInput(name='new'))
+    assert labelled(program.changed_models) == [(TRIAL, 2)]
+    assert labelled(program.added_models) == [(STUDY, None)]
+
+
+@pytest.mark.parametrize('removed', ['study', 'trial'])
+def test_removing_a_study_or_trial_is_its_removal_alone(removed):
+    program = tracked_program()
+    if removed == 'study':
+        program.remove_study(program.trials[2].studies[3])
+        expected = (STUDY, 3)
+    else:
+        program.remove_trial(program.trials[2])
+        expected = (TRIAL, 2)
+    assert labelled(program.removed_models) == [expected]
+    assert program.changed_models == []
+    # so the controller of what was removed is read, to check its removal
+    assert expected in labelled(program.controlled_models)

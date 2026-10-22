@@ -34,6 +34,7 @@ class ControlledRepository(
     cannot read. Reads that show aggregates to users go through the views, which check access in Cypher.
     A hidden aggregate cannot be found by a filter other than its id.
     On update, changing or removing a model requires curate access, and linking requires read access to both ends.
+    A model nested in another, such as a study of a program's trial, is changed only by edits to it (own_changes).
     """
 
     def __init__(

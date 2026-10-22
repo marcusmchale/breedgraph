@@ -106,7 +106,9 @@ In detail:
    its id. Where redaction used to hide a member from the writer, one rule now applies: **you can only link to what
    you can read.** Each added or removed edge in a rooted aggregate (location trees, layout trees, unit graphs) needs read access
    to both stored ends, a new member needs read access to its parent, and attaching a merged unit graph's root needs curate
-   access to it, as moving a member does (`ControlledRepository._check_links`). Links the repositories do not see are
+   access to it, as moving a member does (`ControlledRepository._check_links`). In a program, whose trials and studies
+   have controls of their own, editing or removing one needs curate access to it alone, and adding a trial or study
+   needs it to the program or trial it is added to (`control-transfer.md` §2). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
    unit to its germplasm, a germplasm entry to its origin location and the unit it came from, a layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
    and citing a reference (`AccessControlService.require_read`): references of datasets and their records, of programs,

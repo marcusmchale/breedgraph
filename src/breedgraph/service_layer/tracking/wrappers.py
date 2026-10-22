@@ -13,6 +13,11 @@ its callback, another owner adds its own, and an owner detaches its callback whe
 A list or dict detached from its last owner releases its items' callbacks to it, so one that is discarded, e.g. when an
 attribute is given a new list of some of the same items, doesn't leave its callbacks on them; it attaches them again
 if it gets an owner again. Objects keep their nested values' callbacks, as one removed may be added somewhere else.
+
+A change is reported to every owner up to the aggregate, but it is a changed model (changed_models) only where it was
+made. An edit to a model with controls of its own, such as a study of a program's trial, changes that model alone, and
+its removal is that model's removal (removed_models); the models holding it are changed only by its addition
+(own_changes). Curate access is checked on the models changed and removed, and writes are stamped on those changed.
 """
 import networkx as nx
 from numpy import datetime64, datetime_data
@@ -83,6 +88,43 @@ def is_tracked_object(value: Any) -> bool:
 
 def is_tracked_collection(value: Any) -> bool:
     return type(value) in {TrackedList, TrackedDict, TrackedGraph}
+
+
+def is_separately_controlled(value: Any) -> bool:
+    """A model with controls of its own, as a trial or a study of a program has"""
+    return hasattr(value, 'is_controlled_model') and value.is_controlled_model()
+
+
+def changes_holder(value: Any) -> bool:
+    """
+    Whether a change within an attribute's value changes the object holding it. A list or dict of models with controls
+    of their own changes it only by their addition: an edit to one of them, or its removal, is that model's alone.
+    """
+    if type(value) not in (TrackedList, TrackedDict):
+        return True
+    if value.added:
+        return True
+    removed = value.removed.values() if type(value) is TrackedDict else value.removed
+    changed = (value.__wrapped__[key] for key in value.changed)
+    return any(not is_separately_controlled(item) for items in (removed, changed) for item in items)
+
+
+def collect_held_changed_model(value: 'TrackedObject', changed_models: List) -> None:
+    """
+    A model held in a list or dict that reported a change: itself, if it changed or took the place of another, and the
+    changed models it holds
+    """
+    if value.own_changes or not value.changed:
+        changed_models.append(value)
+    value.collect_nested_changed_models(changed_models)
+
+
+def collect_held_removed_models(value: Any, removed_models: List) -> None:
+    """The models removed from a value held in a list or dict, e.g. a study removed from a trial of a program"""
+    if is_tracked_object(value):
+        removed_models.extend(value.removed_models)
+    elif hasattr(value, 'collect_removed_models'):
+        value.collect_removed_models(removed_models)
 
 
 def attach(value: Any, owner_key: Hashable, callback: Callable) -> None:
@@ -223,6 +265,8 @@ class TrackedObject(ObjectProxy):
     def __init__(self, wrapped, on_changed: Callable | None = None):
         super().__init__(wrapped)
         self._self_changed: Set[str] = set()
+        # those of the changed attributes given new values, rather than changed within (own_changes)
+        self._self_replaced: Set[str] = set()
         self._self_on_changed = root_callbacks(on_changed)
 
         # Track attributes
@@ -262,11 +306,12 @@ class TrackedObject(ObjectProxy):
         return super().__getattr__(name)
 
     def __setattr__(self, key, value):
-        if key not in ('_self_changed', '_self_on_changed') and hasattr(self, key):
+        if key not in ('_self_changed', '_self_replaced', '_self_on_changed') and hasattr(self, key):
             previous = getattr(self.__wrapped__, key, None)
             if previous is not value:
                 if differs(previous, value):
                     self._self_changed.add(key)
+                    self._self_replaced.add(key)
                     for callback in list(self._self_on_changed.values()):
                         callback()
                 # A new value is tracked even when equal to the one it replaces, which no longer belongs to this attribute
@@ -328,22 +373,34 @@ class TrackedObject(ObjectProxy):
         return removed_models
 
     @property
+    def own_changes(self) -> Set[str]:
+        """
+        The changed attributes that change this object itself: those given new values, and those changed within other
+        than by edits to, or the removal of, models with controls of their own
+        """
+        return {
+            attr for attr in self.changed
+            if attr in self._self_replaced or changes_holder(getattr(self.__wrapped__, attr))
+        }
+
+    @property
     def changed_models(self) -> List[Self]:
         """
-        :return: Returns a list of changed models from an aggregate
+        :return: Returns a list of changed models from an aggregate: each model that changed itself (own_changes)
         """
         changed_models: List[Self] = list()
-        if self.changed and hasattr(self, 'id'):
+        if self.own_changes and hasattr(self, 'id'):
             changed_models.append(self)
+        self.collect_nested_changed_models(changed_models)
+        return changed_models
 
+    def collect_nested_changed_models(self, changed_models: List):
         for attr in self.changed:
             value = getattr(self.__wrapped__, attr)
             if not is_tracked_collection(value) and hasattr(value, 'id'):
                 changed_models.append(value)
             elif hasattr(value, 'collect_changed_models'):
                 value.collect_changed_models(changed_models)
-
-        return changed_models
 
     @property
     def on_changed(self) -> Callable:
@@ -358,6 +415,7 @@ class TrackedObject(ObjectProxy):
 
     def reset_tracking(self):
         self.changed.clear()
+        self._self_replaced.clear()
         # Reset tracking for all attributes (including private ones like _graph)
         for attr_name in dir(self.__wrapped__):
             if not callable(getattr(self.__wrapped__, attr_name, None)):
@@ -435,12 +493,14 @@ class TrackedList(ObjectProxy):
                 removed_models.append(value)
             elif hasattr(value, 'collect_removed_models'):
                 value.collect_removed_models(removed_models)
+        for i in self.changed:
+            collect_held_removed_models(self.__wrapped__.__getitem__(i), removed_models)
 
     def collect_changed_models(self, changed_models: List):
         for i in self.changed:
             value = self.__wrapped__.__getitem__(i)
             if is_tracked_object(value):
-                changed_models.append(value)
+                collect_held_changed_model(value, changed_models)
             elif hasattr(value, 'collect_changed_models'):
                 value.collect_changed_models(changed_models)
 
@@ -685,19 +745,20 @@ class TrackedDict(ObjectProxy):
                 value.collect_added_models(added_models)
 
     def collect_removed_models(self, removed_models: List):
-        for key in self.removed.keys() | self.changed:
-            value = self[key]
+        # removed values are no longer held, so are read from those recorded as removed
+        for value in self.removed.values():
             if is_tracked_object(value):
-                if key in self.removed:
-                    removed_models.append(value)
+                removed_models.append(value)
             elif hasattr(value, 'collect_removed_models'):
                 value.collect_removed_models(removed_models)
+        for key in self.changed:
+            collect_held_removed_models(self[key], removed_models)
 
     def collect_changed_models(self, changed_models: List):
         for key in self.changed:
             value = self[key]
             if is_tracked_object(value):
-                changed_models.append(value)
+                collect_held_changed_model(value, changed_models)
             elif hasattr(value, 'collect_changed_models'):
                 value.collect_changed_models(changed_models)
 
