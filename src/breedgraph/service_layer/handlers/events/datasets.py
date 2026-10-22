@@ -54,6 +54,8 @@ async def handle_dataset_submitted(
                 *(dataset_input.references or []),
                 *(reference_id for record in dataset_input.records for reference_id in record.references or [])
             ])
+            # each record is on a unit the user can read: another, or one that isn't there, is not found
+            await uow.controls.require_read(ControlledModelLabel.UNIT, [record.unit for record in dataset_input.records])
 
             # we want to create the dataset without records first so that we can begin locking them in
             # and return errors only for those that need to be corrected before storing.
@@ -185,6 +187,8 @@ async def dataset_records_submitted(
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
                 reference_id for record in records for reference_id in record.references or []
             ])
+            # as for a new dataset, each record is on a unit the user can read
+            await uow.controls.require_read(ControlledModelLabel.UNIT, [record.unit for record in records])
             dataset = await uow.repositories.datasets.get(dataset_id=records_import.dataset_id)
             if dataset is None:
                 raise ValueError(f"Dataset not found for dataset id: {records_import.dataset_id}")

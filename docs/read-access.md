@@ -110,7 +110,7 @@ In detail:
    have controls of their own, editing or removing one needs curate access to it alone, and adding a trial or study
    needs it to the program or trial it is added to (`control-transfer.md` §2). Links the repositories do not see are
    checked in the handlers (`AccessControlService.require_access`): a unit's position to its location and layout, a
-   unit to its germplasm, a germplasm entry to its origin location and the unit it came from, a layout to its location, a dataset to its study, splitting a unit graph (curate on the unit, read on its parents),
+   unit to its germplasm, a germplasm entry to its origin location and the unit it came from, a layout to its location, a dataset to its study, a record to its unit (created, added or moved), splitting a unit graph (curate on the unit, read on its parents),
    and citing a reference (`AccessControlService.require_read`): references of datasets and their records, of programs,
    trials, studies and germplasm entries, a study's licence, and the references, licence and copyright of the ontology.
    Only references added are checked, so an entry can still be edited while it cites one the editor cannot read.

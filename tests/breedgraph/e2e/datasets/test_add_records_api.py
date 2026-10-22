@@ -1,7 +1,8 @@
 """
 datasetsAddRecords, on the read-policy scenario and its spectra (tests/breedgraph/scenarios/spectra_scenario.py):
 records are added to a stored dataset as a new dataset's are, parsed with its scale and checked against its study's
-groupings. One that doesn't parse is an item error of the submission, which then adds none of them.
+groupings, on units the writer can read. One that doesn't parse is an item error of the submission, which then adds
+none of them; one on a unit the writer can't read, or that isn't there, fails it as not found.
 """
 import pytest
 
@@ -84,3 +85,18 @@ async def test_a_record_on_a_complex_scale_citing_no_file_is_refused(client, log
     assert submission['status'] == 'FAILED'
     assert submission['itemErrors'] == [{'index': 0, 'error': "Complex scale records require at least one reference"}]
     assert await records_of(client, login_token_factory, read_policy, spectra.ids['dataset']) == before
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('unit', ['leaf_other', None])
+async def test_a_record_on_a_unit_the_writer_cannot_read_is_not_added(client, login_token_factory, read_policy, unit):
+    """Another team's private unit is not found, as is a unit that isn't there"""
+    unit_id = read_policy[unit] if unit else 10 ** 6
+    dataset_id = read_policy['dataset_public']
+    before = await records_of(client, login_token_factory, read_policy, dataset_id)
+    submission = await add(client, login_token_factory, read_policy, dataset_id, [
+        {'unitId': read_policy['tree_public'], 'value': '6'}, {'unitId': unit_id, 'value': '6'}
+    ])
+    assert submission['status'] == 'FAILED'
+    assert any(f"Unit {unit_id} was not found" in error for error in submission['errors']), submission['errors']
+    assert await records_of(client, login_token_factory, read_policy, dataset_id) == before

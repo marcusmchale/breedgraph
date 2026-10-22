@@ -4,6 +4,7 @@ input RecordGroupInput {
 }
 
 input RecordInput {
+    """ The unit the record is of, which the user must be able to read """
     unitId: ID!
     value: String
     start: DateTime
