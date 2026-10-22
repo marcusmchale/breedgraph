@@ -15,9 +15,10 @@ class RecordImport(BaseModel):
 
 class RecordUpdateImport(BaseModel):
     id: int
-    start: str | None
-    end: str | None
-    value: str | int | None
+    # optional, as in RecordUpdate: one not given, or null, leaves the record's as it is
+    start: str | None = None
+    end: str | None = None
+    value: str | int | None = None
     groups: list[RecordGroup] | None = None
     reference_ids: list[int] | None = None
 

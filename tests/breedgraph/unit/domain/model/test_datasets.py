@@ -1,7 +1,12 @@
 """
-A record on a complex scale cites references rather than holding a value: none is created citing nothing, and no update
-leaves one citing nothing, so dropping a record's last reference means removing the record
+Updating records. A record on a complex scale cites references rather than holding a value: none is created citing
+nothing, and no update leaves one citing nothing, so dropping a record's last reference means removing the record. An
+update gives only what changes: its start, end and value are optional, as in RecordUpdate, and left as they are when
+not given.
 """
+from numpy import datetime64
+
+from breedgraph.domain.importers import DatasetUpdateImport
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, DataRecordStored, DataRecordUpdate
 from breedgraph.domain.model.ontology import ScaleStored, ScaleType
 
@@ -9,10 +14,12 @@ COMPLEX = ScaleStored(id=1, name="Reflectance spectrum", scale_type=ScaleType.CO
 NUMERICAL = ScaleStored(id=2, name="Millimeters", scale_type=ScaleType.NUMERICAL)
 
 
-def dataset(value: str | None = None, references: list[int] | None = None) -> DatasetInput:
+def dataset(value: str | None = None, references: list[int] | None = None, start: str | None = None) -> DatasetInput:
     """A dataset holding one stored record, 10, on unit 5"""
     with_record = DatasetInput(concept=1, study=1)
-    with_record.records = [DataRecordStored(id=10, unit=5, value=value, references=references)]
+    with_record.records = [DataRecordStored(
+        id=10, unit=5, value=value, references=references, start=datetime64(start) if start else None
+    )]
     return with_record
 
 
@@ -46,3 +53,17 @@ def test_a_record_holding_a_value_may_cite_nothing():
     stored = dataset(value='310', references=[7])
     assert list(stored.update_records([DataRecordUpdate(id=10, value='311', reference_ids=[])], NUMERICAL, None, [])) == [None]
     assert (stored.records[0].value, stored.records[0].references) == ('311', [])
+
+
+def test_an_update_giving_only_references_leaves_the_rest():
+    (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'reference_ids': [8]}]).records_to_update()
+    stored = dataset(references=[7], start='2025-06-12')
+    assert list(stored.update_records([update], COMPLEX, None, [])) == [None]
+    assert (str(stored.records[0].start), stored.records[0].references) == ('2025-06-12', [8])
+
+
+def test_an_update_giving_only_a_value_leaves_the_rest():
+    (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'value': '311'}]).records_to_update()
+    stored = dataset(value='310', start='2025-06-12')
+    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert (stored.records[0].value, str(stored.records[0].start)) == ('311', '2025-06-12')
