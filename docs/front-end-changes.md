@@ -5,40 +5,16 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, and the privacy notice from the API at `8f48104`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, and derived units at `a89ee36`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
 
-breedview's master (`5d78ad9`) implements every API change up to 2026-10-22, except derived units (below).
+breedview's master (`859c7a4`) implements every API change up to 2026-10-22.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
-
-## Derived units
-
-A unit can be derived from others: material that starts a context of its own, e.g. plantlets in a field grown from
-microcuttings that arrived from a lab (README, Unit). Unlike a parent, a unit derived from passes nothing down. Nothing
-breaks: every change adds to the schema, and a unit with units derived from it can no longer be deleted.
-
-- `Unit.derivedFrom` and `Unit.derivatives`: lists of `UnitDerivation { unit, sourceType, description }`, where `unit`
-  is the other end of the link (a placeholder in `derivedFrom` where hidden; `derivatives` lists readable units only).
-  Work: show both on a unit's page, as its history and where its material went, apart from parents and children.
-- `UnitInput.derivedFrom` and `UnitUpdate.derivedFrom`: `[UnitDerivationInput!]` of `{ unitId, sourceType, description }`
-  (`sourceType` defaults to UNKNOWN). On update, omitted leaves them unchanged and an empty list removes them all. Refused
-  for the unit itself, the units above or below it in its unit graph, and units derived from it. Work: a picker in the
-  unit form, with the child-or-derived guidance from the README (a sample stays a child of its tree).
-- `unitsDeriveUnits(units, parentIds, position, subjectId, sourceType, description, controlTeamId, release)`: a unit
-  derived from each unit given, or of an arrival (`UnitsSelection`), under `parentIds` (e.g. a field-season unit) or each
-  a root at `position`, with its source's name and subject (or `subjectId`) and the germplasm its source has or takes
-  where the user reads it. Returns the units created. The units derived from are left where they are. Work: a "derive"
-  action on an arrival and on a selection of units, then offering to end the arrival with `unitsChangePositions` or move
-  the rest on with `unitsMoveUnits`, and setting positions in the new field with `unitsAddPosition`.
-- `UnitArrival.derivedUnitCount` and `pendingUnitCount`. Work: show them, and fold away settled arrivals (none pending),
-  keeping them reachable.
-- `unitsDeleteUnit` is refused for a unit with units derived from it ("Units are derived from this unit"). Work: show
-  the message.
 
 ## Checking the front end against the API
 
