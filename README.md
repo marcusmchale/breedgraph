@@ -300,6 +300,9 @@ in a nursery whose effect is studied in the field is lost to a unit derived from
 or record the factor on the derived unit. And a plant that stays where it is is better kept as one unit across seasons,
 with its records grouped by time or record group, than derived anew each season: derive where its context really
 changes, such as a new trial, site or team.
+
+A unit can't be deleted while anything else refers to it: records for it, which would be left without a unit (remove
+them first), germplasm that came from it, or units derived from it.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)

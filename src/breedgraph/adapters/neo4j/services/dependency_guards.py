@@ -44,6 +44,12 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
         record = await result.single()
         return bool(record and record.get('in_use'))
 
+    async def unit_has_records(self, unit_id: int) -> bool:
+        query = queries['guards']['unit_has_records']
+        result = await self.tx.run(query, unit_id=unit_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
     async def derivation_cycle(self, unit_id: int, source_ids: List[int]) -> bool:
         query = queries['guards']['derivation_cycle']
         result = await self.tx.run(query, unit_id=unit_id, source_ids=source_ids)

@@ -127,13 +127,16 @@ async def delete_unit(
         unit_graph = await uow.repositories.unit_graphs.get(unit_id=cmd.unit_id)
         if unit_graph is None:
             raise NoResultFoundError("Unit not found")
-        # germplasm that came from the unit keeps it, as units keep their germplasm; checked after the access needed to
-        # remove it, so only those who could remove the unit learn of germplasm they may not see
+        # what refers to the unit keeps it: germplasm that came from it (as units keep their germplasm), units derived
+        # from it, and records for it, which would be left without a unit. Checked after the access needed to remove
+        # it, so only those who could remove the unit learn of germplasm, units or records they may not see
         await uow.controls.require_access(ControlledModelLabel.UNIT, [cmd.unit_id], Access.CURATE)
         if await uow.guards.germplasm_from_unit(cmd.unit_id):
             raise ProtectedNodeError("Germplasm came from this unit, so it may not be deleted.")
         if await uow.guards.unit_has_derivatives(cmd.unit_id):
             raise ProtectedNodeError("Units are derived from this unit, so it may not be deleted.")
+        if await uow.guards.unit_has_records(cmd.unit_id):
+            raise ProtectedNodeError("Records are for this unit, so it may not be deleted: remove them first.")
         unit_graph.remove_unit(cmd.unit_id)
         await uow.commit()
 
