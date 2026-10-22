@@ -57,6 +57,8 @@ References (descriptions all contain "Readpolicy"; each file is a small CSV in t
     reference_private            child PRIVATE     writer    (file reference)
     reference_registered         root  REGISTERED  admin     (legal reference)
     reference_legal_private      child PRIVATE     writer    (legal reference)
+    reference_ontology_licence   root  PUBLIC      admin     (legal reference)
+    reference_ontology_copyright root  PUBLIC      admin     (legal reference)
     study_public cites reference_public and reference_private
 
 People
@@ -80,8 +82,8 @@ Datasets (concept: the tree height variable)
 
 Ontology: the builders' types and variables, all active, among them the canopy spectrum, on a complex scale, whose
 records cite files rather than hold values (spectra_scenario.py has some); then a commit by the admin citing
-reference_registered as its licence and reference_legal_private as its copyright; then ontology_subject_draft, a
-subject left in draft
+reference_ontology_licence as its licence and reference_ontology_copyright as its copyright, public, as everything the
+ontology cites is; then ontology_subject_draft, a subject left in draft
 
 Germplasm (each link from a source, SEED unless given)
     crop                         root  PUBLIC      admin
@@ -213,6 +215,8 @@ REFERENCES = {
     'reference_private': ('FILE', 'Readpolicy private file'),
     'reference_registered': ('LEGAL', 'Readpolicy registered licence'),
     'reference_legal_private': ('LEGAL', 'Readpolicy private licence'),
+    'reference_ontology_licence': ('LEGAL', 'Readpolicy ontology licence'),
+    'reference_ontology_copyright': ('LEGAL', 'Readpolicy ontology copyright'),
 }
 STUDY_REFERENCES = {'study_public': ['reference_public', 'reference_private']}
 
@@ -607,8 +611,8 @@ class ReadPolicyScenarioBuilder:
             commit = await uow.ontology.commit_version(
                 version_change=VersionChange.MINOR,
                 comment="Readpolicy commit with references",
-                licence_reference=s['reference_registered'],
-                copyright_reference=s['reference_legal_private']
+                licence_reference=s['reference_ontology_licence'],
+                copyright_reference=s['reference_ontology_copyright']
             )
             await uow.commit()
         self.scenario.ids['ontology_commit_version'] = commit.version.packed_version
@@ -790,7 +794,9 @@ class ReadPolicyScenarioBuilder:
                 ('reference_public', 'root', PUBLIC),
                 ('reference_private', 'child', PRIVATE),
                 ('reference_registered', 'root', REGISTERED),
-                ('reference_legal_private', 'child', PRIVATE)
+                ('reference_legal_private', 'child', PRIVATE),
+                ('reference_ontology_licence', 'root', PUBLIC),
+                ('reference_ontology_copyright', 'root', PUBLIC)
         ):
             reference_type, description = REFERENCES[name]
             if reference_type == 'FILE':

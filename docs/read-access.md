@@ -117,7 +117,9 @@ In detail:
    Only references added are checked, so an entry can still be edited while it cites one the editor cannot read.
    In turn, a reference's release cannot be lowered, by setting it or by a control transfer, below the release of what cites it
    (the ontology counts as public, a record counts as its dataset), so a citation is never hidden later from those who can see
-   what cites it (`AccessControlService._require_release_floor`).
+   what cites it (`AccessControlService._require_release_floor`). The ontology is shared, so it cites public references
+   only: an entry's references, and a version's licence and copyright, are refused unless public when cited
+   (`OntologyService._require_citable_references`), and the floor keeps them public.
    A study's licence is held to more: **it is a legal reference released at least as widely as the study, every
    dataset of the study, and every file its datasets or their records cite**, so whoever reads them by release can read
    the terms they are under, not a placeholder (rule 2), and accept them before downloading a file that holds the

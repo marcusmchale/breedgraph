@@ -10,11 +10,20 @@ describe the API rather than the work, the schema's descriptions, README.md and 
 
 ## Where the front end is
 
-breedview's master (`255a0bf`) implements every API change up to 2026-10-22.
+breedview's master (`255a0bf`) implements every API change up to 2026-10-22, except the ontology's public citations
+(below).
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
+
+## The ontology cites public references only
+
+The ontology is shared, so an entry's references and a version's licence and copyright must be public when cited:
+`ontologyCommitVersion` and the entry mutations refuse a reference released as REGISTERED or PRIVATE, with a message
+naming it (docs/read-access.md, rule 10). Nothing breaks: the commit form already shows the refusal. Work: in the
+commit form's licence and copyright and in an entry's references, offer public references only, or say before
+submitting that the ontology cites public ones only.
 
 ## Checking the front end against the API
 

@@ -1,4 +1,6 @@
-from breedgraph.custom_exceptions import RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import (
+    RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError, IllegalOperationError
+)
 
 from breedgraph.domain.model.ontology import (
     OntologyEntryInput, OntologyEntryStored,
@@ -26,7 +28,7 @@ from breedgraph.domain.model.ontology import (
 )
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 from breedgraph.domain.events import Event
 from breedgraph.domain.events.ontology import OntologyVersionCreated
 
@@ -110,13 +112,26 @@ class OntologyApplicationService:
             if relationship.label not in (OntologyRelationshipLabel.PARENT_OF, OntologyRelationshipLabel.HAS_TERM)
         ])
 
-    async def _require_readable_references(self, reference_ids) -> None:
-        """You can only cite what you can read; a reference the user cannot read is reported as not found"""
-        if not any(reference_id is not None for reference_id in reference_ids or []):
+    async def _require_citable_references(self, reference_ids) -> None:
+        """
+        You can only cite what you can read, a reference the user cannot read being reported as not found; and the
+        ontology is shared, so what it cites, an entry's references or a version's licence and copyright, is public,
+        and stays so: the release floor counts the ontology as public (docs/read-access.md, rule 10)
+        """
+        reference_ids = [reference_id for reference_id in reference_ids or [] if reference_id is not None]
+        if not reference_ids:
             return
         if self.access_control is None:
             raise UnauthorisedOperationError("Citing references requires access control")
         await self.access_control.require_read(ControlledModelLabel.REFERENCE, reference_ids)
+        controllers = await self.access_control.get_controllers(ControlledModelLabel.REFERENCE, reference_ids)
+        for reference_id in reference_ids:
+            release = controllers[reference_id].release
+            if release != ReadRelease.PUBLIC:
+                raise IllegalOperationError(
+                    f"Reference {reference_id} is released as {release.name}: the ontology is shared, so it cites "
+                    f"public references only"
+                )
 
     async def get_current_version(self):
         return await self.persistence.get_current_version()
@@ -133,7 +148,7 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
         elif not self.user_id:
             raise UnauthorisedOperationError("Only registered users can commit versions")
-        await self._require_readable_references([licence_reference, copyright_reference])
+        await self._require_citable_references([licence_reference, copyright_reference])
 
         commit = await self.persistence.commit_version(
             user_id = self.user_id,
@@ -299,7 +314,7 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         """Create a new ontology entry with validation and persistence."""
         await self._validate_entry_uniqueness(entry)
-        await self._require_readable_references(entry.references)
+        await self._require_citable_references(entry.references)
         # Create and persist entry
 
         created_entry = await self.persistence.create_entry(entry, self.user_id)
@@ -619,7 +634,8 @@ class OntologyApplicationService:
             raise UnauthorisedOperationError("Only registered users can update entries")
         # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
-        # only references added need checking: the entry may keep citing references others added that this user cannot read
+        # only references added need checking: the entry may keep citing references others added that this user cannot
+        # read, or that were cited before the ontology cited public references only
         stored = await self.persistence.get_entry(entry_id=entry.id)
         if stored is not None and stored.locked:
             changed = [attr for attr in entry.LOCKED_ATTRIBUTES if getattr(entry, attr) != getattr(stored, attr)]
@@ -627,7 +643,7 @@ class OntologyApplicationService:
                 raise UnauthorisedOperationError(
                     f"{stored.label.value} {stored.name} is locked, so its {', '.join(changed)} cannot change"
                 )
-        await self._require_readable_references(set(entry.references) - set(stored.references if stored else []))
+        await self._require_citable_references(set(entry.references) - set(stored.references if stored else []))
 
         lifecycle = await self._get_entry_lifecycle(entry.id)
         if lifecycle.current_phase != LifecyclePhase.DRAFT:

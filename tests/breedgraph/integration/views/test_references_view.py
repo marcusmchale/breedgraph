@@ -2,7 +2,8 @@
 References under the read policy (docs/read-access.md), on the read-policy scenario:
 
     reference_public (root, public, file), reference_private (child, private, file),
-    reference_registered (root, registered, legal), reference_legal_private (child, private, legal)
+    reference_registered (root, registered, legal), reference_legal_private (child, private, legal),
+    reference_ontology_licence and reference_ontology_copyright (root, public, legal)
 
 A readable reference is returned in full. A hidden one asked for by id is a placeholder: its id, its type and a
 REDACTED description, and never its file id or text (rule 2). Searches leave hidden references out (rule 5).

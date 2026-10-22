@@ -123,7 +123,8 @@ Editors set it like other attributes; it is fixed while the entry is locked.
 
 A reference that is in use cannot be deleted (`guards/reference_in_use.cypher`): cited, or used as a licence or copyright.
 In the same way, **a reference's release cannot be lowered below the release of what cites it**, so a change by the reference's
-controllers never hides a citation from those who can see what cites it. The ontology counts as `PUBLIC`.
+controllers never hides a citation from those who can see what cites it. The ontology counts as `PUBLIC`, and cites public
+references only: an entry's references and a version's licence and copyright must be public when cited.
 Raising a release is always allowed, and a reference no longer cited is free again.
 
 This complements read-access rule 2 (placeholders): a citation of a reference that some readers cannot see still shows to them

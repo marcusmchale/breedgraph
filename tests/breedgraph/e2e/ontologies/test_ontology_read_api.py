@@ -1,7 +1,8 @@
 """
 The ontology queries under the read policy (docs/read-access.md, section 4), through GraphQL, on the read-policy
 scenario: its types and variables are active, ontology_subject_draft is a draft, and the last commit, by the admin,
-cites reference_registered as its licence and reference_legal_private as its copyright.
+cites reference_ontology_licence as its licence and reference_ontology_copyright as its copyright, both public, as
+everything the ontology cites is.
 
 The ontology is not controlled by teams, so its reads are open, but anonymous users get the PUBLISHED and REFERENTIAL
 views only: the EDITORIAL view, with drafts, needs an account. Commit history needs an account; a commit's person
@@ -134,9 +135,10 @@ async def test_commit_history(client, login_token_factory, read_policy, viewer):
     # the committer's Person is released to registered users
     assert int(commit['person']['id']) == read_policy['person_admin']
     assert commit['person']['restricted'] is False
-    for field, reference in (('licence', 'reference_registered'), ('copyright', 'reference_legal_private')):
+    # public, so readable by every viewer of the commit
+    for field, reference in (('licence', 'reference_ontology_licence'), ('copyright', 'reference_ontology_copyright')):
         assert int(commit[field]['id']) == read_policy[reference]
-        assert (commit[field]['description'] != REDACTED) == read_policy.readable(viewer, reference), f"{viewer}: {field}"
+        assert commit[field]['description'] != REDACTED, f"{viewer}: {field}"
 
 
 @pytest.mark.asyncio(loop_scope="session")

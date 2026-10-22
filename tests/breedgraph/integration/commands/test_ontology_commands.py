@@ -1,6 +1,6 @@
 import pytest
 
-from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError
+from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError, IllegalOperationError
 from breedgraph.domain.commands.ontologies import (
     CreateDesign, UpdateDesign, CommitOntologyVersion,
     CreateRole, UpdateRole, CreateTerm, CreateScale, UpdateScale, CreateScaleCategory,
@@ -9,6 +9,7 @@ from breedgraph.domain.commands.ontologies import (
 from breedgraph.domain.commands.setup import RefreshReadModels
 from breedgraph.service_layer.application.ontology_seed import COUNTRY, credit_seed_key_for
 from breedgraph.domain.commands.references import CreateExternalReference
+from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, credit_roles, CREDIT_ATTRIBUTION
 
 
@@ -16,23 +17,26 @@ async def private_reference(bus, user_id: int, team_id: int) -> int:
     return await bus.handle(CreateExternalReference(agent_id=user_id, write_team=team_id, url='https://example.org/private'))
 
 
+async def reference_released(bus, user_id: int, team_id: int, release: ReadRelease) -> int:
+    return await bus.handle(CreateExternalReference(
+        agent_id=user_id, write_team=team_id, release=release, url=f'https://example.org/{release.name.lower()}'
+    ))
+
+
 @pytest.mark.asyncio(loop_scope="session")
 async def test_citing_an_unreadable_reference_is_refused(bus, uow_factory, ontology_build_context, lorem_text_generator):
     context = ontology_build_context
     hidden_id = await private_reference(bus, context['user_id'], context['team_id'])
-    readable_id = await private_reference(bus, context['user_id_2'], context['team_id_2'])
+    public_id = await reference_released(bus, context['user_id_2'], context['team_id_2'], ReadRelease.PUBLIC)
     name = lorem_text_generator.new_text()
     with pytest.raises(NoResultFoundError):
         await bus.handle(CreateDesign(agent_id=context['user_id_2'], name=name, reference_ids=[hidden_id]))
 
-    await bus.handle(CreateDesign(agent_id=context['user_id_2'], name=name, reference_ids=[readable_id]))
+    await bus.handle(CreateDesign(agent_id=context['user_id_2'], name=name, reference_ids=[public_id]))
     async with uow_factory.get_uow(user_id=context['user_id_2']) as uow:
         design = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.DESIGN)
     with pytest.raises(NoResultFoundError):
-        await bus.handle(UpdateDesign(agent_id=context['user_id_2'], ontology_entry_id=design.id, reference_ids=[readable_id, hidden_id]))
-
-    # a reference the user cannot read, already cited by someone else, does not stop them editing the entry
-    await bus.handle(UpdateDesign(agent_id=context['user_id'], ontology_entry_id=design.id, reference_ids=[readable_id, hidden_id]))
+        await bus.handle(UpdateDesign(agent_id=context['user_id_2'], ontology_entry_id=design.id, reference_ids=[public_id, hidden_id]))
     await bus.handle(UpdateDesign(agent_id=context['user_id_2'], ontology_entry_id=design.id, description='Edited'))
 
 
@@ -211,3 +215,29 @@ async def test_lifecycle_history_records_only_changes(bus, uow_factory, ontology
     # deprecating it again changes nothing, so records nothing
     await bus.handle(DeprecateOntologyEntries(agent_id=context['user_id'], entry_ids=[role_id]))
     assert await managed_phases(uow_factory, context, role_id) == ['DRAFT', 'DEPRECATED']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_ontology_cites_public_references_only(bus, uow_factory, ontology_build_context, lorem_text_generator):
+    """
+    The ontology is shared: what it cites is public, so no reader sees a placeholder (docs/read-access.md, rule 10).
+    Last, as committing a version activates the drafts of the tests before it.
+    """
+    context = ontology_build_context
+    user_id, team_id = context['user_id'], context['team_id']
+    for release in (ReadRelease.REGISTERED, ReadRelease.PRIVATE):
+        # the user reads the reference, through their team, but it is not public
+        reference_id = await reference_released(bus, user_id, team_id, release)
+        with pytest.raises(IllegalOperationError, match=f"Reference {reference_id} is released as {release.name}"):
+            await bus.handle(CommitOntologyVersion(agent_id=user_id, licence=reference_id))
+        with pytest.raises(IllegalOperationError, match=f"Reference {reference_id} is released as {release.name}"):
+            await bus.handle(CommitOntologyVersion(agent_id=user_id, copyright=reference_id))
+        with pytest.raises(IllegalOperationError, match="public references only"):
+            await bus.handle(CreateDesign(agent_id=user_id, name=lorem_text_generator.new_text(), reference_ids=[reference_id]))
+
+    public_id = await reference_released(bus, user_id, team_id, ReadRelease.PUBLIC)
+    await bus.handle(CommitOntologyVersion(agent_id=user_id, licence=public_id, copyright=public_id))
+    name = lorem_text_generator.new_text()
+    await bus.handle(CreateDesign(agent_id=user_id, name=name, reference_ids=[public_id]))
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        assert (await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.DESIGN)).references == [public_id]
