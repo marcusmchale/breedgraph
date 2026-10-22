@@ -524,7 +524,12 @@ names another file.
 
 
 ### Nginx
-  be sure to set nginx client_max_body_size to a value that is appropriate for your use case, e.g. 100M
+Set nginx's `client_max_body_size` to the largest file users may upload, e.g. `100M`. It is the upload size limit:
+the API sets none of its own, but for legal references given as files (`LEGAL_FILE_SIZE_LIMIT`). nginx refuses a larger
+request with 413 before it reaches the API, and breedview says the file is larger than the server accepts. breedview
+and the API are served from one origin, so the browser lets breedview read the 413; were they served from separate
+origins, nginx's error page would need the CORS headers too (`add_header ... always`), or breedview would see only a
+failed request.
 
 Serve the map tiles (see Maps) directly from `MAP_TILES_PATH`, beside the front end; nginx answers the range requests
 they are read with. `tiles.json` changes as regions are fetched, so browsers check it at each page load:
