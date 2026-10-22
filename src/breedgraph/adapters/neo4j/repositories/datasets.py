@@ -51,18 +51,18 @@ class Neo4jDatasetsRepository(Neo4jControlledRepository[DatasetInput, DatasetSto
         result: AsyncResult = await self.tx.run(queries['datasets']['create_dataset'], **params)
 
         dataset_record: Record = await result.single(strict=True)
+        dataset_dict = dataset_record.get('dataset')
         if records:
             for record_data in records:
                 self.serialize_dt64(record_data, to_neo4j=True)
             result = await self.tx.run(
                 queries['datasets']['create_records'],
-                dataset_id=dataset_record.get('dataset').get('id'),
+                dataset_id=dataset_dict.get('id'),
                 records=records
             )
-            dataset_record_dict = dataset_record.data()
-            dataset_record_dict['records'] = [record.get('record') async for record in result]
-        dataset = self.record_to_dataset(dataset_record.get('dataset'))
-        return dataset
+            # the dataset returned holds the records created, with their ids
+            dataset_dict['records'] = [record.get('record') async for record in result]
+        return self.record_to_dataset(dataset_dict)
 
 
     async def _update_dataset(self, dataset: DatasetStored|TrackableProtocol):

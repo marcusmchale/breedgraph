@@ -123,9 +123,6 @@ class SpectraScenarioBuilder:
             ))
             await uow.commit()
         ids['dataset'] = dataset.id
-        # the dataset returned on creation has no records: read them back for their ids
-        async with self._uow() as uow:
-            dataset = await uow.repositories.datasets.get(dataset_id=ids['dataset'])
-            units = {self.base[unit]: unit for unit in RECORDS}
-            self.spectra.records = {units[record.unit]: record.id for record in dataset.records}
+        units = {self.base[unit]: unit for unit in RECORDS}
+        self.spectra.records = {units[record.unit]: record.id for record in dataset.records}
         return self.spectra

@@ -1,9 +1,10 @@
 import pytest
+from numpy import datetime64
 
 from breedgraph.domain.model.contributions import Contribution
 from breedgraph.domain.model.ontology import OntologyEntryLabel
 
-from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
+from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, RecordGroup
 from breedgraph.custom_exceptions import NoResultFoundError
 
 async def create_dataset(uow_factory, user_id, team_id, dataset_input):
@@ -110,3 +111,38 @@ async def test_add_record(
         if not retrieved:
             raise ValueError("Dataset not found to compare length of records")
         assert len(retrieved.records) == 1
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_with_records(
+        uow_factory,
+        dataset_build_context
+):
+    """The dataset created holds its records, with their ids, as a read gives them; committing it adds none"""
+    unit_id = dataset_build_context['unit_id']
+    grouping_id = dataset_build_context['grouping_ids'][0]
+    dataset_input = DatasetInput(
+        concept=dataset_build_context['concept_id'],
+        study=dataset_build_context['study_id'],
+        records=[
+            DataRecordInput(unit=unit_id, value='50', start=datetime64('2021-05-03T10:30'), groups=[RecordGroup(id=grouping_id, code='R1')]),
+            DataRecordInput(unit=unit_id, value='60', end=datetime64('2021'))
+        ]
+    )
+    async with uow_factory.get_uow(user_id=dataset_build_context['user_id'], write_team=dataset_build_context['team_id']) as uow:
+        created = await uow.repositories.datasets.create(dataset_input)
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=dataset_build_context['user_id']) as uow:
+        stored = await uow.repositories.datasets.get(dataset_id=created.id)
+
+    def fields(records):
+        """Each record's fields, in id order: a read gives the records in no particular order"""
+        return sorted((r.id, r.unit, r.value, str(r.start), str(r.end), list(r.groups), list(r.references)) for r in records)
+
+    assert None not in {record.id for record in created.records}
+    first, second = sorted(record.id for record in created.records)
+    assert fields(created.records) == [
+        (first, unit_id, '50', '2021-05-03T10:30', 'None', [RecordGroup(id=grouping_id, code='R1')], []),
+        (second, unit_id, '60', 'None', '2021', [], []),
+    ]
+    assert fields(stored.records) == fields(created.records)
