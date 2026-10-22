@@ -167,7 +167,7 @@ units, which `readpolicy_stranger`'s other team controls.
   2025-06-10, for tests that move them and put them back. Microcuttings of Tree C, "Arrival Cuttings C", reached the
   lab on 2025-02-10.
 - **Derived units:** the stranger's unit graph "Arrival Field Season 2025" at the registered field holds "Arrival
-  Plantlet C", derived from the cuttings (TISSUE, micropropagation), with their germplasm as its own. Nothing else comes
+  Plantlet C", derived from the cuttings as a PLANTLET (micropropagation), with their germplasm as its own. Nothing else comes
   down a derivation, and the cuttings stay at the lab, so their arrival is settled.
 - **Study:** "Readpolicy arrivals program" → "trial" → "study", with the light factor on the trees and the height
   variable on samples.

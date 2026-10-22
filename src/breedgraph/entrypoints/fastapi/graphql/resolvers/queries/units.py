@@ -192,7 +192,7 @@ async def resolve_inherited_germplasm(obj, info):
 def _derivation(derivation, units_map) -> dict:
     return {
         'unit': units_map.get(derivation.unit_id),
-        'source_type': derivation.source_type.value,
+        'stage': derivation.stage.value,
         'description': derivation.description
     }
 

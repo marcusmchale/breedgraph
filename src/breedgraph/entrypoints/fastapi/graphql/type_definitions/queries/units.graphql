@@ -51,12 +51,39 @@ type Unit {
     derivatives: [UnitDerivation!]!
 }
 
-""" A unit's material came from another: the unit at the other end of the link, and how """
+""" A unit's material came from another: the unit at the other end of the link, and the stage it was at """
 type UnitDerivation {
     """ The unit it came from in derivedFrom, the unit derived from it in derivatives """
     unit: Unit!
-    sourceType: GermplasmSourceType!
+    stage: DerivationStage!
+    """ e.g. the approximate stage of a plant, or how a graft was formed """
     description: String
+}
+
+"""
+The form material was in when it became a unit derived from another: a physical stage, not a genetic relationship,
+which germplasm entries describe. A graft is derived from several units, each at its own stage, e.g. a scion as a
+CUTTING and its rootstock as a SEEDLING; how they were joined goes in the description.
+"""
+enum DerivationStage {
+    UNKNOWN
+    """ Seed, or a seed lot """
+    SEED
+    """ A young plant grown from seed """
+    SEEDLING
+    """ An unrooted vegetative piece: a stem or nodal cutting, budwood, a scion, a bud chip """
+    CUTTING
+    """ A rooted vegetative piece """
+    ROOTED_CUTTING
+    """ An established whole plant: give its approximate stage in the description """
+    PLANT
+    """
+    Material in culture: an explant, callus, somatic embryos, embryo rescue, anther or microspore culture, a
+    micro-graft, a cryopreserved shoot tip
+    """
+    IN_VITRO
+    """ In vitro material acclimatised ex vitro """
+    PLANTLET
 }
 
 """ Germplasm a unit takes from the units above it """

@@ -44,6 +44,7 @@ that become plantlets in a field, or seed that becomes seedlings, is a new unit 
 unit is in a unit graph of its own team's, and its derivation is kept as its history.
 """
 from abc import ABC
+from enum import Enum
 from dataclasses import dataclass, field, replace
 
 import networkx as nx
@@ -53,7 +54,6 @@ from breedgraph.domain.model.time_descriptors import same_time, local_datetime64
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
-from breedgraph.domain.model.germplasm import GermplasmSourceType
 from breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, Controller, ControlledModelLabel, Access
 
 from typing import List, ClassVar, Generator, Iterable
@@ -87,21 +87,40 @@ def same_position(position: Position, other: Position) -> bool:
         and same_time(time(position.end), time(other.end))
     )
 
+class DerivationStage(str, Enum):
+    """
+    The form material was in when it became a unit derived from another: a physical stage, not a genetic relationship,
+    which germplasm entries describe. A graft is derived from several units, each at its own stage, e.g. a scion as a
+    CUTTING and its rootstock as a SEEDLING; how they were joined, and the approximate stage of a PLANT, go in the
+    description.
+    """
+    UNKNOWN = 'UNKNOWN'
+    SEED = 'SEED'  # seed, or a seed lot
+    SEEDLING = 'SEEDLING'  # a young plant grown from seed
+    CUTTING = 'CUTTING'  # an unrooted vegetative piece: a stem or nodal cutting, budwood, a scion, a bud chip
+    ROOTED_CUTTING = 'ROOTED_CUTTING'  # a rooted vegetative piece
+    PLANT = 'PLANT'  # an established whole plant
+    # material in culture: an explant, callus, somatic embryos, embryo rescue, anther or microspore culture, a
+    # micro-graft, a cryopreserved shoot tip
+    IN_VITRO = 'IN_VITRO'
+    PLANTLET = 'PLANTLET'  # in vitro material acclimatised ex vitro
+
+
 @dataclass
 class UnitDerivation:
     """
-    The unit a unit's material came from, e.g. the microcutting a plantlet grew from: unlike a parent, it passes nothing
-    down, so the derived unit starts a context of its own. Source types are those of germplasm relationships
+    The unit a unit's material came from, e.g. the microcutting a plantlet grew from, and the stage the material was at
+    when it became the unit: unlike a parent, it passes nothing down, so the derived unit starts a context of its own
     """
     unit_id: int
-    source_type: GermplasmSourceType = GermplasmSourceType.UNKNOWN
+    stage: DerivationStage = DerivationStage.UNKNOWN
     description: str | None = None
 
     def __post_init__(self):
-        self.source_type = GermplasmSourceType(self.source_type)
+        self.stage = DerivationStage(self.stage)
 
     def model_dump(self):
-        return {'unit_id': self.unit_id, 'source_type': self.source_type.value, 'description': self.description}
+        return {'unit_id': self.unit_id, 'stage': self.stage.value, 'description': self.description}
 
 
 @dataclass(eq=False)

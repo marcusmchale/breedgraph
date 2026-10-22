@@ -260,8 +260,8 @@ Units have attributes for:
   - description
   - germplasm: an ID for a [germplasm entry](#germplasm-entry)
   - positions: a list of [positions](#position)
-  - derived from: the units its material came from, each with a source type, as for [germplasm](#germplasm)
-    (UNKNOWN, SEED, TISSUE, MATERNAL or PATERNAL), and a description
+  - derived from: the units its material came from, each with the stage the material was at when it became this unit,
+    and a description (below)
 
 A unit without germplasm of its own takes that of the units above it, so a sample needs none: on each path up its
 parents, the first unit with germplasm, and these must agree (a sample pooled from trees of two varieties has none).
@@ -275,11 +275,31 @@ a context of its own is a new unit **derived from** the units it came from, rath
 a lab that become plantlets in a field, seed that becomes seedlings, a cutting rooted elsewhere. The derived unit is in
 a unit graph of its own team's, as its root or under a unit there (e.g. a field-season unit), and nothing comes down a
 derivation: its germplasm is its own (deriving the units of an arrival at once copies the germplasm each source has or
-takes, where the user can read it), and analysis doesn't follow it. The derivation is kept as the unit's history. A
-unit stays a child where its parent's context describes its observations: a sample sent for analysis describes its
-tree. Deriving needs read access to the units derived from, and leaves them as they are, so a lot can be split, some
-of it derived at one place and the rest moved on. A unit is not derived from itself, from the units above or below it
-in its unit graph, or from a unit derived from it, and a unit with units derived from it cannot be deleted.
+takes, where the user can read it, unless another or none is chosen), and analysis doesn't follow it. The derivation is
+kept as the unit's history. A unit stays a child where its parent's context describes its observations: a sample sent
+for analysis describes its tree. Deriving needs read access to the units derived from, and leaves them as they are, so
+a lot can be split, some of it derived at one place and the rest moved on. A unit is not derived from itself, from the
+units above or below it in its unit graph, or from a unit derived from it, and a unit with units derived from it cannot
+be deleted.
+
+Each unit it is derived from comes with the stage the material was at when it became the unit, a physical form rather
+than the genetic relationship [germplasm](#germplasm) describes:
+- SEED: seed, or a seed lot;
+- SEEDLING: a young plant grown from seed;
+- CUTTING: an unrooted vegetative piece, such as a stem or nodal cutting, budwood, a scion or a bud chip;
+- ROOTED_CUTTING: a rooted vegetative piece;
+- PLANT: an established whole plant, with its approximate stage given in the description;
+- IN_VITRO: material in culture, such as an explant, callus, somatic embryos, embryo rescue, anther or microspore
+  culture, a micro-graft or a cryopreserved shoot tip;
+- PLANTLET: in vitro material acclimatised ex vitro;
+- UNKNOWN.
+
+A graft is derived from several units, each at its own stage, e.g. a scion as a CUTTING and its rootstock as a SEEDLING;
+how they were joined, intergrafts included, goes in the descriptions. As nothing comes down a derivation, a treatment
+in a nursery whose effect is studied in the field is lost to a unit derived from the nursery's: move the unit instead,
+or record the factor on the derived unit. And a plant that stays where it is is better kept as one unit across seasons,
+with its records grouped by time or record group, than derived anew each season: derive where its context really
+changes, such as a new trial, site or team.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)

@@ -78,7 +78,8 @@ input UnitInput {
 input UnitDerivationInput {
     """ The unit the material came from """
     unitId: ID!
-    sourceType: GermplasmSourceType = UNKNOWN
+    stage: DerivationStage = UNKNOWN
+    """ e.g. the approximate stage of a plant, or how a graft was formed """
     description: String
 }
 
@@ -134,19 +135,22 @@ extend type Mutation {
     """
     Creates a unit derived from each of the units, e.g. plantlets in a field from the microcuttings of an arrival:
     each a child of parentIds (e.g. a field-season unit), or with no parents the root of a unit graph of its own at
-    the position. Each takes its source's name and subject (or subjectId), and the germplasm its source has or takes
-    from the units above it, where you can read it; set them apart afterwards with unitsUpdateUnit and the positions
-    of each with unitsAddPosition. The units derived from are left as they are: end or move them with
-    unitsChangePositions or unitsMoveUnits. Needs read access to every unit. Returns the units created, in the order
-    of the units they came from.
+    the position. Each takes its source's name and subject (or subjectId), and as its germplasm germplasmId if given,
+    else with copyGermplasm the germplasm its source has or takes from the units above it, where you can read it,
+    else none. Set them apart afterwards with unitsUpdateUnit, and the positions of each with unitsAddPosition. The
+    units derived from are left as they are: end or move them with unitsChangePositions or unitsMoveUnits. Needs read
+    access to every unit, and to the germplasm given. Returns the units created, in the order of the units they came
+    from.
     """
     unitsDeriveUnits(
         units: UnitsSelection!
         parentIds: [ID!]
         position: PositionInput
         subjectId: ID
-        sourceType: GermplasmSourceType = UNKNOWN
+        stage: DerivationStage = UNKNOWN
         description: String
+        germplasmId: ID
+        copyGermplasm: Boolean = true
         controlTeamId: ID!
         release: ReadRelease
     ): UnitsPayload!

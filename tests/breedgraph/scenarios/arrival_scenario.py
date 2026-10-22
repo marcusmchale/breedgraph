@@ -33,7 +33,7 @@ derived units below, which the stranger's other team controls, REGISTERED.
             └── Arrival Move Sample 2  Sample  at lab from 2025-06-10
 
     Arrival Field Season 2025        Field     the stranger's, at field_registered from 2025-01
-    └── Arrival Plantlet C           Tree      derived from Arrival Cuttings C (TISSUE, micropropagation), at
+    └── Arrival Plantlet C           Tree      derived from Arrival Cuttings C (PLANTLET, micropropagation), at
                                                field_registered from 2025-03-15; germplasm crop_leaf, copied from the
                                                cuttings when derived, as nothing comes down a derivation
 
@@ -53,8 +53,7 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
-from breedgraph.domain.model.germplasm import GermplasmSourceType
-from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitDerivation
+from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitDerivation, DerivationStage
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from .read_policy_scenario import ReadPolicyScenario
@@ -113,8 +112,8 @@ DERIVED = {
     SEASON: ('ontology_subject_field', [], None, [at(FIELD, '2025-01')]),
     PLANTLET: ('ontology_subject_tree', [SEASON], 'crop_leaf', [at(FIELD, '2025-03-15')]),
 }
-# derived unit: (the unit it came from, how, description)
-DERIVATIONS = {PLANTLET: ('Arrival Cuttings C', GermplasmSourceType.TISSUE, 'Micropropagation')}
+# derived unit: (the unit it came from, the stage it was at, description)
+DERIVATIONS = {PLANTLET: ('Arrival Cuttings C', DerivationStage.PLANTLET, 'Micropropagation')}
 RELEASES |= {name: ReadRelease.REGISTERED for name in DERIVED}
 
 # location: the arrivals there, newest first and undated last, as (start, unit names by name)
@@ -295,9 +294,9 @@ class ArrivalScenarioBuilder:
                     continue
                 unit_input = self._unit_input(name, unit)
                 if name in DERIVATIONS:
-                    source, source_type, description = DERIVATIONS[name]
+                    source, stage, description = DERIVATIONS[name]
                     unit_input.derived_from = [UnitDerivation(
-                        unit_id=self.arrivals.units[source], source_type=source_type, description=description
+                        unit_id=self.arrivals.units[source], stage=stage, description=description
                     )]
                 unit_graph.add_unit(unit_input, parents=[unit_graph.get_root_id()])
             await uow.commit()

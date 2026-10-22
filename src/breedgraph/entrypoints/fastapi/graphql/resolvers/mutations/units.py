@@ -179,8 +179,10 @@ async def derive_units(
         parent_ids: List[int] | None = None,
         position: dict | None = None,
         subject_id: int | None = None,
-        source_type: str | None = None,
+        stage: str | None = None,
         description: str | None = None,
+        germplasm_id: int | None = None,
+        copy_germplasm: bool | None = None,
         release: ReadRelease = ReadRelease.PRIVATE
 ) -> List[UnitOutput]:
     user_id = info.context.get('user_id')
@@ -193,7 +195,10 @@ async def derive_units(
         parents=parent_ids,
         subject_id=subject_id,
         description=description,
-        **({'source_type': source_type} if source_type is not None else {}),
+        germplasm_id=germplasm_id,
+        # given as null, the defaults hold
+        **({'stage': stage} if stage is not None else {}),
+        **({'copy_germplasm': copy_germplasm} if copy_germplasm is not None else {}),
         **(position or {})
     )
     return await _units(info, await info.context['bus'].handle(cmd))

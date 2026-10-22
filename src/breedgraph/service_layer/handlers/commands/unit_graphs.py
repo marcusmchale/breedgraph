@@ -249,7 +249,10 @@ async def derive_units(
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         source_ids = await _selected_unit_ids(uow, cmd.units)
         await uow.controls.require_read(ControlledModelLabel.UNIT, source_ids)
-        sources = await _units_as_seen(uow, source_ids)
+        await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
+        # the germplasm given, else each source's copied, or none
+        copying = cmd.germplasm_id is None and cmd.copy_germplasm
+        sources = await _units_as_seen(uow, source_ids, with_germplasm=copying)
 
         position = None
         if cmd.location_id:
@@ -277,12 +280,10 @@ async def derive_units(
             source, germplasm = sources[source_id]
             unit_input = UnitInput(
                 subject=cmd.subject_id if cmd.subject_id is not None else source.subject,
-                germplasm=germplasm,
+                germplasm=germplasm if copying else cmd.germplasm_id,
                 name=source.name,
                 positions=[replace(position)] if position else [],
-                derived_from=[
-                    UnitDerivation(unit_id=source_id, source_type=cmd.source_type, description=cmd.description)
-                ]
+                derived_from=[UnitDerivation(unit_id=source_id, stage=cmd.stage, description=cmd.description)]
             )
             if unit_graph is not None:
                 unit_id = unit_graph.add_unit(unit_input, parents=cmd.parents)
@@ -299,17 +300,20 @@ async def derive_units(
             }
         return [derived[source_id] for source_id in source_ids]
 
-async def _units_as_seen(uow: AbstractUnitHolder, unit_ids: List[int]) -> Dict[int, Tuple[UnitStored, int | None]]:
+async def _units_as_seen(
+        uow: AbstractUnitHolder, unit_ids: List[int], with_germplasm: bool = True
+) -> Dict[int, Tuple[UnitStored, int | None]]:
     """
     Each of the units the user reads, with the germplasm it has or takes from the units above it as the user sees it
-    (Unit.inheritedGermplasm), where they can read that germplasm
+    (Unit.inheritedGermplasm), where they can read that germplasm; with_germplasm false, none
     """
     found = {}
     async for unit_graph in uow.repositories.unit_graphs.get_all(unit_ids=unit_ids):
         redacted = await uow.repositories.unit_graphs.redacted(unit_graph)
         for unit_id in unit_ids:
             if redacted.has_unit(unit_id):
-                found[unit_id] = (redacted.get_unit(unit_id), seen_germplasm(unit_graph, redacted, unit_id))
+                germplasm = seen_germplasm(unit_graph, redacted, unit_id) if with_germplasm else None
+                found[unit_id] = (redacted.get_unit(unit_id), germplasm)
     readable = await _readable(
         uow, ControlledModelLabel.GERMPLASM, {germplasm for _, germplasm in found.values() if germplasm is not None}
     )

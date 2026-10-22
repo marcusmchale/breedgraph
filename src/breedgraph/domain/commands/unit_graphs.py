@@ -3,8 +3,7 @@ from typing import List
 from pydantic import BaseModel, model_validator
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.unit_graphs import UnitDerivation
-from breedgraph.domain.model.germplasm import GermplasmSourceType
+from breedgraph.domain.model.unit_graphs import UnitDerivation, DerivationStage
 
 from breedgraph.custom_exceptions import IllegalOperationError
 
@@ -130,8 +129,9 @@ class DeriveUnits(Command):
     """
     Creates a unit derived from each of the units, e.g. plantlets from the microcuttings of an arrival: each a child of
     the parents, or the root of a unit graph of its own at the position, with its source's name and subject (or the
-    subject given) and the germplasm its source has or takes as the user sees it. The units derived from are left as
-    they are. Returns the ids of the units created, in the order of the units they came from.
+    subject given). Its germplasm is the one given, else, with copy_germplasm, the one its source has or takes as the
+    user sees it, else none. The units derived from are left as they are. Returns the ids of the units created, in the
+    order of the units they came from.
     """
     agent_id: int
     write_team: int
@@ -141,8 +141,11 @@ class DeriveUnits(Command):
     parents: List[int] | None = None
     subject_id: int | None = None
 
-    source_type: GermplasmSourceType = GermplasmSourceType.UNKNOWN
+    stage: DerivationStage = DerivationStage.UNKNOWN
     description: str | None = None
+
+    germplasm_id: int | None = None
+    copy_germplasm: bool = True
 
     # a position for each unit, required without parents
     location_id: int | None = None

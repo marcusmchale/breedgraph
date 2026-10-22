@@ -59,14 +59,14 @@ async def test_datasets(views_factory, read_policy, arrivals):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_the_plantlet_derived_from_the_cuttings_settles_their_arrival(views_factory, read_policy, arrivals):
-    source, source_type, description = DERIVATIONS[PLANTLET]
+    source, stage, description = DERIVATIONS[PLANTLET]
     plantlet_id, source_id = arrivals.units[PLANTLET], arrivals.units[source]
     async with views_factory.get_views(user_id=read_policy['outsider']) as views:
         plantlet = (await views.units.get_units([plantlet_id]))[plantlet_id]
         derivatives = await views.units.get_derivatives([source_id])
         lab_arrivals = await views.units.get_arrivals([read_policy[LAB]])
-    assert [(d.unit_id, d.source_type, d.description) for d in plantlet.derived_from] == [
-        (source_id, source_type, description)
+    assert [(d.unit_id, d.stage, d.description) for d in plantlet.derived_from] == [
+        (source_id, stage, description)
     ]
     assert [d.unit_id for d in derivatives[source_id]] == [plantlet_id]
     (cuttings,) = [arrival for arrival in lab_arrivals if str(arrival.start) == '2025-02-10']

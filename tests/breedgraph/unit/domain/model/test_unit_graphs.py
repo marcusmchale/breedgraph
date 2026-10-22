@@ -135,16 +135,17 @@ def test_unit_ids_by_subject():
     assert list(unit_graph.yield_unit_ids_by_subject(12)) == [2]
 
 
-from breedgraph.domain.model.unit_graphs import UnitDerivation
-from breedgraph.domain.model.germplasm import GermplasmSourceType
+from breedgraph.domain.model.unit_graphs import UnitDerivation, DerivationStage
 
 
-def test_unit_derivation_takes_its_source_type_by_value_and_dumps_it_so():
-    derivation = UnitDerivation(unit_id=7, source_type='TISSUE', description='Microcutting')
-    assert derivation.source_type is GermplasmSourceType.TISSUE
-    assert UnitDerivation(unit_id=7).source_type is GermplasmSourceType.UNKNOWN
+def test_unit_derivation_takes_its_stage_by_value_and_dumps_it_so():
+    derivation = UnitDerivation(unit_id=7, stage='PLANTLET', description='Micropropagation')
+    assert derivation.stage is DerivationStage.PLANTLET
+    assert UnitDerivation(unit_id=7).stage is DerivationStage.UNKNOWN
     unit = UnitInput(subject=1, derived_from=[derivation])
-    assert unit.model_dump()['derived_from'] == [{'unit_id': 7, 'source_type': 'TISSUE', 'description': 'Microcutting'}]
+    assert unit.model_dump()['derived_from'] == [{'unit_id': 7, 'stage': 'PLANTLET', 'description': 'Micropropagation'}]
+    with pytest.raises(ValueError):
+        UnitDerivation(unit_id=7, stage='MATERNAL')
 
 
 def test_hidden_unit_shows_no_derivation():

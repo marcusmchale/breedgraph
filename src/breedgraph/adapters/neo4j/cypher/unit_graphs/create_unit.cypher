@@ -27,10 +27,10 @@ CALL (unit) {
   UNWIND $derived_from AS derivation
   MATCH (source:Unit {id: derivation['unit_id']})
   CREATE (unit)-[derived:DERIVED_FROM {
-    source_type: derivation['source_type'],
+    stage: derivation['stage'],
     description: derivation['description']
   }]->(source)
-  RETURN collect(derived {.source_type, .description, unit_id: source.id}) AS derived_from
+  RETURN collect(derived {.stage, .description, unit_id: source.id}) AS derived_from
 }
 // Link to positions
 CALL (unit) {

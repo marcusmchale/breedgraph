@@ -70,7 +70,7 @@ def _unit(unit: str = 'unit') -> str:
             .*,
             subject: [({unit})-[:OF_SUBJECT]->(subject:Subject) | subject.id][0],
             germplasm: [({unit})-[:OF_GERMPLASM]->(germplasm:Germplasm) | germplasm.id][0],
-            derived_from: [({unit})-[derived:DERIVED_FROM]->(source:Unit) | derived {{.source_type, .description, unit_id: source.id}}],
+            derived_from: [({unit})-[derived:DERIVED_FROM]->(source:Unit) | derived {{.stage, .description, unit_id: source.id}}],
             positions: positions,
             parents: parents,
             children: children
@@ -216,7 +216,7 @@ def read_unit_derivatives():
         WITH unit, derivative, derived
         ORDER BY derivative.id
         RETURN unit.id AS unit_id,
-          collect(derived {{.source_type, .description, unit_id: derivative.id}}) AS derivatives
+          collect(derived {{.stage, .description, unit_id: derivative.id}}) AS derivatives
     """
 
 

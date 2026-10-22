@@ -40,7 +40,7 @@ CALL (unit) {
   MERGE (unit)-[derived:DERIVED_FROM]->(source)
   ON CREATE SET derived.time = datetime.transaction()
   SET
-    derived.source_type = derivation['source_type'],
+    derived.stage = derivation['stage'],
     derived.description = derivation['description']
 }
 
