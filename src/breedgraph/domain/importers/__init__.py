@@ -13,5 +13,5 @@ These are primarily used for complex domain inputs where a simple primitive
 coercion is insufficient (e.g. datasets containing nested records).
 
 """
-from .dataset import DatasetImport, DatasetUpdateImport, RecordImport
+from .dataset import DatasetImport, DatasetRecordsImport, DatasetUpdateImport, RecordImport
 from .analysis import AnalysisInputImport

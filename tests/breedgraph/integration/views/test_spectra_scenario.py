@@ -6,23 +6,15 @@ which only the child team reads
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 from breedgraph.config import FILE_STORAGE_PATH
 from breedgraph.domain.model.ontology import ScaleType, LifecyclePhase
 from breedgraph.domain.model.references import ReferenceType, DataFormat
 
 from tests.breedgraph.scenarios.ontology_builder import CANOPY_SPECTRUM
-from tests.breedgraph.scenarios.spectra_scenario import SpectraScenarioBuilder, FILES, RECORDS, READ_ON
+from tests.breedgraph.scenarios.spectra_scenario import FILES, RECORDS, READ_ON
 
 REDACTED = 'REDACTED'
-
-
-@pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def spectra(read_policy, uow_factory, bus):
-    return await SpectraScenarioBuilder(
-        uow_factory, read_policy, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
-    ).build()
 
 
 @pytest.mark.asyncio(loop_scope="session")

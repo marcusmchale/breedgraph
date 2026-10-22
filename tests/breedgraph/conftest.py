@@ -38,6 +38,7 @@ from tests.breedgraph.scenarios.read_policy_scenario import ReadPolicyScenario, 
 from tests.breedgraph.scenarios.replicate_scenario import ReplicateScenario, ReplicateScenarioBuilder
 from tests.breedgraph.scenarios.arrival_scenario import ArrivalScenario, ArrivalScenarioBuilder
 from tests.breedgraph.scenarios.position_scenario import PositionScenario, PositionScenarioBuilder
+from tests.breedgraph.scenarios.spectra_scenario import SpectraScenario, SpectraScenarioBuilder
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.commands.germplasm import UpdateGermplasm
 from breedgraph.domain.model.team_trees import TeamInput
@@ -516,3 +517,12 @@ async def positions(read_policy, uow_factory) -> PositionScenario:
     """Units at positions in layouts, for analysis position grouping, on the read-policy scenario: see
     tests/breedgraph/scenarios/position_scenario.py"""
     return await PositionScenarioBuilder(uow_factory, read_policy).build()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def spectra(read_policy, uow_factory, bus) -> SpectraScenario:
+    """Records of a variable on a complex scale, which cite data files, on the read-policy scenario: see
+    tests/breedgraph/scenarios/spectra_scenario.py"""
+    return await SpectraScenarioBuilder(
+        uow_factory, read_policy, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
+    ).build()

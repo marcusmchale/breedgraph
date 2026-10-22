@@ -18,7 +18,7 @@ from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.service_layer.application.contributions import verify_contributions
 
-from breedgraph.domain.importers import DatasetImport, DatasetUpdateImport, RecordImport
+from breedgraph.domain.importers import DatasetImport, DatasetRecordsImport, DatasetUpdateImport
 
 async def get_scale_and_categories(concept_id, ontology_service: OntologyApplicationService) -> tuple[ScaleStored, list[ScaleCategoryStored]]:
     scale_id = await ontology_service.get_scale_id(entry_id=concept_id)
@@ -173,14 +173,15 @@ async def dataset_records_submitted(
         try:
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.PROCESSING)
             submission = await state_store.get_submission_data(agent_id=event.agent_id, submission_id=event.submission_id)
-            dataset_id = submission.get("dataset_id")
-            records = [RecordImport(**r).model_dump() for r in submission.get("records", [])]
+            records_import = DatasetRecordsImport(**submission)
+            # record inputs, as for a new dataset's records: add_records parses them with the dataset's scale
+            records = records_import.records_to_input()
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
-                reference_id for record in records for reference_id in record.get('reference_ids') or []
+                reference_id for record in records for reference_id in record.references or []
             ])
-            dataset = await uow.repositories.datasets.get(dataset_id=dataset_id)
+            dataset = await uow.repositories.datasets.get(dataset_id=records_import.dataset_id)
             if dataset is None:
-                raise ValueError(f"Dataset not found for dataset id: {dataset_id}")
+                raise ValueError(f"Dataset not found for dataset id: {records_import.dataset_id}")
             else:
                 await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
 
@@ -193,10 +194,9 @@ async def dataset_records_submitted(
             if program is None:
                 raise ValueError(f"Study not found {dataset.study}")
             study = program.get_study(dataset.study)
-            valid_group_names = [grouping.name for grouping in study.groupings]
 
             item_errors = []
-            for i, e in enumerate(dataset.add_records(records, scale, categories, valid_group_names)):
+            for i, e in enumerate(dataset.add_records(records, scale, categories, study.get_grouping_ids())):
                 if e is not None:
                     item_errors.append(ItemError(index=i, error=e))
                     continue

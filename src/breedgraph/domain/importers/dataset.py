@@ -90,6 +90,11 @@ class DatasetImport(DatasetImportBase):
             ]
         )
 
+class DatasetRecordsImport(DatasetImportBase):
+    """Records to add to a stored dataset (datasetsAddRecords)"""
+    dataset_id: int
+    records: list[RecordImport] = Field(default_factory=list)
+
 class DatasetUpdateImport(DatasetImportBase):
     dataset_id: int
     # todo: support changing the concept for a dataset as when the otology evolves it may be desirable.
