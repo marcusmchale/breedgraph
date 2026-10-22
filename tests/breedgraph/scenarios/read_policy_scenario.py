@@ -477,6 +477,21 @@ class ReadPolicyScenario:
         return {self.ids[name] for name in names if not self.readable(viewer, name)}
 
 
+async def store_file(file_storage_path: str | None, archival_service, file_id: str, content: bytes):
+    """Write a scenario's file and record it for archival, as the upload handler does; nothing without a file store"""
+    if file_storage_path is None or archival_service is None:
+        return
+    Path(file_storage_path, file_id).write_bytes(content)
+    await archival_service.create(FileArchivalRecord(
+        file_id=file_id,
+        file_size=len(content),
+        file_hash=hashlib.sha256(content).hexdigest(),
+        last_accessed=datetime.now(),
+        archive_state=ArchiveState.ARCHIVAL_PENDING,
+        local_state=LocalState.LOCAL
+    ))
+
+
 class ReadPolicyScenarioBuilder:
     """
     Builds the scenario through the repositories. File references get their files written to file_storage_path and
@@ -792,18 +807,7 @@ class ReadPolicyScenarioBuilder:
                 await self._store_file(file_id, content)
 
     async def _store_file(self, file_id: str, content: bytes):
-        """Write the file and record it for archival, as the upload handler does"""
-        if self.file_storage_path is None or self.archival_service is None:
-            return
-        Path(self.file_storage_path, file_id).write_bytes(content)
-        await self.archival_service.create(FileArchivalRecord(
-            file_id=file_id,
-            file_size=len(content),
-            file_hash=hashlib.sha256(content).hexdigest(),
-            last_accessed=datetime.now(),
-            archive_state=ArchiveState.ARCHIVAL_PENDING,
-            local_state=LocalState.LOCAL
-        ))
+        await store_file(self.file_storage_path, self.archival_service, file_id, content)
 
     async def _people(self):
         s = self.scenario.ids

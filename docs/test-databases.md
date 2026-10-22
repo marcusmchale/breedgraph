@@ -83,8 +83,8 @@ python scripts/build_test_database.py --manifest instance/neo4j_archive/test_dat
   made-up coordinates on the Qazvin plain (`LOCATION_COORDINATES`), so the location map shows pins and a polygon;
   the states have none. Detailed maps of these countries come from `scripts/map_tiles.py --regions` (README.md,
   Maps), as the build sends no events.
-- It adds the replicates study (`replicate_scenario.py`, below), the arrivals (`arrival_scenario.py`, below) and the
-  positions (`position_scenario.py`, below).
+- It adds the replicates study (`replicate_scenario.py`, below), the arrivals (`arrival_scenario.py`, below), the
+  positions (`position_scenario.py`, below) and the licences (`licence_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
   20 fields, 100,115 units and 44,000 records, each field a made-up plot beside the scenario's field. Field 02's trees
   are positioned at their field themselves, and the first five trees of every field but 01 each hold a sample at a
@@ -195,6 +195,25 @@ input, and for each viewer the levels (`key` as analysis results give it, with t
 entity key, or the layout, axis and value), the count and mean of their observations (every analysis takes the MEAN of
 its concept), and the values of the records that can't be placed. `tests/breedgraph/e2e/analysis/test_position_analyses.py`
 checks them.
+
+### The licences
+
+Studies with licences given as files (docs/licences.md; `tests/breedgraph/scenarios/licence_scenario.py`). Controlled
+by the child team and written by `readpolicy_writer`, so the admin and the writer read them through the team and are
+not asked to accept the licences; the stranger and the outsider are, and anonymous visitors for the public study.
+
+- **Program and trial:** "Readpolicy licences program" → "Readpolicy licences trial", both PUBLIC.
+- **"Readpolicy licensed study"**, PUBLIC: its licence is "Readpolicy markdown licence", PUBLIC, read from
+  `licence.md`; its height dataset, PUBLIC, has records on `tree_public` and `tree_registered`, and the first cites
+  "Readpolicy licensed data", a PUBLIC CSV file.
+- **"Readpolicy registered licensed study"**, REGISTERED: its licence is "Readpolicy PDF licence", REGISTERED, read
+  from `licence.pdf`, a PDF of two pages made by `tests/breedgraph/utilities/documents.py`; its height dataset,
+  REGISTERED, has a record on `tree_public`.
+
+The manifest's `licences` entry gives the program, the trial, each study with its release, licence (id, name,
+filename, file id and path) and dataset, and the data file. The licence files and the data file are copied beside the
+manifest with the read-policy scenario's files. `tests/breedgraph/integration/views/test_licence_scenario.py` checks who
+must accept the licences.
 
 ## Building the BreedCAFS dump
 

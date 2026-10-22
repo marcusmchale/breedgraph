@@ -7,7 +7,8 @@ It also holds a study with record group codes of every extent and scope
 (tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry, units that came to
 locations at dated positions (tests/breedgraph/scenarios/arrival_scenario.py), in its "arrivals" entry, and units at
 positions in layouts for analysis position grouping (tests/breedgraph/scenarios/position_scenario.py), in its
-"positions" entry.
+"positions" entry, and studies with licences given as files (tests/breedgraph/scenarios/licence_scenario.py), in its
+"licences" entry.
 
 Writes a manifest (JSON) with the accounts' credentials, the ids of every entity by its scenario name, the controls
 each entity was written under, what each viewer can read, and the files. The files themselves are written to
@@ -68,6 +69,10 @@ from tests.breedgraph.scenarios.arrival_scenario import (
 from tests.breedgraph.scenarios.position_scenario import (
     PositionScenarioBuilder, PositionScenario, CASES as POSITION_CASES, PROGRAM as POSITION_PROGRAM,
     TRIAL as POSITION_TRIAL, STUDY as POSITION_STUDY, level_key, grouping_input, term_inputs
+)
+from tests.breedgraph.scenarios.licence_scenario import (
+    LicenceScenarioBuilder, LicenceScenario, STUDIES as LICENSED_STUDIES, PROGRAM as LICENCE_PROGRAM,
+    TRIAL as LICENCE_TRIAL, DATA_FILE
 )
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
@@ -269,6 +274,33 @@ def positions_manifest(positions: PositionScenario, scenario: ReadPolicyScenario
     }
 
 
+def licences_manifest(licences: LicenceScenario, files_dir: Path) -> dict:
+    """
+    Studies with licences given as files (tests/breedgraph/scenarios/licence_scenario.py): each study with its release,
+    licence and height dataset, and the data file a record of the public one cites. The files are copied beside the
+    manifest with the read-policy scenario's.
+    """
+    ids = licences.ids
+    return {
+        'program': {'id': ids['program'], 'name': LICENCE_PROGRAM},
+        'trial': {'id': ids['trial'], 'name': LICENCE_TRIAL},
+        'studies': {
+            key: {
+                'id': ids[f'{key}_study'],
+                'name': study_name,
+                'release': release.name,
+                'licence': {
+                    'id': ids[f'{key}_licence'], 'name': licence_name, 'filename': filename,
+                    'file_id': licences.files[licence_name][0], 'path': str(files_dir / licences.files[licence_name][0])
+                },
+                'dataset': ids[f'{key}_dataset'],
+            }
+            for key, (study_name, release, licence_name, filename, _) in LICENSED_STUDIES.items()
+        },
+        'data_file': {'id': ids['data_file'], 'name': DATA_FILE, 'file_id': licences.files[DATA_FILE][0]},
+    }
+
+
 def perf_manifest(scale: ScaleScenario) -> dict:
     """The defaults of breedview's performance scripts (perf in its fixture): a large study, its variable, a large field"""
     return {
@@ -283,6 +315,7 @@ def manifest(
         replicates: ReplicateScenario,
         arrivals: ArrivalScenario,
         positions: PositionScenario,
+        licences: LicenceScenario,
         seed: int,
         password: str,
         files_dir: Path,
@@ -346,6 +379,7 @@ def manifest(
         'replicates': replicates_manifest(replicates, scenario),
         'arrivals': arrivals_manifest(arrivals, scenario),
         'positions': positions_manifest(positions, scenario),
+        'licences': licences_manifest(licences, files_dir),
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
 
@@ -420,6 +454,11 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         arrivals = await ArrivalScenarioBuilder(uow_factory, scenario).build()
         logger.info("Building the positions")
         positions = await PositionScenarioBuilder(uow_factory, scenario).build()
+        logger.info("Building the licences")
+        licences = await LicenceScenarioBuilder(
+            uow_factory, scenario,
+            archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()), file_storage_path=FILE_STORAGE_PATH
+        ).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
@@ -428,14 +467,14 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
-        contents = manifest(scenario, replicates, arrivals, positions, seed, password, files_dir, scale)
+        contents = manifest(scenario, replicates, arrivals, positions, licences, seed, password, files_dir, scale)
         await add_names(driver, contents)
     finally:
         await connection.aclose()
         await driver.close()
 
     files_dir.mkdir(parents=True, exist_ok=True)
-    for file_id, _ in scenario.files.values():
+    for file_id, _ in [*scenario.files.values(), *licences.files.values()]:
         shutil.copy2(Path(FILE_STORAGE_PATH, file_id), files_dir / file_id)
     manifest_path.write_text(json.dumps(contents, indent=2) + '\n')
 
