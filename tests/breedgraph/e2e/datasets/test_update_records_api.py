@@ -1,8 +1,9 @@
 """
 Record updates through GraphQL, on the read-policy scenario and its spectra (tests/breedgraph/scenarios/spectra_scenario.py).
-An update gives only what changes: its start, end and value are optional, as in RecordUpdate. A record on a complex
-scale has the files it cites replaced, but is never left citing none: that is refused for the record, as an item error
-of the submission, and the record keeps its file. Removing the record is how its last file goes.
+An update gives only what changes: its start, end and value are optional, as in RecordUpdate, and a start or end
+given as null is removed. A record on a complex scale has the files it cites replaced, but is never left citing none:
+that is refused for the record, as an item error of the submission, and the record keeps its file. Removing the record
+is how its last file goes.
 """
 import pytest
 
@@ -11,7 +12,7 @@ from tests.breedgraph.scenarios.spectra_scenario import RECORDS, READ_ON
 
 UPDATE = "mutation ($d: DatasetUpdate!) { datasetsUpdate(dataset: $d) { status result errors { name message } } }"
 RECORDS_OF = (
-    "query ($ids: [ID!]) { datasets(ids: $ids) { status result { records { id value start unit { id } references { id } } } "
+    "query ($ids: [ID!]) { datasets(ids: $ids) { status result { records { id value start end unit { id } references { id } } } "
     "errors { name message } } }"
 )
 
@@ -89,3 +90,14 @@ async def test_an_update_giving_only_a_value_leaves_the_rest(client, login_token
     submission = await update(client, login_token_factory, read_policy, dataset_id, {'id': record['id'], 'value': '9'})
     assert submission['status'] == 'COMPLETED', submission
     assert await record_of(client, login_token_factory, read_policy, dataset_id, int(record['id'])) == {**record, 'value': '9'}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_an_update_giving_a_time_as_null_removes_it(client, login_token_factory, read_policy, spectra):
+    record_id, dataset_id = spectra.records['tree_registered'], spectra.ids['dataset']
+    submission = await update(client, login_token_factory, read_policy, dataset_id, {'id': record_id, 'end': '2025-06-30'})
+    assert submission['status'] == 'COMPLETED', submission
+    submission = await update(client, login_token_factory, read_policy, dataset_id, {'id': record_id, 'start': None})
+    assert submission['status'] == 'COMPLETED', submission
+    record = await record_of(client, login_token_factory, read_policy, dataset_id, record_id)
+    assert (record['start'], record['end']) == (None, '2025-06-30')

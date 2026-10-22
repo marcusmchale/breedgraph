@@ -15,7 +15,7 @@ class RecordImport(BaseModel):
 
 class RecordUpdateImport(BaseModel):
     id: int
-    # optional, as in RecordUpdate: one not given, or null, leaves the record's as it is
+    # optional, as in RecordUpdate: one not given leaves the record's as it is; a start or end given as null removes it
     start: str | None = None
     end: str | None = None
     value: str | int | None = None
@@ -61,7 +61,8 @@ class DatasetImportBase(BaseModel):
                     end=local_datetime64(r.end) if r.end else None,
                     value=r.value if r.value is not None else None,
                     groups=r.groups if r.groups is not None else None,
-                    references=r.reference_ids if r.reference_ids is not None else None
+                    references=r.reference_ids if r.reference_ids is not None else None,
+                    cleared={time for time in ('start', 'end') if time in r.model_fields_set and getattr(r, time) is None}
                 )
             )
 

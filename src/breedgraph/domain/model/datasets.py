@@ -75,12 +75,16 @@ class DataRecordUpdate(DataRecordBase, StoredModel):
     unit_id: InitVar[int|None] = None
     reference_ids: InitVar[List[int] | None] = None
     value: str|int|None = None  # integer values supported for categories, must be parsed to name for stored type though
+    # the times the update removes, 'start' or 'end': a time that is None and not cleared is left as it is
+    cleared: Set[str] = field(default_factory=set)
 
     def __post_init__(self, unit_id, reference_ids):
         if unit_id is not None:
             self.unit = unit_id
         if reference_ids is not None:
             self.references = reference_ids
+        if not self.cleared <= {'start', 'end'}:
+            raise ValueError(f"Only a record's start and end can be cleared, not {', '.join(sorted(self.cleared - {'start', 'end'}))}")
         if self.start is not None:
             self.start = local_datetime64(self.start)
         if self.end is not None:
@@ -165,8 +169,12 @@ class DatasetBase(ABC):
                     stored_record.value = record.value
                 if record.start is not None and not same_time(stored_record.start, record.start):
                     stored_record.start = record.start
+                elif 'start' in record.cleared and stored_record.start is not None:
+                    stored_record.start = None
                 if record.end is not None and not same_time(stored_record.end, record.end):
                     stored_record.end = record.end
+                elif 'end' in record.cleared and stored_record.end is not None:
+                    stored_record.end = None
                 if record.unit is not None and stored_record.unit != record.unit:
                     stored_record.unit = record.unit
                 if record.references is not None and stored_record.references != record.references:

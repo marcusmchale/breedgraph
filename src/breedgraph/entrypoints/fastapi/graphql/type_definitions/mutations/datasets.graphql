@@ -12,11 +12,16 @@ input RecordInput {
     referenceIds: [ID]
 }
 
+"""
+A record's changes: a field not given is left as it is
+"""
 input RecordUpdate {
     id: ID!
     unitId: ID
     value: String
+    """ Given as null, the record's start is removed """
     start: DateTime
+    """ Given as null, the record's end is removed """
     end: DateTime
     groups: [RecordGroupInput!]
     referenceIds: [ID]
