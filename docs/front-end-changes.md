@@ -5,29 +5,16 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, and the ontology's public citations at `5ddb940`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, and adding children to several units at `4696d21`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
 
-breedview's master (`3db24da`) implements every API change up to 2026-10-22, except adding children to several units
-(below).
+breedview's master (`6628435`) implements every API change up to 2026-10-23.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
-
-## Adding children to several units
-
-`unitsAddChildren(parents: UnitsSelection!, subjectId, count, name, description, germplasmId, start, controlTeamId,
-release): UnitsPayload!` adds `count` children (1 to 100) of a subject to each of the parents, by id or an arrival's,
-in one go, all or none: e.g. the leaves taken from each tree of a field on one day. `name` is a template of
-`{parent}`, `{subject}` and `{n}`, by default `"{parent} - {subject} {n}"` ("Tree 1 - Leaf 1"); null leaves them
-unnamed, and more than one child to each parent needs `{n}`. With `start`, each child has a position at its parent's
-place then, from then, refused for a parent whose place then can't be told; without it, they are where their parents
-are. Nothing breaks. Work: an "Add children…" form that picks the parents at a location with the units picker ("By
-type…" selects a field's trees at once), or takes an arrival's units or a unit's own, with the subject, number per
-parent, name template (showing the first name it gives), the day they were taken, germplasm and team.
 
 ## Checking the front end against the API
 
