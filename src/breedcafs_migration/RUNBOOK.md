@@ -116,4 +116,4 @@ exit code 1 is anything else, with the traceback in the log.
    `python -m pip uninstall breedcafs-migration`.
 
 Everything stays `PRIVATE` under the migration team until handover (README §9–10),
-which follows the DPO's review of the privacy notice and data processing terms.
+which follows the DPO's review of the privacy notice.
