@@ -201,8 +201,8 @@ async def _require_file_licences_accepted(info, file_id: str) -> None:
 @graphql_payload
 async def get_file_download_state(_, info, file_id: str):
     """
-     Check if the file download request is registered
-     Return a FileDownloadRequest object
+    Whether a file can be downloaded (FileDownloadState): available, archived, or being retrieved from the archive,
+    with how far its retrieval has got (FileRetrieval)
     """
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} requesting download of file {file_id}')
@@ -213,37 +213,37 @@ async def get_file_download_state(_, info, file_id: str):
     record: FileArchivalRecord = await archival_service.get(file_id)
     if record.local_state == LocalState.LOCAL:
         status = "AVAILABLE"
-        recovery = None
+        retrieval = None
     else:
         if record.archive_state == ArchiveState.ARCHIVED:
             status = "ARCHIVED"
             # no retrieval has been requested
-            recovery = {
-                "startedAt": None,
+            retrieval = {
+                "started_at": None,
                 "progress": 0
             }
         elif record.archive_state == ArchiveState.RETRIEVAL_PENDING:
             status = "RETRIEVING"
-            recovery = {
-                "startedAt": record.retrieval_requested_at,
+            retrieval = {
+                "started_at": record.retrieval_requested_at,
                 "progress": 0
             }
         elif record.archive_state == ArchiveState.RETRIEVING:
             status = "RETRIEVING"
-            recovery = {
-                "startedAt": record.last_attempt_at,
+            retrieval = {
+                "started_at": record.last_attempt_at,
                 "progress": record.local_completion
             }
         else:
             status = "FAILED"
-            recovery = {
-                "startedAt": record.last_attempt_at,
+            retrieval = {
+                "started_at": record.last_attempt_at,
                 "progress": record.local_completion
             }
 
     return {
         "status": status,
-        "recovery": recovery
+        "progress": retrieval
     }
 
 
