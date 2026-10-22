@@ -5,25 +5,16 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, and derivation stages at `2a8740d`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, and the ontology's public citations at `5ddb940`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
 
-breedview's master (`255a0bf`) implements every API change up to 2026-10-22, except the ontology's public citations
-(below).
+breedview's master (`3db24da`) implements every API change up to 2026-10-22.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
-
-## The ontology cites public references only
-
-The ontology is shared, so an entry's references and a version's licence and copyright must be public when cited:
-`ontologyCommitVersion` and the entry mutations refuse a reference released as REGISTERED or PRIVATE, with a message
-naming it (docs/read-access.md, rule 10). Nothing breaks: the commit form already shows the refusal. Work: in the
-commit form's licence and copyright and in an entry's references, offer public references only, or say before
-submitting that the ontology cites public ones only.
 
 ## Checking the front end against the API
 
