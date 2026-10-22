@@ -2,7 +2,7 @@
 Updating records. A record on a complex scale cites references rather than holding a value: none is created citing
 nothing, and no update leaves one citing nothing, so dropping a record's last reference means removing the record. An
 update gives only what changes: its start, end and value are optional, as in RecordUpdate, and left as they are when
-not given, but a start or end given as null removes it.
+not given, but a start or end given as null removes it, and a unit given moves the record.
 """
 import pytest
 from numpy import datetime64
@@ -91,3 +91,10 @@ def test_an_update_giving_the_end_as_null_removes_it():
 def test_only_a_start_or_end_can_be_cleared():
     with pytest.raises(ValueError, match="Only a record's start and end can be cleared, not value"):
         DataRecordUpdate(id=10, cleared={'value'})
+
+
+def test_an_update_giving_a_unit_moves_the_record():
+    (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'unit_id': 6}]).records_to_update()
+    stored = dataset(value='310', start='2025-06-12')
+    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert (stored.records[0].unit, stored.records[0].value, str(stored.records[0].start)) == (6, '310', '2025-06-12')

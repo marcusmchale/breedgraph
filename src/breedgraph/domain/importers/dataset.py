@@ -16,6 +16,7 @@ class RecordImport(BaseModel):
 class RecordUpdateImport(BaseModel):
     id: int
     # optional, as in RecordUpdate: one not given leaves the record's as it is; a start or end given as null removes it
+    unit_id: int | None = None
     start: str | None = None
     end: str | None = None
     value: str | int | None = None
@@ -56,7 +57,7 @@ class DatasetImportBase(BaseModel):
             update_records.append(
                 DataRecordUpdate(
                     id=r.id,
-                    unit=r.unit_id if hasattr(r, 'unit_id') else None,
+                    unit=r.unit_id,
                     start=local_datetime64(r.start) if r.start else None,
                     end=local_datetime64(r.end) if r.end else None,
                     value=r.value if r.value is not None else None,

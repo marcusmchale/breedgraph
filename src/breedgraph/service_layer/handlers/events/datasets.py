@@ -137,6 +137,12 @@ async def dataset_update_submitted(
                 for record in dataset_import.records
                 for reference_id in set(record.reference_ids or []) - stored_references.get(record.id, set())
             ])
+            # a record moves only to a unit the user can read: another, or one that isn't there, is not found
+            stored_units = {record.id: record.unit for record in dataset.records}
+            await uow.controls.require_read(ControlledModelLabel.UNIT, [
+                record.unit_id for record in dataset_import.records
+                if record.unit_id is not None and record.unit_id != stored_units.get(record.id)
+            ])
 
             program = await uow.repositories.programs.get(study_id=dataset.study)
             if program is None:

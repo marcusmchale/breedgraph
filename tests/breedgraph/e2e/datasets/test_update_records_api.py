@@ -1,9 +1,9 @@
 """
 Record updates through GraphQL, on the read-policy scenario and its spectra (tests/breedgraph/scenarios/spectra_scenario.py).
 An update gives only what changes: its start, end and value are optional, as in RecordUpdate, and a start or end
-given as null is removed. A record on a complex scale has the files it cites replaced, but is never left citing none:
-that is refused for the record, as an item error of the submission, and the record keeps its file. Removing the record
-is how its last file goes.
+given as null is removed. A record moves only to a unit the writer can read. A record on a complex scale has the files
+it cites replaced, but is never left citing none: that is refused for the record, as an item error of the submission,
+and the record keeps its file. Removing the record is how its last file goes.
 """
 import pytest
 
@@ -101,3 +101,29 @@ async def test_an_update_giving_a_time_as_null_removes_it(client, login_token_fa
     assert submission['status'] == 'COMPLETED', submission
     record = await record_of(client, login_token_factory, read_policy, dataset_id, record_id)
     assert (record['start'], record['end']) == (None, '2025-06-30')
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_an_update_moves_a_record_to_another_unit(client, login_token_factory, read_policy, spectra):
+    record_id, dataset_id = spectra.records['tree_public'], spectra.ids['dataset']
+    before = await record_of(client, login_token_factory, read_policy, dataset_id, record_id)
+    submission = await update(
+        client, login_token_factory, read_policy, dataset_id, {'id': record_id, 'unitId': read_policy['tree_registered']}
+    )
+    assert submission['status'] == 'COMPLETED', submission
+    assert await record_of(client, login_token_factory, read_policy, dataset_id, record_id) == {
+        **before, 'unit': {'id': str(read_policy['tree_registered'])}
+    }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('unit', ['leaf_other', None])
+async def test_a_record_does_not_move_to_a_unit_the_writer_cannot_read(client, login_token_factory, read_policy, spectra, unit):
+    """Another team's private unit is not found, as is a unit that isn't there, and the record stays"""
+    unit_id = read_policy[unit] if unit else 10 ** 6
+    record_id, dataset_id = spectra.records['tree_registered'], spectra.ids['dataset']
+    before = await record_of(client, login_token_factory, read_policy, dataset_id, record_id)
+    submission = await update(client, login_token_factory, read_policy, dataset_id, {'id': record_id, 'unitId': unit_id})
+    assert submission['status'] == 'FAILED'
+    assert submission['errors'] == [f"Failed to update dataset: Unit {unit_id} was not found"]
+    assert await record_of(client, login_token_factory, read_policy, dataset_id, record_id) == before
