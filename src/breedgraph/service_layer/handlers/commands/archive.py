@@ -1,4 +1,5 @@
 from breedgraph import config
+from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.domain import commands
 from breedgraph.domain.model.archive import ArchiveState, LocalState, FileArchivalUpdate
 
@@ -15,8 +16,13 @@ logger = logging.getLogger(__name__)
 @handlers.command_handler()
 async def request_file_restore(
         cmd: commands.archive.RequestFileRestore,
-        archival_service: AbstractFileArchivalService
+        archival_service: AbstractFileArchivalService,
+        uow_factory: AbstractUnitOfWorkFactory
 ):
+    # an archived file is retrieved for those who can read its reference; one they cannot is not found, as one missing
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        if await uow.repositories.references.get(file_id=cmd.file_id) is None:
+            raise NoResultFoundError(f"Reference with file ID {cmd.file_id} not found")
     record = await archival_service.get(cmd.file_id)
     if record.local_state == LocalState.LOCAL:
         return

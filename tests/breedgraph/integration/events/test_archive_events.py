@@ -4,23 +4,17 @@ can still read its reference, or that the retrieval failed. A retrieval meets th
 a failed one keeps them. The email links to the site rather than to the file, whose download checks the licences of the
 data citing it (docs/licences.md §5).
 """
-import hashlib
-import uuid
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from breedgraph.config import get_vue_url, FILE_STORAGE_PATH
 from breedgraph.domain.events.archive import RetrievalSucceeded, RetrievalFailed
-from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
-from breedgraph.domain.model.controls import ReadRelease
-from breedgraph.domain.model.references import FileReferenceInput
+from breedgraph.domain.model.archive import ArchiveState, LocalState
 from breedgraph.service_layer.handlers.events.archive import retrieval_succeeded, retrieval_failed
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
-
-CONTENT = b"unit,height\ntree,310\n"
+from tests.breedgraph.scenarios.archived_files import archived_file, CONTENT
 
 
 class RecordingNotifications:
@@ -29,25 +23,6 @@ class RecordingNotifications:
 
     async def send(self, recipients, message):
         self.sent.append((recipients, message))
-
-
-async def archived_file(uow_factory, archival_service, owner: dict) -> str:
-    """A private file reference of the owner's team, whose file has left the web server for the archive"""
-    file_id = uuid.uuid4().hex
-    async with uow_factory.get_uow(user_id=owner['user_id'], write_team=owner['team_id'], release=ReadRelease.PRIVATE) as uow:
-        await uow.repositories.references.create(FileReferenceInput(
-            description='Archived data', filename='archived.csv', content_type='text/csv', file_id=file_id
-        ))
-        await uow.commit()
-    await archival_service.create(FileArchivalRecord(
-        file_id=file_id,
-        file_size=len(CONTENT),
-        file_hash=hashlib.sha256(CONTENT).hexdigest(),
-        last_accessed=datetime.now(),
-        archive_state=ArchiveState.RETRIEVAL_PENDING,
-        local_state=LocalState.EXPIRED
-    ))
-    return file_id
 
 
 def recipient_ids(notifications: RecordingNotifications) -> list[list[int]]:

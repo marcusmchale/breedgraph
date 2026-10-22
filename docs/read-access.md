@@ -177,7 +177,7 @@ EDITORIAL view, with drafts, needs an account.
 | Location trees, layout trees (`views.location_trees`, `views.layout_trees`) | yes |
 | Units (`views.units`) | yes |
 | Datasets (`views.datasets`, `query_builders/datasets.py`) | yes |
-| References (`views.references`, `query_builders/references.py`) | yes; a file downloads for anyone who can read its reference |
+| References (`views.references`, `query_builders/references.py`) | yes; a file downloads, and an archived one is retrieved, for anyone who can read its reference |
 | Germplasm (`views.germplasm`, `query_builders/germplasm.py`) | yes |
 | People (`views.people`, `query_builders/people.py`) | yes, in three views (docs/person.md §3), for signed-in users only: Persons are released at most to registered users, anonymous users get no contacts or contributions, and listing and looking up Persons needs an account |
 | Controls (`views.controls`, `query_builders/controls.read_controllers`) | yes; signed-in users only, transfers stay admin-only |
