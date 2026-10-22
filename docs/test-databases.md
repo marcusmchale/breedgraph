@@ -152,10 +152,11 @@ entry gives what analyses report, checked by `tests/breedgraph/e2e/analysis/test
 
 ### The arrivals
 
-Units that came to locations at dated positions, for the Units page's arrivals, moving units in bulk, and germplasm
-and factors coming down the unit graph (`tests/breedgraph/scenarios/arrival_scenario.py` draws them). Controlled by
-the child team and released REGISTERED, so every account reads them and `readpolicy_writer` curates them, except
-"Arrival Sample Hidden", which is PRIVATE: only the admin and the writer read it.
+Units that came to locations at dated positions, for the Units page's arrivals, moving units in bulk, germplasm
+and factors coming down the unit graph, and units derived from others (`tests/breedgraph/scenarios/arrival_scenario.py`
+draws them). Controlled by the child team and released REGISTERED, so every account reads them and `readpolicy_writer`
+curates them, except "Arrival Sample Hidden", which is PRIVATE: only the admin and the writer read it, and the derived
+units, which `readpolicy_stranger`'s other team controls.
 
 - **Locations:** "Arrival Lab Store", below the scenario's lab.
 - **Units:** one unit graph, "Arrival Field" at the registered field, with a plot of four trees. Samples of Tree A and
@@ -163,7 +164,11 @@ the child team and released REGISTERED, so every account reads them and `readpol
   2025-05-02 and one was used up; Tree B visited the lab in 2024 and went back; "Arrival Pooled" is from Tree A and
   Tree B, whose germplasm differ, "Arrival Pooled Same" from Tree A and Tree C, whose agree. The hidden sample's
   extract is an arrival for whoever can't read the sample. Two samples of "Arrival Move Tree" reached the lab on
-  2025-06-10, for tests that move them and put them back.
+  2025-06-10, for tests that move them and put them back. Microcuttings of Tree C, "Arrival Cuttings C", reached the
+  lab on 2025-02-10.
+- **Derived units:** the stranger's unit graph "Arrival Field Season 2025" at the registered field holds "Arrival
+  Plantlet C", derived from the cuttings (TISSUE, micropropagation), with their germplasm as its own. Nothing else comes
+  down a derivation, and the cuttings stay at the lab, so their arrival is settled.
 - **Study:** "Readpolicy arrivals program" → "trial" → "study", with the light factor on the trees and the height
   variable on samples.
 

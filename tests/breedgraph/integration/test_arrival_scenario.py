@@ -1,12 +1,15 @@
 """
 The arrivals builder (tests/breedgraph/scenarios/arrival_scenario.py): what it declares is what the views read back,
-for the writer, who reads it all, and the hidden sample a placeholder for the outsider.
+for the writer, who reads it all, and the hidden sample a placeholder for the outsider; the plantlet derived from the
+cuttings that arrived at the lab, whose arrival is then settled.
 """
 import pytest
 
-from tests.breedgraph.scenarios.arrival_scenario import UNITS, HIDDEN, LIGHT, HEIGHT, STORE, LAB_STORE
+from tests.breedgraph.scenarios.arrival_scenario import (
+    UNITS, HIDDEN, DERIVED, DERIVATIONS, PLANTLET, LIGHT, HEIGHT, STORE, LAB, LAB_STORE
+)
 
-DECLARED = {**UNITS, **{name: unit for name, (_, unit) in HIDDEN.items()}}
+DECLARED = {**UNITS, **{name: unit for name, (_, unit) in HIDDEN.items()}, **DERIVED}
 
 
 def test_units(arrivals):
@@ -52,3 +55,19 @@ async def test_datasets(views_factory, read_policy, arrivals):
         for key, values in (('light', LIGHT), ('height', HEIGHT)):
             records = await views.datasets.get_records(arrivals.datasets[key])
             assert {names[record['unit']]: record['value'] for record in records} == values, key
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_plantlet_derived_from_the_cuttings_settles_their_arrival(views_factory, read_policy, arrivals):
+    source, source_type, description = DERIVATIONS[PLANTLET]
+    plantlet_id, source_id = arrivals.units[PLANTLET], arrivals.units[source]
+    async with views_factory.get_views(user_id=read_policy['outsider']) as views:
+        plantlet = (await views.units.get_units([plantlet_id]))[plantlet_id]
+        derivatives = await views.units.get_derivatives([source_id])
+        lab_arrivals = await views.units.get_arrivals([read_policy[LAB]])
+    assert [(d.unit_id, d.source_type, d.description) for d in plantlet.derived_from] == [
+        (source_id, source_type, description)
+    ]
+    assert [d.unit_id for d in derivatives[source_id]] == [plantlet_id]
+    (cuttings,) = [arrival for arrival in lab_arrivals if str(arrival.start) == '2025-02-10']
+    assert (cuttings.unit_count, cuttings.derived_unit_count, cuttings.pending_unit_count) == (1, 1, 0)

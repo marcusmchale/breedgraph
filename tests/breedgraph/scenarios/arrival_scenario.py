@@ -4,7 +4,8 @@ the arrivals of breedview's Units page (docs/test-databases.md, "The arrivals sc
 germplasm and factors coming down the unit graph. Fixed names, so the arrivals and what is inherited can be asserted.
 
 Everything is controlled by the child team and REGISTERED, written by the writer, except Arrival Sample Hidden, which is
-PRIVATE: the admin and the writer read it, other signed-in users do not; anonymous users read none of it.
+PRIVATE: the admin and the writer read it, other signed-in users do not; anonymous users read none of it; and the
+derived units below, which the stranger's other team controls, REGISTERED.
 
     Arrival Lab Store                a location below lab
 
@@ -25,10 +26,16 @@ PRIVATE: the admin and the writer read it, other signed-in users do not; anonymo
         │   (and Arrival Pooled)
         ├── Arrival Tree C           Tree      germplasm crop_leaf; light 100
         │   ├── Arrival Leaf C       Leaf      with its tree
+        │   ├── Arrival Cuttings C   Sample    microcuttings, at lab from 2025-02-10: derived from, so settled there
         │   └── Arrival Pooled Same  Sample    from Tree A and Tree C; at lab, undated
         └── Arrival Move Tree        Tree
             ├── Arrival Move Sample 1  Sample  at lab from 2025-06-10
             └── Arrival Move Sample 2  Sample  at lab from 2025-06-10
+
+    Arrival Field Season 2025        Field     the stranger's, at field_registered from 2025-01
+    └── Arrival Plantlet C           Tree      derived from Arrival Cuttings C (TISSUE, micropropagation), at
+                                               field_registered from 2025-03-15; germplasm crop_leaf, copied from the
+                                               cuttings when derived, as nothing comes down a derivation
 
     Readpolicy arrivals program > trial > study, with the datasets
         light    the light factor on Tree A (100), Tree B (200) and Tree C (100), undated
@@ -46,7 +53,8 @@ from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput
 from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput
-from breedgraph.domain.model.unit_graphs import UnitInput, Position
+from breedgraph.domain.model.germplasm import GermplasmSourceType
+from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitDerivation
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from .read_policy_scenario import ReadPolicyScenario
@@ -82,6 +90,7 @@ UNITS = {
     'Arrival Pooled': ('ontology_subject_sample', ['Arrival Tree A', 'Arrival Tree B'], None, [at(LAB, '2025-03-25')]),
     'Arrival Tree C': ('ontology_subject_tree', ['Arrival Plot'], 'crop_leaf', []),
     'Arrival Leaf C': ('ontology_subject_leaf', ['Arrival Tree C'], None, []),
+    'Arrival Cuttings C': ('ontology_subject_sample', ['Arrival Tree C'], None, [at(LAB, '2025-02-10')]),
     'Arrival Pooled Same': ('ontology_subject_sample', ['Arrival Tree A', 'Arrival Tree C'], None, [at(LAB)]),
     'Arrival Move Tree': ('ontology_subject_tree', ['Arrival Plot'], None, []),
     'Arrival Move Sample 1': ('ontology_subject_sample', ['Arrival Move Tree'], None, [at(LAB, '2025-06-10')]),
@@ -97,12 +106,23 @@ HIDDEN = {
     ])),
 }
 RELEASES = {name: ReadRelease.REGISTERED for name in UNITS} | {name: release for name, (release, _) in HIDDEN.items()}
+# a unit graph of the stranger's, in the other team and REGISTERED: the field season the cuttings were planted in, and
+# the plantlet derived from them (README, Unit), with the germplasm the cuttings take from their tree as its own
+SEASON, PLANTLET = 'Arrival Field Season 2025', 'Arrival Plantlet C'
+DERIVED = {
+    SEASON: ('ontology_subject_field', [], None, [at(FIELD, '2025-01')]),
+    PLANTLET: ('ontology_subject_tree', [SEASON], 'crop_leaf', [at(FIELD, '2025-03-15')]),
+}
+# derived unit: (the unit it came from, how, description)
+DERIVATIONS = {PLANTLET: ('Arrival Cuttings C', GermplasmSourceType.TISSUE, 'Micropropagation')}
+RELEASES |= {name: ReadRelease.REGISTERED for name in DERIVED}
 
 # location: the arrivals there, newest first and undated last, as (start, unit names by name)
 _LAB_WRITER = [
     ('2025-06-10', ['Arrival Move Sample 1', 'Arrival Move Sample 2']),
     ('2025-03-25', ['Arrival Pooled', 'Arrival Sample A1', 'Arrival Sample A2', 'Arrival Sample A3',
                     'Arrival Sample B1', 'Arrival Sample Hidden']),
+    ('2025-02-10', ['Arrival Cuttings C']),
     ('2024-11', ['Arrival Sample Own']),
     ('2024-06', ['Arrival Tree B']),
     (None, ['Arrival Pooled Same']),
@@ -111,6 +131,7 @@ _LAB_REGISTERED = [
     ('2025-06-10', ['Arrival Move Sample 1', 'Arrival Move Sample 2']),
     ('2025-03-25', ['Arrival Extract Hidden', 'Arrival Pooled', 'Arrival Sample A1', 'Arrival Sample A2',
                     'Arrival Sample A3', 'Arrival Sample B1']),
+    ('2025-02-10', ['Arrival Cuttings C']),
     ('2024-11', ['Arrival Sample Own']),
     ('2024-06', ['Arrival Tree B']),
     (None, ['Arrival Pooled Same']),
@@ -140,6 +161,10 @@ _GERMPLASM = {
     'Arrival Pooled': None,  # crop_leaf from Tree A, crop_private_child from Tree B
     'Arrival Tree C': ('crop_leaf', ['Arrival Tree C']),
     'Arrival Leaf C': ('crop_leaf', ['Arrival Tree C']),
+    'Arrival Cuttings C': ('crop_leaf', ['Arrival Tree C']),
+    # its own, copied from the cuttings when it was derived from them
+    'Arrival Plantlet C': ('crop_leaf', ['Arrival Plantlet C']),
+    'Arrival Field Season 2025': None,
     'Arrival Pooled Same': ('crop_leaf', ['Arrival Tree A', 'Arrival Tree C']),  # the two trees agree
     'Arrival Move Tree': None,
     'Arrival Move Sample 1': None,
@@ -197,6 +222,7 @@ class ArrivalScenarioBuilder:
         await self._unit_graph()
         for name, (release, unit) in HIDDEN.items():
             await self._unit(name, unit, release)
+        await self._derived()
         await self._study()
         return self.arrivals
 
@@ -256,6 +282,29 @@ class ArrivalScenarioBuilder:
             unit_graph = await uow.repositories.unit_graphs.get(unit_id=parents[0])
             (unit_id,) = [u.id for u in unit_graph.entries.values() if u.name == name]
         self.arrivals.units[name] = unit_id
+
+    async def _derived(self):
+        """The stranger's field season, and the plantlet derived from the cuttings that arrived at the lab"""
+        b = self.base
+        async with self.uow_factory.get_uow(
+                user_id=b['stranger'], write_team=b['other'], release=ReadRelease.REGISTERED
+        ) as uow:
+            unit_graph = await uow.repositories.unit_graphs.create(self._unit_input(SEASON, DERIVED[SEASON]))
+            for name, unit in DERIVED.items():
+                if name == SEASON:
+                    continue
+                unit_input = self._unit_input(name, unit)
+                if name in DERIVATIONS:
+                    source, source_type, description = DERIVATIONS[name]
+                    unit_input.derived_from = [UnitDerivation(
+                        unit_id=self.arrivals.units[source], source_type=source_type, description=description
+                    )]
+                unit_graph.add_unit(unit_input, parents=[unit_graph.get_root_id()])
+            await uow.commit()
+            root_id = unit_graph.get_root_id()
+        async with self.uow_factory.get_uow() as uow:
+            unit_graph = await uow.repositories.unit_graphs.get(unit_id=root_id)
+            self.arrivals.units.update({unit.name: unit.id for unit in unit_graph.entries.values()})
 
     async def _study(self):
         b, a = self.base, self.arrivals
