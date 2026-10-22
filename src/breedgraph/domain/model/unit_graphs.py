@@ -37,7 +37,11 @@ Unit graphs should not ordinarily be split, or information stored on parent node
  As such, edits should be handled carefully in front end implementations.
  Another situation could be temporary unit graph creation, then merger
 
-
+A unit's parents are its context: it takes their germplasm, is where they are without a position of its own, and in
+analysis their factor records describe it. Material that starts a context of its own, e.g. microcuttings from a lab
+that become plantlets in a field, or seed that becomes seedlings, is a new unit derived from the units it came from
+(derived_from), rather than their child or a split from their unit graph. Being derived passes nothing down: the new
+unit is in a unit graph of its own team's, and its derivation is kept as its history.
 """
 from abc import ABC
 from dataclasses import dataclass, field, replace
@@ -49,9 +53,10 @@ from breedgraph.domain.model.time_descriptors import same_time, local_datetime64
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.tracking.wrappers import asdict
 from breedgraph.domain.model.base import EnumLabeledModel, StoredModel
+from breedgraph.domain.model.germplasm import GermplasmSourceType
 from breedgraph.domain.model.controls import ControlledModel, ControlledRootedAggregate, Controller, ControlledModelLabel, Access
 
-from typing import List, ClassVar, Generator
+from typing import List, ClassVar, Generator, Iterable
 
 @dataclass
 class Position:
@@ -82,6 +87,23 @@ def same_position(position: Position, other: Position) -> bool:
         and same_time(time(position.end), time(other.end))
     )
 
+@dataclass
+class UnitDerivation:
+    """
+    The unit a unit's material came from, e.g. the microcutting a plantlet grew from: unlike a parent, it passes nothing
+    down, so the derived unit starts a context of its own. Source types are those of germplasm relationships
+    """
+    unit_id: int
+    source_type: GermplasmSourceType = GermplasmSourceType.UNKNOWN
+    description: str | None = None
+
+    def __post_init__(self):
+        self.source_type = GermplasmSourceType(self.source_type)
+
+    def model_dump(self):
+        return {'unit_id': self.unit_id, 'source_type': self.source_type.value, 'description': self.description}
+
+
 @dataclass(eq=False)
 class UnitBase(ABC):
     """
@@ -96,9 +118,12 @@ class UnitBase(ABC):
     description: str|None = None
 
     positions: List[Position] = field(default_factory = list)
+    derived_from: List[UnitDerivation] = field(default_factory = list)
 
     def model_dump(self):
-        return asdict(self)
+        dump = asdict(self)
+        dump['derived_from'] = [UnitDerivation(**derivation).model_dump() for derivation in dump['derived_from']]
+        return dump
 
 @dataclass
 class UnitInput(UnitBase, EnumLabeledModel):
@@ -122,7 +147,8 @@ class UnitStored(UnitBase, ControlledModel):
                 description=self.description and self.redacted_str,
                 subject=None,
                 germplasm=None,
-                positions=list()
+                positions=list(),
+                derived_from=list()
             )
 
 @dataclass(eq=False)
@@ -201,6 +227,19 @@ class UnitGraph(ControlledRootedAggregate):
                 raise ValueError(f"Child {child_id} is not in this unit graph: merge its unit graph instead")
             self.set_child(source_id = unit_id, sink_id=child_id)
 
+
+    def check_derived_from(self, unit_id: int, source_ids: Iterable[int]) -> None:
+        """
+        A unit is derived from units outside its context: not from itself, nor from the units above or below it in
+        its unit graph, whose context it shares already. Units derived from it are checked against the database.
+        """
+        source_ids = set(source_ids)
+        if unit_id in source_ids:
+            raise IllegalOperationError("A unit can't be derived from itself")
+        if source_ids & (nx.ancestors(self._graph, unit_id) | nx.descendants(self._graph, unit_id)):
+            raise IllegalOperationError(
+                "A unit can't be derived from the units above or below it in its unit graph: they are its context"
+            )
 
     def merge_unit_graph(self, unit_graph: 'UnitGraph', parents: List[int]):
         """

@@ -70,6 +70,7 @@ def _unit(unit: str = 'unit') -> str:
             .*,
             subject: [({unit})-[:OF_SUBJECT]->(subject:Subject) | subject.id][0],
             germplasm: [({unit})-[:OF_GERMPLASM]->(germplasm:Germplasm) | germplasm.id][0],
+            derived_from: [({unit})-[derived:DERIVED_FROM]->(source:Unit) | derived {{.source_type, .description, unit_id: source.id}}],
             positions: positions,
             parents: parents,
             children: children
@@ -198,6 +199,24 @@ def read_unit_ancestors():
         WITH unit, ancestor, min(length(path)) AS distance
         ORDER BY unit.id, distance, ancestor.id
         RETURN unit.id AS unit_id, collect(ancestor.id) AS ancestor_ids
+    """
+
+
+def read_unit_derivatives():
+    """
+    For each unit $unit_ids the user can read, the units derived from it that the user can read, by id, each with how
+    it was derived: a search from the unit, so hidden units are left out (docs/read-access.md, rule 5)
+    """
+    return f"""
+        UNWIND $unit_ids AS unit_id
+        MATCH (unit:Unit {{id: unit_id}})
+        WHERE {_readable('unit')}
+        MATCH (derivative:Unit)-[derived:DERIVED_FROM]->(unit)
+        WHERE {_readable('derivative')}
+        WITH unit, derivative, derived
+        ORDER BY derivative.id
+        RETURN unit.id AS unit_id,
+          collect(derived {{.source_type, .description, unit_id: derivative.id}}) AS derivatives
     """
 
 

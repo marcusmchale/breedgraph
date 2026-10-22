@@ -39,6 +39,7 @@ WITH
     .*,
     subject: [(unit)-[:OF_SUBJECT]->(subject:Subject) | subject.id][0],
     germplasm: [(unit)-[:OF_GERMPLASM]->(germplasm:Germplasm) | germplasm.id][0],
+    derived_from: [(unit)-[derived:DERIVED_FROM]->(source:Unit) | derived {.source_type, .description, unit_id: source.id}],
     positions: positions,
     parent_ids: [(parent:Unit)-[:INCLUDES_UNIT]->(unit)|parent.id]
   } as unit

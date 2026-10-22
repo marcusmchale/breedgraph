@@ -28,5 +28,21 @@ CALL (unit) {
   ON CREATE SET of_germplasm.time = datetime.transaction()
 }
 
+// Update the units its material came from
+CALL (unit) {
+  MATCH (unit)-[derived:DERIVED_FROM]->(source:Unit)
+    WHERE NOT source.id IN [derivation IN $derived_from | derivation['unit_id']]
+  DELETE derived
+}
+CALL (unit) {
+  UNWIND $derived_from AS derivation
+  MATCH (source:Unit {id: derivation['unit_id']})
+  MERGE (unit)-[derived:DERIVED_FROM]->(source)
+  ON CREATE SET derived.time = datetime.transaction()
+  SET
+    derived.source_type = derivation['source_type'],
+    derived.description = derivation['description']
+}
+
 // Positions are not written here but by application.unit_positions: only a new unit's are written with it
 RETURN NULL

@@ -1,7 +1,7 @@
 from breedgraph.custom_exceptions import NoResultFoundError, IllegalOperationError, ProtectedNodeError
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractUnitHolder
 from breedgraph.domain import commands
-from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph
+from breedgraph.domain.model.unit_graphs import UnitInput, Position, UnitGraph, UnitDerivation
 from breedgraph.domain.model.ontology import AxisType, OntologyEntryLabel, LayoutTypeStored
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.domain.services.unit_positions import validate_position
@@ -26,7 +26,8 @@ async def create_unit(
             subject = cmd.subject_id,
             germplasm = cmd.germplasm_id,
             name = cmd.name,
-            description = cmd.description
+            description = cmd.description,
+            derived_from = list(cmd.derived_from or [])
         )
         # written with the unit: the unit graph repository writes positions only for new units
         if cmd.location_id:
@@ -62,6 +63,7 @@ async def create_unit(
                     raise ValueError("Merging unit graphs requires all children to be the root of their respective unit graph")
                 unit_graph.merge_unit_graph(unit_graph=child_unit_graph, parents=[unit_id])
 
+        await _check_derived_from(uow, unit_graph, unit_id, unit_input.derived_from, [])
         await uow.commit()
 
 @handlers.command_handler()
@@ -86,6 +88,9 @@ async def update_unit(
             unit.name = cmd.name
         if cmd.description is not None:
             unit.description = cmd.description
+        if cmd.derived_from is not None:
+            await _check_derived_from(uow, unit_graph, cmd.unit_id, cmd.derived_from, unit.derived_from)
+            unit.derived_from = list(cmd.derived_from)
 
         # Handle parent/child relationships if provided, children first as we may split unit graphs after
         if cmd.children is not None:
@@ -125,8 +130,33 @@ async def delete_unit(
         await uow.controls.require_access(ControlledModelLabel.UNIT, [cmd.unit_id], Access.CURATE)
         if await uow.guards.germplasm_from_unit(cmd.unit_id):
             raise ProtectedNodeError("Germplasm came from this unit, so it may not be deleted.")
+        if await uow.guards.unit_has_derivatives(cmd.unit_id):
+            raise ProtectedNodeError("Units are derived from this unit, so it may not be deleted.")
         unit_graph.remove_unit(cmd.unit_id)
         await uow.commit()
+
+async def _check_derived_from(
+        uow: AbstractUnitHolder,
+        unit_graph: UnitGraph,
+        unit_id: int,
+        derived_from: List[UnitDerivation],
+        current: List[UnitDerivation]
+):
+    """
+    The units a unit is derived from, as given: each once, and those not already among them readable, outside the
+    unit's context (UnitGraph.check_derived_from) and not derived from it, so derivations stay acyclic. A unit it stays
+    derived from may since have been hidden from the user.
+    """
+    source_ids = [derivation.unit_id for derivation in derived_from]
+    if len(set(source_ids)) != len(source_ids):
+        raise ValueError("A unit is derived from each unit once")
+    added = set(source_ids) - {derivation.unit_id for derivation in current}
+    if not added:
+        return
+    await uow.controls.require_read(ControlledModelLabel.UNIT, added)
+    unit_graph.check_derived_from(unit_id, added)
+    if await uow.guards.derivation_cycle(unit_id, list(added)):
+        raise IllegalOperationError("A unit can't be derived from a unit derived from it")
 
 async def _change_children(uow: AbstractUnitHolder, unit_graph: UnitGraph, unit_id: int, children: List[int]):
     """

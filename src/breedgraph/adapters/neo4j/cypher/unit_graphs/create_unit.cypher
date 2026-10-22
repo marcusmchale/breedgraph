@@ -22,6 +22,16 @@ OPTIONAL CALL (unit) {
   CREATE (unit)-[:OF_GERMPLASM]->(germplasm)
   RETURN collect(germplasm.id)[0] as germplasm
 }
+// Link to the units its material came from (optional): not parents, nothing comes down these
+CALL (unit) {
+  UNWIND $derived_from AS derivation
+  MATCH (source:Unit {id: derivation['unit_id']})
+  CREATE (unit)-[derived:DERIVED_FROM {
+    source_type: derivation['source_type'],
+    description: derivation['description']
+  }]->(source)
+  RETURN collect(derived {.source_type, .description, unit_id: source.id}) AS derived_from
+}
 // Link to positions
 CALL (unit) {
   UNWIND $positions as position_map
@@ -45,5 +55,6 @@ RETURN
   unit {
     .*,
     subject: subject,
+    derived_from: derived_from,
     positions: positions
   }

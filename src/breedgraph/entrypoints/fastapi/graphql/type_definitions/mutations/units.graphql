@@ -68,6 +68,18 @@ input UnitInput {
     IDs of child Units, which represent a component of this unit.
     """
     childrenIds: [ID]
+    """
+    The units its material came from, which pass nothing down, unlike parents: e.g. plantlets in a field grown from
+    microcuttings that arrived from a lab. Each needs read access.
+    """
+    derivedFrom: [UnitDerivationInput!]
+}
+
+input UnitDerivationInput {
+    """ The unit the material came from """
+    unitId: ID!
+    sourceType: GermplasmSourceType = UNKNOWN
+    description: String
 }
 
 input UnitUpdate {
@@ -80,6 +92,8 @@ input UnitUpdate {
     description: String
     parentIds: [ID!]
     childrenIds: [ID!]
+    """ Omitted, the units it is derived from are unchanged; an empty list removes them all """
+    derivedFrom: [UnitDerivationInput!]
 }
 
 extend type Mutation {

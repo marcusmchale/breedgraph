@@ -48,6 +48,7 @@ QUERIES = {
     'unit_graphs.read_unit_names': unit_graphs.read_unit_names(),
     'unit_graphs.read_descendants_by_subject': unit_graphs.read_descendants_by_subject(),
     'unit_graphs.read_unit_ancestors': unit_graphs.read_unit_ancestors(),
+    'unit_graphs.read_unit_derivatives': unit_graphs.read_unit_derivatives(),
     **{f'unit_graphs.read_unit_arrivals(related={related})': unit_graphs.read_unit_arrivals(related) for related in (False, True)},
     **{f'unit_graphs.read_arrival_units(related={related})': unit_graphs.read_arrival_units(related) for related in (False, True)},
     **{f'unit_graphs.read_arrival_unit_ids(related={related})': unit_graphs.read_arrival_unit_ids(related) for related in (False, True)},

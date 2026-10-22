@@ -43,6 +43,7 @@ async def create_unit(
         germplasm_id=unit.get('germplasm_id'),
         parents=unit.get('parent_ids'),
         children=unit.get('children_ids'),
+        derived_from=unit.get('derived_from'),
         location_id = position.get('location_id') if position else None,
         layout_id = position.get('layout_id') if position else None,
         coordinates = position.get('coordinates') if position else None,
@@ -70,6 +71,7 @@ async def update_unit(
         description=unit.get('description'),
         parents=unit.get('parent_ids'),
         children=unit.get('children_ids'),
+        derived_from=unit.get('derived_from'),
         # passed only when given, as null removes them
         **{key: unit[key] for key in ('subject_id', 'germplasm_id') if key in unit}
     )

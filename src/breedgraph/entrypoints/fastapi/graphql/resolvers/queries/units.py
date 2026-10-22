@@ -189,6 +189,39 @@ async def resolve_inherited_germplasm(obj, info):
         'unit': info.context.get('units_map', {}).get(unit_id)
     }
 
+def _derivation(derivation, units_map) -> dict:
+    return {
+        'unit': units_map.get(derivation.unit_id),
+        'source_type': derivation.source_type.value,
+        'description': derivation.description
+    }
+
+@unit.field("derivedFrom")
+async def resolve_derived_from(obj, info):
+    await update_units_map(info.context, unit_ids=[derivation.unit_id for derivation in obj.derived_from])
+    units_map = info.context.get('units_map', {})
+    return [_derivation(derivation, units_map) for derivation in obj.derived_from if derivation.unit_id in units_map]
+
+@unit.field("derivatives")
+async def resolve_derivatives(obj, info):
+    """Read in one batch for the units of the request that ask for it, as inheritedGermplasm is"""
+    derivatives = info.context.setdefault('unit_derivatives', {})
+    if obj.id not in derivatives:
+        asked = info.context.setdefault('_unit_derivatives_asked', set())
+        asked.add(obj.id)
+        await asyncio.sleep(0)
+        async with _get_lock(info.context, '_unit_derivatives_lock'):
+            pending = [i for i in asked if i not in derivatives]
+            if pending:
+                async with get_context_lock(info.context):
+                    views = await get_context_views(info.context)
+                    derivatives.update(await views.units.get_derivatives(pending))
+                asked.difference_update(pending)
+    found = derivatives.get(obj.id, [])
+    await update_units_map(info.context, unit_ids=[derivation.unit_id for derivation in found])
+    units_map = info.context.get('units_map', {})
+    return [_derivation(derivation, units_map) for derivation in found if derivation.unit_id in units_map]
+
 @unit.field("children")
 async def resolve_children(obj, info):
     await update_units_map(info.context, unit_ids=obj.children)

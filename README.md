@@ -260,12 +260,25 @@ Units have attributes for:
   - description
   - germplasm: an ID for a [germplasm entry](#germplasm-entry)
   - positions: a list of [positions](#position)
+  - derived from: the units its material came from, each with a source type, as for [germplasm](#germplasm)
+    (UNKNOWN, SEED, TISSUE, MATERNAL or PATERNAL), and a description
 
 A unit without germplasm of its own takes that of the units above it, so a sample needs none: on each path up its
 parents, the first unit with germplasm, and these must agree (a sample pooled from trees of two varieties has none).
 A unit's own germplasm overrides what it would take, e.g. a seedling raised from a cross.
 Germplasm produced here, e.g. a selection made from a tree, can name the unit it came from (a
 [germplasm entry](#germplasm-entry)'s unit); that unit then cannot be deleted.
+
+A unit's parents are its context: it takes their germplasm, it is where they are without a position of its own, their
+factor records describe it in analysis, and it shares the WITHIN_GRAPH codes of their unit graph. Material that starts
+a context of its own is a new unit **derived from** the units it came from, rather than their child: microcuttings from
+a lab that become plantlets in a field, seed that becomes seedlings, a cutting rooted elsewhere. The derived unit is in
+a unit graph of its own team's, as its root or under a unit there (e.g. a field-season unit), and nothing comes down a
+derivation: its germplasm is its own, and analysis doesn't follow it. The derivation is kept as the unit's history. A
+unit stays a child where its parent's context describes its observations: a sample sent for analysis describes its
+tree. Deriving needs read access to the units derived from, and leaves them as they are, so a lot can be split, some
+of it derived at one place and the rest moved on. A unit is not derived from itself, from the units above or below it
+in its unit graph, or from a unit derived from it, and a unit with units derived from it cannot be deleted.
 ##### Position
 Positions have attributes for:
 - location: an ID for a [location](#location) within a [location tree](#location-tree)

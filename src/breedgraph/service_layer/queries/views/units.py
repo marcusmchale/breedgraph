@@ -3,7 +3,7 @@ from typing import Iterable, List, Dict, Tuple
 
 from numpy import datetime64
 
-from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival
+from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival, UnitDerivation
 
 
 class AbstractUnitsView(ABC):
@@ -69,6 +69,21 @@ class AbstractUnitsView(ABC):
         if not unit_ids:
             return {}
         return await self._get_inherited_germplasm(unit_ids)
+
+    async def get_derivatives(self, unit_ids: Iterable[int]) -> Dict[int, List[UnitDerivation]]:
+        """
+        For each of these units, the readable units derived from it, by id, each as a derivation naming the derived
+        unit; none for a unit the user cannot read, as a search from it finds nothing (docs/read-access.md, rule 5)
+        """
+        unit_ids = [unit_id for unit_id in dict.fromkeys(unit_ids) if unit_id is not None]
+        if not unit_ids:
+            return {}
+        found = await self._get_derivatives(unit_ids)
+        return {unit_id: found.get(unit_id, []) for unit_id in unit_ids}
+
+    @abstractmethod
+    async def _get_derivatives(self, unit_ids: List[int]) -> Dict[int, List[UnitDerivation]]:
+        ...
 
     @abstractmethod
     async def _get_inherited_germplasm(self, unit_ids: List[int]) -> Dict[int, Tuple[int, int]]:

@@ -37,7 +37,7 @@ In detail:
 2. **References across aggregates give placeholders.** When a readable entity refers to an entity in another
    aggregate that the user cannot read, the reference is kept and the target is a placeholder: its id and the name
    `REDACTED`, with empty lists and no other fields. Examples: a record's unit, a unit position's layout, the unit a
-   germplasm entry came from, a record's, study's or ontology entry's reference, a hidden entity asked for directly by
+   germplasm entry came from, the units a unit is derived from, a record's, study's or ontology entry's reference, a hidden entity asked for directly by
    id. A study's licence is never a placeholder for those who read the study or its datasets by release (rule 10). A query by a list of ids leaves out ids of no entity (one deleted since it was read, say): they are not hidden,
    so there is nothing to stand in for.
    A reference placeholder keeps its type as well (legal, external, file and so on), as GraphQL needs it to choose the
@@ -64,7 +64,7 @@ In detail:
 5. **Searches leave hidden entities out.** Listing by a filter (datasets by study or concept, programs, units by
    subject) returns only readable entities, and placeholders only where rule 4 needs them. A search is not a
    reference, so it gives no placeholders for what it found hidden. A search from a given entity (what lies below a
-   unit or location, by subject or type; the descendants of a germplasm, for analysis grouping; the program or trial
+   unit or location, by subject or type; the units derived from a unit; the descendants of a germplasm, for analysis grouping; the program or trial
    holding a trial or study) starts only from one the user can read, or from a hidden root rule 4 keeps (and a trial
    holding readable studies); from any other hidden entity it finds nothing, as for a missing id, rather than show
    what lies below or above it. Units by location (the unit graph roots at a location, and its arrivals: the units

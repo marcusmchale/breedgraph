@@ -133,3 +133,34 @@ def test_same_position_compares_times_as_entered_and_coordinates_as_strings():
 def test_unit_ids_by_subject():
     unit_graph = _graph([(1, 2), (1, 3)])
     assert list(unit_graph.yield_unit_ids_by_subject(12)) == [2]
+
+
+from breedgraph.domain.model.unit_graphs import UnitDerivation
+from breedgraph.domain.model.germplasm import GermplasmSourceType
+
+
+def test_unit_derivation_takes_its_source_type_by_value_and_dumps_it_so():
+    derivation = UnitDerivation(unit_id=7, source_type='TISSUE', description='Microcutting')
+    assert derivation.source_type is GermplasmSourceType.TISSUE
+    assert UnitDerivation(unit_id=7).source_type is GermplasmSourceType.UNKNOWN
+    unit = UnitInput(subject=1, derived_from=[derivation])
+    assert unit.model_dump()['derived_from'] == [{'unit_id': 7, 'source_type': 'TISSUE', 'description': 'Microcutting'}]
+
+
+def test_hidden_unit_shows_no_derivation():
+    unit = UnitStored(id=1, name="Plantlet", subject=1, derived_from=[UnitDerivation(unit_id=7)])
+    controller = Controller(controls={
+        1: Control(team_id=1, release=ReadRelease.PRIVATE, user_id=1, time=datetime64('now'))
+    })
+    assert unit.redacted(controller=controller, user_id=2, read_teams=set()).derived_from == []
+    assert unit.redacted(controller=controller, user_id=1, read_teams={1}).derived_from == unit.derived_from
+
+
+def test_a_unit_is_derived_only_from_units_outside_its_context():
+    # 1 -> 2 -> 4, 1 -> 3
+    unit_graph = _graph([(1, 2), (1, 3), (2, 4)])
+    for refused in ([2], [1], [4], [2, 99]):
+        with pytest.raises(IllegalOperationError):
+            unit_graph.check_derived_from(2, refused)
+    # a unit beside it in its unit graph, or one in another, is outside its context
+    unit_graph.check_derived_from(2, [3, 99])

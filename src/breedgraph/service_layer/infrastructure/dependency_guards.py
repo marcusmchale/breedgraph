@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 class AbstractDependencyGuards(ABC):
     """
@@ -29,6 +30,16 @@ class AbstractDependencyGuards(ABC):
     @abstractmethod
     async def germplasm_from_unit(self, unit_id: int) -> bool:
         """Check if any germplasm entry came from a unit"""
+        ...
+
+    @abstractmethod
+    async def unit_has_derivatives(self, unit_id: int) -> bool:
+        """Check if any unit is derived from a unit"""
+        ...
+
+    @abstractmethod
+    async def derivation_cycle(self, unit_id: int, source_ids: List[int]) -> bool:
+        """Check if any of the units source_ids is derived from a unit, directly or through others"""
         ...
 
     @abstractmethod

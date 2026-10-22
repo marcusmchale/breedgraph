@@ -39,6 +39,24 @@ type Unit {
     Read for every unit of the request at once.
     """
     inheritedGermplasm: InheritedGermplasm
+    """
+    The units its material came from, e.g. the microcuttings plantlets grew from: unlike parents, they pass nothing
+    down (germplasm, place, factors), so the unit starts a context of its own. Placeholders where hidden.
+    Empty for a unit you cannot read.
+    """
+    derivedFrom: [UnitDerivation!]!
+    """
+    The units derived from it that you can read. Read for every unit of the request that asks, at once.
+    """
+    derivatives: [UnitDerivation!]!
+}
+
+""" A unit's material came from another: the unit at the other end of the link, and how """
+type UnitDerivation {
+    """ The unit it came from in derivedFrom, the unit derived from it in derivatives """
+    unit: Unit!
+    sourceType: GermplasmSourceType!
+    description: String
 }
 
 """ Germplasm a unit takes from the units above it """

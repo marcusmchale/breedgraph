@@ -3,7 +3,7 @@ from numpy import datetime64
 from neo4j import AsyncResult, Record
 
 from breedgraph.domain.model.unit_graphs import (
-    UnitInput, UnitStored, UnitGraph, Position
+    UnitInput, UnitStored, UnitGraph, Position, UnitDerivation
 )
 from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.service_layer.tracking import TrackableProtocol
@@ -45,6 +45,8 @@ class Neo4jUnitGraphsRepository(Neo4jControlledRepository[UnitInput, UnitGraph])
             self.deserialize_dt64(position)
         record['positions'] = [Position(**position) for position in record.get('positions', [])]
         record['positions'].sort(key=self.position_sort_key)
+        record['derived_from'] = [UnitDerivation(**derivation) for derivation in record.get('derived_from') or []]
+        record['derived_from'].sort(key=lambda derivation: derivation.unit_id)
 
         return UnitStored(**record)
 

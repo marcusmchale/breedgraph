@@ -3,7 +3,7 @@ from numpy import datetime64
 from typing import List, Dict, Tuple
 
 from breedgraph.adapters.neo4j.cypher.query_builders import unit_graphs as unit_graph_queries
-from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival, Position, arrival_key
+from breedgraph.domain.model.unit_graphs import UnitOutput, UnitArrival, UnitDerivation, Position, arrival_key
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.time_descriptors import deserialize_time, serialize_npdt64
 from breedgraph.service_layer.queries.views.units import AbstractUnitsView
@@ -38,6 +38,11 @@ class Neo4jUnitsView(AbstractUnitsView):
     def _to_unit(self, record: dict) -> UnitOutput:
         if 'positions' in record:
             record['positions'] = self._positions(record)
+        if 'derived_from' in record:
+            record['derived_from'] = sorted(
+                (UnitDerivation(**derivation) for derivation in record['derived_from']),
+                key=lambda derivation: derivation.unit_id
+            )
         return UnitOutput(**record)
 
     async def _read(self, query: str, **params) -> List[UnitOutput]:
@@ -56,6 +61,16 @@ class Neo4jUnitsView(AbstractUnitsView):
             unit_ids=unit_ids, read_teams=self.read_teams, minimum_release=self.minimum_release
         )
         return {record['unit_id']: list(record['ancestor_ids']) async for record in result}
+
+    async def _get_derivatives(self, unit_ids: List[int]) -> Dict[int, List[UnitDerivation]]:
+        result: AsyncResult = await self.session.run(
+            unit_graph_queries.read_unit_derivatives(),
+            unit_ids=unit_ids, read_teams=self.read_teams, minimum_release=self.minimum_release
+        )
+        return {
+            record['unit_id']: [UnitDerivation(**derivation) for derivation in record['derivatives']]
+            async for record in result
+        }
 
     async def _get_descendants_by_subject(self, unit_ids: List[int]) -> Dict[int | None, List[UnitOutput]]:
         async with await self.session.begin_transaction() as tx:

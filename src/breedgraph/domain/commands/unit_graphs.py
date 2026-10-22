@@ -3,6 +3,7 @@ from typing import List
 from pydantic import BaseModel, model_validator
 from breedgraph.domain.model.time_descriptors import PyDT64
 from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.unit_graphs import UnitDerivation
 
 from breedgraph.custom_exceptions import IllegalOperationError
 
@@ -19,6 +20,8 @@ class CreateUnit(Command):
 
     parents: List[int] | None = None
     children: List[int] | None = None
+    # the units its material came from, which pass nothing down, unlike parents
+    derived_from: List[UnitDerivation] | None = None
 
     # Position details, require location_id if no parents are provided
     location_id: int|None = None
@@ -43,6 +46,8 @@ class UpdateUnit(Command):
 
     parents: List[int] | None = None
     children: List[int] | None = None
+    # unchanged unless given, and given as an empty list to remove them all
+    derived_from: List[UnitDerivation] | None = None
 
 
 class DeleteUnit(Command):

@@ -1,4 +1,5 @@
 from neo4j import AsyncTransaction
+from typing import List
 from breedgraph.service_layer.infrastructure.dependency_guards import AbstractDependencyGuards
 from breedgraph.adapters.neo4j.cypher import queries
 
@@ -34,6 +35,18 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
     async def germplasm_from_unit(self, unit_id: int) -> bool:
         query = queries['guards']['germplasm_from_unit']
         result = await self.tx.run(query, unit_id=unit_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
+    async def unit_has_derivatives(self, unit_id: int) -> bool:
+        query = queries['guards']['unit_has_derivatives']
+        result = await self.tx.run(query, unit_id=unit_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
+    async def derivation_cycle(self, unit_id: int, source_ids: List[int]) -> bool:
+        query = queries['guards']['derivation_cycle']
+        result = await self.tx.run(query, unit_id=unit_id, source_ids=source_ids)
         record = await result.single()
         return bool(record and record.get('in_use'))
 
