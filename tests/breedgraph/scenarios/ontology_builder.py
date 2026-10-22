@@ -5,6 +5,9 @@ from tests.breedgraph.utilities.inputs import LoremTextGenerator
 
 from typing import Dict
 
+# The name of the variable on a complex scale (variable_canopy_spectrum)
+CANOPY_SPECTRUM = "Canopy Reflectance Spectrum"
+
 class OntologyBuilder:
     lorem_generator = LoremTextGenerator()
 
@@ -302,6 +305,49 @@ class OntologyBuilder:
             return {
                 'ontology_trait_width': trait.id,
                 'ontology_variable_width': variable.id
+            }
+
+    async def variable_canopy_spectrum(self, user_id: int) -> Dict[str, int]:
+        """
+        A variable of trees on a complex scale: a record holds no value, and cites the files of its readings instead.
+        The Tree subject must exist.
+        """
+        async with self.uow_factory.get_uow(user_id=user_id) as uow:
+            ontology_service = uow.ontology
+            tree_subject = await ontology_service.get_entry(name='Tree', label=OntologyEntryLabel.SUBJECT)
+            if not tree_subject:
+                raise ValueError("Canopy spectrum needs the Tree subject")
+
+            trait = await ontology_service.create_trait(TraitInput(name="Canopy Reflectance"), subjects=[tree_subject.id])
+            method = await ontology_service.create_entry(
+                ObservationMethodInput(
+                    name="Spectroradiometer",
+                    description="Reflected light read above the canopy with a field spectroradiometer",
+                    observation_type=ObservationMethodType.MEASUREMENT
+                )
+            )
+            scale = await ontology_service.create_scale(
+                ScaleInput(
+                    name="Reflectance spectrum",
+                    description="A file of reflectance by wavelength",
+                    scale_type=ScaleType.COMPLEX
+                )
+            )
+            variable = await ontology_service.create_variable(
+                VariableInput(
+                    name=CANOPY_SPECTRUM
+                ),
+                trait_id=trait.id,
+                observation_method_id=method.id,
+                scale_id=scale.id
+            )
+            await ontology_service.commit_version(version_change=VersionChange.MAJOR, comment="Added variable canopy spectrum")
+            await uow.commit()
+            return {
+                'ontology_trait_reflectance': trait.id,
+                'ontology_method_spectroradiometer': method.id,
+                'ontology_scale_spectrum': scale.id,
+                'ontology_variable_spectrum': variable.id
             }
 
     async def factor_light_intensity(self, user_id: int) -> Dict[str, int]:

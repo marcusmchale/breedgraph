@@ -5,7 +5,7 @@ Two Neo4j dumps for development, kept in `test_databases/` under `NEO4J_ARCHIVE_
 
 | Dump | What it holds | Sharing |
 |---|---|---|
-| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests with its replicates, arrivals and positions studies, generated, optionally with data at scale | **Public** when built from a fresh store (below): synthetic, with known credentials. breedview's e2e and performance tests run against it |
+| `test_database.dump`, `test_database.manifest.json`, `test_database_files/` | The read-policy scenario of the tests with its replicates, arrivals, positions, licences and spectra, generated, optionally with data at scale | **Public** when built from a fresh store (below): synthetic, with known credentials. breedview's e2e and performance tests run against it |
 | `test_database_breedcafs.dump`, `test_database_breedcafs.manifest.json`, `test_database_breedcafs_files/` | The same scenario plus a rehearsal of the BreedCAFS migration | **Private**: BreedCAFS data and Person data, `PRIVATE` under the migration team. Never share it or publish it like the public dump |
 
 There is one Neo4j instance (Community allows one active database). The dev database is switched between dumps
@@ -84,7 +84,8 @@ python scripts/build_test_database.py --manifest instance/neo4j_archive/test_dat
   the states have none. Detailed maps of these countries come from `scripts/map_tiles.py --regions` (README.md,
   Maps), as the build sends no events.
 - It adds the replicates study (`replicate_scenario.py`, below), the arrivals (`arrival_scenario.py`, below), the
-  positions (`position_scenario.py`, below) and the licences (`licence_scenario.py`, below).
+  positions (`position_scenario.py`, below), the licences (`licence_scenario.py`, below) and the spectra
+  (`spectra_scenario.py`, below).
 - `--scale` adds data at scale for breedview's performance scripts (`scale_scenario.py`): with the defaults,
   20 fields, 100,115 units and 44,000 records, each field a made-up plot beside the scenario's field. Field 02's trees
   are positioned at their field themselves, and the first five trees of every field but 01 each hold a sample at a
@@ -214,6 +215,28 @@ The manifest's `licences` entry gives the program, the trial, each study with it
 filename, file id and path) and dataset, and the data file. The licence files and the data file are copied beside the
 manifest with the read-policy scenario's files. `tests/breedgraph/integration/views/test_licence_scenario.py` checks who
 must accept the licences.
+
+### The spectra
+
+Records of a variable on a complex scale, which cite data files rather than hold values, for choosing a record's files
+in breedview's curation and dataset submission tables (`tests/breedgraph/scenarios/spectra_scenario.py`). The variable,
+"Canopy Reflectance Spectrum" (trait Canopy Reflectance, method Spectroradiometer, scale "Reflectance spectrum"), is in
+the read-policy scenario's ontology, built before its last commit: a commit activates every draft, and
+`ontology_subject_draft` must stay one. The rest is controlled by the child team and PRIVATE, written by
+`readpolicy_writer`, who curates it: only the admin and the writer read it, so what the other accounts see is unchanged.
+
+- **Path:** "Readpolicy spectra program" → "Readpolicy spectra trial" → "Readpolicy spectra study", with a dataset of
+  the variable: a record on `tree_public` citing "Readpolicy canopy spectrum 1", and one on `tree_registered` citing
+  "Readpolicy canopy spectrum 2", both read on 2025-06-12.
+- **"Readpolicy spectra submission study"**, in the same trial, has no datasets: breedview's tests submit datasets of
+  the variable to it. Datasets can't be deleted through the API, so each run leaves one there, its record removed.
+- **Files:** "Readpolicy canopy spectrum 1" and "Readpolicy canopy spectrum 2", data file references (CSV) to small
+  files of reflectance by wavelength.
+
+The manifest's `spectra` entry gives the program, the trial, both studies, the variable, the dataset with each record
+(id, start and the files it cites) by its read-policy unit, and the files (reference id, file id, filename and path).
+The files are copied beside the manifest with the read-policy scenario's files.
+`tests/breedgraph/integration/views/test_spectra_scenario.py` checks what the scenario builds and who reads it.
 
 ## Building the BreedCAFS dump
 

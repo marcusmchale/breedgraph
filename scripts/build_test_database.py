@@ -7,8 +7,9 @@ It also holds a study with record group codes of every extent and scope
 (tests/breedgraph/scenarios/replicate_scenario.py), given in the manifest's "replicates" entry, units that came to
 locations at dated positions (tests/breedgraph/scenarios/arrival_scenario.py), in its "arrivals" entry, and units at
 positions in layouts for analysis position grouping (tests/breedgraph/scenarios/position_scenario.py), in its
-"positions" entry, and studies with licences given as files (tests/breedgraph/scenarios/licence_scenario.py), in its
-"licences" entry.
+"positions" entry, studies with licences given as files (tests/breedgraph/scenarios/licence_scenario.py), in its
+"licences" entry, and records of a variable on a complex scale, which cite data files rather than hold values
+(tests/breedgraph/scenarios/spectra_scenario.py), in its "spectra" entry.
 
 Writes a manifest (JSON) with the accounts' credentials, the ids of every entity by its scenario name, the controls
 each entity was written under, what each viewer can read, and the files. The files themselves are written to
@@ -74,6 +75,11 @@ from tests.breedgraph.scenarios.licence_scenario import (
     LicenceScenarioBuilder, LicenceScenario, STUDIES as LICENSED_STUDIES, PROGRAM as LICENCE_PROGRAM,
     TRIAL as LICENCE_TRIAL, DATA_FILE
 )
+from tests.breedgraph.scenarios.spectra_scenario import (
+    SpectraScenarioBuilder, SpectraScenario, FILES as SPECTRA_FILES, RECORDS as SPECTRA_RECORDS,
+    PROGRAM as SPECTRA_PROGRAM, TRIAL as SPECTRA_TRIAL, STUDY as SPECTRA_STUDY, SUBMISSION_STUDY, READ_ON
+)
+from tests.breedgraph.scenarios.ontology_builder import CANOPY_SPECTRUM
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
     ReadPolicyScenarioBuilder, ReadPolicyScenario, VIEWERS, AFFILIATIONS, ENTITY_LABELS, DATASETS, REFERENCES
@@ -301,6 +307,38 @@ def licences_manifest(licences: LicenceScenario, files_dir: Path) -> dict:
     }
 
 
+def spectra_manifest(spectra: SpectraScenario, scenario: ReadPolicyScenario, files_dir: Path) -> dict:
+    """
+    Records of a variable on a complex scale, citing data files (tests/breedgraph/scenarios/spectra_scenario.py): the
+    program, trial and studies, the variable, the dataset with each record by its read-policy unit and the files it
+    cites, and the files. The files are copied beside the manifest with the read-policy scenario's.
+    """
+    ids = spectra.ids
+    return {
+        'program': {'id': ids['program'], 'name': SPECTRA_PROGRAM},
+        'trial': {'id': ids['trial'], 'name': SPECTRA_TRIAL},
+        'study': {'id': ids['study'], 'name': SPECTRA_STUDY},
+        'submission_study': {'id': ids['submission_study'], 'name': SUBMISSION_STUDY},
+        'concept': {'id': scenario['ontology_variable_spectrum'], 'name': CANOPY_SPECTRUM},
+        'dataset': {
+            'id': ids['dataset'],
+            'records': {
+                unit: {'id': spectra.records[unit], 'start': READ_ON, 'files': names}
+                for unit, names in SPECTRA_RECORDS.items()
+            },
+        },
+        'files': {
+            name: {
+                'reference_id': spectra.references[name],
+                'file_id': spectra.files[name][0],
+                'filename': filename,
+                'path': str(files_dir / spectra.files[name][0]),
+            }
+            for name, (filename, _) in SPECTRA_FILES.items()
+        },
+    }
+
+
 def perf_manifest(scale: ScaleScenario) -> dict:
     """The defaults of breedview's performance scripts (perf in its fixture): a large study, its variable, a large field"""
     return {
@@ -316,6 +354,7 @@ def manifest(
         arrivals: ArrivalScenario,
         positions: PositionScenario,
         licences: LicenceScenario,
+        spectra: SpectraScenario,
         seed: int,
         password: str,
         files_dir: Path,
@@ -380,6 +419,7 @@ def manifest(
         'arrivals': arrivals_manifest(arrivals, scenario),
         'positions': positions_manifest(positions, scenario),
         'licences': licences_manifest(licences, files_dir),
+        'spectra': spectra_manifest(spectra, scenario, files_dir),
         **({'scale': scale_manifest(scale), 'perf': perf_manifest(scale)} if scale is not None else {}),
     }
 
@@ -459,6 +499,11 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
             uow_factory, scenario,
             archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()), file_storage_path=FILE_STORAGE_PATH
         ).build()
+        logger.info("Building the spectra")
+        spectra = await SpectraScenarioBuilder(
+            uow_factory, scenario,
+            archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()), file_storage_path=FILE_STORAGE_PATH
+        ).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
@@ -467,14 +512,14 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         await read_models.refresh()
 
         files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
-        contents = manifest(scenario, replicates, arrivals, positions, licences, seed, password, files_dir, scale)
+        contents = manifest(scenario, replicates, arrivals, positions, licences, spectra, seed, password, files_dir, scale)
         await add_names(driver, contents)
     finally:
         await connection.aclose()
         await driver.close()
 
     files_dir.mkdir(parents=True, exist_ok=True)
-    for file_id, _ in [*scenario.files.values(), *licences.files.values()]:
+    for file_id, _ in [*scenario.files.values(), *licences.files.values(), *spectra.files.values()]:
         shutil.copy2(Path(FILE_STORAGE_PATH, file_id), files_dir / file_id)
     manifest_path.write_text(json.dumps(contents, indent=2) + '\n')
 

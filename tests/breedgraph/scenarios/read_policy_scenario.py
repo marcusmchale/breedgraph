@@ -78,8 +78,10 @@ Datasets (concept: the tree height variable)
                                                              reference_private; contribution person_private
                                                              (Data curation)
 
-Ontology: the builders' types and variables, all active; then a commit by the admin citing reference_registered as
-its licence and reference_legal_private as its copyright; then ontology_subject_draft, a subject left in draft
+Ontology: the builders' types and variables, all active, among them the canopy spectrum, on a complex scale, whose
+records cite files rather than hold values (spectra_scenario.py has some); then a commit by the admin citing
+reference_registered as its licence and reference_legal_private as its copyright; then ontology_subject_draft, a
+subject left in draft
 
 Germplasm (each link from a source, SEED unless given)
     crop                         root  PUBLIC      admin
@@ -593,6 +595,7 @@ class ReadPolicyScenarioBuilder:
                 await ontology.record_group_types(user_id=admin),
                 await ontology.variable_tree_height(user_id=admin),
                 await ontology.variable_canopy_width(user_id=admin),
+                await ontology.variable_canopy_spectrum(user_id=admin),
                 await ontology.factor_light_intensity(user_id=admin)
         ):
             self.scenario.ids.update(types)
