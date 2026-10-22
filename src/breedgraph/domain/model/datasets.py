@@ -153,7 +153,8 @@ class DatasetBase(ABC):
                 if not isinstance(record, DataRecordUpdate):
                     raise ValueError("Invalid record type for update")
 
-                if record.value is not None:
+                # a record on a complex scale holds no value, but what it cites is parsed as a value would be
+                if record.value is not None or scale.scale_type == ScaleType.COMPLEX:
                     record = self.parse_record(record, scale, categories, grouping_ids)
                 elif record.groups is not None:
                     self.validate_groups(record.groups, grouping_ids)
@@ -237,11 +238,11 @@ class DatasetBase(ABC):
             grouping_ids: List[int]|None
     ) -> DataRecordInput|DataRecordUpdate:
         if scale.scale_type == ScaleType.COMPLEX:
-            if any([
-                    isinstance(record, DataRecordInput) and not record.references,
-                    isinstance(record, DataRecordUpdate) and record.references is not None and len(record.references) == 0
-                ]):
-                    raise ValueError("Complex scale records require at least one reference")
+            if isinstance(record, DataRecordInput) and not record.references:
+                raise ValueError("Complex scale records require at least one reference")
+            # an update leaves its references unchanged when it gives none; it can't leave the record citing nothing
+            if isinstance(record, DataRecordUpdate) and record.references is not None and len(record.references) == 0:
+                raise ValueError("Complex scale records require at least one reference: remove the record instead")
         self.validate_groups(record.groups or [], grouping_ids)
 
         record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
