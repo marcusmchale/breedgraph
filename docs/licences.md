@@ -101,6 +101,8 @@ readable by whoever reads the data by release (§1). Nothing changes for dataset
   release: the data's owners, who make their own agreements. `Dataset.licenceRequired` says whether the user must
   accept `Dataset.licence`. A file cited by several datasets opens if the user is exempt for one of them, and otherwise
   needs every licence of the readable datasets citing it.
+- **Download links come only from `referencesFileDownload`.** The email that tells people an archived file they asked
+  for has been retrieved links to the site, not to the file, so the download is checked like any other.
 - `licencesAccept(licences: [{id, contentHash}])` checks that each is a legal reference the user can read, at its
   current hash, all or none, and adds them to the identity's token, beside the Terms (§4). Keyed by licence id, a
   licence shared by many studies is one acceptance. `LegalReference.accepted` says whether the request carries an

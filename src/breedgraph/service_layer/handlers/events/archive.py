@@ -1,7 +1,3 @@
-from itsdangerous import URLSafeTimedSerializer
-from datetime import datetime, timedelta, timezone
-from dataclasses import asdict
-
 from breedgraph.domain import events
 from breedgraph.domain.model import FileReferenceBase
 from breedgraph.service_layer.infrastructure import (
@@ -11,7 +7,7 @@ from breedgraph.service_layer.infrastructure import (
 )
 from ...infrastructure.notifications import email_templates
 
-from breedgraph.config import FILE_DOWNLOAD_SALT, SECRET_KEY, get_download_endpoint, FILE_DOWNLOAD_EXPIRES
+from breedgraph.config import LOCAL_STORAGE_DURATION
 
 from ..registry import handlers
 
@@ -38,7 +34,10 @@ async def retrieval_succeeded(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    """Handle successful retrieval by notifying requesting users"""
+    """
+    Handle successful retrieval by notifying requesting users. The email sends them to the site rather than to the file,
+    as downloads are issued by the API, which checks the licences of the data citing the file (docs/licences.md §5).
+    """
     logger.info(f"Retrieval succeeded for file {event.file_id}")
     async for requestor in archival_service.get_requestors(event.file_id):
         try:
@@ -54,25 +53,17 @@ async def retrieval_succeeded(
                         " or they no longer have read access "
                     )
                 else:
-                    file_details = {
-                        'uuid': reference.file_id,
-                        'filename': reference.filename,
-                        'contentType': reference.content_type
-                    }
-                    token = URLSafeTimedSerializer(SECRET_KEY).dumps(
-                        file_details,
-                        salt=FILE_DOWNLOAD_SALT
-                    )
                     message = email_templates.FileRetrievalSuccess(
                         requestor=requestor,
                         reference=reference,
-                        url= f'{get_download_endpoint()}{token}',
-                        expires=datetime.now(timezone.utc) + timedelta(minutes=FILE_DOWNLOAD_EXPIRES)
+                        days=LOCAL_STORAGE_DURATION
                     )
                     await notifications.send([requestor], message)
                     logger.info(f"Sent retrieval success notification to user {requestor.id}")
         except Exception as e:
-            logger.error(f"Failed to notify requestor {asdict(requestor)} of retrieval success: {e}")
+            logger.error(f"Failed to notify requestor {requestor.id} of retrieval success: {e}")
+    # the requests are met, so a later retrieval of the file tells only those who ask for it again
+    await archival_service.clear_requestors(event.file_id)
 
 @handlers.event_handler()
 async def retrieval_failed(
@@ -80,15 +71,19 @@ async def retrieval_failed(
         archival_service: AbstractFileArchivalService,
         notifications: AbstractNotifications
 ):
-    """Handle retrieval failure - notify requesting users"""
+    """
+    Handle retrieval failure - notify requesting users. Their requests are kept, so they hear if the file is retrieved
+    after all.
+    """
     logger.error(f"Retrieval failed for file {event.file_id}: {event.error_message}")
     async for requestor in archival_service.get_requestors(event.file_id):
         try:
             message = email_templates.FileRetrievalFailed(
                 requestor=requestor,
-                file_id=event.file_id
+                file_id=event.file_id,
+                error=event.error_message
             )
             await notifications.send([requestor], message)
-            logger.info(f"Sent retrieval failure notification to user {asdict(requestor)}")
+            logger.info(f"Sent retrieval failure notification to user {requestor.id}")
         except Exception as e:
-            logger.error(f"Failed to notify requestor {asdict(requestor)} of retrieval failure: {e}")
+            logger.error(f"Failed to notify requestor {requestor.id} of retrieval failure: {e}")

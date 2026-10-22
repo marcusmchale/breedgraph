@@ -260,19 +260,21 @@ class FileUploadFailed(Email):
 
 
 class FileRetrievalSuccess(Email):
-    """Notification that a file has been successfully retrieved from archive"""
+    """
+    Notification that a file has been successfully retrieved from archive. It links to the site, where the file is
+    downloaded as any other, rather than to the file (docs/licences.md §5).
+    """
 
-    def __init__(self, requestor: ArchiveRequestor, reference: FileReferenceBase, url:str, expires: datetime):
+    def __init__(self, requestor: ArchiveRequestor, reference: FileReferenceBase, days: int):
         super().__init__()
         self.message['Subject'] = f"{SITE_NAME} file retrieved from archive"
         body = f"""
         Hi {requestor.name},
         You recently requested recovery of a file from the archive.
-         It has now been retrieved and is available for download.
-         
+         It has now been retrieved, and you can download it from {SITE_NAME} where you found it: {get_vue_url()}
+         It stays available for at least {days} days.
+
          Filename: {reference.filename}
-         Download URL: {url}
-         Expires: {expires.strftime(format="%Y-%m-%d %H:%M:%S %Z")} 
         """
         self.message.set_content(body)
 
