@@ -1,7 +1,9 @@
 from typing import AbstractSet
 
 from breedgraph.domain.model.controls import ControlledModelLabel
-from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, readable as _readable_as, contributions as _contributions
+from breedgraph.adapters.neo4j.cypher.query_builders.access import (
+    visible as _visible, readable as _readable_as, contributions as _contributions, read_by_team as _read_by_team
+)
 from breedgraph.adapters.neo4j.cypher.query_builders.times import upper as _upper, entered as _entered
 
 # Datasets as the user may see them (see docs/read-access.md). A readable dataset is returned in full, all its records
@@ -160,6 +162,38 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
     return '\n'.join(query)
 
 
+# The licence of a dataset's study, read from the graph, as a hidden study is redacted without it (docs/licences.md §5)
+_STUDY_LICENCE = "[(dataset)-[:FOR_STUDY]->(:Study)-[:USES_LICENCE]->(licence:Reference) | licence.id][0]"
+# Whether the user reads the dataset, or its study, through a controlling team: then they need not accept the licence,
+# as affiliated readers make their own agreements (docs/licences.md §5)
+_LICENCE_EXEMPT = (
+    f"({_read_by_team('dataset', DATASET)} OR "
+    f"EXISTS {{ MATCH (dataset)-[:FOR_STUDY]->(study:Study) WHERE {_read_by_team('study', ControlledModelLabel.STUDY)} }})"
+)
+
+
+def read_file_licences():
+    """
+    The licences of the readable datasets citing the file $file_id, directly or through their records, each with
+    whether the user is exempt from it for that dataset (see _LICENCE_EXEMPT): what downloading the file needs accepted
+    """
+    return f"""
+        MATCH (reference:Reference {{file_id: $file_id}})
+        CALL (reference) {{
+          MATCH (reference)-[:REFERENCE_FOR]->(dataset:Dataset)
+          RETURN dataset
+          UNION
+          MATCH (reference)-[:REFERENCE_FOR]->(:Record)<-[:INCLUDES_RECORD]-(dataset:Dataset)
+          RETURN dataset
+        }}
+        {_visible('dataset', DATASET, 'dataset_visible')}
+        WITH dataset WHERE dataset_visible
+        MATCH (dataset)-[:FOR_STUDY]->(:Study)-[:USES_LICENCE]->(licence:Reference)
+        RETURN dataset.id AS dataset_id, licence.id AS licence_id, {_LICENCE_EXEMPT} AS exempt
+        ORDER BY dataset_id
+    """
+
+
 def read_datasets():
     """
     Dataset headers by id ($dataset_ids), study ($study_ids) and/or concept ($concept_ids), null parameters matching
@@ -180,9 +214,12 @@ def read_datasets():
           concept: [(dataset)-[:FOR_CONCEPT]->(concept:Variable|Factor) | concept.id][0],
           contributions: {_contributions('dataset')},
           references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference) | reference.id],
-          record_count: COUNT {{ (dataset)-[:INCLUDES_RECORD]->(:Record) }}
+          record_count: COUNT {{ (dataset)-[:INCLUDES_RECORD]->(:Record) }},
+          licence: {_STUDY_LICENCE},
+          licence_exempt: {_LICENCE_EXEMPT}
         }} ELSE dataset {{
-          id: dataset.id, study: null, concept: null, contributions: [], references: [], record_count: 0
+          id: dataset.id, study: null, concept: null, contributions: [], references: [], record_count: 0,
+          licence: null, licence_exempt: false
         }} END AS dataset
         ORDER BY dataset.id
     """

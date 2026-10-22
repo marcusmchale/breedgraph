@@ -29,6 +29,7 @@ from typing import List
 import logging
 logger = logging.getLogger(__name__)
 
+from breedgraph.entrypoints.fastapi.graphql.licences import require_licence_accepted
 from . import graphql_query
 from ..registry import graphql_resolvers
 dataset = ObjectType("Dataset")
@@ -136,9 +137,13 @@ async def resolve_concept(obj, info):
 
 @dataset.field('records')
 async def resolve_records(obj, info, unit_ids=None, start=None, end=None, offset=None, limit=None, include_below=None):
-    """A page of the dataset's records, read through the datasets view; nothing for a dataset the user cannot read"""
+    """
+    A page of the dataset's records, read through the datasets view; nothing for a dataset the user cannot read, and
+    refused without its licence accepted where the user must accept it
+    """
     if obj.redacted:
         return []
+    await require_licence_accepted(info.context, obj)
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
         records = await views.datasets.get_records(
@@ -188,11 +193,25 @@ async def resolve_record_count(obj, info, unit_ids=None, start=None, end=None):
             start=start, end=end
         )
 
+@dataset.field('licence')
+async def resolve_licence(obj, info):
+    """The licence of the dataset's study, readable wherever the dataset is by release (docs/read-access.md rule 10)"""
+    if obj.redacted or obj.licence is None:
+        return None
+    await update_reference_map(info.context, reference_ids=[obj.licence])
+    return info.context['reference_map'].get(obj.licence)
+
+@dataset.field('licenceRequired')
+def resolve_licence_required(obj, info) -> bool:
+    return obj.licence_required
+
 @dataset.field('dimensions')
 async def resolve_dimensions(obj, info):
-    # what the records span, read without them; nothing for a dataset the user cannot read
+    # what the records span, read without them, its values included; nothing for a dataset the user cannot read, and
+    # refused without its licence accepted, as the records are
     if obj.redacted:
         return None
+    await require_licence_accepted(info.context, obj)
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
         return await views.datasets.get_dimensions(dataset_id=obj.id)

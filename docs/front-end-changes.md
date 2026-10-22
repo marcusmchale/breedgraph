@@ -16,6 +16,24 @@ breedview's master (`1085d91`) implements every API change up to the Terms of Us
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Accepting study licences
+
+A study's data is given only to those who accepted its licence at its current text, unless they read the dataset or
+its study through a controlling team (docs/licences.md §5). New:
+
+- `Dataset.licence: LegalReference` (the study's licence) and `Dataset.licenceRequired: Boolean!`.
+- `LegalReference.accepted: Boolean!`: whether the request carries an acceptance of its current text.
+- `licencesAccept(licences: [LicenceAcceptanceInput!]!)`, each `{ id, contentHash }`: all or none, refused for a licence
+  changed since it was read. It updates the acceptance cookie the Terms of Use use.
+
+What breaks, for a licensed dataset the user must accept the licence of: `records` and `dimensions` are null, with
+GraphQL errors on those fields; `analysisSubmit` is refused with `LICENCE_NOT_ACCEPTED` at `['datasetIds', i]`; and
+`referencesFileDownload` is refused for files its records cite (`LicenceNotAcceptedError`).
+
+Work in breedview: before Load Table in curation, and before submitting an analysis, read the chosen datasets'
+`licence` and `licenceRequired`, show the licences still to accept with one box to tick and Accept, calling
+`licencesAccept`, then read them again; show a download's refusal.
+
 ## Checking the front end against the API
 
 ```bash

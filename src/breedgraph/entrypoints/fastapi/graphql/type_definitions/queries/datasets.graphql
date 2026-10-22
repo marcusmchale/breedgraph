@@ -91,6 +91,17 @@ type Dataset {
     """ The Persons credited, with the roles they had """
     contributions: [Contribution]
     references: [ReferenceInterface]
+    """
+    The licence of the dataset's study. Unless licenceRequired is false, records and dimensions are refused
+    (LICENCE_NOT_ACCEPTED) until the request carries an acceptance of its current text (licencesAccept), as are
+    analyses of the dataset and downloads of the files its records cite (docs/licences.md §5)
+    """
+    licence: LegalReference
+    """
+    Whether the user must accept the licence to get the dataset's records: false without a licence, and for readers
+    through a controlling team of the dataset or its study, who make their own agreements
+    """
+    licenceRequired: Boolean!
 }
 
 """

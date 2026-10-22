@@ -120,16 +120,30 @@ def tree_links(node: str, root: str, label: ControlledModelLabel, edge: str, vis
     }
 
 
+def _current_control(entity: str) -> str:
+    """Whether control, of entity under team_node, is current: the team's latest, and not ended"""
+    return (
+        f"NOT coalesce(control.ended, false) AND NOT EXISTS {{ "
+        f"MATCH ({entity})<-[:CONTROLS]-(newer:Control)<-[:CONTROLS]-(team_node) WHERE newer.sequence > control.sequence }}"
+    )
+
+
+def read_by_team(entity: str, label: ControlledModelLabel) -> str:
+    """
+    A predicate for whether a team in $read_teams currently controls entity: whether the user reads it through an
+    affiliation, not only through its release. Written with EXISTS subqueries only, as readable() is.
+    """
+    controls = f"({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(team_node:Team{label.plural})"
+    return f"EXISTS {{ MATCH {controls}<-[:CONTROLS]-(team:Team) WHERE team.id IN $read_teams AND {_current_control(entity)} }}"
+
+
 def readable(entity: str, label: ControlledModelLabel) -> str:
     """
     A predicate for whether the user can read entity, as visible() decides it, written with EXISTS subqueries only so
     it can stand where calls cannot, such as in a quantified path pattern: a team's current control is its latest,
     and the team controls the entity while that control is not ended
     """
-    current = (
-        f"NOT coalesce(control.ended, false) AND NOT EXISTS {{ "
-        f"MATCH ({entity})<-[:CONTROLS]-(newer:Control)<-[:CONTROLS]-(team_node) WHERE newer.sequence > control.sequence }}"
-    )
+    current = _current_control(entity)
     controls = f"({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(team_node:Team{label.plural})"
     return f"""(
           NOT EXISTS {{ MATCH {controls} WHERE {current} }}

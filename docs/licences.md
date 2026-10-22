@@ -80,3 +80,27 @@ GraphQL. In-process GraphQL calls in tests and scripts pass no such rule.
 **Limits.** No one person's acceptance can be revoked: a licence's owners change the licence instead, which asks
 everyone again. The signed-out token can be copied to another browser; the Terms forbid it. Whether this way of
 accepting binds anyone is for the University's legal office (the notes in `docs/legal/terms-of-use.md`).
+
+## 5. Accepting a study's licence
+
+A study's data is given only to requests carrying an acceptance of its licence's current text, unless the user is
+exempt (`entrypoints/fastapi/graphql/licences.py`):
+
+| What | Without an acceptance |
+|---|---|
+| `Dataset.records`, `Dataset.dimensions` (its value percentiles show the values) | null, with a GraphQL error on the field (`LicenceNotAcceptedError`) |
+| `analysisSubmit` | refused with `LICENCE_NOT_ACCEPTED` at `['datasetIds', i]`, checked as it is submitted, while the request's acceptances are there; the analysis runs later |
+| `referencesFileDownload` for a file cited by a licensed dataset or its records | refused (`LicenceNotAcceptedError`) |
+
+Summaries, counts, unit ids, the unit trees and places stay open, as catalogue information, and the licence itself is
+readable by whoever reads the data by release (§1). Nothing changes for datasets without a licence.
+
+- **Exempt** are those who read the dataset, or its study, through a controlling team, an affiliation rather than a
+  release: the data's owners, who make their own agreements. `Dataset.licenceRequired` says whether the user must
+  accept `Dataset.licence`. A file cited by several datasets opens if the user is exempt for one of them, and otherwise
+  needs every licence of the readable datasets citing it.
+- `licencesAccept(licences: [{id, contentHash}])` checks that each is a legal reference the user can read, at its
+  current hash, all or none, and adds them to the identity's token, beside the Terms (§4). Keyed by licence id, a
+  licence shared by many studies is one acceptance. `LegalReference.accepted` says whether the request carries an
+  acceptance of the reference's current text.
+- Files cited only by datasets the reader can't see are not gated: the file's own release decides.

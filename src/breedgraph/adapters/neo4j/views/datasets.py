@@ -12,7 +12,7 @@ from breedgraph.adapters.neo4j.cypher.query_builders.datasets import (
     dataset_unit_summaries as dataset_unit_summaries_query
 )
 from breedgraph.service_layer.queries.read_models import (
-    DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit, DatasetPlace, DatasetPlaceLayout
+    DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit, DatasetPlace, DatasetPlaceLayout, FileLicence
 )
 from breedgraph.domain.model.unit_graphs import UnitOutput
 from breedgraph.domain.model.time_descriptors import npdt64_to_local, local_datetime64, upper, deserialize_time
@@ -221,6 +221,11 @@ class Neo4jDatasetsView(AbstractDatasetsView):
                 )
                 async for record in result
             ]
+
+    async def _get_file_licences(self, file_id: str) -> List[FileLicence]:
+        async with await self.session.begin_transaction() as tx:
+            result: AsyncResult = await tx.run(dataset_queries.read_file_licences(), file_id=file_id, **self._access)
+            return [FileLicence(**record.data()) async for record in result]
 
     async def _get_dimensions(self, dataset_id: int) -> DatasetDimensions:
         async with await self.session.begin_transaction() as tx:

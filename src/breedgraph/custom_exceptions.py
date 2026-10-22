@@ -30,3 +30,11 @@ class ExistingUniqueRelationship(IllegalOperationError):
 class InconsistentStateError(IllegalOperationError):
     """Raised when the system detects an inconsistent state that prevents safe operation completion."""
     pass
+
+
+class LicenceNotAcceptedError(Exception):
+    """
+    Data that needs its study's licence accepted, asked for without an acceptance of the licence's current text
+    (docs/licences.md §5): accept it with licencesAccept
+    """
+    pass

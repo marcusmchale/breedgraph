@@ -1,0 +1,14 @@
+""" A licence, and the contentHash of the text accepted """
+input LicenceAcceptanceInput {
+    id: ID!
+    contentHash: String!
+}
+
+extend type Mutation {
+    """
+    Accept study licences, each named by its id and the contentHash of the text read; refused for any that changed
+    since, or that the user can't read. Kept in the same cookie as the Terms of Use, for the user, or for a visitor who
+    isn't signed in, and nothing is stored about who accepted (docs/licences.md §5)
+    """
+    licencesAccept(licences: [LicenceAcceptanceInput!]!): BooleanPayload!
+}

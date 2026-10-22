@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit, DatasetPlace
+from breedgraph.service_layer.queries.read_models import DatasetSummary, DatasetRead, DatasetDimensions, DatasetsUnit, DatasetPlace, FileLicence
 from numpy import datetime64
 from breedgraph.domain.model.unit_graphs import UnitOutput
 
@@ -145,6 +145,17 @@ class AbstractDatasetsView(ABC):
 
     @abstractmethod
     async def _get_places(self, dataset_ids: List[int], location_type_ids: List[int]) -> List[DatasetPlace]:
+        ...
+
+    async def get_file_licences(self, file_id: str) -> List[FileLicence]:
+        """
+        The licences of the readable datasets citing a file, directly or through their records, with whether the
+        user is exempt from each for its dataset: what downloading the file needs accepted (docs/licences.md §5)
+        """
+        return await self._get_file_licences(file_id=file_id)
+
+    @abstractmethod
+    async def _get_file_licences(self, file_id: str) -> List[FileLicence]:
         ...
 
     async def get_dimensions(self, dataset_id: int) -> DatasetDimensions:

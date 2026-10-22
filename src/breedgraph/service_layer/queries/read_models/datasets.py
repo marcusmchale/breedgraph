@@ -32,14 +32,31 @@ class DatasetRead:
     contributions: List[Contribution]
     references: List[int]
     record_count: int
+    # the licence of the dataset's study, and whether the user reads the dataset or its study through a controlling
+    # team, so need not accept it (docs/licences.md §5)
+    licence: int | None = None
+    licence_exempt: bool = False
 
     def __post_init__(self):
         self.contributions = contributions_from(self.contributions)
 
     @property
+    def licence_required(self) -> bool:
+        """Whether the user must accept the licence of the dataset's study to get its records"""
+        return self.licence is not None and not self.licence_exempt
+
+    @property
     def redacted(self) -> bool:
         """Whether this is a placeholder: every stored dataset has a concept"""
         return self.concept is None
+
+
+@dataclass
+class FileLicence:
+    """The licence of a readable dataset citing a file, and whether the user is exempt from it for that dataset"""
+    dataset_id: int
+    licence_id: int
+    exempt: bool
 
 
 @dataclass

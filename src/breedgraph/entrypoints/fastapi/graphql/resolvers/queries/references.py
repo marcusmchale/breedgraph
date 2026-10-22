@@ -29,6 +29,9 @@ from typing import List
 import logging
 logger = logging.getLogger(__name__)
 
+from breedgraph.custom_exceptions import LicenceNotAcceptedError
+from breedgraph.entrypoints.fastapi.graphql.acceptances import request_acceptances
+from breedgraph.entrypoints.fastapi.graphql.licences import licences_not_accepted
 from . import graphql_query
 from ..registry import graphql_resolvers
 
@@ -171,6 +174,29 @@ async def _readable_file_reference(info, file_id: str) -> FileReferenceStored | 
         raise UnauthorisedOperationError("You do not have access to read this file")
     return reference
 
+@legal_reference.field("accepted")
+def resolve_accepted(obj, info) -> bool:
+    """Whether the request carries an acceptance of the reference's current text, as a study's licence"""
+    return request_acceptances(info.context).accepts_licence(obj.id, obj.content_hash)
+
+
+async def _require_file_licences_accepted(info, file_id: str) -> None:
+    """
+    A file cited by a licensed dataset, or by its records, holds its data: downloading it needs the licence accepted,
+    unless the user is exempt from it for one of the datasets citing it (docs/licences.md §5)
+    """
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        licences = await views.datasets.get_file_licences(file_id)
+    if not licences or any(licence.exempt for licence in licences):
+        return
+    missing = await licences_not_accepted(info.context, [licence.licence_id for licence in licences])
+    if missing:
+        raise LicenceNotAcceptedError(
+            f"This file holds data under licences not accepted yet: reference {', '.join(str(i) for i in missing)}. "
+            f"Read them, and accept them with licencesAccept"
+        )
+
 @graphql_query.field("referencesFileDownloadState")
 @graphql_payload
 async def get_file_download_state(_, info, file_id: str):
@@ -227,6 +253,8 @@ async def get_file_download(_, info, file_id: str):
     user_id = info.context.get('user_id')
     bus = info.context['bus']
     reference = await _readable_file_reference(info, file_id)
+    if reference is not None:
+        await _require_file_licences_accepted(info, file_id)
     if reference is None:
         # Check if the user's own upload is still in progress
         status = await bus.state_store.get_status(agent_id=user_id, key=file_id) if user_id is not None else None

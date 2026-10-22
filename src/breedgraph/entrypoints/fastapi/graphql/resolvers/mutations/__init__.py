@@ -21,6 +21,7 @@ from . import references
 from . import analysis
 from . import people
 from . import terms
+from . import licences
 
 # Export only the main mutation object
 __all__ = ['graphql_mutation']

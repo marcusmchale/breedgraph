@@ -22,6 +22,6 @@ from .ontology import (
 
     OntologyEntryPatch
 )
-from .datasets import DatasetSummary, DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit, DatasetPlace, DatasetPlaceLayout
+from .datasets import DatasetSummary, DatasetRead, DatasetDimensions, GroupingCodes, DatasetsUnit, DatasetPlace, DatasetPlaceLayout, FileLicence
 
 from .germplasm import GermplasmEntryOutput, GermplasmRelationshipOutput
