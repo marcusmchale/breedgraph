@@ -1,6 +1,6 @@
 import os
 # The layout template looks for DEV value to load a splash warning
-# Also used in checks for which ports to access Neo4j and Redis instances
+# Also used in checks for which ports to access Neo4j and Redis instances, unless DB_PORT and REDIS_PORT give them
 # Set to false for production or if running services on the default ports
 #DEV = os.environ.get('ENVIRONMENT', 'production') == 'development'
 DEV=False
@@ -45,12 +45,13 @@ def get_download_endpoint():
 DATABASE_NAME = os.environ.get("DATABASE_NAME")  # currently only a single database available
 def get_bolt_url():
     host = os.environ.get('DB_HOST', 'localhost')
-    port = 7688 if DEV else 7687
+    # DB_PORT for a second instance on the same machine, e.g. a hosted demo or scripts/scratch_services.sh
+    port = os.environ.get('DB_PORT') or (7688 if DEV else 7687)
     return f"neo4j://{host}:{port}"
 
 def get_redis_host_and_port():
     host = os.environ.get('REDIS_HOST', 'localhost')
-    port = 6380 if DEV else 6379
+    port = int(os.environ.get('REDIS_PORT') or (6380 if DEV else 6379))
     return host, port
 
 def get_gql_url():
