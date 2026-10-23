@@ -12,6 +12,7 @@ from breedgraph.domain.model.programs import (
 )
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 from breedgraph.domain.model.references import ReferenceType
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 from breedgraph.custom_exceptions import (
     NoResultFoundError,
     IdentityExistsError,
@@ -243,6 +244,8 @@ async def create_study(
             raise NoResultFoundError(f"Trial with ID {cmd.trial_id} not found")
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         await _verify_licence(uow, cmd.licence_id)
+        if cmd.design_id is not None:
+            await uow.ontology.require_entries([cmd.design_id], label=OntologyEntryLabel.DESIGN)
 
         study = StudyInput(
             name=cmd.name,
@@ -287,6 +290,8 @@ async def update_study(
             study.end = cmd.end
         # given as None, the design and licence are removed
         if 'design_id' in cmd.model_fields_set:
+            if cmd.design_id is not None and cmd.design_id != study.design_id:
+                await uow.ontology.require_entries([cmd.design_id], label=OntologyEntryLabel.DESIGN)
             study.design_id = cmd.design_id
         if 'licence_id' in cmd.model_fields_set:
             if cmd.licence_id != study.licence_id:
@@ -331,6 +336,7 @@ async def create_grouping(
         study = program.get_study(cmd.study_id)
         if study is None:
             raise NoResultFoundError(f"Study with ID {cmd.study_id} not found")
+        await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.RECORD_GROUP_TYPE)
         study.add_grouping(
             group_type=cmd.type_id,
             name=cmd.name,
@@ -359,6 +365,8 @@ async def update_grouping(
         if cmd.name is not None:
             grouping.name = cmd.name
         if cmd.type_id is not None:
+            if cmd.type_id != grouping.type:
+                await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.RECORD_GROUP_TYPE)
             grouping.type = cmd.type_id
         if cmd.extent is not None:
             grouping.extent = cmd.extent

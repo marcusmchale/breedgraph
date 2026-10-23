@@ -7,6 +7,8 @@ from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries, ontology
+from breedgraph.adapters.neo4j.ontology_records import record_to_entry
+from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
 # Import all ontology entry types - this ensures all subclasses are registered
 from breedgraph.domain.model.ontology import *
@@ -318,6 +320,13 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             lifecycle_record = record.get('lifecycle')
             lifecycles[lifecycle_record.get('entry_id')] = EntryLifecycle.from_record(lifecycle_record)
         return lifecycles
+
+    async def get_cited_entries(self, entry_ids: List[int]) -> List[OntologyEntryOutput]:
+        version = await self.get_current_version()
+        result = await self.tx.run(
+            queries['ontology']['ontology_entries_referential'], entry_ids=entry_ids, version=version.packed_version
+        )
+        return [record_to_entry(record, version, OntologyViewMode.REFERENTIAL) async for record in result]
 
     async def get_relationship_lifecycles(self, relationship_ids: List[int]) -> Dict[int, RelationshipLifecycle]:
         query = queries['ontology']['get_relationship_lifecycles']

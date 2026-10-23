@@ -1,7 +1,7 @@
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.domain.commands.ontologies import (
     CommitOntologyVersion,
-    DeprecateOntologyEntries, CancelDeprecateOntologyEntries,
+    DeprecateOntologyEntries, CancelDeprecateOntologyEntries, RestoreOntologyEntries,
     LockOntologyEntries, UnlockOntologyEntries,
 
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
@@ -95,6 +95,19 @@ async def cancel_deprecate_entries(
         entry_ids=ids
     )
     await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("ontologyRestoreEntries")
+@graphql_payload
+@require_authentication
+async def restore_entries(
+        _,
+        info,
+        ids: List[int]
+) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} restores removed entries {ids}")
+    await info.context['bus'].handle(RestoreOntologyEntries(agent_id=user_id, entry_ids=ids))
     return True
 
 

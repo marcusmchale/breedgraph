@@ -38,6 +38,10 @@ class BaseLifecycle(ABC):
             versions[version_field] = version_obj.packed_version if version_obj else None
         return versions
 
+    def snapshot(self) -> Dict:
+        """What is saved, to tell whether the lifecycle changed since it was loaded or saved"""
+        return self.serialize_versions()
+
     @property
     def writestamps(self) -> List[WriteStamp]:
         """Read-only access to writestamps."""
@@ -139,3 +143,9 @@ class EntryLifecycle(BaseLifecycle):
 class RelationshipLifecycle(BaseLifecycle):
     """Domain model for managing the lifecycle of ontology relationships."""
     relationship_id: int = None
+    # The entries whose deprecation deprecated this relationship (domain/services/ontology_lifecycles.py),
+    # kept once it is removed; empty for a relationship deprecated on its own
+    deprecated_with: List[int] = field(default_factory=list)
+
+    def snapshot(self) -> Dict:
+        return {**self.serialize_versions(), 'deprecated_with': sorted(self.deprecated_with)}

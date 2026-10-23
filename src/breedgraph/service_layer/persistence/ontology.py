@@ -11,6 +11,7 @@ from breedgraph.domain.model.ontology.enums import OntologyRelationshipLabel, On
 from breedgraph.domain.model.ontology.lifecycle import LifecyclePhase, EntryLifecycle, RelationshipLifecycle
 from breedgraph.domain.model.ontology.version import Version, OntologyCommit
 from breedgraph.service_layer.mappers import OntologyMapper, ontology_mapper
+from breedgraph.service_layer.queries.read_models import OntologyEntryOutput
 
 import logging
 logger = logging.getLogger(__name__)
@@ -130,6 +131,14 @@ class OntologyPersistenceService(ABC):
 
     @abstractmethod
     async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
+        ...
+
+    @abstractmethod
+    async def get_cited_entries(self, entry_ids: List[int]) -> List[OntologyEntryOutput]:
+        """
+        The entries as data that cites them reads them, whatever their phase: as the referential view gives them,
+        with their relationships, but in this transaction
+        """
         ...
 
     @abstractmethod

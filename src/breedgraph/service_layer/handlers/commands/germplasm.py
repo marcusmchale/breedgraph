@@ -1,6 +1,7 @@
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
 from breedgraph.domain import commands
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.model.germplasm import GermplasmInput, GermplasmStored, GermplasmSourceType, GermplasmRelationship
 
@@ -21,6 +22,7 @@ async def create_germplasm_entry(
         await uow.controls.require_read(ControlledModelLabel.REFERENCE, cmd.reference_ids)
         await uow.controls.require_read(ControlledModelLabel.LOCATION, [cmd.origin_id])
         await uow.controls.require_read(ControlledModelLabel.UNIT, [cmd.unit_id])
+        await uow.ontology.require_entries(cmd.control_method_ids or [], label=OntologyEntryLabel.CONTROL_METHOD)
         entry = GermplasmInput(
             name=cmd.name,
             description=cmd.description,
@@ -77,6 +79,9 @@ async def update_germplasm_entry(
         if cmd.reproduction is not None and not cmd.reproduction == entry.reproduction:
             entry.reproduction = cmd.reproduction
         if cmd.control_method_ids is not None and not set(cmd.control_method_ids) == set(entry.control_methods):
+            await uow.ontology.require_entries(
+                [i for i in cmd.control_method_ids if i not in entry.control_methods], label=OntologyEntryLabel.CONTROL_METHOD
+            )
             entry.control_methods = cmd.control_method_ids
 
         await germplasm_service.update_entry(entry)

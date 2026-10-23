@@ -32,6 +32,10 @@ class CancelDeprecateOntologyEntries(Command):
     agent_id: int
     entry_ids: List[int]
 
+class RestoreOntologyEntries(Command):
+    agent_id: int
+    entry_ids: List[int]
+
 class CreateEntryBase(BaseModel):
     agent_id: int
 

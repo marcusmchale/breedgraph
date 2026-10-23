@@ -29,9 +29,8 @@ async def create_layout(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         ontology_service = uow.ontology
+        await ontology_service.require_entries([cmd.type_id], label=OntologyEntryLabel.LAYOUT_TYPE)
         layout_type = await ontology_service.get_entry(entry_id=cmd.type_id, label=LayoutTypeStored.label)
-        if layout_type is None:
-            raise ValueError("Layout type not found")
         if not len(layout_type.axes) == len(cmd.axes):
             raise ValueError("Axes names must be same length as specified by the LayoutType")
 
@@ -50,7 +49,8 @@ async def create_layout(
             if layout_input.location:
                 raise ValueError("Cannot set location on layout that is not the root of the layout tree")
             parent_layout = layout_tree.get_entry(cmd.parent)
-            parent_type = await ontology_service.get_entry(entry_id=parent_layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
+            # the parent's type, as cited, so layouts can still be added to one of a removed type
+            parent_type = await ontology_service.get_cited_entry(parent_layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
             position = cmd.position or []
             validate_position_within_parent(position, parent_layout, parent_type)
             layout_tree.add_layout(layout_input, parent_id=cmd.parent, position=cmd.position)
@@ -93,7 +93,12 @@ async def update_layout(
                 (cmd.type_id and not cmd.type_id == layout.type),
                 (cmd.axes and not cmd.axes == layout.axes)
             ]):
-                layout_type = await ontology_service.get_entry(entry_id=cmd.type_id, label=LayoutTypeStored.label)
+                if cmd.type_id and not cmd.type_id == layout.type:
+                    await ontology_service.require_entries([cmd.type_id], label=OntologyEntryLabel.LAYOUT_TYPE)
+                    layout_type = await ontology_service.get_entry(entry_id=cmd.type_id, label=LayoutTypeStored.label)
+                else:
+                    # the axes change: the layout's own type, as cited
+                    layout_type = await ontology_service.get_cited_entry(layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
                 if layout_type is None:
                     raise ValueError("Layout type not found")
                 if not len(layout_type.axes) == len(cmd.axes if cmd.axes else layout.axes):
@@ -113,8 +118,8 @@ async def update_layout(
                     parent_layout = layout_tree.get_entry(cmd.parent)
                     current_position = layout_tree.get_position(layout.id)
 
-                    parent_type = await ontology_service.get_entry(
-                        entry_id=parent_layout.type,
+                    parent_type = await ontology_service.get_cited_entry(
+                        parent_layout.type,
                         label=OntologyEntryLabel.LAYOUT_TYPE
                     )
                     position = cmd.position or []

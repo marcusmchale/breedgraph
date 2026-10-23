@@ -24,6 +24,8 @@ async def create_unit(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
         await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
+        if cmd.subject_id is not None:
+            await uow.ontology.require_entries([cmd.subject_id], label=OntologyEntryLabel.SUBJECT)
         unit_input = UnitInput(
             subject = cmd.subject_id,
             germplasm = cmd.germplasm_id,
@@ -81,6 +83,8 @@ async def update_unit(
 
         # Update unit fields if provided; given as None, the subject and germplasm are removed
         if 'subject_id' in cmd.model_fields_set:
+            if cmd.subject_id is not None and cmd.subject_id != unit.subject:
+                await uow.ontology.require_entries([cmd.subject_id], label=OntologyEntryLabel.SUBJECT)
             unit.subject = cmd.subject_id
         if 'germplasm_id' in cmd.model_fields_set:
             if cmd.germplasm_id != unit.germplasm:
@@ -256,6 +260,9 @@ async def derive_units(
         # the germplasm given, else each source's copied, or none
         copying = cmd.germplasm_id is None and cmd.copy_germplasm
         sources = await _units_as_seen(uow, source_ids, with_germplasm=copying)
+        # the subject given, else each source's copied: either way the new units' subjects are of the current ontology
+        subject_ids = {cmd.subject_id} if cmd.subject_id is not None else {source.subject for source, _ in sources.values()}
+        await uow.ontology.require_entries([s for s in subject_ids if s is not None], label=OntologyEntryLabel.SUBJECT)
 
         position = None
         if cmd.location_id:
@@ -320,9 +327,8 @@ async def add_children(
         parent_ids = await _selected_unit_ids(uow, cmd.parents)
         await uow.controls.require_read(ControlledModelLabel.UNIT, parent_ids)
         await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
+        await uow.ontology.require_entries([cmd.subject_id], label=OntologyEntryLabel.SUBJECT)
         subject = await uow.ontology.get_entry(entry_id=cmd.subject_id, label=OntologyEntryLabel.SUBJECT)
-        if subject is None:
-            raise NoResultFoundError("Subject not found")
 
         # the unit graph of each parent, which its children join
         graphs: Dict[int, UnitGraph] = {}
@@ -367,7 +373,7 @@ async def _unit_names(uow: AbstractUnitHolder, graphs: Dict[int, UnitGraph], uni
     units = {unit_id: graphs[unit_id].get_unit(unit_id) for unit_id in unit_ids}
     subjects = {}
     for subject_id in {unit.subject for unit in units.values() if not unit.name and unit.subject is not None}:
-        entry = await uow.ontology.get_entry(entry_id=subject_id, label=OntologyEntryLabel.SUBJECT)
+        entry = await uow.ontology.get_cited_entry(subject_id, label=OntologyEntryLabel.SUBJECT)
         subjects[subject_id] = entry.name if entry is not None else 'Unit'
     return {
         unit_id: unit.name or f"{subjects.get(unit.subject, 'Unit')} {unit_id}"
@@ -463,7 +469,8 @@ async def _validate_position_layout(uow: AbstractUnitHolder, position: Position)
         if not layout_tree.get_location(layout.id) == position.location_id:
             raise ValueError("Layout location does not match the position location")
 
-        layout_type = await uow.ontology.get_entry(entry_id=layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
+        # the type of an existing layout, as cited, so units can still be placed in a layout of a removed type
+        layout_type = await uow.ontology.get_cited_entry(layout.type, label=OntologyEntryLabel.LAYOUT_TYPE)
         if layout_type is None:
             raise NoResultFoundError("Layout type with the provided type ID was not found")
         for i, p in enumerate(position.coordinates):

@@ -206,6 +206,9 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
     async def get_relationship_lifecycles(self, relationship_keys: List[int]) -> Dict[int, RelationshipLifecycle]:
         return self.relationship_lifecycles
 
+    async def get_cited_entries(self, entry_ids: List[int]) -> List[OntologyEntryOutput]:
+        raise NotImplementedError("The referential query is tested against Neo4j")
+
     async def save_relationship_lifecycles(
             self,
             lifecycles: Dict[int, RelationshipLifecycle],

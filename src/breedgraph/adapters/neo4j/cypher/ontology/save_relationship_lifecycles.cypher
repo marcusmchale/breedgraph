@@ -6,6 +6,8 @@ MATCH (relationship:OntologyRelationship {id: lifecycle_data['relationship_id']}
 MERGE (relationship)-[:HAS_LIFECYCLE]->(lifecycle: OntologyLifecycle)
 WITH lifecycle, lifecycle_data
 SET lifecycle += lifecycle_data['versions']
+// the entries it was deprecated with, if any (domain/services/ontology_lifecycles.py); null removes the property
+SET lifecycle.deprecated_with = CASE WHEN size(lifecycle_data['deprecated_with']) > 0 THEN lifecycle_data['deprecated_with'] END
 MERGE (mgmt)-[managed:MANAGED]->(lifecycle)
 ON CREATE SET
   managed.phases = [lifecycle_data['current_phase']],

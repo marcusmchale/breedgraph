@@ -16,6 +16,36 @@ breedview's master (`6628435`) implements every API change up to 2026-10-23.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Removed ontology entries
+
+Deprecating an ontology entry now deprecates its relationships with it, and the next commit removes both (README,
+Ontology). Data citing a removed entry keeps it: a dataset's concept, a unit's subject, the type of a location, layout or
+grouping, a study's design and a contribution's roles resolve as before, with `phase: REMOVED` and, for a variable or
+factor, its scale and categories as they stood. The ontology views treat a deprecated entry's relationships as any
+deprecated relationship, so a kept entry's fields (a parent's children, a category's scales) leave out an entry from
+when it is deprecated. New refusals, as errors of the payload:
+- linking to a removed entry from outside the ontology, on creating it or changing to it: "Removed from the ontology,
+  so nothing new can be linked to it: Subject 12 (Leaf). Choose a current entry"; and to a draft, which a commit may
+  never publish: "Not yet in a committed version of the ontology, so nothing can be linked to it: ... Commit the
+  version first" (pickers for data should offer the published view's entries);
+- deprecating an entry a current entry is defined by: "Entries that current entries are defined by can't be
+  deprecated, unless they are deprecated together: Variable 1 --[UsesScale]--> Scale 2";
+- cancelling the deprecation of an entry while one it is defined by stays deprecated ("... cancel both: ..."), and
+  cancelling a relationship's deprecation when it was deprecated with an entry ("... cancel their deprecation
+  instead");
+- adding a relationship to a deprecated entry: "Entries [2] are deprecated: relationships to them can't be added".
+
+`ontologyRestoreEntries(ids: [ID!]!): BooleanPayload!` brings removed entries back as drafts, which the next commit
+activates, keeping their ids, with the relationships removed with them whose other end is current or restored with
+them. Refused for an entry that isn't removed, while another entry of its label has its name or abbreviation ("Another
+LocationType is using the name ..."), and without the entries one is defined by ("... restore them with it: ...").
+
+Nothing breaks. Work: show a removed entry where data cites it as retired (a tag on the dataset's variable, the unit's
+subject, the location's or layout's type); deprecate entries several at a time in the ontology editor, so that an
+entry and those it defines can go together; a Restore action for editors on removed entries in the views of earlier
+versions, where an entry's `phase` is its phase now, so REMOVED for one since removed (and on a retired tag); show the
+refusals as given.
+
 ## Checking the front end against the API
 
 ```bash

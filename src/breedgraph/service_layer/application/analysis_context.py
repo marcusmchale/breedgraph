@@ -9,7 +9,7 @@ from breedgraph.domain.model.analysis_context import (
 )
 from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
-from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleType, ScaleCategoryStored, FactorStored
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 from breedgraph.domain.model.programs import StudyStored
 from breedgraph.domain.model.unit_graphs import UnitGraph
 from breedgraph.domain.services.lineages import lineage_value, nearest_on_each_lineage, germplasm_seen, HIDDEN
@@ -141,19 +141,17 @@ class AnalysisContextLoader:
         return concepts
 
     async def _load_concept(self, concept_id: int) -> ConceptContext:
+        # as the data cites it, so that data of a removed variable or factor is still analysed
         ontology = self.uow.ontology
-        scale_id = await ontology.get_scale_id(entry_id=concept_id)
-        scale = await ontology.get_entry(scale_id, label=OntologyEntryLabel.SCALE)
-        categories = None
-        if scale.scale_type in (ScaleType.ORDINAL, ScaleType.NOMINAL):
+        scale, categories = await ontology.get_concept_scale(concept_id)
+        concept = await ontology.get_cited_entry(concept_id)
+        return ConceptContext(
+            concept_id=concept_id,
+            scale_type=scale.scale_type,
             # ordered by rank
-            categories = []
-            for category_id in await ontology.get_scale_category_ids(scale.id):
-                category = await ontology.get_entry(category_id)
-                if isinstance(category, ScaleCategoryStored):
-                    categories.append(category.name)
-        factor = isinstance(await ontology.get_entry(concept_id), FactorStored)
-        return ConceptContext(concept_id=concept_id, scale_type=scale.scale_type, categories=categories, factor=factor)
+            categories=[category.name for category in categories] if categories is not None else None,
+            factor=concept.label is OntologyEntryLabel.FACTOR
+        )
 
     async def _load_studies(self, study_ids: set[int]) -> dict[int, StudyStored]:
         studies = {}
@@ -262,14 +260,14 @@ class AnalysisContextLoader:
             return
         path = spec_path + ['grouping', 'position']
         for i, type_id in enumerate(grouping.location_type_ids):
-            if await self.uow.ontology.get_entry(type_id, label=OntologyEntryLabel.LOCATION_TYPE) is None:
+            if await self.uow.ontology.get_cited_entry(type_id, label=OntologyEntryLabel.LOCATION_TYPE) is None:
                 self.errors.append(AnalysisMessage(
                     code=AnalysisErrorCode.CONFIG_INVALID,
                     message=f"Location type {type_id} was not found",
                     path=path + ['locationTypeIds', str(i)]
                 ))
         for i, subject_id in enumerate(grouping.subject_ids):
-            if await self.uow.ontology.get_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
+            if await self.uow.ontology.get_cited_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
                 self.errors.append(AnalysisMessage(
                     code=AnalysisErrorCode.CONFIG_INVALID,
                     message=f"Subject {subject_id} was not found",
@@ -342,7 +340,7 @@ class AnalysisContextLoader:
         """The subjects whose units are levels of record group dimensions must be subjects of the ontology"""
         for i, dimension in enumerate(request.spec.grouping.record_groups):
             for j, subject_id in enumerate(dimension.subject_ids):
-                if await self.uow.ontology.get_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
+                if await self.uow.ontology.get_cited_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
                     self.errors.append(AnalysisMessage(
                         code=AnalysisErrorCode.CONFIG_INVALID,
                         message=f"Subject {subject_id} was not found",

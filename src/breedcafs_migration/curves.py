@@ -34,7 +34,6 @@ from breedgraph.adapters.neo4j.services.file_archival_service import Neo4jFileAr
 from breedgraph.domain.model.archive import FileArchivalRecord, ArchiveState, LocalState
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, RecordGroup
 from breedgraph.domain.model.references import DataFileInput, DataFormat
-from breedgraph.service_layer.handlers.events.datasets import get_scale_and_categories
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.datasets import DatasetIds, DatasetKey, entered_time, epoch_ms, replicate_code
@@ -180,7 +179,7 @@ async def prepare_breedcafs_curves(
                 format=DataFormat.CSV,
                 schema=schema(x_values, len(key_curves))
             ))
-            scale, categories = await get_scale_and_categories(concept_id=concept, ontology_service=uow.ontology)
+            scale, categories = await uow.ontology.get_concept_scale(concept)
             replicate = programs.replicate_groupings[study]
             dataset = await uow.repositories.datasets.create(DatasetInput(
                 concept=concept, study=programs.studies[study], reference_ids=[reference.id]

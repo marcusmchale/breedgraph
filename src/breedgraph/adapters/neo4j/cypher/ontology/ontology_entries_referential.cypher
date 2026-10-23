@@ -7,9 +7,14 @@ WITH
 OPTIONAL MATCH
   (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship: OntologyRelationship)-[:RELATES_TO]->(target: OntologyEntry),
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
-  WHERE (source = entry OR target = entry) AND
-  relationship_lifecycle.activated <= $version AND (
+  WHERE (source = entry OR target = entry) AND (
+    relationship_lifecycle.activated <= $version
+    // a draft entry with its draft relationships: data cites a draft only once it is restored, until the next commit
+    OR (entry_lifecycle.activated IS NULL AND relationship_lifecycle.drafted <= $version)
+  ) AND (
     relationship_lifecycle.removed IS NULL OR relationship_lifecycle.removed > $version
+    // or removed with the entry: data cites an entry as it stood when it was deprecated
+    OR entry.id IN coalesce(relationship_lifecycle.deprecated_with, [])
   )
 
 WITH entry, entry_lifecycle, collect(relationship {

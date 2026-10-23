@@ -38,7 +38,6 @@ from numpy import datetime64
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.datasets import DatasetInput, DataRecordInput, RecordGroup
 from breedgraph.domain.model.ontology import OntologyEntryLabel
-from breedgraph.service_layer.handlers.events.datasets import get_scale_and_categories
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.ontology import OntologyIds
@@ -253,7 +252,7 @@ async def prepare_breedcafs_datasets(
             for key in keys:
                 concept = key[1]
                 if concept not in scales:
-                    scales[concept] = await get_scale_and_categories(concept_id=concept, ontology_service=uow.ontology)
+                    scales[concept] = await uow.ontology.get_concept_scale(concept)
                 scale, categories = scales[concept]
                 dataset = await uow.repositories.datasets.create(DatasetInput(concept=concept, study=programs.studies[study]))
                 records = [

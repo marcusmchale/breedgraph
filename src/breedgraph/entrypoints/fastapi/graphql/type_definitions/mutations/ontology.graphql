@@ -560,6 +560,12 @@ extend type Mutation {
     ontologyUnlockEntries(ids: [ID!]!): BooleanPayload!
     ontologyDeprecateEntries(ids: [ID!]!): BooleanPayload!
     ontologyCancelDeprecateEntries(ids: [ID!]!): BooleanPayload!
+    """
+    Bring removed entries back as drafts, which the next commit activates, with the relationships removed with them;
+    each keeps its id. For ontology editors and admins. Refused while another entry has the name, or without the entries
+    one is defined by.
+    """
+    ontologyRestoreEntries(ids: [ID!]!): BooleanPayload!
 
     ontologyCommitVersion(
         versionChange: VersionChange!,

@@ -149,8 +149,10 @@ The entries above, and the variables and factors of §7, describe the migrated d
 that users build starts. Once the migration is validated (§8), the `retire-ontology` step deprecates every entry the
 migration user created, and commits a major version, which removes them: the current ontology no longer has them,
 and users start anew. Entries the migration found already there (Country, the CRediT roles, and any entry of the same
-name in the production ontology) are kept. Removed entries are not deleted: the migrated data still cites them, and the
-ontology of an earlier version still has them.
+name in the production ontology) are kept, and lose their relationships to the removed ones (Country its child Region).
+Removed entries are not deleted: the migrated data still cites them, and is still read, edited and analysed with them
+as they stood (README, Ontology); the ontology of an earlier version still has them. They are deprecated in one call,
+as an entry can't be deprecated while a current entry is defined by it.
 
 The commit activates every draft and removes every deprecated entry, not only the migration's; in production,
 nobody else has edited the ontology yet. Run `migrate` no more once the entries are retired: it finds its entries by

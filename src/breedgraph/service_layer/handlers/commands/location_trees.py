@@ -1,6 +1,7 @@
 from breedgraph.domain import commands
 from breedgraph.domain.events.location_trees import CountryAdded, LocationPlaced, CountryRemoved
 from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.ontology import OntologyEntryLabel
 from breedgraph.domain.model.location_trees import LocationTree, LocationInput, LocationStored, LocationOutput, GeoCoordinate
 
 from breedgraph.adapters.redis.state_store import RedisStateStore
@@ -35,6 +36,7 @@ async def create_location(
     )
 
     async with uow_factory.get_uow(user_id=cmd.agent_id, write_team=cmd.write_team, release=cmd.release) as uow:
+        await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.LOCATION_TYPE)
         if cmd.parent_id is None:
             # Ensure that root locations (countries) have public read-access
             uow.repositories.location_trees.release = ReadRelease.PUBLIC
@@ -84,6 +86,8 @@ async def update_location(
         if cmd.code is not None:
             location.code = cmd.code
         if cmd.type_id is not None:
+            if cmd.type_id != location.type:
+                await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.LOCATION_TYPE)
             location.type = cmd.type_id
         if cmd.fullname is not None:
             location.fullname = cmd.fullname

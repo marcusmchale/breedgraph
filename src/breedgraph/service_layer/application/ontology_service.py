@@ -1,5 +1,5 @@
 from breedgraph.custom_exceptions import (
-    RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError, IllegalOperationError
+    RelationshipExistsError, IdentityExistsError, UnauthorisedOperationError, IllegalOperationError, NoResultFoundError
 )
 
 from breedgraph.domain.model.ontology import (
@@ -33,9 +33,15 @@ from breedgraph.domain.events import Event
 from breedgraph.domain.events.ontology import OntologyVersionCreated
 
 from breedgraph.service_layer.persistence import OntologyPersistenceService
+from breedgraph.service_layer.queries.read_models import (
+    OntologyEntryOutput, ScaleOutput, CategoryOutput, VariableOutput, FactorOutput
+)
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
 from breedgraph.service_layer.mappers import ontology_mapper
+from breedgraph.domain.services.ontology_lifecycles import (
+    deprecate_with_entries, cancel_with_entries, restore_with_entries, is_current
+)
 
 from typing import Set, List, Tuple, Dict, Any, AsyncGenerator, overload, Literal, TypeVar
 
@@ -108,8 +114,7 @@ class OntologyApplicationService:
         Relationships to it from other entries stay open.
         """
         await self._require_unlocked([
-            relationship.source_id for relationship in relationships
-            if relationship.label not in (OntologyRelationshipLabel.PARENT_OF, OntologyRelationshipLabel.HAS_TERM)
+            relationship.source_id for relationship in relationships if relationship.label.defines_source
         ])
 
     async def _require_citable_references(self, reference_ids) -> None:
@@ -187,39 +192,86 @@ class OntologyApplicationService:
         await self._save_entry_lifecycles()
 
     async def deprecate_entries(self, entry_ids):
+        """Deprecates the entries with their relationships (domain/services/ontology_lifecycles.py)"""
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can deprecate entries")
         await self._require_unlocked(entry_ids)
 
         await self._load_entry_lifecycles(entry_ids)
+        relationships = await self._load_relationships_of(entry_ids)
         current_version = await self.get_current_version()
+        deprecate_with_entries(
+            entry_ids, relationships, self._relationship_lifecycles, self._entry_lifecycles, current_version
+        )
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
             if not lifecycle.current_phase==LifecyclePhase.DEPRECATED:
                 lifecycle.set_version_deprecated(current_version)
         await self._save_entry_lifecycles()
+        await self._save_relationship_lifecycles()
 
     async def cancel_deprecate_entries(self, entry_ids):
+        """Brings back the relationships deprecated with the entries (domain/services/ontology_lifecycles.py)"""
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can cancel deprecate entries")
 
         await self._load_entry_lifecycles(entry_ids)
+        relationships = await self._load_relationships_of(entry_ids)
+        cancel_with_entries(entry_ids, relationships, self._relationship_lifecycles)
         for entry_id in entry_ids:
             lifecycle = await self._get_entry_lifecycle(entry_id)
             lifecycle.cancel_deprecation()
         await self._save_entry_lifecycles()
+        await self._save_relationship_lifecycles()
 
-    async def remove_entries(self, entry_ids):
+    async def restore_entries(self, entry_ids):
+        """
+        Brings removed entries back as drafts, which the next commit activates, with the relationships removed with them
+        (domain/services/ontology_lifecycles.py). Each keeps its id, so data that cites it and new data cite the same entry.
+        """
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-            raise UnauthorisedOperationError("Only admins and editors can remove entries")
-        await self._require_unlocked(entry_ids)
+            raise UnauthorisedOperationError("Only admins and editors can restore entries")
+        entry_ids = list(dict.fromkeys(entry_ids))
         await self._load_entry_lifecycles(entry_ids)
-        current_version = await self.get_current_version()
         for entry_id in entry_ids:
-            lifecycle = await self._get_entry_lifecycle(entry_id)
-            if not lifecycle.current_phase==LifecyclePhase.REMOVED:
-                lifecycle.set_version_removed(current_version)
+            if (await self._get_entry_lifecycle(entry_id)).current_phase is not LifecyclePhase.REMOVED:
+                raise IllegalOperationError(
+                    f"Entry {entry_id} is not removed: only removed entries are restored, a deprecation is cancelled"
+                )
+        for entry in await self.persistence.get_cited_entries(entry_ids):
+            if await self.persistence.name_in_use(entry.label, entry.name, entry.id):
+                raise IdentityExistsError(
+                    f"Another {entry.label.value} is using the name {entry.name}, so {entry.label.value} {entry.id} can't be restored"
+                )
+            if entry.abbreviation and await self.persistence.abbreviation_in_use(entry.label, entry.abbreviation, entry.id):
+                raise IdentityExistsError(
+                    f"Another {entry.label.value} is using the abbreviation {entry.abbreviation}, "
+                    f"so {entry.label.value} {entry.id} can't be restored"
+                )
+        relationships = await self._load_relationships_of(entry_ids, removed=True)
+        current_version = await self.get_current_version()
+        restore_with_entries(
+            entry_ids, relationships, self._relationship_lifecycles, self._entry_lifecycles, current_version
+        )
+        for entry_id in entry_ids:
+            (await self._get_entry_lifecycle(entry_id)).set_version_drafted(current_version)
         await self._save_entry_lifecycles()
+        await self._save_relationship_lifecycles()
+
+    async def _load_relationships_of(self, entry_ids, removed: bool = False) -> List[OntologyRelationshipBase]:
+        """
+        The relationships of the entries, removed ones too if asked, with their lifecycles and those of their ends
+        """
+        phases = [LifecyclePhase.DRAFT, LifecyclePhase.ACTIVE, LifecyclePhase.DEPRECATED]
+        if removed:
+            phases.append(LifecyclePhase.REMOVED)
+        relationships = [
+            relationship async for relationship in self.persistence.get_relationships(entry_ids=list(entry_ids), phases=phases)
+        ]
+        await self._load_relationship_lifecycles([relationship.id for relationship in relationships])
+        ends = {entry_id for relationship in relationships for entry_id in (relationship.source_id, relationship.target_id)}
+        await self._load_entry_lifecycles(list(ends - set(self._entry_lifecycles)))
+        return relationships
 
     async def activate_relationships(self, relationship_ids):
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
@@ -250,6 +302,11 @@ class OntologyApplicationService:
         await self._load_relationship_lifecycles(relationship_ids)
         for relationship_id in relationship_ids:
             lifecycle = await self._get_relationship_lifecycle(relationship_id)
+            if lifecycle.deprecated_with:
+                raise IllegalOperationError(
+                    f"Relationship {relationship_id} was deprecated with entries {lifecycle.deprecated_with}: "
+                    f"cancel their deprecation instead"
+                )
             lifecycle.cancel_deprecation()
         await self._save_relationship_lifecycles()
 
@@ -596,14 +653,6 @@ class OntologyApplicationService:
         """Retrieve an ontology entry"""
         return await self.persistence.get_entry(entry_id=entry_id, name=name, label=label)
 
-    async def get_scale_id(self, entry_id: int) -> int|None:
-        async for relationship in self.persistence.get_relationships(
-                entry_ids = [entry_id],
-                labels=[OntologyRelationshipLabel.USES_SCALE]
-        ):
-            return relationship.target_id
-        return None
-
     async def get_relationships(
             self,
             version: Version | None = None,
@@ -736,6 +785,7 @@ class OntologyApplicationService:
         await self._require_unlocked_sources([relationship])
         await self._validate_no_circular_dependency(relationship)
         await self._validate_entries_exist([relationship.source_id, relationship.target_id])
+        await self._require_current([relationship.source_id, relationship.target_id])
 
         async for rel in self._get_existing_relationship(relationship):
             # if removed we can create a new one, this preserves history for snapshots
@@ -802,25 +852,6 @@ class OntologyApplicationService:
         lifecycle.set_version_activated(version)
         await self._save_entry_lifecycles()
 
-    async def deprecate_entry(
-            self,
-            entry_id: int,
-            version: Version
-    ) -> None:
-        """Deprecate an active entry."""
-        lifecycle = await self._get_entry_lifecycle(entry_id)
-        lifecycle.set_version_deprecated(version)
-        await self._save_entry_lifecycles()
-
-    async def remove_entry(
-            self,
-            entry_id: int,
-            version: Version
-    ) -> None:
-        lifecycle = await self._get_entry_lifecycle(entry_id)
-        lifecycle.set_version_removed(version)
-        await self._save_entry_lifecycles()
-
     async def get_scale_category_ids(self, scale_id: int) -> List[int]:
         relationships = [rel async for rel in self.persistence.get_relationships(
                 entry_ids = [scale_id], labels = [OntologyRelationshipLabel.HAS_CATEGORY]
@@ -828,21 +859,32 @@ class OntologyApplicationService:
         relationships.sort(key=lambda x: x.rank or x.id)
         return [rel.target_id for rel in relationships]
 
-    async def get_concept_scale(self, concept_id: int) -> ScaleStored:
-        scale_rel = None
-        async for rel in self.persistence.get_relationships(
-                source_ids=[concept_id],
-                labels=[OntologyRelationshipLabel.USES_SCALE],
-                phases=[LifecyclePhase.ACTIVE]
-        ):
-            scale_rel = rel
-            break
-        if not scale_rel:
-            raise ValueError(f"Concept with ID {concept_id} has no active scale")
-        scale = await self.persistence.get_entry(entry_id=scale_rel.target_id, label=OntologyEntryLabel.SCALE)
-        if not scale:
-            raise ValueError(f"Scale with ID {scale_rel.target_id} not found")
-        return scale
+    async def get_cited_entry(self, entry_id: int, label: OntologyEntryLabel|None = None) -> OntologyEntryOutput|None:
+        """
+        An entry as data that cites it reads it, whatever its phase, a deprecated or removed one as it stood when it was
+        deprecated: as the referential view gives it, but in this transaction. A new link needs an entry of a committed
+        version (require_entries).
+        """
+        entries = await self.persistence.get_cited_entries([entry_id])
+        if not entries or (label is not None and entries[0].label is not label):
+            return None
+        return entries[0]
+
+    async def get_concept_scale(self, concept_id: int) -> Tuple[ScaleOutput, List[CategoryOutput]|None]:
+        """
+        As cited: the scale of a variable or factor, with the categories of an ordinal or nominal scale in rank order
+        """
+        concept = await self.get_cited_entry(concept_id)
+        if not isinstance(concept, (VariableOutput, FactorOutput)):
+            raise NoResultFoundError(f"Variable or factor {concept_id} not found")
+        scale = await self.get_cited_entry(concept.scale, label=OntologyEntryLabel.SCALE) if concept.scale else None
+        if scale is None:
+            raise NoResultFoundError(f"The scale of {concept.label.value} {concept_id} was not found")
+        categories = None
+        if scale.scale_type in (ScaleType.ORDINAL, ScaleType.NOMINAL):
+            cited = {entry.id: entry for entry in await self.persistence.get_cited_entries(list(scale.categories or ()))}
+            categories = [cited[category_id] for category_id in scale.categories or ()]
+        return scale, categories
 
     # Scale operations
     async def add_scale_categories(
@@ -924,13 +966,13 @@ class OntologyApplicationService:
         """Load entry lifecycles for a list of entry ids to perform update operations."""
         lifecycles = await self.persistence.get_entry_lifecycles(entry_ids)
         self._entry_lifecycles.update(lifecycles)
-        self._stored_entry_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in lifecycles.items()})
+        self._stored_entry_versions.update({i: lifecycle.snapshot() for i, lifecycle in lifecycles.items()})
 
     async def _load_relationship_lifecycles(self, relationship_ids: List[int]) -> None:
         """Load entry lifecycles for a list of entry ids to perform update operations."""
         lifecycles = await self.persistence.get_relationship_lifecycles(relationship_ids)
         self._relationship_lifecycles.update(lifecycles)
-        self._stored_relationship_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in lifecycles.items()})
+        self._stored_relationship_versions.update({i: lifecycle.snapshot() for i, lifecycle in lifecycles.items()})
 
     async def _create_relationship_lifecycle(
             self,
@@ -970,7 +1012,7 @@ class OntologyApplicationService:
         """The lifecycles whose versions differ from those last loaded or saved"""
         return {
             i: lifecycle for i, lifecycle in lifecycles.items()
-            if stored_versions.get(i) != lifecycle.serialize_versions()
+            if stored_versions.get(i) != lifecycle.snapshot()
         }
 
     async def _save_entry_lifecycles(self) -> None:
@@ -980,7 +1022,7 @@ class OntologyApplicationService:
         changed = self._changed_lifecycles(self._entry_lifecycles, self._stored_entry_versions)
         if changed:
             await self.persistence.save_entry_lifecycles(changed, user_id=self.user_id)
-            self._stored_entry_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in changed.items()})
+            self._stored_entry_versions.update({i: lifecycle.snapshot() for i, lifecycle in changed.items()})
 
     async def _save_relationship_lifecycles(self) -> None:
         """Save the relationship lifecycles that changed to persistence."""
@@ -989,7 +1031,7 @@ class OntologyApplicationService:
         changed = self._changed_lifecycles(self._relationship_lifecycles, self._stored_relationship_versions)
         if changed:
             await self.persistence.save_relationship_lifecycles(changed, user_id=self.user_id)
-            self._stored_relationship_versions.update({i: lifecycle.serialize_versions() for i, lifecycle in changed.items()})
+            self._stored_relationship_versions.update({i: lifecycle.snapshot() for i, lifecycle in changed.items()})
 
     # Persistence-dependent validation methods
     async def _validate_entry_uniqueness(
@@ -1011,9 +1053,42 @@ class OntologyApplicationService:
                     f"Another {entry.label} is using the abbreviation {entry.abbreviation}"
                 )
 
+    async def _require_current(self, entry_ids: List[int]) -> None:
+        """A relationship to a deprecated entry would outlast it, when the next commit removes the entry"""
+        deprecated = [entry_id for entry_id in entry_ids if not is_current(await self._get_entry_lifecycle(entry_id))]
+        if deprecated:
+            raise IllegalOperationError(f"Entries {deprecated} are deprecated: relationships to them can't be added")
+
     async def require_entries(self, entry_ids: List[int], label: OntologyEntryLabel|None = None) -> None:
-        """For links from outside the ontology: each entry must exist, with the label if given"""
-        await self._validate_entries_exist(entry_ids, label)
+        """
+        For links from outside the ontology that a change adds: each entry must exist, with the label if given, and be
+        of a committed version: activated, and not removed. A draft is refused, as it may be removed before any version
+        has it. Links already stored are not checked: what data cites is read whatever its phase (get_cited_entry), so
+        data citing a removed entry can still be edited, but nothing new links to one.
+        """
+        entry_ids = list(dict.fromkeys(entry_ids))
+        if not entry_ids:
+            return
+        found = {entry.id: entry for entry in await self.persistence.get_cited_entries(entry_ids)}
+        missing = [entry_id for entry_id in entry_ids if entry_id not in found or (label is not None and found[entry_id].label is not label)]
+        if missing:
+            raise ValueError(f"Entries do not exist{f' for label {label.value}' if label else ''}: {missing}")
+
+        def named(entries) -> str:
+            return ", ".join(f"{entry.label.value} {entry.id} ({entry.name})" for entry in entries)
+
+        removed = [found[entry_id] for entry_id in entry_ids if found[entry_id].phase is LifecyclePhase.REMOVED]
+        if removed:
+            raise IllegalOperationError(
+                f"Removed from the ontology, so nothing new can be linked to it: {named(removed)}. Choose a current entry"
+            )
+        await self._load_entry_lifecycles(entry_ids)
+        drafts = [found[entry_id] for entry_id in entry_ids if self._entry_lifecycles[entry_id].activated is None]
+        if drafts:
+            raise IllegalOperationError(
+                f"Not yet in a committed version of the ontology, so nothing can be linked to it: {named(drafts)}. "
+                f"Commit the version first"
+            )
 
     async def _validate_entries_exist(self, entry_ids: List[int], label: OntologyEntryLabel|None = None):
         if label:

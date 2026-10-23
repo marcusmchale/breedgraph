@@ -230,7 +230,9 @@ async def test_retire_ontology(uow_factory, editor_id, data_dir):
         assert await uow.ontology.get_entry(name="Tree", label=OntologyEntryLabel.SUBJECT) is None
         removed = [entry async for entry in uow.ontology.persistence.get_entries(entry_ids=created, phases=[LifecyclePhase.REMOVED])]
         assert {entry.id for entry in removed} == set(created)
-        # The seeded Country was there before the migration
+        # The seeded Country was there before the migration, and its links to the migration's Region went with Region
         assert await uow.ontology.get_entry(entry_id=ids.location_types["Country"]) is not None
+        country_links = [r async for r in uow.ontology.get_relationships(entry_ids=[ids.location_types["Country"]])]
+        assert not {end for r in country_links for end in (r.source_id, r.target_id)} & set(created)
 
     assert await retire_breedcafs_ontology(uow_factory, user_id=editor_id) == 0

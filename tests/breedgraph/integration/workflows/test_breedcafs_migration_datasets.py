@@ -7,6 +7,7 @@ from numpy import datetime64, datetime_data
 
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology import (
+    VersionChange,
     OntologyEntryLabel, ScaleType, ObservationMethodType, ControlMethodType, SubjectInput, TraitInput,
     ObservationMethodInput, ScaleInput, ScaleCategoryInput, VariableInput, ConditionInput, ControlMethodInput,
     FactorInput, RecordGroupTypeInput, RecordGroupExtent
@@ -136,6 +137,8 @@ async def datasets_context(isolated_state, uow_factory) -> dict:
         stratum_type = await ontology.create_entry(RecordGroupTypeInput(name="Stratum", default_extent=RecordGroupExtent.SHARED))
         leaf_type = await ontology.create_entry(RecordGroupTypeInput(name="Leaf", default_extent=RecordGroupExtent.WITHIN_UNIT))
         block_type = await ontology.create_entry(RecordGroupTypeInput(name="Block", default_extent=RecordGroupExtent.WITHIN_GRAPH))
+        # as the migration does: data cites entries of a committed version
+        await ontology.commit_version(version_change=VersionChange.MINOR)
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:

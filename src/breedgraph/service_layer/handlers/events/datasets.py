@@ -1,17 +1,15 @@
 import logging
 
-from breedgraph.domain.model import ScaleCategoryStored, DatasetScope
+from breedgraph.domain.model import DatasetScope
 
 logger = logging.getLogger(__name__)
 
 from ..registry import handlers
 
 from breedgraph.service_layer.infrastructure import AbstractStateStore, AbstractUnitOfWorkFactory
-from breedgraph.service_layer.application import OntologyApplicationService
 
 from breedgraph.domain import events
 from breedgraph.domain.model.submissions import SubmissionStatus
-from breedgraph.domain.model.ontology import OntologyEntryLabel, ScaleStored, ScaleType
 from breedgraph.domain.model.errors import ItemError
 from breedgraph.domain.model.programs import GroupingScope
 from breedgraph.domain.model.contributions import contributions_from
@@ -19,20 +17,6 @@ from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.service_layer.application.contributions import verify_contributions
 
 from breedgraph.domain.importers import DatasetImport, DatasetRecordsImport, DatasetUpdateImport
-
-async def get_scale_and_categories(concept_id, ontology_service: OntologyApplicationService) -> tuple[ScaleStored, list[ScaleCategoryStored]]:
-    scale_id = await ontology_service.get_scale_id(entry_id=concept_id)
-    scale: ScaleStored = await ontology_service.get_entry(scale_id, label=OntologyEntryLabel.SCALE)
-    if scale.scale_type in [ScaleType.ORDINAL, ScaleType.NOMINAL]:
-        category_ids = await ontology_service.get_scale_category_ids(scale.id)
-        categories = [await ontology_service.get_entry(c) for c in category_ids]
-        for category in categories:
-            if not isinstance(category, ScaleCategoryStored):
-                raise ValueError("Supplied ontology entry ID for category is not a ScaleCategory")
-    else:
-        categories = None
-    return scale, categories
-
 
 @handlers.event_handler()
 async def handle_dataset_submitted(
@@ -49,6 +33,8 @@ async def handle_dataset_submitted(
             dataset_input = dataset_import.to_input_for_create()
             # Programs are loaded whole, so check the study can be read before linking to it
             await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_input.study], Access.READ)
+            # a new dataset is of a variable or factor of the current ontology
+            await uow.ontology.require_entries([dataset_input.concept])
             await verify_contributions(uow, dataset_input.contributions)
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, [
                 *(dataset_input.references or []),
@@ -70,10 +56,7 @@ async def handle_dataset_submitted(
 
             study = program.get_study(dataset_import.study_id)
 
-            scale, categories = await get_scale_and_categories(
-                concept_id=dataset_import.concept_id,
-                ontology_service=uow.ontology
-            )
+            scale, categories = await uow.ontology.get_concept_scale(dataset_import.concept_id)
             item_errors = []
             if records:
                 for i, e in enumerate(
@@ -118,7 +101,7 @@ async def dataset_update_submitted(
                 #  this is the first point at which we guarantee the submitted dataset_id is valid
                 await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
 
-            scale, categories = await get_scale_and_categories(dataset.concept, uow.ontology)
+            scale, categories = await uow.ontology.get_concept_scale(dataset.concept)
 
             if dataset_import.study_id is not None and dataset_import.study_id != dataset.study:
                 await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_import.study_id], Access.READ)
@@ -200,10 +183,7 @@ async def dataset_records_submitted(
             else:
                 await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
 
-            scale, categories = await get_scale_and_categories(
-                concept_id=dataset.concept,
-                ontology_service=uow.ontology
-            )
+            scale, categories = await uow.ontology.get_concept_scale(dataset.concept)
 
             program = await uow.repositories.programs.get(study_id=dataset.study)
             if program is None:

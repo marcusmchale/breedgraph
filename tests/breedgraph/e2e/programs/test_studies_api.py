@@ -3,7 +3,7 @@ Updating a study through GraphQL: a design or licence omitted is unchanged, and 
 """
 import pytest
 
-from breedgraph.domain.model.ontology import DesignInput
+from breedgraph.domain.model.ontology import DesignInput, VersionChange
 
 from tests.breedgraph.e2e.utils import post_as, get_verified_payload, assert_payload_success
 from tests.breedgraph.scenarios.program_builder import ProgramBuilder
@@ -33,6 +33,8 @@ async def test_update_study_design_and_licence(client, login_token_factory, uow_
     )
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
         design = await uow.ontology.create_entry(DesignInput(name=lorem_text_generator.new_text()))
+        # a study links to a design of a committed version
+        await uow.ontology.commit_version(version_change=VersionChange.PATCH)
         licence = await uow.repositories.references.create(ReferenceBuilder.legal_reference_input())
         await uow.commit()
 

@@ -190,6 +190,14 @@ class OntologyRelationshipLabel(str, Enum):
     DESCRIBES_FACTOR = 'DescribesFactor' # EventType -> Factor
     DESCRIBES_VARIABLE = 'DescribesVariable' # EventType -> Variable
 
+    @property
+    def defines_source(self) -> bool:
+        """
+        Whether a relationship of this kind is part of its source's definition: a locked entry keeps it, and its target
+        can't be deprecated while a current source has it. Links to children and terms are not.
+        """
+        return self not in (OntologyRelationshipLabel.PARENT_OF, OntologyRelationshipLabel.HAS_TERM)
+
 class VersionChange(str, Enum):
     MAJOR = 'MAJOR'
     MINOR = 'MINOR'

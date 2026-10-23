@@ -11,6 +11,7 @@ from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.archive import ArchiveState
 from breedgraph.domain.model.datasets import DatasetInput
 from breedgraph.domain.model.ontology import (
+    VersionChange,
     OntologyEntryLabel, ScaleType, ObservationMethodType, SubjectInput, TraitInput, ObservationMethodInput, ScaleInput,
     VariableInput, RecordGroupTypeInput, RecordGroupExtent
 )
@@ -73,6 +74,8 @@ async def curves_context(isolated_state, uow_factory) -> dict:
         other_scale = await ontology.create_scale(ScaleInput(name="Ratio", scale_type=ScaleType.NUMERICAL))
         other = await ontology.create_variable(VariableInput(name="Fv/Fm (PocketPEA)"), trait.id, method.id, other_scale.id)
         replicate_type = await ontology.create_entry(RecordGroupTypeInput(name="Replicate", default_extent=RecordGroupExtent.WITHIN_UNIT))
+        # as the migration does: data cites entries of a committed version
+        await ontology.commit_version(version_change=VersionChange.MINOR)
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:

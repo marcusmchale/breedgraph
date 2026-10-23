@@ -94,6 +94,28 @@ This allows for reconstruction of a given ontology version,
 and for evolution of the system of terms 
 without losing the context for any established references from outside the ontology.
 
+An entry is drafted, activated by the next version commit, and may be deprecated, which the next commit turns into
+its removal. Its relationships follow it (`domain/services/ontology_lifecycles.py`):
+- Deprecating an entry deprecates its relationships, in both directions, each marked with the entries it was deprecated
+  with, so the commit removes them together and the current ontology has no relationship to an entry it doesn't have.
+  Cancelling the deprecation brings back what was deprecated with the entry.
+- The relationships from an entry, other than to its children and terms, define it: a locked entry keeps them, and an
+  entry can't be deprecated while a current entry is defined by it (a variable's trait, method or scale, a scale's
+  categories, a trait's subjects, ...), unless they are deprecated together. Links to children and terms are dropped
+  with the entry.
+- What data cites is read whatever its phase, a deprecated or removed entry as it stood when it was deprecated (the
+  referential view): a dataset's variable or factor with its scale and categories, a unit's subject, the type of a
+  location, layout or grouping. So data citing a removed entry is still read, edited and analysed.
+- A new link from outside the ontology needs an entry of a committed version, activated and not removed: a dataset,
+  unit, location, layout, grouping, study design, germplasm control method or contribution role can't be created with
+  a draft or a removed entry, or changed to one. A draft is refused as it may be removed before any version has it.
+  Nor can a relationship be added to a deprecated entry.
+- A removed entry can be restored by an editor: it comes back as a draft, keeping its id, so data that cites it and new
+  data cite the same entry, with the relationships removed with it whose other end is current or restored with it. It
+  is refused while another entry has its name, or without the entries it is defined by. Until the next commit, data
+  citing it reads it with what was restored with it, and nothing new links to it. Being drafted again, it is missing
+  from the views of the versions before, though its lifecycle's audit trail keeps its history.
+
 All entries are stored as nodes in a directed-acyclic graph 
 with a label, internal identifier (ID, an integer) and a name, with optional; 
   - abbreviation,

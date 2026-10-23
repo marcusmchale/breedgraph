@@ -58,6 +58,12 @@ async def cancel_deprecate_ontology_entries(cmd: commands.ontologies.CancelDepre
         await uow.commit()
 
 @handlers.command_handler()
+async def restore_ontology_entries(cmd: commands.ontologies.RestoreOntologyEntries, uow_factory: AbstractUnitOfWorkFactory):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        await uow.ontology.restore_entries(entry_ids=cmd.entry_ids)
+        await uow.commit()
+
+@handlers.command_handler()
 async def create_term(cmd: commands.ontologies.CreateTerm, uow_factory: AbstractUnitOfWorkFactory):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
