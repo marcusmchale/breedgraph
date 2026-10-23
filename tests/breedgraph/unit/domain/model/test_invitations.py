@@ -25,9 +25,12 @@ def test_input_requires_email(email):
         InvitationInput(email=email, invited_by=1)
 
 
-def test_input_offers_each_team_once():
+def test_input_offers_each_access_to_a_team_once():
     with pytest.raises(IllegalOperationError, match="once"):
-        InvitationInput(email='a@b.org', invited_by=1, teams=[TeamInvitation(1, 'READ'), TeamInvitation(1, 'WRITE')])
+        InvitationInput(email='a@b.org', invited_by=1, teams=[TeamInvitation(1, 'READ'), TeamInvitation(1, 'READ')])
+    # several accesses to one team, e.g. read and write for someone joining to record data
+    invitation = InvitationInput(email='a@b.org', invited_by=1, teams=[TeamInvitation(1, 'READ'), TeamInvitation(1, 'WRITE')])
+    assert len(invitation.teams) == 2
 
 
 def test_inviter_administers_offered_teams():
@@ -56,3 +59,11 @@ def test_accepted_teams():
     assert invitation.accepted_teams({11}) == [TeamInvitation(11, Access.WRITE)]
     with pytest.raises(IllegalOperationError, match="not offered"):
         invitation.accepted_teams({12})
+
+
+def test_accepting_a_team_accepts_every_access_offered_to_it():
+    invitation = stored(teams=[
+        TeamInvitation(11, Access.WRITE), TeamInvitation(10, Access.READ), TeamInvitation(11, Access.READ)
+    ])
+    assert invitation.accepted_teams({11}) == [TeamInvitation(11, Access.READ), TeamInvitation(11, Access.WRITE)]
+    assert len(invitation.accepted_teams({10, 11})) == 3

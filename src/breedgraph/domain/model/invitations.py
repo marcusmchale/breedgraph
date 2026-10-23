@@ -2,8 +2,9 @@
 Invitations to register, replacing allowed emails. See docs/person.md §6.
 
 An invitation holds the invited email address only until it is accepted, cancelled or expires,
-when it is deleted. It may offer affiliations to teams the inviter administers, and a Person
-the inviter controls, each of which the invited user can accept or decline when registering.
+when it is deleted. It may offer affiliations to teams the inviter administers, one or more accesses to each, and a Person
+the inviter controls. The invited user accepts or declines each team, with every access offered to it, and the Person
+when registering.
 """
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -48,9 +49,9 @@ class InvitationInput(InvitationBase, LabeledModel):
             raise IllegalOperationError("A valid email address is required to invite")
         if self.invited_by is None:
             raise IllegalOperationError("An invitation requires the inviting user")
-        team_ids = [team.team_id for team in self.teams]
-        if len(team_ids) != len(set(team_ids)):
-            raise IllegalOperationError("Each team can be offered once per invitation")
+        offers = [(team.team_id, team.access) for team in self.teams]
+        if len(offers) != len(set(offers)):
+            raise IllegalOperationError("Each access to a team can be offered once per invitation")
 
     def check_inviter(self, admin_teams: Set[int]) -> None:
         """Affiliations can only be offered for teams the inviter administers"""
@@ -78,13 +79,18 @@ class InvitationStored(InvitationBase, StoredModel, Aggregate):
         return self.email.casefold() == (email or '').strip().casefold()
 
     def accepted_teams(self, team_ids: Set[int] | None) -> List[TeamInvitation]:
-        """The offered affiliations the invited user accepts. Declining all of them is allowed."""
+        """
+        The offered affiliations the invited user accepts: every access offered to each team they accept.
+        Declining all of them is allowed.
+        """
         team_ids = set(team_ids or [])
-        offered = {team.team_id: team for team in self.teams}
-        unknown = team_ids - offered.keys()
+        unknown = team_ids - {team.team_id for team in self.teams}
         if unknown:
             raise IllegalOperationError(f"Teams were not offered with this invitation: {sorted(unknown)}")
-        return [offered[team_id] for team_id in sorted(team_ids)]
+        return sorted(
+            (team for team in self.teams if team.team_id in team_ids),
+            key=lambda team: (team.team_id, team.access.value)
+        )
 
     def extend(self, days: int, now: datetime | None = None) -> None:
         self.expires_at = (now or datetime.now(timezone.utc)) + timedelta(days=days)

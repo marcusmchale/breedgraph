@@ -27,7 +27,7 @@ The invitation, including the email address, is deleted when accepted, cancelled
 type Invitation {
     id: ID!
     email: String!
-    """Affiliations offered, which the invited user can accept or decline when registering"""
+    """Affiliations offered, one for each access to a team, which the invited user accepts or declines by team when registering"""
     teams: [TeamInvitation!]!
     """A Person offered for the invited user to link to their account"""
     person: Person

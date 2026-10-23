@@ -16,6 +16,18 @@ breedview's master (`1558fd4`) implements every API change up to 2026-10-23.
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
 
+## Several accesses to a team in an invitation
+
+`accountsInvite` now takes several `TeamInvitationInput`s for one team, one for each access offered (it refused a team
+offered twice), so a newcomer can be offered Read and Write together: a Write affiliation alone gives no read access
+to the team's private records. Each access is offered once ("Each access to a team can be offered once per
+invitation"). `Invitation.teams` and `InvitationPreview.teams` list one entry for each access, and `acceptTeamIds`
+still takes teams: accepting a team accepts every access offered to it. Curate and Admin still include Read.
+
+Nothing breaks. Work: let the Invite user dialog offer several accesses to a team, group the offers by team where
+registration lists them, and offer a Person record with the invitation (`personId`, which the API already takes: an
+unerased Person controlled by a team the inviter administers).
+
 ## Checking the front end against the API
 
 ```bash

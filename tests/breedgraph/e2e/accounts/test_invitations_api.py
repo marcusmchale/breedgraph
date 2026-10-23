@@ -103,6 +103,34 @@ async def test_invitation_with_team_accepted(client, login_token_factory, uow_fa
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_invitation_offers_several_accesses_to_a_team(client, login_token_factory, uow_factory, user_input_generator, invitation_context):
+    token = login_token_factory(user_id=invitation_context['user_id'])
+    user_input = user_input_generator.new_user_input()
+    team_id = invitation_context['team_id']
+    email = await invite(client, token, user_input['email'], teams=[
+        {'teamId': team_id, 'access': 'READ'}, {'teamId': team_id, 'access': 'WRITE'}
+    ])
+
+    [pending] = [i for i in await pending_invitations(client, token) if i['email'] == user_input['email']]
+    assert sorted(offer['access'] for offer in pending['teams']) == ['READ', 'WRITE']
+    preview = get_verified_payload(await post_to_invitation_preview(client, email['token']), "accountsInvitation")
+    assert sorted((t['teamId'], t['access']) for t in preview['result']['teams']) == [(str(team_id), 'READ'), (str(team_id), 'WRITE')]
+
+    # accepting the team accepts every access offered to it
+    assert_payload_success(await register(client, user_input, email['token'], accept_team_ids=[team_id]))
+    assert await user_affiliated(uow_factory, user_input['name'], team_id, Access.READ)
+    assert await user_affiliated(uow_factory, user_input['name'], team_id, Access.WRITE)
+
+    # an access is offered once
+    payload = get_verified_payload(await post_to_invite(
+        client, token, user_input_generator.new_user_input()['email'],
+        teams=[{'teamId': team_id, 'access': 'READ'}, {'teamId': team_id, 'access': 'READ'}]
+    ), "accountsInvite")
+    assert payload['status'] == GQLStatus.ERROR.name
+    assert 'once' in payload['errors'][0]['message']
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_invited_team_can_be_declined(client, login_token_factory, uow_factory, user_input_generator, invitation_context):
     token = login_token_factory(user_id=invitation_context['user_id'])
     user_input = user_input_generator.new_user_input()

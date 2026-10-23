@@ -226,11 +226,11 @@ Invitation
 The invitation, including its email address, is deleted when accepted, cancelled or expired. This gives a clear retention period for the only email address held for a non-user.
 
 - **Inviting.** Any registered user can invite an email address, once per address while their invitation is pending.
-  They can offer affiliations, with an access level, to teams they administer, and a Person controlled by a team they administer.
+  They can offer affiliations to teams they administer, with one or more access levels to each, and a Person controlled by a team they administer.
 - **The invitation email** links to `/register?token=…`, with the token also attached as JSON. The token is signed and names the invitation.
   `accountsInvitation(token)` shows what the invitation offers, without login, for the registration form.
 - **Registering.** Except for the first account, registration requires the token, and the email address must be the one invited; email verification then proves ownership.
-  The user chooses which offered affiliations to accept (`acceptTeamIds`); others are declined. Accepted affiliations are authorised, provided the inviter still administers the team.
+  The user chooses which offered teams to accept (`acceptTeamIds`), with every access offered to each; others are declined. Accepted affiliations are authorised, provided the inviter still administers the team; Curate and Admin include Read, as when a request is approved.
   The offered Person is linked only when the user confirms, see claiming (step 9).
 - **Expiry.** `INVITATION_EXPIRY_DAYS` (default 30). The inviter can resend, which extends the expiry with a new token, or cancel.
   Expired invitations are ignored, and deleted by `/retention/run`, which `scripts/trigger_retention.sh` calls from cron.

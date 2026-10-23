@@ -11,7 +11,7 @@ extend type Mutation {
         """ Consent to the processing of the user's personal data as the BreedGraph privacy notice describes. Required to be true """
         privacyConsent: Boolean!
         invitationToken: String
-        """ Affiliations offered with the invitation to accept. Others are declined """
+        """ Teams offered with the invitation to accept, with every access offered to each. Others are declined """
         acceptTeamIds: [ID!]
         """
         Link the Person offered with the invitation to the new account.
@@ -47,8 +47,8 @@ extend type Mutation {
         erasePerson: Boolean = true
     ): BooleanPayload!
     """
-    Invite someone to register. Teams must be administered by the inviting user,
-    and a Person must be controlled by a team they administer.
+    Invite someone to register. Teams must be administered by the inviting user, who can offer one or more
+    accesses to each, and a Person must be controlled by a team they administer.
     """
     accountsInvite(
         email: String!
