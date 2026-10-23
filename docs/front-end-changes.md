@@ -5,28 +5,16 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, and removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, and several accesses to a team in an invitation at `070eb3c`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
 
-breedview's master (`1558fd4`) implements every API change up to 2026-10-23.
+breedview (`ffb947b`) implements every API change up to 2026-10-23.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
 `possibleTypes.json` and `unionTypes.json`) and run the check script below.
-
-## Several accesses to a team in an invitation
-
-`accountsInvite` now takes several `TeamInvitationInput`s for one team, one for each access offered (it refused a team
-offered twice), so a newcomer can be offered Read and Write together: a Write affiliation alone gives no read access
-to the team's private records. Each access is offered once ("Each access to a team can be offered once per
-invitation"). `Invitation.teams` and `InvitationPreview.teams` list one entry for each access, and `acceptTeamIds`
-still takes teams: accepting a team accepts every access offered to it. Curate and Admin still include Read.
-
-Nothing breaks. Work: let the Invite user dialog offer several accesses to a team, group the offers by team where
-registration lists them, and offer a Person record with the invitation (`personId`, which the API already takes: an
-unerased Person controlled by a team the inviter administers).
 
 ## Checking the front end against the API
 
