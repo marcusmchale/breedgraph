@@ -85,7 +85,7 @@ and representation of observation units in flexible [unit graphs](#unit-graph)
 to ease modeling of more complex relationships among observation units.
 The CropOntology [trait](#trait)/[method](#observationmethod)/[scale](#scale) definition of a [variable](#variable) 
 was also adapted to the definition of factors in a [study](#study)
-using [datasets](#dataset) for [parameters](#parameter) and [events](#eventtype).
+using [datasets](#dataset) for [parameters](#parameter) and [events](#event).
 
 ### Ontology
 A central feature of BreedGraph is an adaptive ontology, 
@@ -143,7 +143,7 @@ Examples: "Leaf", "Tree", "Field", "Rhizosphere Soil"
 ##### Scale
 Scale entries describe the measurement unit or classes used in a:
 - [variable](#variable) or 
-- [factor](#factor) or
+- [factor](#parameter) or
 Scale entries require a ScaleType, one of:
 - date,
 - duration,
@@ -199,7 +199,7 @@ e.g. a treatment or a stratum. In analysis, factor records describe the observat
 unit's descendants (the nearest record applies, and on separate lineages the nearest must agree), and for all time
 when they have none (docs/analysis.md §2).
 ##### Event
-Event entries link  variables](#variable) and [factors](#factor).
+Event entries link [variables](#variable) and [parameters](#parameter) (factors).
 This is to support the definition of details that may be recorded in association with an event. 
 ##### LocationType
 Location entries describe types of locations within a [location tree](#location-tree).
@@ -231,13 +231,11 @@ Whether to record something as a unit, a code or a factor:
   are already units for a reason above (e.g. plots that trees hang from), they need no code: an analysis can take the
   units of their subject as the levels of a record group dimension (docs/analysis.md §3);
 * a SHARED code, for a group across unit graphs (a batch, a plate, a session, a canopy stratum);
-* a [factor](#factor), for a level the design sets that is to be estimated (a treatment).
+* a [factor](#parameter), for a level the design sets that is to be estimated (a treatment).
 ##### Role
-Role entries describe roles for [people](#people).
-Examples: "Post-doctoral researcher", "Principal Investigator"
-##### Title
-Title entries describe titles for [people](#people).
-Examples: "Professor", "Doctor"
+Role entries are the roles a [person](#people) is credited with in a contribution to a program, trial, dataset or
+file: the 14 CRediT roles (Contributor Roles Taxonomy), seeded and locked, and any extensions (docs/contributions.md).
+Examples: "Investigation", "Data curation"
 
 ### Account
 Access to most functions of BreedGraph through the GraphQL API require an account.
@@ -377,19 +375,23 @@ arrival; one that comes back later is a new one. An arrival counts its units wit
 pending: still there, with nothing derived from them. With none pending, it is settled: its units were derived from,
 moved on or used up.
 ### Dataset
-Datasets are collections of [record](#data-record) for [units](#unit)
+Datasets are collections of [records](#data-record) of one concept for [units](#unit), in a [study](#study).
 They have attributes for:
-- term: an ID for [variable](#variable), [parameter](#parameter) or [event](#eventtype) in the ontology
-- unit records: a map of [unit](#unit) ID to a list of [records](#data-record).
-- contributors: a list of [people](#people) (by ID) that contributed to this dataset
+- concept: an ID for a [variable](#variable) or [parameter](#parameter) (factor) in the ontology
+- study: the [study](#study) the dataset belongs to
+- records: a list of [records](#data-record), each of a [unit](#unit)
+- contributions: [people](#people) credited for the dataset, each with their [roles](#role) (docs/contributions.md)
 - references: a list of [references](#reference).
-  - This should not be used to link supporting data files as there is it does not provide a mapping to units. 
+  - This should not be used to link supporting data files, as it does not map them to units: records cite them.
 #### Data Record
 Data records have attributes for:
-- value: a string, integer or float value
+- unit: the [unit](#unit) the record describes
+- value: text, parsed against the concept's [scale](#scale): a number, a date, a duration, a category's name, or free
+  text; none on a complex scale, whose records cite data files instead
 - start: the date and time the value for this record is known to be relevant to this unit 
 - end: the date and time that the value for this record is no longer known to be relevant to this unit  
 - start and end are [times](#times) as entered: either may be missing, standing in for the other
+- groups: codes in the study's record groupings, at most one for each (see [record group type](#record-group-type))
 - references: a list of [references](#reference).
   - References may be used to link supporting data files, e.g. library sequencing data
 #### Times
@@ -414,32 +416,32 @@ This allows the construction of a graph of any broad relationship categories,
 though further details may be specified on the individual entries.
 #### Germplasm Entry
 Germplasm entries have attributes for:
+- name, unique among germplasm entries, and synonyms
+- description
 - origin: an ID for a [location](#location) within a [location tree](#location-tree)
 - time: to describe when this germplasm was sourced from origin.
 - unit: an ID for the [unit](#unit) it came from, for germplasm produced by the breeding recorded in BreedGraph,
   e.g. the plant a selection was made from, or the seed of a cross; origin and time describe germplasm sourced from
   elsewhere
-- reproduction: one of CLONAL, ASEXUAL or APOMIXIS used to describe the maintainence of this germplasm
-- methods: a list of [germplasm methods](#germplasmmethod) in the ontology, describing the protocol for the generation of this germplasm
+- reproduction: one of CLONAL, SEXUAL or APOMIXIS, describing how this germplasm is maintained
+- control methods: a list of [control methods](#controlmethod) in the ontology, describing how this germplasm was produced
   - e.g. clonal propagation via tissue culture, controlled self-fertilisation, uncontrolled pollination
+- references: a list of [references](#reference)
 ### People
-- This aspect is not fully implemented due to GDPR considerations.
-
-Each person is a singleton aggregate that may be referenced elsewhere as authors, contributors or contacts.
-Person has the following attributes:
-- name
+A person is someone who took part in the research, credited for it whether or not they have an account
+(docs/person.md). Each person is a singleton aggregate that may be referenced elsewhere as contributors or contacts,
+and holds only what attribution needs. Person has the following attributes:
+- name, as used for attribution
 - Optional
-  - fullname
-  - email
-  - mail
-  - phone
-  - orcid
-  - description
-  - user (corresponding to a registered User ID)
-  - teams (corresponding to registered teams associated with this person)
-  - locations (corresponding to regisered locations associated with this person)
-  - roles: references to [roles](#role) in the ontology
-  - titles: references to [titles](#title) in the ontology
+  - institution: the institution the person did the work with
+  - orcid: set only by the linked user, through ORCID sign-in
+  - teams: registered [teams](#team) the person is affiliated with, for attribution
+  - user: the registered user linked to this person, who has the subject rights
+- consent attestation: the person who created the record confirms the person was told about it and the privacy notice
+- recorded by and at, set by the system; an erased person keeps no identifying data, only its id and when it was
+  recorded and erased
+
+Persons are released at most to registered users, so visitors meet no names (docs/person.md, What viewers see).
 
 ### Program
 A program describes the highest level aggregation of a group of trials and studies 
@@ -449,6 +451,7 @@ The program has attributes for:
 - fullname
 - description
 - contacts: a list of [people](#people) (by ID) that are suitable to contact for queries about this program.
+- contributions: [people](#people) credited for the program, each with their [roles](#role) (docs/contributions.md)
 - references:  a list of [references](#reference).
 
 Each program contains a collection of [trials](#trial), which is itself a collection of [studies](#study)
@@ -460,19 +463,19 @@ Trials are a collection of [studies](#study), with attributes for:
 - start
 - end
 - contacts: a list of [people](#people) (by ID) that are suitable to contact for queries about this trial.
+- contributions: [people](#people) credited for the trial, each with their [roles](#role) (docs/contributions.md)
 - references:  a list of [references](#reference).
 ##### Study
-Studies collect [datasets](#dataset) with attributes for: 
+Studies collect [datasets](#dataset), each of which names its study, with attributes for: 
 - name
 - fullname
 - description
-- external_id: a permanent external identifier (e.g. UUID)
 - practices: from MIAPPE V1.1 (DM-28), a description of the cultural practices associated with the study.
 - start
 - end
-- factors: a list of [dataset](#dataset) IDs, typically corresponding to a [parameter](#parameter) or [event](#eventtype).
-- observations: a list of [dataset](#dataset) IDs, typically corresponding to a [variable](#variable).
 - design: a reference to the [design](#design) in the ontology
+- groupings: record groupings, each of a [record group type](#record-group-type) with an extent and a scope, for the
+  codes the records of its datasets carry
 - licence: a legal [reference](#reference) that describes legal terms for usage of datasets (factors/observations) from this experiment, released at least as widely as the study and its datasets
 - references: a list of other supporting [references](#reference)
 ### Location tree
