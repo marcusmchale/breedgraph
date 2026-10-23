@@ -39,6 +39,8 @@ from tests.breedgraph.scenarios.replicate_scenario import ReplicateScenario, Rep
 from tests.breedgraph.scenarios.arrival_scenario import ArrivalScenario, ArrivalScenarioBuilder
 from tests.breedgraph.scenarios.position_scenario import PositionScenario, PositionScenarioBuilder
 from tests.breedgraph.scenarios.spectra_scenario import SpectraScenario, SpectraScenarioBuilder
+from tests.breedgraph.scenarios.demo.builder import DemoScenario, DemoScenarioBuilder
+from tests.breedgraph.scenarios.demo.story import ACCOUNTS as DEMO_ACCOUNTS
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.commands.germplasm import UpdateGermplasm
 from breedgraph.domain.model.team_trees import TeamInput
@@ -525,4 +527,13 @@ async def spectra(read_policy, uow_factory, bus) -> SpectraScenario:
     tests/breedgraph/scenarios/spectra_scenario.py"""
     return await SpectraScenarioBuilder(
         uow_factory, read_policy, archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
+    ).build()
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def demo(isolated_state, bus, uow_factory, state_store) -> DemoScenario:
+    """The demonstration database's story, on its own: see tests/breedgraph/scenarios/demo/"""
+    return await DemoScenarioBuilder(
+        uow_factory, state_store, passwords={key: 'demo-test-password' for key in DEMO_ACCOUNTS},
+        archival_service=bus.archival_service, file_storage_path=FILE_STORAGE_PATH
     ).build()
