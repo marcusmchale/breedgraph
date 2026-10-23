@@ -71,6 +71,11 @@ sudo service neo4j start
 (The paths are `server.directories.data` in `/etc/neo4j/neo4j.conf` and `DATABASE_NAME`. Dump anything you want to keep
 first.) The build also needs an empty Redis: flush it if the test suite has not just run. Then build:
 
+Or, without sudo and leaving the development database alone, build into throwaway services, which `scripts/scratch_services.sh`
+runs in a scratch directory (a fresh store each time), and dump from them, as docs/demo-database.md does:
+`SCRATCH=<dir> scripts/scratch_services.sh build instance/neo4j_archive/test_databases/test_database.dump -- .venv/bin/python scripts/build_test_database.py --manifest <path> --scale`.
+To build into the development database instead:
+
 ```bash
 set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
 python scripts/build_test_database.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json --scale
