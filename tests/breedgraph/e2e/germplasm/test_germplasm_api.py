@@ -104,6 +104,37 @@ async def test_create_variety(
     assert_payload_success(germplasm_payload)
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_an_entry_with_a_time_reads_back(
+        germplasm_build_context,
+        login_token_factory,
+        client,
+        crop_details
+):
+    """A time is stored at the precision given, and entries read with it, all of them or by id"""
+    login_token = login_token_factory(user_id=germplasm_build_context['user_id'])
+    response = await post_to_create_germplasm_entry(
+        client,
+        token=login_token,
+        germplasm_input={
+            'name': "Timed variety",
+            'time': '2019-07',
+            'sources': [{'sourceId': crop_details.get('id'), 'sourceType': 'UNKNOWN'}]
+        },
+        control_team_id=germplasm_build_context['team_id']
+    )
+    assert_payload_success(get_verified_payload(response, "germplasmCreateEntry"))
+
+    entries = get_verified_payload(await post_to_get_germplasm_entries(client, token=login_token), "germplasmEntries")
+    assert_payload_success(entries)
+    [entry] = [entry for entry in entries['result'] if entry['name'] == "Timed variety"]
+    assert entry['time'] == '2019-07'
+    by_id = get_verified_payload(
+        await post_to_get_germplasm_entries(client, token=login_token, entry_ids=[entry['id']]), "germplasmEntries"
+    )
+    assert_payload_success(by_id)
+    assert by_id['result'][0]['time'] == '2019-07'
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_second_variety(
         germplasm_build_context,
         login_token_factory,

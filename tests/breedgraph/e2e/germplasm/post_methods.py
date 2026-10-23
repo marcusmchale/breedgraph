@@ -54,6 +54,7 @@ async def post_to_get_germplasm_entries(
             "    result { "
             "       id, "
             "       name,"
+            "       time,"
             "       sources { sourceType, description, source { id, name } }, "
             "       sinks { sourceType, description, sink { id, name } } "
             "   }, "
