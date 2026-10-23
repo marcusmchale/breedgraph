@@ -64,6 +64,13 @@ though in these situations the following rules apply:
   - PRIVATE being the lowest level and PUBLIC being the highest
 - ADMIN affiliates from any controlling team may approve affiliation requests.
 
+## Updates
+An update mutation changes only the fields it is given (`Command.given`). A field left out is unchanged; given as null,
+an optional field is cleared, and so is an optional text field given as an empty or blank string (`Command.given_text`)
+or an optional list given as an empty one. Each update input's description names its clearable fields. A required field
+(a name, a type) given as null is unchanged, as are the file metadata of a file reference (its name and type change only
+with a new file), the values of dataset records, and the account fields, whose form leaves a blank field as it is.
+
 ## Domain aggregates
 Models in the domain provide an interface to data 
 that reflects the use-cases and intuitions within the domain.

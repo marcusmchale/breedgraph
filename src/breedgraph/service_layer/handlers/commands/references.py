@@ -168,7 +168,8 @@ async def update_legal_reference(
         reference: LegalReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
         if reference.type != ReferenceType.LEGAL:
             raise IllegalOperationError(f"Reference {cmd.reference_id} is not a legal reference")
-        reference.description = cmd.description or reference.description
+        if cmd.given('description'):
+            reference.description = cmd.given_text('description')
         if cmd.text_format is not None:
             reference.text_format = cmd.text_format
         if cmd.filename is not None:
@@ -197,9 +198,11 @@ async def update_external_reference(
     logger.debug(f'f"Updating external reference for user {cmd.agent_id}')
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: ExternalReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
-        reference.description = cmd.description or reference.description
+        if cmd.given('description'):
+            reference.description = cmd.given_text('description')
         reference.url = cmd.url or reference.url
-        reference.external_id = cmd.external_id or reference.external_id
+        if cmd.given('external_id'):
+            reference.external_id = cmd.given_text('external_id')
         await uow.commit()
 
 @handlers.command_handler(commands.references.UpdateExternalDataReference)
@@ -211,10 +214,13 @@ async def update_external_data(
     schema = parse_json_schema(cmd.json_schema)
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: ExternalDataStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
-        reference.description = cmd.description or reference.description
+        if cmd.given('description'):
+            reference.description = cmd.given_text('description')
         reference.url = cmd.url or reference.url
-        reference.external_id = cmd.external_id or reference.external_id
-        reference.schema = schema or reference.schema
+        if cmd.given('external_id'):
+            reference.external_id = cmd.given_text('external_id')
+        if cmd.given('json_schema'):
+            reference.schema = schema or None
         reference.format = cmd.format or reference.format
         if cmd.contributions is not None:
             contributions = _contributions(cmd)
@@ -230,7 +236,8 @@ async def update_file_reference(
     logger.debug(f'f"Updating local data reference for user {cmd.agent_id}')
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: FileReferenceStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
-        reference.description = cmd.description or reference.description
+        if cmd.given('description'):
+            reference.description = cmd.given_text('description')
         reference.filename = cmd.filename or reference.filename
         reference.content_type = cmd.content_type or reference.content_type
         reference.file_id = cmd.uuid or reference.file_id
@@ -249,11 +256,13 @@ async def update_data_file_reference(
     schema = parse_json_schema(cmd.json_schema)
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         reference: DataFileStored = await uow.repositories.references.get(reference_id = cmd.reference_id)
-        reference.description = cmd.description or reference.description
+        if cmd.given('description'):
+            reference.description = cmd.given_text('description')
         reference.filename = cmd.filename or reference.filename
         reference.content_type = cmd.content_type or reference.content_type
         reference.file_id = cmd.uuid or reference.file_id
-        reference.schema = schema or reference.schema
+        if cmd.given('json_schema'):
+            reference.schema = schema or None
         reference.format = cmd.format or reference.format
         if cmd.contributions is not None:
             contributions = _contributions(cmd)

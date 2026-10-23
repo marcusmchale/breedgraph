@@ -98,10 +98,10 @@ async def update_program(
         # Update fields that are provided
         if cmd.name is not None:
             program.name = cmd.name
-        if cmd.fullname is not None:
-            program.fullname = cmd.fullname
-        if cmd.description is not None:
-            program.description = cmd.description
+        if cmd.given('fullname'):
+            program.fullname = cmd.given_text('fullname')
+        if cmd.given('description'):
+            program.description = cmd.given_text('description')
         if cmd.contact_ids is not None:
             await _verify_contacts(uow, set(cmd.contact_ids) - set(program.contact_ids))
             program.contact_ids = cmd.contact_ids
@@ -174,13 +174,13 @@ async def update_trial(
         # Update fields that are provided
         if cmd.name is not None:
             trial.name = cmd.name
-        if cmd.fullname is not None:
-            trial.fullname = cmd.fullname
-        if cmd.description is not None:
-            trial.description = cmd.description
-        if cmd.start is not None:
+        if cmd.given('fullname'):
+            trial.fullname = cmd.given_text('fullname')
+        if cmd.given('description'):
+            trial.description = cmd.given_text('description')
+        if cmd.given('start'):
             trial.start = cmd.start
-        if cmd.end is not None:
+        if cmd.given('end'):
             trial.end = cmd.end
         if cmd.contact_ids is not None:
             await _verify_contacts(uow, set(cmd.contact_ids) - set(trial.contact_ids))
@@ -278,15 +278,15 @@ async def update_study(
         # Update fields that are provided
         if cmd.name is not None:
             study.name = cmd.name
-        if cmd.fullname is not None:
-            study.fullname = cmd.fullname
-        if cmd.description is not None:
-            study.description = cmd.description
-        if cmd.practices is not None:
-            study.practices = cmd.practices
-        if cmd.start is not None:
+        if cmd.given('fullname'):
+            study.fullname = cmd.given_text('fullname')
+        if cmd.given('description'):
+            study.description = cmd.given_text('description')
+        if cmd.given('practices'):
+            study.practices = cmd.given_text('practices')
+        if cmd.given('start'):
             study.start = cmd.start
-        if cmd.end is not None:
+        if cmd.given('end'):
             study.end = cmd.end
         # given as None, the design and licence are removed
         if 'design_id' in cmd.model_fields_set:

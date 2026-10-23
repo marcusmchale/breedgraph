@@ -7,6 +7,9 @@ input TeamInput {
     parentId: ID
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears fullname
+"""
 input TeamUpdate {
     id: ID!
     name: String

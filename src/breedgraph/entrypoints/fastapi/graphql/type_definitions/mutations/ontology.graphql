@@ -103,10 +103,6 @@ input CategoryInput {
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
-    """
-    When creating a category for an ordinal scale, a rank should be provided.
-    """
-    rank: Int
 }
 
 input ObservationMethodInput {
@@ -255,6 +251,10 @@ input LayoutTypeInput {
     axes: [AxisType!]!
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input TermUpdate {
     id: ID!
     name: String
@@ -280,8 +280,13 @@ input TermUpdate {
     layoutTypeIds: [ID!]
     designIds: [ID!]
     roleIds: [ID!]
+    recordGroupTypeIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input SubjectUpdate {
     id: ID!
     name: String
@@ -296,6 +301,10 @@ input SubjectUpdate {
     termIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input TraitUpdate {
     id: ID!
     name: String
@@ -312,6 +321,10 @@ input TraitUpdate {
     subjectIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input ConditionUpdate {
     id: ID!
     name: String
@@ -328,6 +341,10 @@ input ConditionUpdate {
     subjectIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input ScaleUpdate {
     id: ID!
     name: String
@@ -345,6 +362,10 @@ input ScaleUpdate {
     categoryIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input CategoryUpdate {
     id: ID!
     name: String
@@ -357,10 +378,12 @@ input CategoryUpdate {
     parentIds: [ID!]
     childIds: [ID!]
     termIds: [ID!]
-
-    rank: Int
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input ObservationMethodUpdate {
     id: ID!
     name: String
@@ -377,6 +400,10 @@ input ObservationMethodUpdate {
     observationType: ObservationMethodType!
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input VariableUpdate {
     id: ID!
     name: String
@@ -395,6 +422,10 @@ input VariableUpdate {
     scaleId: ID
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input ControlMethodUpdate {
     id: ID!
     name: String
@@ -411,6 +442,10 @@ input ControlMethodUpdate {
     controlType: ControlMethodType
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input FactorUpdate {
     id: ID!
     name: String
@@ -429,6 +464,10 @@ input FactorUpdate {
     scaleId: ID
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input EventUpdate {
     id: ID!
     name: String
@@ -446,6 +485,10 @@ input EventUpdate {
     termIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input LocationTypeUpdate {
     id: ID!
     name: String
@@ -460,6 +503,10 @@ input LocationTypeUpdate {
     termIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input DesignUpdate {
     id: ID!
     name: String
@@ -474,6 +521,10 @@ input DesignUpdate {
     termIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input RoleUpdate {
     id: ID!
     name: String
@@ -488,6 +539,10 @@ input RoleUpdate {
     termIds: [ID!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it); null clears defaultExtent
+"""
 input RecordGroupTypeUpdate {
     id: ID!
     name: String
@@ -504,6 +559,10 @@ input RecordGroupTypeUpdate {
 }
 
 
+"""
+Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+"""
 input LayoutTypeUpdate {
     id: ID!
     name: String

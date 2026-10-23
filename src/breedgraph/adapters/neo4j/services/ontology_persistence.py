@@ -7,7 +7,7 @@ from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries, ontology
-from breedgraph.adapters.neo4j.ontology_records import record_to_entry
+from breedgraph.adapters.neo4j.ontology_records import record_to_entry, patch_values
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
 # Import all ontology entry types - this ensures all subclasses are registered
@@ -39,7 +39,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         entry_dict = record['entry']
         patches = record.get('patches', [])
         for patch in patches:
-            entry_dict.update(patch)
+            entry_dict.update(patch_values(patch))
 
         # remove lowercase name and the seed key, set only by seeding, from record
         entry_dict.pop('name_lower')
@@ -136,6 +136,11 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
         if 'name' in diff:
             diff['name_lower'] = diff['name'].casefold()
+        # a patch node can't hold a null, so the attributes cleared are listed (ontology_records.patch_values)
+        cleared = sorted(key for key, value in diff.items() if value is None)
+        diff = {key: value for key, value in diff.items() if value is not None}
+        if cleared:
+            diff['cleared'] = cleared
 
         diff.pop('references', None)
         diff.pop('locked', None)  # set only through set_entries_locked
@@ -470,7 +475,7 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             patches = record['patches']
 
             for patch in patches:
-                collated_patches[entry_id].update(patch)
+                collated_patches[entry_id].update(patch_values(patch))
 
         apply_patches_query = queries['ontology']['apply_entry_patches']
         await self.tx.run(

@@ -393,7 +393,8 @@ async def update_legal_file_reference(
     cmd = UpdateLegalReference(
         agent_id=user_id,
         reference_id=reference.get('id'),
-        description=reference.get('description'),
+        # passed only when given, as null clears it
+        **{key: reference[key] for key in ('description',) if key in reference},
         text=legal_text.text,
         text_format=legal_text.text_format,
         content_hash=legal_text.content_hash,
@@ -428,9 +429,11 @@ async def update_external_data_reference(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f'User {user_id} updates external data reference')
-    json_schema = reference.pop('schema')
+    # as given: the schema left out is unchanged, null clears it
+    if 'schema' in reference:
+        reference['json_schema'] = reference.pop('schema')
     reference['reference_id'] = reference.pop('id')
-    cmd = UpdateExternalDataReference(agent_id=user_id, **reference, json_schema=json_schema)
+    cmd = UpdateExternalDataReference(agent_id=user_id, **reference)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -449,7 +452,8 @@ async def update_file_reference(
     cmd = UpdateFileReference(
         agent_id=user_id,
         reference_id=reference.get('id'),
-        description=reference.get('description'),
+        # passed only when given, as null clears it; the file's name and type only with a new file
+        **{key: reference[key] for key in ('description',) if key in reference},
         filename=file.filename if file else None,
         content_type = file.content_type if file else None,
         contributions=reference.get('contributions')
@@ -479,11 +483,12 @@ async def update_file_data_reference(
     cmd = UpdateDataFileReference(
         agent_id=user_id,
         reference_id=reference.get('id'),
-        description=reference.get('description'),
+        # passed only when given, as null clears them; the file's name and type only with a new file
+        **{key: reference[key] for key in ('description',) if key in reference},
+        **({'json_schema': reference['schema']} if 'schema' in reference else {}),
         filename=file.filename if file else None,
         content_type=file.content_type if file else None,
         format=reference.get('format'),
-        json_schema=reference.get('schema'),
         contributions=reference.get('contributions')
     )
     key = await start_file_ref_update(

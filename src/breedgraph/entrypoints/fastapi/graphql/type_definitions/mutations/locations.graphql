@@ -24,9 +24,14 @@ input LocationInput {
     parentId: ID
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears an optional one (all but name, typeId and parentId; a
+country keeps its code)
+"""
 input LocationUpdate {
     id: ID!
     name: String
+    fullname: String
     """ Optional code for location, e.g. zip-code """
     code: String
     description: String

@@ -8,6 +8,9 @@ input PersonInput {
     informedAttestation: Boolean!
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears institution
+"""
 input PersonUpdate {
     id: ID!
     name: String

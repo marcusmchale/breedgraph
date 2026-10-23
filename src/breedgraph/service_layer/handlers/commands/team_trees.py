@@ -77,6 +77,6 @@ async def update_team(
         team = team_tree.get_team(cmd.team_id)
         if cmd.name is not None:
             team.name = cmd.name
-        if cmd.fullname is not None:
-            team.fullname = cmd.fullname
+        if cmd.given('fullname'):
+            team.fullname = cmd.given_text('fullname')
         await uow.commit()

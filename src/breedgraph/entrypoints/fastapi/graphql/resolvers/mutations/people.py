@@ -48,8 +48,9 @@ async def update_person(_, info, person: dict) -> bool:
         agent_id=user_id,
         person_id=person['id'],
         name=person.get('name'),
-        institution=person.get('institution'),
-        teams=person.get('team_ids')
+        teams=person.get('team_ids'),
+        # passed only when given, as null clears it
+        **{key: person[key] for key in ('institution',) if key in person}
     )
     await info.context['bus'].handle(cmd)
     return True

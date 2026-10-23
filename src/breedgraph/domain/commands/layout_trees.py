@@ -30,14 +30,15 @@ class UpdateLayout(Command):
     agent_id: int
     layout_id: int
 
-    location_id: int | None
-    type_id: int
-
-    name: str|None
-    axes: List[str]
-
-    parent: int | None
+    # left out or null, unchanged
+    location_id: int | None = None
+    type_id: int | None = None
+    axes: List[str] | None = None
+    parent: int | None = None
     position: List[int|float|str]|None = None
+
+    # left out unchanged, null clears it
+    name: str | None = None
 
     def __post_init__(self):
         if self.location_id and not self.parent is None:

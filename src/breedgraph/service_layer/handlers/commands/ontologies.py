@@ -576,18 +576,19 @@ async def update_relationships(
 def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
     if cmd.name is not None:
         entry.name = cmd.name
-    if cmd.abbreviation is not None:
-        entry.abbreviation = cmd.abbreviation
-    if cmd.synonyms is not None:
-        entry.synonyms = cmd.synonyms
-    if cmd.description is not None:
-        entry.description = cmd.description
+    # the optional attributes as given: left out, unchanged; null or empty, cleared (a locked entry refuses it)
+    if cmd.given('abbreviation'):
+        entry.abbreviation = cmd.given_text('abbreviation')
+    if cmd.given('synonyms'):
+        entry.synonyms = cmd.synonyms or []
+    if cmd.given('description'):
+        entry.description = cmd.given_text('description')
     if cmd.reference_ids is not None:
         entry.references = cmd.reference_ids
-    if cmd.source_url is not None:
-        entry.source_url = cmd.source_url or None  # an empty string clears it
-    if cmd.source_attribution is not None:
-        entry.source_attribution = cmd.source_attribution or None
+    if cmd.given('source_url'):
+        entry.source_url = cmd.given_text('source_url')
+    if cmd.given('source_attribution'):
+        entry.source_attribution = cmd.given_text('source_attribution')
     if hasattr(cmd, 'scale_type') and cmd.scale_type is not None:
         entry.scale_type = cmd.scale_type
     if hasattr(cmd, 'observation_type') and cmd.observation_type is not None:
@@ -596,7 +597,7 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
         entry.control_type = cmd.control_type
     if hasattr(cmd, 'axes') and cmd.axes is not None:
         entry.axes = cmd.axes
-    if hasattr(cmd, 'default_extent') and cmd.default_extent is not None:
+    if hasattr(cmd, 'default_extent') and cmd.given('default_extent'):
         entry.default_extent = cmd.default_extent
 
 async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWorkFactory):

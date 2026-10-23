@@ -90,10 +90,10 @@ async def update_unit(
             if cmd.germplasm_id != unit.germplasm:
                 await uow.controls.require_read(ControlledModelLabel.GERMPLASM, [cmd.germplasm_id])
             unit.germplasm = cmd.germplasm_id
-        if cmd.name is not None:
-            unit.name = cmd.name
-        if cmd.description is not None:
-            unit.description = cmd.description
+        if cmd.given('name'):
+            unit.name = cmd.given_text('name')
+        if cmd.given('description'):
+            unit.description = cmd.given_text('description')
         if cmd.derived_from is not None:
             await _check_derived_from(uow, unit_graph, cmd.unit_id, cmd.derived_from, unit.derived_from)
             unit.derived_from = list(cmd.derived_from)

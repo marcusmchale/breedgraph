@@ -13,6 +13,10 @@ input LayoutInput {
     position: [String]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears the name; the other fields left out or null are
+unchanged
+"""
 input LayoutUpdate {
     id: ID
     """ Location ID from LocationTree, provide this only for the root layout in a layout tree """

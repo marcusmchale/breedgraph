@@ -102,18 +102,9 @@ async def update_trial(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update trial: {trial.get('id')} by user {user_id}")
-    cmd = UpdateTrial(
-        agent_id=user_id,
-        trial_id=trial.get('id'),
-        name=trial.get('name'),
-        fullname=trial.get('fullname'),
-        description=trial.get('description'),
-        start=trial.get('start'),
-        end=trial.get('end'),
-        contact_ids=trial.get('contact_ids'),
-        contributions=trial.get('contributions'),
-        reference_ids=trial.get('reference_ids')
-    )
+    # the fields as given: one left out is unchanged, null clears it
+    trial['trial_id'] = trial.pop('id')
+    cmd = UpdateTrial(agent_id=user_id, **trial)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -180,19 +171,9 @@ async def update_study(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Update study: {study.get('id')} by user {user_id}")
-    cmd = UpdateStudy(
-        agent_id=user_id,
-        study_id=study.get('id'),
-        name=study.get('name'),
-        fullname=study.get('fullname'),
-        description=study.get('description'),
-        practices=study.get('practices'),
-        start=study.get('start'),
-        end=study.get('end'),
-        reference_ids=study.get('reference_ids'),
-        # passed only when given, as null removes them
-        **{key: study[key] for key in ('design_id', 'licence_id') if key in study}
-    )
+    # the fields as given: one left out is unchanged, null clears it
+    study['study_id'] = study.pop('id')
+    cmd = UpdateStudy(agent_id=user_id, **study)
     await info.context['bus'].handle(cmd)
     return True
 

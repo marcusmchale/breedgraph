@@ -87,8 +87,8 @@ async def update_person(
             if not name:
                 raise IllegalOperationError("A Person requires a name")
             person.name = name
-        if cmd.institution is not None:
-            person.institution = cmd.institution.strip() or None
+        if cmd.given('institution'):
+            person.institution = cmd.institution.strip() if cmd.given_text('institution') else None
         if cmd.teams is not None:
             await _verify_teams(uow, cmd.teams)
             # The curator sets the teams they can see; those hidden from them are kept, as they could not see them

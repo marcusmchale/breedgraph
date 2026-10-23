@@ -55,6 +55,30 @@ units to a layout at the new location instead". `layoutsDeleteLayout` refuses a 
 root whose tree has any: "Units are positioned in this layout, so it may not be deleted: remove or move their positions
 first". Nothing breaks: the location picker shows for roots only already. Work: show these refusals as given.
 
+## Clearing fields in updates
+
+An update now clears an optional field given as null, and an optional text field given as an empty or blank string
+(README, Updates); a field left out is unchanged, as before. Each update input's description names its clearable
+fields: program, trial and study fullname, description, practices, start and end; unit name and description; location
+fullname (now in `LocationUpdate`), code (not a country's), description and address; layout name; germplasm
+description, synonyms, time and reproduction; Person institution; team fullname; reference description, external id
+and schema; ontology entries' abbreviation, description, synonyms, source URL and attribution, and a record group
+type's default extent. Required fields, file metadata, record values and the account fields keep "null is unchanged".
+
+What breaks: nothing sent today wipes data, as the forms send the current value of an untouched field, with one race:
+the references modal edits a snapshot, and a reference given by id only (as from a dataset cell) gives a blank form if
+Edit is clicked before its full read returns, which now clears its description, external id and schema. The germplasm
+form sends null for every empty field, so emptying one there now clears it, as intended.
+
+Schema changes: `TermUpdate.recordGroupTypeIds` added (term updates failed on it); `rank` removed from
+`CategoryInput` and `CategoryUpdate` (ignored: a category is ordered on its scale); `datasetIds` removed from
+`StudyInput` and `StudyUpdate` (ignored: a dataset is in a study, not the reverse); `LayoutUpdate`'s fields are all
+optional now (a type or axes left out failed). breedview sends none of the removed fields.
+
+Work: send null for a field that had a value and was emptied, in the forms that leave it out today (program, trial,
+study, location, layout, unit, ontology description); fix the references modal race (edit the reference once read in
+full, or wait for it).
+
 ## Checking the front end against the API
 
 ```bash

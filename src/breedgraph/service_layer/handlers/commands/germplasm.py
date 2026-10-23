@@ -61,22 +61,22 @@ async def update_germplasm_entry(
 
         if cmd.name is not None and not cmd.name == entry.name:
             entry.name = cmd.name
-        if cmd.description is not None and not cmd.description == entry.description:
-            entry.description = cmd.description
-        if cmd.synonyms is not None and not set(cmd.synonyms) == set(entry.synonyms):
-            entry.synonyms = cmd.synonyms
+        if cmd.given('description') and not cmd.given_text('description') == entry.description:
+            entry.description = cmd.given_text('description')
+        if cmd.given('synonyms') and not set(cmd.synonyms or []) == set(entry.synonyms):
+            entry.synonyms = cmd.synonyms or []
         if cmd.reference_ids is not None and not set(cmd.reference_ids) == set(entry.references):
             await uow.controls.require_read(ControlledModelLabel.REFERENCE, set(cmd.reference_ids) - set(entry.references or []))
             entry.references = cmd.reference_ids
         if 'origin_id' in cmd.model_fields_set and not cmd.origin_id == entry.origin:
             await uow.controls.require_read(ControlledModelLabel.LOCATION, [cmd.origin_id])
             entry.origin = cmd.origin_id
-        if cmd.time is not None and not cmd.time == entry.time:
+        if cmd.given('time') and not cmd.time == entry.time:
             entry.time = cmd.time
         if 'unit_id' in cmd.model_fields_set and not cmd.unit_id == entry.unit:
             await uow.controls.require_read(ControlledModelLabel.UNIT, [cmd.unit_id])
             entry.unit = cmd.unit_id
-        if cmd.reproduction is not None and not cmd.reproduction == entry.reproduction:
+        if cmd.given('reproduction') and not cmd.reproduction == entry.reproduction:
             entry.reproduction = cmd.reproduction
         if cmd.control_method_ids is not None and not set(cmd.control_method_ids) == set(entry.control_methods):
             await uow.ontology.require_entries(

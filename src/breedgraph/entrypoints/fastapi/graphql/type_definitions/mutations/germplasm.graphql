@@ -51,6 +51,10 @@ input GermplasmInput {
     sources: [GermplasmSourceRelationship!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description, time or reproduction, and null or an
+empty list clears synonyms; null removes originId or unitId
+"""
 input GermplasmUpdate {
     id: ID!
     name: String

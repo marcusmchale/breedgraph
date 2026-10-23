@@ -56,6 +56,14 @@ def filter_dict(entry_dict: dict, node_class):
     return {k: v for k, v in entry_dict.items() if k in node_fields}
 
 
+def patch_values(patch) -> dict:
+    """An entry patch's attributes, with those it clears as null: a patch node can't hold a null, so it lists them"""
+    values = dict(patch)
+    for key in values.pop('cleared', None) or []:
+        values[key] = None
+    return values
+
+
 def shows_relationship(lifecycle: RelationshipLifecycle, entry_id: int, view: OntologyViewMode) -> bool:
     """
     A deprecated or removed relationship is left out, unless the view is referential and it was deprecated with the
@@ -79,7 +87,7 @@ def record_to_entry(
 
     entry_patches = entry_dict.get('patches', [])
     for patch in entry_patches:
-        entry_dict.update(patch)
+        entry_dict.update(patch_values(patch))
 
     entry_dict = filter_dict(entry_dict, entry_class)
 

@@ -58,7 +58,8 @@ async def update_team(
         agent_id=user_id,
         team_id=team.get('id'),
         name=team.get('name'),
-        fullname=team.get('fullname')
+        # passed only when given, as null clears it
+        **{key: team[key] for key in ('fullname',) if key in team}
     )
     await info.context['bus'].handle(cmd)
     return True

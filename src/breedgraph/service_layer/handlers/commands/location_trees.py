@@ -83,18 +83,21 @@ async def update_location(
 
         if cmd.name is not None:
             location.name = cmd.name
-        if cmd.code is not None:
-            location.code = cmd.code
+        if cmd.given('code'):
+            # a country's code is its ISO code, which the countries read model and its removal go by
+            if was_root and cmd.given_text('code') is None:
+                raise ValueError("A country keeps its code")
+            location.code = cmd.given_text('code')
         if cmd.type_id is not None:
             if cmd.type_id != location.type:
                 await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.LOCATION_TYPE)
             location.type = cmd.type_id
-        if cmd.fullname is not None:
-            location.fullname = cmd.fullname
-        if cmd.description is not None:
-            location.description = cmd.description
-        if cmd.address is not None:
-            location.address = cmd.address
+        if cmd.given('fullname'):
+            location.fullname = cmd.given_text('fullname')
+        if cmd.given('description'):
+            location.description = cmd.given_text('description')
+        if cmd.given('address'):
+            location.address = cmd.given_text('address')
         if cmd.coordinates is not None:
             placed = [(coord.latitude, coord.longitude) for coord in cmd.coordinates]
             if placed and not was_root and placed != _points(location.coordinates):

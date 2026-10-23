@@ -60,6 +60,9 @@ input DataFileReferenceInput {
 
 
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description
+"""
 input LegalReferenceUpdate {
     id: ID!
     description: String
@@ -68,13 +71,20 @@ input LegalReferenceUpdate {
     textFormat: TextFormat
 }
 
-""" New text for a legal reference, read from a file as for LegalFileReferenceInput """
+"""
+New text for a legal reference, read from a file as for LegalFileReferenceInput
+
+Fields left out are unchanged; null, or an empty string, clears description
+"""
 input LegalFileReferenceUpdate {
     id: ID!
     description: String
     file: Upload!
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description or externalId
+"""
 input ExternalReferenceUpdate {
     id: ID!
     description: String
@@ -82,6 +92,9 @@ input ExternalReferenceUpdate {
     externalId: String
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description, externalId or schema
+"""
 input ExternalDataReferenceUpdate {
     id: ID!
     description: String
@@ -94,6 +107,9 @@ input ExternalDataReferenceUpdate {
     contributions: [ContributionInput!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description
+"""
 input FileReferenceUpdate {
     id: ID!
     description: String
@@ -102,6 +118,9 @@ input FileReferenceUpdate {
     contributions: [ContributionInput!]
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears description or schema
+"""
 input DataFileReferenceUpdate {
     id: ID!
     description: String

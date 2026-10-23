@@ -24,39 +24,28 @@ class BaseRepository(ABC, Generic[TAggregateInput, TAggregate]):
 
         if record.get('submitted', None) is not None:
             record['submitted'] = deserialize_time(record['submitted'])
-        if record.get('start', None) is not None:
-            record['start'] = deserialize_time(record['start'], record.pop('start_unit'), record.pop('start_step'))
-        if record.get('end', None) is not None:
-            record['end'] = deserialize_time(record['end'], record.pop('end_unit'), record.pop('end_step'))
-        if record.get('time', None) is not None:
-            record['time'] = deserialize_time(record['time'], record.pop('time_unit'), record.pop('time_step'))
+        for key in ('start', 'end', 'time'):
+            # a time's unit and step are read with it, and left out with it
+            unit, step = record.pop(f'{key}_unit', None), record.pop(f'{key}_step', None)
+            if record.get(key, None) is not None:
+                record[key] = deserialize_time(record[key], unit, step)
         return record
 
     @staticmethod
     def serialize_dt64(record: dict, to_neo4j: bool = False) -> dict:
         if record.get('submitted', None) is not None:
             record.pop('submitted')  # we don't want to update submitted timestamp, this is set by neo4j tx
-        if record.get('start', None) is not None:
-            serialized = serialize_npdt64(record['start'], to_neo4j=to_neo4j)
-            record.update({
-                'start': serialized['time'],
-                'start_unit': serialized['unit'],
-                'start_step': serialized['step']
-            })
-        if record.get('end', None) is not None:
-            serialized = serialize_npdt64(record['end'], to_neo4j=to_neo4j)
-            record.update({
-                'end': serialized['time'],
-                'end_unit': serialized['unit'],
-                'end_step': serialized['step']
-            })
-        if record.get('time', None) is not None:
-            serialized = serialize_npdt64(record['time'], to_neo4j=to_neo4j)
-            record.update({
-                'time': serialized['time'],
-                'time_unit': serialized['unit'],
-                'time_step': serialized['step']
-            })
+        for key in ('start', 'end', 'time'):
+            if record.get(key, None) is not None:
+                serialized = serialize_npdt64(record[key], to_neo4j=to_neo4j)
+                record.update({
+                    key: serialized['time'],
+                    f'{key}_unit': serialized['unit'],
+                    f'{key}_step': serialized['step']
+                })
+            elif key in record:
+                # a time cleared takes its unit and step with it, as `SET node += $data` removes what is null
+                record.update({f'{key}_unit': None, f'{key}_step': None})
         return record
 
     def _track(self, aggregate: TAggregate) -> Union[TrackedObject|TAggregate]:

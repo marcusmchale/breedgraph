@@ -73,8 +73,8 @@ async def update_layout(
 
         layout = layout_tree.get_entry(cmd.layout_id)
 
-        if cmd.name and not cmd.name == layout.name:
-            layout.name = cmd.name
+        if cmd.given('name'):
+            layout.name = cmd.given_text('name')
         if cmd.location_id and not cmd.location_id == layout.location:
             if not layout.id == layout_tree.root.id:
                 raise ValueError("Only the root of a layout tree has a location, which its layouts share")

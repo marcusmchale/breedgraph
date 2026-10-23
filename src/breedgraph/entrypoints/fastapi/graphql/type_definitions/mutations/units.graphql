@@ -83,6 +83,10 @@ input UnitDerivationInput {
     description: String
 }
 
+"""
+Fields left out are unchanged; null, or an empty string, clears name or description; null removes subjectId or
+germplasmId
+"""
 input UnitUpdate {
     id: ID!
     """ Omitted, the subject is unchanged; null removes it """
