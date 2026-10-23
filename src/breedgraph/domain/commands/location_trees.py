@@ -20,7 +20,6 @@ class CreateLocation(Command):
     type_id: int
     name: str
 
-    fullname: str = None
     description: str = None
     code: str = None
     address: str = None
@@ -35,7 +34,6 @@ class UpdateLocation(Command):
     type_id: int|None = None
     name: str|None = None
 
-    fullname: str|None = None
     description: str|None = None
     code: str|None = None
     address: str|None = None

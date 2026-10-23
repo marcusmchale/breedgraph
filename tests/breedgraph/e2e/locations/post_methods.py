@@ -99,6 +99,8 @@ async def post_to_locations(client, location_ids: List[int],  token:str = None):
             "       id, "
             "       name, "
             "       code, "  
+            "       description, "
+            "       address, "
             "       type { id, name }"
             "       parent {id, name, code, type {id, name} } "
             "       children {id, name, code, type {id, name} } "

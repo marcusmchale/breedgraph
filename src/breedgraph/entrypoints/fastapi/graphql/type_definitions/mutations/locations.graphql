@@ -31,7 +31,6 @@ country keeps its code)
 input LocationUpdate {
     id: ID!
     name: String
-    fullname: String
     """ Optional code for location, e.g. zip-code """
     code: String
     description: String

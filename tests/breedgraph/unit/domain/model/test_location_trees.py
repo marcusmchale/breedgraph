@@ -8,7 +8,6 @@ def test_redacted_location_keeps_no_details():
     location = LocationStored(
         id=1,
         name="Field",
-        fullname="Experimental field",
         synonyms=["Plot"],
         type=2,
         description="A field",
@@ -19,7 +18,6 @@ def test_redacted_location_keeps_no_details():
     redacted = location.redacted(controller=controller, user_id=2, read_teams=set())
     assert redacted.id == 1
     assert redacted.name == LocationStored.redacted_str
-    assert redacted.fullname == LocationStored.redacted_str
     assert redacted.synonyms == [LocationStored.redacted_str]
     assert redacted.type is None
     assert all(value == LocationStored.redacted_str for value in [redacted.description, redacted.code, redacted.address])

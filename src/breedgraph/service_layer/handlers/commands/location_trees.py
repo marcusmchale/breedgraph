@@ -28,8 +28,8 @@ async def create_location(
 ):
     location_input = LocationInput(
         name = cmd.name,
-        fullname = cmd.fullname,
         type = cmd.type_id,
+        description = cmd.description,
         code = cmd.code,
         address = cmd.address,
         coordinates = [GeoCoordinate(**coord.model_dump()) for coord in cmd.coordinates or []]
@@ -92,8 +92,6 @@ async def update_location(
             if cmd.type_id != location.type:
                 await uow.ontology.require_entries([cmd.type_id], label=OntologyEntryLabel.LOCATION_TYPE)
             location.type = cmd.type_id
-        if cmd.given('fullname'):
-            location.fullname = cmd.given_text('fullname')
         if cmd.given('description'):
             location.description = cmd.given_text('description')
         if cmd.given('address'):

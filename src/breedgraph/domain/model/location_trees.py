@@ -18,7 +18,6 @@ class LocationBase(ABC):
     label: ClassVar[ControlledModelLabel] = ControlledModelLabel.LOCATION
 
     name: str = None
-    fullname: str = None
     synonyms: List[str] = field(default_factory=list)
     type: int|None = None  # reference to location type in ontology
 
@@ -55,7 +54,6 @@ class LocationStored(LocationBase, ControlledModel):
             self,
             type = None,
             name = self.redacted_str,
-            fullname = self.fullname and self.redacted_str,
             synonyms = [self.redacted_str for _ in self.synonyms],
             description = self.description and self.redacted_str,
             code = self.code and self.redacted_str,

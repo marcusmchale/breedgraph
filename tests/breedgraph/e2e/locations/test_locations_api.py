@@ -90,6 +90,8 @@ async def test_extend_location_tree(
         'name': new_name,
         'typeId': state_type_id,
         'parentId': location_tree_root_id,
+        'description': 'A territory added by the test',
+        'address': '1 Test Road',
     }
     create_response = await post_to_create_location(
         client,
@@ -113,6 +115,9 @@ async def test_extend_location_tree(
     location_request_response = await post_to_locations(client, location_ids=[child_id], token=login_token)
     location_payload = get_verified_payload(location_request_response, "locationsLocations")
     assert location_payload.get('result')[0].get('parent').get('id') == location_tree_root_id
+    # what was given when it was created is stored
+    assert location_payload.get('result')[0].get('description') == 'A territory added by the test'
+    assert location_payload.get('result')[0].get('address') == '1 Test Road'
 
     # assure this location isn't visible to a user without read affiliation.
     unaffililated_request_response = await post_to_locations(client, location_ids=[location_tree_root_id], token=login_token_2)
