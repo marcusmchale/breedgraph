@@ -16,8 +16,8 @@ story is in `tests/breedgraph/scenarios/demo/`:
 `tests/breedgraph/unit/test_demo_story.py` and `tests/breedgraph/integration/test_demo_scenario.py` check it.
 
 Everything in it is invented. People have alliterative role names, so a viewer can tell who is acting, and their
-addresses are at `example.org` (reserved, RFC 2606). The sites' coordinates are offsets from points on uninhabited
-state-owned land, and the varieties' names are checked against the variety catalogues (below).
+addresses are at `example.org` (reserved, RFC 2606). The sites' coordinates are offsets from points on open bog, far
+from any building or road (below), and the varieties' names are checked against the variety catalogues.
 
 ## The story
 
@@ -155,9 +155,17 @@ Ireland's region once with `scripts/map_tiles.py --regions` (README, Maps).
   ```
 
   It reports exact and close matches.
-- **Places:** `test_demo_story.py` keeps every shape inside its site's box (`SITE_BOXES` in `story.py`). Check once by
-  hand, on a map, that the boxes around the two origins (`ORIGINS`) hold no buildings, farmyards or dwellings, and
-  record the date of the check here.
+- **Places:** `test_demo_story.py` keeps every shape inside its site's box (`SITE_BOXES` in `story.py`). If the origins
+  (`ORIGINS`) move, check that the boxes around them hold no buildings, farmyards, dwellings or roads, and record the
+  check here.
+  - **Checked 2026-10-23** against OpenStreetMap as the API serves it (the Ireland region, Protomaps build 20261019, at
+    zoom 15), by reading every feature near each box from the tiles and drawing the boxes on the Locations map. The
+    farm's box, on cut-away bog north of the Grand Canal in County Offaly, holds only wetland, and the nearest
+    residential land, building and road are 507 to 527 m away. The Cooperative's box, on Mouds Bog in County Kildare,
+    holds only wetland, and the nearest building, track and road are 601 to 630 m away. Both are inside their counties'
+    boundaries.
+  - The first origins failed this check: the farm's box held eight buildings, residential land and a road where Hill
+    Field is drawn, and the Cooperative's box was crossed by the Newbridge Bypass beside the town's housing estates.
 - **The story's tests**, which need no database:
 
   ```bash

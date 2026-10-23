@@ -5,8 +5,8 @@ data only: builder.py writes it, layout.py lays out the trials and values.py mak
 
 Everything is invented. People have alliterative role names (Bridget Breeder, Theo Technician), so a viewer can tell
 who is acting; their addresses are at example.org, which is reserved (RFC 2606); the sites' coordinates are offsets
-from points on uninhabited state-owned land, so no real farm or person is described; and the varieties' names are
-checked against the variety catalogues before a build is shared (scripts/check_demo_names.py).
+from points on open bog, far from any building or road, so no real farm or person is described; and the varieties'
+names are checked against the variety catalogues before a build is shared (scripts/check_demo_names.py).
 
 Teams and their members (R read, W write, C curate, A admin; + heritable)
 
@@ -363,12 +363,13 @@ COMMITS = (
 
 COUNTRY_CODE = 'IRL'  # the location tree's root, a country from the state store
 
-# Where each site's shapes are drawn from, in degrees: on cut-away peatland in County Offaly and the open plain of the
-# Curragh in County Kildare, both state-owned and uninhabited. Check before sharing a build that the boxes around them
-# (SITE_BOXES) hold no buildings or farmyards (docs/demo-database.md, The places).
+# Where each site's shapes are drawn from, in degrees: on bog in County Offaly (cut-away peatland north of the Grand
+# Canal) and in County Kildare (Mouds Bog), where OpenStreetMap has no building, road, path or named place within
+# 500 m of the boxes around them (SITE_BOXES). Check again before sharing a build if they move (docs/demo-database.md,
+# Checks before sharing a build).
 ORIGINS = {
-    'farm': (53.2445, -7.6460),
-    'cooperative': (53.1580, -6.7970),
+    'farm': (53.2760, -7.6879),
+    'cooperative': (53.2126, -6.8223),
 }
 # The extent of each site's shapes, east and north of its origin, in metres
 SITE_BOXES = {
