@@ -120,11 +120,22 @@ def tree_links(node: str, root: str, label: ControlledModelLabel, edge: str, vis
     }
 
 
+# The predicates below match variables named after their entity ({entity}_control, {entity}_team): a subquery
+# expression in a scoped CALL still sees the variables the CALL imported after a WITH drops them, so a check written
+# with plain names (control, team) matched the query's own instead, such as the acting team of bulk control's
+# read_controlled_entities, which then named a study another team controls REDACTED to readers of that team.
+
+def _controls(entity: str, label: ControlledModelLabel) -> str:
+    """The pattern of entity's controls: {entity}_control, under its team's {entity}_team_node"""
+    return f"({entity})<-[:CONTROLS]-({entity}_control:Control)<-[:CONTROLS]-({entity}_team_node:Team{label.plural})"
+
+
 def _current_control(entity: str) -> str:
-    """Whether control, of entity under team_node, is current: the team's latest, and not ended"""
+    """Whether {entity}_control, of entity under {entity}_team_node, is current: the team's latest, and not ended"""
+    control, team_node, newer = f"{entity}_control", f"{entity}_team_node", f"{entity}_newer"
     return (
-        f"NOT coalesce(control.ended, false) AND NOT EXISTS {{ "
-        f"MATCH ({entity})<-[:CONTROLS]-(newer:Control)<-[:CONTROLS]-(team_node) WHERE newer.sequence > control.sequence }}"
+        f"NOT coalesce({control}.ended, false) AND NOT EXISTS {{ "
+        f"MATCH ({entity})<-[:CONTROLS]-({newer}:Control)<-[:CONTROLS]-({team_node}) WHERE {newer}.sequence > {control}.sequence }}"
     )
 
 
@@ -133,8 +144,11 @@ def read_by_team(entity: str, label: ControlledModelLabel) -> str:
     A predicate for whether a team in $read_teams currently controls entity: whether the user reads it through an
     affiliation, not only through its release. Written with EXISTS subqueries only, as readable() is.
     """
-    controls = f"({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(team_node:Team{label.plural})"
-    return f"EXISTS {{ MATCH {controls}<-[:CONTROLS]-(team:Team) WHERE team.id IN $read_teams AND {_current_control(entity)} }}"
+    team = f"{entity}_team"
+    return (
+        f"EXISTS {{ MATCH {_controls(entity, label)}<-[:CONTROLS]-({team}:Team) "
+        f"WHERE {team}.id IN $read_teams AND {_current_control(entity)} }}"
+    )
 
 
 def readable(entity: str, label: ControlledModelLabel) -> str:
@@ -144,9 +158,10 @@ def readable(entity: str, label: ControlledModelLabel) -> str:
     and the team controls the entity while that control is not ended
     """
     current = _current_control(entity)
-    controls = f"({entity})<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(team_node:Team{label.plural})"
+    controls = _controls(entity, label)
+    team = f"{entity}_team"
     return f"""(
           NOT EXISTS {{ MATCH {controls} WHERE {current} }}
-          OR EXISTS {{ MATCH {controls}<-[:CONTROLS]-(team:Team) WHERE team.id IN $read_teams AND {current} }}
-          OR NOT EXISTS {{ MATCH {controls} WHERE control.release < $minimum_release AND {current} }}
+          OR EXISTS {{ MATCH {controls}<-[:CONTROLS]-({team}:Team) WHERE {team}.id IN $read_teams AND {current} }}
+          OR NOT EXISTS {{ MATCH {controls} WHERE {entity}_control.release < $minimum_release AND {current} }}
         )"""

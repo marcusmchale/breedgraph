@@ -2,8 +2,8 @@
 The demonstration database (tests/breedgraph/scenarios/demo/): what its story declares is what the views read back.
 Who can read each entity is what DemoScenario.readable says, for each viewer: the story's accounts, an account in no
 team and a visitor; Persons show as DemoScenario.person_view says; the 2026 plots are sown, in their blocks and
-unrecorded; what the guide creates is not there yet; the licences are released widely enough; and the manifest
-serialises, every key resolved.
+unrecorded; what the guide creates is not there yet; the licences are released widely enough; bulk control names the
+studies its admins read; and the manifest serialises, every key resolved.
 """
 import json
 from pathlib import Path
@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 
 from breedgraph.adapters.neo4j.cypher.query_builders.controls import licence_release_violations
+from breedgraph.domain.model.controls import ControlledModelLabel
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.demo import values
@@ -99,6 +100,22 @@ async def test_the_records_are_as_planned(demo, views_factory):
         weights = await views.datasets.get_records(demo['grain_weight_2025'])
     assert (names[fungicide['unit']], fungicide['value']) == values.area_value('lm24', 'fungicide_programme')
     assert len(weights) == 2 * len(plots('nf25'))
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('admin, team', [('dara', 'field'), ('lena', 'lab')])
+async def test_bulk_control_names_each_dataset_s_study(demo, views_factory, admin, team):
+    """
+    A team's datasets are in studies Wheat Breeding Group controls, which their admin reads: Dara as a heritable reader
+    of the Institute, Lena through her affiliation. Bulk control names each study as the programmes page does (its read
+    check once matched the acting team, which controls none of them, and named the private ones REDACTED).
+    """
+    async with views_factory.get_views(user_id=demo[admin]) as views:
+        controlled = await views.controls.get_controlled_entities(demo[team], ControlledModelLabel.DATASET, limit=100)
+    expected = {
+        demo[key]: STUDIES[plan.study].name for key, plan in DATASETS.items() if ACCOUNTS[plan.writer].write_team == team
+    }
+    assert {item.id: item.context for item in controlled.items} == expected
 
 
 @pytest.mark.asyncio(loop_scope="session")
