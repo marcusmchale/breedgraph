@@ -46,6 +46,15 @@ entry and those it defines can go together; a Restore action for editors on remo
 versions, where an entry's `phase` is its phase now, so REMOVED for one since removed (and on a retired tag); show the
 refusals as given.
 
+## Layout locations and deleting layouts
+
+`layoutsUpdateLayout` sets a location on the root of a layout tree only ("Only the root of a layout tree has a location,
+which its layouts share"), and now does change the root's location (it refused every change before), but only while no
+unit has a position in the tree: "Units are positioned in this layout tree, so its location may not change: move the
+units to a layout at the new location instead". `layoutsDeleteLayout` refuses a layout units are positioned in, and a
+root whose tree has any: "Units are positioned in this layout, so it may not be deleted: remove or move their positions
+first". Nothing breaks: the location picker shows for roots only already. Work: show these refusals as given.
+
 ## Checking the front end against the API
 
 ```bash

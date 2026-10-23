@@ -3,6 +3,7 @@ from breedgraph.domain import commands
 from breedgraph.domain.model.layout_trees import LayoutInput
 from breedgraph.domain.model.controls import Access, ControlledModelLabel
 from breedgraph.domain.model.ontology import LayoutTypeStored, AxisType, OntologyEntryLabel
+from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError, ProtectedNodeError
 
 from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
 
@@ -75,8 +76,15 @@ async def update_layout(
         if cmd.name and not cmd.name == layout.name:
             layout.name = cmd.name
         if cmd.location_id and not cmd.location_id == layout.location:
-            if not layout_tree.root.location == cmd.location_id:
-                raise ValueError("Cannot set location of layout that is not the root of the layout tree")
+            if not layout.id == layout_tree.root.id:
+                raise ValueError("Only the root of a layout tree has a location, which its layouts share")
+            # positions in the tree are at its location: they would be left at the old one
+            await uow.controls.require_access(ControlledModelLabel.LAYOUT, [layout.id], Access.CURATE)
+            if await uow.guards.layouts_have_positions(list(layout_tree.entries)):
+                raise IllegalOperationError(
+                    "Units are positioned in this layout tree, so its location may not change: "
+                    "move the units to a layout at the new location instead"
+                )
             await uow.controls.require_access(ControlledModelLabel.LOCATION, [cmd.location_id], Access.READ)
             layout.location = cmd.location_id
 
@@ -142,6 +150,16 @@ async def delete_layout(
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         layout_tree = await uow.repositories.layout_trees.get(layout_id=cmd.layout_id)
+        if layout_tree is None:
+            raise NoResultFoundError("Layout not found")
+        # the root takes the whole tree with it; checked for curate access first, as for units, so only those who
+        # could remove the layout learn of units positioned in it
+        removing = list(layout_tree.entries) if layout_tree.root.id == cmd.layout_id else [cmd.layout_id]
+        await uow.controls.require_access(ControlledModelLabel.LAYOUT, removing, Access.CURATE)
+        if await uow.guards.layouts_have_positions(removing):
+            raise ProtectedNodeError(
+                "Units are positioned in this layout, so it may not be deleted: remove or move their positions first."
+            )
 
         if layout_tree.root.id == cmd.layout_id:
             await uow.repositories.layout_trees.remove(layout_tree)

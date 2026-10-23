@@ -43,6 +43,11 @@ class AbstractDependencyGuards(ABC):
         ...
 
     @abstractmethod
+    async def layouts_have_positions(self, layout_ids: List[int]) -> bool:
+        """Check if any unit has a position, current or past, in any of the layouts"""
+        ...
+
+    @abstractmethod
     async def derivation_cycle(self, unit_id: int, source_ids: List[int]) -> bool:
         """Check if any of the units source_ids is derived from a unit, directly or through others"""
         ...

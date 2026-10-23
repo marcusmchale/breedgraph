@@ -264,7 +264,10 @@ These are used to describe positions for [units](#unit) within [unit graphs](#un
 #### Layout
 Layouts have attributes for:
   - type, an ID for [layout type](#layouttype) in the ontology
-  - location: an ID for a [location](#location) within a [location tree](#location-tree)
+  - location: an ID for a [location](#location) within a [location tree](#location-tree), on the root only: the
+    layouts of a tree share its location, and the positions in them are at it. So it can change only while no unit has
+    a position in the tree, as a correction; units at a layout that moves are moved to one at the new location. Nor can
+    a layout units are positioned in be deleted.
   - axes: labels for the axes (a list of strings). 
     - The order of axes must be preserved when describing positions for a [unit](#unit).
   - Optional:
