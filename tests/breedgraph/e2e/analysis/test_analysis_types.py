@@ -186,6 +186,23 @@ async def test_descriptive_statistics(analysis_context, login_token_factory, cli
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_germplasm_grouping_with_none_selected(analysis_context, login_token_factory, client):
+    """With no germplasm selected, each unit's own germplasm is a level"""
+    token = login_token_factory(analysis_context['user_id'])
+    submission = await run_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [analysis_context['height_dataset']], {
+            "terms": [concept(analysis_context['height_id'], aggregation="MEAN"), GERMPLASM_TERM],
+            "grouping": {"germplasm": {"germplasmIds": []}}
+        }
+    ), "... on DescriptiveStatisticsResult { terms { levels { level } group { germplasmId } count } }")
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    overall, *by_germplasm = submission['result']['terms']
+    assert overall['levels'] == [] and overall['count'] == 2 * UNITS_PER_GERMPLASM
+    assert sorted(t['group']['germplasmId'] for t in by_germplasm) == sorted(str(g) for g in analysis_context['germplasm_ids'])
+    assert all(t['count'] == UNITS_PER_GERMPLASM for t in by_germplasm)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_correlation(analysis_context, login_token_factory, client):
     token = login_token_factory(analysis_context['user_id'])
     submission = await run_analysis(client, token, analysis(

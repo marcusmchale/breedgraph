@@ -50,7 +50,8 @@ type GermplasmGrouping {
 
   Germplasm hierarchy is traversed to assign each unit to
   the appropriate grouping level, from the unit's own germplasm
-  or the one it inherits (Unit.inheritedGermplasm).
+  or the one it inherits (Unit.inheritedGermplasm). Empty: each
+  unit's germplasm is a level.
   """
   germplasmIds: [ID!]!
 }

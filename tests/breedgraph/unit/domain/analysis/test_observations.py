@@ -191,6 +191,19 @@ def test_germplasm_dimension_assigns_closest_selected():
     assert [o.group['germplasm_id'] for o in frame.observations] == [2, 2]
     assert [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_GERMPLASM] == [[3]]
 
+def test_germplasm_dimension_with_none_selected_takes_each_units_own():
+    units = {100: UnitContext(100, germplasm_id=3), 101: UnitContext(101, germplasm_id=2), 102: UnitContext(102)}
+    ctx = context(
+        descriptive([concept_term(10), domain_term('GERMPLASM')], grouping={'germplasm': {'germplasm_ids': []}}),
+        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '1'), record(3, 102, '1')])],
+        units=units
+    )
+    frame, warnings = prepare(ctx)
+    assert [o.group['germplasm_id'] for o in frame.observations] == [3, 2]
+    unassigned, = [w for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_GERMPLASM]
+    assert unassigned.record_ids == [3]
+    assert unassigned.message == "1 records could not be assigned to a germplasm and were excluded"
+
 def test_study_only_with_study_term():
     datasets = [dataset(1, 1, 10, [record(1, 100, '1')]), dataset(2, 2, 10, [record(2, 100, '2')])]
     with pytest.raises(AnalysisFailed):

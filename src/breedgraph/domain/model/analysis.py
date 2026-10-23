@@ -333,7 +333,11 @@ class TimeSpecification:
 
 @dataclass
 class GermplasmGrouping:
-    germplasm_ids: list[int]
+    """
+    Each unit's germplasm as a level: the closest of the selected germplasm, itself or an ancestor, or with none
+    selected, its own.
+    """
+    germplasm_ids: list[int] = field(default_factory=list)
 
 @dataclass
 class UnitGrouping:

@@ -166,7 +166,8 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
   Position grouping places a readable unit by its own positions or those of the units above it, in the same way:
   a placement stops at a hidden unit with positions, and at a position at a location or in a layout the user cannot
   read. Hidden locations' types and hidden layouts' axes are not matched.
-  Germplasm grouping takes the readable descendants of a selected germplasm, which must be readable or a crop.
+  Germplasm grouping takes the readable descendants of a selected germplasm, which must be readable or a crop; with
+  none selected, a unit's germplasm as above is its level.
 
 ## 4. Status
 

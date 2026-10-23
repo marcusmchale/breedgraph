@@ -25,16 +25,18 @@ input TimeSpecificationInput {
 Defines how germplasm is resolved into analytical groups.
 
 The server navigates the germplasm hierarchy from the germplasm
-assigned to each unit to find the applicable selected ancestor.
+assigned to each unit to find the applicable selected ancestor,
+or with none selected, takes each unit's germplasm as a group.
 A unit's germplasm is its own, or else the one it inherits from
 the units above it (Unit.inheritedGermplasm).
 """
 input GermplasmGroupingInput {
   """
-  Germplasm IDs defining the grouping level.
+  Germplasm IDs defining the grouping levels.
 
   Descendant germplasm is assigned to the corresponding selected
-  ancestor while preserving the hierarchy of the grouping.
+  ancestor while preserving the hierarchy of the grouping. Empty:
+  each unit's own germplasm is a level.
   """
   germplasmIds: [ID!]!
 }

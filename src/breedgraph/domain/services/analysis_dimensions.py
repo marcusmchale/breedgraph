@@ -139,16 +139,21 @@ class TimeResolver(DimensionResolver):
 
 
 class GermplasmResolver(DimensionResolver):
-    """Assigns the germplasm of each base unit to the closest selected germplasm, itself or an ancestor."""
+    """
+    Assigns the germplasm of each base unit to the closest selected germplasm, itself or an ancestor; with none
+    selected, to itself.
+    """
     warning_code = AnalysisWarningCode.UNASSIGNED_GERMPLASM
-    description = "a selected germplasm"
 
     def __init__(self, grouping: GermplasmGrouping, descendants: dict[int, set[int]], path: list[str]):
         super().__init__(AnalysisTermReference(type=AnalysisTermType.GERMPLASM), path)
         self.descendants = {g: descendants.get(g, set()) for g in grouping.germplasm_ids}
+        self.description = "a selected germplasm" if self.descendants else "a germplasm"
         self._assigned: dict[int, int | None] = {}
 
     def _closest(self, germplasm_id: int) -> int | None:
+        if not self.descendants:
+            return germplasm_id
         candidates = [
             selected for selected, descendants in self.descendants.items()
             if germplasm_id == selected or germplasm_id in descendants

@@ -105,6 +105,8 @@ Every analysis operates on **observations**, not on records.
     germplasm, so the units below it have none (unassigned), rather than taking a germplasm from further up.
   - Each unit's germplasm is assigned to the closest selected germplasm: itself or its nearest selected ancestor.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.
+  - With none selected (`germplasmIds` empty), each unit's germplasm is a level of its own. A unit with none is
+    unassigned.
 - **Unit** (`grouping.unit`): replaces each base unit with its closest selected parent unit. The base units are still reported in results.
 - **Position** (`grouping.position`): where the units of records were. It gives a `LOCATION` term and a
   `LAYOUT_AXIS` term (`layoutAxis`) for each of `axes`.

@@ -106,7 +106,8 @@ class TimeSpecificationImport(ImportModel):
         return TimeSpecification(assignment=self.assignment, binning=self.binning.to_domain())
 
 class GermplasmGroupingImport(ImportModel):
-    germplasm_ids: list[int] = Field(min_length=1)
+    # none: each unit's own germplasm is a level
+    germplasm_ids: list[int] = Field(default_factory=list)
 
     def to_domain(self) -> GermplasmGrouping:
         return GermplasmGrouping(germplasm_ids=self.germplasm_ids)
