@@ -20,6 +20,7 @@ Run it after the migration as the migration user (main.py validate); it reads on
 """
 import csv
 import hashlib
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -353,7 +354,7 @@ async def validate_persons(validation, uow_factory, ontology: OntologyIds, datas
     return list(mapped.values())
 
 
-async def validate_ontology(validation, uow_factory, context) -> tuple[OntologyIds, dict[str, int]]:
+async def validate_ontology(validation, uow_factory) -> tuple[OntologyIds, dict[str, int]]:
     ontology = OntologyIds()
     for row in read_mapping('ontology_ids.csv'):
         ontology.inputs[(row['input'], row['apparatus'])] = (OntologyEntryLabel(row['label']), int(row['id']))
@@ -363,21 +364,21 @@ async def validate_ontology(validation, uow_factory, context) -> tuple[OntologyI
         stored = await stored_ids(uow_factory, label.value, ids)
         problems += [(key, entry_id) for key, (entry_label, entry_id) in ontology.inputs.items() if entry_label == label and entry_id not in stored]
     validation.all("Inputs mapped to stored variables and factors (ontology_ids.csv)", problems, len(ontology.inputs))
-    subjects = {}
-    async with uow_factory.get_uow(user_id=context.user_id) as uow:
-        for factor in DESIGN_FACTORS:
-            entry = await uow.ontology.get_entry(name=factor['Factor'], label=OntologyEntryLabel.FACTOR)
-            if entry is not None:
-                ontology.design_factors[factor['Factor']] = entry.id
-        for name in set(SUBJECTS.values()):
-            entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.SUBJECT)
-            if entry is not None:
-                subjects[name] = entry.id
-        record_group_types = set()
-        for name, _, _ in RECORD_GROUP_TYPES:
-            entry = await uow.ontology.get_entry(name=name, label=OntologyEntryLabel.RECORD_GROUP_TYPE)
-            if entry is not None:
-                record_group_types.add(name)
+    # by the mapping rather than by name, as the migration's entries are not found by name once retired
+    named = defaultdict(dict)
+    for row in read_mapping('ontology_entry_ids.csv'):
+        named[OntologyEntryLabel(row['label'])][row['name']] = int(row['id'])
+    problems = []
+    for label, entries in named.items():
+        stored = await stored_ids(uow_factory, label.value, list(entries.values()))
+        problems += [(label.value, name, entry_id) for name, entry_id in entries.items() if entry_id not in stored]
+    validation.all(
+        "Subjects, types and design factors mapped to stored entries (ontology_entry_ids.csv)",
+        problems, sum(len(entries) for entries in named.values())
+    )
+    ontology.design_factors = named[OntologyEntryLabel.FACTOR]
+    subjects = named[OntologyEntryLabel.SUBJECT]
+    record_group_types = named[OntologyEntryLabel.RECORD_GROUP_TYPE]
     validation.same("Design factors in the ontology", [f['Factor'] for f in DESIGN_FACTORS], ontology.design_factors)
     validation.same("Subjects in the ontology", set(SUBJECTS.values()), subjects)
     validation.same("Record group types in the ontology", [name for name, _, _ in RECORD_GROUP_TYPES], record_group_types)
@@ -458,7 +459,7 @@ def replicate_summary(plan: DatasetPlan, ontology: OntologyIds) -> Section:
 
 async def validate_breedcafs_migration(uow_factory: Neo4jUnitOfWorkFactory, context: MigrationContext) -> Validation:
     validation = Validation()
-    ontology, subjects = await validate_ontology(validation, uow_factory, context)
+    ontology, subjects = await validate_ontology(validation, uow_factory)
     locations, layouts, germplasm = await validate_locations_and_layouts(validation, uow_factory)
     units = await validate_units(validation, uow_factory, subjects)
     datasets, studies = await validate_datasets(validation, uow_factory, ontology)

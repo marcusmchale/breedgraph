@@ -5,10 +5,10 @@ import pytest
 import pytest_asyncio
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, RecordGroupExtent
+from breedgraph.domain.model.ontology import OntologyEntryLabel, OntologyRelationshipLabel, ScaleType, RecordGroupExtent, LifecyclePhase
 
 from breedcafs_migration import ontology
-from breedcafs_migration.ontology import prepare_breedcafs_ontology
+from breedcafs_migration.ontology import prepare_breedcafs_ontology, retire_breedcafs_ontology
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
@@ -148,6 +148,13 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
 
     with open(data_dir / 'ontology_ids.csv') as f:
         assert {(row['input'], row['apparatus']) for row in csv.DictReader(f)} == set(ids.inputs)
+    with open(data_dir / 'ontology_entry_ids.csv') as f:
+        named = {(row['label'], row['name']): int(row['id']) for row in csv.DictReader(f)}
+    assert named[(OntologyEntryLabel.SUBJECT.value, "Tree")] == ids.subjects["Tree"]
+    assert named[(OntologyEntryLabel.FACTOR.value, "Shade Treatment")] == ids.design_factors["Shade Treatment"]
+    assert len(named) == sum(len(entries) for entries in (
+        ids.subjects, ids.location_types, ids.layout_types, ids.record_group_types, ids.design_factors
+    ))
 
     # Running again finds everything already created
     again = await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
@@ -199,3 +206,31 @@ async def test_prepare_ontology_from_curated_inputs(uow_factory, editor_id, tmp_
     ids = await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
     with open(tmp_path / 'input_details_curated.csv', encoding='utf-8-sig') as f:
         assert len(ids.inputs) == sum(1 for _ in csv.DictReader(f))
+
+
+# Last in the module, as it removes the entries the tests above use
+@pytest.mark.asyncio(loop_scope="session")
+async def test_retire_ontology(uow_factory, editor_id, data_dir):
+    ids = await prepare_breedcafs_ontology(uow_factory, user_id=editor_id)
+    created = [
+        *(ids.subjects.values()), *(ids.layout_types.values()), *(ids.record_group_types.values()),
+        *(ids.design_factors.values()), *(entry_id for _, entry_id in ids.inputs.values()),
+        *(entry_id for name, entry_id in ids.location_types.items() if name != "Country")
+    ]
+    async with uow_factory.get_uow(user_id=editor_id) as uow:
+        before = await uow.ontology.get_current_version()
+
+    assert await retire_breedcafs_ontology(uow_factory, user_id=editor_id) >= len(created)
+
+    async with uow_factory.get_uow(user_id=editor_id) as uow:
+        version = await uow.ontology.get_current_version()
+        assert (version.major, version.minor, version.patch) == (before.major + 1, 0, 0)
+        # Gone from the current version, by name too, but stored, as the migrated data cites them
+        assert [entry async for entry in uow.ontology.persistence.get_entries(entry_ids=created)] == []
+        assert await uow.ontology.get_entry(name="Tree", label=OntologyEntryLabel.SUBJECT) is None
+        removed = [entry async for entry in uow.ontology.persistence.get_entries(entry_ids=created, phases=[LifecyclePhase.REMOVED])]
+        assert {entry.id for entry in removed} == set(created)
+        # The seeded Country was there before the migration
+        assert await uow.ontology.get_entry(entry_id=ids.location_types["Country"]) is not None
+
+    assert await retire_breedcafs_ontology(uow_factory, user_id=editor_id) == 0

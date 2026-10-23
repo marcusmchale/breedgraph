@@ -264,8 +264,9 @@ build. It needs the extracted BreedCAFS data in `src/data/breedcafs_migration/`,
    python scripts/rehearse_migration.py --manifest <scratch>/rehearsal_base.manifest.json 2>&1 | tee rehearsal.log
    ```
    It creates the rehearsal team, loads the germplasm, bundles and unbundles the data into
-   `src/data/breedcafs_migration_rehearsal/`, runs bootstrap, migrate and validate, and exits with the validation's
-   status. The validation report is in that directory.
+   `src/data/breedcafs_migration_rehearsal/`, runs bootstrap, migrate and validate, then retires the migration's
+   ontology entries and validates again, and exits with the last validation's status. The validation report is in
+   that directory.
 3. Dump with `scripts/backup.sh`, and move the dump to `test_databases/test_database_breedcafs.dump`.
 4. Copy the base build's manifest to `test_databases/test_database_breedcafs.manifest.json`, and gather its files into
    `test_database_breedcafs_files/`: the base build's files (beside its manifest), and the four curve data files

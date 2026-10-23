@@ -13,6 +13,8 @@ On the server (RUNBOOK §2):
         Run the migration phases as the migration user, with the migration team as write team.
     breedcafs-migration validate --user-id <id> --team-id <id>
         Check what was migrated against the extracted and mapping files; exits with 3 if a check fails.
+    breedcafs-migration retire-ontology --user-id <id> --team-id <id>
+        Once validated: deprecate the ontology entries the migration created, and commit a version, which removes them.
 """
 import argparse
 import asyncio
@@ -25,7 +27,7 @@ from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
 from breedcafs_migration.bundle import bundle, unbundle, BundleError
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 from breedcafs_migration.bootstrap import setup_breedcafs_migration_account, MigrationContext, MigrationSettingsError
-from breedcafs_migration.ontology import prepare_breedcafs_ontology
+from breedcafs_migration.ontology import prepare_breedcafs_ontology, retire_breedcafs_ontology
 from breedcafs_migration.germplasm import prepare_breedcafs_germplasm, GermplasmNameConflict
 from breedcafs_migration.locations import prepare_breedcafs_locations
 from breedcafs_migration.layouts import prepare_breedcafs_layouts
@@ -111,6 +113,8 @@ async def main(args: argparse.Namespace) -> bool:
             await bootstrap(uow_factory)
         elif args.step == 'migrate':
             await migrate(uow_factory, MigrationContext(user_id=args.user_id, team_id=args.team_id))
+        elif args.step == 'retire-ontology':
+            await retire_breedcafs_ontology(uow_factory, user_id=args.user_id)
         else:
             validation = await validate_breedcafs_migration(uow_factory, MigrationContext(user_id=args.user_id, team_id=args.team_id))
             return validation.passed
@@ -131,7 +135,11 @@ def parse_args() -> argparse.Namespace:
     unbundle_parser.add_argument('archive', type=Path, help="the bundle")
     unbundle_parser.add_argument('--data-dir', type=Path, required=True, help="an empty or new directory")
     steps.add_parser('bootstrap', help="Create the migration user and team")
-    for step, description in (('migrate', "Run the migration phases"), ('validate', "Check the migrated data")):
+    for step, description in (
+            ('migrate', "Run the migration phases"),
+            ('validate', "Check the migrated data"),
+            ('retire-ontology', "Remove the ontology entries the migration created from the current version")
+    ):
         step_parser = steps.add_parser(step, help=description)
         step_parser.add_argument('--user-id', type=int, required=True, help="The migration user")
         step_parser.add_argument('--team-id', type=int, required=True, help="The migration team")

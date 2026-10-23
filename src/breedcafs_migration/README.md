@@ -143,6 +143,20 @@ are given that extent. An existing type of the same name is reused whatever its 
   shared by the units of one field (each field being its own block of units), so "Block 1" of one field is another level
   from "Block 1" of the next, without naming the field in the code.
 
+## 2.5 Retirement
+
+The entries above, and the variables and factors of §7, describe the migrated data; they are not where the ontology
+that users build starts. Once the migration is validated (§8), the `retire-ontology` step deprecates every entry the
+migration user created, and commits a major version, which removes them: the current ontology no longer has them,
+and users start anew. Entries the migration found already there (Country, the CRediT roles, and any entry of the same
+name in the production ontology) are kept. Removed entries are not deleted: the migrated data still cites them, and the
+ontology of an earlier version still has them.
+
+The commit activates every draft and removes every deprecated entry, not only the migration's; in production,
+nobody else has edited the ontology yet. Run `migrate` no more once the entries are retired: it finds its entries by
+name, which removed entries no longer match, so it would create them again. The validation reads them through
+ontology_entry_ids.csv, so it passes before and after.
+
 ---
 
 # 3. Locations
@@ -539,7 +553,8 @@ It only reads. It works out again, from the extracted and curated files, what sh
 that with the mapping files written by the run and with what is stored. It writes validation_report.md, a table of the
 checks, to the data directory, and exits with 3 if any check fails. The checks:
 
-* Every input maps to a stored variable or factor, and the design factors, subjects and record group types are in the ontology.
+* Every input maps to a stored variable or factor, and the design factors, subjects and record group types map to stored
+  entries (ontology_entry_ids.csv), so they are found once retired (§2.5).
 * Every field and sample location maps to a stored location, every planned layout to a stored layout,
   and every variety to stored germplasm.
 * Every item maps to a unit, except the skipped items, the duplicates (§6.5) and the blocks named after a treatment (§6.4).

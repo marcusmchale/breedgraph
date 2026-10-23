@@ -13,6 +13,12 @@ The new entries are drafts until the ontology version is committed at the end.
 Writes ontology_ids.csv, mapping each BreedCAFS input to the variable or factor it is recorded against.
 Photosynthesis inputs map by input and apparatus, as Fᵥ / Fₘ was measured with two instruments:
 a record's apparatus is the Photosynthetic Analysis Apparatus value for its item at the same time.
+Writes ontology_entry_ids.csv too: the subjects, location, layout and record group types and design factors by name,
+as validation can't find them by name once they are retired.
+
+Once the migration is validated, retire_breedcafs_ontology deprecates the entries the migration created
+and commits a version, which removes them (README §2.5): the current ontology starts anew, and the migrated data
+still cites them.
 """
 import csv
 import json
@@ -351,6 +357,21 @@ def write_input_mapping(ids: OntologyIds) -> None:
             writer.writerow([input_name, apparatus, label.value, entry_id])
 
 
+def write_entry_mapping(ids: OntologyIds) -> None:
+    with open(BREEDCAFS_DATA_DIR / 'ontology_entry_ids.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['label', 'name', 'id'])
+        for label, entries in (
+                (OntologyEntryLabel.SUBJECT, ids.subjects),
+                (OntologyEntryLabel.LOCATION_TYPE, ids.location_types),
+                (OntologyEntryLabel.LAYOUT_TYPE, ids.layout_types),
+                (OntologyEntryLabel.RECORD_GROUP_TYPE, ids.record_group_types),
+                (OntologyEntryLabel.FACTOR, ids.design_factors)
+        ):
+            for name, entry_id in entries.items():
+                writer.writerow([label.value, name, entry_id])
+
+
 async def prepare_breedcafs_ontology(uow_factory: Neo4jUnitOfWorkFactory, user_id: int, commit_version: bool = True) -> OntologyIds:
     ids = OntologyIds()
     async with uow_factory.get_uow(user_id=user_id) as uow:
@@ -371,4 +392,37 @@ async def prepare_breedcafs_ontology(uow_factory: Neo4jUnitOfWorkFactory, user_i
         await uow.commit()
     logger.info(f"Prepared the ontology: {ids.created} entries created, {len(ids.inputs)} inputs mapped")
     write_input_mapping(ids)
+    write_entry_mapping(ids)
     return ids
+
+
+# The entries the migration user created that the current version still has: an entry's first patch is its creation
+CREATED_ENTRIES = """
+    MATCH (entry:OntologyEntry)-[:HAS_LIFECYCLE]->(lifecycle:OntologyLifecycle)
+    WHERE lifecycle.removed IS NULL
+    MATCH (entry)<-[for_entry:FOR_ENTRY]-(patch:OntologyEntryPatch)
+    WITH entry, patch ORDER BY for_entry.time
+    WITH entry, head(collect(patch)) AS creation
+    MATCH (:User {id: $user_id})-[:CONTRIBUTED]->(:UserOntologyContributions)-[:CONTRIBUTED]->(creation)
+    RETURN entry.id AS id ORDER BY id
+"""
+
+RETIREMENT_COMMENT = "Retire the entries created for the data migrated from BreedCAFS"
+
+
+async def retire_breedcafs_ontology(uow_factory: Neo4jUnitOfWorkFactory, user_id: int) -> int:
+    """
+    Deprecates the entries the migration created, and commits a major version, which removes them.
+    Entries it found already there (e.g. Country) are kept. Returns the number retired: running it again retires none.
+    """
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        result = await uow.tx.run(CREATED_ENTRIES, user_id=user_id)
+        entry_ids = [record['id'] async for record in result]
+        if not entry_ids:
+            logger.info("No entries to retire: the migration's entries are already removed")
+            return 0
+        await uow.ontology.deprecate_entries(entry_ids)
+        commit = await uow.ontology.commit_version(version_change=VersionChange.MAJOR, comment=RETIREMENT_COMMENT)
+        await uow.commit()
+    logger.info(f"Retired {len(entry_ids)} entries the migration created: removed at version {commit.version}")
+    return len(entry_ids)

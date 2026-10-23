@@ -9,8 +9,8 @@ It sets up what the runbook expects to exist before the migration (§1), as the 
     germplasm);
   - the production germplasm (src/data/germplasm), as scripts/import_germplasm.py loads it, unless --no-germplasm.
 It then runs the runbook's own commands (python -m breedcafs_migration.main): bundle the data directory and unbundle
-it into --rehearsal-dir, as it will be carried to the server, then bootstrap, migrate and validate there, and exits
-with the validation's status. Every step finds what an earlier run created, so it can be run again: an existing
+it into --rehearsal-dir, as it will be carried to the server, then bootstrap, migrate and validate there; once
+validated, it retires the migration's ontology entries and validates again, and exits with the validation's status. Every step finds what an earlier run created, so it can be run again: an existing
 rehearsal directory is used as it is, with its mapping files.
 
 The result holds BreedCAFS data, including Person data: dump it under its own name and keep it private.
@@ -182,6 +182,13 @@ def main() -> int:
         return process.returncode
 
     process = run_step(env, 'validate', *ids)
+    if process.returncode == 0:
+        # as the runbook does once the migration is validated, then validating again with the entries removed
+        process = run_step(env, 'retire-ontology', *ids)
+        if process.returncode != 0:
+            logger.error("Retiring the migration's ontology entries failed")
+            return process.returncode
+        process = run_step(env, 'validate', *ids)
     logger.info(
         f"Validation {'passed' if process.returncode == 0 else 'FAILED'}; "
         f"report at {args.rehearsal_dir / 'validation_report.md'}"

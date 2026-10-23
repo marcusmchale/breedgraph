@@ -17,7 +17,8 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    python scripts/rehearse_migration.py --manifest instance/neo4j_archive/test_databases/test_database.manifest.json 2>&1 | tee rehearsal.log
    ```
    It sets up what §2 expects (a root team, the production germplasm), bundles and unbundles the data
-   as below, runs §3–4 and the validation, and exits with the validation's status. Dump the result privately if
+   as below, runs §3–4, the validation, the retirement of the ontology entries and the validation again (§5), and
+   exits with the last validation's status. Dump the result privately if
    you keep it: it holds BreedCAFS and Person data ([docs/test-databases.md](../../docs/test-databases.md)).
 3. **Build** the BreedGraph wheelhouse as for any deployment (README), and the migration wheel:
    ```bash
@@ -28,7 +29,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    ```bash
    python -m breedcafs_migration.main bundle --out breedcafs_bundle.tar.gz
    ```
-   It packs exactly the 17 input files, with a manifest of their checksums, and none of the files a run writes
+   It packs exactly the 18 input files, with a manifest of their checksums, and none of the files a run writes
    (mappings, curve data files, the validation report). The bundle is readable by you only.
 5. **Copy** the migration wheel and the bundle to the server securely (e.g. `scp`), into a private directory,
    off shared storage.
@@ -109,9 +110,16 @@ exit code 1 is anything else, with the traceback in the log.
    ```
    It only reads, writes `validation_report.md` to the data directory and exits with 3 if a check fails (README §8).
    Resolve failures before going on.
-2. **Archive the curve files.** Their archival records are pending; the archive worker archives them once it runs.
-3. **Take a backup** of the migrated database.
-4. **Keep the artefacts** (README §13): the data directory with its mapping files and validation report, and the log,
+2. **Retire the migration's ontology entries** (README §2.5):
+   ```bash
+   breedcafs-migration retire-ontology --user-id <migration user id> --team-id <migration team id>
+   ```
+   It deprecates the entries the migration created and commits a major version, which removes them from the current
+   ontology; the migrated data still cites them. Don't run `migrate` after this: it would create them again.
+   Validate again: it passes with the entries removed.
+3. **Archive the curve files.** Their archival records are pending; the archive worker archives them once it runs.
+4. **Take a backup** of the migrated database.
+5. **Keep the artefacts** (README §13): the data directory with its mapping files and validation report, and the log,
    somewhere private, as they hold Person data. Then delete the bundle from the server, and uninstall the migration:
    `python -m pip uninstall breedcafs-migration`.
 
