@@ -29,11 +29,7 @@ scripts/backup.sh and move the dump beside the manifest as test_database.dump.
 """
 import argparse
 import asyncio
-import json
-import shutil
-import subprocess
 import sys
-from asyncio import Queue
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -43,21 +39,16 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 
 import bcrypt
-import redis.asyncio as redis
 from faker import Faker
 
-from breedgraph.config import FILE_STORAGE_PATH, COUNTRY_CODES_PATH, get_redis_host_and_port
+from breedgraph.config import FILE_STORAGE_PATH
 from breedgraph.domain.model.accounts import UserInput, OntologyRole
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.domain.model.ontology import RecordGroupExtent
-from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
-from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
-from breedgraph.adapters.neo4j.services.file_archival_service import Neo4jFileArchivalService
-from breedgraph.adapters.redis.read_models import RedisReadModels
-from breedgraph.adapters.redis.state_store import RedisStateStore
 
-from setup_initial_data import ensure_empty_db, create_schema, create_system_account, create_initial_ontology_entries
-from load_state_store import is_redis_empty
+from database_builds import (
+    git_commit, require_environment, empty_database, add_names, files_dir_for, copy_files, write_manifest
+)
 
 from tests.breedgraph.scenarios.replicate_scenario import (
     ReplicateScenarioBuilder, ReplicateScenario, DATASETS as REPLICATE_DATASETS, GROUPINGS, PROGRAM, TRIAL, STUDY,
@@ -112,15 +103,6 @@ def users(password: str) -> dict[str, UserInput]:
         )
         for viewer, (fullname, role) in ACCOUNTS.items()
     }
-
-
-def git_commit() -> str | None:
-    try:
-        return subprocess.run(
-            ['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True, check=True
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return None
 
 
 def scale_manifest(scale: ScaleScenario) -> dict:
@@ -429,67 +411,18 @@ def manifest(
     }
 
 
-async def add_names(driver: Neo4jAsyncDriver, contents: dict) -> None:
-    """
-    Add each entity's and team's name, as the app shows it, from the database: a reference's description, and none for
-    a dataset, which is known by its study and concept. Every id must be found under its label.
-    """
-    by_label: dict[str, dict[int, dict]] = {}
-    for entity in contents['entities'].values():
-        # the label is checked against the model's labels before it goes into the query text
-        label = ControlledModelLabel(entity['label']).value
-        by_label.setdefault(label, {})[entity['id']] = entity
-    by_label['Team'] = {team['id']: team for team in contents['teams'].values()}
-
-    async with driver.session() as session:
-        for label, entities in by_label.items():
-            result = await session.run(
-                f"MATCH (n:{label}) WHERE n.id IN $ids "
-                "RETURN n.id AS id, CASE WHEN n:Reference THEN n.description ELSE n.name END AS name",
-                ids=list(entities)
-            )
-            found = {record['id']: record['name'] async for record in result}
-            missing = set(entities) - set(found)
-            if missing:
-                raise RuntimeError(f"{label} ids {sorted(missing)} of the scenario are not in the database")
-            for entity_id, entity in entities.items():
-                entity['name'] = found[entity_id]
-
-
 async def build(seed: int, password: str, manifest_path: Path, scale_parameters: ScaleParameters | None):
-    if not FILE_STORAGE_PATH:
-        raise RuntimeError("FILE_STORAGE_PATH is not set: load the instance environment first")
-    if not Path(COUNTRY_CODES_PATH).is_file():
-        # the scenario's location trees are countries from this file, which the state store holds
-        raise RuntimeError(f"No country codes at COUNTRY_CODES_PATH ({COUNTRY_CODES_PATH}), e.g. src/data/country_codes.csv")
+    require_environment()
     Faker.seed(seed)
 
-    driver = Neo4jAsyncDriver()
-    host, port = get_redis_host_and_port()
-    connection = redis.Redis(host=host, port=port, db=0)
-    try:
-        async with driver.session() as session:
-            await ensure_empty_db(session)
-        if not await is_redis_empty(connection):
-            raise RuntimeError("Redis is not empty, aborting: the state store must be built with the database")
-
-        async with driver.session() as session:
-            if not await create_schema(session):
-                raise RuntimeError("Constraints or indexes could not be created")
-        # no message bus: account events would send email, and the scenario writes what uploads would
-        uow_factory = Neo4jUnitOfWorkFactory(driver)
-        system_account = await create_system_account(uow_factory)
-        await create_initial_ontology_entries(system_account, uow_factory)
-
-        logger.info("Loading the state store")
-        read_models = await RedisReadModels.create(driver=driver, connection=connection)
-        await read_models.refresh()
-
+    files_dir = files_dir_for(manifest_path)
+    async with empty_database() as services:
+        uow_factory = services.uow_factory
         logger.info("Building the read-policy scenario")
         scenario = await ReadPolicyScenarioBuilder(
             uow_factory=uow_factory,
-            state_store=RedisStateStore(connection),
-            archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()),
+            state_store=services.state_store,
+            archival_service=services.archival_service(),
             file_storage_path=FILE_STORAGE_PATH,
             users=users(password)
         ).build()
@@ -501,32 +434,27 @@ async def build(seed: int, password: str, manifest_path: Path, scale_parameters:
         positions = await PositionScenarioBuilder(uow_factory, scenario).build()
         logger.info("Building the licences")
         licences = await LicenceScenarioBuilder(
-            uow_factory, scenario,
-            archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()), file_storage_path=FILE_STORAGE_PATH
+            uow_factory, scenario, archival_service=services.archival_service(), file_storage_path=FILE_STORAGE_PATH
         ).build()
         logger.info("Building the spectra")
         spectra = await SpectraScenarioBuilder(
-            uow_factory, scenario,
-            archival_service=Neo4jFileArchivalService(driver=driver, queue=Queue()), file_storage_path=FILE_STORAGE_PATH
+            uow_factory, scenario, archival_service=services.archival_service(), file_storage_path=FILE_STORAGE_PATH
         ).build()
         scale = None
         if scale_parameters is not None:
             logger.info(f"Adding data at scale: {vars(scale_parameters)}")
             scale = await ScaleScenarioBuilder(uow_factory, scenario, scale_parameters).build()
         # the scenario creates countries without the message bus
-        await read_models.refresh()
+        await services.read_models.refresh()
 
-        files_dir = manifest_path.parent / f"{manifest_path.stem.removesuffix('.manifest')}_files"
         contents = manifest(scenario, replicates, arrivals, positions, licences, spectra, seed, password, files_dir, scale)
-        await add_names(driver, contents)
-    finally:
-        await connection.aclose()
-        await driver.close()
+        await add_names(services.driver, contents)
 
-    files_dir.mkdir(parents=True, exist_ok=True)
-    for file_id, _ in [*scenario.files.values(), *licences.files.values(), *spectra.files.values()]:
-        shutil.copy2(Path(FILE_STORAGE_PATH, file_id), files_dir / file_id)
-    manifest_path.write_text(json.dumps(contents, indent=2) + '\n')
+    copy_files(
+        [file_id for file_id, _ in [*scenario.files.values(), *licences.files.values(), *spectra.files.values()]],
+        files_dir
+    )
+    write_manifest(manifest_path, contents)
 
     logger.info(f"Built {len(ENTITY_LABELS)} entities; manifest at {manifest_path}, files in {files_dir}")
     logger.info("Next: dump the database with scripts/backup.sh and rename the dump to sit beside the manifest")
