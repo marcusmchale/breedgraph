@@ -29,7 +29,7 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
    ```bash
    python -m breedcafs_migration.main bundle --out breedcafs_bundle.tar.gz
    ```
-   It packs exactly the 18 input files, with a manifest of their checksums, and none of the files a run writes
+   It packs exactly the 19 input files, with a manifest of their checksums, and none of the files a run writes
    (mappings, curve data files, the validation report). The bundle is readable by you only.
 5. **Copy** the migration wheel and the bundle to the server securely (e.g. `scp`), into a private directory,
    off shared storage.

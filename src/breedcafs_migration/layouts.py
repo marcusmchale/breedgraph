@@ -20,6 +20,7 @@ from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.layout_trees import LayoutInput
 
 from breedcafs_migration.bootstrap import MigrationContext
+from breedcafs_migration.locations import read_fields
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
 import logging
@@ -72,7 +73,7 @@ def tree_group(field_uid: str, layout_level: str, layout_name: str, tree_name: s
 
 def planned_layouts() -> dict[LayoutKey, tuple[str, str]]:
     """Each layout to create: its key, and its name and layout type name"""
-    fields = {row['field_uid']: row['field'] for row in read_csv('field_farm_region_country.csv')}
+    fields = {row['field_uid']: row['field'] for row in read_fields(BREEDCAFS_DATA_DIR)}
     # Blocks with their own rows and trees, from the positions of their trees
     blocks: dict[str, set[str]] = {}
     for row in read_csv('unit_positions.csv'):

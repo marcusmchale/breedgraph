@@ -29,6 +29,7 @@ INPUT_FILES = (
     'field_farm_region_country.csv',
     'field_lat_long.csv',
     'field_layout_types.csv',
+    'field_names.csv',
     'input_details_curated.csv',
     'input_subjects.csv',
     'item_name_subject_sources_sinks.csv',

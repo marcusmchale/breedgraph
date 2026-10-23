@@ -34,7 +34,7 @@ from breedcafs_migration.curves import planned_curves
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.datasets import DatasetPlan, replicate_code
 from breedcafs_migration.layouts import planned_layouts, ROW_AND_TREE
-from breedcafs_migration.locations import read_fields, read_sample_locations
+from breedcafs_migration.locations import read_fields, read_sample_locations, renamed_fields
 from breedcafs_migration.ontology import OntologyIds, DESIGN_FACTORS, RECORD_GROUP_TYPES, RECORD_GROUP_EXTENTS
 from breedcafs_migration.persons import read_persons, contribution_names, DATA_CURATION
 from breedgraph.service_layer.application.ontology_seed import credit_seed_key_for
@@ -388,6 +388,22 @@ async def validate_ontology(validation, uow_factory) -> tuple[OntologyIds, dict[
 async def validate_locations_and_layouts(validation, uow_factory):
     fields = {row['field_uid']: int(row['location_id']) for row in read_mapping('location_ids.csv')}
     validation.same("Fields mapped to locations (location_ids.csv)", [row['field_uid'] for row in read_fields()], fields)
+    # the fields given neutral names carry them, in their locations and their units (README §3)
+    renamed = renamed_fields(BREEDCAFS_DATA_DIR)
+    if renamed:
+        units = {row['item_uid']: int(row['unit_id']) for row in read_mapping('unit_ids.csv')}
+        names = {}
+        for label, ids in (
+                ('Location', [fields[uid] for uid in renamed if uid in fields]),
+                ('Unit', [units[uid] for uid in renamed if uid in units])
+        ):
+            for row in await query(uow_factory, f"MATCH (n:{label}) WHERE n.id IN $ids RETURN n.id AS id, n.name AS name", ids=ids):
+                names[(label, row['id'])] = row['name']
+        problems = [
+            uid for uid, (_, name) in renamed.items()
+            if names.get(('Location', fields.get(uid))) != name or (uid in units and names.get(('Unit', units[uid])) != name)
+        ]
+        validation.all("Fields given neutral names (field_names.csv), in their locations and units", problems, len(renamed))
     sample_locations = {row['location']: int(row['location_id']) for row in read_mapping('sample_location_ids.csv')}
     validation.same("Sample locations mapped (sample_location_ids.csv)", read_sample_locations(), sample_locations)
     location_ids = list(fields.values()) + list(sample_locations.values())

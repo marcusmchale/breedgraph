@@ -38,7 +38,7 @@ from breedgraph.domain.model.unit_graphs import UnitGraph, UnitInput, Position
 
 from breedcafs_migration.bootstrap import MigrationContext
 from breedcafs_migration.layouts import LayoutIds, tree_group, ROW_AND_TREE
-from breedcafs_migration.locations import LocationIds
+from breedcafs_migration.locations import LocationIds, renamed_fields
 from breedcafs_migration.ontology import TREATMENT_FACTORS
 from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 
@@ -138,6 +138,8 @@ def coordinate(value: str) -> str:
 def read_items() -> dict[str, Item]:
     skipped = {row['item_uid'] for row in read_csv('skipped_items.csv')} | set(DUPLICATE_ITEMS)
     items = {}
+    # a field's unit takes the field's name, neutral where the field is renamed
+    renamed = {uid: name for uid, (_, name) in renamed_fields(BREEDCAFS_DATA_DIR).items()}
     for row in read_csv('item_name_subject_sources_sinks.csv'):
         uid = clean(row['item_uid'])
         if uid in skipped:
@@ -146,7 +148,7 @@ def read_items() -> dict[str, Item]:
         items[uid] = Item(
             uid=uid,
             field_uid=uid.split('_')[0],
-            name=clean(row['name']) or None,
+            name=renamed[uid] if clean(row['subject']) == "Field" and uid in renamed else clean(row['name']) or None,
             subject=clean(row['subject']),
             # Items directly in a field list the field's uid as an integer
             parents=[source for source in sources if isinstance(source, str) and source not in skipped]

@@ -15,6 +15,7 @@ Countries are a read model in the API's state store, refreshed at the end of thi
 in case an earlier run stopped before it), so the API sees the countries as stored.
 """
 import csv
+import pathlib
 from dataclasses import dataclass, field
 
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
@@ -66,9 +67,40 @@ def clean(value: str) -> str:
     return (value or '').strip().strip('"').strip()
 
 
-def read_fields() -> list[dict[str, str]]:
-    with open(BREEDCAFS_DATA_DIR / 'field_farm_region_country.csv', encoding='utf-8-sig') as f:
-        return [{key: clean(value) for key, value in row.items()} for row in csv.DictReader(f)]
+FIELD_NAMES = 'field_names.csv'
+
+
+def renamed_fields(data_dir: pathlib.Path | None = None) -> dict[str, tuple[str, str]]:
+    """
+    The fields migrated under another name than in BreedCAFS, by uid: their BreedCAFS name and the name they are given.
+    Many fields are named after the farmers who host them, which with their coordinates is personal data, so they are
+    given neutral names (README §3). field_names.csv lists them (field_uid, breedcafs_name, name); none without it.
+    """
+    path = (data_dir or BREEDCAFS_DATA_DIR) / FIELD_NAMES
+    if not path.exists():
+        return {}
+    with open(path, encoding='utf-8-sig') as f:
+        return {
+            clean(row['field_uid']): (clean(row['breedcafs_name']), clean(row['name']))
+            for row in csv.DictReader(f) if clean(row['name'])
+        }
+
+
+def read_fields(data_dir: pathlib.Path | None = None) -> list[dict[str, str]]:
+    """The fields, under the names they are migrated with"""
+    data_dir = data_dir or BREEDCAFS_DATA_DIR
+    with open(data_dir / 'field_farm_region_country.csv', encoding='utf-8-sig') as f:
+        rows = [{key: clean(value) for key, value in row.items()} for row in csv.DictReader(f)]
+    renamed = renamed_fields(data_dir)
+    for row in rows:
+        if row['field_uid'] in renamed:
+            breedcafs_name, name = renamed[row['field_uid']]
+            if breedcafs_name != row['field']:
+                raise ValueError(
+                    f"{FIELD_NAMES} renames field {row['field_uid']} from {breedcafs_name!r}, but it is {row['field']!r}"
+                )
+            row['field'] = name
+    return rows
 
 
 def read_coordinates() -> dict[str, GeoCoordinate]:

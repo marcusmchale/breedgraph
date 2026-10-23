@@ -171,6 +171,12 @@ From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields
 * Regions, Farms and Fields are matched by name and type under their parent, or created `PRIVATE`,
   controlled by the migration team. Field names repeat across farms (e.g. "IRAD Station" in Cameroon).
 * Each Field is given its coordinates from field_lat_long.csv (1.1.2) when created.
+* Many BreedCAFS fields are named after the farmers who host them, which with their coordinates is personal data.
+  They are given neutral names, after their farm or commune ("Apatou field 2"), listed in field_names.csv
+  (field_uid, breedcafs_name, name; curated, and carried in the bundle). The Field location, the field's unit and its
+  layouts take the neutral name; a listed BreedCAFS name that no longer matches the field stops the migration, and the
+  validation checks the names migrated. The partners have the mapping, in the letters asking them to agree to the
+  migration.
 
 Countries are a read model in the API's state store. The locations phase refreshes it at its end, on every run,
 so the API sees the countries as stored without restarting or reloading anything.
