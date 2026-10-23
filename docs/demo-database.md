@@ -145,15 +145,15 @@ Ireland's region once with `scripts/map_tiles.py --regions` (README, Maps).
 
 ## Checks before sharing a build
 
-- **Variety names:**
+- **Variety names** (optional): the names are invented, and a name a real variety shares matters little in a
+  demonstration. To compare them with exports of the variety catalogues (the EU Plant Variety Database, the UK
+  National List and the Irish national catalogue), download those by hand, keep them out of git, and run:
 
   ```bash
   python scripts/check_demo_names.py src/data/variety_catalogues/*.csv
   ```
 
-  This compares the invented names with exports of the variety catalogues: the EU Plant Variety Database, the UK
-  National List and the Irish national catalogue. Download them by hand and keep them out of git. It reports exact and
-  close matches.
+  It reports exact and close matches.
 - **Places:** `test_demo_story.py` keeps every shape inside its site's box (`SITE_BOXES` in `story.py`). Check once by
   hand, on a map, that the boxes around the two origins (`ORIGINS`) hold no buildings, farmyards or dwellings, and
   record the date of the check here.
