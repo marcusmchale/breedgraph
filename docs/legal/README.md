@@ -22,5 +22,5 @@ breedview renders both with a small markdown renderer (`composables/system/markd
 that handles headings, bold, italics, `-` and numbered lists, http, https and mailto links, and `---` rules only, so
 the texts have no tables or nested lists.
 
-Before publishing the revision of 23 October 2026, breedview must ask for consent where the API now requires it
-(`docs/front-end-changes.md`, "Consent to records of people and to the privacy notice").
+breedview asks for consent where the API requires it since the revision of 23 October 2026, on registering and on
+recording a Person (breedview `d86198a`; the change is in `docs/front-end-changes.md`'s history at `28924f0`).
