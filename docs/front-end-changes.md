@@ -46,8 +46,8 @@ New refusals, as errors of the payload:
   "Categories are only valid for nominal and ordinal scales"; "Category names can't be empty"; "Category names must
   differ on a scale, ignoring case: Yes, yes";
 - dropping or renaming a category records hold, through any variable or factor reading the scale, removed ones
-  included, or changing the type of such a scale: "Records cite the categories Low, Mid of Graded Classes, so the scale
-  must keep them". Adding, reordering and describing categories stay open;
+  included: "Records cite the categories Low, Mid of Graded Classes, so the scale must keep them". Adding, reordering
+  and describing categories stay open;
 - changing a locked scale's categories: "Scale ... is locked, so its categories cannot change".
 
 What breaks: 8 operations (`scripts/check_front_end_queries.py`), through the entry fragment's `categories { id
@@ -58,3 +58,15 @@ Term's categories and the Category colour; on the scale form, an ordered list of
 the category picker, for nominal and ordinal scales, fixed on a locked scale; drop `Scale: ['categories']` from the
 lifecycle definition fields (it reads category ids); match values by name only; show a category's description with
 its name where values are entered; show the refusals as given.
+
+## Definitions that records cite
+
+Once records cite a variable or factor, what defines it is fixed: `ontologyUpdateVariable` refuses a different trait,
+observation method or scale ("Records cite Variable Plant height (cm), so its trait, observation method and scale
+can't change: create a new variable instead"), and `ontologyUpdateFactor` a different condition, control method or
+scale ("... so its condition, control method and scale can't change: create a new factor instead"). Its name,
+description, synonyms, terms and references stay open, and it can still be deprecated, to stop new datasets using it.
+While records cite a scale, through any variable or factor reading it, removed ones included, `ontologyUpdateScale`
+refuses a different scale type: "Records cite Centimetres, so its scale type can't change: create a new scale instead".
+
+Nothing breaks. Work: show the refusals as given.

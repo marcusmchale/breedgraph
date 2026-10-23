@@ -110,6 +110,11 @@ its removal. Its relationships follow it (`domain/services/ontology_lifecycles.p
   entry can't be deprecated while a current entry is defined by it (a variable's trait, method or scale, a trait's
   subjects, ...), unless they are deprecated together. Links to children and terms are dropped
   with the entry.
+- Records are of a variable or factor as it is defined: once records cite one, its trait, method and scale (a factor's
+  condition, control method and scale) can't change, as a different one makes a different variable or factor. Unlike a
+  locked entry, it can still be renamed, described and deprecated, so that nothing new uses it while its records keep
+  their meaning. While records cite a scale, through any variable or factor reading it, its type can't change either
+  ([scale](#scale)).
 - What data cites is read whatever its phase, a deprecated or removed entry as it stood when it was deprecated (the
   referential view): a dataset's variable or factor with its scale and its categories, a unit's subject, the type of a
   location, layout or grouping. So data citing a removed entry is still read, edited and analysed.
@@ -155,11 +160,11 @@ Nominal and ordinal scales have categories, and other scales have none. The cate
 entries of the ontology, as a name means something only on its scale: "High" vigour is not "High" severity. They are
 in order, which for an ordinal scale is their rank, and each has a name, unique on the scale ignoring case, and an
 optional description of what it means on the scale. Records of the scale hold a category's name.
-A scale keeps the categories records cite: categories can be added, reordered and described, but a name that records
-hold can't be removed or renamed, and nor can the scale's type change, while records of any variable or factor reading
-the scale (as cited, so removed ones included) hold it. What a record's value meant when it was recorded, if the
-categories were reordered or described since, is in the ontology version current when it was submitted: analysis and
-curation read the current version.
+While records of any variable or factor reading the scale (as cited, so removed ones included) cite it, its type can't
+change, and it keeps the categories they hold: categories can be added, reordered and described, but a name that
+records hold can't be removed or renamed. What a record's value meant when it was recorded, if the categories were
+reordered or described since, is in the ontology version current when it was submitted: analysis and curation read
+the current version.
 Examples:
 "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
 "Septoria severity" is ordinal, with the categories "1" (no symptoms) to "9" (the upper leaves dead).

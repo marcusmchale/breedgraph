@@ -96,8 +96,8 @@ async def test_a_cited_category_stays(bus, uow_factory, context):
     ):
         with pytest.raises(IllegalOperationError, match="Records cite the categories (Low|Mid) of Graded Classes"):
             await bus.handle(update(context, *categories))
-    # a nominal or ordinal scale keeps its categories, so changing the type would drop them
-    with pytest.raises(IllegalOperationError, match="Records cite the categories Low, Mid"):
+    # nor does the type change, which would drop them (test_recorded_definitions.py)
+    with pytest.raises(IllegalOperationError, match="Records cite Graded Classes, so its scale type can't change"):
         await bus.handle(update(context, scale_type=ScaleType.TEXT))
     assert await categories_of(uow_factory, context) == CATEGORIES, "nothing changed"
 

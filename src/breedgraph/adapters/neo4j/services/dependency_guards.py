@@ -62,6 +62,18 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
         record = await result.single()
         return bool(record and record.get('in_use'))
 
+    async def concept_has_records(self, concept_id: int) -> bool:
+        query = queries['guards']['concept_has_records']
+        result = await self.tx.run(query, concept_id=concept_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
+    async def scale_has_records(self, scale_id: int) -> bool:
+        query = queries['guards']['scale_has_records']
+        result = await self.tx.run(query, scale_id=scale_id)
+        record = await result.single()
+        return bool(record and record.get('in_use'))
+
     async def cited_category_names(self, scale_id: int) -> Set[str]:
         query = queries['guards']['scale_categories_cited']
         result = await self.tx.run(query, scale_id=scale_id)

@@ -2,7 +2,7 @@ from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain import commands
 from breedgraph.domain.model.ontology import *
 
-from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractUnitOfWorkFactory, AbstractDependencyGuards
 from breedgraph.service_layer.application import OntologyApplicationService
 from breedgraph.service_layer.mappers import ontology_mapper
 
@@ -488,6 +488,7 @@ def prepare_attr_relationship_updates(
 
 async def update_relationships(
         ontology_service: OntologyApplicationService,
+        guards: AbstractDependencyGuards,
         command: commands.Command,
         entry: OntologyEntryStored
 ):
@@ -537,10 +538,36 @@ async def update_relationships(
                     relationships_to_draft=relationships_to_draft,
                     relationships_to_deprecate=relationships_to_deprecate
                 )
+    await require_unrecorded_definition(guards, entry, relationships_to_draft + relationships_to_deprecate)
     for relationship in relationships_to_draft:
         await ontology_service.create_relationship(relationship)
     if relationships_to_deprecate:
         await ontology_service.deprecate_entry_relationships(relationships_to_deprecate)
+
+# What defines a variable or a factor, as a lock keeps it
+DEFINITIONS = {
+    OntologyEntryLabel.VARIABLE: "trait, observation method and scale",
+    OntologyEntryLabel.FACTOR: "condition, control method and scale",
+}
+
+async def require_unrecorded_definition(
+        guards: AbstractDependencyGuards,
+        entry: OntologyEntryStored,
+        changed: List[OntologyRelationshipBase]
+) -> None:
+    """
+    Records are of a variable or factor as it is defined, so once records cite one, what defines it stays: a different
+    trait, method or scale makes a different variable. Its name, description and terms stay open, and it can still be
+    deprecated, unlike a locked entry.
+    """
+    definition = DEFINITIONS.get(entry.label)
+    if definition is None:
+        return
+    if any(r.source_id == entry.id and r.label.defines_source for r in changed) and await guards.concept_has_records(entry.id):
+        raise IllegalOperationError(
+            f"Records cite {entry.label.value} {entry.name}, so its {definition} can't change: "
+            f"create a new {entry.label.value.lower()} instead"
+        )
 
 def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
     if cmd.name is not None:
@@ -577,11 +604,11 @@ async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWo
         entry = await ontology_service.get_entry(cmd.ontology_entry_id)
         if not entry:
             raise ValueError("Entry not found")
-        update_attributes(entry, cmd)
         if check is not None:
-            await check(uow, entry)
+            await check(uow, entry, cmd)
+        update_attributes(entry, cmd)
         await ontology_service.update_entry(entry)
-        await update_relationships(ontology_service, cmd, entry)
+        await update_relationships(ontology_service, uow.guards, cmd, entry)
         await uow.commit()
 
 """Update handlers"""
@@ -603,18 +630,24 @@ async def update_condition(cmd: commands.ontologies.UpdateCondition, uow_factory
 
 @handlers.command_handler()
 async def update_scale(cmd: commands.ontologies.UpdateScale, uow_factory: AbstractUnitOfWorkFactory):
-    await update_by_command(cmd, uow_factory, check=require_cited_categories if cmd.given('categories') else None)
+    await update_by_command(cmd, uow_factory, check=require_recorded_scale)
 
-async def require_cited_categories(uow, scale: ScaleStored) -> None:
+async def require_recorded_scale(uow, scale: ScaleStored, cmd: commands.ontologies.UpdateScale) -> None:
     """
-    Records hold their category's name, so a scale keeps the categories records cite: levels may be added, reordered
-    and described, but not dropped or renamed while records cite them
+    Records hold values as a scale's type reads them, and a category's name: while records cite the scale, its type
+    stays, and so do the categories they cite. Categories can be added, reordered and described, and names no record
+    holds removed or renamed.
     """
-    missing = await uow.guards.cited_category_names(scale.id) - {category.name for category in scale.categories}
-    if missing:
+    if cmd.scale_type is not None and cmd.scale_type != scale.scale_type and await uow.guards.scale_has_records(scale.id):
         raise IllegalOperationError(
-            f"Records cite the categories {', '.join(sorted(missing))} of {scale.name}, so the scale must keep them"
+            f"Records cite {scale.name}, so its scale type can't change: create a new scale instead"
         )
+    if cmd.given('categories'):
+        missing = await uow.guards.cited_category_names(scale.id) - {category.name for category in scale_categories(cmd)}
+        if missing:
+            raise IllegalOperationError(
+                f"Records cite the categories {', '.join(sorted(missing))} of {scale.name}, so the scale must keep them"
+            )
 
 @handlers.command_handler()
 async def update_observation_method(cmd: commands.ontologies.UpdateObservationMethod, uow_factory: AbstractUnitOfWorkFactory):

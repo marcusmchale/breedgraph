@@ -53,6 +53,16 @@ class AbstractDependencyGuards(ABC):
         ...
 
     @abstractmethod
+    async def concept_has_records(self, concept_id: int) -> bool:
+        """Check if any record is of a variable or factor, in any of its datasets"""
+        ...
+
+    @abstractmethod
+    async def scale_has_records(self, scale_id: int) -> bool:
+        """Check if any record is of a scale, through any variable or factor reading the scale"""
+        ...
+
+    @abstractmethod
     async def cited_category_names(self, scale_id: int) -> Set[str]:
         """The names of a scale's categories that records cite, through any variable or factor reading the scale"""
         ...
