@@ -1,19 +1,3 @@
-# BreedGraph Terms of Use: draft
-
-Status: **draft for the University's legal office to confirm**, revised on 23 October 2026 after comments from the Data
-Protection Officer. Not legal advice.
-It proposes wording rather than leaving questions open; the notes at the end list what to confirm. Text in [square
-brackets] is a fact to fill in before publishing. See `docs/licences.md` for how the Terms and study licences are
-accepted, and `docs/read-access.md` for who can read what.
-
-The API serves the published copy, `src/breedgraph/legal/terms_of_use.md` (or the file `TERMS_OF_USE_PATH` names), to
-the website and to anyone using the API, and everyone accepts that text before using BreedGraph. To publish a change,
-copy these Terms, from their title to the end of "Contact", to that file, and restart the API: the new text has a new
-hash, so everyone is asked to accept it again. breedview renders it with a small markdown renderer (headings, bold,
-italics, `-` and numbered lists, links, `---` rules), so the Terms have no tables or nested lists.
-
----
-
 # BreedGraph Terms of Use
 
 **Last updated: [date]**
@@ -103,20 +87,3 @@ These Terms are governed by the laws of Ireland, and the courts of Ireland have 
 ## Contact
 
 Questions about these Terms: [BreedGraph contact address].
-
----
-
-## Notes for the legal office
-
-Changes in this revision, after comments from the Data Protection Officer:
-
-- Only what owners release to everyone is public; the Terms no longer suggest that all germplasm and locations are.
-- "Who sees the data you submit": users choose how widely what they submit is released, and it is private to their
-  team unless they choose otherwise.
-- "What you add": personal data about another person, such as a record crediting them, only with their consent.
-- "How we use what you submit": a permission limited to running BreedGraph.
-
-To agree with the University's intellectual property team: any further use the University may make of data submitted
-to BreedGraph, and its terms ("How we use what you submit").
-
-Before publishing, the facts in square brackets are filled in, including the limit of the University's liability.

@@ -54,7 +54,8 @@ they can later ask for credit for information anyone can see, such as germplasm 
 is `docs/legal/terms-of-use.md`; the API serves the published copy (`src/breedgraph/legal/terms_of_use.md`, or the file
 `TERMS_OF_USE_PATH` names), read once at start-up with its SHA-256. It serves the privacy notice the same way
 (`src/breedgraph/legal/privacy_notice.md`, or the file `PRIVACY_NOTICE_PATH` names; drafted in
-`docs/legal/privacy-notice.md`), as `privacyNotice`, without a hash: it is for reading, and nobody accepts it.
+`docs/legal/privacy-notice.md`), as `privacyNotice`, with its hash, which an account records with the consent given
+when registering; nobody accepts it as the Terms are accepted. Publishing either is in `docs/legal/README.md`.
 
 **The gate.** Every GraphQL operation is refused, with the error code `TERMS_NOT_ACCEPTED` (on HTTP 200), unless the
 request's user has accepted the current Terms; only `termsOfUse`, `termsAccept`, `privacyNotice` and introspection are
@@ -83,7 +84,7 @@ through GraphQL. In-process GraphQL calls in tests and scripts pass no such rule
 
 **Limits.** No one person's acceptance can be revoked: a licence's owners change the licence instead, which asks
 everyone again. The signed-out token can be copied to another browser; the Terms forbid it. Whether this way of
-accepting binds anyone is for the University's legal office (the notes in `docs/legal/terms-of-use.md`).
+accepting binds anyone is for the University's legal office (`docs/legal/terms-of-use-notes.md`).
 
 ## 5. Accepting a study's licence
 

@@ -329,7 +329,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    9b, done: contacts and messaging (§4).
    Done: deleting an account erases the linked Person by default (§6).
 10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes. Tested against a fake ORCID service and a mocked token exchange; to test against ORCID, register an application in the sandbox and set the credentials.
-11. **Privacy notice.** Drafted for the DPO: `docs/legal/privacy-notice.md`, ending with the points to confirm.
+11. **Privacy notice.** Drafted for the DPO: `docs/legal/privacy-notice.md`, with the points to confirm in
+    `docs/legal/privacy-notice-notes.md`.
 12. **Views.** Done (2026-10-17): the three views of §3 (`Person.view`, `linked`), no public directory (the people and
     team queries need an account), setting the release refused without current controls, and transfer offers only to
     teams the offerer can see.
