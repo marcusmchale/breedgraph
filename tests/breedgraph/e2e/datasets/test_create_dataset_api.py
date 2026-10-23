@@ -2,9 +2,17 @@
 datasetsCreate, on the read-policy scenario: a new dataset's records are on units the writer can read. One on another
 team's private unit, or on a unit that isn't there, is not found, and nothing is created.
 """
+import asyncio
+
 import pytest
 
-from tests.breedgraph.e2e.datasets.submissions import result_as, processed
+from breedgraph.domain.model.controls import Access
+from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
+
+from tests.breedgraph.e2e.datasets.submissions import result_as, processed, SUBMISSION
+from tests.breedgraph.e2e.utils import post_as, get_verified_payload
+from tests.breedgraph.scenarios.account_builder import AccountBuilder
+from tests.breedgraph.scenarios.authorisation_manager import AuthorisationManager
 
 CREATE = (
     "mutation ($d: DatasetInput!, $team: ID!) { datasetsCreate(dataset: $d, controlTeamId: $team) "
@@ -58,3 +66,36 @@ async def test_a_record_on_a_unit_the_writer_cannot_read_creates_nothing(client,
     assert submission['status'] == 'FAILED'
     assert any(f"Unit {unit_id} was not found" in error for error in submission['errors']), submission['errors']
     assert await datasets_by_id(client, login_token_factory, read_policy) == before
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_writer_without_curate_access_creates_a_dataset(client, login_token_factory, read_policy, uow_factory):
+    """
+    Creating a dataset, records and all, needs write access to the team that will control it, not curate access:
+    adding records to a dataset that exists is a change, but these are part of creating it
+    """
+    user_id = await AccountBuilder(uow_factory).account()
+    for access in (Access.READ, Access.WRITE):
+        await AuthorisationManager(uow_factory).authorise_affiliation(
+            agent_id=read_policy['admin'], user_id=user_id, team_id=read_policy['child'], access=access
+        )
+
+    async def result(operation: str, text: str, variables: dict):
+        payload = get_verified_payload(await post_as(client, login_token_factory, user_id, text, variables), operation)
+        assert payload['status'] == GQLStatus.SUCCESS.name, payload['errors']
+        return payload['result']
+
+    submission_id = await result('datasetsCreate', CREATE, {
+        'd': {
+            'studyId': read_policy['study_public'],
+            'conceptId': read_policy['ontology_variable_height'],
+            'records': [{'unitId': read_policy['tree_public'], 'value': '7'}]
+        },
+        'team': read_policy['child']
+    })
+    for _ in range(50):
+        await asyncio.sleep(0.1)
+        submission = await result('datasetsSubmission', SUBMISSION, {'id': submission_id})
+        if submission['status'] in ('COMPLETED', 'FAILED'):
+            break
+    assert submission['status'] == 'COMPLETED', submission

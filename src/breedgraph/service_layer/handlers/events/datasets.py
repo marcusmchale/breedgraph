@@ -43,37 +43,30 @@ async def handle_dataset_submitted(
             # each record is on a unit the user can read: another, or one that isn't there, is not found
             await uow.controls.require_read(ControlledModelLabel.UNIT, [record.unit for record in dataset_input.records])
 
-            # we want to create the dataset without records first so that we can begin locking them in
-            # and return errors only for those that need to be corrected before storing.
-            records = dataset_input.records
-            dataset_input.records = list()
-
-            dataset = await uow.repositories.datasets.create(dataset_input)
-
-            program = await uow.repositories.programs.get(study_id=dataset.study)
+            program = await uow.repositories.programs.get(study_id=dataset_input.study)
             if program is None:
                 raise ValueError(f"Study not found {dataset_import.study_id}")
 
             study = program.get_study(dataset_import.study_id)
 
+            # The records are parsed into the new dataset, which is then created with them: creating needs write
+            # access, where adding them to a stored dataset would be a change to it, needing curate access. A record
+            # that doesn't parse is reported by its index, and nothing is stored.
+            dataset_input.records = list()
             scale, categories = await uow.ontology.get_concept_scale(dataset_import.concept_id)
-            item_errors = []
-            if records:
-                for i, e in enumerate(
-                        dataset.add_records(
-                            dataset_import.records_to_input(),
-                            scale,
-                            categories,
-                            study.get_grouping_ids()
-                        )
-                ):
-                    if e is not None:
-                        item_errors.append(ItemError(index=i, error=e))
-                        continue
-            await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
+            item_errors = [
+                ItemError(index=i, error=e)
+                for i, e in enumerate(dataset_input.add_records(
+                    dataset_import.records_to_input(), scale, categories, study.get_grouping_ids()
+                ))
+                if e is not None
+            ]
             await state_store.add_submission_item_errors(event.submission_id, item_errors)
             if item_errors:
                 raise ValueError(f"Some items did not parse correctly")
+
+            dataset = await uow.repositories.datasets.create(dataset_input)
+            await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
             await uow.commit()
             await state_store.set_submission_status(event.submission_id, SubmissionStatus.COMPLETED)
         except Exception as e:
