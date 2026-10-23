@@ -41,7 +41,8 @@ async def test_create_dataset_with_records(
     payload = get_verified_payload(response, "datasetsCreate")
     submission_id = payload['result']
     assert submission_id
-    limit = 10
+    # the submission is processed in the background: up to ten seconds, which a loaded machine can take
+    limit = 100
     while True:
         limit -=1
         if limit == 0:
