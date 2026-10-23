@@ -15,7 +15,7 @@ from tests.breedgraph.e2e.utils import post_as, get_verified_payload
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, PEOPLE
 
 PERSON_FIELDS = (
-    "id view name restricted erased erasedAt informedAttestation linked recordedAt "
+    "id view name restricted erased erasedAt consentAttestation linked recordedAt "
     "teams { team { id } standIn }"
 )
 
@@ -56,14 +56,14 @@ def assert_person(read_policy, viewer: str, name: str, person: dict):
     assert person['erasedAt'] is None
     if view == 'FULL':
         assert person['name']
-        assert person['informedAttestation'] is True
+        assert person['consentAttestation'] is True
         assert person['linked'] is (PEOPLE[name][3] is not None)
         assert person['recordedAt']
         assert {(int(reference['team']['id']), reference['standIn']) for reference in person['teams']} == \
             expected_team_references(read_policy, viewer, PEOPLE[name][2]), f"{viewer}: teams of {name}"
         return
     assert person['teams'] == []
-    assert person['informedAttestation'] is None
+    assert person['consentAttestation'] is None
     assert person['linked'] is None
     assert person['recordedAt'] is None
     if view == 'ATTRIBUTION':

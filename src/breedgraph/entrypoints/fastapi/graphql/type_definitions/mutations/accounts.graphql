@@ -8,6 +8,8 @@ extend type Mutation {
         fullname: String
         email: String!
         password: String!
+        """ Consent to the processing of the user's personal data as the BreedGraph privacy notice describes. Required to be true """
+        privacyConsent: Boolean!
         invitationToken: String
         """ Affiliations offered with the invitation to accept. Others are declined """
         acceptTeamIds: [ID!]

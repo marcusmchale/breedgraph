@@ -14,4 +14,5 @@ async def get_terms_of_use(_, info) -> dict:
 @graphql_query.field("privacyNotice")
 @graphql_payload
 async def get_privacy_notice(_, info) -> dict:
-    return {'text': info.context['privacy_notice']}
+    notice = info.context['privacy_notice']
+    return {'text': notice.text, 'content_hash': notice.content_hash}

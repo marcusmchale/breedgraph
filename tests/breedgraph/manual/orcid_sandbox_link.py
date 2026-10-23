@@ -166,7 +166,7 @@ async def create_test_user() -> tuple[str, str]:
             await uow.commit()
         async with uow_factory.get_uow(user_id=user_id, write_team=team_id) as uow:
             person = await uow.repositories.people.create(
-                PersonInput(name="ORCID Sandbox Tester", teams=[team_id], informed_attestation=True)
+                PersonInput(name="ORCID Sandbox Tester", teams=[team_id], consent_attestation=True)
             )
             await uow.commit()
         async with uow_factory.get_uow(user_id=user_id) as uow:

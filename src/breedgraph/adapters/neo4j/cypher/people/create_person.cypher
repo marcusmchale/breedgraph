@@ -5,7 +5,7 @@ CREATE (person: Person {
   id:                   counter.count,
   name:                 $name,
   institution:          $institution,
-  informed_attestation: $informed_attestation,
+  consent_attestation: $consent_attestation,
   recorded_by:          $recorded_by,
   recorded_at:          datetime.transaction()
 })

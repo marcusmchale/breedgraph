@@ -8,7 +8,7 @@ from breedgraph.service_layer.log_safety import loggable, describe_exception
 
 
 def test_loggable_keeps_ids_only():
-    command = CreatePerson(agent_id=1, write_team=2, name='Secret Name', teams=[3], informed_attestation=True)
+    command = CreatePerson(agent_id=1, write_team=2, name='Secret Name', teams=[3], consent_attestation=True)
     assert loggable(command) == "CreatePerson(agent_id=1, write_team=2, teams=[3])"
 
     event = PersonErased(person_id=4, erased_at=datetime(2026, 1, 1, tzinfo=timezone.utc))

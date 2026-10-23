@@ -4,8 +4,8 @@ input PersonInput {
     institution: String
     """Affiliation"""
     teamIds: [ID!]
-    """Confirm the person was informed that this record is held. Required to be true"""
-    informedAttestation: Boolean!
+    """Confirm the person consented to this record, having been told about it and the BreedGraph privacy notice. Required to be true"""
+    consentAttestation: Boolean!
 }
 
 """

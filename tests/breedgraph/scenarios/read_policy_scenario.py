@@ -825,7 +825,7 @@ class ReadPolicyScenarioBuilder:
                 person = await uow.repositories.people.create(PersonInput(
                     name=users.new_user_input()['name'],
                     teams=[s[t] for t in teams],
-                    informed_attestation=True
+                    consent_attestation=True
                 ))
                 await uow.commit()
             self._set(name, person.id, team, release)

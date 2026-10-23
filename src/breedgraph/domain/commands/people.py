@@ -13,7 +13,7 @@ class CreatePerson(Command):
     name: str
     institution: str | None = None
     teams: List[int] | None = None
-    informed_attestation: bool = False  # the person was informed that this record is held
+    consent_attestation: bool = False  # the person consented to this record, told about it and the privacy notice
 
 
 class UpdatePerson(Command):

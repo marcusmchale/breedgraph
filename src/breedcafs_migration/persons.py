@@ -3,7 +3,8 @@ Persons, and the contributors of the migrated datasets (README.md §7.6, 1_7_Ext
 
 Each row of persons.csv becomes a Person with its name and institution, `PRIVATE` and controlled by the migration team.
 The University of Galway is the data controller of every Person in BreedGraph (docs/person.md §2).
-The informed attestation is given by the migration administrator. Persons are matched by name and institution,
+The consent attestation is given by the migration administrator, who has the consent of every person in persons.csv
+(RUNBOOK §2). Persons are matched by name and institution,
 so running this again creates nothing new.
 
 A dataset credits the Persons who recorded its records, without roles: the attribution values (the BreedCAFS record
@@ -157,7 +158,7 @@ async def create_persons(uow_factory: Neo4jUnitOfWorkFactory, context: Migration
             person = await uow.repositories.people.create(PersonInput(
                 name=name,
                 institution=institution or None,
-                informed_attestation=True
+                consent_attestation=True
             ))
             ids.persons[(name, institution)] = person.id
             ids.created += 1

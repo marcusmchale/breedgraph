@@ -25,7 +25,7 @@ def stored_person(**kwargs) -> PersonStored:
         name='A Technician',
         institution='A University',
         teams=[CONTROL_TEAM],
-        informed_attestation=True,
+        consent_attestation=True,
         user=SUBJECT_USER,
         recorded_by=ADMIN_USER
     )
@@ -35,22 +35,22 @@ def stored_person(**kwargs) -> PersonStored:
 
 def test_input_requires_name():
     with pytest.raises(IllegalOperationError, match="name"):
-        PersonInput(name='  ', informed_attestation=True)
+        PersonInput(name='  ', consent_attestation=True)
 
 
-def test_input_requires_informed_attestation():
-    with pytest.raises(IllegalOperationError, match="informed"):
+def test_input_requires_consent_attestation():
+    with pytest.raises(IllegalOperationError, match="consented"):
         PersonInput(name='A Technician')
 
 
 def test_input_name_is_stripped():
-    assert PersonInput(name=' A Technician ', informed_attestation=True).name == 'A Technician'
+    assert PersonInput(name=' A Technician ', consent_attestation=True).name == 'A Technician'
 
 
 def test_input_institution_is_optional():
-    assert PersonInput(name='A Technician', informed_attestation=True).institution is None
-    assert PersonInput(name='A Technician', informed_attestation=True, institution='  ').institution is None
-    person = PersonInput(name='A Technician', informed_attestation=True, institution=' A University ')
+    assert PersonInput(name='A Technician', consent_attestation=True).institution is None
+    assert PersonInput(name='A Technician', consent_attestation=True, institution='  ').institution is None
+    person = PersonInput(name='A Technician', consent_attestation=True, institution=' A University ')
     assert person.institution == 'A University'
 
 

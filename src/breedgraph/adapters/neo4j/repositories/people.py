@@ -24,7 +24,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             name=person.name,
             institution=person.institution,
             teams=list(person.teams or []),
-            informed_attestation=person.informed_attestation,
+            consent_attestation=person.consent_attestation,
             recorded_by=self.user_id
         )
         record = await result.single()
@@ -147,7 +147,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             name=record.get('name'),
             institution=record.get('institution'),
             teams=list(record.get('teams') or []),
-            informed_attestation=record.get('informed_attestation', False),
+            consent_attestation=record.get('consent_attestation', False),
             orcid=record.get('orcid'),
             user=record.get('user'),
             claims=list(record.get('claims') or []),

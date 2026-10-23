@@ -17,6 +17,10 @@ class CreateAccount(Command):
     accept_team_ids: List[int]|None = None
     # Link the Person offered with the invitation to the new account
     link_person: bool = False
+    # Consent to the processing of the user's personal data as the privacy notice describes, required to register,
+    # and the hash of the notice consented to
+    privacy_consent: bool = False
+    privacy_notice_hash: str | None = None
 
 class UpdateUser(Command):
     user_id: int

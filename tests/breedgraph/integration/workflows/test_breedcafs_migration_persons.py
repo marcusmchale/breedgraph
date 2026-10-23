@@ -122,7 +122,7 @@ async def test_prepare_persons(uow_factory, persons_context, data_dir):
 
     async with uow_factory.get_uow(user_id=context.user_id) as uow:
         person = await uow.repositories.people.get(person_id=ana)
-        assert (person.name, person.institution, person.informed_attestation) == ('Ana Pérez', CIRAD, True)
+        assert (person.name, person.institution, person.consent_attestation) == ('Ana Pérez', CIRAD, True)
         controller = await uow.controls.get_controller(person.label, person.id)
         assert controller.release is ReadRelease.PRIVATE
         assert set(controller.controls) == {context.team_id}

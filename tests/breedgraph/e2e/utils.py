@@ -5,7 +5,7 @@ from breedgraph.config import GQL_API_PATH
 from breedgraph.adapters.its_dangerous.token_auth_service import ItsDangerousAuthService
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 from breedgraph.service_layer.application.acceptance_tokens import AcceptanceTokens, Acceptances, cookie_name
-from breedgraph.service_layer.application.terms_of_use import load_terms_of_use
+from breedgraph.service_layer.application.terms_of_use import load_legal_text
 
 
 @lru_cache(maxsize=1)
@@ -21,7 +21,7 @@ def acceptance_tokens() -> AcceptanceTokens:
 
 def terms_cookie(user_id: int | None) -> str:
     """A cookie accepting the published Terms of Use for the user, or a visitor who isn't signed in, as termsAccept sets"""
-    acceptances = Acceptances(user_id=user_id, terms=load_terms_of_use(config.TERMS_OF_USE_PATH).content_hash)
+    acceptances = Acceptances(user_id=user_id, terms=load_legal_text(config.TERMS_OF_USE_PATH).content_hash)
     return f"{cookie_name(user_id)}={acceptance_tokens().token(acceptances)}"
 
 

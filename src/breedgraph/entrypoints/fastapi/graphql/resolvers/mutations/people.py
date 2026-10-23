@@ -33,7 +33,7 @@ async def create_person(
         name=person['name'],
         institution=person.get('institution'),
         teams=person.get('team_ids'),
-        informed_attestation=person['informed_attestation']
+        consent_attestation=person['consent_attestation']
     )
     await info.context['bus'].handle(cmd)
     return True

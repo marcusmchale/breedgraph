@@ -21,7 +21,7 @@ from breedgraph.service_layer.infrastructure.brute_force_protection import Brute
 from breedgraph.adapters.nominatim import NominatimGeocodingService
 
 from breedgraph.service_layer.messagebus import MessageBus
-from breedgraph.service_layer.application.terms_of_use import load_terms_of_use
+from breedgraph.service_layer.application.terms_of_use import load_legal_text
 from breedgraph.service_layer.application.acceptance_tokens import AcceptanceTokens
 
 import logging
@@ -55,8 +55,8 @@ async def lifespan(fast_api_app: FastAPI):
 
     # the Terms of Use everyone accepts, the privacy notice anyone may read before them, and the signer of what people
     # accept (docs/licences.md §4)
-    fast_api_app.terms_of_use = load_terms_of_use(config.TERMS_OF_USE_PATH)
-    fast_api_app.privacy_notice = Path(config.PRIVACY_NOTICE_PATH).read_text(encoding='utf-8')
+    fast_api_app.terms_of_use = load_legal_text(config.TERMS_OF_USE_PATH)
+    fast_api_app.privacy_notice = load_legal_text(config.PRIVACY_NOTICE_PATH)
     fast_api_app.acceptance_tokens = AcceptanceTokens(
         secret_key=config.SECRET_KEY,
         salt=config.ACCEPTANCE_SALT,

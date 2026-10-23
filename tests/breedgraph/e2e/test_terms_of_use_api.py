@@ -9,12 +9,12 @@ from http.cookies import SimpleCookie
 
 from breedgraph.config import GQL_API_PATH
 from breedgraph.domain.model.accounts import UserInput, AccountInput
-from breedgraph.service_layer.application.terms_of_use import TermsOfUse
+from breedgraph.service_layer.application.terms_of_use import LegalText
 from tests.breedgraph.e2e.utils import with_auth, get_verified_payload
 
 TERMS = "query { termsOfUse { status result { text contentHash accepted } errors { message } } }"
 ACCEPT = "mutation ($hash: String!) { termsAccept(contentHash: $hash) { status result errors { message } } }"
-PRIVACY_NOTICE = "query { privacyNotice { status result { text } errors { message } } }"
+PRIVACY_NOTICE = "query { privacyNotice { status result { text contentHash } errors { message } } }"
 SOMETHING_ELSE = "query { references(ids: []) { status errors { message } } }"
 
 
@@ -57,7 +57,8 @@ async def test_only_the_terms_and_the_privacy_notice_are_open_until_the_terms_ar
 
     # the Terms point to the privacy notice, so it is read before they are accepted
     notice = get_verified_payload(await post(client, headers, PRIVACY_NOTICE), "privacyNotice")['result']
-    assert notice['text'] == test_app.privacy_notice and notice['text'].startswith('# BreedGraph privacy notice')
+    assert notice['text'] == test_app.privacy_notice.text and notice['text'].startswith('# BreedGraph privacy notice')
+    assert notice['contentHash'] == test_app.privacy_notice.content_hash
 
     introspection = await post(client, headers, "query { __schema { queryType { name } } }")
     assert introspection.json()['data']['__schema']['queryType']['name'] == 'Query'
@@ -140,5 +141,5 @@ async def test_signing_in_carries_the_terms_over(client, test_app, uow_factory, 
 async def test_changed_terms_are_asked_for_again(client, test_app, monkeypatch):
     headers = with_auth(client.headers["X-CSRF-Token"])  # an acceptance of the published Terms
     assert get_verified_payload(await post(client, headers, SOMETHING_ELSE), "references")['status'] == 'SUCCESS'
-    monkeypatch.setattr(test_app, 'terms_of_use', TermsOfUse(text='# Changed Terms', content_hash='changed'))
+    monkeypatch.setattr(test_app, 'terms_of_use', LegalText(text='# Changed Terms', content_hash='changed'))
     assert refused_for_terms(await post(client, headers, SOMETHING_ELSE))

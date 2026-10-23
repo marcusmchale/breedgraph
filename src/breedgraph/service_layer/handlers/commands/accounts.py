@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from breedgraph.domain import commands, events
 from breedgraph.domain.model.accounts import UserInput, AccountInput, AccountStored, OntologyRole
 from breedgraph.domain.model.team_trees import Authorisation, Affiliation
@@ -29,6 +30,9 @@ async def create_account(
         uow_factory: AbstractUnitOfWorkFactory,
         auth_service: AbstractAuthService
 ):
+    # consent is the lawful basis for account data (docs/legal/privacy-notice.md)
+    if not cmd.privacy_consent:
+        raise IllegalOperationError("Registering needs your consent to the processing of your personal data, as the privacy notice describes")
     # Registration requires an invitation to the email address used, once a verified account exists
     async with uow_factory.get_uow() as uow:
         invitation = None
@@ -81,7 +85,10 @@ async def create_account(
             fullname=cmd.fullname if cmd.fullname else cmd.name,
             email=cmd.email,
             password_hash=cmd.password_hash,
-            ontology_role=ontology_role
+            ontology_role=ontology_role,
+            # recorded apart from the account's creation, so that a consent to a changed notice can be recorded later
+            privacy_consented_at=datetime.now(timezone.utc),
+            privacy_notice_hash=cmd.privacy_notice_hash
         )
 
         account: AccountInput = AccountInput(user=user)

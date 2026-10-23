@@ -36,23 +36,29 @@ wheel, and is loaded there (§2–5). The server never needs the legacy database
 
 ## 2. On the server: before you start
 
-1. **A backup.** Take a dump of the database (`scripts/backup.sh`) and check it restores (`scripts/restore.sh`),
+1. **Consent.** Every person in `persons.csv` has consented to be recorded in BreedGraph, having been told about the
+   record and the privacy notice. The migration confirms that consent for each Person it creates
+   (`consent_attestation`), so don't run it until every consent is in hand. Anyone who declines, or doesn't reply, is
+   left out: remove them from `persons.csv` and clear their name in `attribution_persons.csv` and
+   `submitter_persons.csv`, so the datasets they worked on move uncredited (a name left in those files but not in
+   `persons.csv` stops the migration). Then bundle the data again (§1).
+2. **A backup.** Take a dump of the database (`scripts/backup.sh`) and check it restores (`scripts/restore.sh`),
    so a failed run can be rolled back.
-2. **The services.** Neo4j and Redis running, with the API's environment loaded, e.g.:
+3. **The services.** Neo4j and Redis running, with the API's environment loaded, e.g.:
    ```bash
    set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
    ```
    `FILE_STORAGE_PATH` must be the API's file store, where the curve data files are written.
-3. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type and the CRediT roles),
+4. **The initial data.** `scripts/setup_initial_data.py` has run (the ontology base, including the Country location type and the CRediT roles),
    your account exists, and `scripts/import_germplasm.py` has loaded the production germplasm,
    so BreedCAFS varieties are matched to it rather than created again.
-4. **The University of Galway.** Its root team exists (the University is the data controller of all Persons),
+5. **The University of Galway.** Its root team exists (the University is the data controller of all Persons),
    and your account is an admin of it through a heritable affiliation.
-5. **Install the migration** into the API's environment, without dependencies (BreedGraph is already installed):
+6. **Install the migration** into the API's environment, without dependencies (BreedGraph is already installed):
    ```bash
    python -m pip install --no-deps breedcafs_migration-<version>-py3-none-any.whl
    ```
-6. **Unpack the data** into a new, private directory, and point the migration at it:
+7. **Unpack the data** into a new, private directory, and point the migration at it:
    ```bash
    breedcafs-migration unbundle breedcafs_bundle.tar.gz --data-dir <data dir>
    export BREEDCAFS_DATA_DIR=<data dir>

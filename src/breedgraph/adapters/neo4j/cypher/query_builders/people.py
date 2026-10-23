@@ -31,7 +31,7 @@ def _person(person: str = 'person') -> str:
     """person in its view, each listing its fields, as old nodes may still hold properties since removed"""
     return f"""CASE person_view
         WHEN 'FULL' THEN {person} {{
-          .id, .name, .institution, .orcid, .informed_attestation, .recorded_by, .recorded_at, .erased_at,
+          .id, .name, .institution, .orcid, .consent_attestation, .recorded_by, .recorded_at, .erased_at,
           view: person_view,
           erased: {person}.erased_at IS NOT NULL,
           teams: [({person})-[:IN_TEAM]->(team: Team) | team.id],

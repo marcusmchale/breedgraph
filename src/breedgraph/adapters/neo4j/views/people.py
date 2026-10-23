@@ -38,7 +38,7 @@ class Neo4jPeopleView(AbstractPeopleView):
             name=person.get('name'),
             institution=person.get('institution'),
             teams=list(person.get('teams') or []),
-            informed_attestation=person.get('informed_attestation'),
+            consent_attestation=person.get('consent_attestation'),
             orcid=person.get('orcid'),
             user=person.get('user'),
             claims=list(person.get('claims') or []),

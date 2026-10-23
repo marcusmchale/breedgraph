@@ -54,7 +54,7 @@ class PersonBase(ABC):
     institution: str | None = None  # the institution the person did the work with, for attribution
     teams: List[int] = field(default_factory=list)  # affiliation, references to stored Team IDs
 
-    informed_attestation: bool = False  # the creator confirmed the person was informed that the record is held
+    consent_attestation: bool = False  # the creator confirmed the person consented to the record
 
 
 @dataclass(eq=False)
@@ -65,8 +65,8 @@ class PersonInput(PersonBase, EnumLabeledModel):
         if not self.name:
             raise IllegalOperationError("A Person requires a name")
         self.institution = (self.institution or '').strip() or None
-        if not self.informed_attestation:
-            raise IllegalOperationError("The person must have been informed that this record is held")
+        if not self.consent_attestation:
+            raise IllegalOperationError("The person must have consented to this record, having been told about it and the privacy notice")
 
 
 @dataclass(eq=False)
@@ -216,7 +216,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             name=self.name,
             institution=self.institution,
             teams=list(self.teams),
-            informed_attestation=self.informed_attestation,
+            consent_attestation=self.consent_attestation,
             orcid=self.orcid,
             user=self.user,
             claims=list(self.claims),
@@ -235,7 +235,7 @@ class PersonOutput(PersonBase, EnumLabeledModel):
     A Person as a viewer sees it (view). Fields outside that view are None, the attestation included, rather than
     PersonBase's default.
     """
-    informed_attestation: bool | None = None
+    consent_attestation: bool | None = None
     id: int = None
     orcid: str | None = None
     user: int | None = None

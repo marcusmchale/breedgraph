@@ -28,8 +28,8 @@ type Person {
     affiliations do). Those hidden from the viewer are stood in for by the nearest team they can see
     """
     teams: [TeamReference!]!
-    """In the full view: the creator confirmed the person was informed that this record is held"""
-    informedAttestation: Boolean
+    """In the full view: the creator confirmed the person consented to this record"""
+    consentAttestation: Boolean
     """Set by the linked user, verified through ORCID sign-in. Null when restricted or erased"""
     orcid: String
     """In the full view: whether a user is linked to this Person, whether or not the viewer may see who"""

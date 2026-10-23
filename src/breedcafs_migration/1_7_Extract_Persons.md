@@ -75,7 +75,8 @@ It does not overwrite an existing file.
 ### 1.7.6 Use during creation
 
 Each row of persons.csv becomes a `PRIVATE` Person with its name and institution,
-with the migration team as write team and the informed attestation given by the migration administrator.
+with the migration team as write team and the consent attestation given by the migration administrator, once every
+person has consented (RUNBOOK §2).
 Datasets are built from the rows of submissions.csv. Each dataset credits, without roles, the Persons
 named for its rows' attribution value and Partner in attribution_persons.csv, and credits its submitter's Person
 in submitter_persons.csv with Data curation.

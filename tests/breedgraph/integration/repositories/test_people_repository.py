@@ -25,7 +25,7 @@ async def test_create_and_get(uow_factory, person_build_context):
         person = await uow.repositories.people.get(name=name)
         assert person.id == person_id
         assert person.teams == [team_id]
-        assert person.informed_attestation
+        assert person.consent_attestation
         assert person.recorded_by == user_id
         assert person.recorded_at is not None
         assert not person.erased

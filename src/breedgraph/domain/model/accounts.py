@@ -49,6 +49,9 @@ class UserInput(UserBase, LabeledModel):
     password_hash: str = ''
     email: str = ''
     email_verified: bool = False
+    # when the user consented to the privacy notice, and the hash of the notice they consented to
+    privacy_consented_at: datetime | None = None
+    privacy_notice_hash: str | None = None
 
 
 @dataclass(unsafe_hash=True)
@@ -58,6 +61,8 @@ class UserStored(UserBase, StoredModel):
     email_verified: bool = False
     default_write_team: int | None = None
     created_at: datetime | None = field(default=None, compare=False)  # set by the database; read only
+    privacy_consented_at: datetime | None = None
+    privacy_notice_hash: str | None = None
 
 @dataclass
 class UserOutput(UserBase, LabeledModel):

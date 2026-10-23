@@ -61,7 +61,7 @@ async def create_person(
             name=cmd.name,
             institution=cmd.institution,
             teams=list(cmd.teams or []),
-            informed_attestation=cmd.informed_attestation
+            consent_attestation=cmd.consent_attestation
         ))
         await uow.commit()
 

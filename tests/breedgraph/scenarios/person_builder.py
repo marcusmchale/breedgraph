@@ -15,7 +15,7 @@ class PersonBuilder:
         return PersonInput(
             name=person_input['name'],
             teams=[team_id] if team_id else [],
-            informed_attestation=True
+            consent_attestation=True
         )
 
     async def person(self, user_id: int, team_id: int) -> int:

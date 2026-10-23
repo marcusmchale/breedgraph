@@ -35,8 +35,8 @@ records about their own staff.
   its Persons, and accepted data processing terms (in git history before then).
 - **Teams decide access, not legal responsibility.** A Person's controlling teams decide who reads it, as for every
   controlled entity, and transfers move that control between teams of any team trees.
-- Users who record a Person act for the University. They confirm that the person took part in the research and was
-  told about the record and the BreedGraph privacy notice (`informed_attestation`).
+- Users who record a Person act for the University. They confirm that the person took part in the research, was
+  told about the record and the BreedGraph privacy notice, and consented to it (`consent_attestation`).
 - Requests from people about their data go to the University (the privacy notice's contact). Admins of the
   controlling teams and the linked user can erase a Person in BreedGraph; for anyone else, the operator erases it with
   `scripts/erase_person.py` after confirming who is asking (§5), or invites them to claim the record (§6).
@@ -57,7 +57,7 @@ Person
   orcid?                  # set only by the linked User, verified through ORCID sign-in (§6)
   teams[]                 # affiliation: (Person)-[:IN_TEAM]->(Team)
   user?                   # (User)-[:IS_PERSON]->(Person), one-to-one; gives subject rights
-  informed_attestation    # creator confirmed the person was informed
+  consent_attestation     # creator confirmed the person consented
   recorded_by, recorded_at  # set by the system
   erased_at?              # tombstone marker
 ```

@@ -29,7 +29,7 @@ To run the migration, follow [RUNBOOK.md](RUNBOOK.md).
      with no team affiliation, email or username. Names can be refined later, but must be unique per Person.
    * Persons are created `PRIVATE` with the migration team as write team, and stay `PRIVATE` until handover;
      the responsible organisation then decides on release.
-   * The migration administrator gives the informed attestation for each Person.
+   * The migration administrator confirms the consent of each Person, which is gathered before the migration (RUNBOOK §2).
    * `submitted_at` is not carried over, as BreedGraph sets the submission time when records are created.
    * Person data (extracted values, the curated mapping, and the BreedCAFS → Person id mapping)
      is kept only in the untracked `src/data/breedcafs_migration/` directory, never in git or in a wheel.

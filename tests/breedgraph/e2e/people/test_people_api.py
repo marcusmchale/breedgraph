@@ -28,7 +28,7 @@ async def create_person(client, token, context) -> dict:
         'name': name,
         'institution': 'A University',
         'teamIds': [context['team_id']],
-        'informedAttestation': True
+        'consentAttestation': True
     }, context['team_id']), "peopleCreatePerson")
     assert_payload_success(payload)
 
@@ -44,7 +44,7 @@ async def test_create_and_read(client, login_token_factory, people_api_context):
     person = await create_person(client, token, people_api_context)
     assert person['institution'] == 'A University'
     assert [team['team']['id'] for team in person['teams']] == [str(people_api_context['team_id'])]
-    assert person['informedAttestation'] is True
+    assert person['consentAttestation'] is True
     assert person['recordedBy']['id'] == str(people_api_context['user_id'])
     assert person['recordedAt'] is not None
     assert person['restricted'] is False
@@ -73,7 +73,7 @@ async def test_other_users_see_id_only(client, login_token_factory, people_api_c
     assert restricted['teams'] == []
     assert restricted['recordedBy'] is None
     # no record-keeping details
-    assert restricted['informedAttestation'] is None
+    assert restricted['consentAttestation'] is None
     assert restricted['linked'] is None
 
     payload = get_verified_payload(await post_to_people_by_ids(client, other_token, [int(person['id'])]), "peoplePeople")
@@ -90,7 +90,7 @@ async def test_other_users_see_id_only(client, login_token_factory, people_api_c
 async def test_create_refuses_public_release(client, login_token_factory, people_api_context):
     token = login_token_factory(user_id=people_api_context['user_id'])
     payload = get_verified_payload(await post_to_create_person(client, token, {
-        'name': 'A Technician', 'informedAttestation': True
+        'name': 'A Technician', 'consentAttestation': True
     }, people_api_context['team_id'], release='PUBLIC'), "peopleCreatePerson")
     assert payload['status'] == GQLStatus.ERROR.name
     assert 'at most to registered' in payload['errors'][0]['message']

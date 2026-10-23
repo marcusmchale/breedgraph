@@ -39,6 +39,7 @@ async def create_account(
         name: str,
         email: str,
         password: str,
+        privacy_consent: bool = False,
         fullname: str | None = None,
         invitation_token: str | None = None,
         accept_team_ids: List[int] | None = None,
@@ -62,7 +63,10 @@ async def create_account(
         email=email,
         invitation_token=invitation_token,
         accept_team_ids=accept_team_ids,
-        link_person=bool(link_person)
+        link_person=bool(link_person),
+        privacy_consent=privacy_consent,
+        # the notice served now, which the user consents to
+        privacy_notice_hash=info.context['privacy_notice'].content_hash
     )
     await info.context['bus'].handle(cmd)
     return True

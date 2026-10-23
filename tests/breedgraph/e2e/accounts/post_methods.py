@@ -21,6 +21,7 @@ async def post_to_create_account(
             "    fullname: $fullname, "
             "    email: $email, "
             "    password: $password, "
+            "    privacyConsent: true, "
             "    invitationToken: $invitationToken, "
             "    acceptTeamIds: $acceptTeamIds "
             "  ) { "

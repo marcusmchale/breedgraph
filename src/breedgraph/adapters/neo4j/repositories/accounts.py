@@ -144,7 +144,9 @@ class Neo4jAccountRepository(BaseRepository[AccountInput, AccountStored]):
             ontology_role=OntologyRole(record['ontology_role']),
             ontology_role_requested=OntologyRole(record['ontology_role_requested']) if 'ontology_role_requested' in record else None,
             default_write_team=record['default_write_team'] if 'default_write_team' in record else None,
-            created_at=record['time'].to_native() if record.get('time') is not None else None
+            created_at=record['time'].to_native() if record.get('time') is not None else None,
+            privacy_consented_at=record['privacy_consented_at'].to_native() if record.get('privacy_consented_at') is not None else None,
+            privacy_notice_hash=record.get('privacy_notice_hash')
         ) if record else None
 
     def record_to_account(self, record: Record) -> AccountStored | None:

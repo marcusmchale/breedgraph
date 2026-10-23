@@ -79,6 +79,23 @@ Work: send null for a field that had a value and was emptied, in the forms that 
 study, location, layout, unit, ontology description); fix the references modal race (edit the reference once read in
 full, or wait for it).
 
+## Consent to records of people and to the privacy notice
+
+Consent is now the lawful basis for account data and Person records (docs/legal/privacy-notice.md).
+
+- `informedAttestation` is renamed `consentAttestation`, on `PersonInput` and `Person`: the person who records someone
+  confirms that they consented to the record, having been told about it and the privacy notice.
+- `accountsCreateAccount` requires `privacyConsent: Boolean!`, refused unless true ("Registering needs your consent to
+  the processing of your personal data, as the privacy notice describes"). The API records when it was given and the
+  hash of the notice consented to, which `privacyNotice { contentHash }` now gives.
+
+What breaks: every operation selecting `informedAttestation` (breedview's person fragment, so the people, programs,
+studies, datasets and references queries that use it), the person form, and registration, which omits
+`privacyConsent`. Work: rename the field in the fragment and the person form, with the checkbox reading as consent
+("They agreed to be recorded, having been told about the record and the privacy notice"); on registration, word the
+privacy checkbox as consent ("I consent to the processing of my personal data as the privacy notice describes") and
+send `privacyConsent: true`.
+
 ## Checking the front end against the API
 
 ```bash

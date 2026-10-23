@@ -25,7 +25,7 @@ async def test_message_bus_does_not_log_person_data(bus, isolated_state):
         with pytest.raises(Exception):
             # fails as neither the agent nor the write team exists, after the command is logged
             await bus.handle(CreatePerson(
-                agent_id=-1, write_team=-1, name='Secret Person Name', informed_attestation=True
+                agent_id=-1, write_team=-1, name='Secret Person Name', consent_attestation=True
             ))
     finally:
         logger.removeHandler(handler)

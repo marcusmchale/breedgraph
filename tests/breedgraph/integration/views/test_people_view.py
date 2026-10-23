@@ -27,7 +27,7 @@ def assert_person(read_policy, viewer: str, name: str, person):
     if view == 'FULL':
         assert person.name
         assert set(person.teams) == {read_policy[team] for team in teams}
-        assert person.informed_attestation is True
+        assert person.consent_attestation is True
         assert person.recorded_at is not None
         assert person.user == (read_policy[linked_user] if linked_user else None)
         assert person.linked is (linked_user is not None)
@@ -36,7 +36,7 @@ def assert_person(read_policy, viewer: str, name: str, person):
 
     # outside the full view, nothing of the record-keeping, not even PersonBase's default attestation
     assert person.teams == []
-    assert person.informed_attestation is None
+    assert person.consent_attestation is None
     assert person.recorded_by is None
     assert person.recorded_at is None
     assert person.user is None

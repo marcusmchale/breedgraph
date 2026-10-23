@@ -24,7 +24,7 @@ async def create_person(bus, uow_factory, account: dict, **kwargs) -> int:
         agent_id=account['user_id'],
         write_team=account['team_id'],
         name=name,
-        informed_attestation=True,
+        consent_attestation=True,
         **kwargs
     ))
     async with uow_factory.get_uow(user_id=account['user_id']) as uow:
@@ -54,14 +54,14 @@ async def test_create_requires_existing_teams(bus, uow_factory, isolated_state):
     with pytest.raises(NoResultFoundError, match="Teams not found"):
         await bus.handle(CreatePerson(
             agent_id=account['user_id'], write_team=account['team_id'], name='A Technician',
-            informed_attestation=True, teams=[-1]
+            consent_attestation=True, teams=[-1]
         ))
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_requires_informed_attestation(bus, uow_factory, isolated_state):
+async def test_create_requires_consent_attestation(bus, uow_factory, isolated_state):
     account = await team_account(uow_factory)
-    with pytest.raises(IllegalOperationError, match="informed"):
+    with pytest.raises(IllegalOperationError, match="consented"):
         await bus.handle(CreatePerson(agent_id=account['user_id'], write_team=account['team_id'], name='A Technician'))
 
 

@@ -123,7 +123,7 @@ async def test_invitation_links_person_when_chosen(client, login_token_factory, 
     response = await _post(
         client, None,
         " mutation ( $name: String!, $email: String!, $password: String!, $token: String, $linkPerson: Boolean ) { "
-        "  accountsCreateAccount( name: $name, email: $email, password: $password, invitationToken: $token, linkPerson: $linkPerson ) "
+        "  accountsCreateAccount( name: $name, email: $email, password: $password, privacyConsent: true, invitationToken: $token, linkPerson: $linkPerson ) "
         "  { status, result, errors { name, message } } } ",
         {"name": user_input['name'], "email": user_input['email'], "password": user_input['password'],
          "token": invitation['token'], "linkPerson": link_person}
@@ -145,7 +145,7 @@ async def test_link_person_requires_offer(client, login_token_factory, claims_co
     response = await _post(
         client, None,
         " mutation ( $name: String!, $email: String!, $password: String!, $token: String ) { "
-        "  accountsCreateAccount( name: $name, email: $email, password: $password, invitationToken: $token, linkPerson: true ) "
+        "  accountsCreateAccount( name: $name, email: $email, password: $password, privacyConsent: true, invitationToken: $token, linkPerson: true ) "
         "  { status, result, errors { name, message } } } ",
         {"name": user_input['name'], "email": user_input['email'], "password": user_input['password'], "token": invitation['token']}
     )

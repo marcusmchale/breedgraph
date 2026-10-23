@@ -18,6 +18,8 @@ type TermsOfUsePayload {
 type PrivacyNotice {
     """ The published text, in markdown """
     text: String!
+    """ Its SHA-256, which an account records with the consent given when registering """
+    contentHash: String!
 }
 
 type PrivacyNoticePayload {
