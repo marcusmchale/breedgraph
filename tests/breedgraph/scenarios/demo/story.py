@@ -272,7 +272,7 @@ SCALES = {
         "Nitrogen applied in a season, in kilograms for each hectare", ()
     ),
     'fungicide_programmes': (
-        "Fungicide programmes", None, ScaleType.NOMINAL, "The fungicide sprays a plot received", FUNGICIDE_CATEGORIES
+        "Fungicide programmes", None, ScaleType.NOMINAL, "The fungicide sprays a crop received", FUNGICIDE_CATEGORIES
     ),
 }
 # The scale's description after the last commit, which clarifies it
@@ -319,7 +319,7 @@ VARIABLES = {**FIELD_VARIABLES, **GRAIN_VARIABLES}
 # key: (name, subjects, description)
 CONDITIONS = {
     'nitrogen': ("Nitrogen fertiliser", ('plot',), "The nitrogen fertiliser a plot receives"),
-    'fungicide': ("Fungicide treatment", ('plot',), "The fungicide a plot receives"),
+    'fungicide': ("Fungicide treatment", ('field', 'plot'), "The fungicide a trial area or a plot receives"),
 }
 # key: (name, control method type, description). The last two describe how germplasm entries were produced.
 CONTROL_METHODS = {
@@ -346,7 +346,7 @@ FACTORS = {
     ),
     'fungicide_programme': (
         "Fungicide programme", 'fungicide', 'fungicide_spraying', 'fungicide_programmes',
-        "The fungicide sprays a plot received"
+        "The fungicide sprays a trial area or a plot received"
     ),
 }
 
@@ -725,8 +725,8 @@ class DatasetPlan:
     concept: str  # a variable or factor key
     writer: str  # the account that submits it, with its write team
     release: ReadRelease
-    # 'plots' (of the study's trial), 'samples' (the grain of each 2025 plot), 'nir_samples' (the first eight of block
-    # 1) or 'coop_plots'
+    # 'plots' (of the study's trial), 'area' (the trial's area of its field, above the plots), 'samples' (the grain of
+    # each 2025 plot), 'nir_samples' (the first eight of block 1) or 'coop_plots'
     units: str
     # the day of the records; ON_VALUE for a date variable's; None for a factor's, which hold for the whole season
     on: str | None
@@ -747,7 +747,9 @@ DATASETS = {
     'heading_2024': DatasetPlan('study_2024', 'heading', 'rita', PUBLIC, 'plots', ON_VALUE, FIELD_CREDITS_2024),
     'septoria_2024': DatasetPlan('study_2024', 'septoria', 'rita', PUBLIC, 'plots', '2024-06-10', FIELD_CREDITS_2024),
     'yield_2024': DatasetPlan('study_2024', 'yield', 'rita', PUBLIC, 'plots', '2024-08-12', FIELD_CREDITS_2024),
-    'fungicide_2024': DatasetPlan('study_2024', 'fungicide_programme', 'rita', PUBLIC, 'plots', None),
+    # every plot had the same two sprays, a practice rather than a treatment: one record on the trial's area, which
+    # curation and analysis apply to the plots in it
+    'fungicide_2024': DatasetPlan('study_2024', 'fungicide_programme', 'rita', PUBLIC, 'area', None),
     'height_2025': DatasetPlan('study_2025', 'height', 'theo', PRIVATE, 'plots', '2025-06-24', FIELD_CREDITS_2025),
     'heading_2025': DatasetPlan('study_2025', 'heading', 'theo', PRIVATE, 'plots', ON_VALUE, FIELD_CREDITS_2025),
     'septoria_2025': DatasetPlan('study_2025', 'septoria', 'theo', PRIVATE, 'plots', '2025-06-12', FIELD_CREDITS_2025),

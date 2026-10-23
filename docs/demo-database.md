@@ -71,7 +71,8 @@ state-owned land, and the varieties' names are checked against the variety catal
 - Winter Wheat Breeding Programme, public:
   - **Preliminary Yield Trial 2024 → Long Meadow Yield Trial 2024:** public, licensed under the typed "Example Open
     Data Licence", with its field plan as a PDF. Eight entries in three randomised complete blocks, with height,
-    heading, Septoria, yield and the fungicide programme. This is what visitors see.
+    heading, Septoria and yield. The fungicide programme was the same for every plot, so it is recorded once, on the
+    trial's area: curation shows it beside each plot, and analysis applies it to them. This is what visitors see.
   - **Advanced Yield Trial 2025:** private.
     - North Field Yield Trial 2025: eight entries at two nitrogen rates (48 plots).
     - Grain Quality 2025: the 48 grain samples, which reached the laboratory together (one arrival). It holds thousand

@@ -88,13 +88,16 @@ async def test_the_2026_plots_are_sown_in_their_blocks_and_unrecorded(demo, view
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_the_records_are_as_planned(demo, views_factory):
+    names = {unit_id: name for name, unit_id in demo.units.items()}
     async with views_factory.get_views(user_id=demo['dara']) as views:
         for key in ('height_2025', 'septoria_2025', 'heading_2025', 'nitrogen_2025'):
             records = await views.datasets.get_records(demo[key])
             expected = dict(values.plot_values('nf25', DATASETS[key].concept))
-            names = {unit_id: name for name, unit_id in demo.units.items()}
             assert {names[record['unit']]: record['value'] for record in records} == expected, key
+        # the same for every 2024 plot, so recorded once, on the trial's area
+        [fungicide] = await views.datasets.get_records(demo['fungicide_2024'])
         weights = await views.datasets.get_records(demo['grain_weight_2025'])
+    assert (names[fungicide['unit']], fungicide['value']) == values.area_value('lm24', 'fungicide_programme')
     assert len(weights) == 2 * len(plots('nf25'))
 
 

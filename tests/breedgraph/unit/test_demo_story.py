@@ -157,6 +157,8 @@ def test_places_are_inside_their_sites(place):
 
 def test_values_are_plausible():
     for key, plan in DATASETS.items():
+        if plan.units == 'area':
+            assert values.AREA_VALUES[plan.concept] in {name for name, _ in SCALES[FACTORS[plan.concept][3]][4]}, key
         if plan.units != 'plots':
             continue
         trial = {'study_2024': 'lm24', 'study_2025': 'nf25'}[plan.study]

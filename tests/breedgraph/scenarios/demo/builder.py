@@ -754,6 +754,9 @@ class DemoScenarioBuilder:
                 DataRecordInput(unit=s.units[name], value=value, start=start(value))
                 for name, value in values.plot_values(trial, plan.concept)
             ]
+        if plan.units == 'area':
+            name, value = values.area_value(STUDY_TRIALS[plan.study], plan.concept)
+            return [DataRecordInput(unit=s.units[name], value=value, start=start(value))]
         if plan.units == 'coop_plots':
             return [
                 DataRecordInput(unit=s.units[name], value=value, start=start(value))

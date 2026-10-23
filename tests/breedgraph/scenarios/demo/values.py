@@ -123,13 +123,21 @@ PLOT_VALUES = {
     'septoria': septoria_score,
     'yield': grain_yield,
     'nitrogen_rate': lambda plot: str(plot.nitrogen),
-    'fungicide_programme': lambda plot: "Two sprays",
+}
+# The value of each concept recorded once on a trial's area, for every plot in it
+AREA_VALUES = {
+    'fungicide_programme': "Two sprays",
 }
 
 
 def plot_values(trial: str, concept: str) -> List[Tuple[str, str]]:
     """(plot name, value) for every plot of a trial"""
     return [(plot.name, PLOT_VALUES[concept](plot)) for plot in plots(trial)]
+
+
+def area_value(trial: str, concept: str) -> Tuple[str, str]:
+    """(the trial area's name, value)"""
+    return PLANS[trial].area, AREA_VALUES[concept]
 
 
 def cooperative_yields() -> List[Tuple[str, str]]:
