@@ -143,13 +143,13 @@ class AnalysisContextLoader:
     async def _load_concept(self, concept_id: int) -> ConceptContext:
         # as the data cites it, so that data of a removed variable or factor is still analysed
         ontology = self.uow.ontology
-        scale, categories = await ontology.get_concept_scale(concept_id)
+        scale = await ontology.get_concept_scale(concept_id)
         concept = await ontology.get_cited_entry(concept_id)
         return ConceptContext(
             concept_id=concept_id,
             scale_type=scale.scale_type,
-            # ordered by rank
-            categories=[category.name for category in categories] if categories is not None else None,
+            # in order: the rank of an ordinal scale's levels
+            categories=[category.name for category in scale.categories] if scale.categories else None,
             factor=concept.label is OntologyEntryLabel.FACTOR
         )
 

@@ -8,8 +8,7 @@ from breedgraph.domain.model.ontology import (
     SubjectInput, SubjectStored,
     TraitInput, TraitStored,
     ObservationMethodInput, ObservationMethodStored,
-    ScaleCategoryBase, ScaleCategoryInput, ScaleCategoryStored,
-    ScaleInput, ScaleStored,
+    ScaleBase, ScaleInput, ScaleStored,
     VariableInput, VariableStored,
     ConditionInput, ConditionStored,
     FactorInput, FactorStored,
@@ -21,7 +20,7 @@ from breedgraph.domain.model.ontology import (
     LayoutTypeInput, LayoutTypeStored,
     OntologyEntryLabel, LifecyclePhase, VersionChange, Version, OntologyCommit,
     OntologyRelationshipBase, ParentRelationship, TermRelationship, SubjectRelationship,
-    CategoryRelationship, FactorComponentRelationship, VariableComponentRelationship,
+    FactorComponentRelationship, VariableComponentRelationship,
     EventTypeComponentRelationship, EntryLifecycle, RelationshipLifecycle,
     OntologyRelationshipLabel, ScaleType,
     RecordGroupTypeInput, RecordGroupTypeStored
@@ -34,7 +33,7 @@ from breedgraph.domain.events.ontology import OntologyVersionCreated
 
 from breedgraph.service_layer.persistence import OntologyPersistenceService
 from breedgraph.service_layer.queries.read_models import (
-    OntologyEntryOutput, ScaleOutput, CategoryOutput, VariableOutput, FactorOutput
+    OntologyEntryOutput, ScaleOutput, VariableOutput, FactorOutput
 )
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 
@@ -335,8 +334,6 @@ class OntologyApplicationService:
     @overload
     async def _create_entry(self, entry: ConditionInput, **kwargs) -> ConditionStored: ...
     @overload
-    async def _create_entry(self, entry: ScaleCategoryInput, **kwargs) -> ScaleCategoryStored: ...
-    @overload
     async def _create_entry(self, entry: ControlMethodInput, **kwargs) -> ControlMethodStored: ...
     @overload
     async def _create_entry(self, entry: LocationTypeInput, **kwargs) -> LocationTypeStored: ...
@@ -370,6 +367,7 @@ class OntologyApplicationService:
         if self.user_id is None:
             raise UnauthorisedOperationError("Only registered users can contribute to the ontology")
         """Create a new ontology entry with validation and persistence."""
+        self._validate_attributes(entry)
         await self._validate_entry_uniqueness(entry)
         await self._require_citable_references(entry.references)
         # Create and persist entry
@@ -403,7 +401,7 @@ class OntologyApplicationService:
     async def create_entry(
             self,
             entry: SubjectInput|TermInput|ObservationMethodInput|\
-                   ScaleCategoryInput|ControlMethodInput|\
+                   ControlMethodInput|\
                    LocationTypeInput|LayoutTypeInput|DesignInput|RoleInput|RecordGroupTypeInput,
             parents: list[int]|None = None,
             children: list[int]|None = None
@@ -437,21 +435,10 @@ class OntologyApplicationService:
             self,
             scale: ScaleInput,
             parents: List[int] = None,
-            children: List[int] = None,
-            categories: List[int]|None = None
+            children: List[int] = None
     )-> ScaleStored:
-        created_scale = await self._create_entry(entry=scale, parents=parents, children=children)
-        if categories:
-            if not scale.scale_type in [ScaleType.ORDINAL, ScaleType.NOMINAL]:
-                raise ValueError("Categories are only valid for Ordinal and Nominal scales")
-            for rank,category_id in enumerate(categories):
-                relationship = CategoryRelationship.build(
-                    scale_id=created_scale.id,
-                    category_id=category_id,
-                    rank=rank if scale.scale_type is ScaleType.ORDINAL else None
-                )
-                await self.create_relationship(relationship)
-        return created_scale
+        """A scale, with its categories if it is nominal or ordinal"""
+        return await self._create_entry(entry=scale, parents=parents, children=children)
 
     async def create_subject(
             self,
@@ -624,8 +611,6 @@ class OntologyApplicationService:
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CONDITION]) -> ConditionStored|None: ...
     @overload
-    async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CATEGORY]) -> ScaleCategoryStored|None: ...
-    @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.CONTROL_METHOD]) -> ControlMethodStored|None: ...
     @overload
     async def get_entry(self, entry_id: int|None = None, name: str|None = None, *, label: Literal[OntologyEntryLabel.LOCATION_TYPE]) -> LocationTypeStored|None: ...
@@ -681,7 +666,6 @@ class OntologyApplicationService:
             raise ValueError("Entry must have an ID for updates")
         if not self.user_id:
             raise UnauthorisedOperationError("Only registered users can update entries")
-        # Only persistence-dependent validations - Pydantic handles structure
         await self._validate_entry_uniqueness(entry)
         # only references added need checking: the entry may keep citing references others added that this user cannot
         # read, or that were cited before the ontology cited public references only
@@ -692,6 +676,7 @@ class OntologyApplicationService:
                 raise UnauthorisedOperationError(
                     f"{stored.label.value} {stored.name} is locked, so its {', '.join(changed)} cannot change"
                 )
+        self._validate_attributes(entry)
         await self._require_citable_references(set(entry.references) - set(stored.references if stored else []))
 
         lifecycle = await self._get_entry_lifecycle(entry.id)
@@ -810,22 +795,6 @@ class OntologyApplicationService:
         relationship = TermRelationship.build(source_id=source_id, term_id=term_id, source_label=source_label)
         await self.create_relationship(relationship)
 
-    async def link_to_category(self, scale_id, category_id):
-        relationship = CategoryRelationship.build(scale_id=scale_id, category_id=category_id, source_label=OntologyEntryLabel.SCALE)
-        await self.create_relationship(relationship)
-
-    async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
-        """Update the properties of a relationship"""
-        if self.user_id is None:
-            raise UnauthorisedOperationError("Updates are only available to registered users")
-
-        lifecycle = await self._get_relationship_lifecycle(relationship.id)
-        if lifecycle.current_phase != LifecyclePhase.DRAFT:
-            if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
-                raise UnauthorisedOperationError("Only Editors and Admins may alter relationships that have progressed beyond Draft")
-        await self._require_unlocked_sources([relationship])
-        await self.persistence.update_relationship(relationship, user_id=self.user_id)
-
     async def deprecate_entry_relationships(self, relationships: List[OntologyRelationshipBase]) -> None:
         """Deprecate relationships an entry update dropped, keeping those that define a locked entry"""
         await self._require_unlocked_sources(relationships)
@@ -852,13 +821,6 @@ class OntologyApplicationService:
         lifecycle.set_version_activated(version)
         await self._save_entry_lifecycles()
 
-    async def get_scale_category_ids(self, scale_id: int) -> List[int]:
-        relationships = [rel async for rel in self.persistence.get_relationships(
-                entry_ids = [scale_id], labels = [OntologyRelationshipLabel.HAS_CATEGORY]
-        )]
-        relationships.sort(key=lambda x: x.rank or x.id)
-        return [rel.target_id for rel in relationships]
-
     async def get_cited_entry(self, entry_id: int, label: OntologyEntryLabel|None = None) -> OntologyEntryOutput|None:
         """
         An entry as data that cites it reads it, whatever its phase, a deprecated or removed one as it stood when it was
@@ -870,88 +832,15 @@ class OntologyApplicationService:
             return None
         return entries[0]
 
-    async def get_concept_scale(self, concept_id: int) -> Tuple[ScaleOutput, List[CategoryOutput]|None]:
-        """
-        As cited: the scale of a variable or factor, with the categories of an ordinal or nominal scale in rank order
-        """
+    async def get_concept_scale(self, concept_id: int) -> ScaleOutput:
+        """As cited: the scale of a variable or factor, with the categories of an ordinal or nominal scale in order"""
         concept = await self.get_cited_entry(concept_id)
         if not isinstance(concept, (VariableOutput, FactorOutput)):
             raise NoResultFoundError(f"Variable or factor {concept_id} not found")
         scale = await self.get_cited_entry(concept.scale, label=OntologyEntryLabel.SCALE) if concept.scale else None
         if scale is None:
             raise NoResultFoundError(f"The scale of {concept.label.value} {concept_id} was not found")
-        categories = None
-        if scale.scale_type in (ScaleType.ORDINAL, ScaleType.NOMINAL):
-            cited = {entry.id: entry for entry in await self.persistence.get_cited_entries(list(scale.categories or ()))}
-            categories = [cited[category_id] for category_id in scale.categories or ()]
-        return scale, categories
-
-    # Scale operations
-    async def add_scale_categories(
-            self,
-            scale_id: int,
-            categories: List[int],
-            ranks: List[int] | None = None
-    ) -> None:
-        """Add categories to a scale"""
-        # Basic validation
-        await self._validate_entries_exist(categories, label=ScaleCategoryBase.label)
-        scale = await self.get_entry(entry_id=scale_id, label=OntologyEntryLabel.SCALE)
-        scale_categories = await self.get_scale_category_ids(scale_id)
-
-        if not scale:
-            raise ValueError("Scale not found")
-
-        if scale.scale_type is ScaleType.NOMINAL:
-            if ranks:
-                raise ValueError("Ranks are only valid for Ordinal scales")
-            for category_id in categories:
-                if category_id in scale_categories:
-                    logger.debug(f"Scale category {category_id} already in use for scale {scale_id}")
-                    continue
-                relationship = CategoryRelationship.build(
-                    scale_id=scale.id,
-                    category_id=category_id
-                )
-                await self.create_relationship(relationship)
-
-        elif scale.scale_type is ScaleType.ORDINAL:
-            if not ranks:
-                # append to existing ranks
-                for rank, category_id in enumerate(categories, start=len(scale_categories)):
-                    relationship = CategoryRelationship.build(
-                        scale_id=scale.id,
-                        category_id=category_id,
-                        rank=rank
-                    )
-                    await self.create_relationship(relationship)
-            else:
-                if not len(ranks) == len(categories):
-                    raise ValueError("If providing ranks, a rank must be provided for all categories")
-                scale_categories = scale_categories or []
-                # May beed to update the old ranks, so insert the new ones to get the updated ranks
-                # first sort them so insertion logic works such that the final position is defined by rank
-                categories, ranks = zip(*sorted(zip(categories, ranks), key=lambda x: x[1]))
-                # then insert
-                for i, category_id in enumerate(categories):
-                    scale_categories.insert(ranks[i], category_id)
-
-                # create and update relationships
-                for i, category_id in enumerate(scale_categories):
-                    if category_id in categories:
-                        # New relationship
-                        relationship = CategoryRelationship.build(
-                            scale_id=scale.id,
-                            category_id=category_id,
-                            rank=ranks[i]
-                        )
-                        await self.create_relationship(relationship)
-                    else:
-                        # Old relationship, update rank
-                        rel = CategoryRelationship.build(scale_id=scale_id, category_id=category_id, rank=ranks[i])
-                        await self.update_relationship(rel)
-        else:
-            raise ValueError("Categories are only valid for Ordinal and Nominal scales")
+        return scale
 
     async def _create_entry_lifecycle(self, entry_id: int) -> EntryLifecycle:
         """Create a new entry lifecycle."""
@@ -1032,6 +921,12 @@ class OntologyApplicationService:
         if changed:
             await self.persistence.save_relationship_lifecycles(changed, user_id=self.user_id)
             self._stored_relationship_versions.update({i: lifecycle.snapshot() for i, lifecycle in changed.items()})
+
+    @staticmethod
+    def _validate_attributes(entry: OntologyEntryInput|OntologyEntryStored) -> None:
+        """What an entry's own attributes must satisfy: a scale's categories"""
+        if isinstance(entry, ScaleBase):
+            entry.validate_categories()
 
     # Persistence-dependent validation methods
     async def _validate_entry_uniqueness(

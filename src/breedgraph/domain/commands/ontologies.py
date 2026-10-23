@@ -55,7 +55,6 @@ class CreateEntryBase(BaseModel):
 class CreateTerm(Command, CreateEntryBase):
     subject_ids: List[int] | None = None
     scale_ids: List[int] | None = None
-    category_ids: List[int] | None = None
     observation_method_ids: List[int] | None = None
     trait_ids: List[int] | None = None
     variable_ids: List[int] | None = None
@@ -82,12 +81,14 @@ class CreateCondition(Command, CreateEntryBase):
     term_ids: List[int] | None = None
     subject_ids: List[int] = None
 
+class ScaleCategoryInput(BaseModel):
+    name: str
+    description: str | None = None
+
 class CreateScale(Command, CreateEntryBase):
     scale_type: ScaleType
-    category_ids: List[int] | None = None
-    term_ids: List[int] | None = None
-
-class CreateScaleCategory(Command, CreateEntryBase):
+    # in order: the rank of an ordinal scale's levels. In an update, given, they replace the scale's categories
+    categories: List[ScaleCategoryInput] | None = None
     term_ids: List[int] | None = None
 
 
@@ -150,9 +151,6 @@ class UpdateCondition(UpdateEntryBase, CreateCondition):
     pass
 
 class UpdateScale(UpdateEntryBase, CreateScale):
-    pass
-
-class UpdateCategory(UpdateEntryBase, CreateScaleCategory):
     pass
 
 class UpdateObservationMethod(UpdateEntryBase, CreateObservationMethod):

@@ -28,9 +28,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         self.entry_lifecycles: Dict[int, EntryLifecycle] = {}
         self.relationship_lifecycles: Dict[int, RelationshipLifecycle] = {}
 
-        # Storage for scale categories
-        self.scale_categories: Dict[int, List[Tuple[int, Optional[int]]]] = defaultdict(list)
-
         # Storage for versions
         self.commits: Dict[Version, OntologyCommit] = {}
         self.commit_history: List[OntologyCommit] = []
@@ -80,13 +77,16 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             OntologyEntryLabel.CONDITION: ConditionStored,
             OntologyEntryLabel.FACTOR: FactorStored,
             OntologyEntryLabel.EVENT: EventTypeStored,
-            OntologyEntryLabel.CATEGORY: ScaleCategoryStored,
             OntologyEntryLabel.CONTROL_METHOD: ControlMethodStored,
             OntologyEntryLabel.LOCATION_TYPE: LocationTypeStored,
             OntologyEntryLabel.LAYOUT_TYPE: LayoutTypeStored,
             OntologyEntryLabel.DESIGN: DesignStored,
             OntologyEntryLabel.ROLE: RoleStored,
         }
+        if 'category_names' in entry_data:
+            entry_data['categories'] = ScaleCategory.from_arrays(
+                entry_data.pop('category_names'), entry_data.pop('category_descriptions')
+            )
         entry_class = label_to_class.get(OntologyEntryLabel(label), OntologyEntryStored)
         return entry_class(**entry_data)
 
@@ -145,10 +145,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
         self.relationships[relationship.id] = relationship
         return relationship
 
-    async def update_relationship(self, relationship: OntologyRelationshipBase) -> None:
-        """Update attributes of an existing relationship."""
-        self.relationships[relationship.id] = relationship
-
     async def _get_relationships(
             self,
             version: Version,
@@ -173,17 +169,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             # Note: version and phases filtering would require more complex logic
             # in a real implementation, but for tests we can keep it simple
             yield rel
-
-    async def add_scale_categories(
-            self,
-            scale_id: int,
-            category_data: List[Dict[str, Any]]
-    ) -> None:
-        """Add categories to a scale with optional ranking."""
-        for cat_data in category_data:
-            category_id = cat_data['category_id']
-            rank = cat_data.get('rank')
-            self.scale_categories[scale_id].append((category_id, rank))
 
     async def get_entry_lifecycles(self, entry_ids: List[int]) -> Dict[int, EntryLifecycle]:
         return self.entry_lifecycles
@@ -345,10 +330,6 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             if sink == entry_id:
                 dependencies.append(src)
         return dependencies
-
-    async def get_scale_categories_with_ranks(self, scale_id: int) -> List[Tuple[int, Optional[int]]]:
-        """Get categories for a scale with their ranks."""
-        return self.scale_categories.get(scale_id, [])
 
     async def get_current_version(self) -> Version|None:
         if not self.commit_history:

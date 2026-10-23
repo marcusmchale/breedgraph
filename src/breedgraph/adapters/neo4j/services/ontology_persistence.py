@@ -55,6 +55,10 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             entry_dict['axes'] = [AxisType(a) for a in entry_dict['axes']]
         if entry_dict.get('default_extent') is not None:
             entry_dict['default_extent'] = RecordGroupExtent(entry_dict['default_extent'])
+        if 'category_names' in entry_dict:
+            entry_dict['categories'] = ScaleCategory.from_arrays(
+                entry_dict.pop('category_names'), entry_dict.pop('category_descriptions', None)
+            )
 
         # Extract the label from the record
         label_str: str|None = entry_dict.pop('label')
@@ -78,8 +82,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         if not relationship_dict.get('id'):
             raise ValueError("Relationship id not created/found")
         relationship_dict['relationship_id'] = relationship_dict.pop('id')
-        for patch in record.get('patches', []):
-            relationship_dict.update(patch)
 
         return OntologyRelationshipBase.relationship_from_label(**relationship_dict)
 
@@ -195,30 +197,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
         )
         record = await result.single(strict=True)
         return self.record_to_relationship(record)
-
-    async def update_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> None:
-        """Update relationship attributes, e.g. rank"""
-        logger.debug(
-            f"Updating relationship: {str(relationship)})"
-        )
-        version = await self.get_current_version()
-        dump = relationship.model_dump()
-        fixed_fields = ['label', 'source_label', 'target_label', 'id', 'source_id', 'target_id']
-        attributes = {key: value for key, value in dump.items() if key not in fixed_fields}
-
-        stored_relationship = await self.get_relationship(relationship_id=relationship.id)
-        stored_dump = stored_relationship.model_dump()
-        stored_attributes = {key: stored_dump[key] for key in attributes.keys()}
-        diff = self.dict_diff(stored_attributes, attributes)
-        if diff:
-            query = queries['ontology']['patch_relationship_attributes']
-            await self.tx.run(
-                query,
-                relationship_id=relationship.id,
-                attributes=diff,
-                user_id=user_id,
-                version=version.packed_version
-            )
 
     async def get_entry(
             self,
@@ -483,28 +461,6 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
             patches=[{'entry_id': entry_id, 'patch': patch} for entry_id, patch in collated_patches.items()]
         )
 
-    async def _apply_relationship_patches(self, version: Version):
-        get_patches_query = queries['ontology']['get_relationship_patches']
-        patches_result = await self.tx.run(
-            get_patches_query,
-            version=version.packed_version
-        )
-
-        collated_patches = defaultdict(dict)
-        async for record in patches_result:
-            relationship_id = record['relationship_id']
-            patches = record['patches']
-
-            for patch in patches:
-                collated_patches[relationship_id].update(patch)
-
-        apply_patches_query = queries['ontology']['apply_relationship_patches']
-        await self.tx.run(
-            apply_patches_query,
-            patches=[{'relationship_id': relationship_id, 'patch': patch} for relationship_id, patch in collated_patches.items()]
-        )
-
     async def apply_patches(self):
         version: Version = await self.get_current_version()
         await self._apply_entry_patches(version)
-        await self._apply_relationship_patches(version)

@@ -72,8 +72,7 @@ class OntologyRelationshipBase(ABC):
             source_label: OntologyEntryLabel,
             target_label: OntologyEntryLabel,
             label: OntologyRelationshipLabel,
-            relationship_id: int = None,
-            rank: int = None
+            relationship_id: int = None
     ):
         if label == OntologyRelationshipLabel.PARENT_OF:
             if relationship_id is None:
@@ -106,24 +105,6 @@ class OntologyRelationshipBase(ABC):
                     source_label=source_label,
                     target_label=target_label,
                     relationship_id=relationship_id
-                )
-        elif label == OntologyRelationshipLabel.HAS_CATEGORY:
-            if relationship_id is None:
-                return CategoryRelationship.build(
-                    scale_id=source_id,
-                    category_id=target_id,
-                    source_label=source_label,
-                    target_label=target_label,
-                    rank=rank
-                )
-            else:
-                return CategoryRelationship.load(
-                    scale_id=source_id,
-                    category_id=target_id,
-                    source_label=source_label,
-                    target_label=target_label,
-                    relationship_id=relationship_id,
-                    rank=rank
                 )
         elif label == OntologyRelationshipLabel.DESCRIBES_SUBJECT:
             if relationship_id is None:
@@ -437,65 +418,6 @@ class SubjectRelationship(OntologyRelationshipBase):
             target_label=target_label,
             label=OntologyRelationshipLabel.DESCRIBES_SUBJECT,
             id=relationship_id
-        )
-
-@dataclass
-class CategoryRelationship(OntologyRelationshipBase):
-    """Scale has category relationship with rank"""
-    rank: int = None
-
-    @classmethod
-    def build(
-            cls,
-            *,
-            scale_id: int,
-            category_id: int,
-            source_label: OntologyEntryLabel = OntologyEntryLabel.SCALE,
-            target_label: OntologyEntryLabel = OntologyEntryLabel.CATEGORY,
-            rank: Optional[int] = None,
-            **kwargs
-    ) -> Self:
-        if not target_label == OntologyEntryLabel.CATEGORY:
-            raise ValueError(
-                f"{cls.__name__} must relate to {OntologyEntryLabel.CATEGORY}, not {target_label}"
-            )
-        if not source_label == OntologyEntryLabel.SCALE:
-            raise ValueError(
-                f"{cls.__name__} must relate from {OntologyEntryLabel.SCALE}, not {source_label}"
-            )
-        if kwargs:
-            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-        return cls(
-            source_id=scale_id,
-            target_id=category_id,
-            source_label=source_label,
-            target_label=target_label,
-            label=OntologyRelationshipLabel.HAS_CATEGORY,
-            rank = rank
-        )
-
-    @classmethod
-    def load(
-            cls,
-            *,
-            scale_id: int,
-            category_id: int,
-            source_label: OntologyEntryLabel,
-            target_label: OntologyEntryLabel,
-            relationship_id: int,
-            rank: Optional[int] = None,
-            **kwargs
-    ) -> Self:
-        if kwargs:
-            raise ValueError(f"No other parameters are allowed for {cls.__name__}")
-        return cls(
-            source_id=scale_id,
-            target_id=category_id,
-            source_label=source_label,
-            target_label=target_label,
-            label=OntologyRelationshipLabel.HAS_CATEGORY,
-            id=relationship_id,
-            rank = rank
         )
 
 @dataclass

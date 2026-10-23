@@ -40,7 +40,6 @@ subject = ObjectType("Subject")
 trait = ObjectType("Trait")
 condition = ObjectType("Condition")
 scale = ObjectType("Scale")
-category = ObjectType("Category")
 observation_method = ObjectType("ObservationMethod")
 variable = ObjectType("Variable")
 control_method = ObjectType("ControlMethod")
@@ -63,7 +62,7 @@ graphql_resolvers.register_type_resolvers(
     ontology_relationship,
     term,
     subject, trait, condition,
-    scale, category,
+    scale,
     observation_method, variable,
     control_method, factor,
     event
@@ -244,10 +243,6 @@ async def resolve_term_subjects(obj, info):
 async def resolve_term_scales(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.scales)
 
-@term.field("categories")
-async def resolve_term_categories(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.categories)
-
 @term.field("observationMethods")
 async def resolve_term_observation_methods(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.observation_methods)
@@ -321,10 +316,6 @@ async def resolve_condition_factors(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
 
 # Scale-specific resolvers
-@scale.field("categories")
-async def resolve_scale_categories(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.categories)
-
 @scale.field("variables")
 async def resolve_scale_variables(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.variables)
@@ -332,11 +323,6 @@ async def resolve_scale_variables(obj, info):
 @scale.field("factors")
 async def resolve_scale_factors(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
-
-# Category-specific resolvers
-@category.field("scales")
-async def resolve_category_scales(obj, info):
-    return await resolve_ontology_entries(info.context, entry_ids=obj.scales)
 
 # ObservationMethod-specific resolvers
 @observation_method.field("variables")

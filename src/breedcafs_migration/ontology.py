@@ -28,7 +28,7 @@ from breedgraph.service_layer.application.ontology_seed import COUNTRY
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, VersionChange, AxisType, ScaleType, ObservationMethodType, ControlMethodType,
-    SubjectInput, LocationTypeInput, LayoutTypeInput, TermInput, ScaleInput, ScaleCategoryInput,
+    SubjectInput, LocationTypeInput, LayoutTypeInput, TermInput, ScaleInput, ScaleCategory,
     ObservationMethodInput, ControlMethodInput, TraitInput, ConditionInput, VariableInput, FactorInput,
     RecordGroupTypeInput, RecordGroupExtent
 )
@@ -226,17 +226,12 @@ class OntologyPreparation:
         scale_type = SCALE_TYPES.get(scale_type) or ScaleType(scale_type)
 
         async def create():
-            category_ids = []
-            for category in categories:
-                category_id, _ = await self.get_or_create(
-                    OntologyEntryLabel.CATEGORY, category,
-                    lambda: self.ontology.create_entry(ScaleCategoryInput(name=category))
-                )
-                category_ids.append(category_id)
-            return await self.ontology.create_scale(
-                ScaleInput(name=name, description=row['Scale Description'] or None, scale_type=scale_type),
-                categories=category_ids
-            )
+            return await self.ontology.create_scale(ScaleInput(
+                name=name,
+                description=row['Scale Description'] or None,
+                scale_type=scale_type,
+                categories=[ScaleCategory(category) for category in categories]
+            ))
 
         existing = await self.ontology.get_entry(name=name, label=OntologyEntryLabel.SCALE)
         if existing is not None and existing.scale_type is not scale_type:

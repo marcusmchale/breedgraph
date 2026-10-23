@@ -179,7 +179,7 @@ async def prepare_breedcafs_curves(
                 format=DataFormat.CSV,
                 schema=schema(x_values, len(key_curves))
             ))
-            scale, categories = await uow.ontology.get_concept_scale(concept)
+            scale = await uow.ontology.get_concept_scale(concept)
             replicate = programs.replicate_groupings[study]
             dataset = await uow.repositories.datasets.create(DatasetInput(
                 concept=concept, study=programs.studies[study], reference_ids=[reference.id]
@@ -194,7 +194,7 @@ async def prepare_breedcafs_curves(
                 )
                 for curve in key_curves
             ]
-            errors = [error for error in dataset.add_records(records, scale, categories, [replicate]) if error]
+            errors = [error for error in dataset.add_records(records, scale, [replicate]) if error]
             if errors:
                 raise ValueError(f"{len(errors)} curves of {key} do not parse, e.g. {errors[:3]}")
             # Join the Replicate scope of the other datasets of the same submission in the study

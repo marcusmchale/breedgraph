@@ -8,7 +8,6 @@ from .ontology import (
     LocationTypeOutput,
     LayoutTypeOutput,
     SubjectOutput,
-    CategoryOutput,
     ScaleOutput,
     ControlMethodOutput,
     ConditionOutput,

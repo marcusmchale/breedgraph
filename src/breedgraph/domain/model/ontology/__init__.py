@@ -16,7 +16,7 @@ from .entries import (
 from .relationships import (
     OntologyRelationshipBase,
     ParentRelationship,
-    TermRelationship, SubjectRelationship, CategoryRelationship,
+    TermRelationship, SubjectRelationship,
     FactorComponentRelationship, VariableComponentRelationship,
     EventTypeComponentRelationship
 )
@@ -24,7 +24,7 @@ from .subjects import SubjectBase, SubjectInput, SubjectStored
 from .variables import (
     TraitBase, TraitInput, TraitStored,
     ObservationMethodBase, ObservationMethodInput, ObservationMethodStored,
-    ScaleCategoryBase, ScaleCategoryInput, ScaleCategoryStored,
+    ScaleCategory,
     ScaleBase, ScaleInput, ScaleStored,
     VariableBase, VariableInput, VariableStored,
 )
@@ -66,7 +66,7 @@ __all__ = [
     # Relationship types
     'OntologyRelationshipBase',
     'ParentRelationship',
-    'TermRelationship', 'SubjectRelationship', 'CategoryRelationship',
+    'TermRelationship', 'SubjectRelationship',
     'FactorComponentRelationship', 'VariableComponentRelationship',
     'EventTypeComponentRelationship',
 
@@ -83,7 +83,7 @@ __all__ = [
     # Variable-related entries
     'TraitBase', 'TraitInput', 'TraitStored',
     'ObservationMethodBase', 'ObservationMethodInput', 'ObservationMethodStored',
-    'ScaleCategoryBase', 'ScaleCategoryInput', 'ScaleCategoryStored',
+    'ScaleCategory',
     'ScaleBase', 'ScaleInput', 'ScaleStored',
     'VariableBase', 'VariableInput', 'VariableStored',
 

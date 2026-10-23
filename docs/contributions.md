@@ -100,10 +100,10 @@ Any ontology entry can be **locked** by an ontology admin, and unlocked by one. 
 Locking is for entries that follow an external standard, or that much depends on, so they stay stable.
 
 A locked entry:
-- keeps its name, abbreviation, description and `source`;
+- keeps its name, abbreviation, description and `source`, and a scale its categories;
 - cannot be deprecated;
 - keeps the relationships that define it: those from it to other entries, other than to its children and terms,
-  e.g. a locked variable keeps its trait, method and scale, and a locked scale its categories.
+  e.g. a locked variable keeps its trait, method and scale.
 
 Still open on a locked entry: synonyms, references, children (e.g. "Sample collection" under Investigation), terms,
 and relationships from other entries to it (e.g. variables using a locked scale).

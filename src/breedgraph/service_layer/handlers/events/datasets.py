@@ -53,11 +53,11 @@ async def handle_dataset_submitted(
             # access, where adding them to a stored dataset would be a change to it, needing curate access. A record
             # that doesn't parse is reported by its index, and nothing is stored.
             dataset_input.records = list()
-            scale, categories = await uow.ontology.get_concept_scale(dataset_import.concept_id)
+            scale = await uow.ontology.get_concept_scale(dataset_import.concept_id)
             item_errors = [
                 ItemError(index=i, error=e)
                 for i, e in enumerate(dataset_input.add_records(
-                    dataset_import.records_to_input(), scale, categories, study.get_grouping_ids()
+                    dataset_import.records_to_input(), scale, study.get_grouping_ids()
                 ))
                 if e is not None
             ]
@@ -94,7 +94,7 @@ async def dataset_update_submitted(
                 #  this is the first point at which we guarantee the submitted dataset_id is valid
                 await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
 
-            scale, categories = await uow.ontology.get_concept_scale(dataset.concept)
+            scale = await uow.ontology.get_concept_scale(dataset.concept)
 
             if dataset_import.study_id is not None and dataset_import.study_id != dataset.study:
                 await uow.controls.require_access(ControlledModelLabel.STUDY, [dataset_import.study_id], Access.READ)
@@ -135,7 +135,6 @@ async def dataset_update_submitted(
             for i, e in enumerate(dataset.update_records(
                 dataset_import.records_to_update(),
                 scale,
-                categories,
                 study.get_grouping_ids())
             ):
                 if e is not None:
@@ -176,7 +175,7 @@ async def dataset_records_submitted(
             else:
                 await state_store.set_submission_dataset_id(event.submission_id, dataset.id)
 
-            scale, categories = await uow.ontology.get_concept_scale(dataset.concept)
+            scale = await uow.ontology.get_concept_scale(dataset.concept)
 
             program = await uow.repositories.programs.get(study_id=dataset.study)
             if program is None:
@@ -184,7 +183,7 @@ async def dataset_records_submitted(
             study = program.get_study(dataset.study)
 
             item_errors = []
-            for i, e in enumerate(dataset.add_records(records, scale, categories, study.get_grouping_ids())):
+            for i, e in enumerate(dataset.add_records(records, scale, study.get_grouping_ids())):
                 if e is not None:
                     item_errors.append(ItemError(index=i, error=e))
                     continue

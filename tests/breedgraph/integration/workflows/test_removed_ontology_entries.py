@@ -15,7 +15,7 @@ from breedgraph.domain.model.layout_trees import LayoutInput
 from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, LifecyclePhase, VersionChange, ScaleType, ObservationMethodType, AxisType,
-    SubjectInput, TraitInput, ObservationMethodInput, ScaleInput, ScaleCategoryInput, VariableInput,
+    SubjectInput, TraitInput, ObservationMethodInput, ScaleInput, ScaleCategory, VariableInput,
     LocationTypeInput, LayoutTypeInput
 )
 from breedgraph.domain.model.unit_graphs import UnitInput, Position
@@ -49,11 +49,10 @@ async def context(isolated_state, uow_factory, state_store) -> dict:
         method = await ontology.create_entry(
             ObservationMethodInput(name="Removed Look", observation_type=ObservationMethodType.ESTIMATION)
         )
-        low = await ontology.create_entry(ScaleCategoryInput(name="Removed Low"))
-        high = await ontology.create_entry(ScaleCategoryInput(name="Removed High"))
-        scale = await ontology.create_scale(
-            ScaleInput(name="Removed Classes", scale_type=ScaleType.ORDINAL), categories=[low.id, high.id]
-        )
+        scale = await ontology.create_scale(ScaleInput(
+            name="Removed Classes", scale_type=ScaleType.ORDINAL,
+            categories=[ScaleCategory("Removed Low"), ScaleCategory("Removed High")]
+        ))
         variable = await ontology.create_variable(
             VariableInput(name="Removed Vigour Class"), trait_id=trait.id, observation_method_id=method.id, scale_id=scale.id
         )
@@ -87,7 +86,7 @@ async def context(isolated_state, uow_factory, state_store) -> dict:
 
     async with uow_factory.get_uow(user_id=user_id) as uow:
         await uow.ontology.deprecate_entries([
-            variable.id, trait.id, method.id, scale.id, low.id, high.id, subject.id, plot_type.id, grid.id
+            variable.id, trait.id, method.id, scale.id, subject.id, plot_type.id, grid.id
         ])
         await uow.ontology.commit_version(version_change=VersionChange.MAJOR)
         await uow.commit()
@@ -113,9 +112,9 @@ async def submit(bus, state_store, event_queue, user_id: int, submission: dict, 
 async def test_removed_entries_are_read_as_cited(uow_factory, context):
     async with uow_factory.get_uow(user_id=context['user_id']) as uow:
         assert await uow.ontology.get_entry(entry_id=context['variable_id']) is None, "not in the current version"
-        scale, categories = await uow.ontology.get_concept_scale(context['variable_id'])
+        scale = await uow.ontology.get_concept_scale(context['variable_id'])
         assert scale.id == context['scale_id'] and scale.phase is LifecyclePhase.REMOVED
-        assert [category.name for category in categories] == ["Removed Low", "Removed High"]
+        assert [category.name for category in scale.categories] == ["Removed Low", "Removed High"]
         subject = await uow.ontology.get_cited_entry(context['subject_id'], label=OntologyEntryLabel.SUBJECT)
         assert subject.name == "Removed Tree"
         concept = await AnalysisContextLoader(uow, user_id=context['user_id'], warnings=[])._load_concept(context['variable_id'])

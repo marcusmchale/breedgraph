@@ -198,9 +198,9 @@ class DatasetPlan:
         return submissions
 
 
-def value_for(value: str, scale, categories) -> str:
-    if categories and value.casefold() in BOOLEAN_VALUES:
-        names = {name.casefold() for category in categories for name in category.names}
+def value_for(value: str, scale) -> str:
+    if scale.categories and value.casefold() in BOOLEAN_VALUES:
+        names = {category.name.casefold() for category in scale.categories}
         if BOOLEAN_VALUES[value.casefold()].casefold() in names:
             return BOOLEAN_VALUES[value.casefold()]
     return value
@@ -253,12 +253,12 @@ async def prepare_breedcafs_datasets(
                 concept = key[1]
                 if concept not in scales:
                     scales[concept] = await uow.ontology.get_concept_scale(concept)
-                scale, categories = scales[concept]
+                scale = scales[concept]
                 dataset = await uow.repositories.datasets.create(DatasetInput(concept=concept, study=programs.studies[study]))
                 records = [
                     DataRecordInput(
                         unit_id=units[record.item_uid],
-                        value=value_for(record.value, scale, categories),
+                        value=value_for(record.value, scale),
                         start=record.start,
                         end=record.end,
                         groups=record_groups(record, programs, study)
@@ -267,7 +267,7 @@ async def prepare_breedcafs_datasets(
                 ]
                 errors = [
                     (record.sample or record.item_uid, record.value, error)
-                    for record, error in zip(plan.datasets[key], dataset.add_records(records, scale, categories, groupings))
+                    for record, error in zip(plan.datasets[key], dataset.add_records(records, scale, groupings))
                     if error
                 ]
                 if errors:

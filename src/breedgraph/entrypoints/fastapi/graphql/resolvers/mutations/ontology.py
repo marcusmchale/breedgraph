@@ -5,11 +5,11 @@ from breedgraph.domain.commands.ontologies import (
     LockOntologyEntries, UnlockOntologyEntries,
 
     CreateTerm, CreateSubject, CreateTrait, CreateCondition,
-    CreateScale, CreateScaleCategory, CreateObservationMethod, CreateVariable,
+    CreateScale, CreateObservationMethod, CreateVariable,
     CreateControlMethod, CreateFactor, CreateEventType,
     CreateLocationType, CreateDesign, CreateLayoutType, CreateRole,
     UpdateTerm, UpdateSubject, UpdateTrait, UpdateCondition,
-    UpdateScale, UpdateCategory, UpdateObservationMethod, UpdateVariable,
+    UpdateScale, UpdateObservationMethod, UpdateVariable,
     UpdateControlMethod, UpdateFactor, UpdateEventType,
     UpdateLocationType, UpdateDesign, UpdateLayoutType, UpdateRecordGroupType, CreateRecordGroupType, UpdateRole
 
@@ -158,16 +158,6 @@ async def create_scale(_, info, scale: dict) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} creates scale: {scale}")
     cmd = CreateScale(agent_id=user_id, **scale)
-    await info.context['bus'].handle(cmd)
-    return True
-
-@graphql_mutation.field("ontologyCreateCategory")
-@graphql_payload
-@require_authentication
-async def create_category(_, info, category: dict) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} creates scale category: {category}")
-    cmd = CreateScaleCategory(agent_id=user_id, **category)
     await info.context['bus'].handle(cmd)
     return True
 
@@ -323,17 +313,6 @@ async def update_scale(_, info, scale: dict) -> bool:
     logger.debug(f"User {user_id} updates scale: {scale}")
     scale['ontology_entry_id'] = scale.pop('id')
     cmd = UpdateScale(agent_id=user_id, **scale)
-    await info.context['bus'].handle(cmd)
-    return True
-
-@graphql_mutation.field("ontologyUpdateCategory")
-@graphql_payload
-@require_authentication
-async def update_category(_, info, category: dict) -> bool:
-    user_id = info.context.get('user_id')
-    logger.debug(f"User {user_id} updates scale category: {category}")
-    category['ontology_entry_id'] = category.pop('id')
-    cmd = UpdateCategory(agent_id=user_id, **category)
     await info.context['bus'].handle(cmd)
     return True
 

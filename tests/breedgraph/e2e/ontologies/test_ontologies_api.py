@@ -195,6 +195,35 @@ async def test_create_scale(
     assert method_payload.get('result')[0].get('id')
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_ordinal_scale_with_categories(
+        ontology_build_context,
+        login_token_factory,
+        client,
+        lorem_text_generator
+):
+    login_token = login_token_factory(ontology_build_context['user_id'])
+    name = lorem_text_generator.new_text(10)
+    categories = [{'name': "Low", 'description': "Few lesions"}, {'name': "High", 'description': None}]
+    response = await post_to_create_scale(
+        client, token=login_token, scale_input={'name': name, 'scaleType': ScaleType.ORDINAL, 'categories': categories}
+    )
+    assert_payload_success(get_verified_payload(response, "ontologyCreateScale"))
+    response = await post_to_get_entries(
+        client, token=login_token, labels=[OntologyEntryLabel.SCALE], view=OntologyViewMode.EDITORIAL
+    )
+    scales = get_verified_payload(response, "ontologyEntries").get('result')
+    scale = next(scale for scale in scales if scale['name'] == name)
+    assert scale['categories'] == categories, "in the order given"
+
+    # a nominal or ordinal scale needs categories, and only they have them
+    for scale_input in (
+            {'name': lorem_text_generator.new_text(10), 'scaleType': ScaleType.ORDINAL},
+            {'name': lorem_text_generator.new_text(10), 'scaleType': ScaleType.TEXT, 'categories': [{'name': "Low"}]},
+    ):
+        response = await post_to_create_scale(client, token=login_token, scale_input=scale_input)
+        assert get_verified_payload(response, "ontologyCreateScale").get('errors')
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_variable(
         ontology_build_context,
         login_token_factory,

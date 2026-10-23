@@ -4,19 +4,18 @@ import pytest
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, LifecyclePhase, Version, EntryLifecycle, RelationshipLifecycle,
-    ParentRelationship, TermRelationship, SubjectRelationship, CategoryRelationship, VariableComponentRelationship
+    ParentRelationship, TermRelationship, SubjectRelationship, VariableComponentRelationship
 )
 from breedgraph.domain.model.ontology.relationships import VariableScaleRelationship
 from breedgraph.domain.services.ontology_lifecycles import deprecate_with_entries, cancel_with_entries, restore_with_entries
 
 V1, V2, V3, V4 = Version(major=1), Version(major=2), Version(major=3), Version(major=4)
 
-# variables 1 and 8 use scale 2, which has category 3; variable 1 describes trait 4 and has term 6;
-# trait 4 describes subject 5, the parent of subject 7
-VARIABLE, SCALE, CATEGORY, TRAIT, SUBJECT, TERM, CHILD_SUBJECT, OTHER_VARIABLE = 1, 2, 3, 4, 5, 6, 7, 8
+# variables 1 and 8 use scale 2; variable 1 describes trait 4 and has term 6; trait 4 describes subject 5, the parent of
+# subject 7
+VARIABLE, SCALE, TRAIT, SUBJECT, TERM, CHILD_SUBJECT, OTHER_VARIABLE = 1, 2, 4, 5, 6, 7, 8
 RELATIONSHIPS = {
     101: VariableScaleRelationship.build(variable_id=VARIABLE, scale_id=SCALE),
-    102: CategoryRelationship.build(scale_id=SCALE, category_id=CATEGORY),
     103: VariableComponentRelationship.TraitRelationship.build(variable_id=VARIABLE, trait_id=TRAIT),
     104: SubjectRelationship.build(source_id=TRAIT, subject_id=SUBJECT, source_label=OntologyEntryLabel.TRAIT),
     105: TermRelationship.build(source_id=VARIABLE, term_id=TERM, source_label=OntologyEntryLabel.VARIABLE),
@@ -33,7 +32,7 @@ for relationship_id, relationship in RELATIONSHIPS.items():
 def lifecycles():
     entries = {
         entry_id: EntryLifecycle(entry_id=entry_id, drafted=V1, activated=V1)
-        for entry_id in (VARIABLE, SCALE, CATEGORY, TRAIT, SUBJECT, TERM, CHILD_SUBJECT, OTHER_VARIABLE)
+        for entry_id in (VARIABLE, SCALE, TRAIT, SUBJECT, TERM, CHILD_SUBJECT, OTHER_VARIABLE)
     }
     relationships = {
         relationship_id: RelationshipLifecycle(relationship_id=relationship_id, drafted=V1, activated=V1)
@@ -109,7 +108,7 @@ def test_an_entry_a_current_entry_is_defined_by_is_kept(lifecycles):
 def test_entries_deprecated_together_mark_what_they_share(lifecycles):
     deprecate([VARIABLE, OTHER_VARIABLE, SCALE], lifecycles)
     assert marks(lifecycles) == {
-        101: [VARIABLE, SCALE], 102: [SCALE], 103: [VARIABLE], 105: [VARIABLE], 107: [SCALE, OTHER_VARIABLE]
+        101: [VARIABLE, SCALE], 103: [VARIABLE], 105: [VARIABLE], 107: [SCALE, OTHER_VARIABLE]
     }
 
 
@@ -146,7 +145,7 @@ def test_a_later_deprecation_adds_to_the_marks(lifecycles):
 def test_cancelling_brings_back_what_is_no_longer_held(lifecycles):
     deprecate([VARIABLE, OTHER_VARIABLE, SCALE], lifecycles)
     cancel([SCALE], lifecycles)
-    # the scale's category comes back, and its link to the variables stays with them
+    # the scale's links to the variables stay with them
     assert marks(lifecycles) == {101: [VARIABLE], 103: [VARIABLE], 105: [VARIABLE], 107: [OTHER_VARIABLE]}
     cancel([VARIABLE, OTHER_VARIABLE], lifecycles)
     assert marks(lifecycles) == {}
@@ -167,7 +166,7 @@ def test_a_removed_entry_comes_back_only_with_what_defines_it(lifecycles):
     commit(lifecycles)
     with pytest.raises(IllegalOperationError, match="restore them with it: Variable 1 --\\[UsesScale\\]--> Scale 2"):
         restore([VARIABLE], lifecycles)
-    assert set(removed(lifecycles)) == {101, 102, 103, 105, 107}, "nothing changed"
+    assert set(removed(lifecycles)) == {101, 103, 105, 107}, "nothing changed"
     restore([VARIABLE, SCALE], lifecycles)
     # the other variable stays removed, with its link to the scale
     assert removed(lifecycles) == {107: [SCALE, OTHER_VARIABLE]}
@@ -180,7 +179,7 @@ def test_a_restored_scale_leaves_its_removed_variables(lifecycles):
     deprecate([VARIABLE, OTHER_VARIABLE, SCALE], lifecycles)
     commit(lifecycles)
     restore([SCALE], lifecycles)
-    assert set(removed(lifecycles)) == {101, 103, 105, 107}, "only its category comes back"
+    assert set(removed(lifecycles)) == {101, 103, 105, 107}, "its links to the removed variables stay removed"
 
 
 def test_what_was_removed_since_stays_removed(lifecycles):

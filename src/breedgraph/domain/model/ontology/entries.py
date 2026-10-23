@@ -56,6 +56,11 @@ class OntologyEntryBase(EnumLabeledModel, ABC):
             dump['axes'] = [a.value for a in dump['axes']]
         if dump.get('default_extent') is not None:
             dump['default_extent'] = dump['default_extent'].value
+        if 'categories' in dump:
+            # as parallel arrays, as a node can't hold a list of maps: '' for a category without a description
+            categories = dump.pop('categories')
+            dump['category_names'] = [category['name'] for category in categories]
+            dump['category_descriptions'] = [category['description'] or '' for category in categories]
         return dump
 
 @dataclass

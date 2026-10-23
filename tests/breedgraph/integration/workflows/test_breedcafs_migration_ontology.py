@@ -129,11 +129,15 @@ async def test_prepare_ontology(uow_factory, editor_id, data_dir):
 
         rust_scale = await uow.ontology.get_entry(name="Defoliation Scale", label=OntologyEntryLabel.SCALE)
         assert rust_scale.scale_type is ScaleType.ORDINAL
-        assert len(await targets(rust_scale.id, OntologyRelationshipLabel.HAS_CATEGORY)) == 3
+        assert [category.name for category in rust_scale.categories] == ["0", "1", "2"]
 
         shade_level = await uow.ontology.get_entry(entry_id=ids.design_factors["Shade Level Treatment"], label=OntologyEntryLabel.FACTOR)
         shade_scale_id = next(iter(await targets(shade_level.id, OntologyRelationshipLabel.USES_SCALE)))
-        assert len(await targets(shade_scale_id, OntologyRelationshipLabel.HAS_CATEGORY)) == 6
+        shade_scale = await uow.ontology.get_entry(entry_id=shade_scale_id, label=OntologyEntryLabel.SCALE)
+        assert [category.name for category in shade_scale.categories] == [
+            "Shade Level 1", "Shade Level 2", "Shade Level 3", "Shade Level 4", "Shade Level 5",
+            "2 Years Low Light Acclimation"
+        ]
         shade_condition_id = next(iter(await targets(shade_level.id, OntologyRelationshipLabel.DESCRIBES_CONDITION)))
         assert await targets(shade_condition_id, OntologyRelationshipLabel.DESCRIBES_SUBJECT) == {ids.subjects["Tree"]}
 

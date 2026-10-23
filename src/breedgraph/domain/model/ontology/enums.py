@@ -125,15 +125,14 @@ class ScaleType(str, Enum):
     DURATION = "DURATION"
     NUMERICAL = "NUMERICAL"
     TEXT = "TEXT"
-    NOMINAL = "NOMINAL"  # should have categories, Boolean values are represented as nominal scales (e.g. Yes/No, Present/Absent)
-    ORDINAL = "ORDINAL"  # should have categories
+    NOMINAL = "NOMINAL"  # has categories, Boolean values are represented as nominal scales (e.g. Yes/No, Present/Absent)
+    ORDINAL = "ORDINAL"  # has categories, in order
     COMPLEX = "COMPLEX" # Allows for hdf5, json, sparse matrixes, tables, trees etc. should define a schema
 
 class OntologyEntryLabel(EnumLabel):
     TERM = "Term"
     SUBJECT = "Subject"
     SCALE = "Scale"
-    CATEGORY = "Category"
     OBSERVATION_METHOD = "ObservationMethod"
     TRAIT = "Trait"
     VARIABLE = "Variable"
@@ -154,7 +153,6 @@ class OntologyEntryLabel(EnumLabel):
             cls.TERM: "Terms",
             cls.SUBJECT: "Subjects",
             cls.SCALE: "Scales",
-            cls.CATEGORY: "Categories",
             cls.OBSERVATION_METHOD: "ObservationMethods",
             cls.TRAIT: "Traits",
             cls.VARIABLE: "Variables",
@@ -180,7 +178,6 @@ class OntologyEntryLabel(EnumLabel):
 class OntologyRelationshipLabel(str, Enum):
     PARENT_OF = 'ParentOf' # Any => SAME_TYPE
     HAS_TERM = 'HasTerm' # Any => Term
-    HAS_CATEGORY = 'HasCategory' # Scale -> Category
     DESCRIBES_SUBJECT = 'DescribesSubject' # Trait/Condition -> Subject
     DESCRIBES_TRAIT = 'DescribesTrait' # Variable -> Trait
     DESCRIBES_CONDITION = 'DescribesCondition'  # Factor -> Condition

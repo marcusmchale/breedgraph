@@ -9,7 +9,7 @@ from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology import (
     VersionChange,
     OntologyEntryLabel, ScaleType, ObservationMethodType, ControlMethodType, SubjectInput, TraitInput,
-    ObservationMethodInput, ScaleInput, ScaleCategoryInput, VariableInput, ConditionInput, ControlMethodInput,
+    ObservationMethodInput, ScaleInput, ScaleCategory, VariableInput, ConditionInput, ControlMethodInput,
     FactorInput, RecordGroupTypeInput, RecordGroupExtent
 )
 from breedgraph.domain.model.programs import ProgramInput, TrialInput, StudyInput, RecordGroupingInput, GroupingScope
@@ -100,8 +100,9 @@ def write_csv(path, rows):
 
 
 async def concept(ontology, subject_id, name, scale_type, categories=(), factor=False) -> int:
-    category_ids = [(await ontology.create_entry(ScaleCategoryInput(name=c))).id for c in categories]
-    scale = await ontology.create_scale(ScaleInput(name=f"{name} scale", scale_type=scale_type), categories=category_ids)
+    scale = await ontology.create_scale(ScaleInput(
+        name=f"{name} scale", scale_type=scale_type, categories=[ScaleCategory(c) for c in categories]
+    ))
     if factor:
         condition = await ontology.create_condition(ConditionInput(name=f"{name} condition"), subjects=[subject_id])
         method = await ontology.create_entry(ControlMethodInput(name=f"{name} method", control_type=ControlMethodType.MANAGEMENT))

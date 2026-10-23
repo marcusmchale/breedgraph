@@ -1,5 +1,5 @@
 from neo4j import AsyncTransaction
-from typing import List
+from typing import List, Set
 from breedgraph.service_layer.infrastructure.dependency_guards import AbstractDependencyGuards
 from breedgraph.adapters.neo4j.cypher import queries
 
@@ -61,6 +61,12 @@ class Neo4jDependencyGuards(AbstractDependencyGuards):
         result = await self.tx.run(query, unit_id=unit_id, source_ids=source_ids)
         record = await result.single()
         return bool(record and record.get('in_use'))
+
+    async def cited_category_names(self, scale_id: int) -> Set[str]:
+        query = queries['guards']['scale_categories_cited']
+        result = await self.tx.run(query, scale_id=scale_id)
+        record = await result.single()
+        return set(record.get('names')) if record else set()
 
     async def team_controls_entities(self, team_id: int) -> bool:
         query = queries['guards']['team_controls_entities']

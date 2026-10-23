@@ -107,11 +107,11 @@ its removal. Its relationships follow it (`domain/services/ontology_lifecycles.p
   with, so the commit removes them together and the current ontology has no relationship to an entry it doesn't have.
   Cancelling the deprecation brings back what was deprecated with the entry.
 - The relationships from an entry, other than to its children and terms, define it: a locked entry keeps them, and an
-  entry can't be deprecated while a current entry is defined by it (a variable's trait, method or scale, a scale's
-  categories, a trait's subjects, ...), unless they are deprecated together. Links to children and terms are dropped
+  entry can't be deprecated while a current entry is defined by it (a variable's trait, method or scale, a trait's
+  subjects, ...), unless they are deprecated together. Links to children and terms are dropped
   with the entry.
 - What data cites is read whatever its phase, a deprecated or removed entry as it stood when it was deprecated (the
-  referential view): a dataset's variable or factor with its scale and categories, a unit's subject, the type of a
+  referential view): a dataset's variable or factor with its scale and its categories, a unit's subject, the type of a
   location, layout or grouping. So data citing a removed entry is still read, edited and analysed.
 - A new link from outside the ontology needs an entry of a committed version, activated and not removed: a dataset,
   unit, location, layout, grouping, study design, germplasm control method or contribution role can't be created with
@@ -151,13 +151,18 @@ Scale entries require a ScaleType, one of:
 - nominal,
 - ordinal,
 - text
-For nominal and ordinal types, additional category references may be provided.
+Nominal and ordinal scales have categories, and other scales have none. The categories are part of the scale, not
+entries of the ontology, as a name means something only on its scale: "High" vigour is not "High" severity. They are
+in order, which for an ordinal scale is their rank, and each has a name, unique on the scale ignoring case, and an
+optional description of what it means on the scale. Records of the scale hold a category's name.
+A scale keeps the categories records cite: categories can be added, reordered and described, but a name that records
+hold can't be removed or renamed, and nor can the scale's type change, while records of any variable or factor reading
+the scale (as cited, so removed ones included) hold it. What a record's value meant when it was recorded, if the
+categories were reordered or described since, is in the ontology version current when it was submitted: analysis and
+curation read the current version.
 Examples:
 "Centimeters", "Counts per million", "Micro-Einsteins" are all ScaleType numerical.
-##### ScaleCategory
-Category entries describe classes for [scale](#scale) entries with type Nominal or Ordinal.
-Ordinal scales require an additional "rank" parameter (integer value) for each category.
-Examples: "High", "Medium", "Low" with ranks 2, 1 and 0, respectively.
+"Septoria severity" is ordinal, with the categories "1" (no symptoms) to "9" (the upper leaves dead).
 ##### ObservationMethod
 Observation method entries describe the way a value is determined for [variables](#variable).
 Observation method entries require an ObservationMethodType, one of:

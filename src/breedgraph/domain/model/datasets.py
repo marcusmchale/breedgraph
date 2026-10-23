@@ -14,7 +14,7 @@ from breedgraph.domain.model.controls import (
 )
 
 from breedgraph.domain.services.value_parsers import ValueParser
-from breedgraph.domain.model.ontology import ScaleStored, ScaleCategoryStored, ScaleType
+from breedgraph.domain.model.ontology import ScaleStored, ScaleType
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class DataRecordBase(ABC):
 class DataRecordInput(DataRecordBase, LabeledModel):
     unit_id: InitVar[int|None] = None
     reference_ids: InitVar[List[int] | None] = None
-    value: str|int|None = None  # integer values supported for categories, must be parsed to name for stored type though
+    value: str|None = None
 
     def __post_init__(self, unit_id, reference_ids):
         if unit_id is not None:
@@ -74,7 +74,7 @@ class DataRecordInput(DataRecordBase, LabeledModel):
 class DataRecordUpdate(DataRecordBase, StoredModel):
     unit_id: InitVar[int|None] = None
     reference_ids: InitVar[List[int] | None] = None
-    value: str|int|None = None  # integer values supported for categories, must be parsed to name for stored type though
+    value: str|None = None
     # the times the update removes, 'start' or 'end': a time that is None and not cleared is left as it is
     cleared: Set[str] = field(default_factory=set)
 
@@ -126,12 +126,11 @@ class DatasetBase(ABC):
             self,
             records: List[DataRecordInput],
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored]|None,
             grouping_ids: List[int]|None
     ) -> Generator[None|str, None, None]:
         for record in records:
             try:
-                parsed_record = self.parse_record(record, scale, categories, grouping_ids)
+                parsed_record = self.parse_record(record, scale, grouping_ids)
                 self.records.append(parsed_record)
                 yield None
             except Exception as e:
@@ -141,7 +140,6 @@ class DatasetBase(ABC):
             self,
             records: List[DataRecordUpdate|dict],
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored]|None,
             grouping_ids: List[int] | None
     ) -> Generator[None|str, None, None]:
         record_index_map = { record.id: record_index for record_index, record in enumerate(self.records) }
@@ -159,7 +157,7 @@ class DatasetBase(ABC):
 
                 # a record on a complex scale holds no value, but what it cites is parsed as a value would be
                 if record.value is not None or scale.scale_type == ScaleType.COMPLEX:
-                    record = self.parse_record(record, scale, categories, grouping_ids)
+                    record = self.parse_record(record, scale, grouping_ids)
                 elif record.groups is not None:
                     self.validate_groups(record.groups, grouping_ids)
 
@@ -223,7 +221,6 @@ class DatasetBase(ABC):
             self,
             record: DataRecordInput,
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored] | None,
             grouping_ids: List[int]|None
     ) -> DataRecordInput:
         ...
@@ -233,7 +230,6 @@ class DatasetBase(ABC):
             self,
             record: DataRecordUpdate,
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored] | None,
             grouping_ids: List[int]|None
     ) -> DataRecordUpdate:
         ...
@@ -242,7 +238,6 @@ class DatasetBase(ABC):
             self,
             record: DataRecordInput|DataRecordUpdate,
             scale: ScaleStored,
-            categories: List[ScaleCategoryStored] | None,
             grouping_ids: List[int]|None
     ) -> DataRecordInput|DataRecordUpdate:
         if scale.scale_type == ScaleType.COMPLEX:
@@ -253,7 +248,7 @@ class DatasetBase(ABC):
                 raise ValueError("Complex scale records require at least one reference: remove the record instead")
         self.validate_groups(record.groups or [], grouping_ids)
 
-        record.value = self.value_parser.parse(value=record.value, scale=scale, categories=categories)
+        record.value = self.value_parser.parse(value=record.value, scale=scale)
         return record
 
 

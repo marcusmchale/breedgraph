@@ -62,8 +62,9 @@ def test_names_are_unique_where_the_model_needs_them():
                     TRAITS, VARIABLES, CONDITIONS, CONTROL_METHODS, FACTORS):
         names = [entry[0].casefold() for entry in entries.values()]
         assert len(names) == len(set(names)), names
-    categories = [category.casefold() for scale in SCALES.values() for category, _ in scale[4]]
-    assert len(categories) == len(set(categories))
+    for scale in SCALES.values():
+        categories = [category.casefold() for category, _ in scale[4]]
+        assert len(categories) == len(set(categories)), scale[0]
     for programmes in (PROGRAMMES, TRIALS, STUDIES):
         assert len({p.name for p in programmes.values()}) == len(programmes)
     assert len({account.fullname for account in ACCOUNTS.values()}) == len(ACCOUNTS)

@@ -2,10 +2,9 @@ import re
 
 from numpy import float64
 
-from breedgraph.custom_exceptions import NoResultFoundError
 from breedgraph.domain.model.time_descriptors import parse_local_datetime
 
-from breedgraph.domain.model.ontology import  ScaleStored, ScaleType, ScaleCategoryStored
+from breedgraph.domain.model.ontology import ScaleStored, ScaleType, ScaleCategory
 
 from typing import List
 
@@ -14,10 +13,10 @@ class ValueParser:
 
     def parse(
             self,
-            value: str|int|None,
-            scale: ScaleStored,
-            categories: List[ScaleCategoryStored] | None
+            value: str|None,
+            scale: ScaleStored
     ) -> str|None:
+        """The value as stored, checked against the scale: a category's name as the scale has it"""
         if scale.scale_type == ScaleType.COMPLEX:
             return None
 
@@ -31,22 +30,12 @@ class ValueParser:
             elif scale.scale_type == ScaleType.TEXT:
                 return self._parse_text(value)
             elif scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
-                if not categories:
-                    raise ValueError("Parsing of categories requires categories input to this call")
-                return self._parse_category_text(value, categories)
+                return self._parse_category(value, scale.categories)
             else:
                 raise ValueError("String value provided for the wrong scale type")
 
-        elif isinstance(value, int):
-            if scale.scale_type in [ScaleType.NOMINAL, ScaleType.ORDINAL]:
-                if not categories:
-                    raise ValueError("Parsing of categories requires categories input to this call")
-                return self._parse_category_int(value, categories)
-            else:
-                raise ValueError("Integer values are only supported for nominal and ordinal scales")
-
         else:
-            raise ValueError("Only str and int values may be parsed as values")
+            raise ValueError("Only text values may be parsed as values")
 
     @staticmethod
     def _parse_datetime(value:str) -> str:
@@ -102,20 +91,10 @@ class ValueParser:
         return value
 
     @staticmethod
-    def _parse_category_text(value: str, categories: List[ScaleCategoryStored]) -> str:
-        matches = [c for c in categories if value.casefold() in [n.casefold() for n in c.names]]
-        if len(matches) == 0:
-            raise ValueError("String doesn't match a category name")
-        elif len(matches) == 1:
-            return matches[0].name
-        else:
-            raise ValueError(f"String matches multiple categories {matches}")
-
-
-    @staticmethod
-    def _parse_category_int(value: int, categories: List[ScaleCategoryStored]) -> str | None:
-        for c in categories:
-            if c.id == value:
-                return c.name
-        else:
-            raise NoResultFoundError(f"Matching category not found for scale: {value}")
+    def _parse_category(value: str, categories: List[ScaleCategory]) -> str:
+        """A category's name, matched ignoring case: names on a scale differ ignoring case"""
+        value = value.strip().casefold()
+        for category in categories:
+            if category.name.casefold() == value:
+                return category.name
+        raise ValueError("Value doesn't match a category name of the scale")

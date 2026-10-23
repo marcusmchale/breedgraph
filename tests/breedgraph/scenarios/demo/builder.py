@@ -25,7 +25,7 @@ from breedgraph.domain.model.layout_trees import LayoutInput
 from breedgraph.domain.model.location_trees import LocationInput
 from breedgraph.domain.model.ontology import (
     ConditionInput, ControlMethodInput, DesignInput, FactorInput, LayoutTypeInput, LocationTypeInput,
-    ObservationMethodInput, OntologyEntryLabel, RecordGroupTypeInput, ScaleCategoryInput, ScaleInput, SubjectInput,
+    ObservationMethodInput, OntologyEntryLabel, RecordGroupTypeInput, ScaleCategory, ScaleInput, SubjectInput,
     TraitInput, VariableInput, VersionChange
 )
 from breedgraph.domain.model.people import PersonInput
@@ -289,7 +289,7 @@ class DemoScenarioBuilder:
         o = s.ontology
         for kind in (
                 'location_types', 'layout_types', 'designs', 'record_group_types', 'subjects', 'observation_methods',
-                'categories', 'scales', 'traits', 'variables', 'conditions', 'control_methods', 'factors', 'roles'
+                'scales', 'traits', 'variables', 'conditions', 'control_methods', 'factors', 'roles'
         ):
             o[kind] = {}
         # the ontology's licence and copyright, which every version from the second cites; references to be cited by the
@@ -396,15 +396,10 @@ class DemoScenarioBuilder:
         if key in o['scales']:
             return
         name, abbreviation, scale_type, description, categories = SCALES[key]
-        category_ids = []
-        for category_name, category_description in categories:
-            entry = await ontology.create_entry(ScaleCategoryInput(name=category_name, description=category_description))
-            o['categories'][category_name] = entry.id
-            category_ids.append(entry.id)
-        entry = await ontology.create_scale(
-            ScaleInput(name=name, abbreviation=abbreviation, description=description, scale_type=scale_type),
-            categories=category_ids or None
-        )
+        entry = await ontology.create_scale(ScaleInput(
+            name=name, abbreviation=abbreviation, description=description, scale_type=scale_type,
+            categories=[ScaleCategory(category, meaning) for category, meaning in categories]
+        ))
         o['scales'][key] = entry.id
 
     async def _commit_version(self, ontology, index: int, cite: bool = False):
@@ -806,11 +801,11 @@ class DemoScenarioBuilder:
             )
             program = await uow.repositories.programs.get(study_id=s[plan.study])
             study = program.get_study(s[plan.study])
-            scale, categories = await uow.ontology.get_concept_scale(concept)
+            scale = await uow.ontology.get_concept_scale(concept)
             errors = [
                 f"record {index}: {error}"
                 for index, error in enumerate(
-                    dataset_input.add_records(records, scale, categories, study.get_grouping_ids())
+                    dataset_input.add_records(records, scale, study.get_grouping_ids())
                 )
                 if error is not None
             ]

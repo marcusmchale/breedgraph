@@ -3,7 +3,7 @@ import pytest
 from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperationError, IllegalOperationError
 from breedgraph.domain.commands.ontologies import (
     CreateDesign, UpdateDesign, CommitOntologyVersion,
-    CreateRole, UpdateRole, CreateTerm, CreateScale, UpdateScale, CreateScaleCategory,
+    CreateRole, UpdateRole, CreateTerm, CreateScale, UpdateScale,
     LockOntologyEntries, UnlockOntologyEntries, DeprecateOntologyEntries, UpdateLocationType
 )
 from breedgraph.domain.commands.setup import RefreshReadModels
@@ -74,8 +74,8 @@ async def test_a_locked_entry_keeps_its_attributes_and_defining_relationships(
 ):
     context = ontology_build_context
     admin = context['user_id']
-    names = [lorem_text_generator.new_text() for _ in range(6)]
-    role_name, child_name, term_name, scale_name, category_name, other_category_name = names
+    names = [lorem_text_generator.new_text() for _ in range(4)]
+    role_name, child_name, term_name, scale_name = names
 
     await bus.handle(CreateRole(
         agent_id=admin, name=role_name, description='A standard role',
@@ -84,11 +84,9 @@ async def test_a_locked_entry_keeps_its_attributes_and_defining_relationships(
     role_id = await entry_id(uow_factory, context, role_name, OntologyEntryLabel.ROLE)
     await bus.handle(CreateTerm(agent_id=admin, name=term_name))
     term_id = await entry_id(uow_factory, context, term_name, OntologyEntryLabel.TERM)
-    await bus.handle(CreateScaleCategory(agent_id=admin, name=category_name))
-    await bus.handle(CreateScaleCategory(agent_id=admin, name=other_category_name))
-    category_id = await entry_id(uow_factory, context, category_name, OntologyEntryLabel.CATEGORY)
-    other_category_id = await entry_id(uow_factory, context, other_category_name, OntologyEntryLabel.CATEGORY)
-    await bus.handle(CreateScale(agent_id=admin, name=scale_name, scale_type=ScaleType.NOMINAL, category_ids=[category_id]))
+    await bus.handle(CreateScale(
+        agent_id=admin, name=scale_name, scale_type=ScaleType.NOMINAL, categories=[{'name': 'Present'}]
+    ))
     scale_id = await entry_id(uow_factory, context, scale_name, OntologyEntryLabel.SCALE)
 
     await bus.handle(LockOntologyEntries(agent_id=admin, entry_ids=[role_id, scale_id]))
@@ -99,8 +97,15 @@ async def test_a_locked_entry_keeps_its_attributes_and_defining_relationships(
         UpdateRole(agent_id=admin, ontology_entry_id=role_id, name=lorem_text_generator.new_text()),
         UpdateRole(agent_id=admin, ontology_entry_id=role_id, source_url='https://example.org/other'),
         # a scale's categories define it
-        UpdateScale(agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL, category_ids=[category_id, other_category_id]),
-        UpdateScale(agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL, category_ids=[]),
+        UpdateScale(
+            agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL,
+            categories=[{'name': 'Present'}, {'name': 'Absent'}]
+        ),
+        UpdateScale(
+            agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL,
+            categories=[{'name': 'Present', 'description': 'Seen'}]
+        ),
+        UpdateScale(agent_id=admin, ontology_entry_id=scale_id, scale_type=ScaleType.NOMINAL, categories=[]),
         DeprecateOntologyEntries(agent_id=admin, entry_ids=[role_id]),
     ):
         with pytest.raises(UnauthorisedOperationError):

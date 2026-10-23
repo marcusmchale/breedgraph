@@ -9,7 +9,7 @@ from breedgraph.custom_exceptions import IllegalOperationError, IdentityExistsEr
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology import (
     OntologyEntryLabel, OntologyRelationshipLabel, LifecyclePhase, VersionChange, ScaleType, ObservationMethodType,
-    SubjectInput, TraitInput, ObservationMethodInput, ScaleInput, ScaleCategoryInput, VariableInput, TermInput,
+    SubjectInput, TraitInput, ObservationMethodInput, ScaleInput, ScaleCategory, VariableInput, TermInput,
     LocationTypeInput
 )
 
@@ -31,11 +31,10 @@ async def entries(uow_factory, editor_id) -> dict[str, int]:
         method = await ontology.create_entry(
             ObservationMethodInput(name="Retiring Look", observation_type=ObservationMethodType.ESTIMATION)
         )
-        low = await ontology.create_entry(ScaleCategoryInput(name="Retiring Low"))
-        high = await ontology.create_entry(ScaleCategoryInput(name="Retiring High"))
-        scale = await ontology.create_scale(
-            ScaleInput(name="Retiring Classes", scale_type=ScaleType.ORDINAL), categories=[low.id, high.id]
-        )
+        scale = await ontology.create_scale(ScaleInput(
+            name="Retiring Classes", scale_type=ScaleType.ORDINAL,
+            categories=[ScaleCategory("Retiring Low"), ScaleCategory("Retiring High")]
+        ))
         variable = await ontology.create_variable(
             VariableInput(name="Retiring Vigour Class"), trait_id=trait.id, observation_method_id=method.id, scale_id=scale.id
         )
@@ -46,7 +45,7 @@ async def entries(uow_factory, editor_id) -> dict[str, int]:
         await ontology.commit_version(version_change=VersionChange.MINOR)
         await uow.commit()
     return {
-        'subject': subject.id, 'trait': trait.id, 'method': method.id, 'low': low.id, 'high': high.id,
+        'subject': subject.id, 'trait': trait.id, 'method': method.id,
         'scale': scale.id, 'variable': variable.id, 'term': term.id, 'region': region.id, 'farm': farm.id
     }
 
@@ -101,7 +100,6 @@ async def test_the_commit_removes_the_relationships_with_their_entries(uow_facto
     async with uow_factory.get_uow(user_id=editor_id) as uow:
         # the kept entries no longer have relationships to the removed ones
         assert await relationships_of(uow, entries['farm']) == set()
-        assert await relationships_of(uow, entries['low']) == set()
         # the removed variable's relationships were removed with it, marked with what they were deprecated with
         removed = [r async for r in uow.ontology.get_relationships(entry_ids=[entries['variable']], phases=[LifecyclePhase.REMOVED])]
         assert {(r.label, r.target_id) for r in removed} == {
@@ -138,8 +136,8 @@ async def test_restoring_brings_entries_back_with_their_relationships(uow_factor
     async with uow_factory.get_uow(user_id=editor_id) as uow:
         # drafts until the next commit: data citing the variable reads it with what was restored with it,
         # but nothing new links to it
-        scale, categories = await uow.ontology.get_concept_scale(entries['variable'])
-        assert scale.id == entries['scale'] and [c.id for c in categories] == [entries['low'], entries['high']]
+        scale = await uow.ontology.get_concept_scale(entries['variable'])
+        assert scale.id == entries['scale'] and [c.name for c in scale.categories] == ["Retiring Low", "Retiring High"]
         with pytest.raises(IllegalOperationError, match="Not yet in a committed version"):
             await uow.ontology.require_entries([entries['variable']])
     async with uow_factory.get_uow(user_id=editor_id) as uow:
@@ -153,6 +151,5 @@ async def test_restoring_brings_entries_back_with_their_relationships(uow_factor
             (entries['variable'], OntologyRelationshipLabel.USES_OBSERVATION_METHOD, entries['method']),
             (entries['variable'], OntologyRelationshipLabel.USES_SCALE, entries['scale']),
         }
-        assert await relationships_of(uow, entries['low']) == {
-            (entries['scale'], OntologyRelationshipLabel.HAS_CATEGORY, entries['low'])
-        }
+        scale = await uow.ontology.get_entry(entry_id=entries['scale'])
+        assert [c.name for c in scale.categories] == ["Retiring Low", "Retiring High"], "with its categories, in order"

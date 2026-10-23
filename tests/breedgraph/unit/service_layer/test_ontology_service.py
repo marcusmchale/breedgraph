@@ -3,7 +3,7 @@ import pytest
 from breedgraph.custom_exceptions import IdentityExistsError, RelationshipExistsError
 from breedgraph.service_layer.application.ontology_service import OntologyApplicationService
 from breedgraph.domain.model.ontology import (
-    SubjectInput, TraitInput, VariableInput, ScaleInput, ObservationMethodInput, ScaleCategoryInput, OntologyEntryLabel
+    SubjectInput, TraitInput, VariableInput, ScaleInput, ObservationMethodInput, ScaleCategory, OntologyEntryLabel
 )
 from breedgraph.domain.model.accounts import OntologyRole
 from breedgraph.domain.model.ontology.enums import ScaleType, OntologyRelationshipLabel
@@ -249,15 +249,38 @@ class TestOntologyApplicationServiceScaleCategories:
         return Version(major=1, minor=0, patch=0)
 
     @pytest.mark.asyncio
-    async def test_creates_with_rank_ordinal_scale(self, service):
-        scale_input = ScaleInput(name="test scale", scale_type=ScaleType.ORDINAL)
-        scale = await service.create_scale(scale_input)
-        category_1 = await service.create_entry(ScaleCategoryInput(name='A'))
-        category_2 = await service.create_entry(ScaleCategoryInput(name='B'))
-        category_3 = await service.create_entry(ScaleCategoryInput(name='C'))
-        await service.add_scale_categories(scale_id = scale.id, categories=[category_1.id,category_2.id,category_3.id], ranks=[2,1,0])
-        categories = await service.get_scale_category_ids(scale_id = scale.id)
-        assert categories == [category_3.id,category_2.id,category_1.id]
+    async def test_keeps_the_order_given(self, service):
+        scale = await service.create_scale(ScaleInput(
+            name="test scale", scale_type=ScaleType.ORDINAL,
+            categories=[ScaleCategory('C', 'the highest'), ScaleCategory('B'), ScaleCategory('A')]
+        ))
+        stored = await service.get_entry(scale.id)
+        assert stored.categories == [ScaleCategory('C', 'the highest'), ScaleCategory('B'), ScaleCategory('A')]
+
+    @pytest.mark.asyncio
+    async def test_trims_names_and_descriptions(self):
+        assert ScaleCategory(' Low ', '  ') == ScaleCategory('Low')
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('scale_type, categories, error', [
+        (ScaleType.NOMINAL, [], "needs categories"),
+        (ScaleType.ORDINAL, [], "needs categories"),
+        (ScaleType.TEXT, [ScaleCategory('A')], "only valid for nominal and ordinal"),
+        (ScaleType.NOMINAL, [ScaleCategory('A'), ScaleCategory(' ')], "can't be empty"),
+        (ScaleType.NOMINAL, [ScaleCategory('Yes'), ScaleCategory('yes ')], "must differ"),
+    ])
+    async def test_refuses_invalid_categories(self, service, scale_type, categories, error):
+        with pytest.raises(ValueError, match=error):
+            await service.create_scale(ScaleInput(name="test scale", scale_type=scale_type, categories=categories))
+
+    @pytest.mark.asyncio
+    async def test_refuses_an_update_to_invalid_categories(self, service):
+        scale = await service.create_scale(
+            ScaleInput(name="test scale", scale_type=ScaleType.NOMINAL, categories=[ScaleCategory('A')])
+        )
+        scale.scale_type = ScaleType.NUMERICAL
+        with pytest.raises(ValueError, match="only valid for nominal and ordinal"):
+            await service.update_entry(scale)
 
 # Fixture for common test setup
 @pytest.fixture

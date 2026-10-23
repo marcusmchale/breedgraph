@@ -28,14 +28,14 @@ def dataset(
 
 
 def test_a_new_record_on_a_complex_scale_must_cite_a_reference():
-    assert list(dataset().add_records([DataRecordInput(unit_id=5, value='0.5')], COMPLEX, None, [])) == [
+    assert list(dataset().add_records([DataRecordInput(unit_id=5, value='0.5')], COMPLEX, [])) == [
         "Complex scale records require at least one reference"
     ]
 
 
 def test_an_update_cannot_leave_a_record_on_a_complex_scale_citing_nothing():
     stored = dataset(references=[7])
-    assert list(stored.update_records([DataRecordUpdate(id=10, reference_ids=[])], COMPLEX, None, [])) == [
+    assert list(stored.update_records([DataRecordUpdate(id=10, reference_ids=[])], COMPLEX, [])) == [
         "Complex scale records require at least one reference: remove the record instead"
     ]
     assert stored.records[0].references == [7]
@@ -43,33 +43,33 @@ def test_an_update_cannot_leave_a_record_on_a_complex_scale_citing_nothing():
 
 def test_an_update_replaces_the_references_of_a_record_on_a_complex_scale():
     stored = dataset(references=[7])
-    assert list(stored.update_records([DataRecordUpdate(id=10, reference_ids=[8, 9])], COMPLEX, None, [])) == [None]
+    assert list(stored.update_records([DataRecordUpdate(id=10, reference_ids=[8, 9])], COMPLEX, [])) == [None]
     assert stored.records[0].references == [8, 9]
 
 
 def test_an_update_giving_no_references_leaves_them():
     stored = dataset(references=[7])
-    assert list(stored.update_records([DataRecordUpdate(id=10, start='2025-06-13')], COMPLEX, None, [])) == [None]
+    assert list(stored.update_records([DataRecordUpdate(id=10, start='2025-06-13')], COMPLEX, [])) == [None]
     assert (str(stored.records[0].start), stored.records[0].references) == ('2025-06-13', [7])
 
 
 def test_a_record_holding_a_value_may_cite_nothing():
     stored = dataset(value='310', references=[7])
-    assert list(stored.update_records([DataRecordUpdate(id=10, value='311', reference_ids=[])], NUMERICAL, None, [])) == [None]
+    assert list(stored.update_records([DataRecordUpdate(id=10, value='311', reference_ids=[])], NUMERICAL, [])) == [None]
     assert (stored.records[0].value, stored.records[0].references) == ('311', [])
 
 
 def test_an_update_giving_only_references_leaves_the_rest():
     (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'reference_ids': [8]}]).records_to_update()
     stored = dataset(references=[7], start='2025-06-12')
-    assert list(stored.update_records([update], COMPLEX, None, [])) == [None]
+    assert list(stored.update_records([update], COMPLEX, [])) == [None]
     assert (str(stored.records[0].start), stored.records[0].references) == ('2025-06-12', [8])
 
 
 def test_an_update_giving_only_a_value_leaves_the_rest():
     (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'value': '311'}]).records_to_update()
     stored = dataset(value='310', start='2025-06-12')
-    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert list(stored.update_records([update], NUMERICAL, [])) == [None]
     assert (stored.records[0].value, str(stored.records[0].start)) == ('311', '2025-06-12')
 
 
@@ -77,14 +77,14 @@ def test_an_update_giving_the_start_as_null_removes_it():
     (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'start': None}]).records_to_update()
     assert update.cleared == {'start'}
     stored = dataset(value='310', start='2025-06-12', end='2025-06-30')
-    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert list(stored.update_records([update], NUMERICAL, [])) == [None]
     assert (stored.records[0].start, str(stored.records[0].end), stored.records[0].value) == (None, '2025-06-30', '310')
 
 
 def test_an_update_giving_the_end_as_null_removes_it():
     (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'end': None}]).records_to_update()
     stored = dataset(value='310', start='2025-06-12', end='2025-06-30')
-    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert list(stored.update_records([update], NUMERICAL, [])) == [None]
     assert (str(stored.records[0].start), stored.records[0].end) == ('2025-06-12', None)
 
 
@@ -96,5 +96,5 @@ def test_only_a_start_or_end_can_be_cleared():
 def test_an_update_giving_a_unit_moves_the_record():
     (update,) = DatasetUpdateImport(dataset_id=1, records=[{'id': 10, 'unit_id': 6}]).records_to_update()
     stored = dataset(value='310', start='2025-06-12')
-    assert list(stored.update_records([update], NUMERICAL, None, [])) == [None]
+    assert list(stored.update_records([update], NUMERICAL, [])) == [None]
     assert (stored.records[0].unit, stored.records[0].value, str(stored.records[0].start)) == (6, '310', '2025-06-12')

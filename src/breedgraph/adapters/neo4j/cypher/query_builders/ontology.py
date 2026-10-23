@@ -338,11 +338,6 @@ def get_relationships(
 
     return_clause = """
         WITH relationship
-        OPTIONAL MATCH (patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
-        WHERE for_rel.version <= $version
-        WITH relationship, patch, for_rel
-        ORDER BY for_rel.time 
-        WITH relationship, collect(patch {.*}) as patches            
         MATCH (source: OntologyEntry)-[:HAS_RELATIONSHIP]->(relationship)-[:RELATES_TO]->(target: OntologyEntry)
         RETURN
             relationship {
@@ -352,8 +347,7 @@ def get_relationships(
                 target_id: target.id,
                 source_label: [label IN labels(source) WHERE label <> "OntologyEntry"][0],
                 target_label: [label IN labels(target) WHERE label <> "OntologyEntry"][0]
-            } as relationship,
-            patches
+            } as relationship
     """
     query_parts = [match_clause]
     if where_clause:

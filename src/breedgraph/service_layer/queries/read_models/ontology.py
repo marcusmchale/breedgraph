@@ -8,7 +8,7 @@ from breedgraph.domain.model.ontology import (
     LifecyclePhase,
     OntologyEntryLabel, OntologyRelationshipLabel,
     ObservationMethodType, ControlMethodType, RecordGroupExtent,
-    ScaleType,
+    ScaleType, ScaleCategory,
     AxisType
 )
 
@@ -31,7 +31,6 @@ class OntologyRelationshipOutput:
 
     source_id: int
     target_id: int
-    rank: int | None = None
 
     def model_dump(self):
         dump = asdict(self)
@@ -86,6 +85,11 @@ class OntologyEntryOutput(ABC):
             dump['axes'] = [a.value for a in dump['axes']]
         if dump.get('default_extent') is not None:
             dump['default_extent'] = dump['default_extent'].value
+        if 'categories' in dump:
+            # as parallel arrays, as a node can't hold a list of maps: '' for a category without a description
+            categories = dump.pop('categories')
+            dump['category_names'] = [category['name'] for category in categories]
+            dump['category_descriptions'] = [category['description'] or '' for category in categories]
         return dump
 
 
@@ -95,7 +99,6 @@ class TermOutput(OntologyEntryOutput):
 
     subjects: tuple[int, ...] = ()
     scales: tuple[int, ...] = ()
-    categories: tuple[int, ...] = ()
     observation_methods: tuple[int, ...] = ()
     traits: tuple[int, ...] = ()
     variables: tuple[int, ...] = ()
@@ -130,19 +133,13 @@ class SubjectOutput(OntologyEntryOutput):
     conditions: tuple[int, ...] = ()
 
 @dataclass(frozen=True)
-class CategoryOutput(OntologyEntryOutput):
-    label: ClassVar[str] = OntologyEntryLabel.CATEGORY
-    terms: tuple[int, ...] = ()
-
-    scales: tuple[int, ...] = ()
-
-@dataclass(frozen=True)
 class ScaleOutput(OntologyEntryOutput):
     label: ClassVar[OntologyEntryLabel] = OntologyEntryLabel.SCALE
     terms: tuple[int, ...] = ()
 
     scale_type: ScaleType = ScaleType.TEXT
-    categories: tuple[int, ...]|None = None
+    # in order: the rank of an ordinal scale's levels
+    categories: tuple[ScaleCategory, ...] = ()
 
     variables: tuple[int, ...] = ()
     factors: tuple[int, ...] = ()

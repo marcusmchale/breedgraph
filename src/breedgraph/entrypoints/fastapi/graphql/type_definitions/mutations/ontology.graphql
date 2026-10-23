@@ -17,7 +17,6 @@ input TermInput {
     childIds: [ID!]
     subjectIds: [ID!]
     scaleIds: [ID!]
-    categoryIds: [ID!]
     observationMethodIds: [ID!]
     traitIds: [ID!]
     variableIds: [ID!]
@@ -87,22 +86,16 @@ input ScaleInput {
     termIds: [ID!]
     scaleType: ScaleType!
     """
-    When defining a scale using existing categories, their identifiers may be listed in their proposed rank order.
+    The categories of a nominal or ordinal scale, in order: an ordinal scale's order is the rank of its categories.
+    Names must differ, ignoring case. Other scales have none.
     """
-    categoryIds: [ID!]
+    categories: [ScaleCategoryInput!]
 }
 
-input CategoryInput {
+"""A category of a nominal or ordinal scale: a name, as records hold it, and what it means on this scale"""
+input ScaleCategoryInput {
     name: String!
     description: String
-    abbreviation: String
-    synonyms: [String!]
-    referenceIds: [ID!]
-    sourceUrl: String
-    sourceAttribution: String
-    parentIds: [ID!]
-    childIds: [ID!]
-    termIds: [ID!]
 }
 
 input ObservationMethodInput {
@@ -268,7 +261,6 @@ input TermUpdate {
     childIds: [ID!]
     subjectIds: [ID!]
     scaleIds: [ID!]
-    categoryIds: [ID!]
     observationMethodIds: [ID!]
     traitIds: [ID!]
     variableIds: [ID!]
@@ -343,7 +335,10 @@ input ConditionUpdate {
 
 """
 Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
-sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
+sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it).
+Categories given replace the scale's, in order, and null or an empty list clears them. A locked scale refuses a change,
+and the scale must keep every category records cite: categories can be added, reordered and described, but a name
+records hold can't be removed or renamed.
 """
 input ScaleUpdate {
     id: ID!
@@ -359,25 +354,7 @@ input ScaleUpdate {
     termIds: [ID!]
 
     scaleType: ScaleType!
-    categoryIds: [ID!]
-}
-
-"""
-Fields left out are unchanged; null, or an empty string, clears abbreviation, description, sourceUrl or
-sourceAttribution, and null or an empty list clears synonyms (a locked entry refuses it)
-"""
-input CategoryUpdate {
-    id: ID!
-    name: String
-    description: String
-    abbreviation: String
-    synonyms: [String!]
-    referenceIds: [ID!]
-    sourceUrl: String
-    sourceAttribution: String
-    parentIds: [ID!]
-    childIds: [ID!]
-    termIds: [ID!]
+    categories: [ScaleCategoryInput!]
 }
 
 """
@@ -585,7 +562,6 @@ extend type Mutation {
     ontologyCreateTrait(trait: TraitInput!): BooleanPayload!
     ontologyCreateCondition(condition: ConditionInput!): BooleanPayload!
     ontologyCreateScale(scale: ScaleInput!): BooleanPayload!
-    ontologyCreateCategory(category: CategoryInput!): BooleanPayload!
     ontologyCreateObservationMethod(observationMethod: ObservationMethodInput!): BooleanPayload!
     ontologyCreateVariable(variable: VariableInput!): BooleanPayload!
     ontologyCreateControlMethod(controlMethod: ControlMethodInput!): BooleanPayload!
@@ -602,7 +578,6 @@ extend type Mutation {
     ontologyUpdateTrait(trait: TraitUpdate!): BooleanPayload!
     ontologyUpdateCondition(condition: ConditionUpdate!): BooleanPayload!
     ontologyUpdateScale(scale: ScaleUpdate!): BooleanPayload!
-    ontologyUpdateCategory(category: CategoryUpdate!): BooleanPayload!
     ontologyUpdateObservationMethod(observationMethod: ObservationMethodUpdate!): BooleanPayload!
     ontologyUpdateVariable(variable: VariableUpdate!): BooleanPayload!
     ontologyUpdateControlMethod(controlMethod: ControlMethodUpdate!): BooleanPayload!

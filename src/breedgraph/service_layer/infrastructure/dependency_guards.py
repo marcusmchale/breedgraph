@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Set
 
 class AbstractDependencyGuards(ABC):
     """
@@ -50,6 +50,11 @@ class AbstractDependencyGuards(ABC):
     @abstractmethod
     async def derivation_cycle(self, unit_id: int, source_ids: List[int]) -> bool:
         """Check if any of the units source_ids is derived from a unit, directly or through others"""
+        ...
+
+    @abstractmethod
+    async def cited_category_names(self, scale_id: int) -> Set[str]:
+        """The names of a scale's categories that records cite, through any variable or factor reading the scale"""
         ...
 
     @abstractmethod

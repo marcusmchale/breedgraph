@@ -10,7 +10,7 @@ from neo4j import Record
 
 from breedgraph.domain.model.ontology import (
     Version, OntologyEntryLabel, ControlMethodType, ObservationMethodType, RecordGroupExtent, ScaleType, AxisType,
-    OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle, LifecyclePhase
+    OntologyRelationshipLabel, EntryLifecycle, RelationshipLifecycle, LifecyclePhase, ScaleCategory
 )
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
 from breedgraph.service_layer.mappers import ontology_mapper
@@ -48,6 +48,10 @@ def coerce_intrinsic_attributes(entry_dict: dict):
         entry_dict['axes'] = tuple(AxisType(a) for a in entry_dict['axes'])
     if entry_dict.get('default_extent') is not None:
         entry_dict['default_extent'] = RecordGroupExtent(entry_dict['default_extent'])
+    if 'category_names' in entry_dict:
+        entry_dict['categories'] = tuple(ScaleCategory.from_arrays(
+            entry_dict.pop('category_names'), entry_dict.pop('category_descriptions', None)
+        ))
 
 
 def filter_dict(entry_dict: dict, node_class):
@@ -83,11 +87,11 @@ def record_to_entry(
     entry_dict = record.get('entry', {})
     entry_dict.pop('label', None)
 
-    coerce_intrinsic_attributes(entry_dict)
-
     entry_patches = entry_dict.get('patches', [])
     for patch in entry_patches:
         entry_dict.update(patch_values(patch))
+
+    coerce_intrinsic_attributes(entry_dict)
 
     entry_dict = filter_dict(entry_dict, entry_class)
 
@@ -112,10 +116,7 @@ def record_to_entry(
     attr_types = {f.name: f.type for f in fields(entry_class)}
     # now sort the values and set lists to tuples/ints to complete the entry
     for attr, rels in attr_rels.items():
-        if attr == 'categories':
-            rels.sort(key=ontology_mapper.get_rank)
-        else:
-            rels.sort(key=lambda x: x.get('id'))
+        rels.sort(key=lambda x: x.get('id'))
 
         attr_type = attr_types.get(attr)
         if not attr_type:
@@ -141,10 +142,6 @@ def record_to_relationships(record: Record, version: Version, view: OntologyView
     relationships = list()
     relationship_dicts = record.get('relationships')
     for relationship_dict in relationship_dicts:
-        patches = relationship_dict.get('patches', [])
-        for patch in patches:
-            relationship_dict.update(patch)
-
         relationships.append(
             OntologyRelationshipOutput(
                 label=OntologyRelationshipLabel(relationship_dict['relationship_type']),
@@ -153,7 +150,6 @@ def record_to_relationships(record: Record, version: Version, view: OntologyView
                 source_id=relationship_dict['source_id'],
                 target_id=relationship_dict['target_id'],
                 phase=RelationshipLifecycle(**relationship_dict['lifecycle']).current_phase,
-                rank=relationship_dict.get('rank'),
                 view=view
             )
         )

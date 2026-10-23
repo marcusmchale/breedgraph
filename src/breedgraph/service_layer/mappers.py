@@ -44,10 +44,6 @@ class OntologyMapper:
                 FrozenSet[OntologyEntryLabel]
             ]
         ] = {
-            OntologyRelationshipLabel.HAS_CATEGORY: (
-                frozenset({OntologyEntryLabel.SCALE}),
-                frozenset({OntologyEntryLabel.CATEGORY})
-            ),
             OntologyRelationshipLabel.DESCRIBES_SUBJECT: (
                 frozenset({OntologyEntryLabel.TRAIT, OntologyEntryLabel.CONDITION}),
                 frozenset({OntologyEntryLabel.SUBJECT})
@@ -174,15 +170,6 @@ class OntologyMapper:
                     return mapping[labels]
 
             raise ValueError(f"Relationship label not found for {entry_label} and {other_label}")
-
-    @staticmethod
-    def get_rank(rel_dict: dict) -> int:
-        properties = rel_dict.get('properties')
-        if properties:
-            rank = properties.get('rank')
-            return rank if rank else 0
-        else:
-            return 0
 
 
 ontology_mapper = OntologyMapper()

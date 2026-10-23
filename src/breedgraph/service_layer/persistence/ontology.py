@@ -92,11 +92,6 @@ class OntologyPersistenceService(ABC):
         """Create a new relationship between entries."""
         ...
 
-    @abstractmethod
-    async def update_relationship(self, relationship: OntologyRelationshipBase, user_id: int) -> None:
-        """Update attributes of an existing relationship."""
-        ...
-
     async def get_relationships(
             self,
             version: Version | None = None,

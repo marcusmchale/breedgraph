@@ -24,13 +24,6 @@ OPTIONAL MATCH
 
 WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target
 
-OPTIONAL MATCH (relationship_patch: OntologyRelationshipPatch)-[for_rel:FOR_RELATIONSHIP]->(relationship)
-  WHERE for_rel.version <= $version
-
-WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target, relationship_patch, for_rel
-ORDER BY for_rel.time
-WITH entry, entry_lifecycle, entry_patches, relationship, relationship_lifecycle, source, target, collect(relationship_patch {.*}) as relationship_patches
-
 WITH entry, entry_lifecycle, entry_patches, collect(relationship {
     .*,
     source_id: source.id,
@@ -38,7 +31,6 @@ WITH entry, entry_lifecycle, entry_patches, collect(relationship {
     target_id: target.id,
     target_label: [label IN labels(target) WHERE label <> 'OntologyEntry'][0],
     relationship_type: [label IN labels(relationship) WHERE label <> 'OntologyRelationship'][0],
-    patches: relationship_patches,
     lifecycle: relationship_lifecycle {.*}
 }) AS relationships
 RETURN

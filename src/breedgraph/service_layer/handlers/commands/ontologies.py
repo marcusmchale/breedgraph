@@ -1,3 +1,4 @@
+from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain import commands
 from breedgraph.domain.model.ontology import *
 
@@ -80,7 +81,6 @@ async def create_term(cmd: commands.ontologies.CreateTerm, uow_factory: Abstract
         to_link = [
             "subject_ids",
             "scale_ids",
-            "category_ids",
             "observation_method_ids",
             "trait_ids",
             "variable_ids",
@@ -174,34 +174,16 @@ async def create_scale(cmd: commands.ontologies.CreateScale, uow_factory: Abstra
             references=cmd.reference_ids or [],
             source_url=cmd.source_url,
             source_attribution=cmd.source_attribution,
-            scale_type=cmd.scale_type
+            scale_type=cmd.scale_type,
+            categories=scale_categories(cmd)
         )
-        entry = await ontology_service.create_entry(entry, cmd.parent_ids, cmd.child_ids)
-        for term_id in cmd.term_ids or []:
-            await ontology_service.link_to_term(source_id=entry.id, source_label=entry.label, term_id=term_id)
-        if cmd.category_ids:
-            for category_id in cmd.category_ids:
-                await ontology_service.link_to_category(scale_id=entry.id, category_id=category_id)
-        await uow.commit()
-
-@handlers.command_handler()
-async def create_scale_category(cmd: commands.ontologies.CreateScaleCategory, uow_factory: AbstractUnitOfWorkFactory):
-    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
-        ontology_service = uow.ontology
-        entry = ScaleCategoryInput(
-            name=cmd.name,
-            description=cmd.description,
-            abbreviation=cmd.abbreviation,
-            synonyms=cmd.synonyms or [],
-            references=cmd.reference_ids or [],
-            source_url=cmd.source_url,
-            source_attribution=cmd.source_attribution
-        )
-        entry = await ontology_service.create_entry(entry, cmd.parent_ids, cmd.child_ids)
+        entry = await ontology_service.create_scale(entry, cmd.parent_ids, cmd.child_ids)
         for term_id in cmd.term_ids or []:
             await ontology_service.link_to_term(source_id=entry.id, source_label=entry.label, term_id=term_id)
         await uow.commit()
 
+def scale_categories(cmd: commands.ontologies.CreateScale) -> List[ScaleCategory]:
+    return [ScaleCategory(name=category.name, description=category.description) for category in cmd.categories or []]
 
 @handlers.command_handler()
 async def create_observation_method(cmd: commands.ontologies.CreateObservationMethod, uow_factory: AbstractUnitOfWorkFactory):
@@ -422,8 +404,7 @@ def prepare_attr_relationship_updates(
         value: List[int]|int,
         existing_relationships,
         relationships_to_draft: List[OntologyRelationshipBase],
-        relationships_to_deprecate: List[OntologyRelationshipBase],
-        relationships_to_update: List[OntologyRelationshipBase]
+        relationships_to_deprecate: List[OntologyRelationshipBase]
 ):
     # first establish the specified source and target labels and ids and the relationship label for the given attribute
     if attr in ['parent_ids', 'child_ids']:
@@ -481,18 +462,15 @@ def prepare_attr_relationship_updates(
             relationships_to_deprecate.append(relationship)
 
     submitted_relationships = []
-    i = 0
     for source_id in source_ids:
         for target_id in target_ids:
-            i += 1
             submitted_relationships.append(
                 OntologyRelationshipBase.relationship_from_label(
                     source_id=source_id,
                     target_id=target_id,
                     source_label=source_label,
                     target_label=target_label,
-                    label=relationship_label,
-                    rank=i
+                    label=relationship_label
                 )
             )
     for submitted in submitted_relationships:
@@ -505,10 +483,6 @@ def prepare_attr_relationship_updates(
                 submitted.target_id == existing.target_id
             ]):
                 exists = True
-                if submitted.label == OntologyRelationshipLabel.HAS_CATEGORY:
-                    if not submitted.rank == existing.rank:
-                        existing.rank = submitted.rank
-                        relationships_to_update.append(existing)
         if not exists:
             relationships_to_draft.append(submitted)
 
@@ -528,7 +502,6 @@ async def update_relationships(
         'condition_id',
         'scale_ids',
         'scale_id',
-        'category_ids',
         'observation_method_ids',
         'observation_method_id',
         'control_method_ids',
@@ -545,7 +518,6 @@ async def update_relationships(
     relationships = None
     relationships_to_draft: List[OntologyRelationshipBase] = []
     relationships_to_deprecate: List[OntologyRelationshipBase] = []
-    relationships_to_update: List[OntologyRelationshipBase] = []
     for attr in relationship_setters:
         if hasattr(command, attr):
             new_attr_value = getattr(command, attr)
@@ -563,15 +535,12 @@ async def update_relationships(
                     value=new_attr_value,
                     existing_relationships=relationships,
                     relationships_to_draft=relationships_to_draft,
-                    relationships_to_deprecate=relationships_to_deprecate,
-                    relationships_to_update=relationships_to_update
+                    relationships_to_deprecate=relationships_to_deprecate
                 )
     for relationship in relationships_to_draft:
         await ontology_service.create_relationship(relationship)
     if relationships_to_deprecate:
         await ontology_service.deprecate_entry_relationships(relationships_to_deprecate)
-    for relationship in relationships_to_update:
-        await ontology_service.update_relationship(relationship)
 
 def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
     if cmd.name is not None:
@@ -591,6 +560,8 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
         entry.source_attribution = cmd.given_text('source_attribution')
     if hasattr(cmd, 'scale_type') and cmd.scale_type is not None:
         entry.scale_type = cmd.scale_type
+    if hasattr(cmd, 'categories') and cmd.given('categories'):
+        entry.categories = scale_categories(cmd)
     if hasattr(cmd, 'observation_type') and cmd.observation_type is not None:
         entry.observation_type = cmd.observation_type
     if hasattr(cmd, 'control_type') and cmd.control_type is not None:
@@ -600,13 +571,15 @@ def update_attributes(entry: OntologyEntryStored, cmd: commands.Command):
     if hasattr(cmd, 'default_extent') and cmd.given('default_extent'):
         entry.default_extent = cmd.default_extent
 
-async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWorkFactory):
+async def update_by_command(cmd: commands.Command, uow_factory: AbstractUnitOfWorkFactory, check=None):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         ontology_service = uow.ontology
         entry = await ontology_service.get_entry(cmd.ontology_entry_id)
         if not entry:
             raise ValueError("Entry not found")
         update_attributes(entry, cmd)
+        if check is not None:
+            await check(uow, entry)
         await ontology_service.update_entry(entry)
         await update_relationships(ontology_service, cmd, entry)
         await uow.commit()
@@ -630,11 +603,18 @@ async def update_condition(cmd: commands.ontologies.UpdateCondition, uow_factory
 
 @handlers.command_handler()
 async def update_scale(cmd: commands.ontologies.UpdateScale, uow_factory: AbstractUnitOfWorkFactory):
-    await update_by_command(cmd, uow_factory)
+    await update_by_command(cmd, uow_factory, check=require_cited_categories if cmd.given('categories') else None)
 
-@handlers.command_handler()
-async def update_category(cmd: commands.ontologies.UpdateCategory, uow_factory: AbstractUnitOfWorkFactory):
-    await update_by_command(cmd, uow_factory)
+async def require_cited_categories(uow, scale: ScaleStored) -> None:
+    """
+    Records hold their category's name, so a scale keeps the categories records cite: levels may be added, reordered
+    and described, but not dropped or renamed while records cite them
+    """
+    missing = await uow.guards.cited_category_names(scale.id) - {category.name for category in scale.categories}
+    if missing:
+        raise IllegalOperationError(
+            f"Records cite the categories {', '.join(sorted(missing))} of {scale.name}, so the scale must keep them"
+        )
 
 @handlers.command_handler()
 async def update_observation_method(cmd: commands.ontologies.UpdateObservationMethod, uow_factory: AbstractUnitOfWorkFactory):
