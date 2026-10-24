@@ -24,12 +24,16 @@ class AbstractUnitsView(ABC):
             return {}
         return await self._get_units(unit_ids)
 
-    async def get_unit_graph_roots(self, location_ids: Iterable[int]) -> List[UnitOutput]:
-        """The root units of the unit graphs positioned at these locations that the user can read a unit in"""
+    async def get_unit_graph_roots(self, location_ids: Iterable[int], below: bool = False) -> List[UnitOutput]:
+        """
+        The root units of the unit graphs positioned at these locations, or with below at them and every location under
+        them, that the user can read a unit in. A search: nothing at a location the user cannot read, and nothing under
+        one unless it is a location tree's root (docs/read-access.md, rule 5)
+        """
         location_ids = [location_id for location_id in dict.fromkeys(location_ids) if location_id is not None]
         if not location_ids:
             return []
-        return await self._get_unit_graph_roots(location_ids)
+        return await self._get_unit_graph_roots(location_ids, below)
 
     async def get_unit_names(self, unit_ids: Iterable[int]) -> Dict[int, UnitOutput]:
         """Units as id, name and germplasm only, for crediting records; a placeholder where the user cannot read"""
@@ -89,16 +93,19 @@ class AbstractUnitsView(ABC):
     async def _get_inherited_germplasm(self, unit_ids: List[int]) -> Dict[int, Tuple[int, int]]:
         ...
 
-    async def get_arrivals(self, location_ids: Iterable[int], unit_id: int | None = None) -> List[UnitArrival]:
+    async def get_arrivals(
+            self, location_ids: Iterable[int], unit_id: int | None = None, below: bool = False
+    ) -> List[UnitArrival]:
         """
-        The arrivals at these locations: the readable units, not unit graph roots, with a position at one of them whose
-        parents were not there at its start, by location and start; newest first, undated last. With unit_id, only the
-        units at, below or above it. A search: nothing at a location the user cannot read (docs/read-access.md, rule 5)
+        The arrivals at these locations, or with below at them and every location under them: the readable units, not
+        unit graph roots, with a position at one of them whose parents were not there at its start, by location and
+        start; newest first, undated last. With unit_id, only the units at, below or above it. A search: nothing at a
+        location the user cannot read (docs/read-access.md, rule 5)
         """
         location_ids = [location_id for location_id in dict.fromkeys(location_ids) if location_id is not None]
         if not location_ids:
             return []
-        return await self._get_arrivals(location_ids, unit_id)
+        return await self._get_arrivals(location_ids, unit_id, below)
 
     async def get_arrival_units(
             self, location_id: int, start: datetime64 | None, unit_id: int | None = None, offset: int = 0, limit: int = 100
@@ -123,7 +130,7 @@ class AbstractUnitsView(ABC):
         return await self._get_arrival_unit_ids(location_id, start, unit_id)
 
     @abstractmethod
-    async def _get_arrivals(self, location_ids: List[int], unit_id: int | None) -> List[UnitArrival]:
+    async def _get_arrivals(self, location_ids: List[int], unit_id: int | None, below: bool) -> List[UnitArrival]:
         ...
 
     @abstractmethod
@@ -159,5 +166,5 @@ class AbstractUnitsView(ABC):
         ...
 
     @abstractmethod
-    async def _get_unit_graph_roots(self, location_ids: List[int]) -> List[UnitOutput]:
+    async def _get_unit_graph_roots(self, location_ids: List[int], below: bool) -> List[UnitOutput]:
         ...

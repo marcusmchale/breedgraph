@@ -134,15 +134,18 @@ type Query {
     layoutsLayouts(ids: [ID!]): LayoutsPayload! # see team
     """
     Get a list of unit graph "root" units: the top-level units of the unit graphs, here those with a position of their
-    own at these locations, at any time. None at a location you cannot read.
+    own at these locations, at any time; with below, at them and at every location under them that you can read. None
+    at a location you cannot read, and none under it unless it is a location tree's root.
     """
-    unitsRoots(locationIds: [ID!]): UnitsPayload!
+    unitsRoots(locationIds: [ID!], below: Boolean): UnitsPayload!
     """
     The arrivals at these locations: units, not unit graph roots, that came there together from elsewhere in their unit
-    graphs (UnitArrival); newest first, undated last. With unitId, only the units at, below or above it, e.g. where the
-    samples of a tree went. None at a location you cannot read.
+    graphs (UnitArrival); newest first, undated last. With below, at them and at every location under them that you can
+    read: an arrival is still at the location it came to (samples brought from a field to its farm's lab arrived at the
+    lab). With unitId, only the units at, below or above it, e.g. where the samples of a tree went. None at a location
+    you cannot read, and none under it unless it is a location tree's root.
     """
-    unitsArrivals(locationIds: [ID!]!, unitId: ID): UnitArrivalsPayload!
+    unitsArrivals(locationIds: [ID!]!, unitId: ID, below: Boolean): UnitArrivalsPayload!
     """ A page of an arrival's units, by name: limit at most 1000 (default 100) """
     unitsArrivalUnits(arrival: ArrivalInput!, offset: Int, limit: Int): UnitsPayload!
     """ Get units by ID. """

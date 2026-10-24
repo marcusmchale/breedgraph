@@ -34,15 +34,17 @@ ARRIVAL_UNITS_LIMIT = 1000
 
 @graphql_query.field("unitsRoots")
 @graphql_payload
-async def get_unit_graphs(_, info, location_ids: List[int]|None = None) -> List[UnitOutput]:
-    return await update_units_map(info.context, location_ids=location_ids or [])
+async def get_unit_graphs(_, info, location_ids: List[int]|None = None, below: bool | None = False) -> List[UnitOutput]:
+    return await update_units_map(info.context, location_ids=location_ids or [], below=bool(below))
 
 @graphql_query.field("unitsArrivals")
 @graphql_payload
-async def get_unit_arrivals(_, info, location_ids: List[int], unit_id: int | None = None) -> List[UnitArrival]:
+async def get_unit_arrivals(
+        _, info, location_ids: List[int], unit_id: int | None = None, below: bool | None = False
+) -> List[UnitArrival]:
     async with get_context_lock(info.context):
         views = await get_context_views(info.context)
-        arrivals = await views.units.get_arrivals(location_ids=location_ids, unit_id=unit_id)
+        arrivals = await views.units.get_arrivals(location_ids=location_ids, unit_id=unit_id, below=bool(below))
     # their units by subject are read for every arrival of the request at once (UnitArrival.unitsBySubject)
     info.context.setdefault('unit_arrivals', []).extend(arrivals)
     return arrivals

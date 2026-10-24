@@ -12,6 +12,7 @@ from breedgraph.adapters.neo4j.cypher.query_builders.times import upper
 UNIT = ControlledModelLabel.UNIT
 LOCATION = ControlledModelLabel.LOCATION
 EDGE = 'INCLUDES_UNIT'
+LOCATION_EDGE = 'INCLUDES_LOCATION'
 
 
 def _readable(unit: str) -> str:
@@ -110,14 +111,35 @@ def read_units():
     """
 
 
-def read_unit_graph_roots():
+def _locations(below: bool) -> str:
     """
-    The roots of the unit graphs positioned at locations $location_ids that the user can read a unit in; nothing at a
-    location the user cannot read, as for any search from it (docs/read-access.md, rule 5)
+    Rows of location: the locations $location_ids, or with below each of them and every location under it, found
+    through hidden locations as read_descendants_by_type finds them. A location to search below must be readable, or a
+    location tree's root, whose placeholder holds the readable locations under it; below another hidden location
+    nothing is found (docs/read-access.md, rule 5). Callers keep the locations the user can read.
+    """
+    if not below:
+        return "MATCH (location:Location) WHERE location.id IN $location_ids"
+    return f"""
+        MATCH (start:Location)
+        WHERE start.id IN $location_ids
+          AND ({readable('start', LOCATION)} OR NOT (:Location)-[:{LOCATION_EDGE}]->(start))
+        MATCH (start)-[:{LOCATION_EDGE}*0..]->(location:Location)
+        WITH DISTINCT location
+    """
+
+
+def read_unit_graph_roots(below: bool = False):
+    """
+    The roots of the unit graphs positioned at locations $location_ids, or with below at them and every location under
+    them, that the user can read a unit in; nothing at a location the user cannot read, as for any search from it
+    (docs/read-access.md, rule 5)
     """
     return f"""
-        MATCH (unit:Unit)-[:IN_POSITION]->(:Position)-[:AT_LOCATION]->(location:Location)
-        WHERE location.id IN $location_ids AND NOT (unit)<-[:{EDGE}]-(:Unit) AND {readable('location', LOCATION)}
+        {_locations(below)}
+        WITH location WHERE {readable('location', LOCATION)}
+        MATCH (unit:Unit)-[:IN_POSITION]->(:Position)-[:AT_LOCATION]->(location)
+        WHERE NOT (unit)<-[:{EDGE}]-(:Unit)
         WITH DISTINCT unit
         {_project()}
         WITH unit, unit_readable, is_root, parents, children, positions WHERE unit_readable OR size(children) > 0
@@ -287,15 +309,16 @@ def _entered_start(position: str, start: str) -> str:
         END)"""
 
 
-def read_unit_arrivals(related: bool = False):
+def read_unit_arrivals(related: bool = False, below: bool = False):
     """
-    The arrivals at the locations $location_ids: each location id and start as entered, how many units came, how many
-    of them have units derived from them that the user can read, how many are pending (still there, with nothing
-    derived from them), and the roots of the unit graphs they came from; newest first, the finer start first at one
-    instant, undated last. With related, only the units at, below or above $unit_id
+    The arrivals at the locations $location_ids, or with below at them and every location under them: each location id
+    and start as entered, how many units came, how many of them have units derived from them that the user can read,
+    how many are pending (still there, with nothing derived from them), and the roots of the unit graphs they came from;
+    newest first, the finer start first at one instant, undated last. With related, only the units at, below or above
+    $unit_id
     """
     return f"""
-        {_arrived('MATCH (location:Location) WHERE location.id IN $location_ids', 'true', related)}
+        {_arrived(_locations(below), 'true', related)}
         WITH location, unit, position, arrived,
           EXISTS {{ MATCH (derivative:Unit)-[:DERIVED_FROM]->(unit) WHERE {_readable('derivative')} }} AS derived
         WITH location, unit, position, arrived, derived,

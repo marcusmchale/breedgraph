@@ -227,11 +227,13 @@ async def update_layouts_map(context, location_id: int | None = None, layout_ids
 async def update_units_map(
         context,
         location_ids: Iterable[int] | None = None,
-        unit_ids: Iterable[int] | None = None
+        unit_ids: Iterable[int] | None = None,
+        below: bool = False
 ) -> List[UnitOutput]:
     """
-    Load units into the request's units map through the units view, by id or as the unit graph roots at locations,
-    which are returned (each call its own, so aliased root queries in one request don't share them).
+    Load units into the request's units map through the units view, by id or as the unit graph roots at locations (with
+    below, at them and every location under them), which are returned (each call its own, so aliased root queries in one
+    request don't share them).
     Units are read individually, not by loading their whole unit graph, so the cost follows the ids requested.
     Callers that resolve many objects should pass all their ids in one call (see Dataset.records).
     Hidden units asked for come back as the view's placeholders; ids of units that do not exist are not mapped.
@@ -242,7 +244,7 @@ async def update_units_map(
 
         roots = []
         if location_ids is not None:
-            roots = await views.units.get_unit_graph_roots(location_ids=location_ids)
+            roots = await views.units.get_unit_graph_roots(location_ids=location_ids, below=below)
             units_map.update({unit.id: unit for unit in roots})
 
         if unit_ids is not None:

@@ -13,7 +13,7 @@ unit graph root is kept as a placeholder holding them (rule 4); any other hidden
 """
 import pytest
 
-from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, UNIT_PARENTS
+from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, UNIT_PARENTS, LOCATION_PARENTS
 
 REDACTED = 'REDACTED'
 
@@ -97,6 +97,38 @@ async def test_unit_graph_roots(views_factory, read_policy, viewer, location):
         name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) == location
     } if read_policy.readable(viewer, location) else set()
     assert set(roots) == ids(read_policy, expected), f"{viewer}: unit graph roots at {location}"
+    for name in expected:
+        assert_unit(read_policy, viewer, name, roots[read_policy[name]])
+
+
+def locations_under(name: str) -> set[str]:
+    """The location and every location under it, by the read-policy scenario's location trees"""
+    found, pending = {name}, [name]
+    while pending:
+        current = pending.pop()
+        children = [location for location, parent in LOCATION_PARENTS.items() if parent == current]
+        found.update(children)
+        pending.extend(children)
+    return found
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', VIEWERS)
+@pytest.mark.parametrize('location', ('country', 'state', 'field', 'country_private', 'state_public'))
+async def test_unit_graph_roots_below(views_factory, read_policy, viewer, location):
+    """
+    With below, the roots at a location and at every location under it the viewer can read, found through hidden
+    ones; searched from a location the viewer can read, or a location tree's root, and from another hidden location not
+    at all (docs/read-access.md rule 5)
+    """
+    searched = read_policy.readable(viewer, location) or LOCATION_PARENTS[location] is None
+    under = {name for name in locations_under(location) if read_policy.readable(viewer, name)}
+    expected = {
+        name for name in read_policy.shown_roots(viewer, UNIT_PARENTS) if UNIT_LOCATIONS.get(name) in under
+    } if searched else set()
+    async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
+        roots = {unit.id: unit for unit in await views.units.get_unit_graph_roots([read_policy[location]], below=True)}
+    assert set(roots) == ids(read_policy, expected), f"{viewer}: unit graph roots under {location}"
     for name in expected:
         assert_unit(read_policy, viewer, name, roots[read_policy[name]])
 

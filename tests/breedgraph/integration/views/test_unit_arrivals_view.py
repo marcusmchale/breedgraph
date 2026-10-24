@@ -8,6 +8,7 @@ from numpy import datetime64
 
 from breedgraph.domain.model.unit_graphs import arrival_key
 from tests.breedgraph.scenarios.arrival_scenario import EXPECTED_ARRIVALS, STORE, LAB
+from tests.breedgraph.scenarios.read_policy_scenario import LOCATION_PARENTS
 
 VIEWERS = ('admin', 'writer', 'stranger', 'outsider', 'anonymous')
 
@@ -29,6 +30,33 @@ async def test_arrivals_as_each_viewer_sees_them(views_factory, read_policy, arr
                 assert arrival.unit_count == len(units), (key, arrival.start)
                 seen.append((None if arrival.start is None else str(arrival.start), [unit.name for unit in units]))
             assert seen == by_viewer[viewer], (key, viewer)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', VIEWERS)
+@pytest.mark.parametrize('start', ('country', 'field', 'centre'))
+async def test_arrivals_below_a_location(views_factory, read_policy, arrivals, viewer, start):
+    """
+    With below, the arrivals at a location and at every location under it, each at the location it came to, as each
+    is listed alone; none when the search starts from a hidden location that is not a location tree's root
+    """
+    # the read-policy scenario's location trees, with the arrival scenario's store below its lab
+    parents = {**LOCATION_PARENTS, STORE: LAB}
+    under, pending = {start}, [start]
+    while pending:
+        current = pending.pop()
+        children = [name for name, parent in parents.items() if parent == current]
+        under.update(children)
+        pending.extend(children)
+    async with views_factory.get_views(user_id=read_policy.user(viewer)) as views:
+        below = await views.units.get_arrivals([_location(read_policy, arrivals, start)], below=True)
+        each = [arrival for key in under for arrival in await views.units.get_arrivals([_location(read_policy, arrivals, key)])]
+    searched = read_policy.readable(viewer, start) or parents[start] is None
+    key = lambda arrival: (arrival.location_id, None if arrival.start is None else str(arrival.start), arrival.unit_count)
+    assert sorted(map(key, below), key=str) == (sorted(map(key, each), key=str) if searched else []), (viewer, start)
+    # newest first, undated last, as for one location
+    dated = [arrival.start for arrival in below if arrival.start is not None]
+    assert dated == sorted(dated, reverse=True) and all(a.start is not None for a in below[:len(dated)])
 
 
 @pytest.mark.asyncio(loop_scope="session")
