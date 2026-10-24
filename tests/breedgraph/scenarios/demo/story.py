@@ -784,7 +784,9 @@ PENDING_REQUESTS = (('petra', 'field', READ),)
 GUIDE = {
     'invitee': {'username': 'nina', 'fullname': "Nina Newcomer"},
     'invitation_offer': {'team': 'breeding', 'accesses': (READ, WRITE), 'person': 'person_nina'},
-    'affiliation_request': {'team': 'lab', 'access': READ},
+    # a team tree's root is the team a newcomer can see to ask (docs/read-access.md): its admin approves the request
+    # as heritable, which reads the teams within it too, the lab's Grain Quality 2025 among them
+    'affiliation_request': {'team': 'institute', 'access': READ, 'approver': 'dara', 'heritable': True},
     'trial_2026': {'name': "Advanced Yield Trial 2026", 'start': '2025-10', 'end': '2026-08'},
     'study_2026': {
         'name': "Long Meadow Yield Trial 2026",

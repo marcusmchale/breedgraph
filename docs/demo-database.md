@@ -95,7 +95,7 @@ each start from the dump.
 
 | Chain | Workflows | What it creates |
 |---|---|---|
-| Joining | invitation, team request, personal data | Nina Newcomer's account, invited with read and write access to Wheat Breeding Group and her Person; a request to read Grain Quality Lab, which Lena approves |
+| Joining | invitation, team request, personal data | Nina Newcomer's account, invited with read and write access to Wheat Breeding Group and her Person; a request to read the Example Plant Breeding Institute, the team tree's root she can see, which Dara approves as heritable, so that she reads its teams' records too |
 | This season | trial and study, recording, curation, analysis | Advanced Yield Trial 2026 and Long Meadow Yield Trial 2026; the 2026 heights, Septoria scores and nitrogen rates (pasted, with LM26-207's height typed with an extra zero, which curation corrects); an ANOVA |
 | Next season | ontology, places, germplasm, planting | Flag leaf length (cm); Hill Field, with its boundary and layout; the cross EPB 26-X01; Hill Field's plots |
 

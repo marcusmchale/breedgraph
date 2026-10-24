@@ -152,7 +152,8 @@ def demo_manifest(
                 'request': {
                     'team': GUIDE['affiliation_request']['team'],
                     'access': GUIDE['affiliation_request']['access'].name,
-                    'approver': 'lena',
+                    'approver': GUIDE['affiliation_request']['approver'],
+                    'heritable': GUIDE['affiliation_request']['heritable'],
                 },
                 'absent': {'accounts': [GUIDE['invitee']['username']]},
             },
