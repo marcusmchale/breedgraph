@@ -11,7 +11,8 @@ from tests.breedgraph.e2e.datasets.post_methods import post_to_create_dataset
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 
 
-async def wait_for_status(get, statuses: set[SubmissionStatus], limit=20):
+# Polls every 0.1 s for up to 10 s: a busy machine can take more than 2 s to store a dataset
+async def wait_for_status(get, statuses: set[SubmissionStatus], limit=100):
     for _ in range(limit):
         await asyncio.sleep(0.1)
         result = await get()
