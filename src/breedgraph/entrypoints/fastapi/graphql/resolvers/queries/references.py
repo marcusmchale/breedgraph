@@ -1,3 +1,4 @@
+import json
 from ariadne import ObjectType, UnionType, InterfaceType, EnumType
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta, timezone
@@ -109,6 +110,18 @@ async def find_references(
 @external_data_reference.field("format")
 async def resolve_data_format(obj, *_):
     return obj.format.value
+
+def _schema_text(obj) -> str | None:
+    """A data reference's schema as the JSON text it was given in; null for none, an empty one stored before included"""
+    return json.dumps(obj.schema) if obj.schema else None
+
+@external_data_reference.field("schema")
+async def resolve_external_data_schema(obj, *_):
+    return _schema_text(obj)
+
+@data_file_reference.field("schema")
+async def resolve_data_file_schema(obj, *_):
+    return _schema_text(obj)
 
 @data_file_reference.field("format")
 async def resolve_data_format(obj, *_):

@@ -391,3 +391,30 @@ async def test_retention_removes_unused_file_references(
     await run_retention(client)
     assert await remaining() == {reference_ids['cited_again']}
     assert not Path(FILE_STORAGE_PATH, keys['unlinked']).exists()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('schema, expected', [(None, None), ('', None), ('{"shape": [300, 2]}', '{"shape": [300, 2]}')])
+async def test_external_data_schema_as_given(reference_build_context, login_token_factory, client, schema, expected):
+    """A data reference's schema reads back as the JSON text it was given in, and none for none or an empty one"""
+    login_token = login_token_factory(reference_build_context['user_id'])
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=login_token)
+    create = await client.post(GQL_API_PATH, headers=headers, json={
+        "query": (
+            " mutation ( $reference: ExternalDataReferenceInput!, $team: ID! ) { "
+            "  referencesCreateExternalData( reference: $reference, controlTeamId: $team ) { status, result, errors { message } } } "
+        ),
+        "variables": {
+            "reference": {"url": "https://example.org/spectra.csv", "format": "CSV", "description": "Spectra", "schema": schema},
+            "team": reference_build_context['team_id']
+        }
+    })
+    payload = get_verified_payload(create, "referencesCreateExternalData")
+    assert_payload_success(payload)
+    read = await client.post(GQL_API_PATH, headers=headers, json={
+        "query": " query ( $ids: [ID!] ) { references( ids: $ids ) { status, result { ... on ExternalDataReference { schema } }, errors { message } } } ",
+        "variables": {"ids": [payload['result']]}
+    })
+    payload = get_verified_payload(read, "references")
+    assert_payload_success(payload)
+    assert payload['result'] == [{"schema": expected}]

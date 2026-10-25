@@ -27,9 +27,10 @@ logger = logging.getLogger(__name__)
 
 from typing import Dict
 
-def parse_json_schema(schema: str | None) -> Dict:
+def parse_json_schema(schema: str | None) -> Dict | None:
+    """A data reference's schema as given, JSON text; none for none or an empty one"""
     if not schema:
-        return {}
+        return None
     else:
         try:
             return json.loads(schema)
