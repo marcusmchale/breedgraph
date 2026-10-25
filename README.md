@@ -105,7 +105,9 @@ An entry is drafted, activated by the next version commit, and may be deprecated
 its removal. Its relationships follow it (`domain/services/ontology_lifecycles.py`):
 - Deprecating an entry deprecates its relationships, in both directions, each marked with the entries it was deprecated
   with, so the commit removes them together and the current ontology has no relationship to an entry it doesn't have.
-  Cancelling the deprecation brings back what was deprecated with the entry.
+  Cancelling the deprecation brings back what was deprecated with the entry. Until the commit, a deprecated entry is
+  read whole, with the relationships deprecated with it, in the editorial view, and as it was in the published one; a
+  version's published view keeps what a later commit removed.
 - The relationships from an entry, other than to its children and terms, define it: a locked entry keeps them, and an
   entry can't be deprecated while a current entry is defined by it (a variable's trait, method or scale, a trait's
   subjects, ...), unless they are deprecated together. Links to children and terms are dropped

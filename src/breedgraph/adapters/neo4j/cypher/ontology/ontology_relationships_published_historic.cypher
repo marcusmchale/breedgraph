@@ -3,7 +3,7 @@ MATCH
   (relationship)-[:HAS_LIFECYCLE]->(relationship_lifecycle:OntologyLifecycle)
   WHERE (source.id in $entry_ids OR target.id in $entry_ids) AND
   relationship_lifecycle.activated <= $version AND (
-    relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated > $version
+    relationship_lifecycle.deprecated IS NULL OR relationship_lifecycle.deprecated >= $version
   )
 
 WITH relationship, relationship_lifecycle, source, target

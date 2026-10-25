@@ -70,12 +70,21 @@ def patch_values(patch) -> dict:
 
 def shows_relationship(lifecycle: RelationshipLifecycle, entry_id: int, view: OntologyViewMode) -> bool:
     """
-    A deprecated or removed relationship is left out, unless the view is referential and it was deprecated with the
-    entry: data cites an entry as it stood when it was deprecated (domain/services/ontology_lifecycles.py).
+    Whether an entry is read with a relationship, as its lifecycle stands now (domain/services/ontology_lifecycles.py).
+    The published queries have already chosen the relationships of the version read, as they chose its entries: each is
+    kept, one deprecated since or removed by a later commit included, as that version still has it. Otherwise a
+    relationship deprecated with the entry is kept while both are deprecated, as the entry is read whole until the commit
+    removes them together (a variable's trait, method and scale are required), and once removed only in the referential
+    view, as data cites an entry as it stood when it was deprecated. Any other deprecated or removed relationship is left
+    out.
     """
-    if lifecycle.current_phase in [LifecyclePhase.DEPRECATED, LifecyclePhase.REMOVED]:
+    if view is OntologyViewMode.PUBLISHED:
+        return True
+    if lifecycle.current_phase is LifecyclePhase.REMOVED:
         return view is OntologyViewMode.REFERENTIAL and entry_id in lifecycle.deprecated_with
-    return not (lifecycle.current_phase is LifecyclePhase.DRAFT and view is OntologyViewMode.PUBLISHED)
+    if lifecycle.current_phase is LifecyclePhase.DEPRECATED:
+        return entry_id in lifecycle.deprecated_with
+    return True
 
 
 def record_to_entry(
