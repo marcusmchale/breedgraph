@@ -5,7 +5,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 
 from tests.breedgraph.e2e.controls.post_methods import (
     post_to_offer_transfer, post_to_accept_transfer, post_to_reject_transfer, post_to_cancel_transfer,
-    post_to_renounce_control, post_to_transfers, post_to_transfer, post_to_controllers
+    post_to_renounce_control, post_to_transfers, post_to_transfer, post_to_controllers, _post
 )
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 from tests.breedgraph.scenarios.program_builder import ProgramBuilder
@@ -137,3 +137,34 @@ async def test_shared_control_and_renounce(client, login_token_factory, uow_fact
     )
     assert_payload_success(payload)
     assert await program_control_team_ids(client, token_2, program_id) == {context['team_id_2']}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_entities_named_as_each_admin_may_read(client, login_token_factory, uow_factory, control_transfer_context):
+    """An offer names what it offers to whoever can read it: the private program is REDACTED to the recipient's admin until accepted"""
+    context = control_transfer_context
+    token_1 = login_token_factory(user_id=context['user_id_1'])
+    token_2 = login_token_factory(user_id=context['user_id_2'])
+    async with uow_factory.get_uow(user_id=context['user_id_1'], write_team=context['team_id_1']) as uow:
+        program = await uow.repositories.programs.create(ProgramBuilder.program_input())
+        await uow.commit()
+    transfer_id = await offer_program(client, token_1, context, program.id)
+
+    async def entities(token):
+        response = await _post(
+            client, token,
+            " query ( $id: ID! ) { controlsTransfer( id: $id ) { status, result { entities { label id name } }, errors { message } } } ",
+            {"id": transfer_id}
+        )
+        payload = get_verified_payload(response, "controlsTransfer")
+        assert_payload_success(payload)
+        return payload['result']['entities']
+
+    assert await entities(token_1) == [{"label": "PROGRAM", "id": str(program.id), "name": program.name}]
+    assert await entities(token_2) == [{"label": "PROGRAM", "id": str(program.id), "name": "REDACTED"}]
+
+    payload = get_verified_payload(
+        await post_to_accept_transfer(client, token_2, transfer_id, [context['team_id_2']]), "controlsAcceptTransfer"
+    )
+    assert_payload_success(payload)
+    assert await entities(token_2) == [{"label": "PROGRAM", "id": str(program.id), "name": program.name}]

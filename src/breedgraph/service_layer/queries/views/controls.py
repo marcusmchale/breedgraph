@@ -97,6 +97,14 @@ class AbstractControlsView(ABC):
         parent_ids = [int(parent_id) for parent_id in dict.fromkeys(parent_ids)]
         return await self._get_controlled_unit_children(int(team_id), parent_ids) if parent_ids else []
 
+    async def get_entity_names(self, label: ControlledModelLabel, entity_ids: Iterable[int]) -> Dict[int, str | None]:
+        """
+        The names of entities of a label by id, as get_controlled_entities names them: REDACTED for one the user cannot
+        read, and none for an id of no entity
+        """
+        entity_ids = [int(entity_id) for entity_id in dict.fromkeys(entity_ids)]
+        return await self._get_entity_names(label, entity_ids) if entity_ids else {}
+
     @abstractmethod
     async def _get_admin_teams(self) -> List[int]:
         ...
@@ -113,6 +121,10 @@ class AbstractControlsView(ABC):
     async def _get_controlled_entities(
             self, team_id: int, label: ControlledModelLabel, release: ReadRelease | None, offset: int, limit: int
     ) -> ControlledItems:
+        ...
+
+    @abstractmethod
+    async def _get_entity_names(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, str | None]:
         ...
 
     @abstractmethod

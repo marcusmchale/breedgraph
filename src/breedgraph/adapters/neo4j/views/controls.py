@@ -70,6 +70,15 @@ class Neo4jControlsView(AbstractControlsView):
             ]
         )
 
+    async def _get_entity_names(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, str | None]:
+        result = await self.session.run(
+            control_queries.read_entity_names(label),
+            ids=entity_ids,
+            read_teams=self.read_teams,
+            minimum_release=self.minimum_release
+        )
+        return {record['id']: record['name'] async for record in result}
+
     async def _units(self, query: str, **params) -> List[ControlledUnitNode]:
         result = await self.session.run(query, **params, read_teams=self.read_teams, minimum_release=self.minimum_release)
         return [

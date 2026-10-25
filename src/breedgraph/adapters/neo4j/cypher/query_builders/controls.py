@@ -318,6 +318,14 @@ def read_controlled_entities(label: ControlledModelLabel) -> str:
     """
 
 
+def read_entity_names(label: ControlledModelLabel) -> str:
+    """The entities of label with ids $ids, each named as read_controlled_entities names it: REDACTED for one the user cannot read"""
+    return f"""
+        MATCH (entity:{label.label}) WHERE entity.id IN $ids
+        RETURN entity.id AS id, CASE WHEN {_readable('entity', label)} THEN {_name(label)} ELSE 'REDACTED' END AS name
+    """
+
+
 def _team_controls(unit: str) -> str:
     """Whether team $team_id currently controls unit, with EXISTS subqueries only, for quantified path patterns"""
     return f"""EXISTS {{

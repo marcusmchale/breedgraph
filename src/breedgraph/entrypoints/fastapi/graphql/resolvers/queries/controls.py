@@ -199,6 +199,20 @@ async def _resolve_user(info, user_id):
     await update_users_map(context=info.context, user_ids=[user_id])
     return info.context.get('users_map', {}).get(user_id)
 
+@control_transfer.field("entities")
+async def resolve_transfer_entities(obj: ControlTransferStored, info):
+    """The entities offered, each with its name as the user may read it, so admins see what they are asked to accept"""
+    names = {}
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        for label in dict.fromkeys(entity.label for entity in obj.entities):
+            ids = [entity.id for entity in obj.entities if entity.label == label]
+            names[label] = await views.controls.get_entity_names(label, ids)
+    return [
+        {'label': entity.label, 'id': entity.id, 'name': names[entity.label].get(entity.id)}
+        for entity in obj.entities
+    ]
+
 @control_transfer.field("fromTeams")
 async def resolve_from_teams(obj: ControlTransferStored, info):
     return await _resolve_teams(info, obj.from_teams)
