@@ -68,22 +68,29 @@ def patch_values(patch) -> dict:
     return values
 
 
-def shows_relationship(lifecycle: RelationshipLifecycle, entry_id: int, view: OntologyViewMode) -> bool:
+def shows_relationship(
+        lifecycle: RelationshipLifecycle,
+        entry_id: int,
+        entry_phase: LifecyclePhase,
+        view: OntologyViewMode
+) -> bool:
     """
-    Whether an entry is read with a relationship, as its lifecycle stands now (domain/services/ontology_lifecycles.py).
+    Whether an entry is read with a relationship, as their lifecycles stand now (domain/services/ontology_lifecycles.py).
     The published queries have already chosen the relationships of the version read, as they chose its entries: each is
     kept, one deprecated since or removed by a later commit included, as that version still has it. Otherwise a
-    relationship deprecated with the entry is kept while both are deprecated, as the entry is read whole until the commit
-    removes them together (a variable's trait, method and scale are required), and once removed only in the referential
-    view, as data cites an entry as it stood when it was deprecated. Any other deprecated or removed relationship is left
-    out.
+    relationship deprecated with the entry is kept with it, as the entry is read whole: while both are deprecated, until
+    the commit removes them together (a variable's trait, method and scale are required); once removed, while the entry
+    is read as removed too (the editorial view of the version that removed them), and in the referential view, as data
+    cites an entry as it stood when it was deprecated. Any other deprecated or removed relationship is left out, such as
+    one not restored with its entry.
     """
     if view is OntologyViewMode.PUBLISHED:
         return True
+    deprecated_with_entry = entry_id in lifecycle.deprecated_with
     if lifecycle.current_phase is LifecyclePhase.REMOVED:
-        return view is OntologyViewMode.REFERENTIAL and entry_id in lifecycle.deprecated_with
+        return deprecated_with_entry and (view is OntologyViewMode.REFERENTIAL or entry_phase is LifecyclePhase.REMOVED)
     if lifecycle.current_phase is LifecyclePhase.DEPRECATED:
-        return entry_id in lifecycle.deprecated_with
+        return deprecated_with_entry
     return True
 
 
@@ -111,7 +118,7 @@ def record_to_entry(
         # This helps in preselecting values in forms and simplifying other interfaces
         # filter by lifecycles first
         lifecycle = RelationshipLifecycle(**relationship_dict.get('lifecycle'))
-        if not shows_relationship(lifecycle, entry_dict['id'], view):
+        if not shows_relationship(lifecycle, entry_dict['id'], entry_dict['phase'], view):
             continue
         # then add to map from attr to rel if not filtered out
         is_source = relationship_dict['source_id'] == entry_dict['id']

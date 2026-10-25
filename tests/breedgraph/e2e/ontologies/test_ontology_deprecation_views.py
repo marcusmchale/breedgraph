@@ -1,7 +1,8 @@
 """
 A deprecated entry is read whole until the commit removes it, and after, in the versions that had it: a variable keeps
-its trait, method and scale, which GraphQL requires, in the editorial view (deprecated with it), the published view
-(the published version still has them) and the view of a version before the commit that removed them.
+its trait, method and scale, which GraphQL requires, in the editorial view (deprecated with it, and removed with it in
+the version that removed them), the published view (the published version still has them) and the view of a version
+before the commit that removed them.
 """
 import pytest
 
@@ -89,8 +90,11 @@ async def test_a_deprecated_variable_is_read_whole(ontology_build_context, login
     assert whole(await ontology_variable(client, token, variable_id, OntologyViewMode.PUBLISHED)) == defined_by
     assert await relationships(client, token, variable_id, version_with) >= {'DESCRIBES_TRAIT', 'USES_OBSERVATION_METHOD', 'USES_SCALE'}
 
-    # removed by the commit, and whole still in the version before
+    # removed by the commit: whole in the editorial view of the version that removed it, gone from the published one,
+    # and whole still in the version before
     await commit(client, token, "The variable removed")
+    removed = await ontology_variable(client, token, variable_id, OntologyViewMode.EDITORIAL)
+    assert removed is None or (removed['phase'] == 'REMOVED' and whole(removed) == defined_by)
     assert await ontology_variable(client, token, variable_id, OntologyViewMode.PUBLISHED) is None
     assert whole(await ontology_variable(client, token, variable_id, OntologyViewMode.PUBLISHED, version_with)) == defined_by
     assert await relationships(client, token, variable_id, version_with) >= {'DESCRIBES_TRAIT', 'USES_OBSERVATION_METHOD', 'USES_SCALE'}
