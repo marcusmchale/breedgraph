@@ -1,5 +1,5 @@
 MATCH (user:User)
-WHERE user.ontology_role = 'editor'
+WHERE user.ontology_role = 'EDITOR'
 RETURN
   user {
     id: user.id,
