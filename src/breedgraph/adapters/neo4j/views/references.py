@@ -39,8 +39,11 @@ class Neo4jReferencesView(AbstractReferencesView):
             description: str,
             reference_types: List[ReferenceType] | None
     ) -> List[ReferenceStoredBase]:
+        terms = reference_queries.search_terms(description)
+        if terms is None:
+            return []
         return await self._run(
             reference_queries.search_references(),
-            description=description,
+            description=terms,
             types=[reference_type.value for reference_type in reference_types] if reference_types else None
         )

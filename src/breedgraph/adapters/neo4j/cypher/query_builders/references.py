@@ -1,3 +1,5 @@
+import re
+
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.cypher.query_builders.access import visible as _visible, contributions as _contributions
 
@@ -37,10 +39,25 @@ def read_file_reference():
     """
 
 
+# Lucene's query syntax: a search's text is split on these characters, its operators, as on spaces
+_LUCENE_OPERATORS = re.compile(r'[\s+\-&|!(){}\[\]^"~*?:\\/]+')
+
+
+def search_terms(text: str) -> str | None:
+    """
+    The full text query search_references runs for what someone typed: each of its words, as far as it is typed,
+    begins a word of the match, so "exampl lic" finds "Example Ontology Licence". None when it has no words. The words
+    are lower case, so none is an operator (AND, OR, NOT), and the operators' characters split words, so no text makes
+    a query Lucene refuses.
+    """
+    words = [word.lower() for word in _LUCENE_OPERATORS.split(text) if word]
+    return ' AND '.join(f'{word}*' for word in words) or None
+
+
 def search_references():
     """
-    The references the user can read whose description matches $description in the full text index, best first,
-    of the types $types when given
+    The references the user can read whose description, file name, URL or external id matches $description, a full
+    text query (search_terms), best first, of the types $types when given
     """
     return f"""
         CALL db.index.fulltext.queryNodes("referenceDescription", $description) YIELD node AS reference, score

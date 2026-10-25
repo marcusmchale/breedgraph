@@ -75,3 +75,22 @@ async def test_search_leaves_hidden_out(views_factory, read_policy, viewer, refe
     assert set(found) == {read_policy[name] for name in expected}
     for name in expected:
         assert_reference(read_policy, viewer, name, found[read_policy[name]])
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('text', ('readpol', 'READPOLICY', 'Readpol (', 'readpolicy:/'))
+async def test_search_by_words_as_typed(views_factory, read_policy, text):
+    """Each word typed begins a word of the match, in any case, and Lucene's syntax is taken as spaces"""
+    async with views_factory.get_views(user_id=read_policy.user('admin')) as views:
+        found = {reference.id for reference in await views.references.search_references(text)}
+        assert found == {reference.id for reference in await views.references.search_references('Readpolicy')}
+        assert found
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('text', ('', '(', 'AND', '"readpolicy', 'readpolicy nothingelse'))
+async def test_search_without_a_match(views_factory, read_policy, text):
+    """No words, an operator taken as a word, or a word nothing begins: no references, and no refused query"""
+    async with views_factory.get_views(user_id=read_policy.user('admin')) as views:
+        found = await views.references.search_references(text)
+    assert (found != []) == (text == '"readpolicy')
