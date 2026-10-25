@@ -1,0 +1,10 @@
+# /etc/systemd/system/breedgraph-demo-reset.timer: the demonstration site's reset, each night at 03:30
+[Unit]
+Description=Reset the BreedGraph demonstration site each night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

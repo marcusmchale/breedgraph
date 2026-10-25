@@ -144,6 +144,12 @@ The build refuses Neo4j's development port (7687), and runs the study-licence an
 **Maps:** the build fetches no map regions, since there is no message bus. For detailed maps of the farm, fetch
 Ireland's region once with `scripts/map_tiles.py --regions` (README, Maps).
 
+## The hosted site
+
+The demonstration site that the guide's readers and reviewers use runs beside production, loading the dump again each
+night: its templates, its reset (`scripts/reset_demo.sh`) and its accounts (`scripts/set_demo_accounts.py`) are in
+`instance/demo/README.md`.
+
 ## Checks before sharing a build
 
 - **Variety names** (optional): the names are invented, and a name a real variety shares matters little in a

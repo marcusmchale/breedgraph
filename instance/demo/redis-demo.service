@@ -1,0 +1,14 @@
+# /etc/systemd/system/redis-demo.service: the demonstration site's Redis (instance/demo/redis-demo.conf)
+[Unit]
+Description=Redis for the BreedGraph demonstration site
+After=network.target
+
+[Service]
+Type=notify
+User=breedgraph-demo
+Group=breedgraph-demo
+ExecStart=/usr/bin/redis-server /etc/redis/redis-demo.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

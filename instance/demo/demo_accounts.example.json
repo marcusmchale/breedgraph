@@ -1,0 +1,24 @@
+{
+  "accounts": {
+    "dara": "<password>",
+    "bridget": "<password>",
+    "theo": "<password>",
+    "lena": "<password>",
+    "petra": "<password>"
+  },
+  "reviewers": [
+    {
+      "username": "dpo-reviewer-1",
+      "fullname": "DPO reviewer 1",
+      "email": "<an address of the reviewer's, for password resets>",
+      "password": "<password>",
+      "teams": {"institute": ["READ"]}
+    },
+    {
+      "username": "legal-reviewer-1",
+      "fullname": "Legal reviewer 1",
+      "email": "<address>",
+      "password": "<password>"
+    }
+  ]
+}

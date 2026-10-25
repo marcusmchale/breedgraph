@@ -1,0 +1,12 @@
+# /etc/systemd/system/breedgraph-demo-reset.service: the demonstration site's nightly reset (scripts/reset_demo.sh),
+# run as root, as it stops and starts the site's services; started by breedgraph-demo-reset.timer
+[Unit]
+Description=Reset the BreedGraph demonstration site to its dump
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/breedgraph-demo/checkout/scripts/reset_demo.sh /opt/breedgraph-demo/breedgraph-demo.env
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=breedgraph-demo-reset
