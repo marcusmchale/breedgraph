@@ -141,6 +141,12 @@ def _axis_level_order(key: str) -> tuple:
     return int(layout_id), False, number, value
 
 
+def _number_level(value) -> str:
+    """A number as a level, written as it would be recorded: 120 for 120.0, 0.5 for 0.5"""
+    number = float(value)
+    return str(int(number)) if number.is_integer() else repr(number)
+
+
 def _incompatible(message: str, path: list[str]) -> AnalysisFailed:
     return AnalysisFailed.single(AnalysisErrorCode.INCOMPATIBLE_SCALE, message, path=path)
 
@@ -387,9 +393,15 @@ class ObservationBuilder:
             series = self._transform(term, series, observations, path)
             missing_levels = 0
         else:
+            if concept.scale_type == ScaleType.NUMERICAL and binner is None:
+                # numbers as levels: each written as recorded, not as the float parsed, in numeric order
+                values = [_number_level(v) if v is not None else None for v in values]
+                found = sorted({v for v in values if v is not None}, key=float)
+            else:
+                found = sorted({str(v) for v in values if v is not None})
             column.levels = term.level_order or (binner.labels if binner else None) or (
                 concept.categories if representation == TermRepresentationType.ORDINAL else None
-            ) or sorted({str(v) for v in values if v is not None})
+            ) or found
             known = set(column.levels)
             missing_levels = sum(1 for v in values if v is not None and str(v) not in known)
             series = pd.Series([str(v) if v is not None and str(v) in known else None for v in values], dtype=object)

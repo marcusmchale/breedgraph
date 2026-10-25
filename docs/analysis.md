@@ -189,7 +189,7 @@ Every analysis operates on **observations**, not on records.
 |---|---|
 | `representation` | Default comes from the scale: NUMERICAL → CONTINUOUS, ORDINAL → ORDINAL, others → CATEGORICAL; binned terms default to ORDINAL. Only NUMERICAL scales can be CONTINUOUS. Domain terms are never CONTINUOUS. COMPLEX scales can't be analysed. |
 | `binning` | Concept terms with NUMERICAL or DATE scales only. A binned term is not CONTINUOUS. |
-| `levelOrder` | Orders CATEGORICAL/ORDINAL levels. For CATEGORICAL/ORDINAL concept terms, values not in the list become missing. For ORDINAL scales without a `levelOrder`, the order of the scale's categories is used. |
+| `levelOrder` | Orders CATEGORICAL/ORDINAL levels. For CATEGORICAL/ORDINAL concept terms, values not in the list become missing. For ORDINAL scales without a `levelOrder`, the order of the scale's categories is used. A NUMERICAL scale's levels are numbers written as recorded (120, not 120.0), in numeric order by default. |
 | `replicateAggregation` | Concept terms only. `aggregation` is MEAN, MEDIAN, MIN, MAX or MODE (NONE, SUM and COUNT are refused), with the scale rules of `aggregation`. `window` is an optional ISO 8601 duration longer than zero. Not with a COUNT `aggregation`. See §2, replicates. |
 | `aggregation` | Concept terms only. MEAN, MEDIAN and SUM need a NUMERICAL scale. MIN and MAX need numbers, dates or ordinal values. MODE breaks ties by the lowest value. COUNT always gives a CONTINUOUS count. |
 | `transformations` | Applied in order, to CONTINUOUS concept terms only, after aggregation. LOG needs values > 0, LOG1P > −1, SQRT ≥ 0, RECIPROCAL ≠ 0; otherwise the analysis fails with `INVALID_TRANSFORMATION` and `recordIds`. STANDARDIZE needs at least two distinct values. |

@@ -74,6 +74,19 @@ def test_ordinal_aggregation_and_levels():
     assert values(frame, 10) == ['mid', 'high']
     assert frame.columns[0].levels == ['low', 'mid', 'high']
 
+def test_numbers_as_levels_are_written_as_recorded_in_numeric_order():
+    """A nitrogen rate of 120 is the level 120, not 120.0, so a level order typed as recorded matches it"""
+    records = [record(1, 100, '120'), record(2, 101, '200'), record(3, 102, '50'), record(4, 103, '62,5')]
+    frame, _ = prepare(context(descriptive([concept_term(10, representation='CATEGORICAL')]), [dataset(1, 1, 10, records)]))
+    assert values(frame, 10) == ['120', '200', '50', '62.5']
+    assert frame.columns[0].levels == ['50', '62.5', '120', '200']
+
+    ordered = concept_term(10, representation='ORDINAL', level_order=['200', '120', '62.5', '50'])
+    frame, warnings = prepare(context(descriptive([ordered]), [dataset(1, 1, 10, records)]))
+    assert values(frame, 10) == ['120', '200', '50', '62.5']
+    assert frame.columns[0].levels == ['200', '120', '62.5', '50']
+    assert codes(warnings) == []
+
 def test_incompatible_scale():
     concepts = {10: ConceptContext(10, ScaleType.NOMINAL, categories=['a'])}
     ctx = context(
