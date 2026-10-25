@@ -204,7 +204,8 @@ Requirements by analysis:
   - `estimatedMeans` terms and `by` terms must be FIXED categorical model terms.
   - `TRT_VS_CTRL` needs exactly one term and a `control` level.
 - **Descriptive statistics**
-  - At least one CONCEPT term is required.
+  - At least one CONCEPT term is required, and at least one must be CONTINUOUS as its scale resolves it, or the analysis
+    fails with `INCOMPATIBLE_SCALE`: ORDINAL and CATEGORICAL terms only group the continuous ones.
   - Interactions and estimated-means terms must be categorical terms.
 - **Correlation:** at least two CONCEPT terms, each CONTINUOUS or ORDINAL. ORDINAL terms are ranked by level order.
 - **MDS and outlier detection**

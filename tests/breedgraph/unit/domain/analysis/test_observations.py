@@ -63,11 +63,17 @@ def test_aggregation(aggregation, expected):
     frame, _ = prepare(ctx)
     assert values(frame, 10) == [expected]
 
+# a continuous term for descriptive statistics to describe, beside the term a test is about
+DESCRIBED = dataset(9, 1, 90, [record(90, 100, '1'), record(91, 101, '2')])
+
 def test_ordinal_aggregation_and_levels():
-    concepts = {10: ConceptContext(10, ScaleType.ORDINAL, categories=['low', 'mid', 'high'])}
+    concepts = {
+        10: ConceptContext(10, ScaleType.ORDINAL, categories=['low', 'mid', 'high']),
+        90: ConceptContext(90, ScaleType.NUMERICAL)
+    }
     ctx = context(
-        descriptive([concept_term(10, aggregation='MAX')]),
-        [dataset(1, 1, 10, [record(1, 100, 'mid'), record(2, 100, 'low'), record(3, 101, 'high')])],
+        descriptive([concept_term(10, aggregation='MAX'), concept_term(90)], dataset_ids=[1, 9]),
+        [dataset(1, 1, 10, [record(1, 100, 'mid'), record(2, 100, 'low'), record(3, 101, 'high')]), DESCRIBED],
         concepts=concepts
     )
     frame, _ = prepare(ctx)
@@ -77,15 +83,29 @@ def test_ordinal_aggregation_and_levels():
 def test_numbers_as_levels_are_written_as_recorded_in_numeric_order():
     """A nitrogen rate of 120 is the level 120, not 120.0, so a level order typed as recorded matches it"""
     records = [record(1, 100, '120'), record(2, 101, '200'), record(3, 102, '50'), record(4, 103, '62,5')]
-    frame, _ = prepare(context(descriptive([concept_term(10, representation='CATEGORICAL')]), [dataset(1, 1, 10, records)]))
+    described = dataset(9, 1, 90, [record(90 + i, 100 + i, str(i)) for i in range(4)])
+    terms = [concept_term(10, representation='CATEGORICAL'), concept_term(90)]
+    frame, _ = prepare(context(descriptive(terms, dataset_ids=[1, 9]), [dataset(1, 1, 10, records), described]))
     assert values(frame, 10) == ['120', '200', '50', '62.5']
     assert frame.columns[0].levels == ['50', '62.5', '120', '200']
 
-    ordered = concept_term(10, representation='ORDINAL', level_order=['200', '120', '62.5', '50'])
-    frame, warnings = prepare(context(descriptive([ordered]), [dataset(1, 1, 10, records)]))
+    terms[0] = concept_term(10, representation='ORDINAL', level_order=['200', '120', '62.5', '50'])
+    frame, warnings = prepare(context(descriptive(terms, dataset_ids=[1, 9]), [dataset(1, 1, 10, records), described]))
     assert values(frame, 10) == ['120', '200', '50', '62.5']
     assert frame.columns[0].levels == ['200', '120', '62.5', '50']
     assert codes(warnings) == []
+
+def test_descriptive_statistics_need_a_continuous_concept_term():
+    """An ordinal score, or a number taken as categorical, only groups the others: alone, it leaves nothing to describe"""
+    for concept, term in [
+        (ConceptContext(10, ScaleType.ORDINAL, categories=['1', '2', '3']), concept_term(10)),
+        (ConceptContext(10, ScaleType.NUMERICAL), concept_term(10, representation='CATEGORICAL')),
+    ]:
+        ctx = context(descriptive([term]), [dataset(1, 1, 10, [record(1, 100, '2')])], concepts={10: concept})
+        with pytest.raises(AnalysisFailed) as e:
+            prepare(ctx)
+        assert e.value.errors[0].code == AnalysisErrorCode.INCOMPATIBLE_SCALE
+        assert e.value.errors[0].path == ['descriptiveStatistics', 'terms']
 
 def test_incompatible_scale():
     concepts = {10: ConceptContext(10, ScaleType.NOMINAL, categories=['a'])}
@@ -116,9 +136,10 @@ def test_invalid_transformation():
     assert e.value.errors[0].record_ids == [1]
 
 def test_binned_concept():
+    binned = concept_term(10, binning={'boundaries': ['10'], 'labels': ['low', 'high'], 'boundary': 'LEFT'})
     ctx = context(
-        descriptive([concept_term(10, binning={'boundaries': ['10'], 'labels': ['low', 'high'], 'boundary': 'LEFT'})]),
-        [dataset(1, 1, 10, [record(1, 100, '10'), record(2, 101, '11')])]
+        descriptive([binned, concept_term(90)], dataset_ids=[1, 9]),
+        [dataset(1, 1, 10, [record(1, 100, '10'), record(2, 101, '11')]), DESCRIBED]
     )
     frame, _ = prepare(ctx)
     assert values(frame, 10) == ['low', 'high']
@@ -675,12 +696,12 @@ def test_a_nearer_factor_record_on_a_lineage_hides_one_further_up():
 
 def test_factors_alone_are_the_observations():
     ctx = context(
-        descriptive([concept_term(20)], dataset_ids=[2]),
-        [dataset(2, 1, 20, [record(3, 100, 'Upper'), record(4, 101, 'Lower')])],
-        concepts={20: FACTOR_CONCEPTS[20]}
+        descriptive([concept_term(21)], dataset_ids=[2]),
+        [dataset(2, 1, 21, [record(3, 100, '120'), record(4, 101, '200')])],
+        concepts={21: ConceptContext(21, ScaleType.NUMERICAL, factor=True)}
     )
     frame, _ = prepare(ctx)
-    assert factor_values(frame) == ['Upper', 'Lower']
+    assert values(frame, 21) == [120.0, 200.0]
 
 def test_factor_without_a_code_applies_to_every_replicate():
     studies = {1: study(1, [grouping(7, extent=WITHIN_UNIT)])}

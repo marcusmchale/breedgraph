@@ -20,7 +20,7 @@ import pandas as pd
 from breedgraph.domain.model.analysis import (
     AnalysisTerm, AnalysisTermReference, AnalysisTermType, TermRepresentationType, TermAggregation,
     TermTransformation, TermEffect, AnalysisMessage, AnalysisErrorCode, AnalysisWarningCode, AnalysisFailed,
-    RecordGroupMember, AnalysisSpec, AnovaSpec, MDSSpec, OutlierSpec, CorrelationSpec
+    RecordGroupMember, AnalysisSpec, AnovaSpec, MDSSpec, OutlierSpec, CorrelationSpec, DescriptiveSpec
 )
 from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord, ConceptContext
 from breedgraph.domain.model.ontology import ScaleType
@@ -204,6 +204,25 @@ class ObservationBuilder:
         self._observations: dict[tuple[str, ...], _ObservationRecords] = {}
         self._context: list[_ContextRecord] = []
         self._differing: set[int] = set()  # factor records whose lineages differ, describing no observation for it
+
+    def check_described(self):
+        """
+        Descriptive statistics describe CONTINUOUS concept terms, as their scales resolve them, the others only group
+        them: without one, there would be nothing to describe.
+        """
+        spec = self.context.request.spec
+        if not isinstance(spec, DescriptiveSpec):
+            return
+        representations = [
+            resolve_representation(term, self.context.concepts[term.reference.concept_id], self.spec_path + ['terms', str(i)])
+            for i, term in enumerate(spec.terms) if term.reference.type == AnalysisTermType.CONCEPT
+        ]
+        if representations and TermRepresentationType.CONTINUOUS not in representations:
+            raise _incompatible(
+                "Descriptive statistics describe CONTINUOUS concept terms, and none is: ORDINAL and CATEGORICAL terms "
+                "only group them",
+                self.spec_path + ['terms']
+            )
 
     def add(self, record: AnalysisRecord, levels: dict[str, DimensionLevel]):
         key = tuple(levels[r.name].key for r in self.resolvers)

@@ -17,6 +17,7 @@ def prepare_observations(context: AnalysisContext, warnings: list[AnalysisMessag
     resolvers = build_dimension_resolvers(context)
     exclusions = ExclusionApplier(context.request.exclusions, context.groupings)
     builder = ObservationBuilder(context, resolvers)
+    builder.check_described()
 
     record_counts: Counter[int] = Counter()
     included_counts: Counter[int] = Counter()
