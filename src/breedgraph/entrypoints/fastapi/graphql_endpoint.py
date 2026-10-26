@@ -15,6 +15,7 @@ from breedgraph.config import GQL_API_PATH, ENVIRONMENT, Environment, cookie_nam
 import logging
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import close_context
 from breedgraph.entrypoints.fastapi.graphql.acceptances import terms_accepted
+from breedgraph.entrypoints.fastapi.graphql.query_limits import QueryLimits
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class TermsOfUseRequired(ValidationRule):
 
 
 def validation_rules(context, _document, _data):
-    return None if terms_accepted(context) else [TermsOfUseRequired]
+    return [QueryLimits] if terms_accepted(context) else [QueryLimits, TermsOfUseRequired]
 
 
 async def get_user_id(request: Request) -> Optional[AccountStored]:
