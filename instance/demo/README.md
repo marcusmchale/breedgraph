@@ -34,6 +34,8 @@ production's server block) and the rest to production, as before.
 - **Cookies.** A browser sends a host's cookies to every path on it, so the site's are named `demo_...` (`COOKIE_PREFIX`)
   and set for `/demo/`: it never reads or overwrites production's, and production is never sent the site's. Production
   needs no change. Every cookie is `Secure`, so the site needs HTTPS, which production's gives it.
+- **Branding.** The site has no `branding/` folder, so it keeps BreedView's own look, as the guide's videos show it,
+  while production carries the University's (breedview README.md, Branding).
 - **One origin.** The two sites share an origin, so a script running in the demonstration site could call production's
   API with a visitor's production sign-in. The site runs the same code as production, so this adds little to
   production's own exposure; keep it at production's version.

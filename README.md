@@ -717,6 +717,13 @@ to run the scripts
     set +a
     ./setup_initial_data.py
 
+### BreedView and its branding
+
+BreedView, the front end, is built and deployed from its own repository, and so is a deployment's branding, its
+colours, logo, fonts and footer links: breedview README.md, Branding. nginx serves both from the API's origin (Nginx,
+above). The API's emails name the site by `SITE_NAME`, and its Terms of Use and privacy notice are files of their own
+(`TERMS_OF_USE_PATH`, `PRIVACY_NOTICE_PATH`): branding doesn't change them.
+
 ### Encryption key
 
 Database backups and archived files are encrypted with [age](https://age-encryption.org) before they leave the web
