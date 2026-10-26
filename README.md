@@ -1,6 +1,9 @@
 # BreedGraph API
 A package to manage data in breeding projects by aggregation into a knowledge graph.
 
+Its web front end is [BreedView](https://github.com/marcusmchale/breedview), whose user guide shows BreedGraph in use, a
+chapter at a time with a video of each: https://marcusmchale.github.io/breedview/guide/
+
 ## Background and design
 BreedGraph was developed with the experience of developing and using the [breedcafs database tools](https://github.com/marcusmchale/breedcafs).
 The largely monolithic design of this tool made it difficult to adapt to new situations. 
