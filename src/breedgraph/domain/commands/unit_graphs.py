@@ -117,6 +117,27 @@ class MoveUnits(Command):
     end: PyDT64 | None = None
 
 
+class UnitPlacement(BaseModel):
+    """
+    A unit's position from its start, and its germplasm, each changed only when given (PlaceUnits): a germplasm given
+    as None is removed
+    """
+    unit_id: int
+    germplasm_id: int | None = None
+
+    location_id: int | None = None
+    layout_id: int | None = None
+    coordinates: List[str|int|float] | None = None
+    start: PyDT64 | None = None
+    end: PyDT64 | None = None
+
+
+class PlaceUnits(Command):
+    """Each unit to a position of its own, as MoveUnits moves units to one, and its germplasm: all or none"""
+    agent_id: int
+    placements: List[UnitPlacement]
+
+
 class ChangePositions(Command):
     """Changes one position of each unit, found by the values in at; returns the ids of the units changed"""
     agent_id: int

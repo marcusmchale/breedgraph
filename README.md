@@ -375,9 +375,12 @@ axes, a sample by its tree where its own position doesn't count (docs/analysis.m
 Positions are written apart from the rest of the unit graph, so that a batch of samples moves in one request without
 their unit graphs loaded, and an edit of a unit can't undo a move it never saw. A **move** of units to a position from
 a start ends each unit's own positions holding then at that start, unless they end by then, and adds the position; it
-is refused for a unit with a position from that start or later. A **change** finds one position of each unit by the
-values given and replaces those given, e.g. to end an arrival there or correct its start. Either takes the units given,
-or an arrival's, and takes their write locks first, so writes to the same units follow one another.
+is refused for a unit with a position from that start or later. **Placing** units moves each to a position of its own,
+e.g. a trial's plots in its layout as planted, all or none, and may set each unit's germplasm too; a unit already at
+its place then stays as it is, so placing units again where they are changes nothing. A **change** finds one position
+of each unit by the values given and replaces those given, e.g. to end an arrival there or correct its start. A move
+or a change takes the units given, or an arrival's; each of these takes the units' write locks first, so writes to the
+same units follow one another.
 
 Units that came to a location together from elsewhere in their unit graphs, e.g. samples from the trees of a field
 sent to a lab, are an **arrival**: the units, other than roots, with a position at the location from the same start

@@ -1,5 +1,6 @@
 """
-Planning moves and changes of positions (domain.services.unit_positions): what each does to the positions units have
+Planning moves, placements and changes of positions (domain.services.unit_positions): what each does to the positions
+units have
 """
 import pytest
 from numpy import datetime64
@@ -7,7 +8,7 @@ from numpy import datetime64
 from breedgraph.custom_exceptions import IllegalOperationError, NoResultFoundError
 from breedgraph.domain.model.unit_graphs import Position, CHILD_NAME_TEMPLATE, child_name
 from breedgraph.domain.services.unit_positions import (
-    StoredPosition, UnitPositions, plan_move, plan_change, plan_add, plan_remove, named, place_at
+    StoredPosition, UnitPositions, plan_move, plan_place, plan_change, plan_add, plan_remove, named, place_at
 )
 
 LAB, STORE, FIELD = 1, 2, 3
@@ -58,6 +59,46 @@ def test_a_move_is_refused_for_a_unit_with_a_position_from_then_or_later():
 def test_a_move_needs_a_start():
     with pytest.raises(ValueError, match='needs a start'):
         plan_move([unit(1)], at(STORE))
+
+
+GRID = 7
+
+
+def plot(location_id, start=None, end=None, *coordinates):
+    return at(location_id, start, end, layout_id=GRID, coordinates=list(coordinates))
+
+
+def test_placing_moves_each_unit_to_its_own_position():
+    with_its_parent, at_the_field = unit(1), unit(2, at(FIELD, '2026-10-01'))
+    writes = plan_place([
+        (with_its_parent, plot(FIELD, '2026-10-15', None, '1', '1')),
+        (at_the_field, plot(FIELD, '2026-10-15', None, '1', '2'))
+    ])
+    assert writes.changed == [('2:0', at(FIELD, '2026-10-01', '2026-10-15'))]
+    assert writes.created == [(1, plot(FIELD, '2026-10-15', None, '1', '1')), (2, plot(FIELD, '2026-10-15', None, '1', '2'))]
+
+
+def test_placing_a_unit_where_it_is_then_changes_nothing():
+    placed = unit(1, plot(FIELD, '2026-10-15', None, '1', '1'))
+    # again from the same day, or from later, at the same place
+    assert plan_place([(placed, plot(FIELD, '2026-10-15', None, 1, 1))]) == plan_place([])
+    assert plan_place([(placed, plot(FIELD, '2027-03-01', None, '1', '1'))]).created == []
+    # another place from the same day is out of order
+    with pytest.raises(IllegalOperationError, match='Sample 1 has a position from when it is placed or later'):
+        plan_place([(placed, plot(FIELD, '2026-10-15', None, '1', '2'))])
+
+
+def test_placing_is_refused_for_all_when_any_unit_has_a_later_position():
+    moved_on = unit(1, at(LAB, '2026-11-01'), name='Plot 3')
+    later = unit(2, at(STORE, '2026-12-01'), name='Plot 4')
+    with pytest.raises(IllegalOperationError, match='Plot 3 and Plot 4 have positions from when they are placed or later'):
+        plan_place([
+            (unit(3), plot(FIELD, '2026-10-15', None, '1', '1')),
+            (moved_on, plot(FIELD, '2026-10-15', None, '1', '2')),
+            (later, plot(FIELD, '2026-10-15', None, '1', '3'))
+        ])
+    with pytest.raises(ValueError, match='needs a start'):
+        plan_place([(unit(1), plot(FIELD, None, None, '1', '1'))])
 
 
 def test_a_change_finds_one_position_of_each_unit_as_entered():

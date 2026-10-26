@@ -6,6 +6,8 @@ from breedgraph.domain.commands.unit_graphs import (
     AddPosition,
     RemovePosition,
     MoveUnits,
+    PlaceUnits,
+    UnitPlacement,
     ChangePositions,
     DeriveUnits,
     AddChildren
@@ -150,6 +152,27 @@ async def move_units(
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} moves units: {units} to {position}")
     cmd = MoveUnits(agent_id=user_id, units=units, **position)
+    return await _units(info, await info.context['bus'].handle(cmd))
+
+@graphql_mutation.field("unitsPlaceUnits")
+@graphql_payload
+@require_authentication
+async def place_units(
+        _,
+        info,
+        placements: List[dict]
+) -> List[UnitOutput]:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} places {len(placements)} units")
+    cmd = PlaceUnits(agent_id=user_id, placements=[
+        # the germplasm passed only when given, as null removes it
+        UnitPlacement(
+            unit_id=placement['unit_id'],
+            **(placement.get('position') or {}),
+            **({'germplasm_id': placement['germplasm_id']} if 'germplasm_id' in placement else {})
+        )
+        for placement in placements
+    ])
     return await _units(info, await info.context['bus'].handle(cmd))
 
 @graphql_mutation.field("unitsChangePositions")

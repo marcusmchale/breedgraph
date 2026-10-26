@@ -17,7 +17,7 @@ from breedgraph.custom_exceptions import NoResultFoundError, UnauthorisedOperati
 from breedgraph.domain.model.controls import Access, ControlledModelLabel, ReadRelease
 from breedgraph.domain.model.unit_graphs import Position
 from breedgraph.domain.services.unit_positions import (
-    UnitPositions, PositionWrites, PLACE_FIELDS, plan_move, plan_change, plan_add, plan_remove, named, by_name
+    UnitPositions, PositionWrites, PLACE_FIELDS, plan_move, plan_place, plan_change, plan_add, plan_remove, named, by_name
 )
 from breedgraph.service_layer.application.access_control import AbstractAccessControlService
 from breedgraph.service_layer.persistence.unit_positions import UnitPositionsPersistenceService
@@ -76,6 +76,17 @@ class UnitPositionsService:
         units = await self._curated_units(unit_ids)
         await self._write(plan_move(units, position), units)
         return [unit.unit_id for unit in by_name(units)]
+
+    async def place_units(self, placements: List[tuple[int, Position]], validate_place: PlaceValidator) -> None:
+        """
+        Moves each unit to a position of its own from its start (plan_place), all or none: each place is validated
+        once, by validate_place
+        """
+        positions = dict(placements)
+        units = await self._curated_units(list(positions))
+        writes = plan_place([(unit, positions[unit.unit_id]) for unit in units])
+        await self._validate_places([position for _, position in placements], validate_place)
+        await self._write(writes, units)
 
     async def change_positions(
             self,

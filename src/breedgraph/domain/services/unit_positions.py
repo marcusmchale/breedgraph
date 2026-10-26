@@ -6,7 +6,8 @@ write finds it again in the same transaction.
 
 - A move of units to a position from a start ends each unit's own positions holding then at that start (unless they
   end by then), and adds the position. A unit with a position from that start or later is refused, as its history
-  would be out of order.
+  would be out of order. Placing units moves each to a position of its own, all or none, and leaves a unit already
+  at its place then where it is.
 - A change finds one position of each unit by the fields given and replaces the fields given.
 - Adding a position refuses one the unit has; removing one refuses a unit graph root's last, as roots are found by
   their positions.
@@ -138,30 +139,67 @@ def _check_fields(fields: Dict[str, Any]) -> None:
         raise ValueError(f"Positions have no {', '.join(sorted(unknown))}")
 
 
-def plan_move(units: Iterable[UnitPositions], position: Position) -> PositionWrites:
+def _move(unit: UnitPositions, position: Position, writes: PositionWrites) -> bool:
     """
-    Each unit to the position from its start: its own positions holding then end at that start, so both hold during
-    it (the unit is where the later-starting one puts it), and the position is added
+    The unit to the position from its start, into writes: its own positions holding then end at that start, so both
+    hold during it (the unit is where the later-starting one puts it), and the position is added. False, writing
+    nothing, when the unit has a position from that start or later
     """
+    start = position.start
+    if any(stored.position.start is not None and stored.position.start >= start for stored in unit.positions):
+        return False
+    for stored in unit.positions:
+        # one ending then already, or ending in a period that holds the start, keeps its end as entered
+        if holds_at(stored.position, start) and (stored.position.end is None or stored.position.end > start):
+            writes.changed.append((stored.key, replace(stored.position, end=start)))
+    writes.created.append((unit.unit_id, position))
+    return True
+
+
+def _check_move(position: Position) -> None:
     if position.start is None:
         raise ValueError("A move needs a start: when the units arrive")
     validate_position(position)
-    start = position.start
+
+
+def plan_move(units: Iterable[UnitPositions], position: Position) -> PositionWrites:
+    """Each unit to the position from its start (_move)"""
+    _check_move(position)
     writes = PositionWrites()
-    later = []
-    for unit in units:
-        if any(stored.position.start is not None and stored.position.start >= start for stored in unit.positions):
-            later.append(unit)
-            continue
-        for stored in unit.positions:
-            # one ending then already, or ending in a period that holds the start, keeps its end as entered
-            if holds_at(stored.position, start) and (stored.position.end is None or stored.position.end > start):
-                writes.changed.append((stored.key, replace(stored.position, end=start)))
-        writes.created.append((unit.unit_id, position))
+    later = [unit for unit in units if not _move(unit, position, writes)]
     if later:
         raise IllegalOperationError(
-            f"{named(later)} {'has a position' if len(later) == 1 else 'have positions'} from {start} or later, "
-            f"so can't be moved then: move them from a later time, or correct those positions"
+            f"{named(later)} {'has a position' if len(later) == 1 else 'have positions'} from {position.start} or "
+            f"later, so can't be moved then: move them from a later time, or correct those positions"
+        )
+    return writes
+
+
+def _place(position: Position):
+    return position.location_id, position.layout_id, tuple(str(c) for c in position.coordinates or [])
+
+
+def plan_place(placements: Iterable[tuple[UnitPositions, Position]]) -> PositionWrites:
+    """
+    Each unit to a position of its own from its start (_move), all or none. A unit whose own position holding then is
+    at the same place already stays as it is, so placing units again where they are changes nothing
+    """
+    writes = PositionWrites()
+    later = []
+    for unit, position in placements:
+        _check_move(position)
+        if any(
+                holds_at(stored.position, position.start) and _place(stored.position) == _place(position)
+                for stored in unit.positions
+        ):
+            continue
+        if not _move(unit, position, writes):
+            later.append(unit)
+    if later:
+        raise IllegalOperationError(
+            f"{named(later)} {'has a position' if len(later) == 1 else 'have positions'} from when "
+            f"{'it is' if len(later) == 1 else 'they are'} placed or later, so can't be placed then: place "
+            f"{'it' if len(later) == 1 else 'them'} from a later time, or correct those positions"
         )
     return writes
 

@@ -231,6 +231,72 @@ async def move_units(
         await uow.commit()
         return moved
 
+# units placed at once, at most
+MAX_PLACEMENTS = 1000
+
+@handlers.command_handler()
+async def place_units(
+        cmd: commands.unit_graphs.PlaceUnits,
+        uow_factory: AbstractUnitOfWorkFactory
+) -> List[int]:
+    """
+    Each unit to a position of its own from its start (UnitPositionsService.place_units), and its germplasm where
+    given (as UpdateUnit sets it), in one transaction: all or none. Returns the units' ids, in the order given
+    """
+    unit_ids = [placement.unit_id for placement in cmd.placements]
+    if not unit_ids:
+        raise ValueError("Give the units to place")
+    if len(unit_ids) > MAX_PLACEMENTS:
+        raise ValueError(f"Place up to {MAX_PLACEMENTS} units at once")
+    if len(set(unit_ids)) < len(unit_ids):
+        raise ValueError("Give each unit once")
+    moves = []
+    for placement in cmd.placements:
+        if placement.location_id is None:
+            if placement.layout_id is not None or placement.coordinates or placement.start or placement.end:
+                raise ValueError("A position needs its location")
+            continue
+        moves.append((placement.unit_id, Position(
+            location_id=placement.location_id,
+            layout_id=placement.layout_id,
+            coordinates=placement.coordinates,
+            start=placement.start,
+            end=placement.end
+        )))
+    germplasm = {
+        placement.unit_id: placement.germplasm_id
+        for placement in cmd.placements if 'germplasm_id' in placement.model_fields_set
+    }
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        if moves:
+            async def validate_place(position: Position):
+                await _validate_position_layout(uow, position)
+
+            await uow.positions.place_units(moves, validate_place=validate_place)
+        if germplasm:
+            await uow.controls.require_access(ControlledModelLabel.UNIT, list(germplasm), Access.CURATE)
+            await _set_germplasm(uow, germplasm)
+        await uow.commit()
+        return unit_ids
+
+async def _set_germplasm(uow: AbstractUnitHolder, germplasm: Dict[int, int | None]):
+    """Each unit's germplasm, as UpdateUnit sets it, each unit graph read once: a germplasm newly given must be readable"""
+    graphs: List[UnitGraph] = []
+    given = set()
+    for unit_id, germplasm_id in germplasm.items():
+        unit_graph = next((graph for graph in graphs if graph.has_unit(unit_id)), None)
+        if unit_graph is None:
+            unit_graph = await uow.repositories.unit_graphs.get(unit_id=unit_id)
+            if unit_graph is None:
+                raise NoResultFoundError(f"Unit {unit_id} was not found")
+            graphs.append(unit_graph)
+        unit = unit_graph.get_unit(unit_id)
+        if germplasm_id != unit.germplasm:
+            if germplasm_id is not None:
+                given.add(germplasm_id)
+            unit.germplasm = germplasm_id
+    await uow.controls.require_read(ControlledModelLabel.GERMPLASM, list(given))
+
 @handlers.command_handler()
 async def change_positions(
         cmd: commands.unit_graphs.ChangePositions,
