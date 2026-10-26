@@ -54,6 +54,26 @@ async def get_germplasm_entries(
     else:
         return [value for key, value in germplasm_map.items()]
 
+# names looked up at once, at most
+MAX_NAMES = 1000
+
+@graphql_query.field("germplasmEntriesNamed")
+@graphql_payload
+async def get_germplasm_entries_named(
+        _,
+        info,
+        names: List[str]
+) -> List[GermplasmEntryOutput]:
+    if len(names) > MAX_NAMES:
+        raise ValueError(f"Look up to {MAX_NAMES} names at once")
+    bus = info.context.get('bus')
+    user_id = info.context.get('user_id')
+    async with bus.views_factory.get_views(user_id=user_id) as views:
+        entries = await views.germplasm.get_entries_named(names)
+    # for the entries their relationships name
+    info.context.setdefault('germplasm_map', {}).update({entry.id: entry for entry in entries})
+    return entries
+
 @graphql_query.field("germplasmCrops")
 @graphql_payload
 async def get_germplasm_crops(

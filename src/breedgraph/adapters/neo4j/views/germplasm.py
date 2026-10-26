@@ -47,6 +47,13 @@ class Neo4jGermplasmView(AbstractGermplasmView):
     async def _get_crops(self) -> List[GermplasmEntryOutput]:
         return await self._run(germplasm_queries.read_crops())
 
+    async def _get_entries_named(self, names: List[str]) -> List[GermplasmEntryOutput]:
+        return await self._run(
+            germplasm_queries.read_entries_named(),
+            names_lower=[name.casefold() for name in names],
+            synonyms_lower=[name.lower() for name in names]
+        )
+
     async def _get_entries(self, entry_ids: List[int] | None = None) -> List[GermplasmEntryOutput]:
         if entry_ids:
             return await self._run(germplasm_queries.read_entries(), entry_ids=entry_ids)

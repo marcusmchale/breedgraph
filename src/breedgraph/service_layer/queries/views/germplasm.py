@@ -23,6 +23,17 @@ class AbstractGermplasmView(ABC):
     async def _get_crops(self) -> List[GermplasmEntryOutput]:
         ...
 
+    async def get_entries_named(self, names: List[str]) -> List[GermplasmEntryOutput]:
+        """The entries the user can read with one of the names, or a synonym, ignoring case and surrounding space"""
+        names = list(dict.fromkeys(name.strip() for name in names if name and name.strip()))
+        if not names:
+            return []
+        return await self._get_entries_named(names)
+
+    @abstractmethod
+    async def _get_entries_named(self, names: List[str]) -> List[GermplasmEntryOutput]:
+        ...
+
     async def get_entries(self, entry_ids: List[int] | None = None) -> List[GermplasmEntryOutput]:
         return await self._get_entries(entry_ids=entry_ids)
 

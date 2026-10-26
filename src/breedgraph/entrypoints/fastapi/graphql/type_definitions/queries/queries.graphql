@@ -242,6 +242,14 @@ type Query {
         ids: [ID!]
     ): GermplasmEntriesPayload!
     """
+    The Germplasm entries you can read with one of the names, or a synonym, ignoring case and surrounding space: up to
+    1000 names, e.g. to match the names typed or pasted into a table. Names are unique among germplasm, synonyms need
+    not be.
+    """
+    germplasmEntriesNamed(
+        names: [String!]!
+    ): GermplasmEntriesPayload!
+    """
         Get a list of Germplasm entries that have no sources defined,
         these should typically represent the Crop concept
     """

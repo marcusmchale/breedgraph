@@ -9,6 +9,8 @@ import pytest
 
 from breedgraph.adapters.neo4j.views.units import Neo4jUnitsView
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
+from breedgraph.domain.model.controls import ReadRelease
+from breedgraph.domain.model.germplasm import GermplasmInput
 
 from tests.breedgraph.e2e.utils import post_as, get_verified_payload
 from tests.breedgraph.scenarios.read_policy_scenario import VIEWERS, GERMPLASM
@@ -75,6 +77,51 @@ async def test_all_entries_leave_hidden_out(client, login_token_factory, read_po
     assert set(entries) == {read_policy[name] for name in expected}
     for name in expected:
         assert_entry(read_policy, viewer, name, entries[read_policy[name]])
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('viewer', VIEWERS)
+async def test_entries_by_name_leave_hidden_out(client, login_token_factory, read_policy, viewer):
+    # as typed into a table: any case, with spaces around, and names that match nothing
+    names = [f"  READPOLICY {name.replace('_', ' ')} " for name in GERMPLASM] + ['Readpolicy nothing', '']
+    result = await query(
+        client, login_token_factory, read_policy, viewer, 'germplasmEntriesNamed',
+        f"query ($names: [String!]!) {{ germplasmEntriesNamed(names: $names) {{ status result {{ {ENTRY_FIELDS} }} "
+        f"errors {{ name message }} }} }}",
+        {'names': names}
+    )
+    entries = {int(entry['id']): entry for entry in result}
+    expected = [name for name in GERMPLASM if read_policy.readable(viewer, name)]
+    assert set(entries) == {read_policy[name] for name in expected}
+    for name in expected:
+        assert_entry(read_policy, viewer, name, entries[read_policy[name]])
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_entries_are_found_by_synonym_too(client, login_token_factory, read_policy, uow_factory):
+    # made for this test and removed after it, as the scenario's lists of entries are exact
+    def uow():
+        return uow_factory.get_uow(
+            user_id=read_policy['writer'], write_team=read_policy['child'], release=ReadRelease.REGISTERED
+        )
+    async with uow() as unit_of_work:
+        stored = await unit_of_work.germplasm.create_entry(
+            GermplasmInput(name="Readpolicy named line", synonyms=["RP-NL 7"])
+        )
+        await unit_of_work.commit()
+    try:
+        for name in ("readpolicy NAMED line", "rp-nl 7"):
+            result = await query(
+                client, login_token_factory, read_policy, 'writer', 'germplasmEntriesNamed',
+                "query ($names: [String!]!) { germplasmEntriesNamed(names: $names) { status result { id name synonyms } "
+                "errors { name message } } }",
+                {'names': [name]}
+            )
+            assert result == [{'id': str(stored.id), 'name': "Readpolicy named line", 'synonyms': ["RP-NL 7"]}], name
+    finally:
+        async with uow() as unit_of_work:
+            await unit_of_work.germplasm.delete_entry(stored.id)
+            await unit_of_work.commit()
 
 
 @pytest.mark.asyncio(loop_scope="session")

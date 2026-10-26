@@ -111,6 +111,23 @@ def read_all_entries():
     """
 
 
+def read_entries_named():
+    """
+    The entries the user can read named one of $names_lower (casefolded, as names are stored), or with a synonym in
+    $synonyms_lower (lower case): names are unique among germplasm, synonyms need not be
+    """
+    return f"""
+        MATCH (entry:Germplasm)
+        WHERE (
+            entry.name_lower IN $names_lower
+            OR any(synonym IN coalesce(entry.synonyms, []) WHERE toLower(synonym) IN $synonyms_lower)
+        ) AND {_readable('entry')}
+        {_project()}
+        RETURN {_entry()} AS entry
+        ORDER BY entry.id
+    """
+
+
 def read_crops():
     """The crops the user can read, and placeholders for those they cannot that hold entries they can"""
     return f"""
