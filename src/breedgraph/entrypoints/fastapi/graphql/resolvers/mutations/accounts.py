@@ -19,7 +19,7 @@ from breedgraph.domain.events.accounts import (
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import OntologyRole
 
-from breedgraph.custom_exceptions import UnauthorisedOperationError
+from breedgraph.custom_exceptions import UnauthorisedOperationError, IllegalOperationError
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 from breedgraph.entrypoints.fastapi.graphql.acceptances import save_acceptances
 
@@ -79,6 +79,13 @@ async def request_change_password(
         email: str
 ) -> bool:
     logger.debug("Request change password")
+    # counted for the address given, registered or not, so that the limit says nothing of who is registered
+    state_store = info.context['bus'].state_store
+    asked = await state_store.increment_rate_counter(f"password_reset:{email.strip().casefold()}", window_seconds=3600)
+    if asked > config.PASSWORD_RESET_RATE_LIMIT_PER_HOUR:
+        raise IllegalOperationError(
+            "A password reset has been asked for this address too often, please try again in an hour"
+        )
     await info.context['bus'].handle(PasswordChangeRequested(email=email))
     return True
 

@@ -9,7 +9,8 @@ from breedgraph import config
 
 from breedgraph.service_layer.infrastructure import (
     AbstractUnitOfWorkFactory,
-    AbstractAuthService
+    AbstractAuthService,
+    AbstractStateStore
 )
 
 
@@ -23,6 +24,16 @@ from ..registry import handlers
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+async def _count_email(state_store: AbstractStateStore, user_id: int) -> None:
+    """One more email the user's action sends to an address they gave, within their hourly limit"""
+    sent = await state_store.increment_rate_counter(f"email:{user_id}", window_seconds=3600)
+    if sent > config.EMAIL_RATE_LIMIT_PER_HOUR:
+        raise IllegalOperationError(
+            "You have reached the limit of emails per hour that invitations and address changes send, "
+            "please try again later"
+        )
 
 @handlers.command_handler()
 async def create_account(
@@ -134,7 +145,8 @@ async def _grant_invited_affiliation(uow, inviter_id: int, user_id: int, team: T
 @handlers.command_handler()
 async def edit_user(
         cmd: commands.accounts.UpdateUser,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore
 ):
     async with uow_factory.get_uow() as uow:
         account = await uow.repositories.accounts.get(user_id=cmd.user_id)
@@ -146,7 +158,8 @@ async def edit_user(
             account.user.fullname = cmd.fullname
         if cmd.email != account.user.email:
             if cmd.email is not None:
-                # Initiate the change email requested event
+                # Initiate the change email requested event, which emails the new address its verification link
+                await _count_email(state_store, account.user.id)
                 account.events.append(events.accounts.EmailChangeRequested(user_id=account.user.id, email=cmd.email))
         if cmd.password_hash is not None:
             account.user.password_hash = cmd.password_hash
@@ -231,7 +244,8 @@ async def login(
 @handlers.command_handler()
 async def invite_user(
         cmd: commands.accounts.InviteUser,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         existing = await uow.repositories.accounts.get(email=cmd.email)
@@ -256,6 +270,7 @@ async def invite_user(
             if not controller.has_access(Access.ADMIN, access_teams=admin_teams):
                 raise UnauthorisedOperationError("A Person can only be offered by admins of its controlling teams")
 
+        await _count_email(state_store, cmd.agent_id)
         stored = await uow.repositories.invitations.create(invitation)
         stored.events.append(events.accounts.InvitationIssued(invitation_id=stored.id))
         await uow.commit()
@@ -282,10 +297,12 @@ async def cancel_invitation(
 @handlers.command_handler()
 async def resend_invitation(
         cmd: commands.accounts.ResendInvitation,
-        uow_factory: AbstractUnitOfWorkFactory
+        uow_factory: AbstractUnitOfWorkFactory,
+        state_store: AbstractStateStore
 ):
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         invitation = await _get_own_invitation(uow, cmd.agent_id, cmd.invitation_id)
+        await _count_email(state_store, cmd.agent_id)
         invitation.extend(days=config.INVITATION_EXPIRY_DAYS)
         invitation.events.append(events.accounts.InvitationIssued(invitation_id=invitation.id))
         await uow.commit()

@@ -258,6 +258,12 @@ The accountsInvite mutation sends an invitation to register a new user. It can o
 administers, one or more accesses to each, and a Person record for the new user to link (docs/person.md, Invitations).
 There is currently no facility to request an invitation.
 
+Changing a password or email address (accountsUpdateUser) asks for the current password. A new password ends the
+account's other sign-ins and refuses password reset links sent before it. The emails a user's actions send to addresses
+they give, invitations and the verification of a new address, are limited each hour (`EMAIL_RATE_LIMIT_PER_HOUR`), as
+are password resets asked for one address (`PASSWORD_RESET_RATE_LIMIT_PER_HOUR`). Queries are limited in depth, fields
+and nested lists (`MAX_QUERY_DEPTH`, `MAX_QUERY_FIELDS`, `MAX_QUERY_LISTS`), so that none builds an answer of any size.
+
 ### Team tree
 A team tree is a tree of [teams](#team) with a single root team.
 These form the foundation of [access control](#access-control) logic.
