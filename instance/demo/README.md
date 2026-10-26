@@ -66,7 +66,7 @@ production's server block) and the rest to production, as before.
 6. **Map tiles.** The world file and Ireland's region into `/opt/breedgraph-demo/map_tiles`, cut on a machine with
    `pmtiles` (`scripts/map_tiles.py`), as `MAP_PMTILES_COMMAND` is empty here: the site fetches no regions itself.
 7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving `VITE_BASE_PATH=/demo/` and
-   `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and the `dist/` copied to `/var/www/demo`. The guide's
+   `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and its `dist-demo/` copied to `/var/www/demo`. The guide's
    media go in its `guide-media/` (from `public/guide-media`).
 8. **nginx.** `nginx-breedgraph-demo.conf` to `/etc/nginx/snippets/breedgraph-demo.conf`, and
    `include snippets/breedgraph-demo.conf;` in production's server block for port 443, then `sudo nginx -t` and
