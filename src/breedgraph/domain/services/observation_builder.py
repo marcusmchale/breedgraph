@@ -207,8 +207,8 @@ class ObservationBuilder:
 
     def check_described(self):
         """
-        Descriptive statistics describe CONTINUOUS concept terms, as their scales resolve them, the others only group
-        them: without one, there would be nothing to describe.
+        Descriptive statistics describe CONTINUOUS concept terms, and summarise ORDINAL ones, as their scales resolve
+        them; CATEGORICAL ones only group them: without either, there would be nothing to describe.
         """
         spec = self.context.request.spec
         if not isinstance(spec, DescriptiveSpec):
@@ -217,9 +217,10 @@ class ObservationBuilder:
             resolve_representation(term, self.context.concepts[term.reference.concept_id], self.spec_path + ['terms', str(i)])
             for i, term in enumerate(spec.terms) if term.reference.type == AnalysisTermType.CONCEPT
         ]
-        if representations and TermRepresentationType.CONTINUOUS not in representations:
+        described = {TermRepresentationType.CONTINUOUS, TermRepresentationType.ORDINAL}
+        if representations and not described & set(representations):
             raise _incompatible(
-                "Descriptive statistics describe CONTINUOUS concept terms, and none is: ORDINAL and CATEGORICAL terms "
+                "Descriptive statistics describe CONTINUOUS and ORDINAL concept terms, and none is: CATEGORICAL terms "
                 "only group them",
                 self.spec_path + ['terms']
             )

@@ -68,6 +68,12 @@ type DescriptiveTermResult {
   """
   missingCount: Int!
 
+  """
+  The summary of an ORDINAL concept term, e.g. a disease score: its categories, with the minimum, quartiles, median
+  and maximum as categories. Null for a CONTINUOUS term, whose statistics are the fields below, null for an ORDINAL one.
+  """
+  ordinal: OrdinalSummary
+
   mean: Float
 
   standardDeviation: Float
@@ -83,6 +89,43 @@ type DescriptiveTermResult {
   lowerQuartile: Float
 
   upperQuartile: Float
+}
+
+
+"""
+An ORDINAL term's observations as its ranked categories allow: no mean or standard deviation, which would take the
+steps between categories as equal.
+"""
+type OrdinalSummary {
+  """
+  Each category of the term, in its order, with how many observations fell in it, those without one too.
+  """
+  categories: [OrdinalCategoryCount!]!
+
+  """
+  The category at each quantile: the first whose cumulative share of the observations reaches it, so always one
+  observed. Null without observations.
+  """
+  minimum: String
+  lowerQuartile: String
+  median: String
+  upperQuartile: String
+  maximum: String
+}
+
+
+type OrdinalCategoryCount {
+  """
+  The category, as the term's levels name it.
+  """
+  level: String!
+
+  count: Int!
+
+  """
+  The category's share of the observations, from 0 to 1. Null without observations.
+  """
+  share: Float
 }
 
 

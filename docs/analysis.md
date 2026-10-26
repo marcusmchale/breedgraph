@@ -204,8 +204,8 @@ Requirements by analysis:
   - `estimatedMeans` terms and `by` terms must be FIXED categorical model terms.
   - `TRT_VS_CTRL` needs exactly one term and a `control` level.
 - **Descriptive statistics**
-  - At least one CONCEPT term is required, and at least one must be CONTINUOUS as its scale resolves it, or the analysis
-    fails with `INCOMPATIBLE_SCALE`: ORDINAL and CATEGORICAL terms only group the continuous ones.
+  - At least one CONCEPT term is required, and at least one must be CONTINUOUS or ORDINAL as its scale resolves it, or
+    the analysis fails with `INCOMPATIBLE_SCALE`: CATEGORICAL terms only group the others.
   - Interactions and estimated-means terms must be categorical terms.
 - **Correlation:** at least two CONCEPT terms, each CONTINUOUS or ORDINAL. ORDINAL terms are ranked by level order.
 - **MDS and outlier detection**
@@ -252,7 +252,8 @@ Term levels (`AnalysisTermLevel.level`) are strings:
 Results per analysis:
 
 - **Descriptive**
-  - For each CONTINUOUS concept term there is one row with `levels: []` covering all observations, then one row per combination of levels of all CATEGORICAL/ORDINAL terms.
+  - For each CONTINUOUS or ORDINAL concept term, in the order given, there is one row with `levels: []` covering all observations, then one row per combination of levels of the CATEGORICAL/ORDINAL terms, an ORDINAL term's own left out of its rows.
+  - A CONTINUOUS term's rows have the mean, standard deviation and error, and the quantiles. An ORDINAL term's have `ordinal` instead: the count in each category, in its order, with its share, and the minimum, quartiles, median and maximum as categories (the first whose cumulative share reaches each quantile), but no mean, which would take the steps between categories as equal.
   - `group` is set only when every level belongs to a domain term.
   - `estimatedMeans` come from a linear model of each CONTINUOUS term on the categorical terms (plus interactions). `response` identifies the term.
 - **Correlation:** uses pairwise complete observations. A value is null when fewer than 3 observations pair up.

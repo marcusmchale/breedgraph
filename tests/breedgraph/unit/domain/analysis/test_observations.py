@@ -95,17 +95,21 @@ def test_numbers_as_levels_are_written_as_recorded_in_numeric_order():
     assert frame.columns[0].levels == ['200', '120', '62.5', '50']
     assert codes(warnings) == []
 
-def test_descriptive_statistics_need_a_continuous_concept_term():
-    """An ordinal score, or a number taken as categorical, only groups the others: alone, it leaves nothing to describe"""
+def test_descriptive_statistics_need_a_continuous_or_ordinal_concept_term():
+    """A nominal score, or a number taken as categorical, only groups the others: alone, it leaves nothing to describe"""
     for concept, term in [
-        (ConceptContext(10, ScaleType.ORDINAL, categories=['1', '2', '3']), concept_term(10)),
+        (ConceptContext(10, ScaleType.NOMINAL, categories=['a', 'b']), concept_term(10)),
         (ConceptContext(10, ScaleType.NUMERICAL), concept_term(10, representation='CATEGORICAL')),
     ]:
-        ctx = context(descriptive([term]), [dataset(1, 1, 10, [record(1, 100, '2')])], concepts={10: concept})
+        ctx = context(descriptive([term]), [dataset(1, 1, 10, [record(1, 100, 'a')])], concepts={10: concept})
         with pytest.raises(AnalysisFailed) as e:
             prepare(ctx)
         assert e.value.errors[0].code == AnalysisErrorCode.INCOMPATIBLE_SCALE
         assert e.value.errors[0].path == ['descriptiveStatistics', 'terms']
+    # an ordinal score is summarised
+    ordinal = ConceptContext(10, ScaleType.ORDINAL, categories=['1', '2', '3'])
+    frame, _ = prepare(context(descriptive([concept_term(10)]), [dataset(1, 1, 10, [record(1, 100, '2')])], concepts={10: ordinal}))
+    assert frame.columns[0].kind.value == 'ORDINAL'
 
 def test_incompatible_scale():
     concepts = {10: ConceptContext(10, ScaleType.NOMINAL, categories=['a'])}

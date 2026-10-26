@@ -1,6 +1,7 @@
 """
-Descriptive statistics of each CONTINUOUS concept term, overall and for each
-combination of levels of the CATEGORICAL and ORDINAL terms.
+Descriptive statistics of each CONTINUOUS concept term, and a summary of each ORDINAL concept term as its ranked
+categories allow, overall and for each combination of levels of the CATEGORICAL and ORDINAL terms (an ORDINAL term's
+own levels left out of the groups of its summary).
 """
 import numpy as np
 import pandas as pd
@@ -34,6 +35,35 @@ def _statistics(values: pd.Series) -> dict:
     }
 
 
+def _quantile(codes: np.ndarray, q: float) -> int:
+    """The category, by its rank, at a quantile: the first whose cumulative share reaches it, so always one observed"""
+    return int(np.quantile(codes, q, method='inverted_cdf'))
+
+
+def _ordinal_summary(values: pd.Series) -> dict:
+    """
+    An ordinal term's observations, e.g. disease scores: how many fell in each category, in the scale's order, with
+    their share of those observed, and the minimum, quartiles, median and maximum, each a category. No mean or
+    standard deviation, which would take the steps between categories as equal.
+    """
+    present = values.dropna()
+    count = int(present.size)
+    levels = list(values.cat.categories)
+    counts = present.value_counts(sort=False).reindex(levels, fill_value=0)
+    ordinal = {
+        'categories': [
+            {'level': str(level), 'count': int(n), 'share': float(n / count) if count else None}
+            for level, n in counts.items()
+        ],
+        **{name: None for name in ('minimum', 'lower_quartile', 'median', 'upper_quartile', 'maximum')}
+    }
+    if count:
+        codes = present.cat.codes.to_numpy()
+        for name, q in (('minimum', 0), ('lower_quartile', 0.25), ('median', 0.5), ('upper_quartile', 0.75), ('maximum', 1)):
+            ordinal[name] = str(levels[_quantile(codes, q)])
+    return {'count': count, 'missing_count': int(values.size - count), 'ordinal': ordinal}
+
+
 def _group(job: AnalysisJob, columns: list[dict], index: int) -> dict | None:
     """The AnalysisGroup of a combination of domain term levels, from a member observation."""
     if not columns or any(c['term']['type'] == 'CONCEPT' for c in columns):
@@ -56,23 +86,29 @@ def _group(job: AnalysisJob, columns: list[dict], index: int) -> dict | None:
 
 def descriptive_statistics(job: AnalysisJob) -> AnalysisOutcome:
     frame = job.frame()
-    continuous = job.concept_columns('CONTINUOUS')
     grouping = job.columns_of_kind('CATEGORICAL', 'ORDINAL')
     warnings = single_level_messages(job, single_level_columns(frame, grouping), WarningCode.SINGLE_LEVEL_TERM)
+    # the terms described, in the order given: statistics of the continuous, summaries of the ordinal
+    described = [
+        (column, _statistics if column['kind'] == 'CONTINUOUS' else _ordinal_summary)
+        for column in job.concept_columns('CONTINUOUS', 'ORDINAL')
+    ]
 
     results = []
-    for column in continuous:
+    for column, describe in described:
         values = frame[column['name']]
-        results.append({'term': column['term'], 'levels': [], 'group': None, **_statistics(values)})
-        if not grouping:
+        results.append({'term': column['term'], 'levels': [], 'group': None, **describe(values)})
+        groups = [c for c in grouping if c['name'] != column['name']]
+        if not groups:
             continue
-        names = [c['name'] for c in grouping]
+        names = [c['name'] for c in groups]
         for key, members in frame.groupby(names, observed=True, sort=True):
+            key = key if isinstance(key, tuple) else (key,)
             results.append({
                 'term': column['term'],
-                'levels': [term_level(c, level) for c, level in zip(grouping, key)],
-                'group': _group(job, grouping, int(members.index[0])),
-                **_statistics(values.loc[members.index])
+                'levels': [term_level(c, level) for c, level in zip(groups, key)],
+                'group': _group(job, groups, int(members.index[0])),
+                **describe(values.loc[members.index])
             })
 
     estimated_means = []

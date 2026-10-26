@@ -186,6 +186,35 @@ async def test_descriptive_statistics(analysis_context, login_token_factory, cli
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_descriptive_statistics_summarise_an_ordinal_term(analysis_context, login_token_factory, client):
+    """Each unit's mean height binned, so ranked categories: counted in order, with quartiles as categories"""
+    token = login_token_factory(analysis_context['user_id'])
+    binning = {"boundaries": ["1100", "1500"], "labels": ["short", "medium", "tall"], "boundary": "RIGHT"}
+    submission = await run_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [analysis_context['height_dataset']], {
+            "terms": [concept(analysis_context['height_id'], aggregation="MEAN", binning=binning), GERMPLASM_TERM],
+            "grouping": germplasm_grouping(analysis_context)
+        }
+    ), (
+        "... on DescriptiveStatisticsResult { terms { levels { level } group { germplasmId } count missingCount mean "
+        " ordinal { categories { level count share } minimum lowerQuartile median upperQuartile maximum } } }"
+    ))
+    assert submission['status'] == 'COMPLETED', submission['errors']
+    overall, first, second = submission['result']['terms']
+    # the first germplasm's units are short; the second's medium, but for its outlying last unit, tall
+    assert overall['mean'] is None and overall['count'] == 2 * UNITS_PER_GERMPLASM
+    assert overall['ordinal'] == {
+        'categories': [
+            {'level': 'short', 'count': 4, 'share': 0.5}, {'level': 'medium', 'count': 3, 'share': 0.375},
+            {'level': 'tall', 'count': 1, 'share': 0.125}
+        ],
+        'minimum': 'short', 'lowerQuartile': 'short', 'median': 'short', 'upperQuartile': 'medium', 'maximum': 'tall'
+    }
+    assert [t['group']['germplasmId'] for t in (first, second)] == [str(g) for g in analysis_context['germplasm_ids']]
+    assert [first['ordinal']['median'], second['ordinal']['median'], second['ordinal']['maximum']] == ['short', 'medium', 'tall']
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_germplasm_grouping_with_none_selected(analysis_context, login_token_factory, client):
     """With no germplasm selected, each unit's own germplasm is a level"""
     token = login_token_factory(analysis_context['user_id'])
