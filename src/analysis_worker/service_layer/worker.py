@@ -1,12 +1,19 @@
 import asyncio
 import logging
 from concurrent.futures import Executor
+from concurrent.futures.process import BrokenProcessPool
+from typing import Callable
 
 from analysis_worker.adapters.http.abstract_client import AbstractAnalysisAPIClient
 from analysis_worker.domain.model.job import AnalysisJob, AnalysisJobFailed, Message, ErrorCode
 from analysis_worker.service_layer.runner import run_job
 
 logger = logging.getLogger(__name__)
+
+# an analysis may be given less memory than it needs (the worker's unit, LimitAS and MemoryMax)
+OUT_OF_MEMORY = "The analysis needed more memory than this server gives an analysis: try it on fewer records or terms"
+ENDED = ("The analysis stopped before it finished, perhaps needing more memory than this server gives an analysis: "
+         "try it on fewer records or terms")
 
 
 class AnalysisWorker:
@@ -16,15 +23,17 @@ class AnalysisWorker:
             self,
             client: AbstractAnalysisAPIClient,
             poll_interval: int | float = 5,
-            executor: Executor | None = None
+            executor_factory: Callable[[], Executor] | None = None
     ):
         """
-        :param executor: runs analyses; a process pool keeps embedded R on the main thread of a process.
-            Defaults to a thread, which suits analyses not using R.
+        :param executor_factory: makes what runs analyses; a process pool keeps embedded R on the main thread of a
+            process, and is made again when one of its processes ends abruptly, which breaks it. Defaults to a thread,
+            which suits analyses not using R.
         """
         self.client = client
         self.poll_interval = poll_interval
-        self.executor = executor
+        self.executor_factory = executor_factory
+        self.executor = executor_factory() if executor_factory else None
         self._shutdown_event = asyncio.Event()
 
     async def run(self):
@@ -71,6 +80,19 @@ class AnalysisWorker:
         except AnalysisJobFailed as e:
             logger.info(f"Analysis {job.analysis_id} failed: {e}")
             await self.client.post_failure(job, errors=e.errors, warnings=e.warnings)
+            return
+        except MemoryError:
+            logger.warning(f"Analysis {job.analysis_id} ran out of memory")
+            await self.client.post_failure(job, errors=[Message(
+                code=ErrorCode.INTERNAL_ERROR, message=OUT_OF_MEMORY
+            )], warnings=[])
+            return
+        except BrokenProcessPool:
+            # its process was killed, most likely for its memory, or crashed: a new pool runs the next analysis
+            logger.error(f"Analysis {job.analysis_id} ended its process before it finished")
+            self.executor.shutdown(wait=False, cancel_futures=True)
+            self.executor = self.executor_factory()
+            await self.client.post_failure(job, errors=[Message(code=ErrorCode.INTERNAL_ERROR, message=ENDED)], warnings=[])
             return
         except Exception as e:
             logger.exception(f"Analysis {job.analysis_id} raised an unexpected error: {e}")

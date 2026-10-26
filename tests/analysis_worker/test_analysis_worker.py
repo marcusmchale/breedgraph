@@ -1,3 +1,6 @@
+from concurrent.futures import Executor, Future
+from concurrent.futures.process import BrokenProcessPool
+
 import pytest
 
 from analysis_worker.adapters.http.abstract_client import AbstractAnalysisAPIClient
@@ -75,3 +78,45 @@ async def test_unexpected_error_is_reported_without_details(monkeypatch):
     await AnalysisWorker(client).process_next()
     (_, errors, _), = client.failures
     assert errors[0].code == ErrorCode.INTERNAL_ERROR and "secret" not in errors[0].message
+
+
+@pytest.mark.asyncio
+async def test_running_out_of_memory_is_reported_as_such(monkeypatch):
+    def hungry(_):
+        raise MemoryError()
+    monkeypatch.setitem(runner.ANALYSES, 'ANOVA', hungry)
+    client = MockAnalysisAPIClient([job()])
+    await AnalysisWorker(client).process_next()
+    (_, errors, _), = client.failures
+    assert errors[0].code == ErrorCode.INTERNAL_ERROR and 'memory' in errors[0].message
+
+
+class EndingExecutor(Executor):
+    """A process pool whose first process ends abruptly, as one killed for its memory does, which breaks the pool"""
+    made = 0
+
+    def __init__(self):
+        EndingExecutor.made += 1
+        self.broken = EndingExecutor.made == 1
+
+    def submit(self, fn, /, *args, **kwargs):
+        future = Future()
+        if self.broken:
+            future.set_exception(BrokenProcessPool('A process in the process pool was terminated abruptly'))
+        else:
+            future.set_result(fn(*args, **kwargs))
+        return future
+
+
+@pytest.mark.asyncio
+async def test_an_analysis_whose_process_ends_is_reported_and_the_next_runs_in_a_new_pool(monkeypatch):
+    monkeypatch.setitem(runner.ANALYSES, 'ANOVA', lambda j: AnalysisOutcome(result={'terms': []}))
+    monkeypatch.setattr(EndingExecutor, 'made', 0)
+    client = MockAnalysisAPIClient([job(), job()])
+    worker = AnalysisWorker(client, executor_factory=EndingExecutor)
+    await worker.process_next()
+    await worker.process_next()
+    (_, errors, _), = client.failures
+    assert errors[0].code == ErrorCode.INTERNAL_ERROR and 'memory' in errors[0].message
+    assert client.results == [('a1', {'terms': []}, [])]
+    assert EndingExecutor.made == 2

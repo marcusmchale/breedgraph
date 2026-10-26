@@ -25,11 +25,13 @@ async def run_worker(api_url: str, poll_interval: int):
     logger.info(f"Starting Analysis Worker with config: api_url={api_url}, poll_interval={poll_interval}s")
 
     client = AnalysisAPIClient(base_url=api_url, auth_token=ANALYSIS_WORKER_AUTH_TOKEN)
-    # a fresh process for each job: embedded R is not thread safe and keeps state between calls
-    executor = ProcessPoolExecutor(
-        max_workers=1, mp_context=multiprocessing.get_context('spawn'), max_tasks_per_child=1
-    )
-    worker = AnalysisWorker(client=client, poll_interval=poll_interval, executor=executor)
+
+    def new_executor():
+        # a fresh process for each job: embedded R is not thread safe and keeps state between calls
+        return ProcessPoolExecutor(
+            max_workers=1, mp_context=multiprocessing.get_context('spawn'), max_tasks_per_child=1
+        )
+    worker = AnalysisWorker(client=client, poll_interval=poll_interval, executor_factory=new_executor)
 
     try:
         await worker.run()
@@ -40,7 +42,7 @@ async def run_worker(api_url: str, poll_interval: int):
         logger.exception(f"Worker failed: {e}")
         raise
     finally:
-        executor.shutdown(cancel_futures=True)
+        worker.executor.shutdown(cancel_futures=True)
         await client.close()
 
 

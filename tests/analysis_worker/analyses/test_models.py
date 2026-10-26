@@ -185,8 +185,13 @@ async def test_worker_runs_r_analysis_in_process_pool():
 
     columns, rows = one_way()
     client = MockAnalysisAPIClient([job('ANOVA', anova_config([term(Y), term(A)]), columns, rows)])
-    with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('spawn'), max_tasks_per_child=1) as executor:
-        await AnalysisWorker(client, executor=executor).process_next()
+    worker = AnalysisWorker(client, executor_factory=lambda: ProcessPoolExecutor(
+        max_workers=1, mp_context=multiprocessing.get_context('spawn'), max_tasks_per_child=1
+    ))
+    try:
+        await worker.process_next()
+    finally:
+        worker.executor.shutdown()
     assert client.failures == []
     (_, result, _), = client.results
     assert result['terms'][0]['term'] == A
