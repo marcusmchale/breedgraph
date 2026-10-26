@@ -46,11 +46,11 @@ def with_auth(csrf_token: str, auth_token: str | None = None, accept_terms: bool
     """
     headers = {
         "X-CSRF-Token": csrf_token,
-        "Cookie": f"csrf_token={csrf_token}"
+        "Cookie": f"{config.cookie_name('csrf_token')}={csrf_token}"
     }
 
     if auth_token:
-        headers["Cookie"] += f"; auth_token={auth_token}"
+        headers["Cookie"] += f"; {config.cookie_name('auth_token')}={auth_token}"
     if accept_terms:
         # as a browser that accepted before signing in holds both: the API reads the one for whom it takes the request
         # to be from, which is the visitor's when the token's account no longer exists

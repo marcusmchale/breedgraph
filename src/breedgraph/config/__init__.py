@@ -5,6 +5,9 @@ from .routing import (
     get_gql_url,
     get_base_url,
     get_vue_url,
+    get_vue_origin,
+    cookie_name,
+    cookie_path,
     get_download_endpoint,
     get_redis_host_and_port,
     DATABASE_NAME,
@@ -20,7 +23,9 @@ from .routing import (
     PROTOCOL,
     HOST_PORT,
     HOST_ADDRESS,
-    VUE_PORT
+    VUE_PORT,
+    SITE_PATH,
+    COOKIE_PREFIX
 )
 from .secrets import (
     get_graphdb_auth,

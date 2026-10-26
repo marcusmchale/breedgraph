@@ -10,7 +10,8 @@ from breedgraph.config import (
     CSRF_SALT,
     CSRF_EXPIRES,
     GQL_API_PATH,
-    get_vue_url,
+    get_vue_origin,
+    cookie_name,
     Environment
 
 )
@@ -60,7 +61,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Validate CSRF tokens
-        cookie_token = request.cookies.get(self.csrf_token_cookie)
+        cookie_token = request.cookies.get(cookie_name(self.csrf_token_cookie))
         header_token = request.headers.get(self.csrf_token_header)
 
         if not cookie_token or not header_token:
@@ -103,7 +104,7 @@ def setup_middlewares(app: FastAPI) -> None:
     # handy for debugging, note this breaks with file uploads
     #app.add_middleware(RequestLoggingMiddleware)
 
-    origins = [get_vue_url().rstrip('/')]
+    origins = [get_vue_origin()]
     logger.debug(f"Setting up CORS middleware with origins: {origins}")
     # Setup CSRF
     app.add_middleware(

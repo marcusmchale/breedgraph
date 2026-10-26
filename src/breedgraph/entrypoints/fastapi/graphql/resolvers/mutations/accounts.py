@@ -24,7 +24,7 @@ from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, r
 from breedgraph.entrypoints.fastapi.graphql.acceptances import save_acceptances
 
 
-from breedgraph.config import LOGIN_EXPIRES
+from breedgraph.config import LOGIN_EXPIRES, cookie_name, cookie_path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -181,13 +181,13 @@ async def login(
 
             # Queue the cookie to be set on the response
             cookie_data = {
-                "key": "auth_token",
+                "key": cookie_name("auth_token"),
                 "value": token,
                 "max_age": LOGIN_EXPIRES * 60,  # Convert minutes to seconds
                 "httponly": True,
                 "secure": True,  # Set to True for HTTPS
                 "samesite": "strict",
-                "path": "/"
+                "path": cookie_path()
             }
             info.context["cookies_to_set"].append(cookie_data)
             _carry_terms_over(info.context, account.user.id)
@@ -234,13 +234,13 @@ async def delete_account(
     await info.context['bus'].handle(DeleteAccount(user_id=user_id, erase_person=erase_person is not False))
 
     info.context["cookies_to_set"].append({
-        "key": "auth_token",
+        "key": cookie_name("auth_token"),
         "value": "",
         "max_age": 0,
         "httponly": True,
         "secure": True,
         "samesite": "strict",
-        "path": "/"
+        "path": cookie_path()
     })
     return True
 
@@ -254,13 +254,13 @@ async def logout(_, info) -> bool:
 
     # Queue the cookie to be removed on the response
     cookie_data = {
-        "key": "auth_token",
+        "key": cookie_name("auth_token"),
         "value": "",
         "max_age": 0,  # Expire immediately
         "httponly": True,
         "secure": True,
         "samesite": "strict",
-        "path": "/"
+        "path": cookie_path()
     }
     info.context["cookies_to_set"].append(cookie_data)
 

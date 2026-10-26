@@ -18,12 +18,16 @@ from typing import Mapping
 
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 
+from breedgraph.config import routing
+
 COOKIE_NAME = 'acceptances'
 TOKEN_SIZE_LIMIT = 3500
 
 
 def cookie_name(user_id: int | None) -> str:
-    return COOKIE_NAME if user_id is None else f'{COOKIE_NAME}_{user_id}'
+    """The cookie of an identity, with COOKIE_PREFIX (config.routing.cookie_name)"""
+    name = COOKIE_NAME if user_id is None else f'{COOKIE_NAME}_{user_id}'
+    return routing.cookie_name(name)
 
 
 @dataclass
@@ -93,5 +97,5 @@ class AcceptanceTokens:
             "httponly": True,
             "secure": True,
             "samesite": "strict",
-            "path": "/"
+            "path": routing.cookie_path()
         }

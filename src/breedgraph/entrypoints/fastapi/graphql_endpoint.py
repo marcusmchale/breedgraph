@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 
 from breedgraph.domain.model.accounts import AccountStored
 from breedgraph.custom_exceptions import UnauthorisedOperationError
-from breedgraph.config import GQL_API_PATH, ENVIRONMENT, Environment
+from breedgraph.config import GQL_API_PATH, ENVIRONMENT, Environment, cookie_name
 
 # logging
 import logging
@@ -52,7 +52,7 @@ def validation_rules(context, _document, _data):
 
 async def get_user_id(request: Request) -> Optional[AccountStored]:
     """Extract and validate user from auth token cookie"""
-    token = request.cookies.get('auth_token')
+    token = request.cookies.get(cookie_name('auth_token'))
     logger.debug(f"GraphQL context builder - auth_token cookie {'present' if token else 'absent'}")
     if token is not None:
         try:

@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, get_vue_url
+from breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, get_vue_url, cookie_name, cookie_path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,14 +24,16 @@ class CSRFTokenManager:
     def set_token_cookie(response: Response, token: str) -> None:
         """
         Set CSRF token cookie on response: for this host only, as the login and acceptance cookies are, so that a
-        site on a subdomain, such as a demonstration site, is never sent this one's
+        site on a subdomain, such as a demonstration site, is never sent this one's; and, as they are, named with
+        COOKIE_PREFIX for the site's path (cookie_path), so that one beside it on the same host keeps its own
         """
         response.set_cookie(
-            key="csrf_token",
+            key=cookie_name("csrf_token"),
             value=token,
             httponly=True,
             secure=True,
             samesite="strict",
+            path=cookie_path(),
             max_age=CSRF_EXPIRES
         )
 
@@ -49,7 +51,7 @@ async def csrf_preflight():
 @router.post("/csrf")
 async def get_csrf_token(request: Request, response: Response):
     # Check if both tokens exist
-    cookie_token = request.cookies.get("csrf_token")
+    cookie_token = request.cookies.get(cookie_name("csrf_token"))
     header_token = request.headers.get("X-CSRF-Token")
 
     if cookie_token and header_token:
