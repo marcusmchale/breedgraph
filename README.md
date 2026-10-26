@@ -698,27 +698,48 @@ emails, and shares the API's locks, so both can run at once. Deploying leaves `M
 
 ## deploy :
 
-### Build a wheelhouse and install from that 
+### Releases
+
+breedgraph and [BreedView](https://github.com/marcusmchale/breedview) are released together under the same version: a
+breedgraph release works with the BreedView release of the same number, and a release of one comes with a release of
+the other, even one with no changes of its own. The version is in `pyproject.toml`, and in BreedView's `package.json`.
+
+### Build the wheelhouses and install from them
+
+Each service installs from a wheelhouse, a folder of the wheels it needs, without reaching PyPI: the API from the
+`server` extra's, the archive worker from `worker`'s and the analysis worker from `analysis_worker`'s. Build them from
+the release's tag, on a machine with the development environment:
 
     cd path/to/breedgraph
-    python -m build
-    python -m pip download --only-binary=:all: --dest dist/wheelhouse_server dist/breedgraph-0.1.1-py3-none-any.whl[server]
-    scp -r dist/wheelhouse_server user@server:~/breedgraph_deployment
+    scripts/build_wheelhouses.sh --check v0.1.1
 
-then on the server, su to the user controlling breedgraph
+They land in `dist/` as `wheelhouse_<extra>_<version>`, beside the wheel and the source distribution, built for
+CPython 3.12 on x86_64 with glibc 2.34 or later; the script's header says what `--check` needs. rpy2 has no wheels, so
+the analysis worker's machine builds it as it installs, with R's headers and a compiler
+(`sudo apt install r-base-dev build-essential`), beside R and the packages `instance/analysis_worker.service` names.
+
+Copy each wheelhouse to its machine, somewhere the user that runs the service can read it:
+
+    scp -r dist/wheelhouse_server_0.1.1 user@server:~/
+
+then, on the server and as that user, install it into the venv its unit runs:
 
     cd /opt/breedgraph
-    python3 -m venv venv
-    . ./venv/bin/activate
-    python -m pip install --no-index --find-links wheelhouse_server/ breedgraph[server]
-  
-to run the scripts
+    python3 -m venv .venv
+    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.1/ 'breedgraph[server]'
 
-    /opt/breedgraph/venv/bin/activate
+and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv`, and `breedgraph[analysis_worker]` into
+`/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same venv with `--upgrade`, then
+restart the service.
+
+The scripts aren't in the wheel: run them from a checkout of the release's tag, with the venv, whose breedgraph they
+import, and the environment:
+
+    . /opt/breedgraph/.venv/bin/activate
     set -a
     . /opt/breedgraph/breedgraph.env
     set +a
-    ./setup_initial_data.py
+    python scripts/setup_initial_data.py
 
 ### BreedView and its branding
 
