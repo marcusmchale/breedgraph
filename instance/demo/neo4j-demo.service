@@ -1,8 +1,9 @@
 # /etc/systemd/system/neo4j-demo.service: the demonstration site's Neo4j (instance/demo/neo4j.conf), a second instance
-# of the installed package, run as breedgraph-demo, which owns its directories
+# of the installed package, run as breedgraph-demo, which owns its directories; started with breedgraph-demo.target
 [Unit]
 Description=Neo4j for the BreedGraph demonstration site
 After=network.target
+PartOf=breedgraph-demo.target
 
 [Service]
 Type=simple
@@ -15,6 +16,3 @@ Restart=on-failure
 RestartSec=10
 LimitNOFILE=60000
 TimeoutStopSec=120
-
-[Install]
-WantedBy=multi-user.target

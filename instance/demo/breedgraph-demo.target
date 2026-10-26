@@ -1,0 +1,13 @@
+# /etc/systemd/system/breedgraph-demo.target: the demonstration site's services together, so that one command starts,
+# stops or restarts them all, in order (instance/demo/README.md, Running it):
+#
+#   sudo systemctl restart breedgraph-demo.target
+#
+# Each service is PartOf= this target, so stopping or restarting it stops or restarts them; enabling it starts them at
+# boot. Production's services are not part of it.
+[Unit]
+Description=BreedGraph demonstration site: its Neo4j, Redis, API and workers
+Wants=neo4j-demo.service redis-demo.service breedgraph-demo.service analysis-worker-demo.service archive-worker-demo.service
+
+[Install]
+WantedBy=multi-user.target

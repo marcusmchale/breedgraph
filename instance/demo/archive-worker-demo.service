@@ -1,0 +1,30 @@
+# /etc/systemd/system/archive-worker-demo.service: an archive worker for the demonstration site's API, on this
+# machine, as instance/archive_worker.service runs production's on the archive server; started with
+# breedgraph-demo.target. It keeps the site's uploads in /opt/breedgraph-demo/archive, encrypted to the site's own key,
+# and each reset empties it. Its environment is its own (archive-worker-demo.env), so it holds none of the API's secrets.
+[Unit]
+Description=Archive worker for the BreedGraph demonstration site
+After=network.target breedgraph-demo.service
+PartOf=breedgraph-demo.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=breedgraph-demo
+Group=breedgraph-demo
+WorkingDirectory=/opt/breedgraph-demo/checkout/src
+EnvironmentFile=/opt/breedgraph-demo/archive-worker-demo.env
+ExecStart=/opt/breedgraph-demo/checkout/.venv/bin/python -m archive_worker.main
+Restart=always
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/breedgraph-demo/archive /opt/breedgraph-demo/logs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=archive-worker-demo

@@ -1,9 +1,10 @@
-# /etc/systemd/system/analysis-worker-demo.service: an analysis worker for the demonstration site's API, as
-# instance/analysis_worker.service runs production's (R with the packages it lists)
+# /etc/systemd/system/analysis-worker-demo.service: an analysis worker for the demonstration site's API, on this
+# machine, as instance/analysis_worker.service runs production's (R with the packages it lists); started with
+# breedgraph-demo.target. Its environment is its own (analysis-worker-demo.env), so it holds none of the API's secrets.
 [Unit]
 Description=Analysis worker for the BreedGraph demonstration site
 After=network.target breedgraph-demo.service
-Wants=network-online.target
+PartOf=breedgraph-demo.target
 StartLimitIntervalSec=600
 StartLimitBurst=3
 
@@ -12,7 +13,7 @@ Type=simple
 User=analysisworker
 Group=analysisworker
 WorkingDirectory=/opt/breedgraph-demo/checkout/src
-EnvironmentFile=/opt/breedgraph-demo/breedgraph-demo.env
+EnvironmentFile=/opt/breedgraph-demo/analysis-worker-demo.env
 ExecStart=/opt/breedgraph-demo/checkout/.venv/bin/python -m analysis_worker.main
 Restart=always
 RestartSec=10
@@ -22,10 +23,9 @@ TimeoutStopSec=30
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/breedgraph-demo/logs
+# R makes its session's directory in /tmp, which ProtectSystem=strict leaves read-only
+PrivateTmp=yes
+ReadWritePaths=/opt/breedgraph-demo/logs/analysis-worker
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=analysis-worker-demo
-
-[Install]
-WantedBy=multi-user.target

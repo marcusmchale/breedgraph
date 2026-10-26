@@ -1,9 +1,10 @@
 # /etc/systemd/system/breedgraph-demo.service: the demonstration site's API, as instance/breedgraph.service runs
-# production's, on 127.0.0.1:8001 behind nginx
+# production's, on 127.0.0.1:8001 behind nginx; started with breedgraph-demo.target
 [Unit]
 Description=BreedGraph demonstration site
 After=network.target neo4j-demo.service redis-demo.service
 Requires=network.target neo4j-demo.service redis-demo.service
+PartOf=breedgraph-demo.target
 
 [Service]
 User=breedgraph-demo
@@ -17,6 +18,3 @@ ExecStart=/opt/breedgraph-demo/checkout/.venv/bin/uvicorn \
     --port 8001
 Restart=always
 RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
