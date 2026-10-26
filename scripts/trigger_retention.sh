@@ -1,17 +1,23 @@
 #!/bin/bash
-# Runs the retention policies (unused file references, files, and expired invitations) through the API. Run on the web server from cron, e.g. daily:
-#   30 3 * * * /path/to/breedgraph/scripts/trigger_retention.sh >> /var/log/breedgraph_retention.log 2>&1
+# Runs the retention policies (unused file references, files, and expired invitations) through the API. Run on the web
+# server from cron, e.g. daily, with the environment file the API runs with (docs/deployment.md):
+#   30 3 * * * BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph_retention.log 2>&1
 #
-# Cron does not load the env files, so this does: instance/breedgraph.env and instance/private.breedgraph.env.
-# BREEDGRAPH_PYTHON selects the interpreter (default .venv/bin/python).
+# Cron does not load the environment, so this does: the file given, or else instance/breedgraph.env and
+# instance/private.breedgraph.env, as in development. BREEDGRAPH_PYTHON selects the interpreter (default .venv/bin/python).
 set -euo pipefail
 
+ENV_FILE="${1:+$(realpath "$1")}"
 cd "$(dirname "$0")/.."
 
 set -a
-. instance/breedgraph.env
-if [ -f instance/private.breedgraph.env ]; then
-    . instance/private.breedgraph.env
+if [ -n "$ENV_FILE" ]; then
+    . "$ENV_FILE"
+else
+    . instance/breedgraph.env
+    if [ -f instance/private.breedgraph.env ]; then
+        . instance/private.breedgraph.env
+    fi
 fi
 set +a
 
