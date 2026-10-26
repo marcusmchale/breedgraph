@@ -63,6 +63,9 @@ class UserStored(UserBase, StoredModel):
     created_at: datetime | None = field(default=None, compare=False)  # set by the database; read only
     privacy_consented_at: datetime | None = None
     privacy_notice_hash: str | None = None
+    # when the user's sign-ins were last ended, as their password changed: a login token, or a password reset link,
+    # signed before then no longer holds. To the second, as tokens are signed to the second.
+    sign_ins_ended_at: datetime | None = None
 
 @dataclass
 class UserOutput(UserBase, LabeledModel):

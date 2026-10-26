@@ -1,3 +1,4 @@
+from datetime import datetime
 from neo4j import AsyncResult, AsyncSession
 from typing import AsyncGenerator
 
@@ -27,9 +28,11 @@ class Neo4jAccountsView(AbstractAccountsView):
             record = await result.single()
             return record.value()
 
-    async def user_exists(self) -> bool:
+    async def signs_in(self, signed_at: datetime) -> bool:
         async with await self.session.begin_transaction() as tx:
-            result: AsyncResult = await tx.run(queries['accounts']['user_exists'], user_id=self.user_id)
+            result: AsyncResult = await tx.run(
+                queries['accounts']['signs_in'], user_id=self.user_id, signed_at=signed_at
+            )
             record = await result.single(strict=True)
             return record.value()
 

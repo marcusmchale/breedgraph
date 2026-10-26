@@ -281,7 +281,9 @@ The user is asked whether to erase their Person record as well. Erasure is the d
 - Refused while the user is the only ontology admin, or the only authorised admin of a team, counting heritable admins of ancestor teams.
 - The User node is **tombstoned**: relabelled `DeletedUser`, keeping only `id` and `deleted_at`. Affiliations, the Person link, claims and pending invitations they sent are removed, as are their archive retrieval requests.
   Provenance (contributions, ontology commits and lifecycle changes) stays attributed to the anonymous id; user ids are never reused.
-- Login tokens cannot be revoked, so the GraphQL context checks the user still exists on every request.
+- A login token holds until it expires, so the GraphQL context checks on every request that the user still exists, and
+  that the token was signed after the user's sign-ins were last ended (`User.sign_ins_ended_at`, set when the password
+  changes or is reset, which re-signs the browser that changed it and refuses reset links sent before).
 - Their submissions and analyses in Redis are deleted, cancelling queued analyses. Uploaded files are kept, as they belong to References.
 - Unverified accounts are still deleted outright, when someone registers again with the same email.
 - The deletion is logged in the erasure log (§5), and tombstoned again if a backup taken before it is restored. If the Person was erased, that is logged too.

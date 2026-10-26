@@ -27,7 +27,8 @@ def terms_cookie(user_id: int | None) -> str:
 
 def _user_id(auth_token: str | None) -> int | None:
     try:
-        return ItsDangerousAuthService().validate_login_token(auth_token) if auth_token else None
+        login = ItsDangerousAuthService().validate_login_token(auth_token) if auth_token else None
+        return login.user_id if login else None
     except Exception:  # an invalid token, which a test means to send
         return None
 

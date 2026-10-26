@@ -58,13 +58,15 @@ async def get_user_id(request: Request) -> Optional[AccountStored]:
     if token is not None:
         try:
             auth_service = request.app.bus.auth_service
-            user_id = auth_service.validate_login_token(token)
+            login = auth_service.validate_login_token(token)
         except UnauthorisedOperationError as e:
             return None
-        # Login tokens cannot be revoked, so check the account has not been deleted
-        async with request.app.bus.views_factory.get_views(user_id=user_id) as views:
-            if await views.accounts.user_exists():
-                return user_id
+        if login is None:
+            return None
+        # A signed token holds until it expires, so check the account has not been deleted, nor its sign-ins ended
+        async with request.app.bus.views_factory.get_views(user_id=login.user_id) as views:
+            if await views.accounts.signs_in(login.signed_at):
+                return login.user_id
 
     return None
 

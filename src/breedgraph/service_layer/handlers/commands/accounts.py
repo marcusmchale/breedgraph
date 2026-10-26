@@ -150,6 +150,8 @@ async def edit_user(
                 account.events.append(events.accounts.EmailChangeRequested(user_id=account.user.id, email=cmd.email))
         if cmd.password_hash is not None:
             account.user.password_hash = cmd.password_hash
+            # whoever was signed in with the old password, or holds a reset link sent before, no longer is
+            account.user.sign_ins_ended_at = datetime.now(timezone.utc).replace(microsecond=0)
         await uow.commit()
 
 @handlers.command_handler()

@@ -92,7 +92,9 @@ async def reset_password(
 ) -> bool:
     ts = URLSafeTimedSerializer(config.SECRET_KEY)
     try:
-        user_id = ts.loads(token, salt=config.PASSWORD_RESET_SALT, max_age=config.PASSWORD_RESET_EXPIRES * 60)
+        user_id, signed_at = ts.loads(
+            token, salt=config.PASSWORD_RESET_SALT, max_age=config.PASSWORD_RESET_EXPIRES * 60, return_timestamp=True
+        )
     except SignatureExpired as e:
         logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
         raise UnauthorisedOperationError("This token has expired")
@@ -101,6 +103,12 @@ async def reset_password(
         account = await uow.repositories.accounts.get(user_id=user_id)
         if not account:
             raise UnauthorisedOperationError("Token not valid because user was not found")
+        # a link holds until it expires, but only until the password changes, as on its first use
+        ended_at = account.user.sign_ins_ended_at
+        if ended_at is not None and signed_at < ended_at:
+            raise UnauthorisedOperationError(
+                "This link was sent before the password last changed: ask for another to reset it again"
+            )
         logger.debug(f"Change password for user: {account.user.id}")
 
         password_policy = config.get_password_policy()
@@ -115,6 +123,20 @@ async def reset_password(
     cmd = UpdateUser(user_id=user_id, password_hash=password_hash)
     await info.context['bus'].handle(cmd)
     return True
+
+def _sign_in(context, user_id: int) -> None:
+    """Queue a new login cookie on the response, signed now"""
+    context["cookies_to_set"].append({
+        "key": cookie_name("auth_token"),
+        "value": context['bus'].auth_service.create_login_token(user_id),
+        "max_age": LOGIN_EXPIRES * 60,  # Convert minutes to seconds
+        "httponly": True,
+        "secure": True,  # Set to True for HTTPS
+        "samesite": "strict",
+        "path": cookie_path()
+    })
+    logger.debug(f"Auth token cookie queued for user {user_id}")
+
 
 def _carry_terms_over(context, user_id: int) -> None:
     """
@@ -175,24 +197,9 @@ async def login(
             if brute_force_service:
                 await brute_force_service.record_successful_attempt(username)
 
-            bus = info.context.get('bus')
-            await bus.handle(Login(user_id=account.user.id))
-            token = bus.auth_service.create_login_token(account.user.id)
-
-            # Queue the cookie to be set on the response
-            cookie_data = {
-                "key": cookie_name("auth_token"),
-                "value": token,
-                "max_age": LOGIN_EXPIRES * 60,  # Convert minutes to seconds
-                "httponly": True,
-                "secure": True,  # Set to True for HTTPS
-                "samesite": "strict",
-                "path": cookie_path()
-            }
-            info.context["cookies_to_set"].append(cookie_data)
+            await info.context['bus'].handle(Login(user_id=account.user.id))
+            _sign_in(info.context, account.user.id)
             _carry_terms_over(info.context, account.user.id)
-
-            logger.debug(f"Auth token cookie queued for user {account.user.id}")
             return True
         else:
             # Failed password check
@@ -301,6 +308,9 @@ async def update_user(
         email=email
     )
     await info.context['bus'].handle(cmd)
+    if password_hash is not None:
+        # a new password ends the user's sign-ins (UserStored.sign_ins_ended_at) but this one, signed again
+        _sign_in(info.context, user_id)
     return True
 
 # the below also has a dedicated endpoint for REST so can follow a simple link

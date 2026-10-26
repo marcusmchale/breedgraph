@@ -4,7 +4,7 @@ from typing import Optional
 from breedgraph import config
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 
-from breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService
+from breedgraph.service_layer.infrastructure.auth_service import AbstractAuthService, LoginToken
 
 import logging
 
@@ -23,17 +23,18 @@ class ItsDangerousAuthService(AbstractAuthService):
         )
         return token
 
-    def validate_login_token(self, token: str) -> Optional[int]:
-        """Validate a token and return the user_id if valid"""
+    def validate_login_token(self, token: str) -> Optional[LoginToken]:
+        """Validate a token and return whom it signs in and when it was signed if valid"""
         if not token:
             return None
 
         try:
-            return self._serializer.loads(
+            return LoginToken(*self._serializer.loads(
                 token,
                 salt=config.LOGIN_SALT,
-                max_age=config.LOGIN_EXPIRES * 60
-            )
+                max_age=config.LOGIN_EXPIRES * 60,
+                return_timestamp=True
+            ))
         except SignatureExpired as e:
             logger.debug(f"Attempt to use expired token, signed: {e.date_signed}")
             raise UnauthorisedOperationError("The login token has expired")

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import AsyncGenerator
 
 from breedgraph.domain.model.accounts import UserOutput, UserDisplay
@@ -20,8 +21,11 @@ class AbstractAccountsView(ABC):
         ...
 
     @abstractmethod
-    async def user_exists(self) -> bool:
-        """False for a deleted account, whose login token is still validly signed"""
+    async def signs_in(self, signed_at: datetime) -> bool:
+        """
+        Whether a validly signed login token, signed at signed_at, signs the user in: not for a deleted account, nor
+        when it was signed before the user's sign-ins were last ended (UserStored.sign_ins_ended_at)
+        """
         ...
 
     async def get_user(self) -> UserOutput | None:

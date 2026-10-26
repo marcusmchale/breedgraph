@@ -1,5 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from datetime import datetime
+from typing import NamedTuple, Optional
+
+
+class LoginToken(NamedTuple):
+    user_id: int
+    # to the second: a token signed before the user's sign-ins were last ended no longer signs in
+    signed_at: datetime
 
 
 class AbstractAuthService(ABC):
@@ -10,8 +17,8 @@ class AbstractAuthService(ABC):
         pass
 
     @abstractmethod
-    def validate_login_token(self, token: str) -> Optional[int]:
-        """Validate a token and return the user_id if valid, None if invalid"""
+    def validate_login_token(self, token: str) -> Optional[LoginToken]:
+        """Validate a token and return whom it signs in and when it was signed if valid, None if invalid"""
         pass
 
     @abstractmethod
