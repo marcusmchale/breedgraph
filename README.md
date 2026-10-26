@@ -256,7 +256,8 @@ Examples: "Investigation", "Data curation"
 Access to most functions of BreedGraph through the GraphQL API require an account.
 The accountsInvite mutation sends an invitation to register a new user. It can offer affiliations to teams the inviter
 administers, one or more accesses to each, and a Person record for the new user to link (docs/person.md, Invitations).
-There is currently no facility to request an invitation.
+Registering always needs an invitation: the site's first account, its first ontology admin, is made on the server with
+`scripts/create_first_account.py` (docs/deployment.md). There is currently no facility to request an invitation.
 
 Changing a password or email address (accountsUpdateUser) asks for the current password. A new password ends the
 account's other sign-ins and refuses password reset links sent before it. The emails a user's actions send to addresses

@@ -80,15 +80,16 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,
    which refuses a database that isn't empty, and makes the schema, a system account and the ontology's first entries
-   (README, deploy). Then register the site's first account in BreedView: it needs no invitation and is the first
-   ontology admin; every later account needs one.
+   (README, deploy). Then make the site's first account, the first ontology admin, which invites the others:
+   `python scripts/create_first_account.py --name <username> --email <address> --fullname "<full name>"` asks for its
+   password and its holder's consent to the privacy notice, and prints its id. Registering in BreedView always needs
+   an invitation, so nobody can register before you.
    - **Germplasm.** Create the team that will control it (Access control, Teams), and give yourself write access to
      it: Set Affiliation on the team, and Write, approved at once as you are its admin; creating a team gives admin
      access, not write. Then, from the checkout, with the user's and the team's ids:
      `python scripts/import_germplasm.py -e germplasm.json -r relationships.json -u <user id> -t <team id>`, whose
      header gives the files' format. It writes everything or nothing, and refuses a second run. The team shows its id
-     under Access control; the first account's is 2, after the system account's 1, which
-     `cypher-shell -u neo4j "MATCH (u:User {name: '<username>'}) RETURN u.id"` confirms.
+     under Access control, and the first account's is the one `create_first_account.py` printed.
 7. **Maps.** `scripts/map_tiles.py` cuts the world file (README, Maps).
 8. **BreedView.** `dist/` copied to `/var/www/breedview`; the branding to `/etc/breedview/branding` (BreedView's
    README, Branding).

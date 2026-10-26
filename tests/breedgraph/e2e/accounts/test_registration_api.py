@@ -20,8 +20,12 @@ from tests.breedgraph.e2e.teams.post_methods import (
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
 from tests.breedgraph.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
 
+from breedgraph import config
 from breedgraph.domain.model import Access
 from breedgraph.custom_exceptions import NoResultFoundError
+from breedgraph.service_layer.application.terms_of_use import load_legal_text
+
+from tests.breedgraph.e2e.accounts.test_first_account import script as first_account_script
 
 async def check_verify_email(client, mailto: str, name: str):
     #json_content = await get_json_from_gmail(mailto=mailto, subject=f"{SITE_NAME} account email verification for {name}")
@@ -31,20 +35,21 @@ async def check_verify_email(client, mailto: str, name: str):
     assert_payload_success(get_verified_payload(response, "accountsVerifyEmail"))
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_first_user_register_verify_login(
+async def test_first_user_made_on_the_server_logs_in(
         user_registration_context,
         client,
+        uow_factory,
         user_input_generator
 ):
+    # the first account is made by scripts/create_first_account.py, as registering needs an invitation
     first_user_input = user_input_generator.new_user_input()
-    response = await post_to_create_account(
-        client,
+    await first_account_script.create_first_account(
+        uow_factory,
         first_user_input["name"],
         first_user_input["email"],
-        first_user_input["password"]
+        first_user_input["password_hash"],
+        load_legal_text(config.PRIVACY_NOTICE_PATH).content_hash
     )
-    assert_payload_success(get_verified_payload(response, "accountsCreateAccount"))
-    await check_verify_email(client, first_user_input['email'], first_user_input['name'])
     login_response = await post_to_login(
         client,
         first_user_input["name"],

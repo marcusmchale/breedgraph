@@ -1,7 +1,7 @@
 extend type Mutation {
     """
-    Register. Except for the first account, requires the token from an invitation link,
-    and the email address must be the one invited.
+    Register, with the token from an invitation link, and the email address invited. The site's first account, which
+    invites the others, is made on the server (scripts/create_first_account.py).
     """
     accountsCreateAccount(
         name: String!

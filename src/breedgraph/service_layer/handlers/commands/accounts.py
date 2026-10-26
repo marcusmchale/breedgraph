@@ -44,35 +44,28 @@ async def create_account(
     # consent is the lawful basis for account data (docs/legal/privacy-notice.md)
     if not cmd.privacy_consent:
         raise IllegalOperationError("Registering needs your consent to the processing of your personal data, as the privacy notice describes")
-    # Registration requires an invitation to the email address used, once a verified account exists
+    # Registration requires an invitation to the email address used. The site's first account, which invites the
+    # others, is made on the server (scripts/create_first_account.py), so that nobody else can register first.
+    if not cmd.invitation_token:
+        raise UnauthorisedOperationError("Please contact an existing user to be invited")
     async with uow_factory.get_uow() as uow:
-        invitation = None
-        if await uow.constraints.accounts_exist():
-            if not cmd.invitation_token:
-                raise UnauthorisedOperationError("Please contact an existing user to be invited")
-            token_data = auth_service.validate_invitation_token(cmd.invitation_token)
-            invitation = await uow.repositories.invitations.get(invitation_id=token_data['invitation_id'])
-            if invitation is None or invitation.is_expired():
-                raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
-            if not invitation.matches_email(cmd.email):
-                raise UnauthorisedOperationError("Please register with the email address the invitation was sent to")
-            invitation.accepted_teams(cmd.accept_team_ids)
-        if cmd.link_person and (invitation is None or invitation.person_id is None):
+        token_data = auth_service.validate_invitation_token(cmd.invitation_token)
+        invitation = await uow.repositories.invitations.get(invitation_id=token_data['invitation_id'])
+        if invitation is None or invitation.is_expired():
+            raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
+        if not invitation.matches_email(cmd.email):
+            raise UnauthorisedOperationError("Please register with the email address the invitation was sent to")
+        invitation.accepted_teams(cmd.accept_team_ids)
+        if cmd.link_person and invitation.person_id is None:
             raise IllegalOperationError("This invitation does not offer a Person to link")
 
     # What the invitation offers is granted with the inviter's authority, which is checked again here.
-    inviter_id = invitation.invited_by if invitation is not None else None
-    async with uow_factory.get_uow(user_id=inviter_id) as uow:
-        if invitation is not None:
-            invitation = await uow.repositories.invitations.get(invitation_id=invitation.id)
-            if invitation is None:
-                raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
-            accepted_teams = invitation.accepted_teams(cmd.accept_team_ids)
-            ontology_role = OntologyRole.CONTRIBUTOR
-        else:
-            # first user to register is the first Ontology Admin
-            # and is responsible for elevating other users to ADMIN/EDITOR privilege.
-            ontology_role = OntologyRole.ADMIN
+    async with uow_factory.get_uow(user_id=invitation.invited_by) as uow:
+        invitation = await uow.repositories.invitations.get(invitation_id=invitation.id)
+        if invitation is None:
+            raise UnauthorisedOperationError("This invitation is no longer valid, please ask to be invited again")
+        accepted_teams = invitation.accepted_teams(cmd.accept_team_ids)
+        ontology_role = OntologyRole.CONTRIBUTOR
 
         # Check for accounts with same email but not verified
         existing_email = await uow.repositories.accounts.get(email=cmd.email)
@@ -105,13 +98,12 @@ async def create_account(
         account: AccountInput = AccountInput(user=user)
         account = await uow.repositories.accounts.create(account)
 
-        if invitation is not None:
-            for team in accepted_teams:
-                await _grant_invited_affiliation(uow, invitation.invited_by, account.user.id, team)
-            if cmd.link_person:
-                await _link_invited_person(uow, invitation.person_id, account.user.id)
-            # The invitation, with the email address, is not kept once accepted
-            await uow.repositories.invitations.remove(invitation)
+        for team in accepted_teams:
+            await _grant_invited_affiliation(uow, invitation.invited_by, account.user.id, team)
+        if cmd.link_person:
+            await _link_invited_person(uow, invitation.person_id, account.user.id)
+        # The invitation, with the email address, is not kept once accepted
+        await uow.repositories.invitations.remove(invitation)
         await uow.commit()
 
 

@@ -11,7 +11,7 @@ class CreateAccount(Command):
     fullname: str|None = None
     email: str
     password_hash: str
-    # Required for all but the first account. The email must be the address invited.
+    # Required: the email must be the address invited. The first account is made on the server instead.
     invitation_token: str|None = None
     # The affiliations offered with the invitation that the user accepts
     accept_team_ids: List[int]|None = None
