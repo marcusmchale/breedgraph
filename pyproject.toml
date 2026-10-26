@@ -32,6 +32,8 @@ api = [
     "password-strength~=0.0.3.post2",
 
     "aiosmtplib==5.1.2",
+    # place searches, ORCID records and map regions
+    "httpx==0.28.1",
     "python-multipart>=0.0.32",
     "aiofiles~=25.1.0",
     # the text of licences and other legal references given as PDF files
