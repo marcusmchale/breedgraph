@@ -1,7 +1,7 @@
 # The hosted demonstration site
 
-A second BreedGraph beside production, on the same server, for the user guide's readers and for the DPO's and the legal
-office's review: the demonstration database (docs/demo-database.md), reset every night, with BreedView's demonstration
+A second BreedGraph beside production, on the same server, at https://breedgraph.universityofgalway.ie/demo/, for the
+user guide's readers and for the DPO's and the legal office's review: the demonstration database (docs/demo-database.md), reset every night, with BreedView's demonstration
 build, whose banner says the site is fictional. It has its own Neo4j, Redis, API, analysis and archive workers, files,
 encryption key and logs, so nothing in it touches production, and one systemd target starts, stops and restarts them
 together.
@@ -18,23 +18,25 @@ the private ones (mode 0600).
 | `breedgraph-demo.target` | `/etc/systemd/system/` | the site's services together |
 | `neo4j-demo.service`, `redis-demo.service`, `breedgraph-demo.service`, `analysis-worker-demo.service`, `archive-worker-demo.service` | `/etc/systemd/system/` | the services, each part of the target |
 | `breedgraph-demo-reset.service`, `breedgraph-demo-reset.timer` | `/etc/systemd/system/` | the nightly reset (`scripts/reset_demo.sh`) |
-| `nginx-breedgraph-demo.conf` | `/etc/nginx/sites-available/breedgraph-demo` | the site: BreedView's build, the API, the tiles |
+| `nginx-breedgraph-demo.conf` | `/etc/nginx/snippets/breedgraph-demo.conf`, included in production's server block | the site at `/demo/`: BreedView's build, the API, the tiles |
 | `legal-preamble.md` | read from here by the reset | what the site's Terms and privacy notice say first |
 | `demo_accounts.example.json` | `/opt/breedgraph-demo/private/demo_accounts.json` (private, owned by `breedgraph-demo`) | the site's passwords and reviewer accounts (`scripts/set_demo_accounts.py`) |
 
-## The host name
+## The address
 
-`demo.breedgraph.universityofgalway.ie`, a subdomain of production's, on the same address: nginx tells the two sites
-apart by name, as the browser sends it (and, for HTTPS, as SNI).
+`https://breedgraph.universityofgalway.ie/demo/`: production's host, name and certificate, so neither a DNS record nor a
+certificate of its own is needed. nginx sends `/demo/` to the site (`nginx-breedgraph-demo.conf`, included in
+production's server block) and the rest to production, as before.
 
-- **DNS.** The name needs a record of its own, an `A` record for the server's address or a `CNAME` to
-  `breedgraph.universityofgalway.ie`, from whoever keeps the university's DNS, unless a wildcard already covers it.
-- **HTTPS, not HTTP.** Every cookie the API sets (login, CSRF, the Terms' acceptance) is `Secure`, so over plain HTTP a
-  browser keeps none of them and nothing past the first page works. Production's certificate names
-  `breedgraph.universityofgalway.ie` only, so the site needs one of its own (below).
-- **Cookies.** The API sets every cookie for its own host only, so neither site is sent the other's. Before 2026-10-26
-  the CSRF cookie named `domain=HOST_ADDRESS`, which browsers also send to subdomains: deploy production with that
-  change, at least an hour (`CSRF_EXPIRES`) before the site opens, so that no browser still holds the old one.
+- **Paths.** BreedView's demonstration build is built for `/demo/` (`VITE_BASE_PATH`), and the API is sent its requests
+  without `/demo`, which its `SITE_PATH` puts back at the start of every link it gives: emails, verify and reset links,
+  downloads.
+- **Cookies.** A browser sends a host's cookies to every path on it, so the site's are named `demo_...` (`COOKIE_PREFIX`)
+  and set for `/demo/`: it never reads or overwrites production's, and production is never sent the site's. Production
+  needs no change. Every cookie is `Secure`, so the site needs HTTPS, which production's gives it.
+- **One origin.** The two sites share an origin, so a script running in the demonstration site could call production's
+  API with a visitor's production sign-in. The site runs the same code as production, so this adds little to
+  production's own exposure; keep it at production's version.
 
 ## Setting it up (the server work)
 
@@ -61,17 +63,15 @@ apart by name, as the browser sends it (and, for HTTPS, as SNI).
    the site's own go in the accounts file instead.
 6. **Map tiles.** The world file and Ireland's region into `/opt/breedgraph-demo/map_tiles`, cut on a machine with
    `pmtiles` (`scripts/map_tiles.py`), as `MAP_PMTILES_COMMAND` is empty here: the site fetches no regions itself.
-7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving
-   `VITE_API_HOST=https://demo.breedgraph.universityofgalway.ie`, and the `dist/` copied to `/var/www/breedgraph-demo`.
-   The guide's media go in its `guide-media/` (from `public/guide-media`).
-8. **The certificate.** Ask whoever issues production's for one naming `demo.breedgraph.universityofgalway.ie` (asking
-   for the DNS record at the same time), or for one naming both hosts, which both server blocks could then use. Install
-   it as production's is, and name its files in the site's configuration. Renew it when production's is renewed, if
-   it expires with it.
-9. **nginx.** `nginx-breedgraph-demo.conf` into `sites-available`, linked from `sites-enabled`, then `sudo nginx -t`
-   and `sudo systemctl reload nginx`. Production's server block stays as it is. The configuration sends
-   `X-Robots-Tag: noindex`, so that search engines leave the site out.
-10. **The units and the first load.** Copy the units, `sudo systemctl daemon-reload`, then
+7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving `VITE_BASE_PATH=/demo/` and
+   `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and the `dist/` copied to `/var/www/demo`. The guide's
+   media go in its `guide-media/` (from `public/guide-media`).
+8. **nginx.** `nginx-breedgraph-demo.conf` to `/etc/nginx/snippets/breedgraph-demo.conf`, and
+   `include snippets/breedgraph-demo.conf;` in production's server block for port 443, then `sudo nginx -t` and
+   `sudo systemctl reload nginx`. Everything is inside one `^~ /demo/` location, so production's own locations,
+   regular expressions too, take nothing of the site's. It sends `X-Robots-Tag: noindex`, so that search engines leave
+   the site out.
+9. **The units and the first load.** Copy the units, `sudo systemctl daemon-reload`, then
     `sudo /opt/breedgraph-demo/checkout/scripts/reset_demo.sh`, which loads the dump and starts the target, as each
     night. Then `sudo systemctl enable breedgraph-demo.target breedgraph-demo-reset.timer`, so that the site starts at
     boot and resets each night.
@@ -116,10 +116,11 @@ invited from the app, as anyone joins BreedGraph, and those accounts go at the n
 
 ## Checks
 
-- `https://demo.breedgraph.universityofgalway.ie` shows the banner on every page, and production's site is unchanged.
-- Signed in to production in the same browser, the demonstration site signs in and saves as it should (its cookies and
-  production's stay apart).
-- Deep links (`/guide/joining`) survive a reload: nginx falls back to `index.html`.
-- `/guide-media/*.vtt` is served as `text/vtt`, and the videos answer range requests (206).
+- `https://breedgraph.universityofgalway.ie/demo/` shows the banner on every page, and production's site is unchanged.
+- Signed in to production in the same browser, the demonstration site signs in and saves as it should, and production
+  is still signed in afterwards (their cookies stay apart).
+- Deep links (`/demo/guide/joining`) survive a reload: nginx falls back to the site's `index.html`.
+- `/demo/guide-media/*.vtt` is served as `text/vtt`, and the videos answer range requests (206).
+- The links in a verification email start `https://breedgraph.universityofgalway.ie/demo/`.
 - An upload shows as archived within a minute, and an analysis runs.
 - After a reset the story's state is the manifest's, and a login cookie from before it no longer signs in.
