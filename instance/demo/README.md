@@ -30,8 +30,8 @@ apart by name, as the browser sends it (and, for HTTPS, as SNI).
 - **DNS.** The name needs a record of its own, an `A` record for the server's address or a `CNAME` to
   `breedgraph.universityofgalway.ie`, from whoever keeps the university's DNS, unless a wildcard already covers it.
 - **HTTPS, not HTTP.** Every cookie the API sets (login, CSRF, the Terms' acceptance) is `Secure`, so over plain HTTP a
-  browser keeps none of them and nothing past the first page works. A certificate for the name is free from Let's
-  Encrypt (below), or the university's certificate service can issue one.
+  browser keeps none of them and nothing past the first page works. Production's certificate names
+  `breedgraph.universityofgalway.ie` only, so the site needs one of its own (below).
 - **Cookies.** The API sets every cookie for its own host only, so neither site is sent the other's. Before 2026-10-26
   the CSRF cookie named `domain=HOST_ADDRESS`, which browsers also send to subdomains: deploy production with that
   change, at least an hour (`CSRF_EXPIRES`) before the site opens, so that no browser still holds the old one.
@@ -64,8 +64,10 @@ apart by name, as the browser sends it (and, for HTTPS, as SNI).
 7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving
    `VITE_API_HOST=https://demo.breedgraph.universityofgalway.ie`, and the `dist/` copied to `/var/www/breedgraph-demo`.
    The guide's media go in its `guide-media/` (from `public/guide-media`).
-8. **The certificate.** Once the DNS record answers: `sudo certbot certonly --nginx -d
-   demo.breedgraph.universityofgalway.ie`. certbot's timer renews it, as it does production's.
+8. **The certificate.** Ask whoever issues production's for one naming `demo.breedgraph.universityofgalway.ie` (asking
+   for the DNS record at the same time), or for one naming both hosts, which both server blocks could then use. Install
+   it as production's is, and name its files in the site's configuration. Renew it when production's is renewed, if
+   it expires with it.
 9. **nginx.** `nginx-breedgraph-demo.conf` into `sites-available`, linked from `sites-enabled`, then `sudo nginx -t`
    and `sudo systemctl reload nginx`. Production's server block stays as it is. The configuration sends
    `X-Robots-Tag: noindex`, so that search engines leave the site out.
