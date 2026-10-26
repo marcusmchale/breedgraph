@@ -1,0 +1,13 @@
+# /etc/systemd/system/breedgraph-demo.slice: the demonstration site's share of production's machine. Each of its units
+# runs in this slice (Slice=), so the site together never uses more than MemoryMax, whatever one of its processes does:
+# past it the kernel ends a process of the site's, never one of production's, and the site's units restart it. Within
+# it each has limits of its own (neo4j.conf, redis-demo.conf, analysis-worker-demo.service), which add up to about
+# 4.5 GB, leaving the API, using about 150 MB, the rest. The site may not swap: with swap the kernel would page out what
+# is over a limit, here and in analysis-worker-demo.service, rather than end a process, slowing the whole machine.
+[Unit]
+Description=BreedGraph demonstration site: its share of the machine
+Before=slices.target
+
+[Slice]
+MemoryMax=6G
+MemorySwapMax=0

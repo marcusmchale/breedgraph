@@ -5,6 +5,8 @@ Description=Reset the BreedGraph demonstration site to its dump
 After=network.target
 
 [Service]
+# within the site's share of the machine (breedgraph-demo.slice)
+Slice=breedgraph-demo.slice
 Type=oneshot
 ExecStart=/opt/breedgraph-demo/checkout/scripts/reset_demo.sh /opt/breedgraph-demo/breedgraph-demo.env
 StandardOutput=journal

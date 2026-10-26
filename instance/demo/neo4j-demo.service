@@ -6,6 +6,8 @@ After=network.target
 PartOf=breedgraph-demo.target
 
 [Service]
+# within the site's share of the machine (breedgraph-demo.slice)
+Slice=breedgraph-demo.slice
 Type=simple
 User=breedgraph-demo
 Group=breedgraph-demo

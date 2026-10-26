@@ -7,6 +7,8 @@ Requires=network.target neo4j-demo.service redis-demo.service
 PartOf=breedgraph-demo.target
 
 [Service]
+# within the site's share of the machine (breedgraph-demo.slice)
+Slice=breedgraph-demo.slice
 User=breedgraph-demo
 Group=breedgraph-demo
 WorkingDirectory=/opt/breedgraph-demo/checkout

@@ -16,6 +16,7 @@ the private ones (mode 0600).
 | `neo4j.conf` | `/opt/breedgraph-demo/neo4j/conf/neo4j.conf` | the second Neo4j: its own directories and ports, authentication on |
 | `redis-demo.conf` | `/etc/redis/redis-demo.conf` | the second Redis, on 6380 |
 | `breedgraph-demo.target` | `/etc/systemd/system/` | the site's services together |
+| `breedgraph-demo.slice` | `/etc/systemd/system/` | the site's share of the machine's memory, which its units run in |
 | `neo4j-demo.service`, `redis-demo.service`, `breedgraph-demo.service`, `analysis-worker-demo.service`, `archive-worker-demo.service` | `/etc/systemd/system/` | the services, each part of the target |
 | `breedgraph-demo-reset.service`, `breedgraph-demo-reset.timer` | `/etc/systemd/system/` | the nightly reset (`scripts/reset_demo.sh`) |
 | `nginx-breedgraph-demo.conf` | `/etc/nginx/snippets/breedgraph-demo.conf`, included in production's server block | the site at `/demo/`: BreedView's build, the API, the tiles |
@@ -43,7 +44,9 @@ production's server block) and the rest to production, as before.
   10 MB (`client_max_body_size` in the snippet), below production's limit. The analysis worker runs one analysis at
   a time, however many visitors ask, which may reserve 1.5 GB, and the worker uses 2 GB at most (`LimitAS` and
   `MemoryMax` in `analysis-worker-demo.service`), so an analysis needing more fails, saying so. Neo4j and Redis have
-  limits of their own (`neo4j.conf`, `redis-demo.conf`).
+  limits of their own (`neo4j.conf`, `redis-demo.conf`). The site's units all run in `breedgraph-demo.slice`, which
+  holds the site to 6 GB without swap, so that whatever one of its processes does, it is one of the site's that the
+  kernel ends, never one of production's.
 
 ## Setting it up (the server work)
 

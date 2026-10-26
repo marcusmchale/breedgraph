@@ -10,6 +10,8 @@ StartLimitIntervalSec=600
 StartLimitBurst=3
 
 [Service]
+# within the site's share of the machine (breedgraph-demo.slice)
+Slice=breedgraph-demo.slice
 Type=simple
 User=breedgraph-demo
 Group=breedgraph-demo
