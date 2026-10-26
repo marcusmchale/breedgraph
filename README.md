@@ -717,7 +717,7 @@ Each service installs from a wheelhouse, a folder of the wheels it needs, withou
 the release's tag, on a machine with the development environment:
 
     cd path/to/breedgraph
-    scripts/build_wheelhouses.sh --check v0.1.1
+    scripts/build_wheelhouses.sh --check v0.1.2
 
 They land in `dist/` as `wheelhouse_<extra>_<version>`, beside the wheel and the source distribution, built for
 CPython 3.12 on x86_64 with glibc 2.34 or later; the script's header says what `--check` needs. rpy2 has no wheels, so
@@ -726,13 +726,13 @@ the analysis worker's machine builds it as it installs, with R's headers and a c
 
 Copy each wheelhouse to its machine, somewhere the user that runs the service can read it:
 
-    scp -r dist/wheelhouse_server_0.1.1 user@server:~/
+    scp -r dist/wheelhouse_server_0.1.2 user@server:~/
 
 then, on the server and as that user, install it into the venv its unit runs:
 
     cd /opt/breedgraph
     python3 -m venv .venv
-    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.1/ 'breedgraph[server]'
+    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.2/ 'breedgraph[server]'
 
 and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv`, and `breedgraph[analysis_worker]` into
 `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same venv with `--upgrade`, then
