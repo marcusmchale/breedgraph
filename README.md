@@ -702,7 +702,7 @@ emails, and shares the API's locks, so both can run at once. Deploying leaves `M
 
     cd path/to/breedgraph
     python -m build
-    python -m pip download --only-binary=:all: --dest dist/wheelhouse_server dist/breedgraph-0.1.0-py3-none-any.whl[server]
+    python -m pip download --only-binary=:all: --dest dist/wheelhouse_server dist/breedgraph-0.1.1-py3-none-any.whl[server]
     scp -r dist/wheelhouse_server user@server:~/breedgraph_deployment
 
 then on the server, su to the user controlling breedgraph
