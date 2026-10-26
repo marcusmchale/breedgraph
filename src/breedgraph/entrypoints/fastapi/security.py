@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 
 from breedgraph.custom_exceptions import UnauthorisedOperationError
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, HOST_ADDRESS, get_vue_url
+from breedgraph.config import SECRET_KEY, CSRF_SALT, CSRF_EXPIRES, get_vue_url
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,15 +22,16 @@ class CSRFTokenManager:
 
     @staticmethod
     def set_token_cookie(response: Response, token: str) -> None:
-        """Set CSRF token cookie on response"""
-        
+        """
+        Set CSRF token cookie on response: for this host only, as the login and acceptance cookies are, so that a
+        site on a subdomain, such as a demonstration site, is never sent this one's
+        """
         response.set_cookie(
             key="csrf_token",
             value=token,
             httponly=True,
             secure=True,
             samesite="strict",
-            domain=HOST_ADDRESS,
             max_age=CSRF_EXPIRES
         )
 
