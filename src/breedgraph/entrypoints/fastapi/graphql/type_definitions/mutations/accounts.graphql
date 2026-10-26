@@ -21,11 +21,17 @@ extend type Mutation {
         """
         linkPerson: Boolean
     ): BooleanPayload!
+    """
+    Change the user's own details. A new password ends their sign-ins elsewhere, and signs this browser in again; a new
+    email address is set once its verification link is followed.
+    """
     accountsUpdateUser(
         name: String,
         fullname: String,
         email: String,
         password: String
+        """ The user's current password, required to change their password or email address. Failures count towards the login lockout """
+        currentPassword: String
     ): BooleanPayload!,
     accountsVerifyEmail(token: String!): BooleanPayload!
     accountsRequestPasswordReset(email:String!): BooleanPayload

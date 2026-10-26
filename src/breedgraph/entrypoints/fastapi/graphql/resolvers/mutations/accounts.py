@@ -208,6 +208,30 @@ async def login(
             raise UnauthorisedOperationError(fail_message)
 
 
+async def _own_account(context, user_id: int):
+    async with context['bus'].uow_factory.get_uow(user_id=user_id) as uow:
+        account = await uow.repositories.accounts.get(user_id=user_id)
+    if account is None:
+        raise UnauthorisedOperationError("Incorrect password")
+    return account
+
+
+async def _check_password(context, account, password: str) -> None:
+    """
+    The signed-in user's own password, before a change it guards. Failed attempts count towards the login lockout, so
+    this can't be used to guess the password.
+    """
+    username, password_hash = account.user.name, account.user.password_hash
+    brute_force_service = context.get('brute_force_service')
+    if brute_force_service and await brute_force_service.is_locked_out(username):
+        ttl = await brute_force_service.get_lockout_ttl(username)
+        raise UnauthorisedOperationError(f"Too many failed attempts. Please try again in {ttl} seconds.")
+    if not password_hash or not bcrypt.checkpw(password.encode(), password_hash.encode()):
+        if brute_force_service:
+            await brute_force_service.record_failed_attempt(username)
+        raise UnauthorisedOperationError("Incorrect password")
+
+
 @graphql_mutation.field("accountsDeleteAccount")
 @graphql_payload
 @require_authentication
@@ -219,24 +243,7 @@ async def delete_account(
 ) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"Delete account for user: {user_id}")
-    fail_message = "Incorrect password"
-
-    async with info.context['bus'].uow_factory.get_uow(user_id=user_id) as uow:
-        account = await uow.repositories.accounts.get(user_id=user_id)
-        if account is None:
-            raise UnauthorisedOperationError(fail_message)
-        username = account.user.name
-        password_hash = account.user.password_hash
-
-    # Failed attempts count towards the login lockout, so this can't be used to guess the password
-    brute_force_service = info.context.get('brute_force_service')
-    if brute_force_service and await brute_force_service.is_locked_out(username):
-        ttl = await brute_force_service.get_lockout_ttl(username)
-        raise UnauthorisedOperationError(f"Too many failed attempts. Please try again in {ttl} seconds.")
-    if not password_hash or not bcrypt.checkpw(password.encode(), password_hash.encode()):
-        if brute_force_service:
-            await brute_force_service.record_failed_attempt(username)
-        raise UnauthorisedOperationError(fail_message)
+    await _check_password(info.context, await _own_account(info.context, user_id), password)
 
     await info.context['bus'].handle(DeleteAccount(user_id=user_id, erase_person=erase_person is not False))
 
@@ -284,10 +291,18 @@ async def update_user(
         name: str|None = None,
         fullname: str|None = None,
         email: str|None = None,
-        password: str|None = None
+        password: str|None = None,
+        current_password: str|None = None
 ) -> bool:
     user_id = info.context.get("user_id")
     logger.debug(f"Edit user: {user_id}")
+    if password is not None or email is not None:
+        # whoever holds a signed-in browser may not take the account over with it
+        account = await _own_account(info.context, user_id)
+        if password is not None or email != account.user.email:
+            if current_password is None:
+                raise UnauthorisedOperationError("Give your current password to change your password or email address")
+            await _check_password(info.context, account, current_password)
     if password is not None:
 
         password_policy = config.get_password_policy()
