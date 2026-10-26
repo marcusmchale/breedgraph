@@ -93,7 +93,7 @@ breedgraph = [
     "legal/*.md",
 ]
 archive_worker = []
-analysis_worker = []
+analysis_worker = ["adapters/r/*.R"]
 
 [project.scripts]
 archive-worker = "archive_worker.main:main"
