@@ -20,6 +20,15 @@ RestartSec=10
 KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=30
+# Memory, so that visitors' analyses leave production's alone. The worker runs one analysis at a time, in a process of
+# its own, which may reserve 1.5 GB (LimitAS, for each of the worker's processes), past which an allocation fails and
+# the analysis is reported as needing more memory: a process starts at about 0.75 GB, and a mixed model of 3000 rows
+# with Kenward-Roger degrees of freedom peaks at about 0.65 GB in use. The worker may use 2 GB in all (MemoryMax),
+# past which the kernel ends the analysis's process, which the worker reports, going on with the next
+# (OOMPolicy=continue). BLAS runs one thread (analysis-worker-demo.env), as each thread reserves memory of its own.
+LimitAS=1536M
+MemoryMax=2G
+OOMPolicy=continue
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=yes

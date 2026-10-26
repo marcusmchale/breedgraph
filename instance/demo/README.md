@@ -39,6 +39,11 @@ production's server block) and the rest to production, as before.
 - **One origin.** The two sites share an origin, so a script running in the demonstration site could call production's
   API with a visitor's production sign-in. The site runs the same code as production, so this adds little to
   production's own exposure; keep it at production's version.
+- **Limits.** Visitors share production's machine, so the site's use of it is bounded. nginx refuses uploads over
+  10 MB (`client_max_body_size` in the snippet), below production's limit. The analysis worker runs one analysis at
+  a time, however many visitors ask, which may reserve 1.5 GB, and the worker uses 2 GB at most (`LimitAS` and
+  `MemoryMax` in `analysis-worker-demo.service`), so an analysis needing more fails, saying so. Neo4j and Redis have
+  limits of their own (`neo4j.conf`, `redis-demo.conf`).
 
 ## Setting it up (the server work)
 
