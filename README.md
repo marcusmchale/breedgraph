@@ -54,7 +54,7 @@ These ADMIN affiliates set the read RELEASE status to one of three levels:
 
 Users may request READ/WRITE/CURATE/ADMIN affiliations from a team
 which are then approved by ADMIN affiliates for that team. 
-CURATE and ADMIN affiliations include READ: authorising either also authorises READ to the same extent,
+CURATE and ADMIN affiliations include READ: authorising either also authorises READ to at least the same extent,
 and READ cannot be removed or revoked while CURATE or ADMIN is authorised (remove those first; removing them
 leaves READ in place). Existing deployments can
 grant READ to current admins with `scripts/grant_admin_read.py`.

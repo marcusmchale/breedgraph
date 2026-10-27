@@ -403,11 +403,16 @@ class TeamTree(TreeAggregate):
             user_id,
             Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
         )
-        # Always authorise read access to the same extent that we authorise curate or admin access
-        # we aren't raising a separate event to notify
+        # Always authorise read access to at least the same extent that we authorise curate or admin access, so heritable
+        # read access stays heritable; we aren't raising a separate event to notify
         if access in (Access.CURATE, Access.ADMIN):
             affiliations_dict = team.affiliations.get_by_access(Access.READ)
-            affiliations_dict[user_id] = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
+            read = affiliations_dict.get(user_id)
+            read_heritable = read is not None and read.authorisation is Authorisation.AUTHORISED and read.heritable
+            affiliations_dict[user_id] = Affiliation(
+                authorisation=Authorisation.AUTHORISED,
+                heritable=heritable or read_heritable
+            )
 
     def revoke_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):

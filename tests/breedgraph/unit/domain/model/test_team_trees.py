@@ -162,6 +162,16 @@ async def test_authorise_curate_or_admin_includes_read(first_team_tree, access):
     assert read_affiliation.heritable is True
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("access", [Access.CURATE, Access.ADMIN])
+async def test_authorise_curate_or_admin_for_the_team_only_keeps_heritable_read(first_team_tree, access):
+    first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.READ, heritable=True)
+    first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.READ, heritable=True)
+    first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=access)
+    first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=access, heritable=False)
+    assert first_team_tree.get_team(1).affiliations.get_by_access(access)[2].heritable is False
+    assert first_team_tree.get_team(1).affiliations.get_by_access(Access.READ)[2].heritable is True
+
+@pytest.mark.asyncio
 async def test_authorise_write_does_not_include_read(first_team_tree):
     first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.WRITE)
     first_team_tree.authorise_affiliation(agent_id=1, team_id=1, user_id=2, access=Access.WRITE, heritable=False)
