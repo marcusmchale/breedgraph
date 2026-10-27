@@ -14,7 +14,9 @@ Only the parts needed are downloaded. Each file is written under a temporary nam
 can run while the files are served, and while the API runs: they share its locks in Redis. No emails are sent.
 
 Needs the pmtiles command (README.md, Maps) and a build: by default (MAP_TILES_BUILD=latest) the newest of
-Protomaps' daily builds, each kept for about a week (https://maps.protomaps.com/builds).
+Protomaps' daily builds, each kept for about a week (https://maps.protomaps.com/builds). With MAP_WORKER=1, as on a
+server without internet access, the map worker fetches instead (adapters/pmtiles/jobs.py): the API and the worker must
+be running, as the files come back through the API to MAP_TILES_PATH, the only --out then.
 
 Usage, with the instance env files sourced:
     python scripts/map_tiles.py [--world-maxzoom 8] [--build https://build.protomaps.com/YYYYMMDD.pmtiles] [--dry-run]
@@ -37,6 +39,7 @@ from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from breedgraph.adapters.redis import RedisStateStore
 from breedgraph.adapters.pmtiles import PmtilesMapRegions, Outcome, Region, MapRegionError
 from breedgraph.adapters.pmtiles.command import PmtilesCommand, ProtomapsBuilds
+from breedgraph.adapters.pmtiles.jobs import sources, WORLD
 from breedgraph.adapters.pmtiles.regions import WORLD_JSON, read_json, read_sidecars, write_json, write_tiles_json
 
 import logging
@@ -68,17 +71,16 @@ def gigabytes(size: int) -> str:
     return f"{size / 10 ** 9:.2f} GB"
 
 
-async def cut_world(args, out: Path) -> int:
-    build, version = await ProtomapsBuilds(args.build).latest()
+async def cut_world(args, out: Path, pmtiles: PmtilesCommand, builds: ProtomapsBuilds) -> int:
+    build, version = await builds.latest()
     world = out / 'world.pmtiles'
-    pmtiles = PmtilesCommand(args.pmtiles)
     if args.dry_run:
-        size = await pmtiles.size(build, None, 0, args.world_maxzoom)
+        size = await pmtiles.size(build, None, 0, args.world_maxzoom, key=WORLD)
         logger.info(f"Would cut {world} to zoom {args.world_maxzoom} from {build}: {gigabytes(size)}")
         return 0
     partial = out / '.world.pmtiles.partial'
     logger.info(f"Cutting {world} to zoom {args.world_maxzoom} from {build}")
-    await pmtiles.extract(build, None, partial, 0, args.world_maxzoom)
+    await pmtiles.extract(build, None, partial, 0, args.world_maxzoom, key=WORLD)
     os.replace(partial, world)
     write_json(out / WORLD_JSON, {
         'url': world.name,
@@ -134,17 +136,25 @@ async def refresh_regions(args, regions: PmtilesMapRegions) -> int:
 async def run(args) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    if not args.regions and not args.refresh:
-        return await cut_world(args, out)
-    if read_json(out / WORLD_JSON) is None:
+    world = not args.regions and not args.refresh
+    if not world and read_json(out / WORLD_JSON) is None:
         logger.error(f"There is no world file in {out}: cut it first, without --regions or --refresh")
         return 1
-    state_store = await RedisStateStore.create()
+    if config.MAP_WORKER:
+        logger.info("The map worker fetches: the API and the map worker must be running")
+    # the regions' requests and locks, and the map worker's jobs, are kept in Redis
+    state_store = await RedisStateStore.create() if config.MAP_WORKER or not world else None
     try:
+        if world:
+            pmtiles, builds, _ = sources(
+                state_store, config.MAP_WORKER, args.pmtiles, args.build, Path(config.MAP_BOUNDARIES_PATH)
+            )
+            return await cut_world(args, out, pmtiles, builds)
         regions = PmtilesMapRegions(state_store, command=args.pmtiles, tiles_path=out, build=args.build)
         return await (fetch_regions if args.regions else refresh_regions)(args, regions)
     finally:
-        await state_store.connection.aclose()
+        if state_store is not None:
+            await state_store.connection.aclose()
 
 
 def main() -> int:
@@ -158,7 +168,11 @@ def main() -> int:
     parser.add_argument('--world-maxzoom', type=int, default=8)
     parser.add_argument('--dry-run', action='store_true', help="report what would be fetched and its size, fetching nothing")
     args = parser.parse_args()
-    if not PmtilesCommand(args.pmtiles).available():
+    if config.MAP_WORKER:
+        if Path(args.out).resolve() != Path(config.MAP_TILES_PATH).resolve():
+            logger.error("With MAP_WORKER the map worker's files come back to MAP_TILES_PATH, so --out must be it")
+            return 1
+    elif not PmtilesCommand(args.pmtiles).available():
         logger.error(f"The pmtiles command ({args.pmtiles}) is not installed (README.md, Maps)")
         return 1
     return asyncio.run(run(args))
