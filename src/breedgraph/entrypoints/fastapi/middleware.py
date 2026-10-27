@@ -56,7 +56,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             request.url.path.startswith("/tiles/") or  # map tiles, public static files
             request.url.path.startswith("/archive/") or # allow all paths for archive to skip csrf token, requires an auth_token
             request.url.path.startswith("/retention/") or # allow all paths for retention to skip csrf token, requires an auth_token
-            request.url.path.startswith("/analysis_jobs/")  # allow all paths for the analysis worker to skip csrf token, requires an auth_token
+            request.url.path.startswith("/analysis_jobs/") or  # allow all paths for the analysis worker to skip csrf token, requires an auth_token
+            request.url.path.startswith("/map_jobs/")  # and for the map worker, with its own auth_token
         ):
             return await call_next(request)
 

@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 
 from breedgraph import config
+from breedgraph.config import get_base_url
 
 PMTILES = b'PMTiles' + bytes(25)
 OUTLINES = {'type': 'FeatureCollection', 'features': [
@@ -40,6 +42,15 @@ async def test_the_routes_need_the_map_workers_token_and_a_lane(client, jobs):
     assert (await client.get("/map_jobs/next/quick", headers={"Authorization": "Bearer wrong"})).status_code == 401
     assert (await client.get("/map_jobs/next/slow", headers=worker_headers())).status_code == 404
     assert (await client.get("/map_jobs/next/quick", headers=worker_headers())).status_code == 204
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_worker_needs_no_csrf_token(test_app, jobs):
+    """It has no browser session, only its token, as for the archive and analysis workers"""
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url=get_base_url()) as worker:
+        assert (await worker.get("/map_jobs/next/quick", headers=worker_headers())).status_code == 204
+        response = await worker.post("/map_jobs/size/IRL/renew", json={'lease': 'none'}, headers=worker_headers())
+        assert response.status_code == 409
 
 
 @pytest.mark.asyncio(loop_scope="session")
