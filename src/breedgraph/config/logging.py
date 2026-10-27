@@ -24,6 +24,7 @@ class IgnoreAccessPaths(logging.Filter):
         "/archive/retrieval_pending",
         "/archive/archival_pending",
         "/archive/deletion_pending",
+        "/analysis_jobs/next",
         "/map_jobs/next/quick",
         "/map_jobs/next/extract"
     }
