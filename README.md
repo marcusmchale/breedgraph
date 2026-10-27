@@ -622,6 +622,12 @@ and the API are served from one origin, so the browser lets breedview read the 4
 origins, nginx's error page would need the CORS headers too (`add_header ... always`), or breedview would see only a
 failed request.
 
+A large upload is written to disk twice on its way in unless told otherwise: nginx keeps the whole request in a
+temporary file before passing it on, and the API keeps each file in one while it is received, in the system's
+temporary directory (`/tmp`). Where the root disk is small beside the upload limit, pass the API's requests on as they
+arrive, with `proxy_request_buffering off;` and `proxy_http_version 1.1;` in its location, and set `TMPDIR` in the
+API's environment to a directory on the large disk (docs/deployment.md).
+
 Serve the map tiles (see Maps) directly from `MAP_TILES_PATH`, beside the front end; nginx answers the range requests
 they are read with. `tiles.json` changes as regions are fetched, so browsers check it at each page load:
 

@@ -76,6 +76,8 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
      (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; README, Encryption key).
    - `TERMS_OF_USE_PATH` and `PRIVACY_NOTICE_PATH`, unless the packaged texts are served, and `ORCID_*` to let users
      link an ORCID iD.
+   - `TMPDIR`, a directory owned by `breedgraph` on the large disk, beside `FILE_STORAGE_PATH`: uploads are held there
+     while they are received, in `/tmp` otherwise (README, Nginx).
    - `COUNTRY_CODES_PATH`, the countries offered when adding a location: a file in neither the repository nor the
      wheel, the UN's M49 overview as CSV, which the template's comment describes. Without it, only the countries
      already added are offered.
@@ -147,6 +149,9 @@ The site's server block, with the certificate lines it has, and the demonstratio
         # the API's public routes: everything else it serves is for the workers and the retention run
         location ~ ^/(graphql|csrf|download|verify|reset)$ {
             proxy_pass http://127.0.0.1:8000;
+            proxy_http_version 1.1;
+            # uploads go to the API as they arrive, not first to a temporary file on the root disk (README, Nginx)
+            proxy_request_buffering off;
             proxy_set_header Host $host;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
