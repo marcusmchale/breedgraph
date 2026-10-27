@@ -26,7 +26,7 @@ from breedgraph.domain.model.accounts import AccountInput, UserInput, AccountSto
 from breedgraph.adapters.neo4j.cypher import queries
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 async def ensure_empty_db(session: AsyncSession) -> None:
@@ -118,4 +118,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    log_to_console()
     asyncio.run(main())

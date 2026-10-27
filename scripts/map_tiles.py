@@ -40,11 +40,7 @@ from breedgraph.adapters.pmtiles.command import PmtilesCommand, ProtomapsBuilds
 from breedgraph.adapters.pmtiles.regions import WORLD_JSON, read_json, read_sidecars, write_json, write_tiles_json
 
 import logging
-# The breedgraph package logs to its log file; this reports to the terminal too
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-logging.getLogger().addHandler(console)
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 # Countries are the roots of location trees; their located locations, by the country's code
@@ -169,4 +165,5 @@ def main() -> int:
 
 
 if __name__ == '__main__':
+    log_to_console()
     sys.exit(main())

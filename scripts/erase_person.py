@@ -23,7 +23,7 @@ from breedgraph.adapters.neo4j.erasures import erase_person
 from breedgraph.custom_exceptions import NoResultFoundError
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +44,7 @@ async def main(person_id: int) -> int:
 
 
 if __name__ == "__main__":
+    log_to_console()
     if len(sys.argv) != 2 or not sys.argv[1].isdigit():
         sys.exit("Usage: python scripts/erase_person.py <person id>")
     sys.exit(asyncio.run(main(int(sys.argv[1]))))

@@ -17,7 +17,7 @@ from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +50,7 @@ async def main(names: list[str] | None) -> bool:
 
 
 if __name__ == "__main__":
+    log_to_console()
     parser = argparse.ArgumentParser(description="Refresh the read models in the state store from the database")
     parser.add_argument(
         '--models', nargs='+', choices=RedisReadModels.names, metavar='NAME',

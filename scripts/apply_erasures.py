@@ -21,7 +21,7 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.erasures import replay_erasure_log
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 
@@ -53,4 +53,5 @@ async def main(log_path: str | None) -> int:
 
 
 if __name__ == "__main__":
+    log_to_console()
     sys.exit(asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else None)))

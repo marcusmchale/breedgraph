@@ -120,3 +120,15 @@ LOG_CONFIG = {
         }
     }
 }
+
+
+def log_to_console(level: int = logging.INFO) -> None:
+    """
+    For the scripts an operator runs: the application logs to its files (LOG_CONFIG), so its messages would reach the
+    terminal only through print. This reports them to the terminal too, from the scripts' __main__ only, so that a
+    script imported by another adds no second handler.
+    """
+    console = logging.StreamHandler()
+    console.setLevel(level)
+    console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(console)

@@ -53,7 +53,7 @@ from tests.breedgraph.scenarios.demo.story import ACCOUNTS as STORY_ACCOUNTS, TE
 ACCOUNTS = {key: account for key, account in STORY_ACCOUNTS.items() if not account.deleted}
 
 import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 
@@ -164,6 +164,7 @@ async def main(accounts_path: Path):
 
 
 if __name__ == '__main__':
+    log_to_console()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--accounts', type=Path, required=True, help="the private JSON file of the site's accounts")
     args = parser.parse_args()

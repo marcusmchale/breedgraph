@@ -16,6 +16,7 @@ from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from setup_initial_data import create_schema
 
 import logging
+from breedgraph.config.logging import log_to_console
 logger = logging.getLogger(__name__)
 
 
@@ -32,4 +33,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    log_to_console()
     asyncio.run(main())
