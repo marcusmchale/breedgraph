@@ -22,6 +22,13 @@ MAP_TILES_BUILD = os.environ.get('MAP_TILES_BUILD', 'latest')
 MAP_PMTILES_COMMAND = os.environ.get('MAP_PMTILES_COMMAND', 'pmtiles')
 # Country outlines, used only to cut the tiles: cached here, not served
 MAP_BOUNDARIES_PATH = os.environ.get('MAP_BOUNDARIES_PATH', 'instance/map_boundaries')
+# Whether the map worker (map_worker, on a server with internet access) fetches what regions need, rather than the API
+# itself, which then needs neither the pmtiles command nor internet access for maps (adapters/pmtiles/jobs.py)
+MAP_WORKER = bool(int(os.environ.get('MAP_WORKER', 0)))
+# The map worker's token for the routes it polls, /map_jobs/
+MAP_WORKER_AUTH_TOKEN = os.environ.get('MAP_WORKER_AUTH_TOKEN', '')
+# How long the map worker's lease on a job lasts unrenewed: the job of a worker that stopped is queued again after it
+MAP_JOB_LEASE_SECONDS = int(os.environ.get('MAP_JOB_LEASE_SECONDS', 300))
 # geoBoundaries' open outlines of countries and their subdivisions, by ISO 3166 alpha-3 code
 GEOBOUNDARIES_URL = os.environ.get('GEOBOUNDARIES_URL', 'https://www.geoboundaries.org/api/current/gbOpen')
 # The list of Protomaps' daily builds, each served at PROTOMAPS_BUILD_URL followed by its key

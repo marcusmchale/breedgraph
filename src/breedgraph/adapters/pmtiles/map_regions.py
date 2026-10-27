@@ -11,6 +11,9 @@ Requests only record who asked and start a task, so the event handlers stay free
 per region keeps processes from fetching the same one, its requestors are emailed when its fetch starts and ends, and
 the pending regions are resumed at start. A placement is recorded once its section is known, after the country is
 sized, so one interrupted before then is fetched only by scripts/map_tiles.py --regions.
+
+What needs the internet (outlines, the list of builds, pmtiles) is fetched by the API itself, or with config.MAP_WORKER
+by the map worker on another server, whose jobs the API waits for (jobs.py).
 """
 import asyncio
 import os
@@ -29,8 +32,8 @@ from breedgraph.domain.events.location_trees import (
 from breedgraph.service_layer.infrastructure.map_regions import AbstractMapRegions
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
-from .boundaries import GeoBoundaries
-from .command import PmtilesCommand, ProtomapsBuilds, MapRegionError
+from .command import MapRegionError
+from .jobs import sources, sweep_uploads
 from .regions import (
     Region, Point, COUNTRY, SECTION_LEVELS, REGIONS_DIRECTORY, WORLD_JSON,
     section_for, features_bounds, country_bounds, region_file, country_file, read_json, write_json, write_tiles_json
@@ -70,18 +73,26 @@ class PmtilesMapRegions(AbstractMapRegions):
             boundaries_path: str | Path | None = None,
             max_gb: float | None = None,
             build: str | None = None,
-            poll_seconds: float = POLL_SECONDS
+            poll_seconds: float = POLL_SECONDS,
+            worker: bool | None = None
     ):
-        """publish puts the events that email requestors; without it, as for scripts/map_tiles.py, none are sent"""
+        """
+        publish puts the events that email requestors; without it, as for scripts/map_tiles.py, none are sent.
+        worker (config.MAP_WORKER) has the map worker fetch what needs the internet, and command is then unused.
+        """
         self.state_store = state_store
         self.publish = publish
-        self.pmtiles = PmtilesCommand(config.MAP_PMTILES_COMMAND if command is None else command)
+        self.worker = config.MAP_WORKER if worker is None else worker
         self.tiles_path = Path(config.MAP_TILES_PATH if tiles_path is None else tiles_path)
-        self.boundaries = GeoBoundaries(
-            Path(config.MAP_BOUNDARIES_PATH if boundaries_path is None else boundaries_path)
+        self.pmtiles, self.builds, self.boundaries = sources(
+            state_store,
+            worker=self.worker,
+            command=config.MAP_PMTILES_COMMAND if command is None else command,
+            build=config.MAP_TILES_BUILD if build is None else build,
+            boundaries_path=Path(config.MAP_BOUNDARIES_PATH if boundaries_path is None else boundaries_path),
+            poll_seconds=poll_seconds
         )
         self.max_bytes = (config.MAP_REGION_MAX_GB if max_gb is None else max_gb) * 10 ** 9
-        self.builds = ProtomapsBuilds(config.MAP_TILES_BUILD if build is None else build)
         self.poll_seconds = poll_seconds
         self.enabled = False
         self._regions: Dict[str, asyncio.Task] = {}
@@ -89,7 +100,12 @@ class PmtilesMapRegions(AbstractMapRegions):
         self._extracting = asyncio.Semaphore(1)  # one extract at a time in each process
 
     async def start(self) -> None:
-        if not self.pmtiles.available():
+        if self.worker:
+            logger.info("Detailed maps are fetched by the map worker")
+            if not config.MAP_WORKER_AUTH_TOKEN:
+                logger.warning("MAP_WORKER is set but MAP_WORKER_AUTH_TOKEN is empty, so no map worker can fetch them")
+            await asyncio.to_thread(sweep_uploads, self.tiles_path)
+        elif not self.pmtiles.available():
             if self.pmtiles.command:
                 logger.warning(
                     f"Detailed maps are not fetched: the pmtiles command ({self.pmtiles.command}) is not installed "

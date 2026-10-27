@@ -1,6 +1,8 @@
 """
 The map regions service (adapters/pmtiles/map_regions.py) with the real state store, a fake pmtiles command that
-writes small files, and local outlines: squares, so no requests leave the test.
+writes small files, and local outlines: squares, so no requests leave the test. Each test runs twice: with the API
+fetching itself, and with the map worker (src/map_worker) fetching for it (adapters/pmtiles/jobs.py), run here with a
+client calling the state store and what the API's routes call.
 """
 import asyncio
 import json
@@ -13,24 +15,44 @@ import pytest_asyncio
 
 from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.pmtiles import map_regions as map_regions_module
+from breedgraph.adapters.pmtiles.jobs import (
+    receive_result, receive_extract, LeaseNotHeld, BadUpload, NoSpace, MapRegionError
+)
+from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
+from map_worker.domain.job import MapJob
+from map_worker.fetching import PmtilesCommand
+from map_worker.service_layer import handlers as handlers_module
+from map_worker.service_layer.handlers import MapHandlers
+from map_worker.service_layer.worker import MapWorker
 
-BUILD = 'https://example.org/build.pmtiles'
+BUILD = 'https://build.protomaps.com/20261026.pmtiles'
+LEASE_SECONDS = 1.5
+
+# The outline's file is named after its region: the API's own (USA-ADM0, USA-ADM1-a), or the map worker's (size-USA,
+# extract-USA-ADM1-a), whose countries are named by code alone
+NAME = """
+def name(path):
+    stem = Path(path).stem.removeprefix('size-').removeprefix('extract-')
+    return f'{stem}-ADM0' if len(stem) == 3 else stem
+"""
 
 FAKE_PMTILES = """#!{python}
 # Prints the configured size of a region on a dry run, else writes the output file and waits the configured seconds
 import json, sys, time
 from pathlib import Path
+{name}
 config = json.loads(Path({config!r}).read_text())
 arguments = sys.argv[1:]
 with open({log!r}, 'a') as log:
     log.write(json.dumps(arguments) + '\\n')
-region = Path(next(a for a in arguments if a.startswith('--region=')).split('=', 1)[1]).stem
+region = name(next(a for a in arguments if a.startswith('--region=')).split('=', 1)[1])
 if '--dry-run' in arguments:
     print(f"extract.go:612: Extract transferred 1 MB (overfetch 0.05) for an archive size of {{config['sizes'][region]}}")
 else:
-    Path(arguments[2]).write_bytes(b'tiles')
+    Path(arguments[2]).write_bytes(b'PMTiles')
     time.sleep(config['seconds'])
 """
+exec(NAME)
 
 SIZES = {
     'LUX-ADM0': '300 MB',
@@ -67,9 +89,54 @@ OUTLINES = {
 IN_A, ALSO_IN_A, IN_B1, IN_B2, IN_LUX = (35, -95), (36, -96), (35, -87), (35, -82), (49.6, 6.1)
 
 
+class InProcessClient(AbstractMapAPIClient):
+    """The map worker's client, calling what the API's routes call (entrypoints/fastapi/map_jobs.py)"""
+
+    def __init__(self, maps: 'Maps'):
+        self.maps = maps
+        self.payloads = []
+
+    async def lease(self, lane):
+        leased = await self.maps.state_store.lease_map_job(lane, LEASE_SECONDS)
+        if leased is None:
+            return None
+        kind, key, lease, payload = leased
+        self.payloads.append((kind, key, payload))
+        return MapJob(kind, key, lease, LEASE_SECONDS, payload)
+
+    async def renew(self, job):
+        return await self.maps.state_store.renew_map_job(job.kind, job.key, job.lease, LEASE_SECONDS)
+
+    async def post_result(self, job, result):
+        try:
+            await receive_result(
+                self.maps.state_store, self.maps.boundaries, LEASE_SECONDS, job.kind, job.key, job.lease, result
+            )
+        except LeaseNotHeld:
+            return False
+        return True
+
+    async def post_failure(self, job, error):
+        return await self.maps.state_store.finish_map_job(job.kind, job.key, job.lease, error=error)
+
+    async def upload(self, job, path):
+        async def chunks():
+            yield path.read_bytes()
+        try:
+            await receive_extract(
+                self.maps.state_store, self.maps.tiles, LEASE_SECONDS, job.key, job.lease, path.stat().st_size, chunks()
+            )
+        except LeaseNotHeld:
+            return False
+        except (BadUpload, NoSpace) as e:
+            raise UploadRefused(str(e))
+        return True
+
+
 class Maps:
-    def __init__(self, path: Path, state_store):
+    def __init__(self, path: Path, state_store, worker: bool = False):
         self.state_store = state_store
+        self.worker = worker
         self.tiles = path / 'tiles'
         self.boundaries = path / 'boundaries'
         self.config = path / 'pmtiles.json'
@@ -81,21 +148,41 @@ class Maps:
         (self.tiles / 'world.json').write_text(json.dumps({
             'url': 'world.pmtiles', 'maxZoom': 6, 'build': BUILD, 'version': '4.15.2'
         }))
-        for name, content in OUTLINES.items():
-            (self.boundaries / f'{name}.geojson').write_text(json.dumps(content))
+        if not worker:
+            # the map worker downloads them (fake_outlines)
+            for name, content in OUTLINES.items():
+                (self.boundaries / f'{name}.geojson').write_text(json.dumps(content))
         self.configure()
-        self.command.write_text(FAKE_PMTILES.format(python=sys.executable, config=str(self.config), log=str(self.log)))
+        self.command.write_text(FAKE_PMTILES.format(
+            python=sys.executable, name=NAME, config=str(self.config), log=str(self.log)
+        ))
         self.command.chmod(0o755)
+        self.client = InProcessClient(self)
+        self.work = path / 'work'
+        self.map_worker: MapWorker | None = None
+        self.running: asyncio.Task | None = None
+
+    def start_worker(self):
+        handlers = MapHandlers(PmtilesCommand(str(self.command)), self.work, '', '')
+        handlers.clear()
+        self.map_worker = MapWorker(self.client, handlers, poll_interval=0.05)
+        self.running = asyncio.create_task(self.map_worker.run())
+
+    async def stop_worker(self):
+        if self.running is not None:
+            await self.map_worker.shutdown()
+            await asyncio.wait_for(self.running, 10)
+            self.running = None
 
     def configure(self, seconds: float = 0):
         self.config.write_text(json.dumps({'sizes': SIZES, 'seconds': seconds}))
 
-    def service(self) -> PmtilesMapRegions:
+    def service(self, build: str = BUILD) -> PmtilesMapRegions:
         async def publish(event):
             self.events.append(event)
         return PmtilesMapRegions(
             self.state_store, publish=publish, command=str(self.command), tiles_path=self.tiles,
-            boundaries_path=self.boundaries, max_gb=2, build=BUILD, poll_seconds=0.05
+            boundaries_path=self.boundaries, max_gb=2, build=build, poll_seconds=0.05, worker=self.worker
         )
 
     def extracts(self) -> list:
@@ -104,7 +191,7 @@ class Maps:
             return []
         calls = [json.loads(line) for line in self.log.read_text().splitlines()]
         return [
-            Path(next(a for a in call if a.startswith('--region=')).split('=', 1)[1]).stem
+            name(next(a for a in call if a.startswith('--region=')).split('=', 1)[1])
             for call in calls if '--dry-run' not in call
         ]
 
@@ -112,6 +199,7 @@ class Maps:
         return [(type(event).__name__, event.name, event.user_ids) for event in self.events]
 
     def regions(self) -> list:
+        """The files of the regions, those part way included"""
         return sorted(path.name for path in (self.tiles / 'regions').iterdir()) if (self.tiles / 'regions').exists() else []
 
     def layers(self) -> list:
@@ -130,14 +218,29 @@ async def until(condition, seconds: float = 10):
     raise TimeoutError("The condition was not met")
 
 
-@pytest_asyncio.fixture(loop_scope="session")
-async def maps(tmp_path, state_store) -> Maps:
-    """Each test starts with no map state, keeping the countries read model for the names"""
+async def fake_outlines(url: str, code: str, level: str):
+    """geoBoundaries' outlines as the map worker would download them"""
+    if f'{code}-{level}' not in OUTLINES:
+        raise MapRegionError(f"geoBoundaries has no {level} outlines for {code}")
+    return {'boundaryLicense': 'CC BY 4.0'}, OUTLINES[f'{code}-{level}']
+
+
+@pytest_asyncio.fixture(loop_scope="session", params=['api', 'worker'])
+async def maps(request, tmp_path, state_store, monkeypatch) -> Maps:
+    """
+    Each test starts with no map state, keeping the countries read model for the names, and runs with the API fetching
+    itself and with the map worker fetching for it
+    """
     async def clear():
         async for key in state_store.connection.scan_iter(match='map:*'):
             await state_store.connection.delete(key)
     await clear()
-    yield Maps(tmp_path, state_store)
+    maps = Maps(tmp_path, state_store, worker=request.param == 'worker')
+    if maps.worker:
+        monkeypatch.setattr(handlers_module, 'download_outlines', fake_outlines)
+        maps.start_worker()
+    yield maps
+    await maps.stop_worker()
     await clear()
 
 
@@ -153,7 +256,7 @@ async def test_a_small_country_is_fetched_whole(maps, state_store):
     sidecar = json.loads((maps.tiles / 'regions' / 'LUX.json').read_text())
     assert {key: sidecar[key] for key in ('name', 'level', 'minZoom', 'maxZoom', 'bounds', 'build', 'size')} == {
         'name': 'Luxembourg', 'level': 'ADM0', 'minZoom': 7, 'maxZoom': 15, 'bounds': [[49.4, 5.7], [50.2, 6.6]],
-        'build': BUILD, 'size': 5
+        'build': BUILD, 'size': 7
     }
     assert maps.layers() == ['world.pmtiles', 'regions/LUX.pmtiles']
     assert maps.countries() == {'LUX': {'name': 'Luxembourg', 'bounds': [[49.4, 5.7], [50.2, 6.6]]}}
@@ -285,6 +388,8 @@ async def test_removing_a_country_deletes_its_regions(maps, state_store):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_an_interrupted_fetch_resumes_at_start(maps, state_store):
+    if maps.worker:
+        pytest.skip("the map worker goes on with the extract: test_a_restart_joins_the_map_workers_extract")
     maps.configure(seconds=30)
     regions = maps.service()
     await regions.start()
@@ -329,3 +434,98 @@ async def test_nothing_is_fetched_without_the_pmtiles_command(maps, state_store)
     await regions.wait_until_idle()
     assert maps.extracts() == [] and maps.events == []
     assert await state_store.get_pending_map_regions() == []
+
+
+""" With the map worker """
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_restart_joins_the_map_workers_extract(maps, state_store):
+    """The API stops while the worker extracts: restarted, it waits for that extract rather than asking again"""
+    if not maps.worker:
+        pytest.skip("the API's own extract stops with it: test_an_interrupted_fetch_resumes_at_start")
+    maps.configure(seconds=1)
+    regions = maps.service()
+    await regions.start()
+    await regions.request_country('LUX', requested_by=7)
+    await until(lambda: maps.extracts())
+    await regions.stop()
+    assert await state_store.get_pending_map_regions() == ['LUX']
+
+    restarted = maps.service()
+    await restarted.start()
+    await restarted.wait_until_idle()
+    assert maps.extracts() == ['LUX-ADM0']
+    assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
+    assert maps.sent() == [('MapRegionFetching', 'Luxembourg', [7]), ('MapRegionReady', 'Luxembourg', [7])]
+    assert await state_store.get_map_job('extract', 'LUX') is None, 'its file taken, the job is gone'
+    await restarted.stop()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_without_a_map_worker_regions_wait(maps, state_store):
+    if not maps.worker:
+        pytest.skip("only the map worker's jobs wait for it")
+    await maps.stop_worker()
+    regions = maps.service()
+    await regions.start()
+    await regions.request_country('LUX', requested_by=7)
+    await asyncio.sleep(0.3)
+    assert await state_store.get_pending_map_regions() == ['LUX']
+    assert (await state_store.get_map_job('outlines', 'LUX-ADM0'))['state'] == 'queued'
+    assert maps.events == []
+
+    # the worker started, the region is fetched
+    maps.start_worker()
+    await regions.wait_until_idle()
+    assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
+    await regions.stop()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_map_worker_is_sent_outlines_but_no_coordinates(maps):
+    if not maps.worker:
+        pytest.skip("only the map worker is sent jobs")
+    regions = maps.service()
+    await regions.start()
+    await regions.request_country('USA', requested_by=7)
+    await regions.wait_until_idle()
+    await regions.request_places('USA', [IN_A, IN_B1], requested_by=8)
+    await regions.wait_until_idle()
+    await regions.stop()
+
+    jobs = maps.client.payloads
+    assert {kind for kind, _, _ in jobs} == {'outlines', 'size', 'extract'}
+    for kind, key, payload in jobs:
+        if kind == 'outlines':
+            assert payload == {'code': key[:3], 'level': key[4:]}
+        else:
+            assert set(payload) == {'outline', 'build', 'minzoom', 'maxzoom'}
+            assert payload['outline']['type'] == 'FeatureCollection'
+    # a section is sent as its own outline alone, as the API keeps it
+    section = next(payload for kind, key, payload in jobs if (kind, key) == ('extract', 'USA-ADM1-a'))
+    assert section['outline'] == json.loads((maps.boundaries / 'USA-ADM1-a.geojson').read_text())
+    assert json.loads((maps.boundaries / 'USA-ADM1.json').read_text()) == {'boundaryLicense': 'CC BY 4.0'}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_map_worker_lists_the_builds(maps, monkeypatch):
+    """Regions are cut from the newest build of the world file's version (4), as the map worker lists them"""
+    if not maps.worker:
+        pytest.skip("only the map worker is sent jobs")
+
+    async def builds(url):
+        return [
+            {'key': '20261025.pmtiles', 'version': '4.14.0'},
+            {'key': '20261026.pmtiles', 'version': '4.15.2'},
+            {'key': '20261027.pmtiles', 'version': '5.0.0'},
+        ]
+    monkeypatch.setattr(handlers_module, 'list_builds', builds)
+    regions = maps.service(build='latest')
+    await regions.start()
+    await regions.request_country('LUX', requested_by=7)
+    await regions.wait_until_idle()
+    await regions.stop()
+    sidecar = json.loads((maps.tiles / 'regions' / 'LUX.json').read_text())
+    assert (sidecar['build'], sidecar['version']) == ('https://build.protomaps.com/20261026.pmtiles', '4.15.2')
+    assert ('builds', 'latest', {}) in maps.client.payloads
