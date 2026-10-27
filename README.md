@@ -748,8 +748,13 @@ and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv`, and `breedgr
 `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same venv with `--upgrade`, then
 restart the service.
 
-The scripts aren't in the wheel: run them from a checkout of the release's tag, with the venv, whose breedgraph they
-import, and the environment:
+The scripts aren't in the wheel, nor in the source distribution: run them from a checkout of the release's tag, with
+the venv, whose breedgraph they import, and the environment. A server that can't reach GitHub is sent the tag as an
+archive, unpacked where the checkout goes (`tar xzf ... -C /opt/breedgraph` gives `/opt/breedgraph/checkout`):
+
+    git archive --format=tar.gz --prefix=checkout/ -o dist/breedgraph-0.1.4-checkout.tar.gz v0.1.4
+
+and then:
 
     . /opt/breedgraph/.venv/bin/activate
     set -a

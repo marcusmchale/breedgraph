@@ -55,7 +55,8 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    For Neo4j, also:
    - The APOC core plugin, which the API's queries use (`apoc.coll.*`): copy `apoc-<version>-core.jar` from
      `/var/lib/neo4j/labs/` to `/var/lib/neo4j/plugins/`, and allow it in `/etc/neo4j/neo4j.conf`:
-     `dbms.security.procedures.allowlist=apoc.coll.*`.
+     `dbms.security.procedures.allowlist=apoc.coll.*`. An allowlist naming single functions must name every one
+     used (`apoc.coll.flatten`, `sortMaps` and `toSet`), or the queries using the others fail.
    - Its memory: `neo4j-admin server memory-recommendation` gives settings for the machine. Leave room for the
      demonstration site, which its slice holds to 6 GB (`instance/demo/README.md`, Limits).
 2. **The user and directories.** A `breedgraph` system user, owning `/opt/breedgraph` and the directories its
@@ -63,7 +64,8 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    database dumps (`NEO4J_ARCHIVE_PATH`), the erasure log's (`PERSON_ERASURE_LOG_PATH`), and the map tiles and
    outlines (`MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH`).
 3. **The code.** The `server` wheelhouse into `/opt/breedgraph/.venv` (README, Build the wheelhouses), and a checkout
-   of the release's tag in `/opt/breedgraph/checkout`.
+   of the release's tag in `/opt/breedgraph/checkout`, or its `git archive` where the server can't reach GitHub (same
+   section).
 4. **The environment.** `/opt/breedgraph/breedgraph.env`, from `instance/breedgraph.env`, which names every variable
    the API reads, owned by `breedgraph` with mode 0600:
    - `ENVIRONMENT="production"`, `PROTOCOL="https"`, `HOST_ADDRESS="breedgraph.universityofgalway.ie"`,
@@ -214,8 +216,9 @@ worker server only.
 
 1. Build it (§1).
 2. **The web server:** the new `server` wheelhouse into `/opt/breedgraph/.venv`, as installed with `--upgrade`, the
-   checkout moved to the new tag, the release's new settings added to `breedgraph.env` (its notes list them), and
-   `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of `/var/www/breedview`.
+   checkout moved to the new tag (or replaced by its archive), the release's new settings added to `breedgraph.env`
+   (its notes list them), and `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of
+   `/var/www/breedview`.
 3. **The worker server:** both wheelhouses with `--upgrade`, and both units restarted.
 4. **The demonstration site:** `instance/demo/README.md`, Upgrades.
 5. The checks below.
