@@ -57,7 +57,8 @@ production's server block) and the rest to production, as before.
      `pip install -e '.[api,worker,analysis_worker]'` (or production's wheelhouse);
    - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`), `dump/`, `files/`, `archive/`, `legal/`, `map_tiles/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
-   - `private/` (0700).
+   - `private/` (0700);
+   - `country_codes.csv`, a copy of production's (`COUNTRY_CODES_PATH`).
 2. **Neo4j.** The installed package, run a second time (Community runs one database an instance): `neo4j.conf` here,
    ports 7688 and 7475 on 127.0.0.1. Copy `server-logs.xml` and `user-logs.xml` from `/etc/neo4j` beside it, then set
    its password as `breedgraph-demo`: `NEO4J_CONF=/opt/breedgraph-demo/neo4j/conf neo4j-admin dbms set-initial-password

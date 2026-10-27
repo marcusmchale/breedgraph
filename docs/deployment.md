@@ -76,6 +76,9 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
      (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; README, Encryption key).
    - `TERMS_OF_USE_PATH` and `PRIVACY_NOTICE_PATH`, unless the packaged texts are served, and `ORCID_*` to let users
      link an ORCID iD.
+   - `COUNTRY_CODES_PATH`, the countries offered when adding a location: a file in neither the repository nor the
+     wheel, the UN's M49 overview as CSV, which the template's comment describes. Without it, only the countries
+     already added are offered.
 5. **The unit.** `instance/breedgraph.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,
