@@ -749,6 +749,15 @@ and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv`, and `breedgr
 `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same venv with `--upgrade`, then
 restart the service.
 
+On a server whose `/tmp` is mounted `noexec` (`findmnt -no OPTIONS /tmp`), building rpy2 fails: pip installs cffi,
+whose compiled module can't be loaded from `/tmp`, and rpy2's build, giving up on it quietly, ends with
+`TypeError: 'NoneType' object is not callable` in cffi's `setuptools_ext.py`. Give pip a temporary directory where
+programs may run, owned by the installing user, and remove it afterwards:
+
+    sudo install -d -o analysisworker -g analysisworker -m 700 /opt/analysis_worker/pip-tmp
+    sudo -u analysisworker env TMPDIR=/opt/analysis_worker/pip-tmp /opt/analysis_worker/.venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_analysis_worker_0.1.4/ 'breedgraph[analysis_worker]'
+    sudo rm -rf /opt/analysis_worker/pip-tmp
+
 The scripts aren't in the wheel, nor in the source distribution: run them from a checkout of the release's tag, with
 the venv, whose breedgraph they import, and the environment. A server that can't reach GitHub is sent the tag as an
 archive, unpacked where the checkout goes (`tar xzf ... -C /opt/breedgraph` gives `/opt/breedgraph/checkout`):

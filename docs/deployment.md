@@ -122,7 +122,9 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
    `/var/log/analysis_worker`.
 3. **The code.** The `worker` wheelhouse into `/opt/archive_worker/.venv`, and the `analysis_worker` wheelhouse into
-   `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs.
+   `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs. Where `/tmp` is mounted `noexec`, that
+   fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR` set to a directory where programs
+   may run (README, Build the wheelhouses).
 4. **The environments.** `/opt/archive_worker/archive_worker.env` and `/opt/analysis_worker/analysis_worker.env`, from
    `instance/`, mode 0600: `API_URL` the web server's internal address (`http://<internal address>:8080`, below), the
    token the API's environment has for each, `LOG_BASE` in `/var/log/...`, and for the archive worker its

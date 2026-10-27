@@ -54,8 +54,11 @@ production's server block) and the rest to production, as before.
    reset run as it), and `analysisworker` if production's isn't on this machine. `/opt/breedgraph-demo` owned by
    `breedgraph-demo`, holding:
    - `checkout/`: a clone of breedgraph at production's version, with a `.venv` holding
-     `pip install -e '.[api,worker,analysis_worker]'` (or production's wheelhouse);
-   - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
+     `pip install -e '.[api,worker,analysis_worker]'` (or the three wheelhouses,
+     `breedgraph[server,worker,analysis_worker]` with a `--find-links` for each). The install compiles rpy2, which
+     fails where `/tmp` is mounted `noexec` (`TypeError: 'NoneType' object is not callable`): run it with `TMPDIR` set
+     to a directory where programs may run (breedgraph README.md, Build the wheelhouses);
+   - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`, `tmp`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
      `map_tiles/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
    - `private/` (0700);
