@@ -24,11 +24,13 @@ kept: this README (Setup, deploy), [BreedView's README](https://github.com/marcu
 - cron: copying the database backups and the erasure log from the web server (`scripts/sync_database_backups.sh`).
 
 Both workers poll the API at their `API_URL`, an address of the web server on the internal network, with the tokens
-they share with the API. nginx there passes `/archive/` and `/analysis_jobs/` to the API, for the worker server alone.
+they share with the API. nginx there passes `/archive/` and `/analysis_jobs/` to the API, for the worker server alone:
+on a port of its own, or, where only HTTPS is open between the two networks, in the site's own server block (nginx,
+below).
 The retention run, on the web server, calls the API on `127.0.0.1:8000` directly.
 
 Tested with Python 3.12, Neo4j 2026.05 and its APOC core, Redis 7, and R 4.3 (Ubuntu 24.04's) with lme4, lmerTest,
-emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same version (README, Releases).
+emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.1 and packages (§3). breedgraph and BreedView are deployed at the same version (README, Releases).
 
 ## 1. Build, on the development machine
 
@@ -127,9 +129,14 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
 
        sudo apt install r-base r-base-dev build-essential r-cran-lme4 r-cran-lmertest r-cran-emmeans r-cran-car r-cran-pbkrtest
 
-   Either way, check that R loads them:
+   On Ubuntu 22.04, take them from Ubuntu even where CRAN can be reached: its R is 4.1, too old for CRAN's current
+   releases, while Ubuntu's own packages pass the analysis worker's tests (Checks). Either way, check that R loads them:
 
        Rscript -e 'for (p in c("lme4", "lmerTest", "emmeans", "car", "pbkrtest")) library(p, character.only = TRUE)'
+
+   Ubuntu 22.04's Python is 3.10: install 3.12 where the units can reach it, outside `/home`, which their
+   `ProtectHome=yes` hides, e.g. `sudo env UV_PYTHON_INSTALL_DIR=/opt/python uv python install 3.12`, and make the venvs
+   with `/opt/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12`, which follows uv's upgrades of 3.12.
 
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
@@ -245,6 +252,25 @@ ways as they arrive rather than through temporary files on the root disk:
 then `sudo nginx -t` and `sudo systemctl reload nginx`. If a firewall runs on the web server, open that port to the
 worker server only.
 
+Where only HTTPS is open between the two networks, the worker server comes to the site's own server block instead, by
+the site's name, which its `/etc/hosts` gives as the web server's own address: through the site's public address, its
+requests would arrive from that address's front, not its own. Its `API_URL` is then `https://<site name>`, the
+certificate is checked as for any visitor, and the routes are a location of the site's server block, with the same
+settings as the server above:
+
+    location ~ ^/(archive|analysis_jobs)/ {
+        allow <worker server's internal address>;
+        deny all;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        client_max_body_size 0;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        access_log off;
+    }
+
 ## Upgrading to a new release
 
 1. Build it (§1).
@@ -260,7 +286,15 @@ worker server only.
 
 - The site loads with its branding, and signing in and out works.
 - An upload shows as archived within a minute or so (the worker server reaches the API), and is downloaded again.
-- An analysis runs: an ANOVA (R) and descriptive statistics.
+- An analysis runs: an ANOVA (R) and descriptive statistics. Before the site holds data to analyse, run the analysis
+  worker's tests against its venv instead, from the release's checkout, with pytest installed beside the venv rather
+  than in it; they need neither the API nor the database, and pass with none skipped:
+
+      mkdir ~/awtest
+      tar xzf breedgraph-<version>-checkout.tar.gz -C ~/awtest
+      /opt/analysis_worker/.venv/bin/python -m pip install --target ~/awtest/pylib pytest pytest-asyncio
+      cd ~/awtest/checkout
+      PYTHONPATH=$HOME/awtest/pylib ANALYSIS_WORKER_AUTH_TOKEN=test LOG_BASE=$HOME/awtest/logs /opt/analysis_worker/.venv/bin/python -m pytest -p no:cacheprovider -q -rs tests/analysis_worker
 - The map shows its tiles, and a place search answers.
 - An invitation's email arrives, and its link opens the registration page.
 - A guide chapter's video plays, with its captions.
