@@ -2,7 +2,9 @@
 [Unit]
 Description=BreedGraph Application
 After=network.target neo4j.service redis.service
-Requires=network.target neo4j.service redis.service
+# Wants=, not Requires=: scripts/backup.sh stops Neo4j each night, and Requires= has systemd stop the API with it,
+# and not start it again. The API reconnects once Neo4j is back.
+Wants=network.target neo4j.service redis.service
 
 [Service]
 User=breedgraph

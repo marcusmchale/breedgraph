@@ -826,8 +826,10 @@ record and account numbers, and must stay appendable.
     0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
 
 **Restore** on the web server, with the environment loaded, by the dump's file name in `NEO4J_ARCHIVE_PATH`
-(copy it back from the archive server first if needed):
+(copy it back from the archive server first if needed). Stop the API first, so that nothing uses the database before
+the erasure log is applied and the read models are rebuilt, and start it again at the end:
 
+    sudo systemctl stop breedgraph
     cd /path/to/breedgraph
     set -a; . ./breedgraph.env; set +a
     scripts/restore.sh <database>-20261015-021500.dump.age
@@ -839,9 +841,10 @@ It asks for confirmation, stops Neo4j, loads the dump over `DATABASE_NAME`, star
 (`scripts/apply_erasures.py`), so Persons erased and accounts deleted since the dump stay that way. Each entry is
 applied to its own record only, and the id counters are advanced past the logged ids, so no erased id is given out
 again. If the log isn't on the web server, restore it from the archive server and run `scripts/apply_erasures.py <log>`
-before the database is used. Then rebuild the read models in Redis from the restored database:
+before the database is used. Then rebuild the read models in Redis from the restored database, and start the API:
 
     scripts/load_state_store.py
+    sudo systemctl start breedgraph
 
 Uploaded files are not in the dump: they stay in `FILE_STORAGE_PATH`, or in archive storage (the archive worker).
 The API encrypts files as it sends them to the archive worker and decrypts them when they come back, with the same
