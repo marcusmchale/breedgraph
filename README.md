@@ -683,11 +683,12 @@ world file, or from the build `MAP_TILES_BUILD` pins.
 
 The API's server needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
 (`MAP_PMTILES_COMMAND`), a single program. Without it, or with the setting empty, no regions are fetched and the API
-logs a warning at startup. Install it once (`Linux_arm64` on ARM):
+logs a warning at startup. Install it once (`Linux_arm64` on ARM). The release has no checksums file, but GitHub
+records each download's SHA-256 (the `digest` the second command prints), which the third checks:
 
     curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
-    curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/checksums.txt
-    sha256sum --check --ignore-missing checksums.txt
+    curl -s https://api.github.com/repos/protomaps/go-pmtiles/releases/tags/v1.31.2 | python3 -c 'import json, sys; print({a["name"]: a["digest"] for a in json.load(sys.stdin)["assets"]}["go-pmtiles_1.31.2_Linux_x86_64.tar.gz"])'
+    sha256sum go-pmtiles_1.31.2_Linux_x86_64.tar.gz
     tar xzf go-pmtiles_1.31.2_Linux_x86_64.tar.gz pmtiles
     sudo install pmtiles /usr/local/bin/
 
