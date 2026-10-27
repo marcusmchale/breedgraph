@@ -212,7 +212,8 @@ The site's server block, with the certificate lines it has, and the demonstratio
     }
 
 And a server on the web server's internal address, for the worker server alone. Archived files come back to the API
-whole when users ask for them, and analysis results can be large, so it sets no body limit:
+whole when users ask for them, and analysis results can be large, so it sets no body limit, and passes bodies both
+ways as they arrive rather than through temporary files on the root disk:
 
     server {
         listen <web server's internal address>:8080;
@@ -220,10 +221,15 @@ whole when users ask for them, and analysis results can be large, so it sets no 
         deny all;
         client_max_body_size 0;
         proxy_request_buffering off;
+        proxy_buffering off;
         proxy_read_timeout 300s;
+        # the workers poll every few seconds, which the API's own log leaves out too; refusals still go to the error log
+        access_log off;
 
         location ~ ^/(archive|analysis_jobs)/ {
             proxy_pass http://127.0.0.1:8000;
+            # HTTP/1.1, without which nginx buffers a chunked upload whatever proxy_request_buffering says
+            proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
         location / {
