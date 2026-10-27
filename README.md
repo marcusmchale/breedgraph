@@ -670,6 +670,21 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed.
   - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,
     which resume after a restart. Finished regions are known from their files.
+- **With the map worker** (`MAP_WORKER=1`), for an API's server without internet access, as in production: the map
+  worker (`src/map_worker`, `instance/map_worker.service`), on a server with access, fetches for the API
+  (`adapters/pmtiles/jobs.py`). Everything else about regions above is unchanged.
+  - It polls the API's `/map_jobs/` with its own token (`MAP_WORKER_AUTH_TOKEN`) and leases jobs from Redis in two
+    lanes: one for extracts, one for the rest (Protomaps' list of builds, outlines, sizes), so a long extract holds up
+    no new country. It renews a job's lease (`MAP_JOB_LEASE_SECONDS`, 300) while it works, and a job whose worker
+    stopped is queued again once its lease expires. One job is kept per kind and region, so an API restarted while the
+    worker extracts waits for that extract rather than asking again.
+  - Outlines and files come back through the API, which keeps them under names of its own beside where they go.
+    Removing a country cancels its jobs: the worker stops at its next renewal.
+  - Coordinates never leave the API's server: sections are found there, and a job carries only a region's key, its
+    outline, a build and zooms. The worker refuses anything but maps from Protomaps' builds, so a pinned
+    `MAP_TILES_BUILD` must be one at `https://build.protomaps.com/`.
+  - `scripts/map_tiles.py` goes through it too, while the API and the worker run. The API's server then needs no
+    pmtiles, and the worker's needs no access to Redis or the database.
 
 `/tiles/tiles.json` (404 until the world file is cut) is what the map reads: `{attribution, updated, layers, countries}`.
 Bounds in it are `[[south, west], [north, east]]`.
@@ -686,10 +701,11 @@ vary by country and are kept beside each file). They are cached in `MAP_BOUNDARI
 only to cut tiles. Regions are cut from the newest Protomaps build (`PROTOMAPS_BUILDS_URL`) of the same version as the
 world file, or from the build `MAP_TILES_BUILD` pins.
 
-The API's server needs the `pmtiles` command from [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
-(`MAP_PMTILES_COMMAND`), a single program. Without it, or with the setting empty, no regions are fetched and the API
-logs a warning at startup. Install it once (`Linux_arm64` on ARM). The release has no checksums file, but GitHub
-records each download's SHA-256 (the `digest` the second command prints), which the third checks:
+The server that fetches, the API's or the map worker's, needs the `pmtiles` command from
+[go-pmtiles](https://github.com/protomaps/go-pmtiles/releases) (`MAP_PMTILES_COMMAND`), a single program. Without it, or
+with the setting empty, and without the map worker, no regions are fetched and the API logs a warning at startup.
+Install it once (`Linux_arm64` on ARM). The release has no checksums file, but GitHub records each download's SHA-256
+(the `digest` the second command prints), which the third checks:
 
     curl -LO https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz
     curl -s https://api.github.com/repos/protomaps/go-pmtiles/releases/tags/v1.31.2 | python3 -c 'import json, sys; print({a["name"]: a["digest"] for a in json.load(sys.stdin)["assets"]}["go-pmtiles_1.31.2_Linux_x86_64.tar.gz"])'
@@ -729,8 +745,8 @@ the other, even one with no changes of its own. The version is in `pyproject.tom
 ### Build the wheelhouses and install from them
 
 Each service installs from a wheelhouse, a folder of the wheels it needs, without reaching PyPI: the API from the
-`server` extra's, the archive worker from `worker`'s and the analysis worker from `analysis_worker`'s. Build them from
-the release's tag, on a machine with the development environment:
+`server` extra's, the archive and map workers from `worker`'s and the analysis worker from `analysis_worker`'s. Build
+them from the release's tag, on a machine with the development environment:
 
     cd path/to/breedgraph
     scripts/build_wheelhouses.sh --check v0.1.4
@@ -750,9 +766,9 @@ then, on the server and as that user, install it into the venv its unit runs:
     python3 -m venv .venv
     .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.4/ 'breedgraph[server]'
 
-and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv`, and `breedgraph[analysis_worker]` into
-`/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same venv with `--upgrade`, then
-restart the service.
+and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and
+`breedgraph[analysis_worker]` into `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same
+venv with `--upgrade`, then restart the service.
 
 On a server whose `/tmp` is mounted `noexec` (`findmnt -no OPTIONS /tmp`), building rpy2 fails: pip installs cffi,
 whose compiled module can't be loaded from `/tmp`, and rpy2's build, giving up on it quietly, ends with

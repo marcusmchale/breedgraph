@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build breedgraph's wheel and the wheelhouses its services install from, offline: the API's (the server extra), the
-# archive worker's (worker) and the analysis worker's (analysis_worker), in dist/ as wheelhouse_<extra>_<version>,
+# archive and map workers' (worker) and the analysis worker's (analysis_worker), in dist/ as wheelhouse_<extra>_<version>,
 # beside the wheel and the source distribution (README.md, deploy).
 #
 # Usage: scripts/build_wheelhouses.sh [--check] [<ref>]     (<ref> defaults to HEAD)
@@ -64,6 +64,7 @@ if $CHECK; then
   }
   check server breedgraph.env 'import breedgraph.main'
   check worker archive_worker.env 'import archive_worker.main'
+  check worker map_worker.env 'import map_worker.main'
   check analysis_worker analysis_worker.env \
     'import analysis_worker.main; from analysis_worker.adapters.r import models; models._r()'
   echo "Each wheelhouse installs offline, and the API and the workers import"

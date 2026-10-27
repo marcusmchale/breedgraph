@@ -1,0 +1,43 @@
+# /etc/systemd/system/map_worker.service
+[Unit]
+Description=Map Worker Service - Map Tiles and Outlines for the API
+After=network.target
+Wants=network-online.target
+
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=mapworker
+Group=mapworker
+
+WorkingDirectory=/opt/map_worker
+EnvironmentFile=/opt/map_worker/map_worker.env
+
+ExecStart=/opt/map_worker/.venv/bin/python -m map_worker.main
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Graceful shutdown: the worker stops a running pmtiles, and the API queues its job again once the lease expires
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# and its MAP_WORK_PATH, which ProtectSystem=strict otherwise leaves read-only
+ReadWritePaths=/opt/map_worker /var/log/map_worker /srv/map_worker
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=map-worker
+
+[Install]
+WantedBy=multi-user.target

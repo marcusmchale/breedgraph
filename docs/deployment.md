@@ -17,14 +17,17 @@ kept: this README (Setup, deploy), [BreedView's README](https://github.com/marcu
 - cron: the database backups and the retention run.
 - The demonstration site, if it is hosted: `instance/demo/README.md`.
 
-**The worker server**, for archive and analysis, on the internal network:
+**The worker server**, for archive, analysis and maps, on the internal network:
 - The archive worker (`instance/archive_worker.service`) in `/opt/archive_worker`, as `archiveworker`, keeping the
   archived files in its `ARCHIVE_DESTINATION`.
 - The analysis worker (`instance/analysis_worker.service`) in `/opt/analysis_worker`, as `analysisworker`, with R.
+- The map worker (`instance/map_worker.service`) in `/opt/map_worker`, as `mapworker`, with `pmtiles`: it fetches the
+  map tiles and outlines the API needs from the internet, which the web server can't reach (README, Maps).
 - cron: copying the database backups and the erasure log from the web server (`scripts/sync_database_backups.sh`).
 
-Both workers poll the API at their `API_URL`, an address of the web server on the internal network, with the tokens
-they share with the API. nginx there passes `/archive/` and `/analysis_jobs/` to the API, for the worker server alone:
+The workers poll the API at their `API_URL`, an address of the web server on the internal network, with the tokens
+they share with the API. nginx there passes `/archive/`, `/analysis_jobs/` and `/map_jobs/` to the API, for the worker
+server alone:
 on a port of its own, or, where only HTTPS is open between the two networks, in the site's own server block (nginx,
 below).
 The retention run, on the web server, calls the API on `127.0.0.1:8000` directly.
@@ -53,9 +56,9 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
 
 ## 2. The web server, the first time
 
-1. **Packages.** Python 3.12 with venv, nginx, age, rsync, Neo4j and Redis (README, Setup), and `pmtiles` (README,
-   Maps). rsync is for the worker server's copy of the backups, which runs rsync over ssh and needs it at both ends,
-   and for the demonstration site's reset. For Neo4j, also:
+1. **Packages.** Python 3.12 with venv, nginx, age, rsync, Neo4j and Redis (README, Setup). rsync is for the worker
+   server's copy of the backups, which runs rsync over ssh and needs it at both ends, and for the demonstration site's
+   reset. `pmtiles` is the map worker's, on the worker server (§3). For Neo4j, also:
    - The APOC core plugin, which the API's queries use (`apoc.coll.*`): copy `apoc-<version>-core.jar` from
      `/var/lib/neo4j/labs/` to `/var/lib/neo4j/plugins/`, and allow it in `/etc/neo4j/neo4j.conf`:
      `dbms.security.procedures.allowlist=apoc.coll.*`. An allowlist naming single functions must name every one
@@ -75,8 +78,11 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
      `HOST_PORT=443`, `VUE_PORT=443`, `SITE_PATH=''`, `COOKIE_PREFIX=''`, `SITE_NAME`.
    - Paths absolute, as the API runs from `/opt/breedgraph` and the scripts from the checkout.
    - New random values for `SECRET_KEY`, every `*_SALT` (`ACCEPTANCE_SALT` among them: the API refuses to start
-     without it) and the three tokens: `ARCHIVE_AUTH_TOKEN` and `ANALYSIS_WORKER_AUTH_TOKEN`, which the workers' env
-     files repeat, and `RETENTION_AUTH_TOKEN`. For example `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+     without it) and the four tokens: `ARCHIVE_AUTH_TOKEN`, `ANALYSIS_WORKER_AUTH_TOKEN` and `MAP_WORKER_AUTH_TOKEN`,
+     which the workers' env files repeat, and `RETENTION_AUTH_TOKEN`. For example
+     `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+   - `MAP_WORKER=1`, so that the map worker fetches the maps, and `MAP_PMTILES_COMMAND=""`: the web server needs
+     neither pmtiles nor internet access for them.
    - Neo4j's password (`NEO4J_USERNAME`, `NEO4J_PASSWORD`), the mail server (`MAIL_*`), and the encryption key's
      (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; README, Encryption key).
    - `TERMS_OF_USE_PATH` and `PRIVACY_NOTICE_PATH`, unless the packaged texts are served, and `ORCID_*` to let users
@@ -103,7 +109,10 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    - **The read models.** Last, `python scripts/load_state_store.py`, which fills Redis with the countries and the
      ontology that the API reads from there: until it runs, adding a location offers no countries. Run it again after
      any script that writes to the database.
-7. **Maps.** `scripts/map_tiles.py` cuts the world file (README, Maps).
+7. **Maps.** Once the map worker runs (§3), from the checkout with the venv and the environment:
+   `python scripts/map_tiles.py` cuts the world file through it (about 560 MB, README, Maps), and
+   `python scripts/map_tiles.py --regions` fetches the detailed maps of the countries and located locations already
+   in the database, which no one asked the worker for. The API fetches the rest as countries are added.
 8. **BreedView.** `dist/` copied to `/var/www/breedview`; the branding to `/etc/breedview/branding` (BreedView's
    README, Branding).
 9. **nginx**, below.
@@ -138,20 +147,24 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    `ProtectHome=yes` hides, e.g. `sudo env UV_PYTHON_INSTALL_DIR=/opt/python uv python install 3.12`, and make the venvs
    with `/opt/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12`, which follows uv's upgrades of 3.12.
 
+   For the map worker, `pmtiles` in `/usr/local/bin` (README, Maps): it needs internet access, to Protomaps' builds
+   (`build.protomaps.com`, `build-metadata.protomaps.dev`) and geoBoundaries (`www.geoboundaries.org` and the GitHub
+   files it links to).
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
-   `/var/log/analysis_worker`.
-3. **The code.** The `worker` wheelhouse into `/opt/archive_worker/.venv`, and the `analysis_worker` wheelhouse into
-   `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs. Where `/tmp` is mounted `noexec`, that
-   fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR` set to a directory where programs
-   may run (README, Build the wheelhouses).
-4. **The environments.** `/opt/archive_worker/archive_worker.env` and `/opt/analysis_worker/analysis_worker.env`, from
-   `instance/`, mode 0600: `API_URL` the web server's internal address (`http://<internal address>:8080`, below), the
-   token the API's environment has for each, `LOG_BASE` in `/var/log/...`, and for the archive worker its
-   `ARCHIVE_DESTINATION`.
-5. **The units.** `instance/archive_worker.service` and `instance/analysis_worker.service` to `/etc/systemd/system/`,
-   with the archive's `ARCHIVE_DESTINATION` in the archive worker's `ReadWritePaths`, then `daemon-reload` and
-   `enable --now` each.
+   `/var/log/analysis_worker`; `mapworker` owning `/opt/map_worker`, `/var/log/map_worker` and its `MAP_WORK_PATH`,
+   on the large disk, with room for the largest file the API fetches (`MAP_REGION_MAX_GB`, 2).
+3. **The code.** The `worker` wheelhouse into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and the
+   `analysis_worker` wheelhouse into `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs. Where
+   `/tmp` is mounted `noexec`, that fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR`
+   set to a directory where programs may run (README, Build the wheelhouses).
+4. **The environments.** `/opt/archive_worker/archive_worker.env`, `/opt/analysis_worker/analysis_worker.env` and
+   `/opt/map_worker/map_worker.env`, from `instance/`, mode 0600: `API_URL` the web server's internal address
+   (`http://<internal address>:8080`, below), the token the API's environment has for each, `LOG_BASE` in
+   `/var/log/...`, for the archive worker its `ARCHIVE_DESTINATION` and for the map worker its `MAP_WORK_PATH`.
+5. **The units.** `instance/archive_worker.service`, `instance/analysis_worker.service` and
+   `instance/map_worker.service` to `/etc/systemd/system/`, with the archive's `ARCHIVE_DESTINATION` in the archive
+   worker's `ReadWritePaths` and `MAP_WORK_PATH` in the map worker's, then `daemon-reload` and `enable --now` each.
 6. **The backup copy.** `/etc/breedgraph/backup_sync.env` (from `instance/backup_sync.env`), an ssh key the web server
    accepts, and cron (README, Backups, restores and retention). It never needs the encryption key. On the web server,
    the key belongs to a user of its own, which may only read the dumps and the erasure log, and only with rsync
@@ -224,8 +237,8 @@ The site's server block, with the certificate lines it has, and the demonstratio
     }
 
 And a server on the web server's internal address, for the worker server alone. Archived files come back to the API
-whole when users ask for them, and analysis results can be large, so it sets no body limit, and passes bodies both
-ways as they arrive rather than through temporary files on the root disk:
+whole when users ask for them, and analysis results and map files (to 2 GB) can be large, so it sets no body limit,
+and passes bodies both ways as they arrive rather than through temporary files on the root disk:
 
     server {
         listen <web server's internal address>:8080;
@@ -238,7 +251,7 @@ ways as they arrive rather than through temporary files on the root disk:
         # the workers poll every few seconds, which the API's own log leaves out too; refusals still go to the error log
         access_log off;
 
-        location ~ ^/(archive|analysis_jobs)/ {
+        location ~ ^/(archive|analysis_jobs|map_jobs)/ {
             proxy_pass http://127.0.0.1:8000;
             # HTTP/1.1, without which nginx buffers a chunked upload whatever proxy_request_buffering says
             proxy_http_version 1.1;
@@ -258,7 +271,7 @@ requests would arrive from that address's front, not its own. Its `API_URL` is t
 certificate is checked as for any visitor, and the routes are a location of the site's server block, with the same
 settings as the server above:
 
-    location ~ ^/(archive|analysis_jobs)/ {
+    location ~ ^/(archive|analysis_jobs|map_jobs)/ {
         allow <worker server's internal address>;
         deny all;
         proxy_pass http://127.0.0.1:8000;
@@ -278,7 +291,7 @@ settings as the server above:
    checkout moved to the new tag (or replaced by its archive), the release's new settings added to `breedgraph.env`
    (its notes list them), and `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of
    `/var/www/breedview`.
-3. **The worker server:** both wheelhouses with `--upgrade`, and both units restarted.
+3. **The worker server:** the wheelhouses with `--upgrade` into the three venvs, and the three units restarted.
 4. **The demonstration site:** `instance/demo/README.md`, Upgrades.
 5. The checks below.
 
@@ -295,7 +308,9 @@ settings as the server above:
       /opt/analysis_worker/.venv/bin/python -m pip install --target ~/awtest/pylib pytest pytest-asyncio
       cd ~/awtest/checkout
       PYTHONPATH=$HOME/awtest/pylib ANALYSIS_WORKER_AUTH_TOKEN=test LOG_BASE=$HOME/awtest/logs /opt/analysis_worker/.venv/bin/python -m pytest -p no:cacheprovider -q -rs tests/analysis_worker
-- The map shows its tiles, and a place search answers.
+- The map shows its tiles, and a place search answers. Adding a country fetches its map through the map worker: its
+  log (`/var/log/map_worker/map.log`) shows the outlines, size and extract jobs, and the country's layer is in
+  `/tiles/tiles.json` once it is done (or it is divided, if larger than `MAP_REGION_MAX_GB`).
 - An invitation's email arrives, and its link opens the registration page.
 - A guide chapter's video plays, with its captions.
 - `trigger_retention.sh /opt/breedgraph/breedgraph.env` prints the API's response.
