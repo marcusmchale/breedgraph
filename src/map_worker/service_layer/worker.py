@@ -42,6 +42,9 @@ class MapWorker:
                 # process jobs until the lane is empty
                 while not self._shutdown_event.is_set() and await self.process_next(lane):
                     pass
+            except httpx.HTTPError as e:
+                # as while the API restarts: a line each poll, not a traceback
+                logger.warning(f"The API could not be asked for {lane} jobs: {type(e).__name__}: {e}")
             except Exception as e:
                 logger.exception(f"Error in the {lane} lane: {e}")
 
