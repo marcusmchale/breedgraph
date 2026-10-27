@@ -103,6 +103,7 @@ map_worker = []
 [project.scripts]
 archive-worker = "archive_worker.main:main"
 analysis-worker = "analysis_worker.main:main"
+map-worker = "map_worker.main:main"
 
 [project.urls]
 Homepage = "https://github.com/marcusmchale/breedgraph"
