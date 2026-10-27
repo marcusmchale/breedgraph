@@ -51,8 +51,9 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
 
 ## 2. The web server, the first time
 
-1. **Packages.** Python 3.12 with venv, nginx, age, Neo4j and Redis (README, Setup), and `pmtiles` (README, Maps).
-   For Neo4j, also:
+1. **Packages.** Python 3.12 with venv, nginx, age, rsync, Neo4j and Redis (README, Setup), and `pmtiles` (README,
+   Maps). rsync is for the worker server's copy of the backups, which runs rsync over ssh and needs it at both ends,
+   and for the demonstration site's reset. For Neo4j, also:
    - The APOC core plugin, which the API's queries use (`apoc.coll.*`): copy `apoc-<version>-core.jar` from
      `/var/lib/neo4j/labs/` to `/var/lib/neo4j/plugins/`, and allow it in `/etc/neo4j/neo4j.conf`:
      `dbms.security.procedures.allowlist=apoc.coll.*`. An allowlist naming single functions must name every one
@@ -113,7 +114,8 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
 
 ## 3. The worker server, the first time
 
-1. **Packages.** Python 3.12 with venv; R with its headers and a compiler, and R's packages, as root:
+1. **Packages.** Python 3.12 with venv, rsync (for the backups' copy); R with its headers and a compiler, and R's
+   packages, as root:
 
        sudo apt install r-base r-base-dev build-essential
        sudo Rscript -e 'install.packages(c("lme4", "lmerTest", "emmeans", "car", "pbkrtest"), repos = "https://cloud.r-project.org")'
