@@ -105,10 +105,15 @@ The target holds Neo4j, Redis, the API and the two workers, and starts them in o
 The API's and the workers' logs are in `/opt/breedgraph-demo/logs`, Neo4j's in `/opt/breedgraph-demo/neo4j/logs`.
 Production's services are not part of the target, so none of this stops them.
 
+Restarting the target restarts Redis too, which saves nothing: the read models (the countries, the ontology) are gone
+until the next reset. Restart the API and the workers alone (`sudo systemctl restart breedgraph-demo
+archive-worker-demo analysis-worker-demo`), or run the reset, which fills them again.
+
 **Upgrades.** Update the site with production: pull the same version into `checkout/`, update its `.venv`, rebuild
-BreedView's demonstration build, and restart the target. When the release changes the demonstration database
-(`scripts/build_demo_database.py`) or its dump, copy the new dump into `dump/` and run the reset. An upgrade of the
-Neo4j package upgrades both instances: run the reset afterwards, to check the dump still loads.
+BreedView's demonstration build, and run the reset, which restarts everything on the new code and checks the dump
+loads, the accounts are set and the read models filled as each night. When the release changes the demonstration
+database (`scripts/build_demo_database.py`) or its dump, copy the new dump into `dump/` first. An upgrade of the Neo4j
+package upgrades both instances: run the reset afterwards, to check the dump still loads.
 
 ## Each night
 
