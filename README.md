@@ -771,6 +771,11 @@ and then:
     . /opt/breedgraph/breedgraph.env
     set +a
     python scripts/setup_initial_data.py
+    python scripts/load_state_store.py
+
+`load_state_store.py` fills the read models in Redis that the API reads the countries and the ontology from: until it
+runs, adding a location offers no countries. Run it again after any script that writes to the database, such as
+`scripts/import_germplasm.py`.
 
 ### BreedView and its branding
 

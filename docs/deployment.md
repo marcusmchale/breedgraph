@@ -83,7 +83,7 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
      while they are received, in `/tmp` otherwise (README, Nginx).
    - `COUNTRY_CODES_PATH`, the countries offered when adding a location: a file in neither the repository nor the
      wheel, the UN's M49 overview as CSV, which the template's comment describes. Without it, only the countries
-     already added are offered.
+     already added are offered, and none at all until the read models are filled (step 6).
 5. **The unit.** `instance/breedgraph.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,
@@ -98,6 +98,9 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
      `python scripts/import_germplasm.py -e germplasm.json -r relationships.json -u <user id> -t <team id>`, whose
      header gives the files' format. It writes everything or nothing, and refuses a second run. The team shows its id
      under Access control, and the first account's is the one `create_first_account.py` printed.
+   - **The read models.** Last, `python scripts/load_state_store.py`, which fills Redis with the countries and the
+     ontology that the API reads from there: until it runs, adding a location offers no countries. Run it again after
+     any script that writes to the database.
 7. **Maps.** `scripts/map_tiles.py` cuts the world file (README, Maps).
 8. **BreedView.** `dist/` copied to `/var/www/breedview`; the branding to `/etc/breedview/branding` (BreedView's
    README, Branding).
