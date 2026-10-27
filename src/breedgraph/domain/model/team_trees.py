@@ -310,6 +310,11 @@ class TeamTree(TreeAggregate):
             logger.debug(f"Affiliation already authorised, doing nothing")
             return
 
+        if user_id in self.get_affiliates(team_id, access=Access.ADMIN):
+            # An admin's own request is authorised at once, so no one is asked
+            self._authorise(team, access, user_id, heritable)
+            return
+
         team.affiliations.set_by_access(access, user_id, Affiliation(authorisation=Authorisation.REQUESTED, heritable=heritable))
 
         self.events.append(AffiliationRequested(user_id=user_id, team_id=team_id, access=access))
@@ -376,13 +381,16 @@ class TeamTree(TreeAggregate):
         if team is None or isinstance(team, TeamInput):
             raise IllegalOperationError(f"No team found with id: {team_id}")
 
+        self._authorise(team, access, user_id, heritable)
+        self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
+
+    @staticmethod
+    def _authorise(team: TeamStored, access: Access, user_id: int, heritable: bool) -> None:
         team.affiliations.set_by_access(
             access,
             user_id,
             Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
         )
-        self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
-
         # Always authorise read access to the same extent that we authorise curate or admin access
         # we aren't raising a separate event to notify
         if access in (Access.CURATE, Access.ADMIN):

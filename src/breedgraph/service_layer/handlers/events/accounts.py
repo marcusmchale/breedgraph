@@ -7,7 +7,7 @@ from breedgraph.custom_exceptions import (
 )
 
 from ...infrastructure.notifications import email_templates
-from breedgraph.domain.model.team_trees import Authorisation, TeamInput, Affiliation
+from breedgraph.domain.model.team_trees import TeamInput
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
@@ -117,11 +117,12 @@ async def password_change_requested(
         )
 
 @handlers.event_handler()
-async def process_affiliation_request(
+async def notify_admins_requested(
         event: events.accounts.AffiliationRequested,
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
+    # An admin's own request is authorised when it is made (TeamTree.request_affiliation), so a request asks the admins
     async with uow_factory.get_uow() as uow:
         team_tree = await uow.repositories.team_trees.get(team_id = event.team_id)
         if team_tree is None:
@@ -136,29 +137,19 @@ async def process_affiliation_request(
             raise ValueError(f"Affiliation request for user {event.user_id} not found")
 
         admins = team_tree.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
-        if event.user_id in admins:
-            # Automatically approve if user is an admin, don't need to email
-            request.authorisation = Authorisation.AUTHORISED
-            # Always authorise read access to the same extent that we authorise curate access
-            if event.access is Access.CURATE:
-                affiliations_dict = team.affiliations.get_by_access(Access.READ)
-                affiliations_dict[event.user_id] = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=request.heritable)
-
-            await uow.commit()
-        else:
-            account = await uow.repositories.accounts.get(user_id=event.user_id)
-            user = UserOutput.from_stored(account.user)
-            message = email_templates.AffiliationRequestedMessage(
-                requesting_user = user,
-                team = team,
-                access = event.access
-            )
-            admin_accounts = [await uow.repositories.accounts.get(user_id=a) for a in admins]
-            admin_users = [a.user for a in admin_accounts]
-            await notifications.send(
-                admin_users,
-                message
-            )
+        account = await uow.repositories.accounts.get(user_id=event.user_id)
+        user = UserOutput.from_stored(account.user)
+        message = email_templates.AffiliationRequestedMessage(
+            requesting_user = user,
+            team = team,
+            access = event.access
+        )
+        admin_accounts = [await uow.repositories.accounts.get(user_id=a) for a in admins]
+        admin_users = [a.user for a in admin_accounts]
+        await notifications.send(
+            admin_users,
+            message
+        )
 
 @handlers.event_handler()
 async def notify_user_approved(

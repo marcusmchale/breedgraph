@@ -6,6 +6,7 @@ from breedgraph.domain.model.team_trees import (
     Affiliation, Affiliations, Authorisation
 )
 from breedgraph.domain.model import Access
+from breedgraph.domain.events.accounts import AffiliationRequested
 from breedgraph.custom_exceptions import IllegalOperationError, UnauthorisedOperationError
 
 def get_team_input(lorem_text_generator) -> TeamInput:
@@ -76,6 +77,17 @@ async def test_request_affiliation(first_team_tree, root_team):
     first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.ADMIN)
     affiliates = first_team_tree.get_affiliates(team_id=1, access=Access.ADMIN, authorisation=Authorisation.REQUESTED)
     assert 2 in affiliates
+    assert [type(event) for event in first_team_tree.events] == [AffiliationRequested]
+
+@pytest.mark.asyncio
+async def test_an_admins_own_request_is_authorised_at_once(first_team_tree):
+    # with read access to the same extent, as when another admin authorises curate access; no one is asked
+    first_team_tree.request_affiliation(agent_id=1, team_id=1, user_id=1, access=Access.CURATE, heritable=True)
+    affiliations = first_team_tree.get_team(1).affiliations
+    authorised = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)
+    assert affiliations.get_by_access(Access.CURATE)[1] == authorised
+    assert affiliations.get_by_access(Access.READ)[1] == authorised
+    assert not first_team_tree.events
 
 @pytest.mark.asyncio
 async def test_remove_affiliation_by_admin(first_team_tree, root_team):
