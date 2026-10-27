@@ -12,7 +12,7 @@ from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import AsyncGenerator, List, Self
+from typing import AsyncGenerator, List, Self, Tuple
 
 import time
 from uuid import uuid4
@@ -50,6 +50,46 @@ MAP_SIZES = "map:sizes"  # hash of region key to the size of its file in bytes
 MAP_REQUESTORS = "map:requestors:"  # set of user ids per region key
 MAP_NOTIFIED = "map:notified:"  # set of user ids told the region is being fetched
 MAP_LOCK = "map:lock:"  # held by the process working on a region
+MAP_JOB = "map:job:"  # hash per map worker's job, by kind and key: kind, key, payload, state, lease, result, error
+MAP_JOBS = "map:jobs:"  # the queue of each lane, a list of job hashes, and its leases, a sorted set by expiry
+MAP_JOB_LEASE = "lease"
+MAP_JOB_KEEP_SECONDS = 86400  # how long a finished job waits to be taken
+
+# KEYS: job, lane queue; ARGV: kind, key, payload, reuse done (1 or 0), now
+ENQUEUE_MAP_JOB_SCRIPT = """
+local state = redis.call('HGET', KEYS[1], 'state')
+if state == 'queued' or (state == 'done' and ARGV[4] == '1') then return state end
+redis.call('DEL', KEYS[1])
+redis.call('HSET', KEYS[1], 'kind', ARGV[1], 'key', ARGV[2], 'payload', ARGV[3], 'state', 'queued', 'queued_at', ARGV[5])
+redis.call('RPUSH', KEYS[2], KEYS[1])
+return 'queued'
+"""
+
+# KEYS: job, lane leases; ARGV: token, expiry
+RENEW_MAP_JOB_SCRIPT = """
+if redis.call('HGET', KEYS[1], 'lease') ~= ARGV[1] then return 0 end
+redis.call('ZADD', KEYS[2], ARGV[2], KEYS[1])
+return 1
+"""
+
+# KEYS: job, lane leases; ARGV: token, state, field, value, seconds kept
+FINISH_MAP_JOB_SCRIPT = """
+if redis.call('HGET', KEYS[1], 'lease') ~= ARGV[1] then return 0 end
+redis.call('HDEL', KEYS[1], 'lease')
+redis.call('ZREM', KEYS[2], KEYS[1])
+redis.call('HSET', KEYS[1], 'state', ARGV[2], ARGV[3], ARGV[4])
+redis.call('EXPIRE', KEYS[1], ARGV[5])
+return 1
+"""
+
+
+def _map_job(kind: str, key: str) -> str:
+    return f"{MAP_JOB}{kind}:{key}"
+
+
+def _map_lane(kind: str) -> str:
+    """The queue a kind of job waits in: extracts take long, so have their own"""
+    return 'extract' if kind == 'extract' else 'quick'
 
 # KEYS: lock; ARGV: token, seconds
 REFRESH_LOCK_SCRIPT = """
@@ -431,6 +471,9 @@ class RedisStateStore(AbstractStateStore):
             return key.decode().split('-', 1)[0] == code
         pending = [key.decode() for key in await self.connection.smembers(MAP_PENDING) if of_country(key)]
         sizes = [key for key in await self.connection.hkeys(MAP_SIZES) if of_country(key)]
+        # job hashes are map:job:<kind>:<key>, the key a region's or, for outlines, <code>-<level>
+        jobs = [job.decode() async for job in self.connection.scan_iter(match=f"{MAP_JOB}*")]
+        jobs = [job for job in jobs if job.split(':', 3)[3].split('-', 1)[0] == code]
         async with self.connection.pipeline(transaction=True) as pipe:
             for key in pending:
                 pipe.delete(f"{MAP_REQUESTORS}{key}", f"{MAP_NOTIFIED}{key}")
@@ -438,7 +481,75 @@ class RedisStateStore(AbstractStateStore):
                 pipe.srem(MAP_PENDING, key)
             if sizes:
                 pipe.hdel(MAP_SIZES, *sizes)
+            for job in jobs:
+                self._delete_map_job(pipe, job, _map_lane(job.split(':', 3)[2]))
             await pipe.execute()
+
+    """ The map worker's jobs """
+
+    async def enqueue_map_job(self, kind: str, key: str, payload: dict, reuse_done: bool = False) -> None:
+        await self.connection.eval(
+            ENQUEUE_MAP_JOB_SCRIPT, 2, _map_job(kind, key), f"{MAP_JOBS}{_map_lane(kind)}",
+            kind, key, json.dumps(payload), 1 if reuse_done else 0, time.time()
+        )
+
+    async def get_map_job(self, kind: str, key: str) -> dict | None:
+        job = {field.decode(): value.decode() for field, value in (await self.connection.hgetall(_map_job(kind, key))).items()}
+        if 'state' not in job:
+            return None
+        return {
+            'state': job['state'],
+            'leased': MAP_JOB_LEASE in job,
+            'queued_at': float(job['queued_at']),
+            'payload': json.loads(job['payload']),
+            'result': json.loads(job['result']) if 'result' in job else None,
+            'error': job.get('error')
+        }
+
+    async def lease_map_job(self, lane: str, seconds: int) -> Tuple[str, str, str, dict] | None:
+        queue, leases = f"{MAP_JOBS}{lane}", f"{MAP_JOBS}{lane}:leases"
+        while True:
+            token = uuid4().hex
+            now = time.time()
+            job = await self.connection.eval(LEASE_SCRIPT, 2, queue, leases, now, now + seconds, token, MAP_JOB_LEASE)
+            if job is None:
+                return None
+            fields = await self.connection.hmget(job, ['kind', 'key', 'payload'])
+            if None in fields:
+                # deleted while queued, as when its country was removed: the lease made a hash of it alone
+                async with self.connection.pipeline(transaction=True) as pipe:
+                    pipe.zrem(leases, job)
+                    pipe.delete(job)
+                    await pipe.execute()
+                continue
+            kind, key, payload = (field.decode() for field in fields)
+            return kind, key, token, json.loads(payload)
+
+    async def renew_map_job(self, kind: str, key: str, token: str, seconds: int) -> bool:
+        return bool(await self.connection.eval(
+            RENEW_MAP_JOB_SCRIPT, 2, _map_job(kind, key), f"{MAP_JOBS}{_map_lane(kind)}:leases",
+            token, time.time() + seconds
+        ))
+
+    async def finish_map_job(
+            self, kind: str, key: str, token: str, result: dict | None = None, error: str | None = None
+    ) -> bool:
+        state, field, value = ('failed', 'error', error) if error is not None else ('done', 'result', json.dumps(result))
+        return bool(await self.connection.eval(
+            FINISH_MAP_JOB_SCRIPT, 2, _map_job(kind, key), f"{MAP_JOBS}{_map_lane(kind)}:leases",
+            token, state, field, value, MAP_JOB_KEEP_SECONDS
+        ))
+
+    async def delete_map_job(self, kind: str, key: str) -> None:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            self._delete_map_job(pipe, _map_job(kind, key), _map_lane(kind))
+            await pipe.execute()
+
+    @staticmethod
+    def _delete_map_job(pipe, job: str, lane: str) -> None:
+        pipe.lrem(f"{MAP_JOBS}{lane}", 0, job)
+        pipe.zrem(f"{MAP_JOBS}{lane}:leases", job)
+        pipe.delete(job)
 
     """ Brute force protection state """
 

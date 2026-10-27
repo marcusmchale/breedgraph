@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Self, List, AsyncGenerator
+from typing import Self, List, AsyncGenerator, Tuple
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
 from breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
@@ -524,7 +524,48 @@ class AbstractStateStore(ABC):
 
     @abstractmethod
     async def remove_map_country(self, code: str) -> None:
-        """Forget the requests and sizes of a country and its sections"""
+        """Forget the requests, sizes and map worker's jobs of a country and its sections"""
+        ...
+
+    """
+    The map worker's jobs (adapters/pmtiles/jobs.py): what the API asks the map worker to fetch, by kind (builds,
+    outlines, size, extract) and key (a region key, a country and level for outlines, or 'world' or 'latest'). One job
+    per kind and key at a time, so that every process waiting for a result waits on the same job. Extracts have a queue
+    of their own, so that a long one holds up no quick job.
+    """
+    @abstractmethod
+    async def enqueue_map_job(self, kind: str, key: str, payload: dict, reuse_done: bool = False) -> None:
+        """Queue the job, unless it is queued or leased already, or with reuse_done, done and not yet taken"""
+        ...
+
+    @abstractmethod
+    async def get_map_job(self, kind: str, key: str) -> dict | None:
+        """{state: queued|done|failed, leased, queued_at, payload, result, error}, or None when there is none"""
+        ...
+
+    @abstractmethod
+    async def lease_map_job(self, lane: str, seconds: int) -> Tuple[str, str, str, dict] | None:
+        """
+        Lease the next job of the lane (quick or extract): (kind, key, lease token, payload), or None if none is
+        queued. Jobs whose lease expired are queued again first.
+        """
+        ...
+
+    @abstractmethod
+    async def renew_map_job(self, kind: str, key: str, token: str, seconds: int) -> bool:
+        """Extend the lease; False if it is not held, as when the job was cancelled"""
+        ...
+
+    @abstractmethod
+    async def finish_map_job(
+            self, kind: str, key: str, token: str, result: dict | None = None, error: str | None = None
+    ) -> bool:
+        """Store the job's result, or its error, ending the lease; False if the lease is not held"""
+        ...
+
+    @abstractmethod
+    async def delete_map_job(self, kind: str, key: str) -> None:
+        """Forget the job, queued, leased or finished"""
         ...
 
     """
