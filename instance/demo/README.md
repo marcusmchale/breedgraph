@@ -51,8 +51,9 @@ production's server block) and the rest to production, as before.
 ## Setting it up (the server work)
 
 1. **Accounts and directories.** A `breedgraph-demo` system user (Neo4j, Redis, the API, the archive worker and the
-   reset run as it), and `analysisworker` if production's isn't on this machine. `/opt/breedgraph-demo` owned by
-   `breedgraph-demo`, holding:
+   reset run as it), and `analysisworker` if production's isn't on this machine, with R and its packages, as the
+   worker server has them (docs/deployment.md, the worker server, step 1: from Ubuntu's `r-cran-*` packages where
+   CRAN can't be reached). `/opt/breedgraph-demo` owned by `breedgraph-demo`, holding:
    - `checkout/`: a clone of breedgraph at production's version, with a `.venv` holding
      `pip install -e '.[api,worker,analysis_worker]'` (or the three wheelhouses,
      `breedgraph[server,worker,analysis_worker]` with a `--find-links` for each). The install compiles rpy2, which

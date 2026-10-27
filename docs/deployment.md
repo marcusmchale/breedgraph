@@ -120,6 +120,14 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
        sudo apt install r-base r-base-dev build-essential
        sudo Rscript -e 'install.packages(c("lme4", "lmerTest", "emmeans", "car", "pbkrtest"), repos = "https://cloud.r-project.org")'
 
+   Where CRAN can't be reached, take them from Ubuntu instead, which served as well on Ubuntu 24.04 (R 4.3):
+
+       sudo apt install r-base r-base-dev build-essential r-cran-lme4 r-cran-lmertest r-cran-emmeans r-cran-car r-cran-pbkrtest
+
+   Either way, check that R loads them:
+
+       Rscript -e 'for (p in c("lme4", "lmerTest", "emmeans", "car", "pbkrtest")) library(p, character.only = TRUE)'
+
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
    `/var/log/analysis_worker`.
