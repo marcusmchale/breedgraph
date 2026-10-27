@@ -161,6 +161,15 @@ The site's server block, with the certificate lines it has, and the demonstratio
         location / {
             try_files $uri $uri/ /index.html;
         }
+        # BreedView's page, which names the build's files: browsers check it on every load, so that a new release is
+        # used at once rather than a copy cached by guesswork, while the files it names, renamed with each build, are
+        # kept a year. Without it, a browser that knew the old release may keep loading it for days after an upgrade.
+        location = /index.html {
+            add_header Cache-Control "no-cache";
+        }
+        location ^~ /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
 
         # the API's public routes: everything else it serves is for the workers and the retention run
         location ~ ^/(graphql|csrf|download|verify|reset)$ {
