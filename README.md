@@ -814,10 +814,19 @@ dumps `DATABASE_NAME` to `NEO4J_ARCHIVE_PATH` as `<database>-<date>.dump.age`, e
 as it is written, and starts Neo4j again. No unencrypted dump is written, and a dump is named `.partial` until complete.
 In development without a key it writes an unencrypted `<database>-<date>.dump`, as before.
 It uses `sudo` to stop Neo4j and dump as the neo4j user, and writes the encrypted dump as the user running it, who
-needs write access to `NEO4J_ARCHIVE_PATH`. It reads its settings from the environment, which cron doesn't load.
-For example, in the crontab of the user that runs BreedGraph, allowed those commands, nightly:
+needs write access to `NEO4J_ARCHIVE_PATH`. Allow that user those commands, and no more, in
+`/etc/sudoers.d/breedgraph-backup` (mode 0440, checked first with `sudo visudo -cf <file>`), for `DATABASE_NAME` neo4j:
 
-    15 2 * * * cd /path/to/breedgraph && set -a && . ./breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph_backup.log 2>&1
+    breedgraph ALL=(root) NOPASSWD: /usr/sbin/service neo4j stop, /usr/sbin/service neo4j start
+    breedgraph ALL=(neo4j) NOPASSWD: /usr/bin/neo4j-admin database dump neo4j --to-stdout
+
+It reads its settings from the environment, which cron doesn't load. For example, nightly, in `/etc/cron.d/breedgraph`,
+whose lines name the user they run as, logging to `LOG_BASE`:
+
+    15 2 * * * breedgraph cd /path/to/breedgraph && set -a && . ./breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph/backup.log 2>&1
+
+Only root can change `/etc/cron.d`, whereas the user's own crontab (`crontab -u breedgraph`, the same lines without the
+user) is the API's account's to change, and is refused where `/etc/cron.allow` leaves the user out.
 
 Dumps accumulate on the web server; remove old ones there as space requires, once the archive server has them.
 
@@ -870,6 +879,7 @@ them to `LOG_BASE` without rotating, as several processes write them, so rotate 
 `/etc/logrotate.d/breedgraph`:
 
     /var/log/breedgraph/access.log {
+        su breedgraph breedgraph
         daily
         rotate 30
         copytruncate
@@ -878,7 +888,8 @@ them to `LOG_BASE` without rotating, as several processes write them, so rotate 
         missingok
         notifempty
     }
-    /var/log/breedgraph/breedgraph.log /var/log/breedgraph/graphql.log /var/log/breedgraph/neo4j.log /var/log/breedgraph/redis.log {
+    /var/log/breedgraph/breedgraph.log /var/log/breedgraph/graphql.log /var/log/breedgraph/neo4j.log /var/log/breedgraph/redis.log /var/log/breedgraph/backup.log /var/log/breedgraph/retention.log {
+        su breedgraph breedgraph
         daily
         rotate 90
         copytruncate
@@ -898,7 +909,7 @@ copyright or a reference of anything), and removes those it has found unused, an
 before then is kept. Then it removes the local copies of archived files, as above. Run it e.g. daily, from the
 checkout of the release (docs/deployment.md):
 
-    30 3 * * * BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph_retention.log 2>&1
+    30 3 * * * breedgraph BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph/retention.log 2>&1
 
 ### Migrating the BreedCAFS data
 

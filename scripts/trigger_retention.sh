@@ -1,7 +1,8 @@
 #!/bin/bash
 # Runs the retention policies (unused file references, files, and expired invitations) through the API. Run on the web
-# server from cron, e.g. daily, with the environment file the API runs with (docs/deployment.md):
-#   30 3 * * * BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph_retention.log 2>&1
+# server from cron, e.g. daily, with the environment file the API runs with, in /etc/cron.d/breedgraph
+# (docs/deployment.md):
+#   30 3 * * * breedgraph BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph/retention.log 2>&1
 #
 # Cron does not load the environment, so this does: the file given, or else instance/breedgraph.env and
 # instance/private.breedgraph.env, as in development. BREEDGRAPH_PYTHON selects the interpreter (default .venv/bin/python).

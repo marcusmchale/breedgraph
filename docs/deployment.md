@@ -99,12 +99,14 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
 8. **BreedView.** `dist/` copied to `/var/www/breedview`; the branding to `/etc/breedview/branding` (BreedView's
    README, Branding).
 9. **nginx**, below.
-10. **cron and logrotate**: the backup and the retention run (README, Backups, restores and retention):
+10. **cron and logrotate**: the backup and the retention run (README, Backups, restores and retention), as
+    `breedgraph`, in `/etc/cron.d/breedgraph`, which only root can change, logging to `LOG_BASE`:
 
-        15 2 * * * cd /opt/breedgraph/checkout && set -a && . /opt/breedgraph/breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph_backup.log 2>&1
-        30 3 * * * BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph_retention.log 2>&1
+        15 2 * * * breedgraph cd /opt/breedgraph/checkout && set -a && . /opt/breedgraph/breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph/backup.log 2>&1
+        30 3 * * * breedgraph BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph/retention.log 2>&1
 
-    and the log rotation the README gives.
+    The backup needs the sudo rule the README gives, `/etc/sudoers.d/breedgraph-backup`; then the log rotation it
+    gives. Run each once as `breedgraph`: the backup ends with its dump's name, and the API is still running after it.
 11. **The BreedCAFS data**, once: README, Migrating the BreedCAFS data.
 
 ## 3. The worker server, the first time
