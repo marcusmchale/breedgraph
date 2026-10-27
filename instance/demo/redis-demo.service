@@ -11,5 +11,5 @@ Slice=breedgraph-demo.slice
 Type=notify
 User=breedgraph-demo
 Group=breedgraph-demo
-ExecStart=/usr/bin/redis-server /etc/redis/redis-demo.conf
+ExecStart=/usr/bin/redis-server /opt/breedgraph-demo/redis-demo.conf
 Restart=on-failure

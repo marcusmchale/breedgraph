@@ -14,7 +14,7 @@ the private ones (mode 0600).
 | `breedgraph-demo.env` | `/opt/breedgraph-demo/breedgraph-demo.env` (private, owned by `breedgraph-demo`) | the API's and the reset's environment |
 | `analysis-worker-demo.env`, `archive-worker-demo.env` | `/opt/breedgraph-demo/` (private, owned by root) | the workers' environments, which hold none of the API's secrets |
 | `neo4j.conf` | `/opt/breedgraph-demo/neo4j/conf/neo4j.conf` | the second Neo4j: its own directories and ports, authentication on |
-| `redis-demo.conf` | `/etc/redis/redis-demo.conf` | the second Redis, on 6380 |
+| `redis-demo.conf` | `/opt/breedgraph-demo/redis-demo.conf` | the second Redis, on 6380 |
 | `breedgraph-demo.target` | `/etc/systemd/system/` | the site's services together |
 | `breedgraph-demo.slice` | `/etc/systemd/system/` | the site's share of the machine's memory, which its units run in |
 | `neo4j-demo.service`, `redis-demo.service`, `breedgraph-demo.service`, `analysis-worker-demo.service`, `archive-worker-demo.service` | `/etc/systemd/system/` | the services, each part of the target |
@@ -55,7 +55,8 @@ production's server block) and the rest to production, as before.
    `breedgraph-demo`, holding:
    - `checkout/`: a clone of breedgraph at production's version, with a `.venv` holding
      `pip install -e '.[api,worker,analysis_worker]'` (or production's wheelhouse);
-   - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`), `dump/`, `files/`, `archive/`, `legal/`, `map_tiles/`;
+   - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
+     `map_tiles/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
    - `private/` (0700);
    - `country_codes.csv`, a copy of production's (`COUNTRY_CODES_PATH`).
@@ -64,7 +65,9 @@ production's server block) and the rest to production, as before.
    its password as `breedgraph-demo`: `NEO4J_CONF=/opt/breedgraph-demo/neo4j/conf neo4j-admin dbms set-initial-password
    <password>`, and put it in the env file. Its memory (1 GB heap at most and a 256 MB page cache, ample for a dump
    under 1 MB) comes on top of production's: check the server has room for both.
-3. **Redis.** `redis-demo.conf`: port 6380 on 127.0.0.1, nothing saved, as each reset empties it.
+3. **Redis.** `redis-demo.conf`: port 6380 on 127.0.0.1, nothing saved, as each reset empties it. It is kept in
+   `/opt/breedgraph-demo`, not `/etc/redis`, which Ubuntu closes to all but the `redis` group: `breedgraph-demo`, which
+   runs this Redis, couldn't read it there, and joining that group would let it read production's Redis files.
 4. **The environments.** `breedgraph-demo.env`, with its own `SECRET_KEY`, salts and worker tokens (none shared with
    production), and real SMTP. The workers' env files take the same two tokens. The site's own encryption key, for the
    archive worker's copies: `sudo -u breedgraph-demo age-keygen -o /opt/breedgraph-demo/private/encryption_key.txt`,
