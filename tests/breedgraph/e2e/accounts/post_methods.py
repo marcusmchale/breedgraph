@@ -156,16 +156,18 @@ async def post_to_account(client, token:str):
     return response
 
 
-async def post_to_request_affiliation(client, token:str, team_id: int, access: Access):
+async def post_to_request_affiliation(client, token:str, team_id: int, access: Access, heritable: bool = True):
     json = {
         "query": (
             " mutation ( "
             "  $teamId: ID!"
             "  $access: Access!"
+            "  $heritable: Boolean"
             " ) { "
             "  accountsRequestAffiliation( "
             "    teamId: $teamId,"
-            "    access: $access "
+            "    access: $access, "
+            "    heritable: $heritable "
             "  ) { "
             "    status, "
             "    result, "
@@ -175,7 +177,8 @@ async def post_to_request_affiliation(client, token:str, team_id: int, access: A
         ),
         "variables": {
             "teamId": team_id,
-            "access": access
+            "access": access,
+            "heritable": heritable
         }
     }
     headers = with_auth(
@@ -185,18 +188,20 @@ async def post_to_request_affiliation(client, token:str, team_id: int, access: A
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
 
-async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: int, access: Access):
+async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: int, access: Access, heritable: bool = False):
     json = {
         "query": (
             " mutation ( "
             "  $userId: ID!, "
             "  $teamId: ID!"
             "  $access: Access!"
+            "  $heritable: Boolean"
             " ) { "
             "  accountsApproveAffiliation( "
             "    userId: $userId, "
             "    teamId: $teamId, "
-            "    access: $access"
+            "    access: $access, "
+            "    heritable: $heritable"
             "  ) { "
             "    status, "
             "    result, "
@@ -207,7 +212,8 @@ async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: i
         "variables": {
             "userId": user_id,
             "teamId": team_id,
-            "access": access
+            "access": access,
+            "heritable": heritable
         }
     }
     headers = with_auth(
@@ -216,6 +222,15 @@ async def post_to_approve_affiliation(client, token:str, user_id:int, team_id: i
     )
     response = await client.post(GQL_API_PATH, json=json, headers=headers)
     return response
+
+async def post_to_remove_heritability(client, token: str, team_id: int, access: Access):
+    return await _post(
+        client, token,
+        " mutation ( $teamId: ID!, $access: Access! ) { "
+        "  accountsRemoveHeritability( teamId: $teamId, access: $access ) { status, result, errors { name, message } } "
+        " } ",
+        {"teamId": team_id, "access": access}
+    )
 
 async def post_to_remove_affiliation(client, token:str, user_id:int, team_id: int, access: Access):
     json = {

@@ -75,32 +75,32 @@ def resolve_children(obj, info):
 async def resolve_affiliations(obj, info):
     return obj.affiliations
 
+def _affiliation_list(affiliations: dict) -> list[dict]:
+    return [
+        {
+            'user': user_id,
+            'authorisation': affiliation.authorisation,
+            'heritable': affiliation.heritable,
+            'heritable_requested': affiliation.heritable_requested
+        }
+        for user_id, affiliation in affiliations.items()
+    ]
+
 @affiliations.field("read")
 def resolve_read(obj, info):
-    return [
-        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
-        for key, value in obj.read.items()
-    ]
+    return _affiliation_list(obj.read)
 
 @affiliations.field("write")
 def resolve_write(obj, info):
-    return [
-        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
-        for key, value in obj.write.items()
-    ]
+    return _affiliation_list(obj.write)
 
 @affiliations.field("curate")
 def resolve_curate(obj, info):
-    return [
-        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
-        for key, value in obj.curate.items()
-    ]
+    return _affiliation_list(obj.curate)
+
 @affiliations.field("admin")
 def resolve_admin(obj, info):
-    return [
-        {'user': key, 'authorisation': value.authorisation, 'heritable': value.heritable}
-        for key, value in obj.admin.items()
-    ]
+    return _affiliation_list(obj.admin)
 
 @affiliation.field("user")
 async def resolve_user(obj, info):

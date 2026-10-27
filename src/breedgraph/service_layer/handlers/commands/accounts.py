@@ -414,6 +414,23 @@ async def remove_affiliation(
         await uow.commit()
 
 @handlers.command_handler()
+async def remove_heritability(
+        cmd: commands.accounts.RemoveHeritability,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=cmd.team_id)
+        if team_tree is None:
+            raise NoResultFoundError(f"Team tree not found with team id {cmd.team_id}")
+        team_tree.remove_heritability(
+            agent_id = cmd.agent_id,
+            team_id = cmd.team_id,
+            user_id = cmd.user_id,
+            access=cmd.access
+        )
+        await uow.commit()
+
+@handlers.command_handler()
 async def revoke_affiliation(
         cmd: commands.accounts.RevokeAffiliation,
         uow_factory: AbstractUnitOfWorkFactory

@@ -62,6 +62,9 @@ READ/CURATE and ADMIN affiliations may be heritable,
 meaning that the same authorisation is applied to all teams in that branch of the [team tree](#team-tree). 
 So a heritable affiliation may be approved only by an admin for every team in that branch. An admin's own request is
 authorised as it is made when they could approve it, and otherwise goes to the other admins.
+A user with an affiliation to a team only may ask for it to be made heritable, keeping it as it is until the admins
+decide; approving it for the team only declines. Limiting a heritable affiliation to its team, or withdrawing that
+request, needs no approval (accountsRemoveHeritability).
 
 Multiple write affiliations should be discouraged, 
 though in these situations the following rules apply:

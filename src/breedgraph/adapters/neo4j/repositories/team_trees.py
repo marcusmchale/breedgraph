@@ -73,7 +73,8 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
                     user=user_id,
                     team=team.id,
                     authorisation=affiliation.authorisation,
-                    heritable=affiliation.heritable
+                    heritable=affiliation.heritable,
+                    heritable_requested=affiliation.heritable_requested
                 )
             for user_id in team.affiliations.get_by_access(access).removed:
                 await self.tx.run(
@@ -180,7 +181,14 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
 
         affiliations = Affiliations()
         for key, value in record['affiliations'].items():
-            record['affiliations'][Access[key]] = {v['id']: Affiliation(authorisation = Authorisation(v['authorisation']), heritable = v['heritable']) for v in value}
+            record['affiliations'][Access[key]] = {
+                v['id']: Affiliation(
+                    authorisation = Authorisation(v['authorisation']),
+                    heritable = v['heritable'],
+                    # stored only since heritability could be requested for an affiliation held to the team only
+                    heritable_requested = v.get('heritable_requested') or False
+                ) for v in value
+            }
         for access in record['affiliations'].keys():
             for user_id in record['affiliations'][access]:
                 affiliations.set_by_access(Access(access), user_id, record['affiliations'][access][user_id])

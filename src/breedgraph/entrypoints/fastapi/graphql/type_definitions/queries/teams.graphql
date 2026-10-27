@@ -5,6 +5,8 @@ type Affiliation {
     user: UserDisplay!
     authorisation: Authorisation!
     heritable: Boolean!
+    """ The user asked for an affiliation they hold to the team only to be made heritable, and the admins have yet to decide """
+    heritableRequested: Boolean!
 }
 
 type Affiliations {

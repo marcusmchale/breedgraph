@@ -8,7 +8,8 @@ from tests.breedgraph.e2e.accounts.post_methods import (
     post_to_login,
     post_to_invite,
     post_to_request_affiliation,
-    post_to_approve_affiliation
+    post_to_approve_affiliation,
+    post_to_remove_heritability
 )
 
 from tests.breedgraph.e2e.teams.post_methods import (
@@ -199,7 +200,10 @@ async def test_first_user_requests_read_affiliation(
     assert await confirm_email_delivered(
         second_user_input["email"],
         f'{SITE_NAME} {Access.READ.name.casefold()} access requested',
-        string_in_body=f'{first_user_input["name"]} requested {Access.READ.name.casefold()} access to {team_name}.'
+        string_in_body=(
+            f'{first_user_input["name"]} requested {Access.READ.name.casefold()} access to {team_name} '
+            f'and the teams below it.'
+        )
     )
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -234,4 +238,96 @@ async def test_second_user_approves_read_affiliation_to_child_team(
         first_user_input['email'],
         f'{SITE_NAME} read access approved',
         string_in_body=f"Your account was approved for {Access.READ.name.casefold()} access to {child_team_name}."
+    )
+
+def child_read_affiliation(roots_payload: dict, user_id: str) -> dict:
+    """The user's read affiliation to the first child team, from the second user's view of the team trees"""
+    child = roots_payload.get('result')[0].get('children')[0]
+    return next(a for a in child.get('directAffiliations').get('read') if a.get('user').get('id') == user_id)
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_first_user_asks_for_read_access_to_the_teams_below_the_child_team(
+        user_registration_context,
+        client,
+        user_input_generator
+):
+    roots_payload = get_verified_payload(
+        await post_to_teams_roots(client, user_registration_context['login_token_user_2']), "teamsRoots"
+    )
+    child = roots_payload.get('result')[0].get('children')[0]
+    first_user_input = user_input_generator.user_inputs[0]
+    first_user_id = next(
+        a.get('user').get('id') for a in child.get('directAffiliations').get('read')
+        if a.get('user').get('name') == first_user_input.get('name')
+    )
+    user_registration_context['first_user_id'] = first_user_id
+
+    request_payload = get_verified_payload(
+        await post_to_request_affiliation(
+            client, user_registration_context['login_token_user_1'], child.get('id'), Access.READ, heritable=True
+        ),
+        "accountsRequestAffiliation"
+    )
+    assert_payload_success(request_payload)
+    # the read access to the child team is kept while the admins decide
+    roots_payload = get_verified_payload(
+        await post_to_teams_roots(client, user_registration_context['login_token_user_2']), "teamsRoots"
+    )
+    affiliation = child_read_affiliation(roots_payload, first_user_id)
+    assert (affiliation['authorisation'], affiliation['heritable'], affiliation['heritableRequested']) == (
+        'AUTHORISED', False, True
+    )
+    second_user_input = user_input_generator.user_inputs[1]
+    assert await confirm_email_delivered(
+        second_user_input["email"],
+        f'{SITE_NAME} read access requested',
+        string_in_body=(
+            f'{first_user_input["name"]}, who has read access to {child.get("name")}, '
+            f'requested it for the teams below it too.'
+        )
+    )
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_second_user_approves_read_access_to_the_teams_below_the_child_team(
+        user_registration_context,
+        client,
+        user_input_generator
+):
+    token = user_registration_context['login_token_user_2']
+    first_user_id = user_registration_context['first_user_id']
+    child = get_verified_payload(await post_to_teams_roots(client, token), "teamsRoots").get('result')[0].get('children')[0]
+    approve_payload = get_verified_payload(
+        await post_to_approve_affiliation(
+            client, token, user_id=first_user_id, team_id=child.get('id'), access=Access.READ, heritable=True
+        ),
+        "accountsApproveAffiliation"
+    )
+    assert_payload_success(approve_payload)
+    roots_payload = get_verified_payload(await post_to_teams_roots(client, token), "teamsRoots")
+    affiliation = child_read_affiliation(roots_payload, first_user_id)
+    assert (affiliation['heritable'], affiliation['heritableRequested']) == (True, False)
+    assert await confirm_email_delivered(
+        user_input_generator.user_inputs[0]['email'],
+        f'{SITE_NAME} read access approved',
+        string_in_body=f"Your account was approved for read access to {child.get('name')} and the teams below it."
+    )
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_first_user_limits_read_access_to_the_child_team(
+        user_registration_context,
+        client
+):
+    token = user_registration_context['login_token_user_2']
+    child = get_verified_payload(await post_to_teams_roots(client, token), "teamsRoots").get('result')[0].get('children')[0]
+    remove_payload = get_verified_payload(
+        await post_to_remove_heritability(
+            client, user_registration_context['login_token_user_1'], child.get('id'), Access.READ
+        ),
+        "accountsRemoveHeritability"
+    )
+    assert_payload_success(remove_payload)
+    roots_payload = get_verified_payload(await post_to_teams_roots(client, token), "teamsRoots")
+    affiliation = child_read_affiliation(roots_payload, user_registration_context['first_user_id'])
+    assert (affiliation['authorisation'], affiliation['heritable'], affiliation['heritableRequested']) == (
+        'AUTHORISED', False, False
     )

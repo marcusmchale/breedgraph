@@ -1,6 +1,6 @@
 import pytest
 
-from breedgraph.domain.model.team_trees import Authorisation
+from breedgraph.domain.model.team_trees import Affiliation, Authorisation
 from breedgraph.domain.model import Access
 from breedgraph.custom_exceptions import NoResultFoundError
 
@@ -140,6 +140,56 @@ async def test_request_authorise_revoke_affiliation(
     async with uow_factory.get_uow(user_id=user_id_1) as uow:
         team_tree = await uow.repositories.team_trees.get(team_id=team_tree.root.id)
         assert user_id_2 not in team_tree.get_affiliates(team_tree.root.id, access=Access.READ)
+
+@pytest.mark.asyncio(loop_scope='session')
+async def test_request_heritability_then_remove_it(
+        uow_factory,
+        team_tree_build_context
+):
+    user_id_1 = team_tree_build_context['user_id_1']
+    user_id_2 = team_tree_build_context['user_id_2']
+    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+        team_tree = await uow.repositories.team_trees.create(TeamTreeBuilder.team_input())
+        await uow.commit()
+    root_id = team_tree.root.id
+
+    async def read_affiliation(user_id: int) -> Affiliation:
+        async with uow_factory.get_uow(user_id=user_id) as uow:
+            stored = await uow.repositories.team_trees.get(team_id=root_id)
+            return stored.get_team(root_id).affiliations.get_by_access(Access.READ)[user_id_2]
+
+    async with uow_factory.get_uow(user_id=user_id_2) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.request_affiliation(agent_id=user_id_2, team_id=root_id, access=Access.READ, user_id=user_id_2)
+        await uow.commit()
+    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.authorise_affiliation(agent_id=user_id_1, team_id=root_id, access=Access.READ, user_id=user_id_2)
+        await uow.commit()
+
+    async with uow_factory.get_uow(user_id=user_id_2) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.request_affiliation(
+            agent_id=user_id_2, team_id=root_id, access=Access.READ, user_id=user_id_2, heritable=True
+        )
+        await uow.commit()
+    assert await read_affiliation(user_id_1) == Affiliation(
+        authorisation=Authorisation.AUTHORISED, heritable=False, heritable_requested=True
+    )
+
+    async with uow_factory.get_uow(user_id=user_id_1) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.authorise_affiliation(
+            agent_id=user_id_1, team_id=root_id, access=Access.READ, user_id=user_id_2, heritable=True
+        )
+        await uow.commit()
+    assert await read_affiliation(user_id_1) == Affiliation(authorisation=Authorisation.AUTHORISED, heritable=True)
+
+    async with uow_factory.get_uow(user_id=user_id_2) as uow:
+        team_tree = await uow.repositories.team_trees.get(team_id=root_id)
+        team_tree.remove_heritability(agent_id=user_id_2, team_id=root_id, access=Access.READ, user_id=user_id_2)
+        await uow.commit()
+    assert await read_affiliation(user_id_1) == Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False)
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_extend_then_remove(

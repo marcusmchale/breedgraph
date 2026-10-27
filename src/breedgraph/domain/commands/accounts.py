@@ -99,6 +99,13 @@ class RemoveAffiliation(Command):
     team_id: int
     access: Access
 
+class RemoveHeritability(Command):
+    agent_id: int
+
+    user_id: int
+    team_id: int
+    access: Access
+
 class RevokeAffiliation(Command):
     agent_id: int
 

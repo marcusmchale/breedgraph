@@ -7,7 +7,7 @@ from breedgraph.custom_exceptions import (
 )
 
 from ...infrastructure.notifications import email_templates
-from breedgraph.domain.model.team_trees import TeamInput
+from breedgraph.domain.model.team_trees import Authorisation, TeamInput
 from breedgraph.domain.model.controls import Access
 from breedgraph.domain.model.accounts import UserOutput
 
@@ -143,7 +143,9 @@ async def notify_admins_requested(
         message = email_templates.AffiliationRequestedMessage(
             requesting_user = user,
             team = team,
-            access = event.access
+            access = event.access,
+            heritable = request.heritable or request.heritable_requested,
+            held = request.authorisation is Authorisation.AUTHORISED
         )
         admin_accounts = [await uow.repositories.accounts.get(user_id=a) for a in admins]
         admin_users = [a.user for a in admin_accounts]
@@ -172,7 +174,8 @@ async def notify_user_approved(
         message = email_templates.AffiliationApprovedMessage(
             user = user,
             team = team,
-            access = event.access
+            access = event.access,
+            heritable = event.heritable
         )
         await notifications.send(
             [account.user],

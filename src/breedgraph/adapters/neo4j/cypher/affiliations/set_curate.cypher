@@ -3,4 +3,5 @@ MATCH (team:Team {id: $team})
 MERGE (user)-[curate :CURATE]->(team)
 SET
   curate.authorisation = $authorisation,
-  curate.heritable = $heritable
+  curate.heritable = $heritable,
+  curate.heritable_requested = $heritable_requested

@@ -25,6 +25,8 @@ class Authorisation(str, Enum):
 class Affiliation:
     authorisation: Authorisation
     heritable: bool  # if heritable equivalent access is provided to all children, recursively
+    # an authorised affiliation to the team only that the user asked to make heritable, which the admins have to answer
+    heritable_requested: bool = False
 
 @dataclass
 class Affiliations:
@@ -304,28 +306,68 @@ class TeamTree(TreeAggregate):
         return all(agent_id in self.get_affiliates(covered_id, access=Access.ADMIN) for covered_id in team_ids)
 
     def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = False) -> None:
+        """
+        A user asks for an affiliation to a team. A user with an authorised affiliation to the team only may ask for it to
+        be made heritable, and keeps it as it is while the admins decide.
+        """
         if not agent_id == user_id:
             raise IllegalOperationError("Requests may only be made by the given user")
 
         team = self.get_team(team_id)
         affiliation = team.affiliations.get_by_access(access).get(user_id, None)
+        held = affiliation is not None and affiliation.authorisation is Authorisation.AUTHORISED
 
         # to handle repeated requests or requests that are unintended
         if affiliation is not None and affiliation.authorisation is Authorisation.REQUESTED:
             logger.debug(f"Affiliation request already exists, doing nothing")
             return
-        elif affiliation is not None and affiliation.authorisation is Authorisation.AUTHORISED:
+        elif held and (not heritable or affiliation.heritable or affiliation.heritable_requested):
             logger.debug(f"Affiliation already authorised, doing nothing")
             return
+        elif held and access is Access.WRITE:
+            raise IllegalOperationError("Write affiliations may not be heritable")
 
         if self.may_authorise(user_id, team_id, heritable):
             # An admin's own request is authorised at once, so no one is asked
             self._authorise(team, access, user_id, heritable)
             return
 
-        team.affiliations.set_by_access(access, user_id, Affiliation(authorisation=Authorisation.REQUESTED, heritable=heritable))
+        if held:
+            requested = Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False, heritable_requested=True)
+        else:
+            requested = Affiliation(authorisation=Authorisation.REQUESTED, heritable=heritable)
+        team.affiliations.set_by_access(access, user_id, requested)
 
         self.events.append(AffiliationRequested(user_id=user_id, team_id=team_id, access=access))
+
+    def remove_heritability(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
+        """
+        Limit an affiliation to its team, or withdraw a request to make it heritable. It only takes access away, so it
+        needs no approval: as for removing the affiliation, the user or an admin for the team may do it.
+        """
+        if not any([
+            agent_id == user_id,
+            agent_id in self.get_affiliates(team_id, access=Access.ADMIN)
+        ]):
+            raise UnauthorisedOperationError("Only the given user or admins for the given team may remove heritability")
+
+        team = self.get_team(team_id)
+        affiliation = team.affiliations.get_by_access(access).get(user_id)
+        if affiliation is None:
+            raise IllegalOperationError(
+                f"No {access.value.lower()} affiliation to team {team_id} for user {user_id}: "
+                f"an inherited affiliation is changed on the team it is from"
+            )
+        if affiliation.heritable:
+            self._require_heritability_may_end(team, access, user_id)
+        elif not affiliation.heritable_requested:
+            return
+
+        team.affiliations.set_by_access(
+            access,
+            user_id,
+            Affiliation(authorisation=affiliation.authorisation, heritable=False)
+        )
 
     def remove_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int):
         if not any([
@@ -393,8 +435,16 @@ class TeamTree(TreeAggregate):
         if team is None or isinstance(team, TeamInput):
             raise IllegalOperationError(f"No team found with id: {team_id}")
 
+        previous = team.affiliations.get_by_access(access).get(user_id)
+        held = previous is not None and previous.authorisation is Authorisation.AUTHORISED
+        if held and previous.heritable and not heritable:
+            self._require_heritability_may_end(team, access, user_id)
+
         self._authorise(team, access, user_id, heritable)
-        self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access))
+        # Authorising an affiliation that is held for the team only answers a request to make it heritable with no:
+        # the user is told only of access given
+        if not held or (heritable and not previous.heritable):
+            self.events.append(AffiliationApproved(user_id=user_id, team_id=team_id, access=access, heritable=heritable))
 
     @staticmethod
     def _authorise(team: TeamStored, access: Access, user_id: int, heritable: bool) -> None:
@@ -404,15 +454,36 @@ class TeamTree(TreeAggregate):
             Affiliation(authorisation=Authorisation.AUTHORISED, heritable=heritable)
         )
         # Always authorise read access to at least the same extent that we authorise curate or admin access, so heritable
-        # read access stays heritable; we aren't raising a separate event to notify
+        # read access stays heritable, as does a request to make it so; we aren't raising a separate event to notify
         if access in (Access.CURATE, Access.ADMIN):
             affiliations_dict = team.affiliations.get_by_access(Access.READ)
             read = affiliations_dict.get(user_id)
-            read_heritable = read is not None and read.authorisation is Authorisation.AUTHORISED and read.heritable
+            read_held = read is not None and read.authorisation is Authorisation.AUTHORISED
+            read_heritable = heritable or (read_held and read.heritable)
             affiliations_dict[user_id] = Affiliation(
                 authorisation=Authorisation.AUTHORISED,
-                heritable=heritable or read_heritable
+                heritable=read_heritable,
+                heritable_requested=read_held and read.heritable_requested and not read_heritable
             )
+
+    def _require_heritability_may_end(self, team: TeamStored, access: Access, user_id: int) -> None:
+        """
+        Read access stays heritable while curate or admin access is, as they include it to the same extent, and the root
+        of a team tree keeps a heritable admin.
+        """
+        if access is Access.READ:
+            for including in (Access.CURATE, Access.ADMIN):
+                affiliation = team.affiliations.get_by_access(including).get(user_id)
+                if affiliation is not None and affiliation.authorisation is Authorisation.AUTHORISED and affiliation.heritable:
+                    raise IllegalOperationError(
+                        f"Limit this user's {including.value.lower()} access to the team before their read access"
+                    )
+        if access is Access.ADMIN and team.id == self.root.id:
+            if not any(
+                    other_id != user_id and other.authorisation is Authorisation.AUTHORISED and other.heritable
+                    for other_id, other in team.affiliations.get_by_access(Access.ADMIN).items()
+            ):
+                raise IllegalOperationError("This would leave the root team without a heritable admin")
 
     def revoke_affiliation(self, agent_id: int, team_id: int, access: Access, user_id: int) -> None:
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):

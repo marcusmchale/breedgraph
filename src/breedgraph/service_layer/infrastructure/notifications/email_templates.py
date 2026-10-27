@@ -131,13 +131,25 @@ class ResetPasswordMessage(Email):
         )
 
 class AffiliationRequestedMessage(Email):
+    """
+    A request for access to a team, heritable to the teams below it or not; or, from a user who has access to the
+    team only (held), a request to make it heritable.
+    """
 
-    def __init__(self, requesting_user: UserBase, team: TeamBase, access: Access):
+    def __init__(self, requesting_user: UserBase, team: TeamBase, access: Access, heritable: bool = False, held: bool = False):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} {access.name.casefold()} access requested'
+        if held:
+            request = (
+                f'{requesting_user.fullname}, who has {access.name.casefold()} access to {team.name}, '
+                f'requested it for the teams below it too.'
+            )
+        else:
+            teams = f'{team.name} and the teams below it' if heritable else team.name
+            request = f'{requesting_user.fullname} requested {access.name.casefold()} access to {teams}.'
         body = (
             f'Admin notification:\n'
-            f'{requesting_user.fullname} requested {access.name.casefold()} access to {team.name}.\n'
+            f'{request}\n'
             f'Please approve or reject the request at:\n'
             f'{get_vue_url()}access?tab=requests'
         )
@@ -146,12 +158,13 @@ class AffiliationRequestedMessage(Email):
 
 class AffiliationApprovedMessage(Email):
 
-    def __init__(self, user: UserBase, team: TeamBase, access: Access):
+    def __init__(self, user: UserBase, team: TeamBase, access: Access, heritable: bool = False):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} {access.name.casefold()} access approved'
+        teams = f'{team.name} and the teams below it' if heritable else team.name
         body = (
             f'Hi {user.fullname},\n'
-            f'Your account was approved for {access.name.casefold()} access to {team.name}.\n'
+            f'Your account was approved for {access.name.casefold()} access to {teams}.\n'
         )
         self.message.set_content(body)
 

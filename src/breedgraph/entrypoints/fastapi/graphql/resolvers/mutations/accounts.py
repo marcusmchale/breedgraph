@@ -9,7 +9,7 @@ from breedgraph.domain.commands.accounts import (
     Login,
     VerifyEmail,
     InviteUser, CancelInvitation, ResendInvitation, TeamInvitationInput,
-    RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RevokeAffiliation,
+    RequestAffiliation, ApproveAffiliation, RemoveAffiliation, RemoveHeritability, RevokeAffiliation,
     SetOntologyRole, SetWriteTeam, DeleteAccount,
     RequestOntologyRole
 )
@@ -439,6 +439,26 @@ async def remove_affiliation(
     agent_id = info.context.get('user_id')
     logger.debug(f"Agent {agent_id} removing {access.value} for team: {team_id}")
     cmd = RemoveAffiliation(
+        agent_id=agent_id,
+        user_id=agent_id,
+        team_id=team_id,
+        access=access
+    )
+    await info.context['bus'].handle(cmd)
+    return True
+
+@graphql_mutation.field("accountsRemoveHeritability")
+@graphql_payload
+@require_authentication
+async def remove_heritability(
+        _,
+        info,
+        team_id: int,
+        access: Access
+) -> bool:
+    agent_id = info.context.get('user_id')
+    logger.debug(f"Agent {agent_id} removing heritability of {access.value} for team: {team_id}")
+    cmd = RemoveHeritability(
         agent_id=agent_id,
         user_id=agent_id,
         team_id=team_id,

@@ -27,6 +27,7 @@ class AffiliationApproved(Event):
     user_id: int
     team_id: int
     access: Access
+    heritable: bool = False
 
 class PasswordChangeRequested(Event):
     email: str

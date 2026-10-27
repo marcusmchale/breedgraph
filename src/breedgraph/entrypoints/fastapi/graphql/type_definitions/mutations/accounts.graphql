@@ -64,11 +64,20 @@ extend type Mutation {
     accountsCancelInvitation(id: ID!): BooleanPayload!
     """ Send the invitation again, extending its expiry """
     accountsResendInvitation(id: ID!): BooleanPayload!
+    """
+    Ask a team's admins for an affiliation, heritable by default. With an authorised affiliation to the team only,
+    ask for it to be made heritable: it stays as it is until they decide. An admin's own request is authorised at once,
+    unless it is heritable and they are not an admin for every team below.
+    """
     accountsRequestAffiliation(
         teamId: ID!
         access: Access!
         heritable: Boolean
     ): BooleanPayload!
+    """
+    Authorise a user's affiliation to a team the user administers, heritable only by an admin for every team below.
+    Authorising an affiliation the user holds to the team only answers their request to make it heritable with no.
+    """
     accountsApproveAffiliation(
         userId: ID!
         teamId: ID!
@@ -76,6 +85,15 @@ extend type Mutation {
         heritable: Boolean
     ): BooleanPayload!
     accountsRemoveAffiliation(
+        teamId: ID!
+        access: Access!
+    ): BooleanPayload!
+    """
+    Limit the user's own affiliation to the team, with no approval needed, or withdraw their request to make it
+    heritable. Refused for read access while curate or admin access is heritable, and for the last heritable admin of a
+    team tree's root.
+    """
+    accountsRemoveHeritability(
         teamId: ID!
         access: Access!
     ): BooleanPayload!
