@@ -277,8 +277,8 @@ In the GraphQL interface, the teamsCreateTeam mutation will create a team.
 If the optional "parent" parameter is not supplied then the created team 
 becomes the root of a new team tree. When more teams are required for a team tree, 
 this parameter results in the new team being a child of the parent.
-The user that creates a team is automatically given a heritable ADMIN affiliation to that team, 
-allowing them to approve further affiliations. 
+The user that creates a team is automatically given ADMIN and READ affiliations to that team,
+allowing them to approve further affiliations: heritable for the root of a new team tree, for that team only below it.
 
 All root teams are visible to all users,
 though child teams are visible only to affiliates in that branch.
