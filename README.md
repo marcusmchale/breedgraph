@@ -858,6 +858,15 @@ access to the web server, but never the encryption key. New dumps are copied as 
 90, the period the privacy notice states. The erasure log is never removed, and is not encrypted: it holds only
 record and account numbers, and must stay appendable.
 
+The script runs nothing on the web server but rsync, so the key there can be restricted to reading with rsync, from
+the archive server's address, by a user of its own that can read the dumps and the erasure log and nothing else
+beside them, such as the file store. In that user's `~/.ssh/authorized_keys` on the web server:
+
+    restrict,from="<archive server's address>",command="/usr/bin/rrsync -ro /data/breedgraph" ssh-ed25519 AAAA... backup copy
+
+`rrsync` comes with rsync, and the user needs a login shell to run it. The paths in `backup_sync.env` are then given
+from that directory: `NEO4J_ARCHIVE_PATH="/neo4j_dumps"` and `PERSON_ERASURE_LOG_PATH="/erasure/person_erasure_log.jsonl"`.
+
     0 * * * * /path/to/breedgraph/scripts/sync_database_backups.sh >> /var/log/breedgraph_backup_sync.log 2>&1
 
 **Restore** on the web server, with the environment loaded, by the dump's file name in `NEO4J_ARCHIVE_PATH`

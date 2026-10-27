@@ -14,6 +14,9 @@
 #
 # This server needs ssh key access to BACKUP_SOURCE, and rsync on both servers.
 # It never needs the encryption key: the dumps it holds can be read only with the key kept elsewhere.
+# It runs nothing on the web server but rsync, so the key can be restricted there to reading with rsync from the
+# directory holding the dumps and the erasure log (rrsync -ro; README, Backups, restores and retention), and the
+# paths are then given from that directory, e.g. "/neo4j_dumps".
 set -euo pipefail
 
 BACKUP_SYNC_ENV="${BACKUP_SYNC_ENV:-/etc/breedgraph/backup_sync.env}"
@@ -42,11 +45,11 @@ rsync -az --ignore-existing \
 
 # The erasure log only grows. --append-verify adds what is beyond the end of the copy here,
 # so a truncated or missing log on the web server never shortens the copy.
-if ssh "${BACKUP_SOURCE}" test -f "${PERSON_ERASURE_LOG_PATH}"; then
-    rsync -az --append-verify \
-        "${BACKUP_SOURCE}:${PERSON_ERASURE_LOG_PATH}" \
-        "${BACKUP_DESTINATION_PATH}/person_erasure_log.jsonl"
-else
+# Before the first erasure there is no log on the web server, which --ignore-missing-args allows.
+rsync -az --append-verify --ignore-missing-args \
+    "${BACKUP_SOURCE}:${PERSON_ERASURE_LOG_PATH}" \
+    "${BACKUP_DESTINATION_PATH}/person_erasure_log.jsonl"
+if [ ! -f "${BACKUP_DESTINATION_PATH}/person_erasure_log.jsonl" ]; then
     echo "No erasure log on the web server yet: ${PERSON_ERASURE_LOG_PATH}"
 fi
 

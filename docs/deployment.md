@@ -146,7 +146,9 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    with the archive's `ARCHIVE_DESTINATION` in the archive worker's `ReadWritePaths`, then `daemon-reload` and
    `enable --now` each.
 6. **The backup copy.** `/etc/breedgraph/backup_sync.env` (from `instance/backup_sync.env`), an ssh key the web server
-   accepts, and cron (README, Backups, restores and retention). It never needs the encryption key.
+   accepts, and cron (README, Backups, restores and retention). It never needs the encryption key. On the web server,
+   the key belongs to a user of its own, which may only read the dumps and the erasure log, and only with rsync
+   (`rrsync -ro`, README, Backups, restores and retention).
 
 ## nginx on the web server
 
