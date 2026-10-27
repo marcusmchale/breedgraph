@@ -12,6 +12,7 @@ from breedgraph.entrypoints.fastapi.downloads import router as download_router
 from breedgraph.entrypoints.fastapi.archive import router as archive_router
 from breedgraph.entrypoints.fastapi.retention import router as retention_router
 from breedgraph.entrypoints.fastapi.analysis_jobs import router as analysis_jobs_router
+from breedgraph.entrypoints.fastapi.map_jobs import router as map_jobs_router
 
 from breedgraph.entrypoints.fastapi.graphql_endpoint import router as graphql_router
 from breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
@@ -103,5 +104,7 @@ app.include_router(archive_router)
 app.include_router(retention_router)
 # Analysis worker
 app.include_router(analysis_jobs_router)
+# Map worker
+app.include_router(map_jobs_router)
 
 logger.debug('Started')

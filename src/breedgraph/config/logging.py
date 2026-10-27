@@ -23,7 +23,9 @@ class IgnoreAccessPaths(logging.Filter):
     ignored_paths = {
         "/archive/retrieval_pending",
         "/archive/archival_pending",
-        "/archive/deletion_pending"
+        "/archive/deletion_pending",
+        "/map_jobs/next/quick",
+        "/map_jobs/next/extract"
     }
     def filter(self, record: logging.LogRecord) -> bool:
         try:
