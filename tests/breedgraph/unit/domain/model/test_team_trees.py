@@ -89,6 +89,45 @@ async def test_an_admins_own_request_is_authorised_at_once(first_team_tree):
     assert affiliations.get_by_access(Access.READ)[1] == authorised
     assert not first_team_tree.events
 
+@pytest_asyncio.fixture
+def lab_tree(root_team, lorem_text_generator) -> TeamTree:
+    """The root, with user 1 its heritable admin; a lab below it that user 2 administers, the lab only; a project below"""
+    lab_admin = Affiliations()
+    for access in (Access.ADMIN, Access.READ):
+        lab_admin.set_by_access(access, 2, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
+    lab = TeamStored(id=2, affiliations=lab_admin, **get_team_input(lorem_text_generator).model_dump())
+    project = TeamStored(id=3, affiliations=Affiliations(), **get_team_input(lorem_text_generator).model_dump())
+    return TeamTree(nodes=[root_team, lab, project], edges=[(1, 2, {}), (2, 3, {})])
+
+@pytest.mark.asyncio
+async def test_heritable_affiliations_are_authorised_only_by_admins_for_every_team_below(lab_tree):
+    lab_tree.request_affiliation(agent_id=4, team_id=2, user_id=4, access=Access.READ, heritable=True)
+    with pytest.raises(UnauthorisedOperationError):
+        lab_tree.authorise_affiliation(agent_id=2, team_id=2, user_id=4, access=Access.READ, heritable=True)
+    assert 4 not in lab_tree.get_affiliates(team_id=3, access=Access.READ)
+    # the lab's admin may authorise it for the lab only, and the root's heritable admin as asked
+    lab_tree.authorise_affiliation(agent_id=2, team_id=2, user_id=4, access=Access.READ, heritable=False)
+    assert 4 not in lab_tree.get_affiliates(team_id=3, access=Access.READ)
+    lab_tree.authorise_affiliation(agent_id=1, team_id=2, user_id=4, access=Access.READ, heritable=True)
+    assert 4 in lab_tree.get_affiliates(team_id=3, access=Access.READ)
+
+@pytest.mark.asyncio
+async def test_an_admins_own_heritable_request_waits_unless_they_administer_every_team_below(lab_tree):
+    lab_tree.request_affiliation(agent_id=2, team_id=2, user_id=2, access=Access.CURATE, heritable=True)
+    assert 2 in lab_tree.get_affiliates(team_id=2, access=Access.CURATE, authorisation=Authorisation.REQUESTED)
+    assert 2 not in lab_tree.get_affiliates(team_id=3, access=Access.CURATE)
+    assert [type(event) for event in lab_tree.events] == [AffiliationRequested]
+
+    # once they administer the project too, their own heritable request is authorised at once
+    lab_tree.events.clear()
+    lab_tree.request_affiliation(agent_id=2, team_id=3, user_id=2, access=Access.ADMIN)
+    lab_tree.authorise_affiliation(agent_id=1, team_id=3, user_id=2, access=Access.ADMIN)
+    lab_tree.remove_affiliation(agent_id=2, team_id=2, user_id=2, access=Access.CURATE)
+    lab_tree.events.clear()
+    lab_tree.request_affiliation(agent_id=2, team_id=2, user_id=2, access=Access.CURATE, heritable=True)
+    assert 2 in lab_tree.get_affiliates(team_id=3, access=Access.CURATE)
+    assert not lab_tree.events
+
 @pytest.mark.asyncio
 async def test_remove_affiliation_by_admin(first_team_tree, root_team):
     first_team_tree.request_affiliation(agent_id=2, team_id=1, user_id=2, access=Access.ADMIN)

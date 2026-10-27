@@ -122,7 +122,8 @@ async def notify_admins_requested(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    # An admin's own request is authorised when it is made (TeamTree.request_affiliation), so a request asks the admins
+    # An admin's own request is authorised when it is made (TeamTree.request_affiliation), unless it is heritable and
+    # they are not an admin for every team below; so a request asks the other admins
     async with uow_factory.get_uow() as uow:
         team_tree = await uow.repositories.team_trees.get(team_id = event.team_id)
         if team_tree is None:
@@ -136,7 +137,7 @@ async def notify_admins_requested(
         if request is None:
             raise ValueError(f"Affiliation request for user {event.user_id} not found")
 
-        admins = team_tree.get_affiliates(team_id=event.team_id, access=Access.ADMIN)
+        admins = team_tree.get_affiliates(team_id=event.team_id, access=Access.ADMIN) - {event.user_id}
         account = await uow.repositories.accounts.get(user_id=event.user_id)
         user = UserOutput.from_stored(account.user)
         message = email_templates.AffiliationRequestedMessage(

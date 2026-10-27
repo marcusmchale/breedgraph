@@ -295,6 +295,14 @@ class TeamTree(TreeAggregate):
 
         return affiliations
 
+    def may_authorise(self, agent_id: int, team_id: int, heritable: bool = False) -> bool:
+        """
+        Admins for a team may authorise affiliations to it. A heritable affiliation gives access to every team below it
+        too, so only an admin for each of those teams may authorise one.
+        """
+        team_ids = [team_id, *self.get_descendants(team_id)] if heritable else [team_id]
+        return all(agent_id in self.get_affiliates(covered_id, access=Access.ADMIN) for covered_id in team_ids)
+
     def request_affiliation(self, agent_id: int, team_id:int, access: Access, user_id: int, heritable: bool = False) -> None:
         if not agent_id == user_id:
             raise IllegalOperationError("Requests may only be made by the given user")
@@ -310,7 +318,7 @@ class TeamTree(TreeAggregate):
             logger.debug(f"Affiliation already authorised, doing nothing")
             return
 
-        if user_id in self.get_affiliates(team_id, access=Access.ADMIN):
+        if self.may_authorise(user_id, team_id, heritable):
             # An admin's own request is authorised at once, so no one is asked
             self._authorise(team, access, user_id, heritable)
             return
@@ -370,6 +378,10 @@ class TeamTree(TreeAggregate):
         """
         if not agent_id in self.get_affiliates(team_id, Access.ADMIN):
             raise UnauthorisedOperationError("Only admins for the given team may authorise affiliations")
+        if not self.may_authorise(agent_id, team_id, heritable):
+            raise UnauthorisedOperationError(
+                "Only admins for every team below the given team may authorise heritable affiliations to it"
+            )
 
         affiliates = self.get_affiliates(team_id, authorisation=None, inheritance=True)
 
