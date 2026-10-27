@@ -30,7 +30,8 @@ TimeoutStopSec=30
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/archive_worker /var/log/archive_worker
+# and the archive's ARCHIVE_DESTINATION, which ProtectSystem=strict otherwise leaves read-only
+ReadWritePaths=/opt/archive_worker /var/log/archive_worker /srv/breedgraph_archive
 
 # Logging
 StandardOutput=journal

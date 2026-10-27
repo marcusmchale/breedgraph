@@ -140,7 +140,8 @@ emmeans, car and pbkrtest. breedgraph and BreedView are deployed at the same ver
    token the API's environment has for each, `LOG_BASE` in `/var/log/...`, and for the archive worker its
    `ARCHIVE_DESTINATION`.
 5. **The units.** `instance/archive_worker.service` and `instance/analysis_worker.service` to `/etc/systemd/system/`,
-   then `daemon-reload` and `enable --now` each.
+   with the archive's `ARCHIVE_DESTINATION` in the archive worker's `ReadWritePaths`, then `daemon-reload` and
+   `enable --now` each.
 6. **The backup copy.** `/etc/breedgraph/backup_sync.env` (from `instance/backup_sync.env`), an ssh key the web server
    accepts, and cron (README, Backups, restores and retention). It never needs the encryption key.
 

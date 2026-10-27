@@ -31,6 +31,8 @@ TimeoutStopSec=30
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=yes
+# R makes its session's directory in /tmp, which ProtectSystem=strict leaves read-only
+PrivateTmp=yes
 ReadWritePaths=/opt/analysis_worker /var/log/analysis_worker
 
 # Logging
