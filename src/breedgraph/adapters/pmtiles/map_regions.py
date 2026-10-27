@@ -300,7 +300,7 @@ class PmtilesMapRegions(AbstractMapRegions):
                 return size
         world, build, _ = await self._build()
         outline, _ = await self.boundaries.outline(region)
-        size = await self.pmtiles.size(build, outline, world['maxZoom'] + 1, MAX_ZOOM)
+        size = await self.pmtiles.size(build, outline, world['maxZoom'] + 1, MAX_ZOOM, key=region.key)
         await self.state_store.set_map_region_size(region.key, size)
         return size
 
@@ -353,7 +353,7 @@ class PmtilesMapRegions(AbstractMapRegions):
         minzoom = world['maxZoom'] + 1
         logger.info(f"Fetching detailed maps for {region.key} ({size} bytes) from {build}")
         async with self._extracting:
-            await self.pmtiles.extract(build, outline, partial, minzoom, MAX_ZOOM)
+            await self.pmtiles.extract(build, outline, partial, minzoom, MAX_ZOOM, key=region.key)
         if not await self.state_store.is_map_region_pending(region.key):
             partial.unlink(missing_ok=True)
             raise RegionRemoved(region.key)

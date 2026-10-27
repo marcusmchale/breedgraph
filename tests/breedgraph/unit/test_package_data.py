@@ -24,8 +24,11 @@ LEFT_OUT = {
 }
 
 # each package and the extra it is installed with (README.md, deploy; instance/*.service)
-DEPLOYED_WITH = {'breedgraph': 'server', 'archive_worker': 'worker', 'analysis_worker': 'analysis_worker'}
-OWN = {'breedgraph', 'archive_worker', 'analysis_worker', 'breedcafs_migration'}
+DEPLOYED_WITH = {
+    'breedgraph': 'server', 'archive_worker': 'worker', 'analysis_worker': 'analysis_worker', 'map_worker': 'worker'
+}
+OWN = {'breedgraph', 'archive_worker', 'analysis_worker', 'map_worker', 'breedcafs_migration'}
+WORKERS = ('archive_worker', 'analysis_worker', 'map_worker')
 
 
 def pyproject() -> dict:
@@ -113,3 +116,42 @@ def test_every_package_a_package_imports_is_installed_with_it():
             if not {canonicalize_name(name) for name in distributions.get(module, [module])} & installed
         }
         assert not missing, f'{package} imports what breedgraph[{extra}] does not install: {missing}'
+
+
+def own_imports(package: str, path: Path | None = None) -> dict[str, set[str]]:
+    """The packages of our own a package (or one of its files) imports, and the files importing each"""
+    modules = {}
+    for file in [path] if path else (SRC / package).rglob('*.py'):
+        for node in ast.walk(ast.parse(file.read_text())):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            else:
+                continue
+            for name in names:
+                top = name.split('.')[0]
+                if top in OWN and top != package:
+                    modules.setdefault(top, set()).add(file.relative_to(SRC).as_posix())
+    return modules
+
+
+def test_the_workers_import_nothing_of_breedgraph():
+    """breedgraph's modules need the API's packages and environment, which a worker's server doesn't have"""
+    for worker in WORKERS:
+        assert 'breedgraph' not in own_imports(worker), f'{worker} imports breedgraph: {own_imports(worker)}'
+
+
+def test_what_the_api_shares_with_the_map_worker_needs_only_httpx():
+    """The API imports map_worker.fetching, so it reads no environment and needs nothing the API lacks"""
+    path = SRC / 'map_worker' / 'fetching.py'
+    tree = ast.parse(path.read_text())
+    tops = {
+        name.split('.')[0]
+        for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))
+        for name in ([alias.name for alias in node.names] if isinstance(node, ast.Import) else [node.module or ''])
+    }
+    assert tops - set(sys.stdlib_module_names) == {'httpx'}
+    used = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)} \
+        | {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+    assert not used & {'environ', 'getenv'}

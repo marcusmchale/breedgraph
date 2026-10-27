@@ -5,12 +5,12 @@ config.MAP_BOUNDARIES_PATH, which is not served.
 """
 import asyncio
 import json
+from collections import defaultdict
 from pathlib import Path
-from typing import List, Tuple
-
-import httpx
+from typing import Dict, List, Tuple
 
 from breedgraph import config
+from map_worker.fetching import download_outlines
 from .command import MapRegionError
 from .regions import Region, write_json
 
@@ -26,7 +26,8 @@ class GeoBoundaries:
 
     def __init__(self, path: Path):
         self.path = path
-        self._downloading = asyncio.Lock()
+        # one per file, so that waiting for one country's outlines holds up no other's
+        self._downloading: Dict[Path, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     def level_file(self, code: str, level: str) -> Path:
         return self.path / f'{code}-{level}.geojson'
@@ -40,34 +41,25 @@ class GeoBoundaries:
     async def features(self, code: str, level: str) -> List[dict]:
         """The outlines of the country (ADM0) or its sections at that level, downloaded once"""
         path = self.level_file(code, level)
-        async with self._downloading:
+        async with self._downloading[path]:
             if not path.exists():
                 await self._download(code, level, path)
         return await asyncio.to_thread(_load_features, path)
 
     async def _download(self, code: str, level: str, path: Path) -> None:
-        try:
-            client = httpx.AsyncClient(timeout=120, follow_redirects=True, headers={'User-Agent': 'BreedGraph'})
-            async with client:
-                response = await client.get(f"{config.GEOBOUNDARIES_URL}/{code}/{level}/")
-                if response.status_code == 404:
-                    raise MapRegionError(f"geoBoundaries has no {level} outlines for {code}")
-                response.raise_for_status()
-                about = response.json()
-                response = await client.get(about['simplifiedGeometryGeoJSON'])
-                response.raise_for_status()
-                outlines = response.json()
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
-            raise MapRegionError(f"The {level} outlines for {code} could not be downloaded: {type(e).__name__}")
+        """Write the level's file, path: here downloaded, by the map worker's jobs for the API (jobs.py)"""
+        about, outlines = await download_outlines(config.GEOBOUNDARIES_URL, code, level)
+        self.save(code, level, about, outlines)
+
+    def save(self, code: str, level: str, about: dict, outlines: dict) -> None:
+        """Keep the outlines of a country or its sections at a level, with what geoBoundaries says of their licence"""
         if not isinstance(outlines, dict) or not outlines.get('features'):
             raise MapRegionError(f"geoBoundaries returned no {level} outlines for {code}")
+        path = self.level_file(code, level)
         self.path.mkdir(parents=True, exist_ok=True)
-        write_json(path.with_suffix('.json'), {
-            key: about.get(key)
-            for key in ('boundaryID', 'boundaryName', 'boundaryLicense', 'licenseSource', 'buildDate')
-        })
+        write_json(path.with_suffix('.json'), about)
         write_json(path, outlines)
-        logger.info(f"Downloaded the {level} outlines for {code} ({len(outlines['features'])} units)")
+        logger.info(f"Kept the {level} outlines for {code} ({len(outlines['features'])} units)")
 
     def save_section(self, region: Region, feature: dict) -> None:
         """Keep a section's outline alone, for cutting it and naming it"""

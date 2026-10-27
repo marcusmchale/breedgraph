@@ -1,5 +1,7 @@
 import os
 
+from map_worker.fetching import PROTOMAPS_BUILD_URL  # where each build is served, followed by its key
+
 # Place searches on the location map go to Nominatim (OpenStreetMap's geocoder) from the server, so visitors' browsers
 # contact no third party. Its usage policy asks for at most one request a second and an application identified by its
 # User-Agent; the contact given in it is MAIL_FROM. https://operations.osmfoundation.org/policies/nominatim/
@@ -24,4 +26,3 @@ MAP_BOUNDARIES_PATH = os.environ.get('MAP_BOUNDARIES_PATH', 'instance/map_bounda
 GEOBOUNDARIES_URL = os.environ.get('GEOBOUNDARIES_URL', 'https://www.geoboundaries.org/api/current/gbOpen')
 # The list of Protomaps' daily builds, each served at PROTOMAPS_BUILD_URL followed by its key
 PROTOMAPS_BUILDS_URL = os.environ.get('PROTOMAPS_BUILDS_URL', 'https://build-metadata.protomaps.dev/builds.json')
-PROTOMAPS_BUILD_URL = 'https://build.protomaps.com/'

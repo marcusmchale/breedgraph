@@ -98,6 +98,7 @@ breedgraph = [
 ]
 archive_worker = []
 analysis_worker = ["adapters/r/*.R"]
+map_worker = []
 
 [project.scripts]
 archive-worker = "archive_worker.main:main"
