@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/breedgraph-mark-dark.svg">
+  <img src="docs/images/breedgraph-mark.svg" alt="BreedGraph" height="88">
+</picture>
+
 # BreedGraph API
 A package to manage data in breeding projects by aggregation into a knowledge graph.
 
