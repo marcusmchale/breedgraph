@@ -7,10 +7,11 @@ state or province) or, when that is too large too, the ADM2 unit. Each region is
 pmtiles extract, at the zooms above the world file's, into MAP_TILES_PATH/regions/<key>.pmtiles with a <key>.json
 sidecar, and tiles.json is rebuilt.
 
-Requests only record who asked and start a task, so the event handlers stay free. In the state store (Redis), a lock
-per region keeps processes from fetching the same one, its requestors are emailed when its fetch starts and ends, and
-the pending regions are resumed at start. A placement is recorded once its section is known, after the country is
-sized, so one interrupted before then is fetched only by scripts/map_tiles.py --regions.
+Requests only record the region and start a task, so the event handlers stay free. In the state store (Redis), a
+lock per region keeps processes from fetching the same one, the pending regions are resumed at start, and why a region
+failed is kept for the location map, which shows where a country's maps stand (status). A placement is recorded once
+its section is known, after the country is sized, so one interrupted before then is fetched only by
+scripts/map_tiles.py --regions.
 
 What needs the internet (outlines, the list of builds, pmtiles) is fetched by the API itself, or with config.MAP_WORKER
 by the map worker on another server, whose jobs the API waits for (jobs.py).
@@ -22,14 +23,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple
 
 from breedgraph import config
-from breedgraph.domain.events import Event
-from breedgraph.domain.events.location_trees import (
-    MapRegionFetching, MapCountryDivided, MapRegionReady, MapRegionFailed
+from breedgraph.service_layer.infrastructure.map_regions import (
+    AbstractMapRegions, MapState, MapSectionStatus, CountryMapStatus
 )
-from breedgraph.service_layer.infrastructure.map_regions import AbstractMapRegions
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
 
 from .command import MapRegionError
@@ -49,6 +48,12 @@ POLL_SECONDS = 5
 SIZE_WAIT_SECONDS = 600  # how long a placement waits for its country to be sized
 SPACE_MARGIN = 0.1  # free space needed beyond a region's size, as a share of it
 SPACE_RESERVE = 10 ** 9  # and in bytes
+# why a region failed, for the users the location map tells, where the reason is not theirs to know: it is in the log
+FAILED_UNKNOWN = "an error occurred, and the details are in the server's log"
+
+
+def gigabytes(size: float) -> str:
+    return f"{size / 10 ** 9:.1f} GB"
 
 
 class Outcome(Enum):
@@ -63,12 +68,19 @@ class RegionRemoved(Exception):
     pass
 
 
+class MapStorageFull(MapRegionError):
+    """No room for the region: its message is for the users the location map tells, its detail for the log"""
+
+    def __init__(self, message: str, detail: str):
+        super().__init__(message)
+        self.detail = detail
+
+
 class PmtilesMapRegions(AbstractMapRegions):
 
     def __init__(
             self,
             state_store: AbstractStateStore,
-            publish: Callable[[Event], Awaitable[None]] | None = None,
             command: str | None = None,
             tiles_path: str | Path | None = None,
             boundaries_path: str | Path | None = None,
@@ -79,12 +91,10 @@ class PmtilesMapRegions(AbstractMapRegions):
             max_tiles_gb: float | None = None
     ):
         """
-        publish puts the events that email requestors; without it, as for scripts/map_tiles.py, none are sent.
         worker (config.MAP_WORKER) has the map worker fetch what needs the internet, and command is then unused.
         max_tiles_gb (config.MAP_TILES_MAX_GB) limits the regions' files together, 0 not at all.
         """
         self.state_store = state_store
-        self.publish = publish
         self.worker = config.MAP_WORKER if worker is None else worker
         self.tiles_path = Path(config.MAP_TILES_PATH if tiles_path is None else tiles_path)
         self.pmtiles, self.builds, self.boundaries = sources(
@@ -139,19 +149,14 @@ class PmtilesMapRegions(AbstractMapRegions):
         while self._tasks:
             await asyncio.gather(*list(self._tasks), return_exceptions=True)
 
-    async def request_country(self, code: str, requested_by: int | None = None) -> None:
+    async def request_country(self, code: str) -> None:
         if self.enabled:
-            await self._request(Region(code), requested_by)
+            await self._request(Region(code))
 
-    async def request_places(
-            self,
-            code: str,
-            coordinates: Iterable[Tuple[float, float]],
-            requested_by: int | None = None
-    ) -> None:
+    async def request_places(self, code: str, coordinates: Iterable[Tuple[float, float]]) -> None:
         points = [(latitude, longitude) for latitude, longitude in coordinates if None not in (latitude, longitude)]
         if self.enabled and points:
-            self._spawn(self._place(Region(code), points, requested_by))
+            self._spawn(self._place(Region(code), points))
 
     async def remove_country(self, code: str) -> None:
         await self.state_store.remove_map_country(code)
@@ -173,11 +178,9 @@ class PmtilesMapRegions(AbstractMapRegions):
 
     """ In the background """
 
-    async def _request(self, region: Region, requested_by: int | None) -> None:
-        """Record the request and start the fetch, telling a user who joins a fetch already under way"""
-        if await self.state_store.add_map_region_request(region.key, requested_by):
-            if await self.state_store.is_map_region_fetching(region.key):
-                await self._notify_fetching(region, [requested_by])
+    async def _request(self, region: Region) -> None:
+        """Record the request and start the fetch"""
+        await self.state_store.add_map_region_request(region.key)
         self._run_in_background(region)
 
     def _run_in_background(self, region: Region) -> None:
@@ -210,40 +213,42 @@ class PmtilesMapRegions(AbstractMapRegions):
                 logger.exception(f"Fetching the detailed maps for {region.key} stopped")
                 return
 
-    async def _place(self, country: Region, points: List[Point], requested_by: int | None) -> None:
+    async def _place(self, country: Region, points: List[Point]) -> None:
         """Fetch the sections holding the points, when the country is divided"""
         try:
             if region_file(self.tiles_path, country).exists():
                 return
-            size = await self._country_size(country, requested_by)
+            size = await self._country_size(country)
             if size is None:
-                return  # the country could not be sized; whoever asked for it was told
+                return  # the country could not be sized, which its status says
             if size <= self.max_bytes:
                 # the country's own fetch covers the points, unless it failed and should be tried again
                 if not region_file(self.tiles_path, country).exists() \
                         and not await self.state_store.is_map_region_pending(country.key):
-                    await self._request(country, requested_by)
+                    await self._request(country)
                 return
             for section, size in await self.sections(country.code, points):
                 if size > self.max_bytes:
                     logger.error(f"Detailed maps for {section.key} could not be fetched: {size} bytes is too large")
-                    await self._publish(MapRegionFailed, section, [requested_by])
+                    await self.state_store.finish_map_region(section.key, error=(
+                        f"they would take {gigabytes(size)}, more than this site's limit of "
+                        f"{gigabytes(self.max_bytes)}, even for the smallest region holding the location"
+                    ))
                 elif not region_file(self.tiles_path, section).exists():
-                    await self._request(section, requested_by)
+                    await self._request(section)
         except MapRegionError as e:
             logger.error(f"Detailed maps for locations in {country.code} could not be fetched: {e}")
-            await self._publish(MapRegionFailed, country, [requested_by])
         except asyncio.CancelledError:
             raise
         except Exception:
             logger.exception(f"Finding the detailed maps for locations in {country.code} stopped")
 
-    async def _country_size(self, country: Region, requested_by: int | None) -> int | None:
+    async def _country_size(self, country: Region) -> int | None:
         """The country's size, waiting while it is sized, after requesting it if it never was (as for a country
         added before maps were fetched)"""
         size = await self.state_store.get_map_region_size(country.key)
         if size is None and not await self.state_store.is_map_region_pending(country.key):
-            await self._request(country, requested_by)
+            await self._request(country)
         waited = 0.0
         while size is None and waited < SIZE_WAIT_SECONDS and await self.state_store.is_map_region_pending(country.key):
             await asyncio.sleep(self.poll_seconds)
@@ -255,32 +260,33 @@ class PmtilesMapRegions(AbstractMapRegions):
 
     async def fetch_now(self, region: Region, refresh: bool = False) -> Outcome:
         """Request the region and fetch it, or with refresh fetch it again from the newest build"""
-        await self.state_store.add_map_region_request(region.key, None)
+        await self.state_store.add_map_region_request(region.key)
         return await self.fetch(region, refresh=refresh)
 
     async def fetch(self, region: Region, refresh: bool = False) -> Outcome:
         """
-        Fetch a region requested, or divide a country too large, and tell its requestors. While another process
-        works on the region this waits, and if that process finishes it (or the country is removed), returns ELSEWHERE.
+        Fetch a region requested, or divide a country too large, keeping why it failed if it does. While another
+        process works on the region this waits, and if that process finishes it (or the country is removed), returns
+        ELSEWHERE.
         """
         async with self._holding(region) as held:
             if not held or not await self.state_store.is_map_region_pending(region.key):
                 return Outcome.ELSEWHERE
+            error = None
             try:
                 outcome = await self._fetch(region, refresh)
             except RegionRemoved:
                 return Outcome.REMOVED
+            except MapStorageFull as e:
+                logger.error(f"Detailed maps for {region.key} could not be fetched: {e.detail}")
+                outcome, error = Outcome.FAILED, str(e)
             except MapRegionError as e:
                 logger.error(f"Detailed maps for {region.key} could not be fetched: {e}")
-                outcome = Outcome.FAILED
+                outcome, error = Outcome.FAILED, FAILED_UNKNOWN
             except Exception:
                 logger.exception(f"Detailed maps for {region.key} could not be fetched")
-                outcome = Outcome.FAILED
-            users = await self.state_store.finish_map_region(region.key)
-            event = {
-                Outcome.READY: MapRegionReady, Outcome.DIVIDED: MapCountryDivided, Outcome.FAILED: MapRegionFailed
-            }[outcome]
-            await self._publish(event, region, users)
+                outcome, error = Outcome.FAILED, FAILED_UNKNOWN
+            await self.state_store.finish_map_region(region.key, error=error)
             return outcome
 
     async def _fetch(self, region: Region, refresh: bool) -> Outcome:
@@ -367,17 +373,21 @@ class PmtilesMapRegions(AbstractMapRegions):
         directory.mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(directory).free
         if free < size * (1 + SPACE_MARGIN) + SPACE_RESERVE:
-            raise MapRegionError(f"Not enough disk space: {size} bytes needed and {free} free")
+            raise MapStorageFull(
+                f"the server has too little disk space for them, which would take {gigabytes(size)}",
+                f"Not enough disk space: {size} bytes needed and {free} free"
+            )
         if self.max_tiles_bytes:
             # the region's own file, fetched again, is replaced
             used = await asyncio.to_thread(regions_size, directory, region_file(self.tiles_path, region))
             if used + size > self.max_tiles_bytes:
-                raise MapRegionError(
+                raise MapStorageFull(
+                    f"this site's storage for detailed maps is full: they would take {gigabytes(size)}, and the "
+                    f"maps it holds take {gigabytes(used)} of the {gigabytes(self.max_tiles_bytes)} allowed",
                     f"The map storage is full: {size} bytes needed, and the regions take {used} of the "
                     f"{self.max_tiles_bytes:.0f} allowed (MAP_TILES_MAX_GB)"
                 )
         await self.state_store.set_map_region_fetching(region.key)
-        await self._notify_fetching(region, await self.state_store.get_map_region_requestors(region.key))
         partial = directory / f'.{region.key}.pmtiles.partial'
         minzoom = world['maxZoom'] + 1
         logger.info(f"Fetching detailed maps for {region.key} ({size} bytes) from {build}")
@@ -437,16 +447,55 @@ class PmtilesMapRegions(AbstractMapRegions):
                 logger.warning(f"Lost the lock on the map region {key}, so another process may fetch it too")
                 return
 
-    """ Telling requestors """
+    """ Where they stand, for the location map """
 
-    async def _notify_fetching(self, region: Region, users: List[int]) -> None:
-        users = [user for user in users if await self.state_store.mark_map_region_notified(region.key, user)]
-        await self._publish(MapRegionFetching, region, users)
+    async def status(self, code: str) -> CountryMapStatus:
+        country = Region(code)
+        failures = await self.state_store.get_map_region_failures(code)
+        state, size, error = await self._state(country, failures)
+        sections = []
+        if state is MapState.DIVIDED:
+            sections = sorted(
+                [
+                    MapSectionStatus(self._section_name(section), *await self._state(section, failures))
+                    for section in await self._sections_asked_for(country, failures)
+                ],
+                key=lambda section: section.name
+            )
+        return CountryMapStatus(code, state, int(self.max_bytes), self.enabled, size, error, sections)
 
-    async def _publish(self, event: type, region: Region, users: List[int | None]) -> None:
-        users = [user for user in users if user is not None]
-        if self.publish is not None and users:
-            await self.publish(event(name=await self._name(region), user_ids=users))
+    async def _state(self, region: Region, failures: Dict[str, str]) -> Tuple[MapState, int | None, str | None]:
+        size = await self.state_store.get_map_region_size(region.key)
+        if await self.state_store.is_map_region_pending(region.key):
+            fetching = await self.state_store.is_map_region_fetching(region.key)
+            return (MapState.FETCHING if fetching else MapState.PENDING), size, None
+        if region_file(self.tiles_path, region).exists():
+            return MapState.READY, size, None
+        if region.key in failures:
+            return MapState.FAILED, size, failures[region.key]
+        if region.level == COUNTRY and size is not None and size > self.max_bytes:
+            return MapState.DIVIDED, size, None
+        return MapState.NONE, size, None
+
+    async def _sections_asked_for(self, country: Region, failures: Dict[str, str]) -> List[Region]:
+        """The sections of a divided country fetched, being fetched, or that failed"""
+        keys = set(failures) | set(await self.state_store.get_pending_map_regions())
+        keys |= {path.stem for path in (self.tiles_path / REGIONS_DIRECTORY).glob(f'{country.code}-*.json')}
+        sections = []
+        for key in keys:
+            try:
+                region = Region.from_key(key)
+            except ValueError:
+                continue
+            if region.code == country.code and region.shape_id is not None:
+                sections.append(region)
+        return sections
+
+    def _section_name(self, section: Region) -> str:
+        """Its name in its outline, kept when it was found to hold a location, else as its maps were described"""
+        outline = read_json(self.boundaries.outline_file(section)) or {}
+        name = ((outline.get('features') or [{}])[0].get('properties') or {}).get('shapeName')
+        return name or (read_json(region_file(self.tiles_path, section, '.json')) or {}).get('name') or section.key
 
     async def _name(self, region: Region, features: List[dict] | None = None) -> str:
         """The country's name as BreedGraph has it, or a section's with its country's"""

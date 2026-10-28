@@ -17,6 +17,7 @@ import pytest_asyncio
 from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.pmtiles import map_regions as map_regions_module
 from breedgraph.adapters.pmtiles.regions import Region
+from breedgraph.service_layer.infrastructure.map_regions import MapState, MapSectionStatus
 from breedgraph.adapters.pmtiles.jobs import (
     receive_result, receive_extract, sources, LeaseNotHeld, BadUpload, NoSpace, MapRegionError
 )
@@ -148,7 +149,6 @@ class Maps:
         self.config = path / 'pmtiles.json'
         self.log = path / 'pmtiles.log'
         self.command = path / 'pmtiles'
-        self.events = []
         self.tiles.mkdir()
         self.boundaries.mkdir()
         (self.tiles / 'world.json').write_text(json.dumps({
@@ -188,10 +188,8 @@ class Maps:
         self.config.write_text(json.dumps({'sizes': SIZES, 'seconds': seconds}))
 
     def service(self, build: str = BUILD, max_tiles_gb: float = 0) -> PmtilesMapRegions:
-        async def publish(event):
-            self.events.append(event)
         return PmtilesMapRegions(
-            self.state_store, publish=publish, command=str(self.command), tiles_path=self.tiles,
+            self.state_store, command=str(self.command), tiles_path=self.tiles,
             boundaries_path=self.boundaries, max_gb=2, build=build, poll_seconds=0.05, worker=self.worker,
             max_tiles_gb=max_tiles_gb
         )
@@ -207,9 +205,6 @@ class Maps:
             for call in calls if '--dry-run' not in call
         ]
 
-    def sent(self) -> list:
-        return [(type(event).__name__, event.name, event.user_ids) for event in self.events]
-
     def regions(self) -> list:
         """The files of the regions, those part way included"""
         return sorted(path.name for path in (self.tiles / 'regions').iterdir()) if (self.tiles / 'regions').exists() else []
@@ -220,6 +215,12 @@ class Maps:
     def countries(self) -> dict:
         """The extent to show each country by"""
         return json.loads((self.tiles / 'tiles.json').read_text())['countries']
+
+
+async def state(regions: PmtilesMapRegions, code: str) -> tuple:
+    """The state of the country's maps, and of its sections', as the location map is told them"""
+    status = await regions.status(code)
+    return status.state, [(section.name, section.state, section.error) for section in status.sections]
 
 
 async def until(condition, seconds: float = 10):
@@ -260,7 +261,8 @@ async def maps(request, tmp_path, state_store, monkeypatch) -> Maps:
 async def test_a_small_country_is_fetched_whole(maps, state_store):
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    assert await state(regions, 'LUX') == (MapState.NONE, [])
+    await regions.request_country('LUX')
     await regions.wait_until_idle()
 
     assert maps.extracts() == ['LUX-ADM0']
@@ -272,13 +274,14 @@ async def test_a_small_country_is_fetched_whole(maps, state_store):
     }
     assert maps.layers() == ['world.pmtiles', 'regions/LUX.pmtiles']
     assert maps.countries() == {'LUX': {'name': 'Luxembourg', 'bounds': [[49.4, 5.7], [50.2, 6.6]]}}
-    assert maps.sent() == [('MapRegionFetching', 'Luxembourg', [7]), ('MapRegionReady', 'Luxembourg', [7])]
+    status = await regions.status('LUX')
+    assert (status.state, status.size, status.limit, status.enabled) == (MapState.READY, 300 * 10 ** 6, 2 * 10 ** 9, True)
     assert await state_store.get_pending_map_regions() == []
 
     # placing a location in it fetches nothing more
-    await regions.request_places('LUX', [IN_LUX], requested_by=8)
+    await regions.request_places('LUX', [IN_LUX])
     await regions.wait_until_idle()
-    assert maps.extracts() == ['LUX-ADM0'] and len(maps.events) == 2
+    assert maps.extracts() == ['LUX-ADM0']
     await regions.stop()
 
 
@@ -286,37 +289,36 @@ async def test_a_small_country_is_fetched_whole(maps, state_store):
 async def test_a_large_country_is_divided_and_placed_locations_fetch_their_sections(maps, state_store):
     regions = maps.service()
     await regions.start()
-    await regions.request_country('USA', requested_by=7)
+    await regions.request_country('USA')
     await regions.wait_until_idle()
     assert maps.extracts() == []
-    assert maps.sent() == [('MapCountryDivided', 'United States of America', [7])]
+    status = await regions.status('USA')
+    assert (status.state, status.size, status.sections) == (MapState.DIVIDED, 17 * 10 ** 9, [])
     # a divided country is still shown by its outline
     assert maps.layers() == ['world.pmtiles']
     assert maps.countries() == {'USA': {'name': 'United States of America', 'bounds': [[30, -100], [40, -80]]}}
 
-    await regions.request_places('USA', [IN_A], requested_by=8)
+    await regions.request_places('USA', [IN_A])
     await regions.wait_until_idle()
     assert maps.extracts() == ['USA-ADM1-a']
     assert maps.layers() == ['world.pmtiles', 'regions/USA-ADM1-a.pmtiles']
-    assert maps.sent()[1:] == [
-        ('MapRegionFetching', 'Alpha (United States of America)', [8]),
-        ('MapRegionReady', 'Alpha (United States of America)', [8])
-    ]
+    assert (await regions.status('USA')).sections == [MapSectionStatus('Alpha', MapState.READY, 10 ** 9)]
 
     # another location in the same section fetches nothing more
-    await regions.request_places('USA', [ALSO_IN_A], requested_by=9)
+    await regions.request_places('USA', [ALSO_IN_A])
     await regions.wait_until_idle()
-    assert maps.extracts() == ['USA-ADM1-a'] and len(maps.events) == 3
+    assert maps.extracts() == ['USA-ADM1-a']
 
     # a section over the cap is fetched by its ADM2 unit, and one too large even so fails
-    await regions.request_places('USA', [IN_B1, IN_B2], requested_by=9)
+    await regions.request_places('USA', [IN_B1, IN_B2])
     await regions.wait_until_idle()
     assert maps.extracts() == ['USA-ADM1-a', 'USA-ADM2-b1']
-    assert sorted(maps.sent()[3:]) == [
-        ('MapRegionFailed', 'Beta Two (United States of America)', [9]),
-        ('MapRegionFetching', 'Beta One (United States of America)', [9]),
-        ('MapRegionReady', 'Beta One (United States of America)', [9])
-    ]
+    assert await state(regions, 'USA') == (MapState.DIVIDED, [
+        ('Alpha', MapState.READY, None),
+        ('Beta One', MapState.READY, None),
+        ('Beta Two', MapState.FAILED,
+         "they would take 2.5 GB, more than this site's limit of 2.0 GB, even for the smallest region holding the location")
+    ])
     assert await state_store.get_pending_map_regions() == []
     await regions.stop()
 
@@ -326,39 +328,31 @@ async def test_placing_a_location_in_a_country_never_requested_requests_it(maps)
     """As for countries added before maps were fetched"""
     regions = maps.service()
     await regions.start()
-    await regions.request_places('USA', [IN_A], requested_by=8)
-    await regions.request_places('LUX', [IN_LUX], requested_by=8)
+    await regions.request_places('USA', [IN_A])
+    await regions.request_places('LUX', [IN_LUX])
     await regions.wait_until_idle()
     assert sorted(maps.extracts()) == ['LUX-ADM0', 'USA-ADM1-a']
-    assert sorted(maps.sent()) == [
-        ('MapCountryDivided', 'United States of America', [8]),
-        ('MapRegionFetching', 'Alpha (United States of America)', [8]),
-        ('MapRegionFetching', 'Luxembourg', [8]),
-        ('MapRegionReady', 'Alpha (United States of America)', [8]),
-        ('MapRegionReady', 'Luxembourg', [8])
-    ]
+    assert await state(regions, 'USA') == (MapState.DIVIDED, [('Alpha', MapState.READY, None)])
+    assert await state(regions, 'LUX') == (MapState.READY, [])
     await regions.stop()
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_two_requests_for_a_region_give_one_extract_and_both_requestors_hear(maps):
+async def test_two_requests_for_a_region_give_one_extract_which_both_show_as_fetching(maps):
     """Two processes, sharing the state store"""
     maps.configure(seconds=1)
     first, second = maps.service(), maps.service()
     await first.start()
     await second.start()
-    await first.request_country('LUX', requested_by=7)
+    await first.request_country('LUX')
     await until(lambda: maps.extracts())  # under way
-    await second.request_country('LUX', requested_by=8)
+    await second.request_country('LUX')
+    assert await state(second, 'LUX') == (MapState.FETCHING, [])
     await first.wait_until_idle()
     await second.wait_until_idle()
 
     assert maps.extracts() == ['LUX-ADM0']
-    assert sorted(maps.sent()) == [
-        ('MapRegionFetching', 'Luxembourg', [7]),
-        ('MapRegionFetching', 'Luxembourg', [8]),
-        ('MapRegionReady', 'Luxembourg', [7, 8])
-    ]
+    assert await state(second, 'LUX') == (MapState.READY, [])
     await first.stop()
     await second.stop()
 
@@ -367,10 +361,10 @@ async def test_two_requests_for_a_region_give_one_extract_and_both_requestors_he
 async def test_removing_a_country_deletes_its_regions(maps, state_store):
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
-    await regions.request_country('USA', requested_by=7)
+    await regions.request_country('LUX')
+    await regions.request_country('USA')
     await regions.wait_until_idle()
-    await regions.request_places('USA', [IN_A, IN_B1], requested_by=7)
+    await regions.request_places('USA', [IN_A, IN_B1])
     await regions.wait_until_idle()
     assert len(maps.regions()) == 6
 
@@ -382,18 +376,19 @@ async def test_removing_a_country_deletes_its_regions(maps, state_store):
     assert await state_store.get_map_region_size('USA-ADM1-a') is None
     assert await state_store.get_map_region_size('LUX') is not None
     assert not list(maps.boundaries.glob('USA-ADM?-*.geojson'))
+    assert await state(regions, 'USA') == (MapState.NONE, [])
 
-    # and one removed while it is fetched is stopped, leaving nothing behind and telling no one it is ready
+    # and one removed while it is fetched is stopped, leaving nothing behind
     maps.configure(seconds=30)
-    maps.events.clear()
-    await regions.request_country('USA', requested_by=7)
+    await regions.request_country('USA')
     await regions.wait_until_idle()
-    await regions.request_places('USA', [IN_A], requested_by=8)
+    await regions.request_places('USA', [IN_A])
     await until(lambda: 'USA-ADM1-a' in maps.extracts()[-1:] and len(maps.extracts()) == 4)
+    assert await state(regions, 'USA') == (MapState.DIVIDED, [('Alpha', MapState.FETCHING, None)])
     await regions.remove_country('USA')
     await regions.wait_until_idle()
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
-    assert [name for name, *_ in maps.sent()] == ['MapCountryDivided', 'MapRegionFetching']
+    assert await state(regions, 'USA') == (MapState.NONE, [])
     assert await state_store.get_pending_map_regions() == []
     await regions.stop()
 
@@ -405,7 +400,7 @@ async def test_an_interrupted_fetch_resumes_at_start(maps, state_store):
     maps.configure(seconds=30)
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await until(lambda: maps.extracts())
     await regions.stop()
     assert maps.regions() == ['.LUX.pmtiles.partial']
@@ -417,8 +412,7 @@ async def test_an_interrupted_fetch_resumes_at_start(maps, state_store):
     await restarted.wait_until_idle()
     assert maps.extracts() == ['LUX-ADM0', 'LUX-ADM0']
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
-    # told once that it was being fetched
-    assert maps.sent() == [('MapRegionFetching', 'Luxembourg', [7]), ('MapRegionReady', 'Luxembourg', [7])]
+    assert await state(restarted, 'LUX') == (MapState.READY, [])
     await restarted.stop()
 
 
@@ -428,11 +422,12 @@ async def test_a_fetch_without_enough_disk_space_fails(maps, state_store, monkey
     monkeypatch.setattr(map_regions_module.shutil, 'disk_usage', lambda path: SimpleNamespace(free=1_300_000_000))
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await regions.wait_until_idle()
     assert maps.extracts() == []
     assert maps.regions() == []
-    assert maps.sent() == [('MapRegionFailed', 'Luxembourg', [7])]
+    assert await state(regions, 'LUX') == (MapState.FAILED, [])
+    assert (await regions.status('LUX')).error == "the server has too little disk space for them, which would take 0.3 GB"
     assert await state_store.get_pending_map_regions() == []
     await regions.stop()
 
@@ -442,20 +437,29 @@ async def test_a_fetch_that_would_pass_the_map_storage_cap_fails(maps, state_sto
     """As on the demonstration site, which shares production's disk"""
     regions = maps.service(max_tiles_gb=0.31)
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)  # 300 MB
-    await regions.request_country('USA', requested_by=7)  # divided, so nothing yet
+    await regions.request_country('LUX')  # 300 MB
+    await regions.request_country('USA')  # divided, so nothing yet
     await regions.wait_until_idle()
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
 
-    maps.events.clear()
-    await regions.request_places('USA', [IN_A], requested_by=8)  # 1 GB more
+    await regions.request_places('USA', [IN_A])  # 1 GB more
     await regions.wait_until_idle()
     assert maps.extracts() == ['LUX-ADM0']
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
-    assert maps.sent() == [('MapRegionFailed', 'Alpha (United States of America)', [8])]
+    assert await state(regions, 'USA') == (MapState.DIVIDED, [(
+        'Alpha', MapState.FAILED,
+        "this site's storage for detailed maps is full: they would take 1.0 GB, and the maps it holds take 0.0 GB of the "
+        "0.3 GB allowed"
+    )])
 
     # a region fetched again replaces its own file, which is not counted
     assert await regions.fetch_now(Region('LUX'), refresh=True) is map_regions_module.Outcome.READY
+
+    # asked for again once there is room, the section's failure is forgotten
+    regions.max_tiles_bytes = 0
+    await regions.request_places('USA', [IN_A])
+    await regions.wait_until_idle()
+    assert await state(regions, 'USA') == (MapState.DIVIDED, [('Alpha', MapState.READY, None)])
     await regions.stop()
 
 
@@ -463,11 +467,13 @@ async def test_a_fetch_that_would_pass_the_map_storage_cap_fails(maps, state_sto
 async def test_nothing_is_fetched_without_the_pmtiles_command(maps, state_store):
     regions = PmtilesMapRegions(state_store, command='', tiles_path=maps.tiles, boundaries_path=maps.boundaries)
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
-    await regions.request_places('USA', [IN_A], requested_by=7)
+    await regions.request_country('LUX')
+    await regions.request_places('USA', [IN_A])
     await regions.wait_until_idle()
-    assert maps.extracts() == [] and maps.events == []
+    assert maps.extracts() == []
     assert await state_store.get_pending_map_regions() == []
+    status = await regions.status('LUX')
+    assert (status.state, status.enabled) == (MapState.NONE, False)
 
 
 """ With the map worker """
@@ -481,7 +487,7 @@ async def test_a_restart_joins_the_map_workers_extract(maps, state_store):
     maps.configure(seconds=1)
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await until(lambda: maps.extracts())
     await regions.stop()
     assert await state_store.get_pending_map_regions() == ['LUX']
@@ -491,7 +497,7 @@ async def test_a_restart_joins_the_map_workers_extract(maps, state_store):
     await restarted.wait_until_idle()
     assert maps.extracts() == ['LUX-ADM0']
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']
-    assert maps.sent() == [('MapRegionFetching', 'Luxembourg', [7]), ('MapRegionReady', 'Luxembourg', [7])]
+    assert await state(restarted, 'LUX') == (MapState.READY, [])
     assert await state_store.get_map_job('extract', 'LUX') is None, 'its file taken, the job is gone'
     await restarted.stop()
 
@@ -503,11 +509,11 @@ async def test_without_a_map_worker_regions_wait(maps, state_store):
     await maps.stop_worker()
     regions = maps.service()
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await asyncio.sleep(0.3)
     assert await state_store.get_pending_map_regions() == ['LUX']
     assert (await state_store.get_map_job('outlines', 'LUX-ADM0'))['state'] == 'queued'
-    assert maps.events == []
+    assert await state(regions, 'LUX') == (MapState.PENDING, [])
 
     # the worker started, the region is fetched
     maps.start_worker()
@@ -522,9 +528,9 @@ async def test_the_map_worker_is_sent_outlines_but_no_coordinates(maps):
         pytest.skip("only the map worker is sent jobs")
     regions = maps.service()
     await regions.start()
-    await regions.request_country('USA', requested_by=7)
+    await regions.request_country('USA')
     await regions.wait_until_idle()
-    await regions.request_places('USA', [IN_A, IN_B1], requested_by=8)
+    await regions.request_places('USA', [IN_A, IN_B1])
     await regions.wait_until_idle()
     await regions.stop()
 
@@ -559,7 +565,7 @@ async def test_the_map_worker_lists_the_builds(maps, monkeypatch):
     monkeypatch.setattr(handlers_module, 'list_builds', builds)
     regions = maps.service(build='latest')
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await regions.wait_until_idle()
     await regions.stop()
     sidecar = json.loads((maps.tiles / 'regions' / 'LUX.json').read_text())
@@ -582,7 +588,7 @@ async def test_a_country_added_again_is_sent_from_the_map_workers_cache(maps, mo
 
     regions = maps.service(build='latest')
     await regions.start()
-    await regions.request_country('LUX', requested_by=7)
+    await regions.request_country('LUX')
     await regions.wait_until_idle()
     await regions.remove_country('LUX')
     await regions.stop()
@@ -592,7 +598,7 @@ async def test_a_country_added_again_is_sent_from_the_map_workers_cache(maps, mo
     builds.append({'key': '20261027.pmtiles', 'version': '4.16.0'})
     again = maps.service(build='latest')
     await again.start()
-    await again.request_country('LUX', requested_by=7)
+    await again.request_country('LUX')
     await again.wait_until_idle()
     assert maps.extracts() == ['LUX-ADM0']
     assert maps.regions() == ['LUX.json', 'LUX.pmtiles']

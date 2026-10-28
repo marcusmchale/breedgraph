@@ -111,6 +111,12 @@ type Query {
     locationsSearchPlaces(query: String!, viewbox: [Float!], bounded: Boolean, countryCode: String, limit: Int): PlacesPayload!
     """The country with this name, as locationsSearchPlaces finds places. Requires sign-in"""
     locationsGeocodeCountry(name: String!): PlacePayload!
+    """
+    Where the detailed maps of the country with this ISO 3166 alpha-3 code stand on this site (README.md, Maps): fetched
+    in the background once the country is added, or for a country too large to fetch whole, by its sections as
+    locations in them are placed on the map
+    """
+    locationsMapStatus(code: String!): CountryMapStatusPayload!
     """Get a list of location tree "root" locations.
     These are all countries that form the top-level location in the location tree.
     """

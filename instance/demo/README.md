@@ -48,7 +48,7 @@ production's server block) and the rest to production, as before.
   `MemoryMax` in `analysis-worker-demo.service`), so an analysis needing more fails, saying so. Neo4j and Redis have
   limits of their own (`neo4j.conf`, `redis-demo.conf`). Visitors may add countries, whose maps are fetched to
   production's disk: the site's regions together are held to `MAP_TILES_MAX_GB` (10), beyond which a fetch fails and
-  the visitor is emailed that it did, and each reset deletes them. The site's units all run in
+  the map says so, and each reset deletes them. The site's units all run in
   `breedgraph-demo.slice`, which holds the site to 6 GB without swap, so that whatever one of its processes does, it
   is one of the site's that the kernel ends, never one of production's.
 

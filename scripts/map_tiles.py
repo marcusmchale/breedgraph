@@ -13,7 +13,7 @@ a country too large, a section's when a location in it is placed (adapters/pmtil
              (MAP_CACHE_PATH) when that is of the same zoom and major version, as for a second site.
   --dry-run  reports what would be fetched and its size.
 Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
-can run while the files are served, and while the API runs: they share its locks in Redis. No emails are sent.
+can run while the files are served, and while the API runs: they share its locks in Redis.
 
 Needs the pmtiles command (README.md, Maps) and a build: by default (MAP_TILES_BUILD=latest) the newest of
 Protomaps' daily builds, each kept for about a week (https://maps.protomaps.com/builds). With MAP_WORKER=1, as on a

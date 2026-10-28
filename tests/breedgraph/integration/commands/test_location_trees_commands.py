@@ -16,14 +16,17 @@ class RecordingMapRegions(AbstractMapRegions):
     async def stop(self):
         pass
 
-    async def request_country(self, code, requested_by=None):
-        self.calls.append(('country', code, requested_by))
+    async def request_country(self, code):
+        self.calls.append(('country', code))
 
-    async def request_places(self, code, coordinates, requested_by=None):
-        self.calls.append(('places', code, list(coordinates), requested_by))
+    async def request_places(self, code, coordinates):
+        self.calls.append(('places', code, list(coordinates)))
 
     async def remove_country(self, code):
         self.calls.append(('remove', code))
+
+    async def status(self, code):
+        raise NotImplementedError
 
 
 @pytest.fixture
@@ -59,7 +62,7 @@ async def test_countries_and_placed_locations_request_maps(
     ))
     country_id = (await get_tree(uow_factory, user_id, code='LUX')).root.id
     # a country's own coordinates, like the centre the map saves, place nothing
-    assert map_regions.calls == [('country', 'LUX', user_id)]
+    assert map_regions.calls == [('country', 'LUX')]
 
     async def create(name: str, coordinates=None):
         await handle(CreateLocation(
@@ -72,7 +75,7 @@ async def test_countries_and_placed_locations_request_maps(
     map_regions.calls.clear()
     field = await create('A field', points((49.6, 6.1), (49.7, 6.1), (49.7, 6.2)))
     assert [(c['latitude'], c['longitude']) for c in field.coordinates] == [(49.6, 6.1), (49.7, 6.1), (49.7, 6.2)]
-    assert map_regions.calls == [('places', 'LUX', [(49.6, 6.1), (49.7, 6.1), (49.7, 6.2)], user_id)]
+    assert map_regions.calls == [('places', 'LUX', [(49.6, 6.1), (49.7, 6.1), (49.7, 6.2)])]
 
     map_regions.calls.clear()
     unplaced = await create('A field without coordinates')
@@ -90,8 +93,8 @@ async def test_countries_and_placed_locations_request_maps(
     await update(unplaced.id, points((49.5, 6.0)))
     await update(field.id, points((49.6, 6.2)))
     assert map_regions.calls == [
-        ('places', 'LUX', [(49.5, 6.0)], user_id),
-        ('places', 'LUX', [(49.6, 6.2)], user_id)
+        ('places', 'LUX', [(49.5, 6.0)]),
+        ('places', 'LUX', [(49.6, 6.2)])
     ]
 
     map_regions.calls.clear()

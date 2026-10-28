@@ -47,6 +47,46 @@ type LocationTemplate {
     typeId: ID!
 }
 
+"""Where a country's or a section's detailed maps stand"""
+enum MapState {
+    """Never asked for, or asked for where this site fetches no detailed maps"""
+    NONE
+    """Asked for: being outlined and measured before they are fetched"""
+    PENDING
+    """Being fetched"""
+    FETCHING
+    READY
+    """A country too large to fetch whole, whose sections are fetched as locations in them are placed on the map"""
+    DIVIDED
+    FAILED
+}
+
+"""A section of a country too large to fetch whole, such as a state or province"""
+type MapSectionStatus {
+    name: String!
+    state: MapState!
+    """The size of its detailed maps in bytes, once measured"""
+    size: Float
+    """Why they could not be fetched"""
+    error: String
+}
+
+"""The detailed maps of a country on this site"""
+type CountryMapStatus {
+    code: String!
+    state: MapState!
+    """The size of its detailed maps in bytes, once measured"""
+    size: Float
+    """In bytes: the size above which a country is fetched by its sections, and a section is not fetched"""
+    limit: Float!
+    """Whether this site fetches detailed maps"""
+    enabled: Boolean!
+    """Why they could not be fetched"""
+    error: String
+    """For a divided country, the sections fetched, being fetched or that failed"""
+    sections: [MapSectionStatus!]!
+}
+
 """A place found by name, to move the location map to"""
 type Place {
     name: String!

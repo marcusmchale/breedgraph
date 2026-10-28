@@ -132,6 +132,12 @@ type PlacePayload {
     errors: [Error!]
 }
 
+type CountryMapStatusPayload {
+    status: QueryStatus!
+    result: CountryMapStatus
+    errors: [Error!]
+}
+
 type LayoutsPayload {
     status: QueryStatus!
     result: [Layout!]

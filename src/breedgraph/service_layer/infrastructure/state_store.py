@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Self, List, AsyncGenerator, Tuple
+from typing import Self, Dict, List, AsyncGenerator, Tuple
 from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 from uuid import uuid4
 from breedgraph.config import SUBMISSION_RETENTION_DAYS, ANALYSIS_RETENTION_DAYS
@@ -463,11 +463,11 @@ class AbstractStateStore(ABC):
 
     """
     Map regions (adapters/pmtiles/map_regions.py), by region key. Finished regions are known from their files, so this
-    holds only what is under way.
+    holds what is under way, and why the last fetch of a region failed.
     """
     @abstractmethod
-    async def add_map_region_request(self, key: str, user_id: int | None) -> bool:
-        """Mark the region pending, with the user among those to notify; whether the user was not already"""
+    async def add_map_region_request(self, key: str) -> None:
+        """Mark the region pending, forgetting why it last failed"""
         ...
 
     @abstractmethod
@@ -476,10 +476,6 @@ class AbstractStateStore(ABC):
 
     @abstractmethod
     async def is_map_region_pending(self, key: str) -> bool:
-        ...
-
-    @abstractmethod
-    async def get_map_region_requestors(self, key: str) -> List[int]:
         ...
 
     @abstractmethod
@@ -492,13 +488,13 @@ class AbstractStateStore(ABC):
         ...
 
     @abstractmethod
-    async def mark_map_region_notified(self, key: str, user_id: int) -> bool:
-        """Record that the user was told the region is being fetched; False if they already were"""
+    async def finish_map_region(self, key: str, error: str | None = None) -> None:
+        """End the region's request, with why it failed if it did"""
         ...
 
     @abstractmethod
-    async def finish_map_region(self, key: str) -> List[int]:
-        """End the region's request, returning the users to notify"""
+    async def get_map_region_failures(self, code: str) -> Dict[str, str]:
+        """Why the last fetches of the country's regions that failed did, by region key"""
         ...
 
     @abstractmethod
@@ -524,7 +520,7 @@ class AbstractStateStore(ABC):
 
     @abstractmethod
     async def remove_map_country(self, code: str) -> None:
-        """Forget the requests, sizes and map worker's jobs of a country and its sections"""
+        """Forget the requests, sizes, failures and map worker's jobs of a country and its sections"""
         ...
 
     """

@@ -659,8 +659,9 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     is fetched when a location in it is placed on the map. A section over the cap too is fetched by its ADM2 unit
     (a county, say) instead, and one still over the cap fails as too large. Brazil (4.2 GB), France (5.5 GB) and the
     United States (17 GB) are divided.
-  - The user who added the country or placed the location is emailed when the fetch starts and when it ends, or that
-    the country is divided.
+  - Where a country's maps stand is shown under the location map (`locationsMapStatus`, open to visitors): being
+    fetched, divided (with its size and the cap), or failed, with why in words for its users (the disk or
+    `MAP_TILES_MAX_GB` full, a section too large); other failures are in the log. No emails are sent.
   - Countries are public, and a section shows only that some location lies within it. Sections are found on our
     server, from its copy of the outlines, so no site coordinates leave it.
   - Each region is a file, `regions/<key>.pmtiles`, with a `<key>.json` description, and each country has its extent
@@ -670,8 +671,8 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed. With
     `MAP_TILES_MAX_GB` set, as on the demonstration site, which shares production's disk, it also fails if the
     regions' files would then take more than that together.
-  - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,
-    which resume after a restart. Finished regions are known from their files.
+  - Each API process fetches one region at a time. Redis holds a lock per region, the regions under way, which resume
+    after a restart, and why a region's last fetch failed. Finished regions are known from their files.
 - **With the map worker** (`MAP_WORKER=1`), for an API's server without internet access, as in production: the map
   worker (`src/map_worker`, `instance/map_worker.service`), on a server with access, fetches for the API
   (`adapters/pmtiles/jobs.py`). Everything else about regions above is unchanged.
@@ -730,8 +731,8 @@ Then cut the world file, from the newest build unless `--build` or `MAP_TILES_BU
 Run it again with `--fresh` now and then to refresh the world file (without it, a map worker with a cache sends the
 world it keeps), and then `scripts/map_tiles.py --refresh` to fetch the regions again from the newest build.
 `--regions` fetches what the API would for every country and placed location, for a first setup or after losing the
-files, and `--dry-run` reports what would be fetched and its size. The script sends no emails, and shares the API's
-locks, so both can run at once. Deploying leaves `MAP_TILES_PATH` and `MAP_BOUNDARIES_PATH` as they are. For
+files, and `--dry-run` reports what would be fetched and its size. The script shares the API's locks, so both can run
+at once. Deploying leaves `MAP_TILES_PATH` and `MAP_BOUNDARIES_PATH` as they are. For
 development, `--world-maxzoom 6` gives a world file of about 45 MB.
 
 

@@ -7,6 +7,8 @@ from breedgraph import config
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.service_layer.infrastructure.geocoding import Place
+from breedgraph.service_layer.infrastructure.map_regions import CountryMapStatus, MapState
+from breedgraph.adapters.pmtiles.regions import Region
 from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
@@ -73,6 +75,19 @@ async def search_places(
 async def geocode_country(_, info, name: str) -> Place | None:
     geocoding = await _geocoding(info)
     return await geocoding.geocode_country(name)
+
+@graphql_query.field("locationsMapStatus")
+@graphql_payload
+async def get_map_status(_, info, code: str) -> CountryMapStatus:
+    """Open to visitors, as the map files themselves are"""
+    map_regions = info.context['bus'].map_regions
+    try:
+        if map_regions is None:
+            Region(code)
+            return CountryMapStatus(code, MapState.NONE, int(config.MAP_REGION_MAX_GB * 10 ** 9), False)
+        return await map_regions.status(code)
+    except ValueError:
+        raise IllegalOperationError(f"Not an ISO 3166 alpha-3 code: {code!r}")
 
 @graphql_query.field("locationsRoots")
 @graphql_payload

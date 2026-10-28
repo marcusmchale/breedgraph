@@ -12,7 +12,7 @@ from breedgraph.domain.model.submissions import SubmissionStatus, SubmissionKeys
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import AsyncGenerator, List, Self, Tuple
+from typing import AsyncGenerator, Dict, List, Self, Tuple
 
 import time
 from uuid import uuid4
@@ -47,8 +47,7 @@ return 1
 MAP_PENDING = "map:pending"  # set of region keys requested and not finished
 MAP_FETCHING = "map:fetching"  # set of region keys whose files are being written
 MAP_SIZES = "map:sizes"  # hash of region key to the size of its file in bytes
-MAP_REQUESTORS = "map:requestors:"  # set of user ids per region key
-MAP_NOTIFIED = "map:notified:"  # set of user ids told the region is being fetched
+MAP_FAILURES = "map:failures"  # hash of region key to why its last fetch failed, for its users
 MAP_LOCK = "map:lock:"  # held by the process working on a region
 MAP_JOB = "map:job:"  # hash per map worker's job, by kind and key: kind, key, payload, state, lease, result, error
 MAP_JOBS = "map:jobs:"  # the queue of each lane, a list of job hashes, and its leases, a sorted set by expiry
@@ -414,13 +413,11 @@ class RedisStateStore(AbstractStateStore):
 
     """ Map regions """
 
-    async def add_map_region_request(self, key: str, user_id: int | None) -> bool:
+    async def add_map_region_request(self, key: str) -> None:
         async with self.connection.pipeline(transaction=True) as pipe:
             pipe.sadd(MAP_PENDING, key)
-            if user_id is not None:
-                pipe.sadd(f"{MAP_REQUESTORS}{key}", user_id)
-            results = await pipe.execute()
-        return user_id is not None and results[1] == 1
+            pipe.hdel(MAP_FAILURES, key)
+            await pipe.execute()
 
     async def get_pending_map_regions(self) -> List[str]:
         return sorted(key.decode() for key in await self.connection.smembers(MAP_PENDING))
@@ -428,26 +425,25 @@ class RedisStateStore(AbstractStateStore):
     async def is_map_region_pending(self, key: str) -> bool:
         return bool(await self.connection.sismember(MAP_PENDING, key))
 
-    async def get_map_region_requestors(self, key: str) -> List[int]:
-        return sorted(int(user_id) for user_id in await self.connection.smembers(f"{MAP_REQUESTORS}{key}"))
-
     async def set_map_region_fetching(self, key: str) -> None:
         await self.connection.sadd(MAP_FETCHING, key)
 
     async def is_map_region_fetching(self, key: str) -> bool:
         return bool(await self.connection.sismember(MAP_FETCHING, key))
 
-    async def mark_map_region_notified(self, key: str, user_id: int) -> bool:
-        return await self.connection.sadd(f"{MAP_NOTIFIED}{key}", user_id) == 1
-
-    async def finish_map_region(self, key: str) -> List[int]:
+    async def finish_map_region(self, key: str, error: str | None = None) -> None:
         async with self.connection.pipeline(transaction=True) as pipe:
-            pipe.smembers(f"{MAP_REQUESTORS}{key}")
-            pipe.delete(f"{MAP_REQUESTORS}{key}", f"{MAP_NOTIFIED}{key}")
+            if error is not None:
+                pipe.hset(MAP_FAILURES, key, error)
             pipe.srem(MAP_FETCHING, key)
             pipe.srem(MAP_PENDING, key)
-            requestors, *_ = await pipe.execute()
-        return sorted(int(user_id) for user_id in requestors)
+            await pipe.execute()
+
+    async def get_map_region_failures(self, code: str) -> Dict[str, str]:
+        return {
+            key.decode(): error.decode() for key, error in (await self.connection.hgetall(MAP_FAILURES)).items()
+            if key.decode().split('-', 1)[0] == code
+        }
 
     async def acquire_map_region_lock(self, key: str, seconds: int) -> str | None:
         token = uuid4().hex
@@ -471,16 +467,18 @@ class RedisStateStore(AbstractStateStore):
             return key.decode().split('-', 1)[0] == code
         pending = [key.decode() for key in await self.connection.smembers(MAP_PENDING) if of_country(key)]
         sizes = [key for key in await self.connection.hkeys(MAP_SIZES) if of_country(key)]
+        failures = [key for key in await self.connection.hkeys(MAP_FAILURES) if of_country(key)]
         # job hashes are map:job:<kind>:<key>, the key a region's or, for outlines, <code>-<level>
         jobs = [job.decode() async for job in self.connection.scan_iter(match=f"{MAP_JOB}*")]
         jobs = [job for job in jobs if job.split(':', 3)[3].split('-', 1)[0] == code]
         async with self.connection.pipeline(transaction=True) as pipe:
             for key in pending:
-                pipe.delete(f"{MAP_REQUESTORS}{key}", f"{MAP_NOTIFIED}{key}")
                 pipe.srem(MAP_FETCHING, key)
                 pipe.srem(MAP_PENDING, key)
             if sizes:
                 pipe.hdel(MAP_SIZES, *sizes)
+            if failures:
+                pipe.hdel(MAP_FAILURES, *failures)
             for job in jobs:
                 self._delete_map_job(pipe, job, _map_lane(job.split(':', 3)[2]))
             await pipe.execute()

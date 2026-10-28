@@ -83,7 +83,7 @@ async def bootstrap(
     erasure_log = erasure_log()
 
     logger.debug("Init map regions")
-    map_regions = map_regions(state_store=state_store, publish=event_queue.put)
+    map_regions = map_regions(state_store=state_store)
 
     handlers.register_dependencies(
         uow_factory=uow_factory,

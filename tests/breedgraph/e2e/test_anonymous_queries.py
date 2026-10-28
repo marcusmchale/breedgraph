@@ -51,6 +51,8 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'referencesSearch': ('query { referencesSearch(description: "Readpolicy") { status errors { name message } } }', {}, True),
         'locationsRoots': ('query { locationsRoots { status errors { name message } } }', {}, True),
         'locationsCountries': ('query { locationsCountries { status errors { name message } } }', {}, True),
+        # as the map files are
+        'locationsMapStatus': ('query { locationsMapStatus(code: "IRL") { status errors { name message } } }', {}, True),
         'locationsDescendantsByType': ('query ($ids: [ID!]!) { locationsDescendantsByType(locationIds: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'locationsLocations': ('query ($ids: [ID!]!) { locationsLocations(ids: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'locationsSearch': ('query { locationsSearch(name: "a") { status errors { name message } } }', {}, True),
