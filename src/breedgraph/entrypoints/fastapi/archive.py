@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 """
 These endpoints should only be accessed by the file archival server.
 Files are encrypted on their way to it and decrypted on their way back, so it never holds a readable copy
-(README, "Encryption key").
+(docs/backups.md, Encryption key).
 """
 
 def verify_service_token(authorization: str = Header(None)):

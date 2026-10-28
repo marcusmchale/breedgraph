@@ -29,7 +29,7 @@ async def run_worker(api_url: str, poll_interval: int):
     )
     pmtiles = PmtilesCommand(MAP_PMTILES_COMMAND)
     if not pmtiles.available():
-        raise RuntimeError(f"The pmtiles command ({MAP_PMTILES_COMMAND}) is not installed (breedgraph README.md, Maps)")
+        raise RuntimeError(f"The pmtiles command ({MAP_PMTILES_COMMAND}) is not installed (breedgraph docs/maps.md)")
     cache = ExtractCache(Path(MAP_CACHE_PATH)) if MAP_CACHE_PATH else None
     handlers = MapHandlers(pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, cache=cache)
     handlers.clear()

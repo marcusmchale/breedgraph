@@ -1,6 +1,6 @@
 #!/bin/bash
 # Dumps DATABASE_NAME to NEO4J_ARCHIVE_PATH as <database>-<date>.dump.age, encrypted with age to the public key
-# ENCRYPTION_RECIPIENT (README, "Encryption key"), so no unencrypted dump is written.
+# ENCRYPTION_RECIPIENT (docs/backups.md, Encryption key), so no unencrypted dump is written.
 # Without a key it writes an unencrypted <database>-<date>.dump, which only ENVIRONMENT=development allows.
 set -eo pipefail
 

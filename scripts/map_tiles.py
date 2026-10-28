@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cut the map tiles BreedGraph serves (README.md, Maps) from a Protomaps build of OpenStreetMap, so that browsers load
+Cut the map tiles BreedGraph serves (docs/maps.md) from a Protomaps build of OpenStreetMap, so that browsers load
 maps from our server and contact no third party.
 
 By default it cuts world.pmtiles, the whole world at low detail to --world-maxzoom (8, about 560 MB), and writes
@@ -15,7 +15,7 @@ a country too large, a section's when a location in it is placed (adapters/pmtil
 Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
 can run while the files are served, and while the API runs: they share its locks in Redis.
 
-Needs the pmtiles command (README.md, Maps) and a build: by default (MAP_TILES_BUILD=latest) the newest of
+Needs the pmtiles command (docs/maps.md) and a build: by default (MAP_TILES_BUILD=latest) the newest of
 Protomaps' daily builds, each kept for about a week (https://maps.protomaps.com/builds). With MAP_WORKER=1, as on a
 server without internet access, the map worker fetches instead (adapters/pmtiles/jobs.py): the API and the worker must
 be running, as the files come back through the API to MAP_TILES_PATH, the only --out then.
@@ -190,7 +190,7 @@ def main() -> int:
             logger.error("With MAP_WORKER the map worker's files come back to MAP_TILES_PATH, so --out must be it")
             return 1
     elif not PmtilesCommand(args.pmtiles).available():
-        logger.error(f"The pmtiles command ({args.pmtiles}) is not installed (README.md, Maps)")
+        logger.error(f"The pmtiles command ({args.pmtiles}) is not installed (docs/maps.md)")
         return 1
     return asyncio.run(run(args))
 

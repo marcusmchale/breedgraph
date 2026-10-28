@@ -62,7 +62,7 @@ production's server block) and the rest to production, as before.
      `pip install -e '.[api,worker,analysis_worker]'` (or the three wheelhouses,
      `breedgraph[server,worker,analysis_worker]` with a `--find-links` for each). The install compiles rpy2, which
      fails where `/tmp` is mounted `noexec` (`TypeError: 'NoneType' object is not callable`): run it with `TMPDIR` set
-     to a directory where programs may run (breedgraph README.md, Build the wheelhouses);
+     to a directory where programs may run (breedgraph docs/deployment.md, Installing from the wheelhouses);
    - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`, `tmp`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
      `map_tiles/`, `map_boundaries/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
@@ -100,7 +100,7 @@ production's server block) and the rest to production, as before.
    - Once the site runs (step 9), fetch its maps through its worker, as `breedgraph-demo` from the checkout with the
      site's environment: `scripts/map_tiles.py` for the world file, then `scripts/map_tiles.py --regions` for Ireland.
      The worker sends the world from its cache when it keeps one of the same zoom and major version of the tiles
-     (README, Maps), and otherwise cuts it once from Protomaps and keeps it. If the world's run warns that regions are
+     (docs/maps.md), and otherwise cuts it once from Protomaps and keeps it. If the world's run warns that regions are
      of another zoom or version (an Ireland from an earlier world), run `--refresh` rather than `--regions`. The files
      are the site's own, so nothing production does to its maps changes them.
    - Keep them as the baseline each reset restores:

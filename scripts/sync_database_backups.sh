@@ -15,7 +15,7 @@
 # This server needs ssh key access to BACKUP_SOURCE, and rsync on both servers.
 # It never needs the encryption key: the dumps it holds can be read only with the key kept elsewhere.
 # It runs nothing on the web server but rsync, so the key can be restricted there to reading with rsync from the
-# directory holding the dumps and the erasure log (rrsync -ro; README, Backups, restores and retention), and the
+# directory holding the dumps and the erasure log (rrsync -ro; docs/backups.md), and the
 # paths are then given from that directory, e.g. "/neo4j_dumps".
 set -euo pipefail
 

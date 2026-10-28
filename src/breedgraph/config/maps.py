@@ -9,7 +9,7 @@ NOMINATIM_URL = os.environ.get('NOMINATIM_URL', 'https://nominatim.openstreetmap
 # Searches each user may make in an hour
 GEOCODING_RATE_LIMIT_PER_HOUR = int(os.environ.get('GEOCODING_RATE_LIMIT_PER_HOUR', 120))
 
-# Map tiles, served by us so browsers contact no third party (README.md, Maps): a low-detail world file cut by
+# Map tiles, served by us so browsers contact no third party (docs/maps.md): a low-detail world file cut by
 # scripts/map_tiles.py, detailed files for regions fetched when countries are added and locations placed
 # (adapters/pmtiles/map_regions.py), and tiles.json listing them. Served at /tiles, by nginx in production.
 MAP_TILES_PATH = os.environ.get('MAP_TILES_PATH', 'instance/map_tiles')

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build breedgraph's wheel and the wheelhouses its services install from, offline: the API's (the server extra), the
 # archive and map workers' (worker) and the analysis worker's (analysis_worker), in dist/ as wheelhouse_<extra>_<version>,
-# beside the wheel and the source distribution (README.md, deploy).
+# beside the wheel and the source distribution (docs/deployment.md).
 #
 # Usage: scripts/build_wheelhouses.sh [--check] [<ref>]     (<ref> defaults to HEAD)
 #

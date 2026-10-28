@@ -1,5 +1,5 @@
 """
-Detailed map tiles for regions (README.md, Maps): a country's when it is added, or for a country too large to fetch
+Detailed map tiles for regions (docs/maps.md): a country's when it is added, or for a country too large to fetch
 whole, a section's when a location in it is placed on the map. Fetching runs in the background, and where it stands
 is asked for by BreedView's location map (status), which says so under the map.
 """

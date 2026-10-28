@@ -142,7 +142,7 @@ The build refuses Neo4j's development port (7687), and runs the study-licence an
   the file and log paths). Use it, for example, with a second API started with `HOST_PORT=8001 VUE_PORT=8081`.
 
 **Maps:** the build fetches no map regions, since there is no message bus. For detailed maps of the farm, fetch
-Ireland's region once with `scripts/map_tiles.py --regions` (README, Maps).
+Ireland's region once with `scripts/map_tiles.py --regions` (maps.md).
 
 ## The hosted site
 

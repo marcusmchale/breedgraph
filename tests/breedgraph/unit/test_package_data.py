@@ -23,7 +23,7 @@ LEFT_OUT = {
     'breedgraph': {'entrypoints/fastapi/templates/index.html'},
 }
 
-# each package and the extra it is installed with (README.md, deploy; instance/*.service)
+# each package and the extra it is installed with (docs/deployment.md; instance/*.service)
 DEPLOYED_WITH = {
     'breedgraph': 'server', 'archive_worker': 'worker', 'analysis_worker': 'analysis_worker', 'map_worker': 'worker'
 }

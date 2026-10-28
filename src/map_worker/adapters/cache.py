@@ -1,6 +1,6 @@
 """
 The extracts the map worker has cut, kept in MAP_CACHE_PATH and sent again when a job asks for one of them (breedgraph
-README.md, Maps): a country removed and added again, or added on another site whose worker shares the cache, is not
+docs/maps.md): a country removed and added again, or added on another site whose worker shares the cache, is not
 cut again from Protomaps.
 
 Each region is kept once, as <key>.pmtiles with a <key>.json saying what it was cut from. A job is sent it when it asks

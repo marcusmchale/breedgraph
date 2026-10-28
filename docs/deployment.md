@@ -1,8 +1,10 @@
 # Deploying BreedGraph and BreedView
 
 The steps in order, from building the release to checking the running site. The details of each are where they are
-kept: this README (Setup, deploy), [BreedView's README](https://github.com/marcusmchale/breedview) (Branding),
-`instance/` (the units and environment templates), and `instance/demo/README.md` for the demonstration site.
+kept: [maps.md](maps.md), [backups.md](backups.md), the README (Setup), [BreedView's
+README](https://github.com/marcusmchale/breedview) (Branding), `instance/` (the units and environment templates), and
+`instance/demo/README.md` for the demonstration site. What each release needs besides the usual upgrade is in
+[upgrading.md](upgrading.md), and how a release is made in [releasing.md](releasing.md).
 
 ## What runs where
 
@@ -22,7 +24,7 @@ kept: this README (Setup, deploy), [BreedView's README](https://github.com/marcu
   archived files in its `ARCHIVE_DESTINATION`.
 - The analysis worker (`instance/analysis_worker.service`) in `/opt/analysis_worker`, as `analysisworker`, with R.
 - The map worker (`instance/map_worker.service`) in `/opt/map_worker`, as `mapworker`, with `pmtiles`: it fetches the
-  map tiles and outlines the API needs from the internet, which the web server can't reach (README, Maps), and keeps
+  map tiles and outlines the API needs from the internet, which the web server can't reach (maps.md), and keeps
   what it cuts in its `MAP_CACHE_PATH`. If the demonstration site is hosted, its own map worker runs beside it
   (`instance/demo/map-worker-demo.service`), sharing the cache.
 - cron: copying the database backups and the erasure log from the web server (`scripts/sync_database_backups.sh`).
@@ -35,12 +37,12 @@ below).
 The retention run, on the web server, calls the API on `127.0.0.1:8000` directly.
 
 Tested with Python 3.12, Neo4j 2026.05 and its APOC core, Redis 7, and R 4.3 (Ubuntu 24.04's) with lme4, lmerTest,
-emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.1 and packages (§3). breedgraph and BreedView are deployed at the same version (README, Releases).
+emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.1 and packages (§3). breedgraph and BreedView are deployed at the same version ([releasing.md](releasing.md)).
 
 ## 1. Build, on the development machine
 
-- **breedgraph:** `scripts/build_wheelhouses.sh --check v<version>` (README, Build the wheelhouses), which leaves the
-  wheel and the three wheelhouses in `dist/`.
+- **breedgraph:** `scripts/build_wheelhouses.sh --check v<version>` (Installing from the wheelhouses, below), which
+  leaves the wheel and the three wheelhouses in `dist/`.
 - **BreedView, production:** its build reads `.env.production`, which git ignores:
 
       VITE_API_HOST=https://breedgraph.universityofgalway.ie
@@ -71,7 +73,8 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    environment names: the logs (`LOG_BASE`, e.g. `/var/log/breedgraph`), the uploaded files (`FILE_STORAGE_PATH`), the
    database dumps (`NEO4J_ARCHIVE_PATH`), the erasure log's (`PERSON_ERASURE_LOG_PATH`), and the map tiles and
    outlines (`MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH`).
-3. **The code.** The `server` wheelhouse into `/opt/breedgraph/.venv` (README, Build the wheelhouses), and a checkout
+3. **The code.** The `server` wheelhouse into `/opt/breedgraph/.venv` (Installing from the wheelhouses, below), and a
+   checkout
    of the release's tag in `/opt/breedgraph/checkout`, or its `git archive` where the server can't reach GitHub (same
    section).
 4. **The environment.** `/opt/breedgraph/breedgraph.env`, from `instance/breedgraph.env`, which names every variable
@@ -86,11 +89,11 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    - `MAP_WORKER=1`, so that the map worker fetches the maps, and `MAP_PMTILES_COMMAND=""`: the web server needs
      neither pmtiles nor internet access for them.
    - Neo4j's password (`NEO4J_USERNAME`, `NEO4J_PASSWORD`), the mail server (`MAIL_*`), and the encryption key's
-     (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; README, Encryption key).
+     (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; backups.md, Encryption key).
    - `TERMS_OF_USE_PATH` and `PRIVACY_NOTICE_PATH`, unless the packaged texts are served, and `ORCID_*` to let users
      link an ORCID iD.
    - `TMPDIR`, a directory owned by `breedgraph` on the large disk, beside `FILE_STORAGE_PATH`: uploads are held there
-     while they are received, in `/tmp` otherwise (README, Nginx).
+     while they are received, in `/tmp` otherwise (nginx, below).
    - `COUNTRY_CODES_PATH`, the countries offered when adding a location: a file in neither the repository nor the
      wheel, the UN's M49 overview as CSV, which the template's comment describes. Without it, only the countries
      already added are offered, and none at all until the read models are filled (step 6).
@@ -98,7 +101,8 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,
    which refuses a database that isn't empty, and makes the schema, a system account and the ontology's first entries
-   (README, deploy). Then make the site's first account, the first ontology admin, which invites the others:
+   (Installing from the wheelhouses, below). Then make the site's first account, the first ontology admin, which invites
+   the others:
    `python scripts/create_first_account.py --name <username> --email <address> --fullname "<full name>"` asks for its
    password and its holder's consent to the privacy notice, and prints its id. Registering in BreedView always needs
    an invitation, so nobody can register before you.
@@ -112,21 +116,21 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
      ontology that the API reads from there: until it runs, adding a location offers no countries. Run it again after
      any script that writes to the database.
 7. **Maps.** Once the map worker runs (§3), from the checkout with the venv and the environment:
-   `python scripts/map_tiles.py` cuts the world file through it (about 560 MB, README, Maps), and
+   `python scripts/map_tiles.py` cuts the world file through it (about 560 MB, maps.md), and
    `python scripts/map_tiles.py --regions` fetches the detailed maps of the countries and located locations already
    in the database, which no one asked the worker for. The API fetches the rest as countries are added.
 8. **BreedView.** `dist/` copied to `/var/www/breedview`; the branding to `/etc/breedview/branding` (BreedView's
    README, Branding).
 9. **nginx**, below.
-10. **cron and logrotate**: the backup and the retention run (README, Backups, restores and retention), as
+10. **cron and logrotate**: the backup and the retention run (backups.md), as
     `breedgraph`, in `/etc/cron.d/breedgraph`, which only root can change, logging to `LOG_BASE`:
 
         15 2 * * * breedgraph cd /opt/breedgraph/checkout && set -a && . /opt/breedgraph/breedgraph.env && set +a && scripts/backup.sh >> /var/log/breedgraph/backup.log 2>&1
         30 3 * * * breedgraph BREEDGRAPH_PYTHON=/opt/breedgraph/.venv/bin/python /opt/breedgraph/checkout/scripts/trigger_retention.sh /opt/breedgraph/breedgraph.env >> /var/log/breedgraph/retention.log 2>&1
 
-    The backup needs the sudo rule the README gives, `/etc/sudoers.d/breedgraph-backup`; then the log rotation it
+    The backup needs the sudo rule [backups.md](backups.md) gives, `/etc/sudoers.d/breedgraph-backup`; then the log rotation it
     gives. Run each once as `breedgraph`: the backup ends with its dump's name, and the API is still running after it.
-11. **The BreedCAFS data**, once: README, Migrating the BreedCAFS data.
+11. **The BreedCAFS data**, once: `src/breedcafs_migration/RUNBOOK.md`.
 
 ## 3. The worker server, the first time
 
@@ -149,7 +153,7 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    `ProtectHome=yes` hides, e.g. `sudo env UV_PYTHON_INSTALL_DIR=/opt/python uv python install 3.12`, and make the venvs
    with `/opt/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12`, which follows uv's upgrades of 3.12.
 
-   For the map worker, `pmtiles` in `/usr/local/bin` (README, Maps): it needs internet access, to Protomaps' builds
+   For the map worker, `pmtiles` in `/usr/local/bin` (maps.md): it needs internet access, to Protomaps' builds
    (`build.protomaps.com`, `build-metadata.protomaps.dev`) and geoBoundaries (`www.geoboundaries.org` and the GitHub
    files it links to).
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
@@ -157,11 +161,11 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    `/var/log/analysis_worker`; `mapworker` owning `/opt/map_worker`, `/var/log/map_worker` and `/srv/map_worker`, on
    the large disk. That holds the worker's `MAP_WORK_PATH` (`/srv/map_worker/work`), with room for the largest file the
    API fetches (`MAP_REGION_MAX_GB`, 2), and its `MAP_CACHE_PATH` (`/srv/map_worker/cache`), which keeps every region
-   cut, for either site, until it is deleted by hand (README, Maps). The two must be on the same filesystem.
+   cut, for either site, until it is deleted by hand (maps.md). The two must be on the same filesystem.
 3. **The code.** The `worker` wheelhouse into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and the
    `analysis_worker` wheelhouse into `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs. Where
    `/tmp` is mounted `noexec`, that fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR`
-   set to a directory where programs may run (README, Build the wheelhouses).
+   set to a directory where programs may run (Installing from the wheelhouses, below).
 4. **The environments.** `/opt/archive_worker/archive_worker.env`, `/opt/analysis_worker/analysis_worker.env` and
    `/opt/map_worker/map_worker.env`, from `instance/`, mode 0600: `API_URL` the web server's internal address
    (`http://<internal address>:8080`, below), the token the API's environment has for each, `LOG_BASE` in
@@ -172,11 +176,24 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    worker's `ReadWritePaths` and `/srv/map_worker` in the map worker's, then `daemon-reload` and `enable --now` each.
    For the demonstration site, also its map worker: `instance/demo/README.md`, Setting it up.
 6. **The backup copy.** `/etc/breedgraph/backup_sync.env` (from `instance/backup_sync.env`), an ssh key the web server
-   accepts, and cron (README, Backups, restores and retention). It never needs the encryption key. On the web server,
+   accepts, and cron (backups.md). It never needs the encryption key. On the web server,
    the key belongs to a user of its own, which may only read the dumps and the erasure log, and only with rsync
-   (`rrsync -ro`, README, Backups, restores and retention).
+   (`rrsync -ro`, backups.md).
 
 ## nginx on the web server
+
+Set nginx's `client_max_body_size` to the largest file users may upload, e.g. `100M`. It is the upload size limit:
+the API sets none of its own, but for legal references given as files (`LEGAL_FILE_SIZE_LIMIT`). nginx refuses a larger
+request with 413 before it reaches the API, and breedview says the file is larger than the server accepts. breedview
+and the API are served from one origin, so the browser lets breedview read the 413; were they served from separate
+origins, nginx's error page would need the CORS headers too (`add_header ... always`), or breedview would see only a
+failed request.
+
+A large upload is written to disk twice on its way in unless told otherwise: nginx keeps the whole request in a
+temporary file before passing it on, and the API keeps each file in one while it is received, in the system's
+temporary directory (`/tmp`). Where the root disk is small beside the upload limit, pass the API's requests on as they
+arrive, with `proxy_request_buffering off;` and `proxy_http_version 1.1;` in its location, and set `TMPDIR` in the
+API's environment to a directory on the large disk (§2, the environment).
 
 The site's server block, with the certificate lines it has, and the demonstration site's snippet if it is hosted:
 
@@ -185,7 +202,7 @@ The site's server block, with the certificate lines it has, and the demonstratio
         server_name breedgraph.universityofgalway.ie;
         # ... ssl_certificate and ssl_certificate_key, as now
 
-        # the upload limit, which BreedView reports (README, Nginx)
+        # the upload limit, which BreedView reports (above)
         client_max_body_size 100M;
 
         root /var/www/breedview;
@@ -207,14 +224,14 @@ The site's server block, with the certificate lines it has, and the demonstratio
         location ~ ^/(graphql|csrf|download|verify|reset)$ {
             proxy_pass http://127.0.0.1:8000;
             proxy_http_version 1.1;
-            # uploads go to the API as they arrive, not first to a temporary file on the root disk (README, Nginx)
+            # uploads go to the API as they arrive, not first to a temporary file on the root disk (above)
             proxy_request_buffering off;
             proxy_set_header Host $host;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # map tiles (README, Nginx), with the paths of MAP_TILES_PATH
+        # map tiles (maps.md, Serving the tiles), with the paths of MAP_TILES_PATH
         location = /tiles/tiles.json {
             alias /opt/breedgraph/map_tiles/tiles.json;
             add_header Cache-Control "no-cache";
@@ -305,12 +322,13 @@ commented out there for this case.
 1. Build it (§1).
 2. **The web server:** the new `server` wheelhouse into `/opt/breedgraph/.venv`, as installed with `--upgrade`, the
    checkout moved to the new tag (or replaced by its archive), the release's new settings added to `breedgraph.env`
-   (its notes list them), and `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of
+   ([upgrading.md](upgrading.md) lists them), and `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of
    `/var/www/breedview`.
 3. **The worker server:** the wheelhouses with `--upgrade` into the three venvs, and the three units restarted (with
    `map-worker-demo` if the demonstration site is hosted, as it runs from the map worker's venv).
 4. **The demonstration site:** `instance/demo/README.md`, Upgrades.
-5. The checks below.
+5. What the release needs besides, in its section of [upgrading.md](upgrading.md).
+6. The checks below.
 
 ## Checks
 
@@ -333,3 +351,66 @@ commented out there for this case.
 - A guide chapter's video plays, with its captions.
 - `trigger_retention.sh /opt/breedgraph/breedgraph.env` prints the API's response.
 - `scripts/backup.sh` writes an encrypted dump, and the worker server's copy picks it up.
+
+## Installing from the wheelhouses
+
+Each service installs from a wheelhouse, a folder of the wheels it needs, without reaching PyPI: the API from the
+`server` extra's, the archive and map workers from `worker`'s and the analysis worker from `analysis_worker`'s. Build
+them from the release's tag, on a machine with the development environment:
+
+    cd path/to/breedgraph
+    scripts/build_wheelhouses.sh --check v<version>
+
+They land in `dist/` as `wheelhouse_<extra>_<version>`, beside the wheel and the source distribution, built for
+CPython 3.12 on x86_64 with glibc 2.34 or later; the script's header says what `--check` needs. rpy2 has no wheels, so
+the analysis worker's machine builds it as it installs, with R's headers and a compiler
+(`sudo apt install r-base-dev build-essential`), beside R and the packages `instance/analysis_worker.service` names.
+
+Copy each wheelhouse to its machine, somewhere the user that runs the service can read it:
+
+    scp -r dist/wheelhouse_server_<version> user@server:~/
+
+then, on the server and as that user, install it into the venv its unit runs:
+
+    cd /opt/breedgraph
+    python3 -m venv .venv
+    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_<version>/ 'breedgraph[server]'
+
+and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and
+`breedgraph[analysis_worker]` into `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same
+venv with `--upgrade`, then restart the service.
+
+On a server whose `/tmp` is mounted `noexec` (`findmnt -no OPTIONS /tmp`), building rpy2 fails: pip installs cffi,
+whose compiled module can't be loaded from `/tmp`, and rpy2's build, giving up on it quietly, ends with
+`TypeError: 'NoneType' object is not callable` in cffi's `setuptools_ext.py`. Give pip a temporary directory where
+programs may run, owned by the installing user, and remove it afterwards:
+
+    sudo install -d -o analysisworker -g analysisworker -m 700 /opt/analysis_worker/pip-tmp
+    sudo -u analysisworker env TMPDIR=/opt/analysis_worker/pip-tmp /opt/analysis_worker/.venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_analysis_worker_<version>/ 'breedgraph[analysis_worker]'
+    sudo rm -rf /opt/analysis_worker/pip-tmp
+
+The scripts aren't in the wheel, nor in the source distribution: run them from a checkout of the release's tag, with
+the venv, whose breedgraph they import, and the environment. A server that can't reach GitHub is sent the tag as an
+archive, unpacked where the checkout goes (`tar xzf ... -C /opt/breedgraph` gives `/opt/breedgraph/checkout`):
+
+    git archive --format=tar.gz --prefix=checkout/ -o dist/breedgraph-<version>-checkout.tar.gz v<version>
+
+and then:
+
+    . /opt/breedgraph/.venv/bin/activate
+    set -a
+    . /opt/breedgraph/breedgraph.env
+    set +a
+    python scripts/setup_initial_data.py
+    python scripts/load_state_store.py
+
+`load_state_store.py` fills the read models in Redis that the API reads the countries and the ontology from: until it
+runs, adding a location offers no countries. Run it again after any script that writes to the database, such as
+`scripts/import_germplasm.py`.
+
+## BreedView and its branding
+
+BreedView, the front end, is built and deployed from its own repository, and so is a deployment's branding, its
+colours, logo, fonts and footer links: breedview README.md, Branding. nginx serves both from the API's origin (nginx,
+above). The API's emails name the site by `SITE_NAME`, and its Terms of Use and privacy notice are files of their own
+(`TERMS_OF_USE_PATH`, `PRIVACY_NOTICE_PATH`): branding doesn't change them.

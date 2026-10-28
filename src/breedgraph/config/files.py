@@ -24,7 +24,7 @@ RETRIEVE_ATTEMPT_LIMIT = int(os.environ.get('RETRIEVE_ATTEMPT_LIMIT', 5))
 # Auth token for the archive server
 ARCHIVE_AUTH_TOKEN = os.environ.get('ARCHIVE_AUTH_TOKEN')
 
-# Files are encrypted with age when sent to the archive server, as database backups are (README, "Encryption key"):
+# Files are encrypted with age when sent to the archive server, as database backups are (docs/backups.md, Encryption key):
 # to this public key ("age1..."), and decrypted with the key file when they come back, which may hold old keys too.
 # Without a public key they are sent unencrypted, which only development allows.
 ENCRYPTION_RECIPIENT = os.environ.get('ENCRYPTION_RECIPIENT') or None

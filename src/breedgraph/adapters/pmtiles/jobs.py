@@ -1,5 +1,5 @@
 """
-The map worker's jobs (README.md, Maps). With config.MAP_WORKER, what PmtilesMapRegions and scripts/map_tiles.py would
+The map worker's jobs (docs/maps.md). With config.MAP_WORKER, what PmtilesMapRegions and scripts/map_tiles.py would
 fetch from the internet is fetched by the map worker (map_worker), on a server with internet access: Protomaps' list
 of builds, geoBoundaries' outlines, and pmtiles' sizes and extracts. Each is a job in the state store, which the worker
 leases over /map_jobs/ (entrypoints/fastapi/map_jobs.py) while the API waits for it.

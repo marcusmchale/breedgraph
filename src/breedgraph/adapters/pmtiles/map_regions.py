@@ -1,5 +1,5 @@
 """
-Detailed map tiles for regions (service_layer/infrastructure/map_regions.py, README.md, Maps).
+Detailed map tiles for regions (service_layer/infrastructure/map_regions.py, docs/maps.md).
 
 A country is fetched whole when it is added, unless its file would be larger than config.MAP_REGION_MAX_GB. Such a
 country is divided: when a location in it is placed on the map, the section holding it is fetched, an ADM1 unit (a
@@ -123,7 +123,7 @@ class PmtilesMapRegions(AbstractMapRegions):
             if self.pmtiles.command:
                 logger.warning(
                     f"Detailed maps are not fetched: the pmtiles command ({self.pmtiles.command}) is not installed "
-                    f"(README.md, Maps)"
+                    f"(docs/maps.md)"
                 )
             else:
                 logger.info("Detailed maps are not fetched: MAP_PMTILES_COMMAND is empty")

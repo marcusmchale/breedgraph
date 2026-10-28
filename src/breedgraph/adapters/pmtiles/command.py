@@ -1,5 +1,5 @@
 """
-The go-pmtiles command (README.md, Maps), which cuts regions out of a Protomaps build reading only the parts it needs,
+The go-pmtiles command (docs/maps.md), which cuts regions out of a Protomaps build reading only the parts it needs,
 and the choice of build. The command and the list of builds are in map_worker.fetching, which the map worker runs too.
 """
 import time

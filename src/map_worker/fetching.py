@@ -1,5 +1,5 @@
 """
-What fetching maps needs from the internet (breedgraph README.md, Maps): Protomaps' list of builds, the go-pmtiles
+What fetching maps needs from the internet (breedgraph docs/maps.md): Protomaps' list of builds, the go-pmtiles
 command that cuts regions out of a build reading only the parts it needs, and geoBoundaries' outlines of countries and
 their sections.
 

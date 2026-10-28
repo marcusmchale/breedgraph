@@ -17,7 +17,7 @@ if not MAP_WORK_PATH:
 # Where the extracts cut are kept, and sent again rather than cut again (adapters/cache.py): on the filesystem of
 # MAP_WORK_PATH, and shared by the workers of several sites. Unset, none are kept.
 MAP_CACHE_PATH=os.environ.get('MAP_CACHE_PATH') or None
-# The go-pmtiles command (breedgraph README.md, Maps)
+# The go-pmtiles command (breedgraph docs/maps.md)
 MAP_PMTILES_COMMAND=os.environ.get('MAP_PMTILES_COMMAND', 'pmtiles')
 GEOBOUNDARIES_URL=os.environ.get('GEOBOUNDARIES_URL', 'https://www.geoboundaries.org/api/current/gbOpen')
 PROTOMAPS_BUILDS_URL=os.environ.get('PROTOMAPS_BUILDS_URL', 'https://build-metadata.protomaps.dev/builds.json')

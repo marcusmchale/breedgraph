@@ -1,6 +1,6 @@
 #!/bin/bash
 # Loads a dump from NEO4J_ARCHIVE_PATH over DATABASE_NAME, then applies the erasure log.
-# A <database>-<date>.dump.age is decrypted with the key file ENCRYPTION_IDENTITY_PATH (README, "Encryption key");
+# A <database>-<date>.dump.age is decrypted with the key file ENCRYPTION_IDENTITY_PATH (docs/backups.md, Encryption key);
 # an unencrypted .dump, such as a test database, is loaded as it is.
 set -eo pipefail
 
