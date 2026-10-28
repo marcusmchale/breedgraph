@@ -38,6 +38,10 @@ async def lifespan(fast_api_app: FastAPI):
     bus: MessageBus = await bootstrap.bootstrap(archival_service=Neo4jFileArchivalService)
     fast_api_app.bus = bus
 
+    if hasattr(bus.uow_factory, "driver"):
+        logger.debug("Check the database's Cypher")
+        await bus.uow_factory.driver.check_cypher_language()  # before anything runs a query
+
     logger.info("Starting event processors")
     await bus.start()  # start event process workers
     if bus.map_regions is not None:

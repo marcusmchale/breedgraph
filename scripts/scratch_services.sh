@@ -87,7 +87,6 @@ server.http.enabled=true
 server.http.listen_address=127.0.0.1:$HTTP_PORT_SCRATCH
 server.https.enabled=false
 dbms.security.auth_enabled=false
-dbms.security.procedures.allowlist=apoc.coll.*
 server.memory.heap.initial_size=1g
 server.memory.heap.max_size=2g
 server.memory.pagecache.size=1g

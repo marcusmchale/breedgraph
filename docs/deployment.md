@@ -14,7 +14,7 @@ README](https://github.com/marcusmchale/breedview) (Branding), `instance/` (the 
   workers poll (below).
 - The API: uvicorn on `127.0.0.1:8000` (`instance/breedgraph.service`), as the `breedgraph` user, from
   `/opt/breedgraph/.venv`, with its environment in `/opt/breedgraph/breedgraph.env`.
-- Neo4j, with the APOC core plugin, and Redis.
+- Neo4j, running Cypher 25, and Redis.
 - A checkout of the release in `/opt/breedgraph/checkout`, for the scripts, which aren't in the wheel.
 - cron: the database backups and the retention run.
 - The demonstration site, if it is hosted: `instance/demo/README.md`.
@@ -36,7 +36,7 @@ on a port of its own, or, where only HTTPS is open between the two networks, in 
 below).
 The retention run, on the web server, calls the API on `127.0.0.1:8000` directly.
 
-Tested with Python 3.12, Neo4j 2026.05 and its APOC core, Redis 7, and R 4.3 (Ubuntu 24.04's) with lme4, lmerTest,
+Tested with Python 3.12, Neo4j 2026.05 (Cypher 25), Redis 7, and R 4.3 (Ubuntu 24.04's) with lme4, lmerTest,
 emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.1 and packages (§3). breedgraph and BreedView are deployed at the same version ([releasing.md](releasing.md)).
 
 ## 1. Build, on the development machine
@@ -63,10 +63,11 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
 1. **Packages.** Python 3.12 with venv, nginx, age, rsync, Neo4j and Redis (README, Setup). rsync is for the worker
    server's copy of the backups, which runs rsync over ssh and needs it at both ends, and for the demonstration site's
    reset. `pmtiles` is the map worker's, on the worker server (§3). For Neo4j, also:
-   - The APOC core plugin, which the API's queries use (`apoc.coll.*`): copy `apoc-<version>-core.jar` from
-     `/var/lib/neo4j/labs/` to `/var/lib/neo4j/plugins/`, and allow it in `/etc/neo4j/neo4j.conf`:
-     `dbms.security.procedures.allowlist=apoc.coll.*`. An allowlist naming single functions must name every one
-     used (`apoc.coll.flatten`, `sortMaps` and `toSet`), or the queries using the others fail.
+   - Cypher 25, which the API's queries are written in, and which it refuses to start without: a database runs the
+     language it was created with, so set `db.query.default_language=CYPHER_25` in `/etc/neo4j/neo4j.conf` before
+     Neo4j first starts, for the database it creates then. `scripts/setup_initial_data.py` sets it too (step 6), as
+     does, for an existing database, `ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25` in `cypher-shell -d system`
+     as Neo4j's admin. BreedGraph needs no plugin (APOC).
    - Its memory: `neo4j-admin server memory-recommendation` gives settings for the machine. Leave room for the
      demonstration site, which its slice holds to 6 GB (`instance/demo/README.md`, Limits).
 2. **The user and directories.** A `breedgraph` system user, owning `/opt/breedgraph` and the directories its

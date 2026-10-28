@@ -156,7 +156,7 @@ def dataset_unit_summaries(fields: AbstractSet[str] = SUMMARY_FIELDS):
     ]:
         if name in fields:
             aggregates.append(f'collect({values}) AS {name}_lists')
-            returns.append(f'{name}: apoc.coll.toSet(apoc.coll.flatten({name}_lists))')
+            returns.append(f'{name}: coll.distinct(coll.flatten({name}_lists))')
     query.append(f"WITH {', '.join(aggregates)}")
     query.append(f"RETURN {{ {', '.join(returns)} }} AS unit_summary")
     return '\n'.join(query)
@@ -415,7 +415,7 @@ def read_places():
         WHERE {_readable('placed')}
         MATCH (placed)-[:IN_POSITION]->(position:Position)-[:AT_LOCATION]->(location:Location)
         OPTIONAL MATCH (position)-[:IN_LAYOUT]->(layout:Layout)
-        WITH location, layout, apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+        WITH location, layout, coll.distinct(coll.flatten(collect(recorded))) AS recorded
         WHERE {_readable_as('location', LOCATION)}
         CALL (location) {{
           MATCH path = (typed:Location)-[:INCLUDES_LOCATION*0..]->(location)
@@ -425,18 +425,18 @@ def read_places():
           ORDER BY length(path)
           LIMIT 1
         }}
-        WITH typed, layout, apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+        WITH typed, layout, coll.distinct(coll.flatten(collect(recorded))) AS recorded
         WITH typed, layout, recorded, layout IS NOT NULL AND {_readable_as('layout', LAYOUT)} AS layout_shown
         CALL (layout, layout_shown) {{
           // the longest readable path up from the layout, its own axes first
           OPTIONAL MATCH path = (:Layout)-[:INCLUDES_LAYOUT*0..]->(layout)
           WHERE layout_shown AND all(member IN nodes(path) WHERE {_readable_as('member', LAYOUT)})
           WITH path ORDER BY length(path) DESC LIMIT 1
-          RETURN CASE WHEN path IS NULL THEN [] ELSE apoc.coll.flatten([member IN reverse(nodes(path)) | member.axes]) END AS axes
+          RETURN CASE WHEN path IS NULL THEN [] ELSE coll.flatten([member IN reverse(nodes(path)) | member.axes]) END AS axes
         }}
         WITH typed,
           collect(CASE WHEN layout_shown THEN {{layout_id: layout.id, unit_count: size(recorded), axes: axes}} END) AS layouts,
-          apoc.coll.toSet(apoc.coll.flatten(collect(recorded))) AS recorded
+          coll.distinct(coll.flatten(collect(recorded))) AS recorded
         RETURN typed.id AS location_id, size(recorded) AS unit_count, layouts
         ORDER BY location_id
     """

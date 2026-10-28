@@ -19,7 +19,7 @@ from breedgraph.service_layer.application.ontology_seed import seed_ontology
 
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
-from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver, CYPHER_LANGUAGE
 
 from breedgraph.domain.model.accounts import AccountInput, UserInput, AccountStored
 
@@ -96,6 +96,10 @@ async def main():
         driver = Neo4jAsyncDriver()
         async with driver.session() as session:
             await ensure_empty_db(session)
+        # the queries' Cypher, which the API checks at startup: a database runs the language it was created with
+        logger.info(f"Setting the database's Cypher to {CYPHER_LANGUAGE}")
+        await driver.set_cypher_language()
+        async with driver.session() as session:
             await create_schema(session)
 
         logger.debug("Build uow holder")

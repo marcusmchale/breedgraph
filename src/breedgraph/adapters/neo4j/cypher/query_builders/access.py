@@ -112,7 +112,7 @@ def tree_links(node: str, root: str, label: ControlledModelLabel, edge: str, vis
               path = ({node})<-[:{edge}*1..]-(ancestor:{label.label})
               WHERE ancestor.id IN {visible_ids} OR ancestor = {root} | [length(path), ancestor.id]
             ] | CASE WHEN nearest IS NULL OR link[0] < nearest[0] THEN link ELSE nearest END)[1]""",
-        'children': f"""apoc.coll.toSet([
+        'children': f"""coll.distinct([
               path = ({node})-[:{edge}*1..]->(descendant:{label.label})
               WHERE descendant.id IN {visible_ids} AND none(between IN nodes(path)[1..-1] WHERE between.id IN {visible_ids})
               | descendant.id

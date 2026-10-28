@@ -564,6 +564,11 @@ set initial password for neo4j user (only works if run before starting for the f
 
     neo4j-admin dbms set-initial-password <password-here> 
 
+and the language the queries are written in, Cypher 25, for the database Neo4j makes when it first starts: in
+`/etc/neo4j/neo4j.conf`, `db.query.default_language=CYPHER_25`. A database keeps the language it was made with, and the
+API refuses to start with another; for one made before, run `ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25` in
+`cypher-shell -d system`.
+
 enable systemd to start the neo4j service
 
     sudo systemctl enable neo4j    

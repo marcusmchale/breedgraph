@@ -9,6 +9,20 @@ The release's notes on GitHub link here; corrections found while deploying a rel
 
 ## Unreleased
 
+**Cypher 25.** The queries are now written in Cypher 25, with no APOC, and the API refuses to start on a database
+running another language. A database runs the language it was created with, whatever `db.query.default_language`
+says, so one created before that was set runs Cypher 5, as production's does. Before restarting the API, once, as
+Neo4j's admin (it asks for the password):
+
+    cypher-shell -u neo4j -d system "SHOW DATABASES YIELD name, defaultLanguage WHERE name = 'neo4j'"
+    cypher-shell -u neo4j -d system "ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25"
+
+The first shows the language before, the second sets it; nothing else in the database changes, and it can be set back
+the same way. The same for the demonstration site's Neo4j, with `-a neo4j://127.0.0.1:7688` and its password, if its
+first command shows anything but `CYPHER 25` (its `neo4j.conf` has set it since the site was made). With
+`db.query.default_language=CYPHER_25` in `/etc/neo4j/neo4j.conf` too, a database made later runs it from the start.
+The APOC plugin and its allowlist are no longer used: they can stay, or go at the next restart of Neo4j.
+
 **Detailed maps.** The API no longer emails whoever added a country about its maps: BreedView's location map says
 where they stand instead (`locationsMapStatus`, [maps.md](maps.md)). Nothing to set. Redis keeps who asked for the
 regions requested before the upgrade, which nothing reads now; delete them once, on the web server:

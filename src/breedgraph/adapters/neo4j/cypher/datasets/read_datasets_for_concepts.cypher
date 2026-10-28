@@ -7,9 +7,10 @@ RETURN
     concept: [(dataset)-[:FOR_CONCEPT]-(concept:Variable|Factor) | concept.id][0],
     contributions: [(dataset)<-[contributed:CONTRIBUTED_TO]-(person:Person) | {person: person.id, roles: coalesce(contributed.roles, [])}],
     references: [(dataset)<-[:REFERENCE_FOR]-(reference:Reference)|reference.id],
-    records: apoc.coll.sortMaps([
-      (dataset)-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit) |
-      record {
+    records: COLLECT {
+      // newest first, as submitted, and those without a time last
+      MATCH (dataset)-[:INCLUDES_RECORD]->(record:Record)-[:FOR_UNIT]->(unit:Unit)
+      RETURN record {
         .*,
         .submitted,
         unit: unit.id,
@@ -22,5 +23,6 @@ RETURN
           }
         ]
       }
-    ],'submitted')
+      ORDER BY record.submitted IS NULL, record.submitted DESC
+    }
   }
