@@ -91,6 +91,13 @@ async def get_my_person(_, info) -> PersonOutput | None:
         views = await get_context_views(info.context)
         return (await views.people.get_people_by_users([user_id])).get(user_id)
 
+@graphql_query.field("peopleOrcidLinking")
+@graphql_payload
+@require_authentication
+async def get_orcid_linking(_, info) -> bool:
+    """So that the profile offers to link an ORCID iD only where it can be"""
+    return info.context['bus'].orcid_service.configured
+
 @graphql_query.field("peopleMyClaims")
 @graphql_payload
 @require_authentication

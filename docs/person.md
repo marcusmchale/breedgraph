@@ -260,7 +260,8 @@ The login cookie is `SameSite=Strict`, so it would not be sent on ORCID's redire
 - One Person per iD: checked when linking, and a uniqueness constraint in `create_constraints.cypher` for new databases.
 - `peopleRemoveOrcid` removes it. Only the linked user can set or remove it.
 - Config in `instance/*.env`: `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET` (ORCID **Public API** credentials, free), `ORCID_BASE_URL` (default `https://sandbox.orcid.org`; `https://orcid.org` in production) and `ORCID_REDIRECT_URI`, which must be registered with ORCID.
-  Without credentials, `peopleStartOrcidLink` returns an error saying linking is not available.
+  Without credentials, `peopleOrcidLinking` is false and the profile says linking isn't available on the site, and
+  `peopleStartOrcidLink` returns an error saying so. Turning it on in production: deployment.md, ORCID linking.
 - Front end: a "Connect your ORCID iD" button following ORCID's brand guidelines, showing the iD as its full `https://orcid.org/…` address.
 
 This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.

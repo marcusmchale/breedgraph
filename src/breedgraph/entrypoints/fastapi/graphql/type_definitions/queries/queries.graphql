@@ -32,6 +32,11 @@ type Query {
     peopleMyPerson: PersonPayload!
     """ The current user's pending requests to be linked to a Person """
     peopleMyClaims: PersonClaimsPayload!
+    """
+    Whether users can link a verified ORCID iD on this site: whether its ORCID Public API client is configured
+    (docs/person.md, ORCID). Not on the demonstration site, which has none. Requires sign-in
+    """
+    peopleOrcidLinking: BooleanPayload!
     """ Pending requests to be linked to Persons controlled by teams the current user administers """
     peopleClaimRequests: PersonClaimRequestsPayload!
     """Get the latest ontology version"""

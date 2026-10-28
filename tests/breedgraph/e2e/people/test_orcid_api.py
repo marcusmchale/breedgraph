@@ -3,6 +3,8 @@ from urllib.parse import urlparse, parse_qs
 import pytest
 import pytest_asyncio
 
+from breedgraph import config
+from breedgraph.adapters.orcid import HttpxOrcidService
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 from breedgraph.service_layer.handlers import handlers
 from breedgraph.service_layer.infrastructure.orcid import AbstractOrcidService
@@ -126,3 +128,15 @@ async def test_invalid_orcid_refused(client, login_token_factory, uow_factory, o
     token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
     payload = await complete(client, token, 'not-an-orcid', state_from(await start(client, token)))
     assert payload['status'] == GQLStatus.ERROR.name
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_profile_is_told_whether_an_orcid_id_can_be_linked(client, login_token_factory, uow_factory, bus, monkeypatch):
+    """Only where the site has an ORCID client: not on the demonstration site, whose ORCID would send people elsewhere"""
+    token = login_token_factory(await AccountBuilder(uow_factory).account())
+    query = " query { peopleOrcidLinking { status, result, errors { name, message } } } "
+    monkeypatch.setattr(bus, 'orcid_service', FakeOrcidService())
+    assert get_verified_payload(await _post(client, token, query), "peopleOrcidLinking")['result'] is True
+    monkeypatch.setattr(bus, 'orcid_service', HttpxOrcidService())
+    monkeypatch.setattr(config, 'ORCID_CLIENT_ID', None)
+    assert get_verified_payload(await _post(client, token, query), "peopleOrcidLinking")['result'] is False

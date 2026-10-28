@@ -76,6 +76,11 @@ The demonstration site: set `GAZETTEER_PATH` in its env file (beside its maps, `
 and `GEONAMES_URL=""`. Each reset deletes its places' database, and its API fetches the world's and Ireland's again as
 it starts, from the cache of the map worker it shares with production.
 
+**ORCID linking** is offered on the profile only where the API's ORCID client is configured (`ORCID_CLIENT_ID` and
+`ORCID_CLIENT_SECRET`), and elsewhere the profile says it isn't available on the site, as on the demonstration site.
+Where the credentials are set but the web server can't yet reach `orcid.org`, comment out `ORCID_CLIENT_ID` until it
+can, or linking is offered and fails at its last step ([deployment.md](deployment.md), ORCID linking).
+
 **The map workers' logs** say once when the API stops answering, each hour while it doesn't, and when it answers again,
 rather than at each poll: nothing to do.
 

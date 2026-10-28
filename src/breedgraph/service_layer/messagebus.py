@@ -15,7 +15,8 @@ from breedgraph.service_layer.infrastructure import (
     AbstractAuthService,
     AbstractFileArchivalService,
     AbstractMapRegions,
-    AbstractGazetteer
+    AbstractGazetteer,
+    AbstractOrcidService
 )
 from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
 
@@ -41,7 +42,8 @@ class MessageBus:
             event_queue: Queue,
             archival_service: AbstractFileArchivalService | None = None,
             map_regions: AbstractMapRegions | None = None,
-            gazetteer: AbstractGazetteer | None = None
+            gazetteer: AbstractGazetteer | None = None,
+            orcid_service: AbstractOrcidService | None = None
     ):
         self.uow_factory = uow_factory
         self.views_factory = views_factory
@@ -51,6 +53,7 @@ class MessageBus:
         self.archival_service = archival_service
         self.map_regions = map_regions
         self.gazetteer = gazetteer
+        self.orcid_service = orcid_service
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
         self.event_queue = event_queue

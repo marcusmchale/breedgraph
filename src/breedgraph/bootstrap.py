@@ -88,6 +88,9 @@ async def bootstrap(
     logger.debug("Init map regions")
     map_regions = map_regions(state_store=state_store)
 
+    logger.debug("Init ORCID service")
+    orcid_service = orcid_service()
+
     logger.debug("Init gazetteer")
     gazetteer = gazetteer(state_store=state_store)
 
@@ -102,7 +105,7 @@ async def bootstrap(
         archival_service=archival_service,
         event_queue=event_queue,
         erasure_log=erasure_log,
-        orcid_service=orcid_service(),
+        orcid_service=orcid_service,
         map_regions=map_regions,
         gazetteer=gazetteer
     )
@@ -118,5 +121,6 @@ async def bootstrap(
         archival_service=archival_service,
         map_regions=map_regions,
         gazetteer=gazetteer,
+        orcid_service=orcid_service,
         event_queue=event_queue
     )

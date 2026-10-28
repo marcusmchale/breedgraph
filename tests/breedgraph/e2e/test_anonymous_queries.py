@@ -93,6 +93,7 @@ ACCOUNT_QUERIES = {
     'peopleClaimRequests': 'query { peopleClaimRequests { status errors { name message } } }',
     'peopleMyClaims': 'query { peopleMyClaims { status errors { name message } } }',
     'peopleMyPerson': 'query { peopleMyPerson { status errors { name message } } }',
+    'peopleOrcidLinking': 'query { peopleOrcidLinking { status errors { name message } } }',
     'referencesFileSubmission': 'query { referencesFileSubmission(fileId: "1") { status errors { name message } } }',
     'referencesRecentFiles': 'query { referencesRecentFiles { status errors { name message } } }',
     'teamsRoots': 'query { teamsRoots { status errors { name message } } }',

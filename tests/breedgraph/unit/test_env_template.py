@@ -27,6 +27,12 @@ def test_the_map_workers_template_names_every_variable_it_reads():
     assert not missing, f'instance/map_worker.env leaves out {sorted(missing)}'
 
 
+def test_the_demonstration_sites_template_has_no_orcid_client():
+    """ORCID sends people back only to the redirect its client was registered with, production's"""
+    settings = dict(re.findall(r'^([A-Z][A-Z0-9_]+)="(.*)"$', (ROOT / 'instance/demo/breedgraph-demo.env').read_text(), re.MULTILINE))
+    assert (settings['ORCID_CLIENT_ID'], settings['ORCID_CLIENT_SECRET']) == ('', '')
+
+
 def test_the_password_policy_reads_its_settings_as_numbers(monkeypatch):
     from breedgraph.config import get_password_policy
     for name, value in (('PASSWORD_MIN_LENGTH', '10'), ('PASSWORD_MIN_UPPERCASE', '1'),

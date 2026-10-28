@@ -93,7 +93,7 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    - Neo4j's password (`NEO4J_USERNAME`, `NEO4J_PASSWORD`), the mail server (`MAIL_*`), and the encryption key's
      (`ENCRYPTION_RECIPIENT`, `ENCRYPTION_IDENTITY_PATH`; backups.md, Encryption key).
    - `TERMS_OF_USE_PATH` and `PRIVACY_NOTICE_PATH`, unless the packaged texts are served, and `ORCID_*` to let users
-     link an ORCID iD.
+     link an ORCID iD (ORCID linking, below).
    - `TMPDIR`, a directory owned by `breedgraph` on the large disk, beside `FILE_STORAGE_PATH`: uploads are held there
      while they are received, in `/tmp` otherwise (nginx, below).
 5. **The unit.** `instance/breedgraph.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
@@ -326,6 +326,36 @@ without the token; from anywhere else, 403.
 - A guide chapter's video plays, with its captions.
 - `trigger_retention.sh /opt/breedgraph/breedgraph.env` prints the API's response.
 - `scripts/backup.sh` writes an encrypted dump, and the worker server's copy picks it up.
+
+## ORCID linking
+
+Users link a verified ORCID iD to their Person record by signing in at ORCID (person.md, ORCID). Their browser goes to
+ORCID, and ORCID sends it back to the site's `/orcid` page with a code, which the API exchanges for the iD with
+`POST https://orcid.org/oauth/token`. So the web server needs outbound HTTPS to `orcid.org`, unlike anything else
+BreedGraph does from it. Until it has that, leave `ORCID_CLIENT_ID` empty: the profile then says linking isn't
+available on the site (`peopleOrcidLinking`), rather than offering it and failing at the end. To turn it on:
+
+1. Check the web server reaches ORCID: a refusal, quickly, rather than a timeout:
+
+       curl -sS -o /dev/null -w '%{http_code}\n' --max-time 20 -X POST https://orcid.org/oauth/token
+
+   prints `400` or `401`. Where the network gives a proxy instead, set `HTTPS_PROXY` in the API's unit, which httpx
+   uses.
+2. Register a Public API client (free) on `orcid.org`, not the sandbox, whose accounts, clients and iDs are for
+   testing only: from Developer Tools in an ORCID record, which is a person's (the client stays with that record), or
+   through the organisation's ORCID membership where it has one. Give the application's name and website, and as its
+   only redirect URI the site's `https://<host><SITE_PATH>/orcid` exactly. ORCID sends people back only to a registered
+   URI.
+3. In the API's env file: `ORCID_CLIENT_ID` and `ORCID_CLIENT_SECRET` from the registration (the secret moved as the
+   other secrets are), `ORCID_BASE_URL="https://orcid.org"`, and `ORCID_REDIRECT_URI` set to the registered URI. Then
+   restart the API.
+4. Check: signed in with an account linked to a Person, the profile offers Connect your ORCID iD; ORCID's sign-in
+   comes back to the profile with the iD shown, and Remove ORCID iD removes it. A failed exchange is logged as "ORCID
+   token exchange failed with status …".
+
+The demonstration site has no ORCID client (its env file leaves `ORCID_CLIENT_ID` empty, which a test keeps so): a
+client's redirect URI is production's, so its sign-in would end on production. The privacy notice already describes
+linking.
 
 ## Installing from the wheelhouses
 
