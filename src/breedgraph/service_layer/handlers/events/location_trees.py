@@ -1,5 +1,5 @@
 from breedgraph.domain import events
-from breedgraph.service_layer.infrastructure import AbstractMapRegions, AbstractUnitOfWorkFactory
+from breedgraph.service_layer.infrastructure import AbstractMapRegions, AbstractGazetteer, AbstractUnitOfWorkFactory
 
 from ..registry import handlers
 
@@ -39,3 +39,19 @@ async def remove_country_maps(
 ):
     await map_regions.remove_country(event.code)
 
+
+
+@handlers.event_handler()
+async def fetch_country_places(
+        event: events.location_trees.CountryAdded,
+        gazetteer: AbstractGazetteer
+):
+    await gazetteer.request_country(event.code)
+
+
+@handlers.event_handler()
+async def remove_country_places(
+        event: events.location_trees.CountryRemoved,
+        gazetteer: AbstractGazetteer
+):
+    await gazetteer.remove_country(event.code)

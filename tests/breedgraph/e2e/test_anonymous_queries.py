@@ -53,6 +53,9 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'locationsCountries': ('query { locationsCountries { status errors { name message } } }', {}, True),
         # as the map files are
         'locationsMapStatus': ('query { locationsMapStatus(code: "IRL") { status errors { name message } } }', {}, True),
+        # answered from the server's own copy of GeoNames' places, so no search leaves it (docs/maps.md)
+        'locationsSearchPlaces': ('query { locationsSearchPlaces(query: "Galway") { status errors { name message } } }', {}, True),
+        'locationsCountryPlace': ('query { locationsCountryPlace(code: "IRL") { status errors { name message } } }', {}, True),
         'locationsDescendantsByType': ('query ($ids: [ID!]!) { locationsDescendantsByType(locationIds: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'locationsLocations': ('query ($ids: [ID!]!) { locationsLocations(ids: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'locationsSearch': ('query { locationsSearch(name: "a") { status errors { name message } } }', {}, True),
@@ -78,9 +81,6 @@ ACCOUNT_QUERIES = {
     'controlsTransfer': 'query { controlsTransfer(id: "1") { status errors { name message } } }',
     'controlsTransfers': 'query { controlsTransfers { status errors { name message } } }',
     'datasetsSubmission': 'query { datasetsSubmission(id: "1") { status errors { name message } } }',
-    # place searches are asked of Nominatim by the server, so are not open to everyone
-    'locationsGeocodeCountry': 'query { locationsGeocodeCountry(name: "Ireland") { status errors { name message } } }',
-    'locationsSearchPlaces': 'query { locationsSearchPlaces(query: "Galway") { status errors { name message } } }',
     'ontologyAdmins': 'query { ontologyAdmins { status errors { name message } } }',
     'ontologyCommitHistory': 'query { ontologyCommitHistory { status errors { name message } } }',
     'ontologyEditors': 'query { ontologyEditors { status errors { name message } } }',

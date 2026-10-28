@@ -19,7 +19,6 @@ from breedgraph.entrypoints.fastapi.graphql.schema import create_graphql_schema
 
 from breedgraph import bootstrap, config
 from breedgraph.service_layer.infrastructure.brute_force_protection import BruteForceProtectionService
-from breedgraph.adapters.nominatim import NominatimGeocodingService
 
 from breedgraph.service_layer.messagebus import MessageBus
 from breedgraph.service_layer.application.terms_of_use import load_legal_text
@@ -46,13 +45,12 @@ async def lifespan(fast_api_app: FastAPI):
     await bus.start()  # start event process workers
     if bus.map_regions is not None:
         await bus.map_regions.start()  # resume fetching detailed maps
+    if bus.gazetteer is not None:
+        await bus.gazetteer.start()  # make the place search's database, and resume fetching places
 
     logger.debug("Load brute force protection service")
     brute_force_service = BruteForceProtectionService(state_store=bus.state_store)
     fast_api_app.brute_force_service = brute_force_service
-
-    logger.debug("Load geocoding service")
-    fast_api_app.geocoding_service = NominatimGeocodingService()
 
     logger.debug("Load graphql schema")
     graphql_schema = create_graphql_schema()
@@ -76,6 +74,9 @@ async def lifespan(fast_api_app: FastAPI):
         if bus.map_regions is not None:
             logger.info("Stopping map region fetches")
             await bus.map_regions.stop()
+        if bus.gazetteer is not None:
+            logger.info("Stopping the place search's fetches")
+            await bus.gazetteer.stop()
         if hasattr(bus.uow_factory, "driver"):
             logger.info("Closing driver")
             await bus.uow_factory.driver.close()

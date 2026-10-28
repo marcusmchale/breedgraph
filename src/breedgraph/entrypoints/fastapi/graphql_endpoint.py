@@ -78,7 +78,6 @@ async def get_context_value(request: Request):
         "bus": request.app.bus,
         "auth_service": request.app.bus.auth_service,
         "brute_force_service": request.app.brute_force_service,
-        "geocoding_service": request.app.geocoding_service,
         "user_id": await get_user_id(request),
         "cached_uow": None,
         "cookies_to_set": [],  # List to store cookies that should be set

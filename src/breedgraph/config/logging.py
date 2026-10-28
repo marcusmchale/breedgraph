@@ -117,7 +117,7 @@ LOG_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': False
         },
-        # httpx logs each request's URL at INFO, which would log place searches (Nominatim) and other parameters
+        # httpx logs each request's URL at INFO, which would log the parameters of requests to other services
         'httpx': {
             'level': 'WARNING'
         }

@@ -85,13 +85,34 @@ type CountryMapStatus {
     error: String
     """For a divided country, the sections fetched, being fetched or that failed"""
     sections: [MapSectionStatus!]!
+    """Its places for the place search"""
+    places: PlacesStatus!
 }
 
-"""A place found by name, to move the location map to"""
+"""Where a country's own places for the place search stand: NONE, PENDING, READY or FAILED"""
+type PlacesStatus {
+    state: MapState!
+    """Whether this site fetches places"""
+    enabled: Boolean!
+    """Whether the world's towns of 1,000 people or more are searched, which stand in for a country's own places"""
+    towns: Boolean!
+    """Why they could not be fetched"""
+    error: String
+}
+
+"""A place found by name, to move the location map to, from GeoNames (geonames.org, CC BY 4.0)"""
 type Place {
     name: String!
     latitude: Float!
     longitude: Float!
-    """[[south, west], [north, east]], when known"""
+    """[[south, west], [north, east]], for a country: around its main parts, east above 180 across the antimeridian"""
     bounds: [[Float!]!]
+    """What kind of place it is: "town", "farm", "mountain"…"""
+    description: String
+    """The sections of its country it is in: "Kerry, Munster" """
+    region: String
+    """Its country's name; null for a country"""
+    country: String
+    """The map's zoom to show it at, when it has no bounds"""
+    zoom: Int
 }

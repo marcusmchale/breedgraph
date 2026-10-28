@@ -14,7 +14,8 @@ from breedgraph.service_layer.infrastructure import (
     AbstractStateStore,
     AbstractAuthService,
     AbstractFileArchivalService,
-    AbstractMapRegions
+    AbstractMapRegions,
+    AbstractGazetteer
 )
 from breedgraph.service_layer.queries.views.views import AbstractViewsFactory
 
@@ -39,7 +40,8 @@ class MessageBus:
             command_handlers: Dict[Type[commands.Command], Callable],
             event_queue: Queue,
             archival_service: AbstractFileArchivalService | None = None,
-            map_regions: AbstractMapRegions | None = None
+            map_regions: AbstractMapRegions | None = None,
+            gazetteer: AbstractGazetteer | None = None
     ):
         self.uow_factory = uow_factory
         self.views_factory = views_factory
@@ -48,6 +50,7 @@ class MessageBus:
         self.file_management = file_management
         self.archival_service = archival_service
         self.map_regions = map_regions
+        self.gazetteer = gazetteer
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
         self.event_queue = event_queue

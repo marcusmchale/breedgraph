@@ -97,7 +97,7 @@ We use no analytics, advertising or tracking cookies.
 ### Maps and place search
 
 - Maps are served from our own server. To prepare detailed maps of an area, our server downloads public map data, and sends nothing about you.
-- When you search for a place on a map, our server asks the Nominatim service of the OpenStreetMap Foundation (United Kingdom) for you. It receives your search, but not your IP address or who you are.
+- When you search for a place on a map, our own server answers from its copy of GeoNames' list of places (geonames.org). Your search is sent to no one else.
 
 ### Server logs
 

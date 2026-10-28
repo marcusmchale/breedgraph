@@ -13,6 +13,11 @@ Changes in this revision, after the DPO's comments:
 - Who entered or changed data is recorded, but who did it is shown only to those who can see their Person record
   ("Who entered or changed data").
 
+Since then (28 October 2026), place searches on the map no longer go to a third party: our server answers them from
+its own copy of GeoNames' list of places, so the OpenStreetMap Foundation (United Kingdom), whose Nominatim service
+received each search until now, receives none, and no transfer to the UK is made for them. "Maps and place search"
+says so. Searches are not logged.
+
 Points to confirm:
 
 1. **Lawful basis.** Consent (Art. 6(1)(a)) for account data and Person records; public task (Art. 6(1)(e)) for server

@@ -6,10 +6,10 @@ from breedgraph.service_layer.queries.views import location_trees, AbstractLocat
 from breedgraph import config
 from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
-from breedgraph.service_layer.infrastructure.geocoding import Place
+from breedgraph.service_layer.infrastructure.gazetteer import Place, PlacesStatus
 from breedgraph.service_layer.infrastructure.map_regions import CountryMapStatus, MapState
 from breedgraph.adapters.pmtiles.regions import Region
-from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload, require_authentication
+from breedgraph.entrypoints.fastapi.graphql.decorators import graphql_payload
 
 from breedgraph.entrypoints.fastapi.graphql.resolvers.queries.context_loaders import (
     update_locations_map,
@@ -26,7 +26,10 @@ from ..registry import graphql_resolvers
 location = ObjectType("Location")
 location_template = ObjectType("LocationTemplate")
 location_type_locations = ObjectType("LocationTypeLocations")
-graphql_resolvers.register_type_resolvers(location, location_template, location_type_locations)
+country_map_status = ObjectType("CountryMapStatus")
+graphql_resolvers.register_type_resolvers(location, location_template, location_type_locations, country_map_status)
+
+PLACE_SEARCHES_PER_REQUEST = 5
 
 @graphql_query.field("locationsCountries")
 @graphql_payload
@@ -44,37 +47,44 @@ async def search_locations(_, info, name: str, limit: int | None = None) -> List
     info.context.setdefault('locations_map', dict()).update({location_.id: location_ for location_ in locations})
     return locations
 
-async def _geocoding(info):
-    """The geocoding service, once the user is within their hourly limit of searches"""
-    state_store = info.context['bus'].state_store
-    searches = await state_store.increment_rate_counter(f"geocoding:{info.context['user_id']}", window_seconds=3600)
-    if searches > config.GEOCODING_RATE_LIMIT_PER_HOUR:
-        raise IllegalOperationError("You have reached the limit of place searches per hour, please try again later")
-    return info.context['geocoding_service']
+def _country_code(code: str) -> str:
+    try:
+        return Region(code).code
+    except ValueError:
+        raise IllegalOperationError(f"Not an ISO 3166 alpha-3 code: {code!r}")
 
 @graphql_query.field("locationsSearchPlaces")
 @graphql_payload
-@require_authentication
 async def search_places(
         _,
         info,
         query: str,
         viewbox: List[float] | None = None,
         bounded: bool | None = None,
-        country_code: str | None = None,
+        country: str | None = None,
         limit: int | None = None
 ) -> List[Place]:
-    geocoding = await _geocoding(info)
-    return await geocoding.search_places(
-        query, viewbox=viewbox, bounded=bool(bounded), country_code=country_code, limit=limit or 5
+    """
+    Open to visitors: answered on this server from its copy of GeoNames' places, so no search leaves it, a few at a
+    time and each within a second (adapters/geonames/gazetteer.py)
+    """
+    searches = info.context['place_searches'] = info.context.get('place_searches', 0) + 1
+    if searches > PLACE_SEARCHES_PER_REQUEST:
+        raise IllegalOperationError(f"At most {PLACE_SEARCHES_PER_REQUEST} place searches can be made in one request")
+    gazetteer = info.context['bus'].gazetteer
+    if gazetteer is None:
+        raise IllegalOperationError("Place search is not available")
+    return await gazetteer.search_places(
+        query, viewbox=viewbox, bounded=bool(bounded), country=country and _country_code(country), limit=limit or 5
     )
 
-@graphql_query.field("locationsGeocodeCountry")
+@graphql_query.field("locationsCountryPlace")
 @graphql_payload
-@require_authentication
-async def geocode_country(_, info, name: str) -> Place | None:
-    geocoding = await _geocoding(info)
-    return await geocoding.geocode_country(name)
+async def get_country_place(_, info, code: str) -> Place | None:
+    """Open to visitors, as the map files are"""
+    gazetteer = info.context['bus'].gazetteer
+    code = _country_code(code)
+    return await gazetteer.country_place(code) if gazetteer is not None else None
 
 @graphql_query.field("locationsMapStatus")
 @graphql_payload
@@ -88,6 +98,13 @@ async def get_map_status(_, info, code: str) -> CountryMapStatus:
         return await map_regions.status(code)
     except ValueError:
         raise IllegalOperationError(f"Not an ISO 3166 alpha-3 code: {code!r}")
+
+@country_map_status.field("places")
+async def resolve_places_status(obj: CountryMapStatus, info) -> PlacesStatus:
+    gazetteer = info.context['bus'].gazetteer
+    if gazetteer is None:
+        return PlacesStatus(MapState.NONE, False, False)
+    return await gazetteer.status(obj.code)
 
 @graphql_query.field("locationsRoots")
 @graphql_payload

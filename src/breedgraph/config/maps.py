@@ -2,13 +2,6 @@ import os
 
 from map_worker.fetching import PROTOMAPS_BUILD_URL  # where each build is served, followed by its key
 
-# Place searches on the location map go to Nominatim (OpenStreetMap's geocoder) from the server, so visitors' browsers
-# contact no third party. Its usage policy asks for at most one request a second and an application identified by its
-# User-Agent; the contact given in it is MAIL_FROM. https://operations.osmfoundation.org/policies/nominatim/
-NOMINATIM_URL = os.environ.get('NOMINATIM_URL', 'https://nominatim.openstreetmap.org')
-# Searches each user may make in an hour
-GEOCODING_RATE_LIMIT_PER_HOUR = int(os.environ.get('GEOCODING_RATE_LIMIT_PER_HOUR', 120))
-
 # The place search's names (docs/maps.md): one SQLite database of GeoNames' places, answered on our server so no
 # third party receives searches, and the files it was loaded from. Not served.
 GAZETTEER_PATH = os.environ.get('GAZETTEER_PATH', 'instance/gazetteer')

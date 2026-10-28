@@ -1,0 +1,1 @@
+from .gazetteer import GeoNamesGazetteer

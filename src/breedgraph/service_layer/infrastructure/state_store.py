@@ -524,6 +524,38 @@ class AbstractStateStore(ABC):
         ...
 
     """
+    The place search's fetches (adapters/geonames/gazetteer.py), by key: a country's alpha-3 code, or 'world'. What is
+    loaded is known from the places' database, so this holds what is under way, and why the last fetch failed.
+    """
+    @abstractmethod
+    async def add_gazetteer_request(self, key: str) -> None:
+        """Mark the key's places pending, forgetting why they last failed"""
+        ...
+
+    @abstractmethod
+    async def get_pending_gazetteer(self) -> List[str]:
+        ...
+
+    @abstractmethod
+    async def is_gazetteer_pending(self, key: str) -> bool:
+        ...
+
+    @abstractmethod
+    async def finish_gazetteer(self, key: str, error: str | None = None) -> None:
+        """End the key's request, with why it failed if it did"""
+        ...
+
+    @abstractmethod
+    async def get_gazetteer_failures(self) -> Dict[str, str]:
+        """Why the last fetches that failed did, by key"""
+        ...
+
+    @abstractmethod
+    async def remove_gazetteer(self, key: str) -> None:
+        """Forget the key's request and failure"""
+        ...
+
+    """
     The map worker's jobs (adapters/pmtiles/jobs.py): what the API asks the map worker to fetch, by kind (builds,
     outlines, size, extract) and key (a region key, a country and level for outlines, or 'world' or 'latest'). One job
     per kind and key at a time, so that every process waiting for a result waits on the same job. Extracts have a queue

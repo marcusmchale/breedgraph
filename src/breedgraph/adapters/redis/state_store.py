@@ -49,6 +49,8 @@ MAP_FETCHING = "map:fetching"  # set of region keys whose files are being writte
 MAP_SIZES = "map:sizes"  # hash of region key to the size of its file in bytes
 MAP_FAILURES = "map:failures"  # hash of region key to why its last fetch failed, for its users
 MAP_LOCK = "map:lock:"  # held by the process working on a region
+GAZETTEER_PENDING = "map:gazetteer:pending"  # set of the place search's keys requested and not finished
+GAZETTEER_FAILURES = "map:gazetteer:failures"  # hash of key to why its last fetch failed, for its users
 MAP_JOB = "map:job:"  # hash per map worker's job, by kind and key: kind, key, payload, state, lease, result, error
 MAP_JOBS = "map:jobs:"  # the queue of each lane, a list of job hashes, and its leases, a sorted set by expiry
 MAP_JOB_LEASE = "lease"
@@ -481,6 +483,36 @@ class RedisStateStore(AbstractStateStore):
                 pipe.hdel(MAP_FAILURES, *failures)
             for job in jobs:
                 self._delete_map_job(pipe, job, _map_lane(job.split(':', 3)[2]))
+            await pipe.execute()
+
+    """ The place search's fetches """
+
+    async def add_gazetteer_request(self, key: str) -> None:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            pipe.sadd(GAZETTEER_PENDING, key)
+            pipe.hdel(GAZETTEER_FAILURES, key)
+            await pipe.execute()
+
+    async def get_pending_gazetteer(self) -> List[str]:
+        return sorted(key.decode() for key in await self.connection.smembers(GAZETTEER_PENDING))
+
+    async def is_gazetteer_pending(self, key: str) -> bool:
+        return bool(await self.connection.sismember(GAZETTEER_PENDING, key))
+
+    async def finish_gazetteer(self, key: str, error: str | None = None) -> None:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            if error is not None:
+                pipe.hset(GAZETTEER_FAILURES, key, error)
+            pipe.srem(GAZETTEER_PENDING, key)
+            await pipe.execute()
+
+    async def get_gazetteer_failures(self) -> Dict[str, str]:
+        return {key.decode(): error.decode() for key, error in (await self.connection.hgetall(GAZETTEER_FAILURES)).items()}
+
+    async def remove_gazetteer(self, key: str) -> None:
+        async with self.connection.pipeline(transaction=True) as pipe:
+            pipe.srem(GAZETTEER_PENDING, key)
+            pipe.hdel(GAZETTEER_FAILURES, key)
             await pipe.execute()
 
     """ The map worker's jobs """

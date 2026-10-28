@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Iterable, Iterator, List
 
 from breedgraph.adapters.pmtiles.regions import country_bounds
-from breedgraph.service_layer.infrastructure.geocoding import Place
+from breedgraph.service_layer.infrastructure.gazetteer import Place
 from map_worker.fetching import GAZETTEER_COLUMNS, MALFORMED_SHARE
 from .countries import Country
 
@@ -506,6 +506,11 @@ class GazetteerIndex:
         """The countries whose own places are loaded"""
         with self._reading() as db:
             return {code for code, in db.execute('SELECT code FROM countries WHERE loaded')}
+
+    def world_loaded(self) -> bool:
+        """Whether the world's towns are"""
+        with self._reading() as db:
+            return bool(db.execute('SELECT EXISTS (SELECT 1 FROM places WHERE source = ?)', (WORLD,)).fetchone()[0])
 
     @contextmanager
     def _reading(self, seconds: float | None = None) -> Iterator[sqlite3.Connection]:

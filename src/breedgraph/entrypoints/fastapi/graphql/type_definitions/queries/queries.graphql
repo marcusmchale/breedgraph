@@ -103,18 +103,23 @@ type Query {
     """
     locationsSearch(name: String!, limit: Int): LocationsPayload!
     """
-    Places matching a search, to move the location map to: preferring those in viewbox ([west, south, east, north]),
-    or only those there when bounded, and only those in the country with ISO alpha-2 countryCode when given.
-    The server asks OpenStreetMap's Nominatim, so the browser contacts no third party. Requires sign-in, and is
-    limited per user per hour.
+    Places matching a search, to move the location map to (docs/maps.md): GeoNames' places, answered from this
+    server's copy, so no search leaves it. Whole names first, then names started, then other names (in other
+    languages, or older), preferring those in viewbox ([west, south, east, north]), or only those there when bounded,
+    and only those in the country with ISO 3166 alpha-3 code country when given; later words may name the place's
+    county, province or country. The towns of the world are searched, and every place of the countries in the location
+    trees. At most limit (5 by default, 20 at most), and at most 5 searches in a request. Open to visitors.
     """
-    locationsSearchPlaces(query: String!, viewbox: [Float!], bounded: Boolean, countryCode: String, limit: Int): PlacesPayload!
-    """The country with this name, as locationsSearchPlaces finds places. Requires sign-in"""
-    locationsGeocodeCountry(name: String!): PlacePayload!
+    locationsSearchPlaces(query: String!, viewbox: [Float!], bounded: Boolean, country: String, limit: Int): PlacesPayload!
+    """
+    The country with this ISO 3166 alpha-3 code, with the extent of its main parts, to show it by when its detailed
+    maps give none (null until the world's places are fetched). Open to visitors
+    """
+    locationsCountryPlace(code: String!): PlacePayload!
     """
     Where the detailed maps of the country with this ISO 3166 alpha-3 code stand on this site (docs/maps.md): fetched
     in the background once the country is added, or for a country too large to fetch whole, by its sections as
-    locations in them are placed on the map
+    locations in them are placed on the map; and where its places for the place search stand
     """
     locationsMapStatus(code: String!): CountryMapStatusPayload!
     """Get a list of location tree "root" locations.

@@ -70,3 +70,21 @@ While records cite a scale, through any variable or factor reading it, removed o
 refuses a different scale type: "Records cite Centimetres, so its scale type can't change: create a new scale instead".
 
 Nothing breaks. Work: show the refusals as given.
+
+## Place search from GeoNames
+
+`locationsSearchPlaces` is answered from the API's own copy of GeoNames' places (docs/maps.md), open to visitors, with
+no hourly limit but at most 5 searches in a request. Its `countryCode` (alpha-2) is now `country`, an ISO 3166 alpha-3
+code, as locations' codes are; a code of another form is refused: "Not an ISO 3166 alpha-3 code: 'IE'".
+`locationsGeocodeCountry(name)` is gone: `locationsCountryPlace(code)` gives a country with the extent of its main
+parts (east above 180 across the antimeridian, as tiles.json's), or null until the world's places are fetched.
+`Place` gains `description` ("town", "farm", "mountain"), `region` ("Kerry, Munster"), `country` (its name; null for a
+country) and `zoom` (when it has no bounds), and `CountryMapStatus` gains `places { state enabled towns error }`:
+whether the country's own places are there (`READY`), coming (`PENDING`) or `FAILED`, and whether the world's towns of
+1,000 people or more stand in for them meanwhile. New refusals: "That search took too long: please type more of the
+name", "Place search is busy, please try again in a moment", "A viewbox is [west, south, east, north]".
+
+What breaks: `searchPlaces.graphql` (`countryCode`) and `geocodeCountry.graphql`. Work: search signed out too; pass
+the selected country's alpha-3 code and drop `countryCodes.js`; show each result's kind and region, and zoom to
+`zoom` or `bounds`; credit "Places from GeoNames, CC BY 4.0"; fit a country without a tiles.json extent by
+`locationsCountryPlace(code)`; say under the map, from `places`, when a country is covered by the world's towns only.

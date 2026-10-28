@@ -12,7 +12,8 @@ from breedgraph.service_layer.infrastructure import (
     AbstractFileArchivalService,
     AbstractErasureLog,
     AbstractOrcidService,
-    AbstractMapRegions
+    AbstractMapRegions,
+    AbstractGazetteer
 )
 
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
@@ -25,6 +26,7 @@ from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from breedgraph.adapters.files import JsonLinesErasureLog
 from breedgraph.adapters.orcid import HttpxOrcidService
 from breedgraph.adapters.pmtiles import PmtilesMapRegions
+from breedgraph.adapters.geonames import GeoNamesGazetteer
 
 
 
@@ -49,7 +51,8 @@ async def bootstrap(
         archival_service: Type[AbstractFileArchivalService]|None = None,
         erasure_log: Type[AbstractErasureLog] = JsonLinesErasureLog,
         orcid_service: Type[AbstractOrcidService] = HttpxOrcidService,
-        map_regions: Type[AbstractMapRegions] = PmtilesMapRegions
+        map_regions: Type[AbstractMapRegions] = PmtilesMapRegions,
+        gazetteer: Type[AbstractGazetteer] = GeoNamesGazetteer
 ) -> MessageBus:
     logger.debug("Init driver")
     driver = driver()
@@ -85,6 +88,9 @@ async def bootstrap(
     logger.debug("Init map regions")
     map_regions = map_regions(state_store=state_store)
 
+    logger.debug("Init gazetteer")
+    gazetteer = gazetteer(state_store=state_store)
+
     handlers.register_dependencies(
         uow_factory=uow_factory,
         views_factory=views_factory,
@@ -97,7 +103,8 @@ async def bootstrap(
         event_queue=event_queue,
         erasure_log=erasure_log,
         orcid_service=orcid_service(),
-        map_regions=map_regions
+        map_regions=map_regions,
+        gazetteer=gazetteer
     )
 
     return MessageBus(
@@ -110,5 +117,6 @@ async def bootstrap(
         command_handlers=handlers.command_handlers,
         archival_service=archival_service,
         map_regions=map_regions,
+        gazetteer=gazetteer,
         event_queue=event_queue
     )
