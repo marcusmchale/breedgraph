@@ -104,7 +104,8 @@ def map_paths(tmp_path_factory):
     config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH, config.GAZETTEER_PATH = original
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def test_app() -> AsyncGenerator[FastAPI, None]:
+async def test_app(map_paths) -> AsyncGenerator[FastAPI, None]:
+    # after map_paths, as the map services read their paths when the app starts
     async with LifespanManager(app) as manager:
         yield app
         #yield manager.app
