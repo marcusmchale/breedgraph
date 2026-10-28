@@ -296,7 +296,7 @@ async def test_a_large_country_is_divided_and_placed_locations_fetch_their_secti
     assert (status.state, status.size, status.sections) == (MapState.DIVIDED, 17 * 10 ** 9, [])
     # a divided country is still shown by its outline
     assert maps.layers() == ['world.pmtiles']
-    assert maps.countries() == {'USA': {'name': 'United States of America', 'bounds': [[30, -100], [40, -80]]}}
+    assert maps.countries() == {'USA': {'name': 'United States', 'bounds': [[30, -100], [40, -80]]}}
 
     await regions.request_places('USA', [IN_A])
     await regions.wait_until_idle()

@@ -4,21 +4,20 @@ Read models in Redis, each built whole from Neo4j and swapped in atomically.
 A read model owns a set of hash keys. A refresh builds each into a temporary key and renames it over the old one
 (or deletes the old one when it is empty), so readers never see a partial read model and stale entries go.
 """
-import csv
 import json
-from pathlib import Path
 from typing import Awaitable, Callable, Self
 from uuid import uuid4
 
 import redis.asyncio as redis
 from neo4j import AsyncResult
 
-from breedgraph.config import COUNTRY_CODES_PATH, get_redis_host_and_port
+from breedgraph.config import get_redis_host_and_port
 from breedgraph.domain.model.controls import ReadRelease
 from breedgraph.domain.model.ontology import OntologyEntryLabel
 from breedgraph.service_layer.application.ontology_seed import COUNTRY
 from breedgraph.domain.model.location_trees import LocationInput, LocationOutput
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
+from breedgraph.adapters.geonames.countries import read_countries
 from breedgraph.adapters.neo4j.services import Neo4jOntologyPersistenceService
 from breedgraph.adapters.neo4j.cypher.query_builders import location_trees as location_tree_queries
 from breedgraph.service_layer.infrastructure.read_models import AbstractReadModels
@@ -97,15 +96,10 @@ class RedisReadModels(AbstractReadModels):
                     country = LocationOutput(**record['location'])
                     countries[country.code] = json.dumps(country.model_dump())
 
-        # e.g. https://unstats.un.org/unsd/methodology/m49/overview/
-        country_codes_path = Path(COUNTRY_CODES_PATH)
-        if country_codes_path.is_file():
-            with open(country_codes_path) as country_codes_csv:
-                for row in csv.DictReader(country_codes_csv, delimiter=";"):
-                    country = LocationInput(name=row['Country or Area'], code=row['ISO-alpha3 Code'], type=country_type_id)
-                    countries.setdefault(country.code, json.dumps(country.model_dump()))
-        else:
-            logger.warning("Couldn't find country codes to preload read model")
+        # and those not yet added, from GeoNames' list packaged with BreedGraph
+        for listed in read_countries().values():
+            country = LocationInput(name=listed.name, code=listed.iso3, type=country_type_id)
+            countries.setdefault(country.code, json.dumps(country.model_dump()))
         return {COUNTRY_KEY: countries}
 
     async def _build_ontology(self) -> ReadModelContent:

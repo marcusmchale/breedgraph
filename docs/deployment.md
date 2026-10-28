@@ -95,9 +95,6 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
      link an ORCID iD.
    - `TMPDIR`, a directory owned by `breedgraph` on the large disk, beside `FILE_STORAGE_PATH`: uploads are held there
      while they are received, in `/tmp` otherwise (nginx, below).
-   - `COUNTRY_CODES_PATH`, the countries offered when adding a location: a file in neither the repository nor the
-     wheel, the UN's M49 overview as CSV, which the template's comment describes. Without it, only the countries
-     already added are offered, and none at all until the read models are filled (step 6).
 5. **The unit.** `instance/breedgraph.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,

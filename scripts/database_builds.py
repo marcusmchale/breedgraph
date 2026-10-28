@@ -17,7 +17,7 @@ from typing import AsyncIterator, Iterable
 
 import redis.asyncio as redis
 
-from breedgraph.config import FILE_STORAGE_PATH, COUNTRY_CODES_PATH, get_redis_host_and_port
+from breedgraph.config import FILE_STORAGE_PATH, get_redis_host_and_port
 from breedgraph.domain.model.controls import ControlledModelLabel
 from breedgraph.adapters.neo4j.driver import Neo4jAsyncDriver
 from breedgraph.adapters.neo4j.unit_of_work import Neo4jUnitOfWorkFactory
@@ -46,9 +46,6 @@ def git_commit() -> str | None:
 def require_environment() -> None:
     if not FILE_STORAGE_PATH:
         raise RuntimeError("FILE_STORAGE_PATH is not set: load the instance environment first")
-    if not Path(COUNTRY_CODES_PATH).is_file():
-        # the scenario's location trees are countries from this file, which the state store holds
-        raise RuntimeError(f"No country codes at COUNTRY_CODES_PATH ({COUNTRY_CODES_PATH}), e.g. src/data/country_codes.csv")
 
 
 @dataclass

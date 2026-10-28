@@ -66,8 +66,7 @@ production's server block) and the rest to production, as before.
    - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`, `tmp`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
      `map_tiles/`, `map_boundaries/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
-   - `private/` (0700);
-   - `country_codes.csv`, a copy of production's (`COUNTRY_CODES_PATH`).
+   - `private/` (0700).
 
    The maps take room: the regions visitors fetch, to `MAP_TILES_MAX_GB` (10 GB), and the world and Ireland, which
    `dump/` keeps a copy of, about 2 GB. Where `/opt` is on the system disk, beside production's Neo4j, put

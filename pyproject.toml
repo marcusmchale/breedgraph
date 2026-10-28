@@ -94,6 +94,8 @@ breedgraph = [
     "entrypoints/fastapi/graphql/type_definitions/**/*.graphql",
     "adapters/neo4j/cypher/**/*.cypher",
     "data/*.csv",
+    "data/*.txt",
+    "data/*.md",
     "legal/*.md",
 ]
 archive_worker = []

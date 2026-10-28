@@ -29,7 +29,8 @@ from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 import logging
 logger = logging.getLogger(__name__)
 
-# BreedCAFS country name -> ISO 3166-1 alpha-3 code and the name used for countries (UN M49, src/data/country_codes.csv)
+# BreedCAFS country name -> ISO 3166-1 alpha-3 code and the name used for countries (the UN's M49 names, as the country
+# list had until GeoNames' replaced it: breedgraph.adapters.geonames.countries)
 COUNTRIES = {
     "Cameroon": ("CMR", "Cameroon"),
     "Costa Rica": ("CRI", "Costa Rica"),
