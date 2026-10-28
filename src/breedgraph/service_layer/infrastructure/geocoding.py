@@ -13,6 +13,10 @@ class Place:
     latitude: float
     longitude: float
     bounds: List[List[float]] | None = None  # [[south, west], [north, east]]
+    description: str | None = None  # what kind of place it is: "town", "farm", "mountain"…
+    region: str | None = None  # the sections of its country it is in: "Kerry, Munster"
+    country: str | None = None  # its country's name
+    zoom: int | None = None  # the map's zoom to show it at, when it has no bounds
 
 
 class AbstractGeocodingService(ABC):

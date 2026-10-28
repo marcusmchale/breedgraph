@@ -92,14 +92,16 @@ def erasure_log_path(tmp_path_factory):
 def map_paths(tmp_path_factory):
     """
     Tests keep map tiles and outlines in temporary directories rather than instance/, so removing a test country
-    leaves the development tiles alone. Nothing is fetched, as pytest.ini empties MAP_PMTILES_COMMAND.
+    leaves the development tiles alone, and so the place search's names. Nothing is fetched, as pytest.ini empties
+    MAP_PMTILES_COMMAND and GEONAMES_URL.
     """
     from breedgraph import config
-    original = config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH
+    original = config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH, config.GAZETTEER_PATH
     config.MAP_TILES_PATH = str(tmp_path_factory.mktemp("map_tiles"))
     config.MAP_BOUNDARIES_PATH = str(tmp_path_factory.mktemp("map_boundaries"))
+    config.GAZETTEER_PATH = str(tmp_path_factory.mktemp("gazetteer"))
     yield
-    config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH = original
+    config.MAP_TILES_PATH, config.MAP_BOUNDARIES_PATH, config.GAZETTEER_PATH = original
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_app() -> AsyncGenerator[FastAPI, None]:

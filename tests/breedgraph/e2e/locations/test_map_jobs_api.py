@@ -1,4 +1,5 @@
 """The map worker's routes (entrypoints/fastapi/map_jobs.py), with jobs queued in the state store as the API queues them"""
+import gzip
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from breedgraph import config
 from breedgraph.config import get_base_url
 
 PMTILES = b'PMTiles' + bytes(25)
+PLACES = gzip.compress(b'geonameid\tname\n')
 BUILD = 'https://build.protomaps.com/20261026.pmtiles'
 OUTLINES = {'type': 'FeatureCollection', 'features': [
     {'type': 'Feature', 'properties': {'shapeID': 'irl'}, 'geometry': {'type': 'Point', 'coordinates': [-8, 53]}}
@@ -109,6 +111,31 @@ async def test_an_extract_is_kept_under_a_name_the_api_makes(client, jobs):
     result = (await jobs.get_map_job('extract', 'IRL'))['result']
     assert result == {'file': f".IRL.{job['lease']}.upload", 'size': len(PMTILES), 'build': BUILD, 'version': '4.15.2'}
     assert (Path(config.MAP_TILES_PATH) / 'regions' / result['file']).read_bytes() == PMTILES
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_countrys_places_are_kept_where_the_place_search_loads_them(client, jobs):
+    await jobs.enqueue_map_job('gazetteer', 'IRL', {'code': 'IE', 'fresh': False})
+    job = await lease(client, 'quick')
+    response = await client.put("/map_jobs/gazetteer/IRL/file", content=PLACES, headers=worker_headers(**{
+        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PLACES))
+    }))
+    assert response.status_code == 204, response.text
+    result = (await jobs.get_map_job('gazetteer', 'IRL'))['result']
+    assert result == {'file': f".IRL.{job['lease']}.upload", 'size': len(PLACES)}
+    assert (Path(config.GAZETTEER_PATH) / 'places' / result['file']).read_bytes() == PLACES
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_places_that_are_not_gzipped_are_refused_and_nothing_kept(client, jobs):
+    await jobs.enqueue_map_job('gazetteer', 'world', {'fresh': False})
+    job = await lease(client, 'quick')
+    response = await client.put("/map_jobs/gazetteer/world/file", content=PMTILES, headers=worker_headers(**{
+        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PMTILES))
+    }))
+    assert response.status_code == 400 and 'not a gzip file' in response.text
+    assert not list((Path(config.GAZETTEER_PATH) / 'places').glob('.world.*'))
+    assert (await jobs.get_map_job('gazetteer', 'world'))['leased'], 'the worker may send it again'
 
 
 @pytest.mark.asyncio(loop_scope="session")

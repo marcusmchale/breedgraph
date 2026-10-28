@@ -6,7 +6,10 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from breedgraph import config
-from breedgraph.adapters.pmtiles.jobs import receive_result, receive_extract, LeaseNotHeld, BadUpload, NoSpace
+from breedgraph.adapters.geonames.index import PLACES_DIRECTORY
+from breedgraph.adapters.pmtiles.jobs import (
+    receive_result, receive_extract, receive_gazetteer, LeaseNotHeld, BadUpload, NoSpace
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -85,15 +88,21 @@ async def upload_file(
 ):
     """
     A job's file, kept as it arrives and moved into place by the API's waiting process: an extract's in MAP_TILES_PATH,
-    with the build and version of the tiles it was cut from
+    with the build and version of the tiles it was cut from, and the place search's places in GAZETTEER_PATH
     """
-    if kind != 'extract':
+    if kind not in ('extract', 'gazetteer'):
         raise HTTPException(status_code=404, detail=f"No file is sent for {kind} jobs")
     try:
-        await receive_extract(
-            request.app.bus.state_store, Path(config.MAP_TILES_PATH), config.MAP_JOB_LEASE_SECONDS,
-            key, x_map_lease, x_map_size, request.stream(), build=x_map_build, version=x_map_version
-        )
+        if kind == 'extract':
+            await receive_extract(
+                request.app.bus.state_store, Path(config.MAP_TILES_PATH), config.MAP_JOB_LEASE_SECONDS,
+                key, x_map_lease, x_map_size, request.stream(), build=x_map_build, version=x_map_version
+            )
+        else:
+            await receive_gazetteer(
+                request.app.bus.state_store, Path(config.GAZETTEER_PATH) / PLACES_DIRECTORY,
+                config.MAP_JOB_LEASE_SECONDS, key, x_map_lease, x_map_size, request.stream()
+            )
     except LeaseNotHeld:
         raise not_held()
     except BadUpload as e:

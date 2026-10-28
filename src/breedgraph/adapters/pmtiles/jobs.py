@@ -34,6 +34,7 @@ WORLD = 'world'  # the key of the world file's size and extract, which have no o
 UPLOAD_SUFFIX = '.upload'
 UPLOAD_KEEP_SECONDS = 86400  # an upload left by an interrupted request is deleted at the next start after this
 PMTILES_MAGIC = b'PMTiles'
+GZIP_MAGIC = b'\x1f\x8b'
 
 
 class MapJobs:
@@ -260,6 +261,22 @@ async def receive_extract(
         state_store, 'extract', key, lease, lease_seconds, directory, size, chunks, PMTILES_MAGIC, 'PMTiles file',
         extra={'build': build, 'version': version or None}
     )
+
+
+async def receive_gazetteer(
+        state_store: AbstractStateStore,
+        directory: Path,
+        lease_seconds: int,
+        key: str,
+        lease: str,
+        size: int,
+        chunks: AsyncIterator[bytes]
+) -> None:
+    """
+    Keep the place search's file of a country's places, or the world's, as it arrives, in the directory it is loaded
+    from (adapters/geonames), and finish the job with it
+    """
+    await receive_file(state_store, 'gazetteer', key, lease, lease_seconds, directory, size, chunks, GZIP_MAGIC, 'gzip file')
 
 
 async def receive_file(

@@ -9,6 +9,12 @@ NOMINATIM_URL = os.environ.get('NOMINATIM_URL', 'https://nominatim.openstreetmap
 # Searches each user may make in an hour
 GEOCODING_RATE_LIMIT_PER_HOUR = int(os.environ.get('GEOCODING_RATE_LIMIT_PER_HOUR', 120))
 
+# The place search's names (docs/maps.md): one SQLite database of GeoNames' places, answered on our server so no
+# third party receives searches, and the files it was loaded from. Not served.
+GAZETTEER_PATH = os.environ.get('GAZETTEER_PATH', 'instance/gazetteer')
+# Where GeoNames' files are downloaded from when the API fetches them itself, without MAP_WORKER; empty to fetch none
+GEONAMES_URL = os.environ.get('GEONAMES_URL', 'https://download.geonames.org/export/dump')
+
 # Map tiles, served by us so browsers contact no third party (docs/maps.md): a low-detail world file cut by
 # scripts/map_tiles.py, detailed files for regions fetched when countries are added and locations placed
 # (adapters/pmtiles/map_regions.py), and tiles.json listing them. Served at /tiles, by nginx in production.

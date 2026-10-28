@@ -5,7 +5,9 @@ The map worker run in the tests' process (src/map_worker), its client calling wh
 import asyncio
 from pathlib import Path
 
-from breedgraph.adapters.pmtiles.jobs import receive_result, receive_extract, LeaseNotHeld, BadUpload, NoSpace
+from breedgraph.adapters.pmtiles.jobs import (
+    receive_result, receive_extract, receive_gazetteer, LeaseNotHeld, BadUpload, NoSpace
+)
 from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
 from map_worker.domain.job import MapJob
 
@@ -15,10 +17,11 @@ LEASE_SECONDS = 1.5
 class InProcessClient(AbstractMapAPIClient):
     """The map worker's client, calling what the API's routes call: results, failures, and each kind's files"""
 
-    def __init__(self, state_store, boundaries: Path, tiles: Path):
+    def __init__(self, state_store, boundaries: Path, tiles: Path, places: Path | None = None):
         self.state_store = state_store
         self.boundaries = boundaries
         self.tiles = tiles
+        self.places = places  # where the place search's files are received
         self.payloads = []
 
     async def lease(self, lane):
@@ -52,6 +55,8 @@ class InProcessClient(AbstractMapAPIClient):
                     self.state_store, self.tiles, LEASE_SECONDS, job.key, job.lease, size, chunks(),
                     build=extract.build, version=extract.version
                 )
+            elif job.kind == 'gazetteer' and self.places is not None:
+                await receive_gazetteer(self.state_store, self.places, LEASE_SECONDS, job.key, job.lease, size, chunks())
             else:
                 raise BadUpload(f"No file is sent for {job.kind} jobs")
         except LeaseNotHeld:

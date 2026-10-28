@@ -23,6 +23,7 @@ __pycache__
 /instance/neo4j_archive/
 /instance/map_tiles/
 /instance/map_boundaries/
+/instance/gazetteer/
 /map_cache/
 /src/breedcafs_migration/private_notes.md
 /.claude/
