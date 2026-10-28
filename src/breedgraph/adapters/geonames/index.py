@@ -404,6 +404,7 @@ class GazetteerIndex:
                 for path in (self.path, Path(f'{self.path}-wal'), Path(f'{self.path}-shm')):
                     path.unlink(missing_ok=True)
                 with self._closing() as db:
+                    db.execute('PRAGMA auto_vacuum = INCREMENTAL')  # so that the room a country's places took is given back
                     db.execute('PRAGMA journal_mode = WAL')
                     db.executescript(SCHEMA)
                     db.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
@@ -421,17 +422,24 @@ class GazetteerIndex:
 
     @contextmanager
     def _writing(self) -> Iterator[sqlite3.Connection]:
-        """One transaction, committed if it ends without an exception"""
+        """
+        One transaction, committed if it ends without an exception, after which the room what it deleted took is given
+        back: the text indexes keep what is deleted until their parts merge, so they are merged into one (as long as
+        a load again: 15 s with the United States), and the pages freed are cut from the file
+        """
         with self._locked(), self._closing() as db:
             db.execute('PRAGMA synchronous = NORMAL')
             db.execute('BEGIN IMMEDIATE')
             try:
                 yield db
+                db.execute("INSERT INTO places_text (places_text) VALUES ('optimize')")
+                db.execute("INSERT INTO regions_text (regions_text) VALUES ('optimize')")
             except BaseException:
                 if db.in_transaction:
                     db.execute('ROLLBACK')
                 raise
             db.execute('COMMIT')
+            db.execute('PRAGMA incremental_vacuum').fetchall()  # a page a step
             db.execute('PRAGMA wal_checkpoint(TRUNCATE)')  # so the log, as large as a country's places, doesn't stay
 
     @staticmethod

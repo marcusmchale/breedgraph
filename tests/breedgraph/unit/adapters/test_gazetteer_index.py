@@ -277,3 +277,15 @@ def test_kinds_zooms_and_regions_in_words():
     assert region_for('Kerry', 'Kerry', 'Munster') == 'Munster'
     assert region_for('Bogotá', 'Bogotá  D.C.', 'Bogota D.C.') == 'Bogotá  D.C.'
     assert region_for('Munster', '', 'Munster') is None
+
+
+def test_the_room_places_took_is_given_back_when_they_go(index, files, tmp_path):
+    index.load_world(files[0])
+    before = index.path.stat().st_size
+    towns = [row(str(i), f'Town {i} of a large county') for i in range(1, 3000)]
+    index.load_country('IRL', write_places(tmp_path / 'IRL.tsv.gz', towns))
+    assert index.path.stat().st_size > before * 2
+    index.remove_country('IRL')
+    with sqlite3.connect(index.path) as db:
+        assert db.execute('PRAGMA freelist_count').fetchone() == (0,)
+    assert index.path.stat().st_size < before * 1.5
