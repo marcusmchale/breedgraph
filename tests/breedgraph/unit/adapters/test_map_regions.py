@@ -145,7 +145,11 @@ def test_tiles_json_lists_the_world_and_the_complete_regions(tmp_path):
     assert write_tiles_json(tmp_path)
 
     tiles = json.loads((tmp_path / 'tiles.json').read_text())
-    assert tiles['attribution'] == '© OpenStreetMap contributors, Protomaps'
+    # the credit OpenStreetMap's licence (ODbL) asks for, linking to its copyright page, and Protomaps'
+    assert tiles['attribution'] == (
+        '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, '
+        '<a href="https://protomaps.com">Protomaps</a>'
+    )
     assert tiles['layers'] == [
         {'url': 'world.pmtiles', 'maxZoom': 6, 'build': 'https://example.org/build.pmtiles'},
         {'url': 'regions/IRL.pmtiles', 'name': 'Ireland', 'minZoom': 7, 'maxZoom': 15, 'bounds': [[0, 0], [1, 1]]},

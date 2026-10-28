@@ -114,6 +114,8 @@ class PmtilesMapRegions(AbstractMapRegions):
         self._extracting = asyncio.Semaphore(1)  # one extract at a time in each process
 
     async def start(self) -> None:
+        # tiles.json written anew, so that what this release writes in it (the map's credit) is served at once
+        await asyncio.to_thread(write_tiles_json, self.tiles_path)
         if self.worker:
             logger.info("Detailed maps are fetched by the map worker")
             if not config.MAP_WORKER_AUTH_TOKEN:

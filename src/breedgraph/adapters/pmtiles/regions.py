@@ -15,7 +15,12 @@ from math import cos, radians, inf
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
-ATTRIBUTION = '© OpenStreetMap contributors, Protomaps'
+# the map's credit, as the map shows it (HTML): OpenStreetMap's data (ODbL), linked to its copyright page as its
+# attribution guidelines ask of interactive maps, cut by Protomaps
+ATTRIBUTION = (
+    '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, '
+    '<a href="https://protomaps.com">Protomaps</a>'
+)
 COUNTRY = 'ADM0'
 SECTION_LEVELS = ('ADM1', 'ADM2')
 REGIONS_DIRECTORY = 'regions'  # within the tiles path, so served with the world file

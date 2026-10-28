@@ -16,7 +16,7 @@ import pytest_asyncio
 
 from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.pmtiles import map_regions as map_regions_module
-from breedgraph.adapters.pmtiles.regions import Region
+from breedgraph.adapters.pmtiles.regions import Region, ATTRIBUTION
 from breedgraph.service_layer.infrastructure.map_regions import MapState, MapSectionStatus
 from breedgraph.adapters.pmtiles.jobs import sources, MapRegionError
 from map_worker.adapters.cache import ExtractCache
@@ -199,6 +199,18 @@ async def maps(request, tmp_path, state_store, monkeypatch) -> Maps:
     yield maps
     await maps.stop_worker()
     await clear()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_tiles_json_is_written_anew_at_start(maps):
+    """So that what a release writes in it, as the map's credit, is served from its start, and after a demo reset"""
+    (maps.tiles / 'tiles.json').write_text(json.dumps({'attribution': 'an older credit', 'layers': [], 'countries': {}}))
+    regions = maps.service()
+    await regions.start()
+    written = json.loads((maps.tiles / 'tiles.json').read_text())
+    assert written['attribution'] == ATTRIBUTION and 'openstreetmap.org/copyright' in ATTRIBUTION
+    assert maps.layers() == ['world.pmtiles']
+    await regions.stop()
 
 
 @pytest.mark.asyncio(loop_scope="session")
