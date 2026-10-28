@@ -5,27 +5,23 @@ SET
 WITH
   layout
 // Update type
-CALL {
-  WITH layout
+CALL (layout) {
   MATCH (layout)-[of_type:OF_LAYOUT_TYPE]->(type:LayoutType)
     WHERE NOT type.id = $type
   DELETE of_type
 }
-CALL {
-  WITH layout
+CALL (layout) {
   MATCH (type:LayoutType {id: $type})
   MERGE (layout)-[of_type:OF_LAYOUT_TYPE]->(type)
   ON CREATE SET of_type.time = datetime.transaction()
 }
 // Update location
-CALL {
-  WITH layout
+CALL (layout) {
   MATCH (layout)-[at_location:AT_LOCATION]->(location:Location)
     WHERE NOT location.id = $location
   DELETE at_location
 }
-CALL {
-  WITH layout
+CALL (layout) {
   MATCH (location:Location {id: $location})
   MERGE (layout)-[at_location:AT_LOCATION]->(location)
   ON CREATE SET at_location.time = datetime.transaction()
