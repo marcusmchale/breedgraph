@@ -4,6 +4,7 @@ transport: no requests leave the test.
 """
 import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from map_worker.domain.job import MapJob, Extract, BadJob, check
 from map_worker.fetching import PmtilesCommand, MapRegionError
 from map_worker.service_layer import handlers as handlers_module
 from map_worker.service_layer.handlers import MapHandlers
-from map_worker.service_layer.worker import MapWorker
+from map_worker.service_layer.worker import MapWorker, Unanswered
 
 BUILD = 'https://build.protomaps.com/20261026.pmtiles'
 BUILD_NEXT = 'https://build.protomaps.com/20261027.pmtiles'
@@ -258,6 +259,63 @@ async def test_a_long_extract_holds_up_no_quick_job(handlers, pmtiles, monkeypat
     finally:
         await running.shutdown()
         await asyncio.wait_for(task, 10)
+
+
+""" Its log while the API doesn't answer """
+
+
+class UnansweredClient(MockClient):
+    """Leaves the first polls of each lane unanswered, as while the API restarts"""
+    def __init__(self, unanswered: int):
+        super().__init__()
+        self.unanswered = {'quick': unanswered, 'extract': unanswered}
+
+    async def lease(self, lane):
+        if self.unanswered[lane]:
+            self.unanswered[lane] -= 1
+            raise httpx.ConnectError('Connection refused')
+        return await super().lease(lane)
+
+
+@pytest.mark.asyncio
+async def test_polls_unanswered_are_logged_when_they_start_and_end_not_each_time(handlers, caplog):
+    client = UnansweredClient(unanswered=5)
+    running = worker(client, handlers)
+    with caplog.at_level(logging.INFO, logger='map_worker.service_layer.worker'):
+        task = asyncio.create_task(running.run())
+        try:
+            for _ in range(200):
+                if sum(r.getMessage().startswith('The API answers') for r in caplog.records) == 2:
+                    break
+                await asyncio.sleep(0.02)
+        finally:
+            await running.shutdown()
+            await asyncio.wait_for(task, 10)
+    unanswered = [r.getMessage() for r in caplog.records if 'could not be asked' in r.getMessage()]
+    answered = [r.getMessage() for r in caplog.records if r.getMessage().startswith('The API answers')]
+    assert sorted(m.split(' jobs')[0] for m in unanswered) == [
+        'The API could not be asked for extract', 'The API could not be asked for quick'
+    ]
+    assert all('ConnectError: Connection refused' in m for m in unanswered)
+    assert len(answered) == 2 and all(m.endswith('(5 polls unanswered)') for m in answered)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING and r.getMessage() not in unanswered]
+
+
+def test_polls_unanswered_for_long_are_logged_again_each_hour(caplog):
+    now = [0.0]
+    unanswered = Unanswered('quick', 5, clock=lambda: now[0])
+    with caplog.at_level(logging.INFO, logger='map_worker.service_layer.worker'):
+        for _ in range(1000):
+            unanswered.failed(httpx.ConnectError('Connection refused'))
+            now[0] += 5
+        unanswered.answered()
+        unanswered.answered()
+    assert [r.getMessage() for r in caplog.records] == [
+        "The API could not be asked for quick jobs: ConnectError: Connection refused. Asking every 5 s, and saying when "
+        "it answers",
+        "The API has not answered for quick jobs for 1 h (721 polls): ConnectError: Connection refused",
+        "The API answers for quick jobs again, after 1 h 23 min 20 s (1000 polls unanswered)",
+    ]
 
 
 """ Its cache """

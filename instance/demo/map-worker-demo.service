@@ -2,7 +2,7 @@
 # beside production's (instance/map_worker.service), as the same user from the same venv. The site's other workers run
 # on the web server, but that server can't reach the internet, so this one runs here. It shares production's worker's
 # cache and has a work path of its own (map-worker-demo.env). It is not part of breedgraph-demo.target, which is on the
-# web server: while the site resets, it logs a warning each poll.
+# web server: while the site resets, it logs a warning, and a line when the site's API answers again.
 [Unit]
 Description=Map Worker for the BreedGraph demonstration site
 After=network.target

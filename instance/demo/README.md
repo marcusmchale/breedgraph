@@ -131,8 +131,9 @@ The API's and the workers' logs are in `/opt/breedgraph-demo/logs`, Neo4j's in `
 Production's services are not part of the target, so none of this stops them.
 
 The map worker is on the worker server, outside the target: `sudo systemctl restart map-worker-demo` there, and its log
-is `/var/log/map_worker/map-demo.log`. While the site is stopped or resetting, it logs a warning each poll, and goes on
-once the site's API answers.
+is `/var/log/map_worker/map-demo.log`. While the site is stopped or resetting, nginx answers its polls with 502: it
+logs a warning when they start going unanswered (one for each of its two lanes, quick and extract), and a line when the
+site's API answers again, and goes on.
 
 Restarting the target restarts Redis too, which saves nothing: the read models (the countries, the ontology) are gone
 until the next reset. Restart the API and the workers alone (`sudo systemctl restart breedgraph-demo

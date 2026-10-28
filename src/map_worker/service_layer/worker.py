@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from typing import Set
 
 import httpx
@@ -13,6 +14,54 @@ logger = logging.getLogger(__name__)
 
 UPLOAD_ATTEMPTS = 5
 UPLOAD_RETRY_SECONDS = 30
+# while the API can't be asked for jobs, as while its site restarts or resets, how often a lane says it still can't
+UNANSWERED_REPEAT_SECONDS = 3600
+
+
+def duration(seconds: float) -> str:
+    minutes, seconds = divmod(round(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return ' '.join(f"{n} {unit}" for n, unit in ((hours, 'h'), (minutes, 'min'), (seconds, 's')) if n) or '0 s'
+
+
+class Unanswered:
+    """
+    A lane's polls the API has not answered: said when the first fails, every UNANSWERED_REPEAT_SECONDS while they go
+    on, and when one is answered again, rather than at each poll
+    """
+
+    def __init__(self, lane: str, poll_interval: float, clock=time.monotonic):
+        self.lane = lane
+        self.poll_interval = poll_interval
+        self.clock = clock
+        self.since: float | None = None
+        self.said: float = 0
+        self.polls = 0
+
+    def failed(self, error: Exception):
+        now = self.clock()
+        self.polls += 1
+        reason = f"{type(error).__name__}: {error}"
+        if self.since is None:
+            self.since = self.said = now
+            logger.warning(
+                f"The API could not be asked for {self.lane} jobs: {reason}. Asking every {self.poll_interval:g} s, "
+                f"and saying when it answers"
+            )
+        elif now - self.said >= UNANSWERED_REPEAT_SECONDS:
+            self.said = now
+            logger.warning(
+                f"The API has not answered for {self.lane} jobs for {duration(now - self.since)} ({self.polls} polls): "
+                f"{reason}"
+            )
+
+    def answered(self):
+        if self.since is not None:
+            logger.info(
+                f"The API answers for {self.lane} jobs again, after {duration(self.clock() - self.since)} "
+                f"({self.polls} polls unanswered)"
+            )
+            self.since, self.polls = None, 0
 
 
 class MapWorker:
@@ -36,14 +85,16 @@ class MapWorker:
         logger.info("Map worker shutdown complete")
 
     async def _run_lane(self, lane: str):
+        unanswered = Unanswered(lane, self.poll_interval)
         while not self._shutdown_event.is_set():
             try:
                 # process jobs until the lane is empty
                 while not self._shutdown_event.is_set() and await self.process_next(lane):
                     pass
+                unanswered.answered()
             except httpx.HTTPError as e:
-                # as while the API restarts: a line each poll, not a traceback
-                logger.warning(f"The API could not be asked for {lane} jobs: {type(e).__name__}: {e}")
+                # as while the API restarts: a line when it stops answering and when it answers again, not a traceback
+                unanswered.failed(e)
             except Exception as e:
                 logger.exception(f"Error in the {lane} lane: {e}")
 
