@@ -37,6 +37,10 @@ class AnalysisJobFailed(Exception):
         self.warnings = warnings or []
         super().__init__("; ".join(e.message for e in errors))
 
+    def __reduce__(self):
+        # rebuilt from its messages, not its text, when it comes back from the process that ran the analysis
+        return type(self), (self.errors, self.warnings)
+
 
 @dataclass
 class AnalysisJob:

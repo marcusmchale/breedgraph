@@ -195,3 +195,26 @@ async def test_worker_runs_r_analysis_in_process_pool():
     assert client.failures == []
     (_, result, _), = client.results
     assert result['terms'][0]['term'] == A
+
+
+@pytest.mark.asyncio
+async def test_worker_reports_a_failed_analysis_from_the_process_pool():
+    """Its messages come back from the analysis's process, rather than the pool breaking on them"""
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+    from analysis_worker.service_layer.worker import AnalysisWorker
+    from tests.analysis_worker.test_analysis_worker import MockAnalysisAPIClient
+
+    columns, rows = one_way()
+    rows = [[value, 'a1'] for value, _ in rows]
+    client = MockAnalysisAPIClient([job('ANOVA', anova_config([term(Y), term(A)]), columns, rows)])
+    worker = AnalysisWorker(client, executor_factory=lambda: ProcessPoolExecutor(
+        max_workers=1, mp_context=multiprocessing.get_context('spawn'), max_tasks_per_child=1
+    ))
+    try:
+        await worker.process_next()
+    finally:
+        worker.executor.shutdown()
+    assert client.results == []
+    (_, errors, _), = client.failures
+    assert [e.code for e in errors] == [ErrorCode.SINGLE_LEVEL_TERM]
