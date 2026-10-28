@@ -88,17 +88,19 @@ in the United Kingdom. Searches are not logged, and are open to visitors.
 - **Where they stand:** `locationsMapStatus`'s `places` says whether a country's own places are there, coming, or
   failed (with why in words for its users), and whether the world's towns stand in for them meanwhile.
 - **Storage** (`GAZETTEER_PATH`, not served): one SQLite database, `gazetteer.sqlite` (SQLite's full-text search,
-  FTS5), and the files it is loaded from, `places/<key>.tsv.gz`, one for the world and one per country, from which it
-  is made again when a release changes its layout. Measured: the world's file 11.5 MB and 65 MB in the database,
-  loaded in 6 s; Ireland's (30,000 places) 0.7 MB and 5 MB, in half a second; the United States' (2.2 million) 59 MB
-  and 430 MB, written by the worker in 26 s and loaded in 33 s, with searches still answered within a few tenths of a
-  second. A single letter is matched as a whole name, as the start of one would be the start of too many.
+  FTS5). Each key's file (the world's, or a country's) is received in `places/`, loaded and deleted. A database made
+  anew, empty, as when a release changes its layout, or deleted, as by the demonstration site's nightly reset, has its
+  places fetched again as the API starts. Measured: the world's file 11.5 MB and 65 MB in the database, loaded in 6 s;
+  Ireland's (30,000 places) 0.7 MB and 5 MB, in half a second; the United States' (2.2 million) 59 MB and 430 MB,
+  written by the worker in 26 s and loaded in 33 s, with searches still answered within a few tenths of a second. A
+  single letter is matched as a whole name, as the start of one would be the start of too many.
 - **Fetching:** the API downloads the files from `GEONAMES_URL` itself (empty: none are fetched, and searches answer
   from what is there), or with `MAP_WORKER=1` the map worker does, as a `gazetteer` job in its quick lane, the file
-  coming back through the API. The worker keeps each file in its cache (`MAP_CACHE_PATH/gazetteer`) and sends it again
-  rather than downloading it while younger than `GAZETTEER_CACHE_DAYS` (30): GeoNames changes daily, but little that
-  matters to a field trial's map. `scripts/map_tiles.py --gazetteer` fetches the world's and every country's again,
-  from the cache, or with `--fresh` downloaded anew. Removing a country cancels its job.
+  coming back through the API. The worker keeps each file in its cache (`MAP_CACHE_PATH/gazetteer`), as it keeps the
+  regions, and sends it again rather than downloading it, however old, until asked for it fresh: GeoNames changes
+  daily, but little that matters to a field trial's map. `scripts/map_tiles.py --gazetteer` fetches the world's and
+  every country's again, from the cache, or with `--fresh` downloaded anew, replacing those kept. Removing a country
+  cancels its job.
 - Redis holds a lock per key, the fetches under way, which resume after a restart, and why a fetch failed. A load
   is one transaction, and searches go on during it.
 

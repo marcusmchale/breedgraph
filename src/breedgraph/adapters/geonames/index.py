@@ -30,8 +30,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 DATABASE = 'gazetteer.sqlite'
-PLACES_DIRECTORY = 'places'  # the files the database is loaded from, as received, beside it
-SCHEMA_VERSION = 1  # a database made by another version is made again, and loaded again from those files
+PLACES_DIRECTORY = 'places'  # beside it, where the files it is loaded from are received, until they are
+SCHEMA_VERSION = 1  # a database made by another version is made again, empty, and its places fetched again
 WORLD = 'world'  # the source of the world's towns and countries, beside each country's own
 SEARCH_SECONDS = 1.0
 PROGRESS_STEPS = 1000  # SQLite's steps between checks of a search's time

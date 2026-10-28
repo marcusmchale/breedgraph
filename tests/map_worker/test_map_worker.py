@@ -492,9 +492,9 @@ async def test_places_that_cannot_be_fetched_fail_the_job(work, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_places_are_kept_and_sent_again_until_old_or_asked_fresh(work, tmp_path, monkeypatch):
+async def test_places_are_kept_and_sent_again_until_asked_fresh(work, tmp_path, monkeypatch):
     downloads = counting_downloads(monkeypatch)
-    cache = GazetteerCache(ExtractCache(tmp_path / 'cache'), max_age_days=30)
+    cache = GazetteerCache(ExtractCache(tmp_path / 'cache'))
     client = MockClient({'quick': [job('gazetteer', 'IRL', code='IE'), job('gazetteer', 'IRL', code='IE'),
                                    job('gazetteer', 'IRL', code='IE', fresh=True)]})
     for _ in range(3):
@@ -504,10 +504,10 @@ async def test_places_are_kept_and_sent_again_until_old_or_asked_fresh(work, tmp
     kept = tmp_path / 'cache' / 'gazetteer'
     assert (kept / 'IRL.tsv.gz').exists() and json.loads((kept / 'IRL.json').read_text())['places'] == 1
 
-    old = GazetteerCache(ExtractCache(tmp_path / 'cache'), max_age_days=0)
+    (kept / 'IRL.json').unlink()
     client = MockClient({'quick': [job('gazetteer', 'IRL', code='IE')]})
-    assert await worker(client, gazetteer_handlers(work, old)).process_next('quick')
-    assert downloads == ['IRL', 'IRL', 'IRL'], 'kept longer than the cache keeps places, so fetched again'
+    assert await worker(client, gazetteer_handlers(work, cache)).process_next('quick')
+    assert downloads == ['IRL', 'IRL', 'IRL'], 'a file no sidecar describes, as one moved in part way, is fetched again'
 
 
 @pytest.mark.asyncio
@@ -515,7 +515,7 @@ async def test_workers_sharing_a_cache_download_a_country_once(tmp_path, monkeyp
     downloads = counting_downloads(monkeypatch, seconds=0.3)
     workers = []
     for site in ('production', 'demo'):
-        cache = GazetteerCache(ExtractCache(tmp_path / 'cache', poll_seconds=0.05), max_age_days=30)
+        cache = GazetteerCache(ExtractCache(tmp_path / 'cache', poll_seconds=0.05))
         workers.append(worker(MockClient({'quick': [job('gazetteer', 'IRL', code='IE')]}),
                               gazetteer_handlers(tmp_path / site, cache)))
     assert await asyncio.gather(*(w.process_next('quick') for w in workers)) == [True, True]

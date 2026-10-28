@@ -114,7 +114,7 @@ async def test_the_worlds_towns_are_fetched_at_the_first_start_and_a_country_add
     assert places.downloads()[-1] == 'IE.zip'
     assert (await gazetteer.status('IRL')).state == MapState.READY
     assert len(await gazetteer.search_places('ballyduff')) == 3
-    assert (places.path / 'places' / 'IRL.tsv.gz').exists()
+    assert list((places.path / 'places').iterdir()) == [], 'the files are deleted once loaded'
     assert await places.state_store.get_pending_gazetteer() == []
 
     await gazetteer.stop()
@@ -134,7 +134,6 @@ async def test_a_country_removed_loses_its_places_but_not_the_worlds_towns(place
     assert await gazetteer.search_places('ballyduff') == []
     assert names(await gazetteer.search_places('galway')) == [('Galway', 'County Galway, Connacht')]
     assert (await gazetteer.status('IRL')).state == MapState.NONE
-    assert sorted(path.name for path in (places.path / 'places').iterdir()) == ['world.tsv.gz']
     await gazetteer.stop()
 
 
@@ -189,32 +188,45 @@ async def test_a_fetch_interrupted_by_a_restart_is_resumed(places):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_fresh_places_are_downloaded_again(places):
+async def test_places_are_fetched_again_as_asked_and_fresh_from_the_map_workers_cache(places):
     gazetteer = await started(places)
     await gazetteer.request_country('IRL')
     await gazetteer.wait_until_idle()
     assert await gazetteer.fetch_now('IRL') is True
-    assert places.downloads().count('IE.zip') == 1, 'the file kept is loaded again'
     assert await gazetteer.fetch_now('IRL', fresh=True) is True
-    assert places.downloads().count('IE.zip') == 2
+    assert places.downloads().count('IE.zip') == 3, 'no file is kept here: the map worker\'s cache, if any, keeps them'
+    if places.worker:
+        assert [payload for kind, key, payload in places.client.payloads if key == 'IRL'][-2:] == [
+            {'code': 'IE', 'fresh': False}, {'code': 'IE', 'fresh': True}
+        ]
     assert len(await gazetteer.search_places('ballyduff')) == 3
     await gazetteer.stop()
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_the_database_made_again_is_loaded_from_the_files_kept(places):
+@pytest.mark.parametrize('made_again', ['by another version', 'deleted'])
+async def test_a_database_made_anew_has_its_places_fetched_again(places, made_again):
     gazetteer = await started(places)
     await gazetteer.request_country('IRL')
     await gazetteer.wait_until_idle()
     await gazetteer.stop()
-    with sqlite3.connect(places.path / 'gazetteer.sqlite') as db:
-        db.execute('PRAGMA user_version = 0')  # as an older version made it
-
-    again = await started(places)
-    assert len(await again.search_places('ballyduff')) == 3
-    assert names(await again.search_places('qazvin')) == [('Qazvin', None)], 'its province named as it is'
-    assert len(places.downloads()) == 3, 'nothing downloaded again'
-    await again.stop()
+    countries = places.state_store.connection
+    listed = await countries.hget('country', 'IRL')
+    await countries.hset('country', 'IRL', json.dumps({'id': 8, 'name': 'Ireland', 'code': 'IRL'}))  # as when added
+    if made_again == 'deleted':  # as the demonstration site's reset does
+        for path in places.path.glob('gazetteer.sqlite*'):
+            path.unlink()
+    else:
+        with sqlite3.connect(places.path / 'gazetteer.sqlite') as db:
+            db.execute('PRAGMA user_version = 0')
+    try:
+        again = await started(places)
+        assert len(await again.search_places('ballyduff')) == 3, 'a country in the location trees'
+        assert names(await again.search_places('qazvin')) == [('Qazvin', None)], 'its province named as it is'
+        assert places.downloads().count('IE.zip') == 2 and places.downloads().count('cities1000.zip') == 2
+        await again.stop()
+    finally:
+        await (countries.hset('country', 'IRL', listed) if listed is not None else countries.hdel('country', 'IRL'))
 
 
 @pytest.mark.asyncio(loop_scope="session")

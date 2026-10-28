@@ -23,9 +23,6 @@ GEOBOUNDARIES_URL=os.environ.get('GEOBOUNDARIES_URL', 'https://www.geoboundaries
 PROTOMAPS_BUILDS_URL=os.environ.get('PROTOMAPS_BUILDS_URL', 'https://build-metadata.protomaps.dev/builds.json')
 # GeoNames' files, for the place search; empty to fetch none
 GEONAMES_URL=os.environ.get('GEONAMES_URL', 'https://download.geonames.org/export/dump')
-# How long GeoNames' places are kept in the cache and sent again, in days: GeoNames changes daily, but little that
-# matters to placing field trials
-GAZETTEER_CACHE_DAYS=float(os.environ.get('GAZETTEER_CACHE_DAYS', 30))
 
 LOG_LEVEL=os.environ.get('LOG_LEVEL', 'INFO')
 

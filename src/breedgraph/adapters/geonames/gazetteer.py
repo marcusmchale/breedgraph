@@ -1,15 +1,16 @@
 """
 The place search's names (service_layer/infrastructure/gazetteer.py, docs/maps.md), from GeoNames.
 
-A country's places are fetched when it is added, the world's towns when the API first starts, and both at any start
-for countries in the location trees whose places were never fetched or failed. Each key (a country's alpha-3 code, or
-'world') is one gzipped file, written by map_worker.fetching.write_gazetteer, kept in GAZETTEER_PATH/places and loaded
-into the database beside it (index.py), so that the database can be made again from them when its schema changes.
+A country's places are fetched when it is added, and at each start, the world's towns and the places of countries in
+the location trees that the database lacks: those never fetched or that failed, and all of them when the database was
+made anew, as when a release changes its layout, or the demonstration site's reset deletes it. Each key (a country's
+alpha-3 code, or 'world') is one gzipped file, written by map_worker.fetching.write_gazetteer, received in
+GAZETTEER_PATH/places, loaded into the database beside it (index.py), and deleted.
 
 Requests only record the key and start a task, so the event handlers stay free. In the state store (Redis), a lock per
 key keeps processes from fetching the same one, the pending keys are resumed at start, and why a fetch failed is kept
 for the location map. The files are downloaded by the API itself from config.GEONAMES_URL, or with config.MAP_WORKER
-by the map worker, whose cache sends a file again rather than downloading it while it is recent.
+by the map worker, whose cache keeps them and sends them again until asked for them fresh.
 
 Searches run in threads, a few at a time, each within index.SEARCH_SECONDS; what is searched for is never logged.
 """
@@ -79,25 +80,22 @@ class GeoNamesGazetteer(AbstractGazetteer):
     def file(self, key: str) -> Path:
         return self.files / f'{key}.tsv.gz'
 
-    async def open(self) -> bool:
+    async def open(self) -> None:
         """
-        Make the database, and the folder of its files, deleting uploads left there long ago: True when the database
-        was made anew, to be loaded again from the files
+        Make the database, empty when another version made it, and the folder files are received in, deleting uploads
+        left there long ago
         """
-        made = await asyncio.to_thread(self.index.create, read_countries().values())
+        await asyncio.to_thread(self.index.create, read_countries().values())
         self.ready = True
         self.files.mkdir(parents=True, exist_ok=True)
         await asyncio.to_thread(sweep_uploads, self.files)
-        return made
 
     async def start(self) -> None:
         try:
-            made = await self.open()
+            await self.open()
         except (sqlite3.Error, OSError):
             logger.exception("The place search's database could not be made, so places cannot be searched")
             return
-        if made:
-            self._spawn(self._load_kept())
         if self.worker:
             logger.info("Places for the place search are fetched by the map worker")
             if not config.MAP_WORKER_AUTH_TOKEN:
@@ -107,10 +105,11 @@ class GeoNamesGazetteer(AbstractGazetteer):
             return
         self.enabled = True
         keys = set(await self.state_store.get_pending_gazetteer())
-        if not self.file(WORLD).exists():
+        if not await asyncio.to_thread(self.index.world_loaded):
             keys.add(WORLD)
+        loaded = await asyncio.to_thread(self.index.loaded)
         async for country in self.state_store.get_countries():
-            if isinstance(country, LocationOutput) and not self.file(country.code).exists():
+            if isinstance(country, LocationOutput) and country.code not in loaded:
                 keys.add(country.code)
         for key in sorted(keys, key=lambda key: (key != WORLD, key)):
             await self._request(key)
@@ -176,21 +175,12 @@ class GeoNamesGazetteer(AbstractGazetteer):
                 logger.exception(f"Fetching the places of {key} for the place search stopped")
                 return
 
-    async def _load_kept(self) -> None:
-        """Load the database, made again, from the files kept: the world's, then the countries'"""
-        for path in sorted(self.files.glob('*.tsv.gz'), key=lambda path: path.name != f'{WORLD}.tsv.gz'):
-            key = path.name.removesuffix('.tsv.gz')
-            try:
-                await self._load(key)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logger.exception(f"The places of {key} kept for the place search could not be loaded again")
-
     """ In the foreground, as for scripts/map_tiles.py, or for the tasks above """
 
     async def fetch_now(self, key: str, fresh: bool = False) -> bool:
-        """Request the key's places and fetch them, or with fresh download them anew"""
+        """
+        Request the key's places and fetch them again: from the map worker's cache, or with fresh downloaded anew
+        """
         await self.state_store.add_gazetteer_request(key)
         return await self.fetch(key, fresh=fresh)
 
@@ -217,15 +207,16 @@ class GeoNamesGazetteer(AbstractGazetteer):
             return error is None
 
     async def _fetch(self, key: str, fresh: bool) -> None:
-        if fresh or not self.file(key).exists():
-            await self._download(key, fresh)
-        if not await self.state_store.is_gazetteer_pending(key):
+        """The key's file fetched, loaded and deleted, unless the country is removed meanwhile"""
+        await self._download(key, fresh)
+        try:
+            if not await self.state_store.is_gazetteer_pending(key):
+                raise PlacesRemoved(key)
+            await self._load(key)
+        finally:
             self.file(key).unlink(missing_ok=True)
-            raise PlacesRemoved(key)
-        await self._load(key)
         if key != WORLD and not await self.state_store.is_gazetteer_pending(key):
             # removed, by another process, as they were loaded
-            self.file(key).unlink(missing_ok=True)
             await self._in_thread(self.index.remove_country, key)
             raise PlacesRemoved(key)
 
@@ -250,15 +241,10 @@ class GeoNamesGazetteer(AbstractGazetteer):
             download.unlink(missing_ok=True)
 
     async def _load(self, key: str) -> None:
-        """The key's file into the database; a file that cannot be loaded is deleted, to be fetched anew"""
-        try:
-            if key == WORLD:
-                await self._in_thread(self.index.load_world, self.file(key))
-            else:
-                await self._in_thread(self.index.load_country, key, self.file(key))
-        except GazetteerFileError:
-            self.file(key).unlink(missing_ok=True)
-            raise
+        if key == WORLD:
+            await self._in_thread(self.index.load_world, self.file(key))
+        else:
+            await self._in_thread(self.index.load_country, key, self.file(key))
 
     @staticmethod
     async def _in_thread(function, *arguments):

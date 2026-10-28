@@ -110,15 +110,15 @@ class ExtractCache:
 class GazetteerCache:
     """
     GeoNames' places sent for gazetteer jobs (handlers.gazetteer), kept in the cache's gazetteer/ folder and sent again
-    rather than downloaded again while younger than max_age_days, unless a job asks for them fresh: a country removed
-    and added again, or added on another site whose worker shares the cache, is downloaded once in that time. Each key
-    has its own lock in the cache, beside the regions'.
+    rather than downloaded again, as the regions are, until a job asks for them fresh (scripts/map_tiles.py --gazetteer
+    --fresh): a country removed and added again, or added on another site whose worker shares the cache, or a site's
+    places fetched again, as after the demonstration site's nightly reset, is downloaded once. Each key has its own lock
+    in the cache, beside the regions'.
     """
 
-    def __init__(self, cache: ExtractCache, max_age_days: float):
+    def __init__(self, cache: ExtractCache):
         self.cache = cache
         self.path = cache.path / 'gazetteer'
-        self.max_age_seconds = max_age_days * 86400
 
     def check(self, work_path: Path) -> None:
         """Make the cache and its folder, on the work path's filesystem"""
@@ -135,14 +135,8 @@ class GazetteerCache:
         return self.path / f'{key}.json'
 
     def find(self, key: str, fresh: bool = False) -> Path | None:
-        """The places kept for the key, unless asked for fresh, too old, or none"""
-        if fresh or not self._file(key).exists():
-            return None
-        try:
-            fetched = datetime.fromisoformat(json.loads(self._sidecar(key).read_text())['fetched'])
-        except (OSError, ValueError, KeyError, TypeError):
-            return None
-        if (datetime.now(timezone.utc) - fetched).total_seconds() > self.max_age_seconds:
+        """The places kept for the key, described by their sidecar, unless asked for fresh, or none"""
+        if fresh or not self._file(key).exists() or not self._sidecar(key).exists():
             return None
         return self._file(key)
 

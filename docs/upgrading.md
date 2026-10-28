@@ -63,8 +63,8 @@ older worker fails the new kind of job.
    country codes file it named can be deleted), and add `GAZETTEER_PATH`, a folder the API's user owns, on a disk with
    room (`/data/breedgraph/gazetteer`, say), and `GEONAMES_URL`: the template's where the API fetches for itself, or
    empty with `MAP_WORKER=1`.
-2. In each map worker's env file, `GEONAMES_URL` and `GAZETTEER_CACHE_DAYS` as in `instance/map_worker.env`. The
-   worker server must reach `download.geonames.org`.
+2. In each map worker's env file, `GEONAMES_URL` as in `instance/map_worker.env`. The worker server must reach
+   `download.geonames.org`. The worker keeps the files in its cache, and sends them again until asked for them fresh.
 3. Where `PRIVACY_NOTICE_PATH` names a copy of the privacy notice, copy the release's `src/breedgraph/legal/privacy_notice.md`
    over it: its "Maps and place search" section says searches are answered on our server. It has a new hash, which
    accounts registering from then on record with their consent.
@@ -73,13 +73,8 @@ older worker fails the new kind of job.
    `scripts/map_tiles.py --gazetteer --fresh` downloads them anew rather than take what the map worker keeps.
 
 The demonstration site: set `GAZETTEER_PATH` in its env file (beside its maps, `/data/breedgraph-demo/gazetteer`, say)
-and `GEONAMES_URL=""`. Its dump gains `gazetteer/`, the places each reset restores ([its README](../instance/demo/README.md),
-Setting it up, step 6): once the site has fetched the world's and Ireland's after its upgrade, keep them, as
-`breedgraph-demo`:
-
-    rsync -a --delete /data/breedgraph-demo/gazetteer/places/ /data/breedgraph-demo/dump/gazetteer/
-
-Until then, its resets leave its places as they are.
+and `GEONAMES_URL=""`. Each reset deletes its places' database, and its API fetches the world's and Ireland's again as
+it starts, from the cache of the map worker it shares with production.
 
 **The map workers' logs** say once when the API stops answering, each hour while it doesn't, and when it answers again,
 rather than at each poll: nothing to do.

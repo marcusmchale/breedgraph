@@ -9,7 +9,7 @@ from map_worker.adapters.http.client import MapAPIClient
 from map_worker.fetching import PmtilesCommand
 from map_worker.config import (
     MAP_WORKER_AUTH_TOKEN, LOG_CONFIG, API_URL, MAP_POLL_INTERVAL, MAP_WORK_PATH, MAP_CACHE_PATH, MAP_PMTILES_COMMAND,
-    GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, GEONAMES_URL, GAZETTEER_CACHE_DAYS
+    GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, GEONAMES_URL
 )
 
 import logging.config
@@ -33,7 +33,7 @@ async def run_worker(api_url: str, poll_interval: int):
     cache = ExtractCache(Path(MAP_CACHE_PATH)) if MAP_CACHE_PATH else None
     handlers = MapHandlers(
         pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, cache=cache, geonames_url=GEONAMES_URL,
-        gazetteer_cache=GazetteerCache(cache, GAZETTEER_CACHE_DAYS) if cache is not None else None
+        gazetteer_cache=GazetteerCache(cache) if cache is not None else None
     )
     handlers.clear()
     client = MapAPIClient(base_url=api_url, auth_token=MAP_WORKER_AUTH_TOKEN)
