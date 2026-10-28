@@ -22,7 +22,7 @@ from breedgraph.domain.model.analysis import (
     TermTransformation, TermEffect, AnalysisMessage, AnalysisErrorCode, AnalysisWarningCode, AnalysisFailed,
     RecordGroupMember, AnalysisSpec, AnovaSpec, MDSSpec, OutlierSpec, CorrelationSpec, DescriptiveSpec
 )
-from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord, ConceptContext
+from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord, ConceptContext, sentence
 from breedgraph.domain.model.ontology import ScaleType
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime, parse_number
 from breedgraph.domain.services.analysis_dimensions import DimensionResolver, DimensionLevel
@@ -41,13 +41,17 @@ CONCEPT_REPRESENTATIONS = {
 
 
 def check_representation(
-        spec: AnalysisSpec, term: AnalysisTerm, representation: TermRepresentationType, path: list[str]
+        spec: AnalysisSpec,
+        term: AnalysisTerm,
+        concept: ConceptContext,
+        representation: TermRepresentationType,
+        path: list[str]
 ):
     """Representations resolved from the scale must suit the analysis."""
     allowed = CONCEPT_REPRESENTATIONS.get(type(spec))
     if allowed is not None and representation not in allowed:
         raise _incompatible(
-            f"Concept {term.reference.concept_id} is represented as {representation.value}, "
+            f"{sentence(concept.label)} is represented as {representation.value}, "
             f"which is not supported by this analysis",
             path + ['representation']
         )
@@ -156,7 +160,7 @@ def resolve_representation(term: AnalysisTerm, concept: ConceptContext, path: li
     scale = concept.scale_type
     requested = term.representation
     if scale == ScaleType.COMPLEX:
-        raise _incompatible(f"Concept {concept.concept_id} has a complex scale, which cannot be analysed", path)
+        raise _incompatible(f"{sentence(concept.label)} has a complex scale, which cannot be analysed", path)
 
     if term.aggregation == TermAggregation.COUNT:
         if requested not in (None, TermRepresentationType.CONTINUOUS) or term.binning is not None:
@@ -177,7 +181,7 @@ def resolve_representation(term: AnalysisTerm, concept: ConceptContext, path: li
         representation = requested or default
         if representation == TermRepresentationType.CONTINUOUS and scale != ScaleType.NUMERICAL:
             raise _incompatible(
-                f"Concept {concept.concept_id} has a {scale.name.lower()} scale, "
+                f"{sentence(concept.label)} has a {scale.name.lower()} scale, "
                 f"which cannot be represented as CONTINUOUS",
                 path + ['representation']
             )
@@ -340,7 +344,7 @@ class ObservationBuilder:
     ) -> tuple[ObservationColumn, pd.Series]:
         concept = self.context.concepts[term.reference.concept_id]
         representation = resolve_representation(term, concept, path)
-        check_representation(self.context.request.spec, term, representation, path)
+        check_representation(self.context.request.spec, term, concept, representation, path)
 
         # the records of each observation, as readings: replicates of WITHIN_UNIT groupings together
         window = term.replicate_aggregation.span if term.replicate_aggregation else None
@@ -363,14 +367,14 @@ class ObservationBuilder:
             if only_replicates and replicate_aggregation is None:
                 raise AnalysisFailed.single(
                     AnalysisErrorCode.DUPLICATE_OBSERVATION,
-                    f"Concept {concept.concept_id} has replicates (codes of WITHIN_UNIT groupings) for some observations; "
+                    f"{sentence(concept.label)} has replicates (codes of WITHIN_UNIT groupings) for some observations; "
                     f"configure a replicate aggregation, or a record group dimension to keep each replicate",
                     path=path + ['replicateAggregation'],
                     record_ids=sorted(duplicates)
                 )
             raise AnalysisFailed.single(
                 AnalysisErrorCode.DUPLICATE_OBSERVATION,
-                f"Concept {concept.concept_id} has more than one value for some observations; "
+                f"{sentence(concept.label)} has more than one value for some observations; "
                 f"configure an aggregation or additional dimensions",
                 path=path + ['aggregation'],
                 record_ids=sorted(duplicates)
@@ -379,7 +383,7 @@ class ObservationBuilder:
             warnings.append(AnalysisMessage(
                 code=AnalysisWarningCode.REPLICATES_POOLED,
                 message=(
-                    f"Replicates of concept {concept.concept_id} are pooled by the {term.aggregation.value} aggregation, "
+                    f"Replicates of {concept.label} are pooled by the {term.aggregation.value} aggregation, "
                     f"so units and times with more replicates weigh more; configure a replicate aggregation "
                     f"to combine the replicates of each reading first"
                 ),
@@ -428,7 +432,7 @@ class ObservationBuilder:
 
         missing = int(series.isna().sum())
         if missing:
-            message = f"{missing} of {len(series)} observations have no value for concept {concept.concept_id}"
+            message = f"{missing} of {len(series)} observations have no value for {concept.label}"
             if missing_levels:
                 message += f", including {missing_levels} with values not in the level order"
             warnings.append(AnalysisMessage(code=AnalysisWarningCode.MISSING_VALUES, message=message, path=path))

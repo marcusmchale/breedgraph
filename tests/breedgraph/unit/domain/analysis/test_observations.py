@@ -52,6 +52,34 @@ def test_duplicate_observation_is_an_error():
     assert error.record_ids == [1, 2]
     assert error.path == ['descriptiveStatistics', 'terms', '0', 'aggregation']
 
+def test_messages_name_concepts_and_datasets():
+    """By their names, with the dataset's ID, as breedview lists datasets; by their IDs where the names are unknown"""
+    height = ConceptContext(10, ScaleType.NUMERICAL, name='Height')
+    duplicated = context(
+        descriptive([concept_term(10)]), [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 100, '2')])],
+        concepts={10: height}
+    )
+    with pytest.raises(AnalysisFailed) as e:
+        prepare(duplicated)
+    assert e.value.errors[0].message.startswith("Concept 'Height' has more than one value for some observations")
+
+    missing = context(
+        descriptive([concept_term(10), concept_term(11)], dataset_ids=[1, 2]),
+        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '2')]), dataset(2, 1, 11, [record(3, 100, '3')])],
+        concepts={10: height, 11: ConceptContext(11, ScaleType.NUMERICAL)}
+    )
+    _, warnings = prepare(missing)
+    assert [w.message for w in warnings] == ['1 of 2 observations have no value for concept 11']
+
+    excluded = context(
+        descriptive([concept_term(10)], dataset_ids=[1, 2], exclusions=[{'record_ids': [2]}]),
+        [dataset(1, 1, 10, [record(1, 100, '1')]), dataset(2, 1, 10, [record(2, 101, '2')])],
+        concepts={10: height}, concept_names={10: 'Height'}
+    )
+    _, warnings = prepare(excluded)
+    fully = [w.message for w in warnings if w.code == AnalysisWarningCode.DATASET_FULLY_EXCLUDED]
+    assert fully == ["All records of dataset 'Height' (#2) were excluded"]
+
 @pytest.mark.parametrize('aggregation, expected', [
     ('MEAN', 2.0), ('MEDIAN', 2.0), ('SUM', 6.0), ('MIN', 1.0), ('MAX', 3.0), ('COUNT', 3.0)
 ])
@@ -760,8 +788,8 @@ def test_exclusion_rules_any_rule_all_criteria():
     assert ids == [1]
     excluded = [w for w in warnings if w.code == AnalysisWarningCode.EXCLUDED_BY_CONFIG]
     assert [(w.path, w.message) for w in excluded] == [
-        (['exclusions', '0'], 'Exclusion rule 0 matched 1 records'),
-        (['exclusions', '1'], 'Exclusion rule 1 matched 1 records'),
+        (['exclusions', '0'], 'Exclusion rule 1 matched 1 records'),
+        (['exclusions', '1'], 'Exclusion rule 2 matched 1 records'),
     ]
 
 def test_time_bounded_rule_never_matches_record_without_time():

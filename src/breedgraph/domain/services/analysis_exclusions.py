@@ -54,7 +54,8 @@ class ExclusionApplier:
         return [
             AnalysisMessage(
                 code=AnalysisWarningCode.EXCLUDED_BY_CONFIG,
-                message=f"Exclusion rule {i} matched {count} records",
+                # numbered from 1, as breedview shows the rules
+                message=f"Exclusion rule {i + 1} matched {count} records",
                 path=['exclusions', str(i)]
             )
             for i, count in enumerate(self.counts)

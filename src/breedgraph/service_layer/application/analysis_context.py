@@ -5,7 +5,8 @@ from breedgraph.domain.model.analysis import (
     AnalysisRequest, AnalysisMessage, AnalysisErrorCode, AnalysisWarningCode, AnalysisFailed, AnalysisTermType
 )
 from breedgraph.domain.model.analysis_context import (
-    AnalysisContext, ConceptContext, UnitContext, LocationContext, LayoutContext
+    AnalysisContext, ConceptContext, UnitContext, LocationContext, LayoutContext, describe_concept, describe_dataset,
+    sentence
 )
 from breedgraph.domain.model.controls import ControlledModelLabel, Access
 from breedgraph.domain.model.datasets import DatasetStored
@@ -41,6 +42,7 @@ class AnalysisContextLoader:
         self.user_id = user_id
         self.warnings = warnings
         self.errors: list[AnalysisMessage] = []
+        self.concept_names: dict[int, str] = {}  # for messages
 
     def _raise_errors(self):
         if self.errors:
@@ -70,7 +72,8 @@ class AnalysisContextLoader:
             germplasm_descendants=germplasm_descendants,
             locations=locations,
             layouts=layouts,
-            hidden_positioned=hidden_positioned
+            hidden_positioned=hidden_positioned,
+            concept_names=self.concept_names
         )
 
     async def _load_datasets(self, request: AnalysisRequest) -> dict[int, DatasetStored]:
@@ -99,10 +102,16 @@ class AnalysisContextLoader:
                 ))
                 # The repository returns whole datasets, so nothing of an unreadable one may be used
                 datasets.pop(dataset_id)
-                continue
-            if not dataset.records:
+
+        # named by their concepts, where an unreadable one is named by the ID alone, all the user may know of it
+        await self._load_concept_names({dataset.concept for dataset in datasets.values()})
+        for i, dataset_id in enumerate(request.dataset_ids):
+            dataset = datasets.get(dataset_id)
+            if dataset is not None and not dataset.records:
                 self.warnings.append(AnalysisMessage(
-                    code=AnalysisWarningCode.EMPTY_DATASET, message=f"Dataset {dataset_id} has no records", path=path
+                    code=AnalysisWarningCode.EMPTY_DATASET,
+                    message=f"{sentence(self._dataset_label(dataset))} has no records",
+                    path=['datasetIds', str(i)]
                 ))
         return datasets
 
@@ -113,6 +122,9 @@ class AnalysisContextLoader:
             spec_path: list[str]
     ) -> dict[int, ConceptContext]:
         dataset_concepts = {dataset.concept for dataset in datasets.values()}
+        await self._load_concept_names({
+            term.reference.concept_id for term in request.spec.terms if term.reference.type == AnalysisTermType.CONCEPT
+        })
         concept_ids = set()
         for i, term in enumerate(request.spec.terms):
             if term.reference.type != AnalysisTermType.CONCEPT:
@@ -122,7 +134,10 @@ class AnalysisContextLoader:
             if concept_id not in dataset_concepts:
                 self.errors.append(AnalysisMessage(
                     code=AnalysisErrorCode.CONCEPT_NOT_IN_DATASETS,
-                    message=f"Concept {concept_id} is not the concept of any selected dataset",
+                    message=(
+                        f"{sentence(describe_concept(concept_id, self.concept_names.get(concept_id)))} "
+                        f"is not the concept of any selected dataset"
+                    ),
                     path=spec_path + ['terms', str(i), 'reference', 'conceptId']
                 ))
 
@@ -131,7 +146,10 @@ class AnalysisContextLoader:
             if dataset is not None and dataset.concept not in concept_ids:
                 self.warnings.append(AnalysisMessage(
                     code=AnalysisWarningCode.UNUSED_DATASET,
-                    message=f"The concept of dataset {dataset_id} is not used by any term, its records are ignored",
+                    message=(
+                        f"The concept of {self._dataset_label(dataset)} is not used by any term, "
+                        f"its records are ignored"
+                    ),
                     path=['datasetIds', str(i)]
                 ))
 
@@ -139,6 +157,16 @@ class AnalysisContextLoader:
         for concept_id in concept_ids & dataset_concepts:
             concepts[concept_id] = await self._load_concept(concept_id)
         return concepts
+
+    async def _load_concept_names(self, concept_ids: set[int]):
+        for concept_id in concept_ids - set(self.concept_names):
+            # as the data cites it, so that a removed concept is named too
+            concept = await self.uow.ontology.get_cited_entry(concept_id)
+            if concept is not None:
+                self.concept_names[concept_id] = concept.name
+
+    def _dataset_label(self, dataset: DatasetStored) -> str:
+        return describe_dataset(dataset.id, self.concept_names.get(dataset.concept))
 
     async def _load_concept(self, concept_id: int) -> ConceptContext:
         # as the data cites it, so that data of a removed variable or factor is still analysed
@@ -150,7 +178,8 @@ class AnalysisContextLoader:
             scale_type=scale.scale_type,
             # in order: the rank of an ordinal scale's levels
             categories=[category.name for category in scale.categories] if scale.categories else None,
-            factor=concept.label is OntologyEntryLabel.FACTOR
+            factor=concept.label is OntologyEntryLabel.FACTOR,
+            name=concept.name
         )
 
     async def _load_studies(self, study_ids: set[int]) -> dict[int, StudyStored]:

@@ -27,6 +27,9 @@ Field names are given as in GraphQL (camelCase).
 3. **Messages are written once, at the end.**
    - `errors` and `warnings` are empty until the analysis completes or fails. Don't show partial warnings.
    - Warnings from preparation are reported together with those from the worker.
+   - A message names what it is about: a concept by its name (`concept 'Tree Height'`), a dataset by its concept's
+     name and its ID (`dataset 'Tree Height' (#4)`), a grouping or a term by its name, and an exclusion rule by its
+     place from 1. A dataset that is not found or not readable is named by its ID alone. `path` locates the field.
 4. **Retention.** A submission expires `ANALYSIS_RETENTION_DAYS` (default 7) after its last status change.
    - `analysisRecentSubmissions` lists the IDs of the user's unexpired submissions, most recently updated first.
      Load each with `analysisSubmission(id)`, e.g. for a "recent analyses" list. Expired submissions drop out of the list.

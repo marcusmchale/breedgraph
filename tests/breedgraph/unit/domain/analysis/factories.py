@@ -53,7 +53,8 @@ def context(
         germplasm_descendants=None,
         locations=None,
         layouts=None,
-        hidden_positioned=None
+        hidden_positioned=None,
+        concept_names=None
 ) -> AnalysisContext:
     datasets = {d.id: d for d in datasets}
     concepts = concepts or {
@@ -74,5 +75,6 @@ def context(
         germplasm_descendants=germplasm_descendants or {},
         locations=locations or {},
         layouts=layouts or {},
-        hidden_positioned=set(hidden_positioned or ())
+        hidden_positioned=set(hidden_positioned or ()),
+        concept_names=concept_names or {}
     )

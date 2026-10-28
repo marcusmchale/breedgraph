@@ -47,12 +47,33 @@ class LayoutContext:
     position: list | None = None
     readable: bool = True  # False for the placeholder of a hidden root
 
+def describe_concept(concept_id: int, name: str | None = None) -> str:
+    """A concept as messages name it, by its name where it is known: concept 'Tree Height'"""
+    return f"concept '{name}'" if name else f"concept {concept_id}"
+
+
+def describe_dataset(dataset_id: int, concept_name: str | None = None) -> str:
+    """A dataset as messages name it, by its concept's name and its ID as breedview lists it: dataset 'Height' (#4)"""
+    return f"dataset '{concept_name}' (#{dataset_id})" if concept_name else f"dataset {dataset_id}"
+
+
+def sentence(text: str) -> str:
+    """Text to start a sentence with, its first letter capitalised"""
+    return text[:1].upper() + text[1:]
+
+
 @dataclass
 class ConceptContext:
     concept_id: int
     scale_type: ScaleType
     categories: list[str] | None = None  # category names, ordered by rank for ordinal scales
     factor: bool = False  # a factor describes the conditions of units, a variable is observed on them
+    name: str | None = None
+
+    @property
+    def label(self) -> str:
+        """The concept as messages name it"""
+        return describe_concept(self.concept_id, self.name)
 
 @dataclass
 class AnalysisRecord:
@@ -83,6 +104,13 @@ class AnalysisContext:
     locations: dict[int, LocationContext] = field(default_factory=dict)
     layouts: dict[int, LayoutContext] = field(default_factory=dict)
     hidden_positioned: set[int] = field(default_factory=set)
+    # names of the datasets' concepts and the concept terms', for messages
+    concept_names: dict[int, str] = field(default_factory=dict)
+
+    def dataset_label(self, dataset_id: int) -> str:
+        """A selected dataset as messages name it"""
+        dataset = self.datasets.get(dataset_id)
+        return describe_dataset(dataset_id, self.concept_names.get(dataset.concept) if dataset is not None else None)
 
     @property
     def dataset_studies(self) -> dict[int, int]:

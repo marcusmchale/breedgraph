@@ -5,9 +5,14 @@ from breedgraph.domain.model.analysis import (
     RecordGroupDimension, RecordGroupLevelKey, RecordGroupMember,
     AnalysisFailed, AnalysisErrorCode, AnalysisMessage, AnalysisWarningCode
 )
-from breedgraph.domain.model.analysis_context import UnitContext
+from breedgraph.domain.model.analysis_context import UnitContext, sentence
 from breedgraph.domain.model.datasets import RecordGroup
 from breedgraph.domain.model.programs import StudyStored, GroupingScope, RecordGroupingStored
+
+
+def describe_grouping(grouping: RecordGroupingStored) -> str:
+    """A grouping as messages name it, by its name where it has one: grouping 'Replicate'"""
+    return f"grouping '{grouping.name}'" if grouping.name else f"grouping {grouping.id}"
 
 
 @dataclass(frozen=True)
@@ -112,8 +117,9 @@ class RecordGroupDimensionResolver:
             if study_id in grouping_by_study:
                 raise AnalysisFailed.single(
                     AnalysisErrorCode.CONFIG_INVALID,
-                    f"Groupings {grouping_by_study[study_id]} and {grouping_id} in dimension "
-                    f"'{dimension.name}' belong to the same study",
+                    f"{sentence(describe_grouping(self.groupings[grouping_by_study[study_id]]))} and "
+                    f"{describe_grouping(self.groupings[grouping_id])} in dimension '{dimension.name}' "
+                    f"belong to the same study",
                     path=self.path + ['groupingIds']
                 )
             grouping_by_study[study_id] = grouping_id
@@ -127,8 +133,8 @@ class RecordGroupDimensionResolver:
                 if nested in self.shared:
                     raise AnalysisFailed.single(
                         AnalysisErrorCode.CONFIG_INVALID,
-                        f"Code '{member.code}' of grouping {member.grouping_id} is assigned to levels "
-                        f"'{self.shared[nested]}' and '{level.label}' in dimension '{dimension.name}'",
+                        f"Code '{member.code}' of {describe_grouping(self.groupings[member.grouping_id])} is assigned "
+                        f"to levels '{self.shared[nested]}' and '{level.label}' in dimension '{dimension.name}'",
                         path=member_path
                     )
                 self.shared[nested] = level.label
@@ -159,7 +165,7 @@ class RecordGroupDimensionResolver:
         if grouping.id in self.within_unit:
             raise AnalysisFailed.single(
                 AnalysisErrorCode.CONFIG_INVALID,
-                f"Code '{member.code}' of grouping {grouping.id} can't be in a shared level: "
+                f"Code '{member.code}' of {describe_grouping(grouping)} can't be in a shared level: "
                 f"its codes only distinguish records within a unit (WITHIN_UNIT)",
                 path=path
             )
@@ -168,21 +174,21 @@ class RecordGroupDimensionResolver:
                 raise AnalysisFailed.single(
                     AnalysisErrorCode.CONFIG_INVALID,
                     f"A dataset is required to identify the scope of code '{member.code}' "
-                    f"in dataset-scoped grouping {grouping.id}",
+                    f"in dataset-scoped {describe_grouping(grouping)}",
                     path=path + ['datasetId']
                 )
             if self.dataset_studies.get(member.dataset_id) != self.grouping_study[grouping.id]:
                 raise AnalysisFailed.single(
                     AnalysisErrorCode.CONFIG_INVALID,
                     f"Dataset {member.dataset_id} is not a selected dataset "
-                    f"of the study of grouping {grouping.id}",
+                    f"of the study of {describe_grouping(grouping)}",
                     path=path + ['datasetId']
                 )
         elif member.dataset_id is not None:
             raise AnalysisFailed.single(
                 AnalysisErrorCode.CONFIG_INVALID,
                 f"A dataset must not be provided for code '{member.code}' "
-                f"of study-wide grouping {grouping.id}",
+                f"of study-wide {describe_grouping(grouping)}",
                 path=path + ['datasetId']
             )
         return self._level(grouping, member.dataset_id, member.code)
@@ -268,7 +274,7 @@ class RecordGroupDimensionResolver:
             AnalysisMessage(
                 code=AnalysisWarningCode.RECORD_GROUP_LEVEL_UNMATCHED,
                 message=(
-                    f"Code '{level.code}' of grouping {level.grouping_id} in level '{label}' "
+                    f"Code '{level.code}' of {describe_grouping(self.groupings[level.grouping_id])} in level '{label}' "
                     f"of dimension '{self.dimension.name}' matched no records"
                 ),
                 path=self.path + ['levels']

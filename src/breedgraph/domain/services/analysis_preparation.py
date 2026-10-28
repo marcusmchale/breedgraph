@@ -49,7 +49,7 @@ def prepare_observations(context: AnalysisContext, warnings: list[AnalysisMessag
         if record_counts[dataset_id] and not included_counts[dataset_id]:
             warnings.append(AnalysisMessage(
                 code=AnalysisWarningCode.DATASET_FULLY_EXCLUDED,
-                message=f"All records of dataset {dataset_id} were excluded",
+                message=f"All records of {context.dataset_label(dataset_id)} were excluded",
                 path=['datasetIds', str(i)]
             ))
 
