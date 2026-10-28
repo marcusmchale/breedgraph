@@ -9,6 +9,8 @@ a country too large, a section's when a location in it is placed (adapters/pmtil
   --regions  fetches, as the API would, the detailed maps of every country in the database and of the sections where
              located locations lie, keeping those already fetched: for a first setup, or after losing the files.
   --refresh  fetches every region again from the newest build.
+  --fresh    cuts the world anew from the newest build. Without it, the map worker sends the world it keeps
+             (MAP_CACHE_PATH) when that is of the same zoom and major version, as for a second site.
   --dry-run  reports what would be fetched and its size.
 Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
 can run while the files are served, and while the API runs: they share its locks in Redis. No emails are sent.
@@ -19,7 +21,7 @@ server without internet access, the map worker fetches instead (adapters/pmtiles
 be running, as the files come back through the API to MAP_TILES_PATH, the only --out then.
 
 Usage, with the instance env files sourced:
-    python scripts/map_tiles.py [--world-maxzoom 8] [--build https://build.protomaps.com/YYYYMMDD.pmtiles] [--dry-run]
+    python scripts/map_tiles.py [--world-maxzoom 8] [--build https://build.protomaps.com/YYYYMMDD.pmtiles] [--fresh] [--dry-run]
     python scripts/map_tiles.py --regions [--dry-run]
     python scripts/map_tiles.py --refresh [--dry-run]
 """
@@ -80,8 +82,11 @@ async def cut_world(args, out: Path, pmtiles: PmtilesCommand, builds: ProtomapsB
         return 0
     partial = out / '.world.pmtiles.partial'
     logger.info(f"Cutting {world} to zoom {args.world_maxzoom} from {build}")
-    # cut anew, not taken from the map worker's cache: cutting the world is asked for
-    cut = await pmtiles.extract(build, None, partial, 0, args.world_maxzoom, key=WORLD, version=version, fresh=True)
+    cut = await pmtiles.extract(
+        build, None, partial, 0, args.world_maxzoom, key=WORLD, version=version, fresh=args.fresh
+    )
+    if cut is not None and cut[0] != build:
+        logger.info(f"The map worker sent the world it keeps, cut from {cut[0]} (--fresh cuts it anew)")
     if cut is not None:
         build, version = cut
     os.replace(partial, world)
@@ -93,9 +98,17 @@ async def cut_world(args, out: Path, pmtiles: PmtilesCommand, builds: ProtomapsB
         'updated': datetime.now(timezone.utc).isoformat(timespec='seconds')
     })
     write_tiles_json(out)
-    stale = [sidecar['key'] for sidecar in read_sidecars(out) if sidecar['minZoom'] != args.world_maxzoom + 1]
+    major = version.split('.')[0] if version else None
+    stale = [
+        sidecar['key'] for sidecar in read_sidecars(out)
+        if sidecar['minZoom'] != args.world_maxzoom + 1
+        or (major and sidecar.get('version') and sidecar['version'].split('.')[0] != major)
+    ]
     if stale:
-        logger.warning(f"{len(stale)} regions start at another zoom than the world file ends: run --refresh")
+        logger.warning(
+            f"{len(stale)} regions start at another zoom than the world file ends, or are of another version of the "
+            f"tiles: run --refresh"
+        )
     logger.info(f"Wrote the world file and tiles.json to {out}")
     return 0
 
@@ -169,6 +182,7 @@ def main() -> int:
     parser.add_argument('--out', default=config.MAP_TILES_PATH, help="where the tiles are served from (MAP_TILES_PATH)")
     parser.add_argument('--pmtiles', default=config.MAP_PMTILES_COMMAND or 'pmtiles', help="the pmtiles command (MAP_PMTILES_COMMAND)")
     parser.add_argument('--world-maxzoom', type=int, default=8)
+    parser.add_argument('--fresh', action='store_true', help="cut the world anew, rather than take the one the map worker keeps")
     parser.add_argument('--dry-run', action='store_true', help="report what would be fetched and its size, fetching nothing")
     args = parser.parse_args()
     if config.MAP_WORKER:

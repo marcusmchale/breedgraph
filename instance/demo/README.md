@@ -5,7 +5,7 @@ user guide's readers and for the DPO's and the legal office's review: the demons
 build, whose banner says the site is fictional. It has its own Neo4j, Redis, API, analysis and archive workers, files,
 encryption key and logs, so nothing in it touches production, and one systemd target starts, stops and restarts them
 together. Its map worker runs on the worker server, beside production's, since the web server can't reach the
-internet. The two share the worker's cache, and the site shows production's world file, linked, below its own regions.
+internet. The two share the worker's cache, but the site's map files are its own.
 
 The files here are templates: copy each to the place its first line names, fill in what is in angle brackets, and keep
 the private ones (mode 0600).
@@ -91,20 +91,19 @@ production's server block) and the rest to production, as before.
      `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and `sudo systemctl enable --now map-worker-demo`. It
      runs as `mapworker` from production's map worker's venv, with a work path of its own, `/srv/map_worker/work-demo`,
      and production's cache, `/srv/map_worker/cache` (docs/deployment.md, the worker server).
-   - The world file is production's, never cut for the site (`scripts/map_tiles.py` with the site's env would replace
-     the link with a file of its own): link it, and its description, as `breedgraph-demo`:
+   - Once the site runs (step 9), fetch its maps through its worker, as `breedgraph-demo` from the checkout with the
+     site's environment: `scripts/map_tiles.py` for the world file, then `scripts/map_tiles.py --regions` for Ireland.
+     The worker sends the world from its cache when it keeps one of the same zoom and major version of the tiles
+     (README, Maps), and otherwise cuts it once from Protomaps and keeps it. If the world's run warns that regions are
+     of another zoom or version (an Ireland from an earlier world), run `--refresh` rather than `--regions`. The files
+     are the site's own, so nothing production does to its maps changes them.
+   - Keep them as the baseline each reset restores:
 
-         ln -s /opt/breedgraph/map_tiles/world.pmtiles /opt/breedgraph/map_tiles/world.json /opt/breedgraph-demo/map_tiles/
+         rsync -a --delete /opt/breedgraph-demo/map_tiles/ /opt/breedgraph-demo/dump/map_tiles/
+         rsync -a --delete /opt/breedgraph-demo/map_boundaries/ /opt/breedgraph-demo/dump/map_boundaries/
 
-     nginx follows the link. The site's API reads `world.json` through it, so `breedgraph-demo` needs to read that file
-     and pass through `/opt/breedgraph` and `/opt/breedgraph/map_tiles`. A new world file in production (a new build)
-     is then the site's too.
-   - Once the site has loaded its dump (step 9), fetch Ireland's region through the site's worker, from the checkout
-     with the site's environment: `scripts/map_tiles.py --regions`. Then keep the result as the baseline each reset
-     restores: `rsync -a /opt/breedgraph-demo/map_tiles/ /opt/breedgraph-demo/dump/map_tiles/` (`-a` copies the world's
-     links as links), and the same for `map_boundaries/` into `dump/map_boundaries/`. If production's world moves to a
-     new major version of the tiles (README, Maps) or another zoom, fetch Ireland again (`--refresh`) and keep it
-     again.
+     The world (560 MB) and Ireland (450 MB) are then on the disk twice, about 2 GB in all. To move the site to a newer
+     build, fetch the world with `--fresh` and the regions with `--refresh`, and keep them again.
 7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving `VITE_BASE_PATH=/demo/` and
    `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and its `dist-demo/` copied to `/var/www/demo`. The guide's
    media go in its `guide-media/` (from `public/guide-media`).
@@ -158,9 +157,9 @@ package upgrades both instances: run the reset afterwards, to check the dump sti
 4. Starts Neo4j and Redis, empties Redis, copies the dump's files over the file store, deleting the rest, and empties
    the archive worker's store. The dump's files wait to be archived, so the worker archives them again. It copies the
    dump's maps (`dump/map_tiles/`, `dump/map_boundaries/`) over the site's in the same way, deleting the regions
-   visitors fetched, and writes `tiles.json` again, naming production's world as it is now. Without them it warns and
-   goes on. Emptying Redis cancels the map worker's jobs, which it stops at their next renewal; the regions it kept
-   stay in its cache.
+   visitors fetched. Without them, or without the env file's `DEMO_MAP_TILES_DIR` and `DEMO_MAP_BOUNDARIES_DIR`, it
+   warns and goes on. Emptying Redis cancels the map worker's jobs, which it stops at their next renewal; the regions
+   it kept stay in its cache.
 5. Empties the site's erasure log, without replaying it: the people erased there were the site's, and are gone with it.
 6. Rotates `SECRET_KEY`, so that no login cookie from before the reset signs in, as a restore reissues account ids.
 7. Writes the site's legal texts (`legal-preamble.md` and the drafts in `docs/legal/`), loads the state store, sets the
@@ -181,8 +180,15 @@ invited from the app, as anyone joins BreedGraph, and those accounts go at the n
 - `/demo/guide-media/*.vtt` is served as `text/vtt`, and the videos answer range requests (206).
 - The links in a verification email start `https://breedgraph.universityofgalway.ie/demo/`.
 - An upload shows as archived within a minute, and an analysis runs.
-- The map shows Ireland in detail, and `/demo/tiles/world.pmtiles` answers range requests (206) through the link.
-  Adding a country fetches its map through the site's map worker (`/var/log/map_worker/map-demo.log` on the worker
-  server), and after the next reset its layer is gone from `/demo/tiles/tiles.json`, which names production's world
-  build.
+- From the worker server, the site's map routes answer through the web server's internal nginx. Renewing a lease the
+  site never gave, which changes nothing, prints 409 with the site's token and 401 without it:
+
+      curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer <token>" \
+        -H 'Content-Type: application/json' -d '{"lease": "none"}' \
+        http://<web server's internal address>:8080/demo/map_jobs/builds/latest/renew
+
+  A 404 is nginx without the `/demo/map_jobs/` location, a 502 the site's API not running.
+- The map shows Ireland in detail, and `/demo/tiles/world.pmtiles` answers range requests (206). Adding a country
+  fetches its map through the site's map worker (`/var/log/map_worker/map-demo.log` on the worker server), and after
+  the next reset its layer is gone from `/demo/tiles/tiles.json`.
 - After a reset the story's state is the manifest's, and a login cookie from before it no longer signs in.

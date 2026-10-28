@@ -5,6 +5,7 @@ fetching itself, and with the map worker (src/map_worker) fetching for it (adapt
 client calling the state store and what the API's routes call.
 """
 import asyncio
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -17,7 +18,7 @@ from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.pmtiles import map_regions as map_regions_module
 from breedgraph.adapters.pmtiles.regions import Region
 from breedgraph.adapters.pmtiles.jobs import (
-    receive_result, receive_extract, LeaseNotHeld, BadUpload, NoSpace, MapRegionError
+    receive_result, receive_extract, sources, LeaseNotHeld, BadUpload, NoSpace, MapRegionError
 )
 from map_worker.adapters.cache import ExtractCache
 from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
@@ -47,7 +48,8 @@ config = json.loads(Path({config!r}).read_text())
 arguments = sys.argv[1:]
 with open({log!r}, 'a') as log:
     log.write(json.dumps(arguments) + '\\n')
-region = name(next(a for a in arguments if a.startswith('--region=')).split('=', 1)[1])
+regions = [a.split('=', 1)[1] for a in arguments if a.startswith('--region=')]
+region = name(regions[0]) if regions else 'world'
 if '--dry-run' in arguments:
     print(f"extract.go:612: Extract transferred 1 MB (overfetch 0.05) for an archive size of {{config['sizes'][region]}}")
 else:
@@ -57,6 +59,7 @@ else:
 exec(NAME)
 
 SIZES = {
+    'world': '560 MB',
     'LUX-ADM0': '300 MB',
     'USA-ADM0': '17 GB',  # over the 2 GB cap, so divided
     'USA-ADM1-a': '1 GB',
@@ -200,6 +203,7 @@ class Maps:
         calls = [json.loads(line) for line in self.log.read_text().splitlines()]
         return [
             name(next(a for a in call if a.startswith('--region=')).split('=', 1)[1])
+            if any(a.startswith('--region=') for a in call) else 'world'
             for call in calls if '--dry-run' not in call
         ]
 
@@ -601,3 +605,38 @@ async def test_a_country_added_again_is_sent_from_the_map_workers_cache(maps, mo
     assert maps.extracts() == ['LUX-ADM0', 'LUX-ADM0']
     sidecar = json.loads((maps.tiles / 'regions' / 'LUX.json').read_text())
     assert (sidecar['build'], sidecar['version']) == ('https://build.protomaps.com/20261027.pmtiles', '4.16.0')
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_second_sites_world_file_is_sent_from_the_map_workers_cache(maps, state_store, monkeypatch):
+    """As for the demonstration site, whose world file is its own (scripts/map_tiles.py), unless asked for fresh"""
+    if not maps.worker:
+        pytest.skip("only the map worker keeps what it cuts")
+    script = Path(__file__).parents[4] / 'scripts' / 'map_tiles.py'
+    spec = importlib.util.spec_from_file_location('map_tiles', script)
+    map_tiles = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(map_tiles)
+    builds = [{'key': '20261026.pmtiles', 'version': '4.15.2'}]
+
+    async def list_builds(url):
+        return builds
+    monkeypatch.setattr(handlers_module, 'list_builds', list_builds)
+    await maps.stop_worker()
+    maps.start_worker(cache=True)
+
+    async def cut(fresh: bool = False) -> dict:
+        pmtiles, protomaps, _ = sources(state_store, True, '', 'latest', maps.boundaries, poll_seconds=0.05)
+        args = SimpleNamespace(dry_run=False, world_maxzoom=6, fresh=fresh)
+        assert await map_tiles.cut_world(args, maps.tiles, pmtiles, protomaps) == 0
+        return json.loads((maps.tiles / 'world.json').read_text())
+
+    assert (await cut())['build'] == BUILD
+    builds.append({'key': '20261027.pmtiles', 'version': '4.16.0'})
+    world = await cut()
+    assert maps.extracts() == ['world'], 'sent from the cache'
+    assert (world['build'], world['version']) == (BUILD, '4.15.2'), 'the build it was cut from'
+    assert (maps.tiles / 'world.pmtiles').read_bytes() == b'PMTiles'
+
+    world = await cut(fresh=True)
+    assert maps.extracts() == ['world', 'world']
+    assert (world['build'], world['version']) == ('https://build.protomaps.com/20261027.pmtiles', '4.16.0')

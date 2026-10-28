@@ -22,8 +22,7 @@ set -a; . "$ENV_FILE"; set +a
 [ "${DB_PORT:-7687}" != 7687 ] || refuse "$ENV_FILE points at production's Neo4j (7687)"
 [ "${REDIS_PORT:-6379}" != 6379 ] || refuse "$ENV_FILE points at production's Redis (6379)"
 for name in DEMO_ROOT DEMO_DUMP_DIR DEMO_FILES_DIR DEMO_ACCOUNTS DEMO_CHECKOUT DEMO_ARCHIVE_DIR NEO4J_PACKAGE \
-    FILE_STORAGE_PATH PERSON_ERASURE_LOG_PATH TERMS_OF_USE_PATH PRIVACY_NOTICE_PATH \
-    DEMO_MAP_TILES_DIR DEMO_MAP_BOUNDARIES_DIR MAP_TILES_PATH MAP_BOUNDARIES_PATH; do
+    FILE_STORAGE_PATH PERSON_ERASURE_LOG_PATH TERMS_OF_USE_PATH PRIVACY_NOTICE_PATH; do
   [ -n "${!name:-}" ] || refuse "$ENV_FILE sets no $name"
 done
 [ -f "$DEMO_DUMP_DIR/neo4j.dump" ] || refuse "no dump at $DEMO_DUMP_DIR/neo4j.dump"
@@ -69,19 +68,20 @@ run redis-cli -h 127.0.0.1 -p "$REDIS_PORT" flushall
 as_demo mkdir -p "$FILE_STORAGE_PATH"
 as_demo rsync -a --delete "$DEMO_FILES_DIR"/ "$FILE_STORAGE_PATH"/
 as_demo find "$DEMO_ARCHIVE_DIR" -mindepth 1 -delete
-# The dump's maps (Ireland's region, and the links to production's world file) over the site's, deleting the regions
-# visitors fetched, then tiles.json written again, so that it names production's world as it is now. Without them the
-# reset goes on, as the site works without detailed maps.
-if [ -d "$DEMO_MAP_TILES_DIR" ] && [ -d "$DEMO_MAP_BOUNDARIES_DIR" ]; then
+# The dump's maps (the site's world file, Ireland's region and tiles.json) over the site's, deleting the regions
+# visitors fetched. Without them, or without the settings naming them (an env file from before they were added), the
+# reset goes on: the site works without detailed maps, and a reset that stopped would leave the day's visitors' data
+# in place.
+MAPS_SET=1
+for name in DEMO_MAP_TILES_DIR DEMO_MAP_BOUNDARIES_DIR MAP_TILES_PATH MAP_BOUNDARIES_PATH; do
+  [ -n "${!name:-}" ] || MAPS_SET=0
+done
+if [ "$MAPS_SET" = 0 ]; then
+  echo "No maps restored: $ENV_FILE does not set DEMO_MAP_TILES_DIR, DEMO_MAP_BOUNDARIES_DIR, MAP_TILES_PATH" \
+    "and MAP_BOUNDARIES_PATH"
+elif [ -d "$DEMO_MAP_TILES_DIR" ] && [ -d "$DEMO_MAP_BOUNDARIES_DIR" ]; then
   as_demo rsync -a --delete "$DEMO_MAP_TILES_DIR"/ "$MAP_TILES_PATH"/
   as_demo rsync -a --delete "$DEMO_MAP_BOUNDARIES_DIR"/ "$MAP_BOUNDARIES_PATH"/
-  as_demo .venv/bin/python - <<'EOF'
-import os
-from pathlib import Path
-from breedgraph.adapters.pmtiles.regions import write_tiles_json
-if not write_tiles_json(Path(os.environ['MAP_TILES_PATH'])):
-    print("No world file in MAP_TILES_PATH: link production's (instance/demo/README.md, Map tiles)")
-EOF
 else
   echo "No maps in $DEMO_MAP_TILES_DIR and $DEMO_MAP_BOUNDARIES_DIR: the site's are left as they are"
 fi

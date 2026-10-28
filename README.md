@@ -686,9 +686,9 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     file kept when a region is asked for again with the same zooms, outline and major version of the tiles, however
     old its build. A country removed and added again, or added on the demonstration site, whose worker shares the
     cache, is then not cut again from Protomaps. The region's description (`regions/<key>.json`) names the build it
-    was cut from. `scripts/map_tiles.py --refresh` cuts regions again from the newest build, replacing those kept,
-    and the world file is always cut anew. The API never deletes from the cache: it holds at most one file per region
-    ever asked for, so delete from it by hand if the worker server's disk needs the room.
+    was cut from. `scripts/map_tiles.py` takes the world file from the cache too, unless `--fresh`, and `--refresh`
+    cuts regions again from the newest build, replacing those kept. The API never deletes from the cache: it holds at
+    most one file per region ever asked for, so delete from it by hand if the worker server's disk needs the room.
   - Coordinates never leave the API's server: sections are found there, and a job carries only a region's key, its
     outline, a build with its version, zooms, and whether to cut it anew. The worker refuses anything but maps from
     Protomaps' builds, so a pinned `MAP_TILES_BUILD` must be one at `https://build.protomaps.com/`.
@@ -727,11 +727,12 @@ Then cut the world file, from the newest build unless `--build` or `MAP_TILES_BU
     set -a; . ./breedgraph.env; set +a
     scripts/map_tiles.py
 
-Run it again now and then to refresh the world file, and then `scripts/map_tiles.py --refresh` to fetch the regions
-again from the newest build. `--regions` fetches what the API would for every country and placed location, for a first
-setup or after losing the files, and `--dry-run` reports what would be fetched and its size. The script sends no
-emails, and shares the API's locks, so both can run at once. Deploying leaves `MAP_TILES_PATH` and
-`MAP_BOUNDARIES_PATH` as they are. For development, `--world-maxzoom 6` gives a world file of about 45 MB.
+Run it again with `--fresh` now and then to refresh the world file (without it, a map worker with a cache sends the
+world it keeps), and then `scripts/map_tiles.py --refresh` to fetch the regions again from the newest build.
+`--regions` fetches what the API would for every country and placed location, for a first setup or after losing the
+files, and `--dry-run` reports what would be fetched and its size. The script sends no emails, and shares the API's
+locks, so both can run at once. Deploying leaves `MAP_TILES_PATH` and `MAP_BOUNDARIES_PATH` as they are. For
+development, `--world-maxzoom 6` gives a world file of about 45 MB.
 
 
 
