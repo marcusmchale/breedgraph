@@ -113,6 +113,8 @@ type Place {
     region: String
     """Its country's name; null for a country"""
     country: String
+    """Its country's ISO 3166 alpha-3 code, as the country is coded in the location trees; a country's own"""
+    countryCode: String
     """The map's zoom to show it at, when it has no bounds"""
     zoom: Int
 }

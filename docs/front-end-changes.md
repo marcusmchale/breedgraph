@@ -79,7 +79,7 @@ code, as locations' codes are; a code of another form is refused: "Not an ISO 31
 `locationsGeocodeCountry(name)` is gone: `locationsCountryPlace(code)` gives a country with the extent of its main
 parts (east above 180 across the antimeridian, as tiles.json's), or null until the world's places are fetched.
 `Place` gains `description` ("town", "farm", "mountain"), `region` ("Kerry, Munster"), `country` (its name; null for a
-country) and `zoom` (when it has no bounds), and `CountryMapStatus` gains `places { state enabled towns error }`:
+country), `countryCode` (its country's alpha-3 code, or a country's own) and `zoom` (when it has no bounds), and `CountryMapStatus` gains `places { state enabled towns error }`:
 whether the country's own places are there (`READY`), coming (`PENDING`) or `FAILED`, and whether the world's towns of
 1,000 people or more stand in for them meanwhile. New refusals: "That search took too long: please type more of the
 name", "Place search is busy, please try again in a moment", "A viewbox is [west, south, east, north]".

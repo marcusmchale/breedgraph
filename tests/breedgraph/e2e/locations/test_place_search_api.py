@@ -17,7 +17,7 @@ from tests.map_worker.geonames_fixtures import IRELAND, ADMIN1, ADMIN2, FEATURES
 SEARCH = (
     "query ($query: String!, $viewbox: [Float!], $bounded: Boolean, $country: String) { "
     " locationsSearchPlaces(query: $query, viewbox: $viewbox, bounded: $bounded, country: $country) { "
-    "  status result { name latitude longitude bounds description region country zoom } errors { name message } } }"
+    "  status result { name latitude longitude bounds description region country countryCode zoom } errors { name message } } }"
 )
 COUNTRY = "query ($code: String!) { locationsCountryPlace(code: $code) { status result { name bounds description } errors { name message } } }"
 STATUS = "query { locationsMapStatus(code: \"IRL\") { status result { places { state enabled towns error } } errors { name message } } }"
@@ -53,7 +53,7 @@ async def test_visitors_find_places_with_their_kind_and_region(client, login_tok
     assert_payload_success(payload)
     assert payload['result'] == [{
         'name': 'Ballyduff', 'latitude': 52.45593, 'longitude': -9.66399, 'bounds': None, 'description': 'village',
-        'region': 'Kerry, Munster', 'country': 'Ireland', 'zoom': 14
+        'region': 'Kerry, Munster', 'country': 'Ireland', 'countryCode': 'IRL', 'zoom': 14
     }]
     farm = (await search(client, login_token_factory, query='Oak Park'))['result'][0]
     assert (farm['description'], farm['zoom']) == ('farm', 16)

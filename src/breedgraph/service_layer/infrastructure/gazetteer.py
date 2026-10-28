@@ -19,6 +19,7 @@ class Place:
     description: str | None = None  # what kind of place it is: "town", "farm", "mountain"…
     region: str | None = None  # the sections of its country it is in: "Kerry, Munster"
     country: str | None = None  # its country's name
+    country_code: str | None = None  # its country's ISO 3166 alpha-3 code, as locations' countries have
     zoom: int | None = None  # the map's zoom to show it at, when it has no bounds
 
 

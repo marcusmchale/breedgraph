@@ -91,8 +91,8 @@ def test_a_countrys_places_are_found_with_their_kind_and_region(loaded):
     assert names(found) == ['Ballyduff'] * 3, 'not the one no longer there, which the worker leaves out'
     assert {p.region for p in found} == IRISH_COUNTIES
     kerry = found[0]
-    assert (kerry.region, kerry.description, kerry.country, kerry.zoom, kerry.bounds) \
-        == ('Kerry, Munster', 'village', 'Ireland', 14, None), 'the largest first'
+    assert (kerry.region, kerry.description, kerry.country, kerry.country_code, kerry.zoom, kerry.bounds) \
+        == ('Kerry, Munster', 'village', 'Ireland', 'IRL', 14, None), 'the largest first'
     assert {p.description for p in found[1:]} == {'town or village'}, 'no population given'
 
     farm = loaded.search('oak park')[0]
@@ -148,9 +148,11 @@ def test_the_worlds_towns_are_found_until_a_countrys_own_places_are_loaded(index
 def test_countries_are_places_shown_by_their_main_parts(index, files):
     index.load_world(files[0])
     ireland = index.search('ireland')[0]
-    assert (ireland.name, ireland.description, ireland.zoom, ireland.country) == ('Ireland', 'country', None, None)
+    assert (ireland.name, ireland.description, ireland.zoom, ireland.country, ireland.country_code) \
+        == ('Ireland', 'country', None, None, 'IRL')
     assert ireland.bounds == [[51.4, -10.5], [55.4, -6.0]], 'its far island left out'
     fiji = index.country_place('FJI')
+    assert fiji.country_code == 'FJI'
     assert fiji.bounds == [[-19.0, 177.0], [-16.0, 181.5]], 'across the antimeridian, east above 180'
     assert fiji.longitude == pytest.approx(179.25)
     assert index.country_place('FRA') is None, 'GeoNames gave no shape'

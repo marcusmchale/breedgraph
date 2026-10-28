@@ -558,6 +558,7 @@ class GazetteerIndex:
             description=label_for(feature_class, feature_code, row['label'], population),
             region=None if country else region_for(name, row['admin2'], row['admin1']),
             country=None if country else row['country_name'],
+            country_code=row['country_code'],
             zoom=None if bounds else zoom_for(feature_class, feature_code, population)
         )
 
@@ -600,7 +601,7 @@ class GazetteerIndex:
             order.append(view.distance())
         sql = (
             'SELECT p.geonameid, p.name, p.latitude, p.longitude, p.feature, p.population, r.admin1, r.admin2, f.label,'
-            ' c.name AS country_name, c.geonameid AS country_geonameid, c.south, c.west, c.north, c.east'
+            ' c.code AS country_code, c.name AS country_name, c.geonameid AS country_geonameid, c.south, c.west, c.north, c.east'
             ' FROM places_text JOIN places p ON p.id = places_text.rowid JOIN regions r ON r.id = p.region'
             ' JOIN countries c ON c.code = p.country LEFT JOIN features f ON f.code = p.feature'
             f" WHERE {' AND '.join(conditions)} ORDER BY {', '.join(order)} LIMIT :limit"
@@ -647,5 +648,6 @@ class GazetteerIndex:
             latitude=(south + north) / 2,
             longitude=_wrap((west + east) / 2),
             bounds=[[south, west], [north, east]],
-            description='country'
+            description='country',
+            country_code=code
         )
