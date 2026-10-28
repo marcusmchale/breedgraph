@@ -648,3 +648,25 @@ countries' detailed maps as they are added. [docs/maps.md](docs/maps.md) says ho
   after the initial setup and the germplasm import. The data is extracted and rehearsed locally, then copied to the
   server as a checked bundle, with the migration as its own wheel (`scripts/build_migration_wheel.py`), installed
   only for the run.
+
+## Licence, and third-party software and data
+
+BreedGraph is distributed under the BSD 3-Clause License (`LICENSE.txt`). Its releases (the wheel and source archive)
+hold no third-party code: the Python packages it needs are named in `pyproject.toml` and installed from PyPI, each
+under its own licence, kept with it in its installed metadata. BreedView, the web front end, writes the licences of the
+code it bundles into its builds (its README, Third-party software and data).
+
+Data from elsewhere, and how it is credited:
+
+- **Map tiles:** OpenStreetMap's data, © OpenStreetMap contributors, under the Open Database License (ODbL), as built by
+  [Protomaps](https://protomaps.com) (with Natural Earth's, in the public domain, at low zooms). The map credits both,
+  linking to OpenStreetMap's copyright page (`adapters/pmtiles/regions.py`, `ATTRIBUTION`, served in `tiles.json`).
+- **Places and countries:** [GeoNames](https://www.geonames.org)' places and country list, under the Creative Commons
+  Attribution 4.0 licence. The place search credits it under its results, linking to the licence; the country list
+  packaged with BreedGraph is credited in `src/breedgraph/data/README.md`.
+- **Outlines:** [geoBoundaries](https://www.geoboundaries.org)' country and section outlines, under open licences that
+  vary by country (CC BY 4.0 for most), kept beside each file in `MAP_BOUNDARIES_PATH`. They are used only to cut map
+  tiles and find sections on the server, and are not served.
+
+The servers' own software (Neo4j, Redis, nginx, R and its packages, go-pmtiles, age) is installed and run by each
+deployment, not distributed with BreedGraph.
