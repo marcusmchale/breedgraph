@@ -833,6 +833,17 @@ def test_insufficient_data():
 
 
 """ Payload """
+def test_job_payload_names_terms_by_title():
+    ctx = context(
+        descriptive([concept_term(10), domain_term('GERMPLASM')], grouping={'germplasm': {'germplasm_ids': []}}),
+        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '2')])],
+        units={100: UnitContext(unit_id=100, germplasm_id=7), 101: UnitContext(unit_id=101, germplasm_id=8)},
+        concepts={10: ConceptContext(10, ScaleType.NUMERICAL, name='Height')}
+    )
+    frame, _ = prepare(ctx)
+    payload = build_job_payload('abc', ctx.request, frame)
+    assert [(c['name'], c['title']) for c in payload['columns']] == [('concept:10', 'Height'), ('germplasm', 'Germplasm')]
+
 def test_job_payload_is_json_with_nulls():
     ctx = context(
         descriptive([concept_term(10), concept_term(11)], dataset_ids=[1, 2]),

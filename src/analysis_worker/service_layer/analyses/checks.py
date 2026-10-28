@@ -20,11 +20,19 @@ def single_level_columns(frame: pd.DataFrame, columns: list[dict]) -> list[dict]
     return [c for c in columns if frame[c['name']].dropna().nunique() < 2]
 
 
+def column_title(column: dict) -> str:
+    """
+    The term of a column as messages name it, e.g. by its concept's name, or by the column's name from an API that sends
+    no titles
+    """
+    return column.get('title') or column['name']
+
+
 def single_level_messages(job: AnalysisJob, columns: list[dict], code: ErrorCode | WarningCode) -> list[Message]:
     return [
         Message(
             code=code,
-            message=f"Term {column['name']} has fewer than two levels in the analysed observations",
+            message=f"Term '{column_title(column)}' has fewer than two levels in the analysed observations",
             path=job.term_path(column['term'])
         )
         for column in columns

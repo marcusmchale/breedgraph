@@ -47,9 +47,19 @@ def test_descriptive_single_level_warning():
     rows = [[1.0, 'a'], [2.0, 'a']]
     outcome = run_job(job(
         'DESCRIPTIVE_STATISTICS', {'interactions': [], 'estimated_means': []},
-        [column(X), column(Y, 'CATEGORICAL', ['a', 'b'])], rows
+        [column(X), column(Y, 'CATEGORICAL', ['a', 'b']) | {'title': 'Light'}], rows
     ))
     assert [w.code for w in outcome.warnings] == [WarningCode.SINGLE_LEVEL_TERM]
+    # named by its title, as the API names the term
+    assert outcome.warnings[0].message == "Term 'Light' has fewer than two levels in the analysed observations"
+
+def test_a_term_without_a_title_is_named_by_its_column():
+    """From an API that sends no titles"""
+    outcome = run_job(job(
+        'DESCRIPTIVE_STATISTICS', {'interactions': [], 'estimated_means': []},
+        [column(X), column(Y, 'CATEGORICAL', ['a', 'b'])], [[1.0, 'a'], [2.0, 'a']]
+    ))
+    assert outcome.warnings[0].message == "Term 'concept:2' has fewer than two levels in the analysed observations"
 
 
 def test_an_ordinal_term_is_summarised_by_its_categories():

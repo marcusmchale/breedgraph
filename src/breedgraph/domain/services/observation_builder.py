@@ -68,6 +68,7 @@ class ObservationColumn:
     reference: AnalysisTermReference
     kind: TermRepresentationType
     levels: list[str] | None = None  # ordered levels of CATEGORICAL and ORDINAL columns
+    title: str = ''  # the term as messages name it, e.g. its concept's name
 
 @dataclass
 class Observation:
@@ -324,6 +325,7 @@ class ObservationBuilder:
                 column, values = self._concept_column(term, observations, path, warnings)
             else:
                 column, values = self._domain_column(term, observations)
+            column.title = self._title(term.reference)
             columns.append(column)
             data[column.name] = values
 
@@ -560,6 +562,17 @@ class ObservationBuilder:
             elif transformation == TermTransformation.RECIPROCAL:
                 series = 1 / series
         return series
+
+    def _title(self, reference: AnalysisTermReference) -> str:
+        """A term as messages name it: by its concept, its dimension or its axis, or by its type"""
+        if reference.type == AnalysisTermType.CONCEPT:
+            concept = self.context.concepts[reference.concept_id]
+            return concept.name or f"concept {concept.concept_id}"
+        if reference.type == AnalysisTermType.RECORD_GROUP:
+            return reference.record_group_dimension
+        if reference.type == AnalysisTermType.LAYOUT_AXIS:
+            return reference.layout_axis
+        return reference.type.value.capitalize()
 
     """ Domain terms """
     def _domain_column(

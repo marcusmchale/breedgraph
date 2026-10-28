@@ -46,7 +46,7 @@ def build_job_payload(analysis_id: str, request: AnalysisRequest, frame: Observa
         'analysis_type': request.analysis_type,
         'config': request.spec,
         'columns': [
-            {'name': c.name, 'term': c.reference.model_dump(), 'kind': c.kind, 'levels': c.levels}
+            {'name': c.name, 'title': c.title, 'term': c.reference.model_dump(), 'kind': c.kind, 'levels': c.levels}
             for c in frame.columns
         ],
         'rows': data.values.tolist(),
