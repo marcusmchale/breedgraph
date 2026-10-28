@@ -18,6 +18,12 @@ its own copy of GeoNames' list of places, so the OpenStreetMap Foundation (Unite
 received each search until now, receives none, and no transfer to the UK is made for them. "Maps and place search"
 says so. Searches are not logged.
 
+Also since then, the emails telling admins that a request or offer awaits them (to link a Person record, for access
+to a team, a transfer of control) no longer name who asked or offered, nor a record's number: they say what awaits
+and where, and the admins see who on the site, where they may. A copy in a mailbox is beyond the reach of an account's
+deletion or a Person's erasure. An invitation still names who invites, and a contact message its sender, whose name
+is their point.
+
 Points to confirm:
 
 1. **Lawful basis.** Consent (Art. 6(1)(a)) for account data and Person records; public task (Art. 6(1)(e)) for server

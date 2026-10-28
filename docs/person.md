@@ -188,7 +188,7 @@ Two routes, both ending in a confirmed `IS_PERSON` link:
 1. **Invitation.** An invitation can name a `person_id`. Registering with `linkPerson` links it, because the invitation token and email verification prove identity.
    The link is made with the inviter's authority, which is checked again: they must still administer a team controlling the Person. The user can register without linking.
 2. **Request and approve.** A registered user asks to claim a Person by id (`peopleRequestClaim`), even one they can only see as an id; the request reveals only whether the Person can be linked (it is refused for an erased or already linked Person).
-   Admins of the controlling teams are emailed, see pending requests with the requester's name (`peopleClaimRequests`), and approve or reject them, confirming the user's identity first.
+   Admins of the controlling teams are emailed that a request awaits them, naming the teams but not who asked, see pending requests with the requester's name (`peopleClaimRequests`), and approve or reject them, confirming the user's identity first.
    Approving links the user and drops other pending requests. The requester sees their own pending requests (`peopleMyClaims`) and can withdraw them.
 
 A request is stored as `(User)-[:CLAIMS {time}]->(Person)`. Each account is linked to at most one Person, and each Person to at most one account.

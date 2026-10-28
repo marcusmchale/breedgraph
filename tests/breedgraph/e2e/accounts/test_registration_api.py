@@ -19,7 +19,7 @@ from tests.breedgraph.e2e.teams.post_methods import (
     post_to_teams_roots
 )
 #from tests.e2e.accounts.gmail_fetching import confirm_email_delivered_to_gmail, get_json_from_gmail
-from tests.breedgraph.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email
+from tests.breedgraph.utilities.mailhog_fetching import confirm_email_delivered, get_json_from_email, get_email, decode_quopri
 
 from breedgraph import config
 from breedgraph.domain.model import Access
@@ -196,15 +196,18 @@ async def test_first_user_requests_read_affiliation(
 
     first_user_input = user_input_generator.user_inputs[0]
     second_user_input = user_input_generator.user_inputs[1]
-    # the second user should receive an email
+    # the second user should receive an email, saying what was requested, not who requested it
     assert await confirm_email_delivered(
         second_user_input["email"],
         f'{SITE_NAME} {Access.READ.name.casefold()} access requested',
         string_in_body=(
-            f'{first_user_input["name"]} requested {Access.READ.name.casefold()} access to {team_name} '
-            f'and the teams below it.'
+            f'An account requested {Access.READ.name.casefold()} access to {team_name} and the teams below it.'
         )
     )
+    mail = await get_email(
+        second_user_input["email"], f'{SITE_NAME} {Access.READ.name.casefold()} access requested', 'An account requested'
+    )
+    assert first_user_input["name"] not in decode_quopri(mail['Content']['Body'])
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_second_user_approves_read_affiliation_to_child_team(
@@ -282,8 +285,7 @@ async def test_first_user_asks_for_read_access_to_the_teams_below_the_child_team
         second_user_input["email"],
         f'{SITE_NAME} read access requested',
         string_in_body=(
-            f'{first_user_input["name"]}, who has read access to {child.get("name")}, '
-            f'requested it for the teams below it too.'
+            f'An account with read access to {child.get("name")} requested it for the teams below it too.'
         )
     )
 

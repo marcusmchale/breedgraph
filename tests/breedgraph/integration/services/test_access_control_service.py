@@ -342,7 +342,7 @@ async def test_offer_notifies_recipient_team_admins(uow_factory, control_transfe
     # Admins of the recipient team only, not admins of the child team
     assert {user.id for user in recipients} == {control_transfer_context['user_id_2']}
     assert 'control transfer offered' in message.message['Subject']
-    assert 'offered control of 2 entries' in message.message.get_content()
+    assert 'Control of 2 entries was offered to' in message.message.get_content()
 
 
 @pytest.mark.asyncio(loop_scope="session")

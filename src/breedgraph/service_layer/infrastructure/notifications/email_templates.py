@@ -13,6 +13,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Emails telling admins that something awaits them say what and where, not who asked or offered: those it may be shown
+# to see that on the site, and a copy in a mailbox is beyond the reach of an account's deletion or a Person's erasure.
+# Emails whose sender is their point keep the name: an invitation, a contact message.
+
+def names(items: list[str]) -> str:
+    """A, B and C"""
+    return ' and '.join([', '.join(items[:-1]), items[-1]]) if len(items) > 1 else ''.join(items)
+
+
 class Email:
 
     def __init__(self):
@@ -41,13 +50,15 @@ class ContactMessage(Email):
 
 class PersonClaimRequestedMessage(Email):
 
-    def __init__(self, requesting_user: UserBase, person_id: int):
+    def __init__(self, teams: list[str]):
+        """teams: the names of the teams controlling the Person"""
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} request to link a Person record'
         body = (
             f'Admin notification:\n'
-            f'{requesting_user.fullname} asked to link their account to Person record {person_id}.\n'
-            f'Please confirm their identity before approving the request at {get_vue_url()}.'
+            f'Someone asked to link their account to a Person record controlled by {names(teams)}.\n'
+            f'Please review the request on the People page, confirming their identity before approving it:\n'
+            f'{get_vue_url()}people'
         )
         self.message.set_content(body)
 
@@ -136,17 +147,17 @@ class AffiliationRequestedMessage(Email):
     team only (held), a request to make it heritable.
     """
 
-    def __init__(self, requesting_user: UserBase, team: TeamBase, access: Access, heritable: bool = False, held: bool = False):
+    def __init__(self, team: TeamBase, access: Access, heritable: bool = False, held: bool = False):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} {access.name.casefold()} access requested'
         if held:
             request = (
-                f'{requesting_user.fullname}, who has {access.name.casefold()} access to {team.name}, '
-                f'requested it for the teams below it too.'
+                f'An account with {access.name.casefold()} access to {team.name} requested it for the teams below it '
+                f'too.'
             )
         else:
             teams = f'{team.name} and the teams below it' if heritable else team.name
-            request = f'{requesting_user.fullname} requested {access.name.casefold()} access to {teams}.'
+            request = f'An account requested {access.name.casefold()} access to {teams}.'
         body = (
             f'Admin notification:\n'
             f'{request}\n'
@@ -170,13 +181,12 @@ class AffiliationApprovedMessage(Email):
 
 class ControlTransferOfferedMessage(Email):
 
-    def __init__(self, offering_user: UserBase, team: TeamBase, entity_count: int):
+    def __init__(self, team: TeamBase, entity_count: int):
         super().__init__()
         self.message['Subject'] = f'{SITE_NAME} control transfer offered to {team.name}'
         body = (
             f'Admin notification:\n'
-            f'{offering_user.fullname} offered control of {entity_count} '
-            f'{"entry" if entity_count == 1 else "entries"} to {team.name}.\n'
+            f'Control of {entity_count} {"entry" if entity_count == 1 else "entries"} was offered to {team.name}.\n'
             f'Please review the offer at:\n'
             f'{get_vue_url()}access?tab=offers'
         )

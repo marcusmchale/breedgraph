@@ -65,7 +65,12 @@ async def test_claim_approved(client, login_token_factory, uow_factory, claims_c
     async with uow_factory.get_uow() as uow:
         admin_email = (await uow.repositories.accounts.get(user_id=claims_context['user_id'])).user.email
         claimant_email = (await uow.repositories.accounts.get(user_id=claimant_id)).user.email
-    assert await confirm_email_delivered(admin_email, f"{SITE_NAME} request to link a Person record")
+        team = (await uow.repositories.team_trees.get(team_id=claims_context['team_id'])).get_team(claims_context['team_id'])
+    # what awaits the admins, and where, not who asked
+    assert await confirm_email_delivered(
+        admin_email, f"{SITE_NAME} request to link a Person record",
+        string_in_body=f"Someone asked to link their account to a Person record controlled by {team.name}"
+    )
 
     # Requesting from the id-only form leaves the record intact
     assert get_verified_payload(await post_to_person(client, admin_token, person_id), "peoplePerson")['result']['name'] == person_name

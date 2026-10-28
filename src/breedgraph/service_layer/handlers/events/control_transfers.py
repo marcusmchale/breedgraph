@@ -25,14 +25,12 @@ async def notify_control_transfer_offered(
         if team is None or isinstance(team, TeamInput):
             return
 
-        offering_account = await uow.repositories.accounts.get(user_id=event.offered_by)
         admins = team_tree.get_affiliates(team_id=event.recipient_team, access=Access.ADMIN)
         admin_users = [(await uow.repositories.accounts.get(user_id=admin)).user for admin in admins]
         if not admin_users:
             return
 
         message = email_templates.ControlTransferOfferedMessage(
-            offering_user=offering_account.user,
             team=team,
             entity_count=event.entity_count
         )

@@ -138,10 +138,7 @@ async def notify_admins_requested(
             raise ValueError(f"Affiliation request for user {event.user_id} not found")
 
         admins = team_tree.get_affiliates(team_id=event.team_id, access=Access.ADMIN) - {event.user_id}
-        account = await uow.repositories.accounts.get(user_id=event.user_id)
-        user = UserOutput.from_stored(account.user)
         message = email_templates.AffiliationRequestedMessage(
-            requesting_user = user,
             team = team,
             access = event.access,
             heritable = request.heritable or request.heritable_requested,

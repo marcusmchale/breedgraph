@@ -36,23 +36,20 @@ async def notify_person_claim_requested(
         uow_factory: AbstractUnitOfWorkFactory,
         notifications: AbstractNotifications
 ):
-    """Email the admins of the teams controlling the Person"""
+    """Email the admins of the teams controlling the Person, naming the teams, not who asked (email_templates)"""
     async with uow_factory.get_uow() as uow:
         controller = await uow.controls.get_controller(ControlledModelLabel.PERSON, event.person_id)
         if controller is None:
             return
-        admin_ids = set()
+        admin_ids, teams = set(), []
         for team_id in controller.teams:
             team_tree = await uow.repositories.team_trees.get(team_id=team_id)
             if team_tree is not None:
                 admin_ids |= team_tree.get_affiliates(team_id, access=Access.ADMIN)
-        requester = await uow.repositories.accounts.get(user_id=event.user_id)
+                teams.append(team_tree.get_team(team_id).name)
         admins = [(await uow.repositories.accounts.get(user_id=admin_id)).user for admin_id in sorted(admin_ids)]
-    if admins and requester is not None:
-        await notifications.send(admins, email_templates.PersonClaimRequestedMessage(
-            requesting_user=requester.user,
-            person_id=event.person_id
-        ))
+    if admins:
+        await notifications.send(admins, email_templates.PersonClaimRequestedMessage(teams=sorted(teams)))
 
 
 @handlers.event_handler()
