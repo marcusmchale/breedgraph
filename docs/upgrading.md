@@ -7,7 +7,7 @@ section in turn. Releases before v0.1.6 list theirs in their notes on GitHub.
 
 The release's notes on GitHub link here; corrections found while deploying a release are made here, not in its notes.
 
-## Unreleased
+## v0.1.7
 
 **Cypher 25.** The queries are now written in Cypher 25, with no APOC, and the API refuses to start on a database
 running another language. A database runs the language it was created with, whatever `db.query.default_language`
@@ -83,6 +83,15 @@ can, or linking is offered and fails at its last step ([deployment.md](deploymen
 
 **The map workers' logs** say once when the API stops answering, each hour while it doesn't, and when it answers again,
 rather than at each poll: nothing to do.
+
+**BreedView's mark.** BreedView has a favicon of its own and its mark before its name in the header, in the header's
+text colour. A branding's `favicon` still replaces it (BreedView's README, Branding): remove it from the branding's
+`branding.json` for BreedView's.
+
+Nothing to do for the rest: the emails telling admins of a request or an offer say what awaits and where, no longer
+who asked ([person.md](person.md)); the map's credit links OpenStreetMap's copyright page, `tiles.json` being written
+anew as the API starts; and BreedView's builds carry `licenses.txt`, the licences of the code they bundle, which its
+footer links to.
 
 ## v0.1.6
 
