@@ -5,7 +5,7 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, and several accesses to a team in an invitation at `070eb3c`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, several accesses to a team in an invitation at `070eb3c`, and the place search from GeoNames at `8fa9765`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
@@ -70,21 +70,3 @@ While records cite a scale, through any variable or factor reading it, removed o
 refuses a different scale type: "Records cite Centimetres, so its scale type can't change: create a new scale instead".
 
 Nothing breaks. Work: show the refusals as given.
-
-## Place search from GeoNames
-
-`locationsSearchPlaces` is answered from the API's own copy of GeoNames' places (docs/maps.md), open to visitors, with
-no hourly limit but at most 5 searches in a request. Its `countryCode` (alpha-2) is now `country`, an ISO 3166 alpha-3
-code, as locations' codes are; a code of another form is refused: "Not an ISO 3166 alpha-3 code: 'IE'".
-`locationsGeocodeCountry(name)` is gone: `locationsCountryPlace(code)` gives a country with the extent of its main
-parts (east above 180 across the antimeridian, as tiles.json's), or null until the world's places are fetched.
-`Place` gains `description` ("town", "farm", "mountain"), `region` ("Kerry, Munster"), `country` (its name; null for a
-country), `countryCode` (its country's alpha-3 code, or a country's own) and `zoom` (when it has no bounds), and `CountryMapStatus` gains `places { state enabled towns error }`:
-whether the country's own places are there (`READY`), coming (`PENDING`) or `FAILED`, and whether the world's towns of
-1,000 people or more stand in for them meanwhile. New refusals: "That search took too long: please type more of the
-name", "Place search is busy, please try again in a moment", "A viewbox is [west, south, east, north]".
-
-What breaks: `searchPlaces.graphql` (`countryCode`) and `geocodeCountry.graphql`. Work: search signed out too; pass
-the selected country's alpha-3 code and drop `countryCodes.js`; show each result's kind and region, and zoom to
-`zoom` or `bounds`; credit "Places from GeoNames, CC BY 4.0"; fit a country without a tiles.json extent by
-`locationsCountryPlace(code)`; say under the map, from `places`, when a country is covered by the world's towns only.
