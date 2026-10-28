@@ -143,6 +143,18 @@ def test_estimated_means_against_control():
     means, = run_job(job('ANOVA', config, columns, rows)).result['estimated_means']
     assert [(c['levels_a'][0]['level'], c['levels_b'][0]['level']) for c in means['contrasts']] == [('a1', 'a2'), ('a3', 'a2')]
 
+def test_a_control_not_among_the_levels_is_an_error_at_its_estimated_means():
+    columns, rows = one_way()
+    config = anova_config(
+        [term(Y), term(A)],
+        estimated_means=[means_spec([A]), means_spec([A], contrast='TRT_VS_CTRL', control='a9')]
+    )
+    with pytest.raises(AnalysisJobFailed) as e:
+        run_job(job('ANOVA', config, columns, rows))
+    error, = e.value.errors
+    assert error.message == "Control level 'a9' is not a level of the analysed observations"
+    assert error.path == ['anova', 'estimatedMeans', '1', 'control']
+
 def test_estimated_means_by():
     columns, rows = balanced_two_way()
     config = anova_config(

@@ -85,11 +85,13 @@ def _estimated_means(
         job: AnalysisJob,
         model_frame: ModelFrame,
         model,
-        spec: dict,
+        index: int,
         alpha: float,
         ddf: str,
         response: dict | None
 ) -> dict:
+    """:param index: of the estimated means in the configuration"""
+    spec = job.config['estimated_means'][index]
     specs = [model_frame.name(r) for r in spec['terms']]
     by = [model_frame.name(r) for r in spec['by']]
     contrast = CONTRASTS[spec['contrast']]
@@ -101,7 +103,7 @@ def _estimated_means(
             raise AnalysisJobFailed([Message(
                 code=ErrorCode.MODEL_FAILED,
                 message=f"Control level '{spec['control']}' is not a level of the analysed observations",
-                path=job.spec_path + ['estimatedMeans']
+                path=job.spec_path + ['estimatedMeans', str(index), 'control']
             )])
         ref = levels.index(spec['control']) + 1
 
@@ -265,8 +267,8 @@ def anova(job: AnalysisJob) -> AnalysisOutcome:
 
     try:
         means = [
-            _estimated_means(job, model_frame, fit['model'], spec, config['alpha'], config['ddf'], config['response'])
-            for spec in config['estimated_means']
+            _estimated_means(job, model_frame, fit['model'], i, config['alpha'], config['ddf'], config['response'])
+            for i in range(len(config['estimated_means']))
         ]
     except RError as e:
         raise _model_failed(job, e)
@@ -308,8 +310,8 @@ def descriptive_estimated_means(job: AnalysisJob, frame: pd.DataFrame) -> tuple[
             fit = fit_anova(model_frame.r_data(), formula, False, 2, 'Satterthwaite')
             warnings += _not_converged(job, fit['warnings'])
             results += [
-                _estimated_means(job, model_frame, fit['model'], spec, 0.05, 'SATTERTHWAITE', response['term'])
-                for spec in config['estimated_means']
+                _estimated_means(job, model_frame, fit['model'], i, 0.05, 'SATTERTHWAITE', response['term'])
+                for i in range(len(config['estimated_means']))
             ]
         except RError as e:
             raise _model_failed(job, e)
