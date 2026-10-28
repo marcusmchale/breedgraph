@@ -123,6 +123,8 @@ def test_other_words_may_name_the_region(loaded):
 def test_whole_names_come_first_then_names_started_then_other_names(loaded):
     assert names(loaded.search('kings', limit=3)) == ['Kings', 'Kingscourt', 'Montevallo']
     assert names(loaded.search('dub'))[0] == 'Dublin'
+    assert loaded.search('d') == [], 'a single letter is a whole name, not the start of every name'
+    assert [p.region for p in loaded.search('ballyduff k')] == ['Kerry, Munster'], "but a region's may start with it"
 
 
 def test_the_worlds_towns_are_found_until_a_countrys_own_places_are_loaded(index, files):

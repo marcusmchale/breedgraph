@@ -16,7 +16,7 @@ import re
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterator, List, Tuple
 
 import httpx
 
@@ -156,10 +156,11 @@ async def download_outlines(url: str, code: str, level: str) -> Tuple[dict, dict
 """ GeoNames' places, for the place search (breedgraph docs/maps.md, Place search) """
 
 # What is sent for a country or the world: a gzipped TSV with these columns, on a first line of their own. The
-# country is GeoNames' alpha-2 code; admin1 and admin2 name the sections a place is in, and region_alternates their
-# other names, from their own rows (County Offaly for Uíbh Fhailí), so that a search may name them either way. The
-# world's file ends with the countries' outlines, one row each, with only their geonameid, class A, code PCLI and the
-# shape, as compact GeoJSON.
+# country is GeoNames' alpha-2 code, and admin1 and admin2 name the sections a place is in. Their other names, from
+# their own rows (County Offaly for Uíbh Fhailí), so that a search may name them either way, are given once for each
+# pair of sections, before the places, in a row with no geonameid: its country, admin1, admin2 and region_alternates.
+# The world's file ends with the countries' outlines, one row each, with only their geonameid, class A, code PCLI and
+# the shape, as compact GeoJSON.
 GAZETTEER_COLUMNS = (
     'geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code',
     'feature', 'country', 'admin1', 'admin2', 'region_alternates', 'population', 'modified', 'shape'
@@ -255,6 +256,8 @@ def write_gazetteer(
         sections = _section_alternates(zipped, info)
         with zipped.open(info) as raw, gzip.open(output, 'wt', encoding='utf-8', newline='\n') as out:
             out.write('\t'.join(GAZETTEER_COLUMNS) + '\n')
+            for code, name1, name2, region_alternates in _regions(sections, admin1, admin2):
+                out.write('\t'.join(('', '', '', '', '', '', '', '', '', code, name1, name2, region_alternates, '', '', '')) + '\n')
             for line in io.TextIOWrapper(raw, encoding='utf-8', newline='\n'):
                 fields = line.rstrip('\r\n').split('\t')
                 if fields == ['']:
@@ -278,12 +281,11 @@ def write_gazetteer(
                     continue
                 section1 = f'{code}.{a1}' if a1 else None
                 section2 = f'{code}.{a1}.{a2}' if a1 and a2 else None
-                region_alternates = ','.join(sections[section] for section in (section2, section1) if section in sections)
                 out.write('\t'.join((
                     geonameid, name, asciiname, _alternates(alternates, name, asciiname), latitude, longitude,
                     feature_class, feature_code, features.get(f'{feature_class}.{feature_code}', ''), code,
                     admin1.get(section1, '') if section1 else '', admin2.get(section2, '') if section2 else '',
-                    region_alternates[:REGION_ALTERNATES_MAX], population if population.isdigit() else '0', modified, ''
+                    '', population if population.isdigit() else '0', modified, ''
                 )) + '\n')
                 written += 1
             for geonameid, shape in (shapes or {}).items():
@@ -294,6 +296,26 @@ def write_gazetteer(
     if not written:
         raise MapRegionError(f"GeoNames' {member} has no places")
     return written
+
+
+def _regions(sections: Dict[str, str], admin1: Dict[str, str], admin2: Dict[str, str]) -> Iterator[Tuple[str, str, str, str]]:
+    """
+    The other names of each pair of sections places may be in, from those of the file's sections (_section_alternates):
+    (country, admin1 name, admin2 name, the admin2's other names then the admin1's), and for each admin1 alone
+    (country, admin1 name, '', its other names). Only those with other names.
+    """
+    for section, alternates in sections.items():
+        if section.count('.') == 1 and alternates:
+            yield section.split('.', 1)[0], admin1.get(section, ''), '', alternates[:REGION_ALTERNATES_MAX]
+    for section, name in admin2.items():
+        if section.count('.') != 2:
+            continue
+        code, a1, _ = section.split('.')
+        section1 = f'{code}.{a1}'
+        if section in sections or section1 in sections:
+            alternates = ','.join(names for names in (sections.get(section), sections.get(section1)) if names)
+            if alternates:
+                yield code, admin1.get(section1, ''), name, alternates[:REGION_ALTERNATES_MAX]
 
 
 def _section_alternates(zipped: zipfile.ZipFile, info: zipfile.ZipInfo) -> Dict[str, str]:

@@ -38,7 +38,8 @@ def dump(tmp_path, places, member='IE.txt'):
 def test_a_countrys_places_are_written_with_their_sections_and_kind(tmp_path):
     output = tmp_path / 'IRL.tsv.gz'
     assert write_gazetteer(dump(tmp_path, IRELAND), 'IE.txt', output, 'IE', ADMIN1, ADMIN2, FEATURES) == 10
-    written = {row['geonameid']: row for row in rows(output)}
+    found = rows(output)
+    written = {row['geonameid']: row for row in found if row['geonameid']}
     # roads, undersea features and places no longer there are left out, and so is a place of another country
     assert set(written) == {'2966605', '2966606', '3313853', '2964180', '2964574', '2963517', '2962187', '7521315',
                             '9000001', '9000002'}
@@ -46,9 +47,16 @@ def test_a_countrys_places_are_written_with_their_sections_and_kind(tmp_path):
     assert (kerry['name'], kerry['feature'], kerry['country'], kerry['admin1'], kerry['admin2'], kerry['population']) \
         == ('Ballyduff', 'populated place', 'IE', 'Munster', 'Kerry', '517')
     assert kerry['alternatenames'] == 'An Baile Dubh', 'no postcodes, nor its own name again'
-    assert kerry['region_alternates'] == 'Ciarraí,County Kerry,Cúige Mumhan', "its county's and province's other names"
-    offaly = written['3313853']
-    assert (offaly['admin2'], offaly['region_alternates']) == ('Uíbh Fhailí', 'County Offaly,Offaly')
+    assert written['3313853']['admin2'] == 'Uíbh Fhailí'
+    # the other names of its sections, given once each, before the places: a county's then its province's
+    regions = [(row['country'], row['admin1'], row['admin2'], row['region_alternates']) for row in found[:4]]
+    assert sorted(regions) == [
+        ('IE', 'Leinster', 'Uíbh Fhailí', 'County Offaly,Offaly'),
+        ('IE', 'Munster', '', 'Cúige Mumhan'),
+        ('IE', 'Munster', 'County Waterford', 'Cúige Mumhan'),
+        ('IE', 'Munster', 'Kerry', 'Ciarraí,County Kerry,Cúige Mumhan'),
+    ]
+    assert all(row['geonameid'] for row in found[4:]) and not any(row['region_alternates'] for row in found[4:])
     assert written['9000001']['feature'] == 'farm'
     assert all(row['shape'] == '' for row in written.values())
 

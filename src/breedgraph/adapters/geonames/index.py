@@ -147,9 +147,9 @@ def words(query: str) -> List[str]:
     return normalize(query[:QUERY_MAX_CHARACTERS], '').split()[:QUERY_MAX_WORDS]
 
 
-def term(word: str, last: bool) -> str:
-    """A word quoted, so that none is read as FTS5's syntax, and the last one a prefix, as it is being typed"""
-    return f'"{word}"*' if last else f'"{word}"'
+def term(word: str, prefix: bool) -> str:
+    """A word quoted, so that none is read as FTS5's syntax, or the start of one"""
+    return f'"{word}"*' if prefix else f'"{word}"'
 
 
 def importance_for(feature_class: str, feature_code: str, population: int) -> float:
@@ -298,6 +298,7 @@ class _Load:
         self.first_region = (db.execute('SELECT max(id) FROM regions').fetchone()[0] or 0) + 1
         self.new_regions = []
         self.read_regions = {}
+        self.region_alternates = {}  # the other names of sections, by country (alpha-2) and their names, as given once
         self.features = {}
         self.shapes = []  # the world's countries' (geonameid, shape)
 
@@ -315,6 +316,9 @@ class _Load:
         """Rows of the places table from a file's"""
         for (geonameid, name, asciiname, alternates, latitude, longitude, feature_class, feature_code, label,
              alpha2, admin1, admin2, region_alternates, population, _modified, shape) in rows:
+            if not geonameid and region_alternates:
+                self.region_alternates[(alpha2, admin1, admin2)] = region_alternates
+                continue
             try:
                 if shape:
                     self.shapes.append((int(geonameid), json.loads(shape)))
@@ -334,6 +338,7 @@ class _Load:
                 self.features[feature] = label
             # the country itself is found by the name it has in BreedGraph too ("Fiji", which GeoNames calls "Viti")
             names = [country, name, asciiname] if identifier == country_geonameid else [name, asciiname]
+            region_alternates = region_alternates or self.region_alternates.get((alpha2, admin1, admin2), '')
             yield (
                 identifier, self.source, code, self.region(code, country, admin1, admin2, region_alternates), name,
                 latitude, longitude, feature, population, importance_for(feature_class, feature_code, population),
@@ -556,7 +561,10 @@ class GazetteerIndex:
         """
         whole = ' '.join(found)
         last = len(found) - 1
-        parameters = {'match': term(found[by], by == last), 'exact': f'\n{whole}\n', 'start': f'\n{whole}'}
+        # the last word is the start of one, as it is being typed; but a single letter, as the word the places are found
+        # by, starts too many names to rank in time (the United States has 2 million), so it is a whole word there
+        match = term(found[by], by == last and len(found[by]) > 1)
+        parameters = {'match': match, 'exact': f'\n{whole}\n', 'start': f'\n{whole}'}
         conditions = ['places_text MATCH :match', "(p.source = 'country' OR NOT c.loaded)"]
         for i, word in enumerate(found):
             if i == by:
