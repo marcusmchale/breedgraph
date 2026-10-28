@@ -166,7 +166,8 @@ ontology_entry_ids.csv, so it passes before and after.
 From field_farm_region_country.csv (1.1.1), create the Regions, Farms and Fields (locations.py):
 
 * Each BreedCAFS country is the root of a BreedGraph region, found by its ISO 3166-1 alpha-3 code,
-  or created and released `PUBLIC`, as countries are. BreedCAFS "Vietnam" is "Viet Nam" (VNM).
+  or created and released `PUBLIC`, as countries are, and named as GeoNames' country list names it, as every country
+  in BreedGraph is ("Vietnam", VNM).
   Countries are shared roots, so a country created by the migration is not transferred at handover.
 * Regions, Farms and Fields are matched by name and type under their parent, or created `PRIVATE`,
   controlled by the migration team. Field names repeat across farms (e.g. "IRAD Station" in Cameroon).

@@ -99,7 +99,7 @@ async def units_context(isolated_state, uow_factory) -> dict:
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=user_id, write_team=team_id, release=ReadRelease.PUBLIC) as uow:
-        location_tree = await uow.repositories.location_trees.create(LocationInput(name="Viet Nam", code="VNM", type=country_type.id))
+        location_tree = await uow.repositories.location_trees.create(LocationInput(name="Vietnam", code="VNM", type=country_type.id))
         for name in ("ED1", "Parcel 1", "IRD Montpellier"):
             location_tree.add_location(LocationInput(name=name, type=field_type.id), parent_id=location_tree.get_root_id())
         await uow.commit()

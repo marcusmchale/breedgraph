@@ -2,7 +2,8 @@
 Locations for the BreedCAFS country/region/farm/field hierarchy (README.md §3, 1_1_Extract_Locations.md).
 
 Each BreedCAFS country is the root location of a BreedGraph location tree, found by its ISO 3166-1 alpha-3 code,
-or created, publicly released as countries are. Under it, the regions, farms and fields of field_farm_region_country.csv
+or created, publicly released as countries are, and named as GeoNames' country list names it, as every country in
+BreedGraph is (breedgraph.adapters.geonames.countries). Under it, the regions, farms and fields of field_farm_region_country.csv
 are matched by name and type under their parent, or created, `PRIVATE` and controlled by the migration team.
 Fields are given their coordinates from field_lat_long.csv when created.
 The locations given for samples by the "Location (text)" input (sample_positions.csv) are created as in SAMPLE_LOCATIONS.
@@ -18,6 +19,7 @@ import csv
 import pathlib
 from dataclasses import dataclass, field
 
+from breedgraph.adapters.geonames.countries import read_countries
 from breedgraph.adapters.neo4j import Neo4jUnitOfWorkFactory
 from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.domain.model.controls import ReadRelease
@@ -29,16 +31,15 @@ from breedcafs_migration.setup.config import BREEDCAFS_DATA_DIR
 import logging
 logger = logging.getLogger(__name__)
 
-# BreedCAFS country name -> ISO 3166-1 alpha-3 code and the name used for countries (the UN's M49 names, as the country
-# list had until GeoNames' replaced it: breedgraph.adapters.geonames.countries)
+# BreedCAFS country name -> ISO 3166-1 alpha-3 code
 COUNTRIES = {
-    "Cameroon": ("CMR", "Cameroon"),
-    "Costa Rica": ("CRI", "Costa Rica"),
-    "Denmark": ("DNK", "Denmark"),
-    "France": ("FRA", "France"),
-    "French Guiana": ("GUF", "French Guiana"),
-    "Nicaragua": ("NIC", "Nicaragua"),
-    "Vietnam": ("VNM", "Viet Nam"),
+    "Cameroon": "CMR",
+    "Costa Rica": "CRI",
+    "Denmark": "DNK",
+    "France": "FRA",
+    "French Guiana": "GUF",
+    "Nicaragua": "NIC",
+    "Vietnam": "VNM",
 }
 COORDINATE_DESCRIPTION = "Field location from BreedCAFS"
 
@@ -139,7 +140,8 @@ class LocationPreparation:
         self.ids = LocationIds()
 
     async def country(self, name: str) -> int:
-        code, country_name = COUNTRIES[name]
+        code = COUNTRIES[name]
+        country_name = read_countries()[code].name
         async with self.uow_factory.get_uow(
                 user_id=self.context.user_id, write_team=self.context.team_id, release=ReadRelease.PUBLIC
         ) as uow:
