@@ -10,7 +10,7 @@ from analysis_worker.domain.model.job import (
     AnalysisJob, AnalysisOutcome, AnalysisJobFailed, Message, ErrorCode, WarningCode, same_reference
 )
 from analysis_worker.service_layer.analyses.checks import (
-    require_rows, single_level_columns, single_level_messages, term_level, insufficient
+    require_rows, single_level_columns, single_level_messages, term_level, insufficient, column_title
 )
 
 CONTRASTS = {'PAIRWISE': 'pairwise', 'TRT_VS_CTRL': 'trt.vs.ctrl', 'NONE': 'none'}
@@ -67,6 +67,20 @@ def _not_converged(job: AnalysisJob, messages: list[str]) -> list[Message]:
 
 
 """ Estimated marginal means """
+def _check_estimated_means(job: AnalysisJob):
+    """Estimated means are of categorical terms, by categorical terms: a continuous one has no levels to compare"""
+    for i, spec in enumerate(job.config.get('estimated_means') or []):
+        for field in ('terms', 'by'):
+            for j, reference in enumerate(spec[field]):
+                column = job.column(reference)
+                if column['kind'] == 'CONTINUOUS':
+                    raise AnalysisJobFailed([Message(
+                        code=ErrorCode.MODEL_FAILED,
+                        message=f"Estimated means are of categorical terms, and '{column_title(column)}' is continuous",
+                        path=job.spec_path + ['estimatedMeans', str(i), field, str(j)]
+                    )])
+
+
 def _estimated_means(
         job: AnalysisJob,
         model_frame: ModelFrame,
@@ -204,6 +218,7 @@ def anova(job: AnalysisJob) -> AnalysisOutcome:
     config = job.config
     model_frame = ModelFrame(job, [t['reference'] for t in config['terms']])
     model_frame.check(3, "ANOVA")
+    _check_estimated_means(job)
     formula, mixed = _formula(job, model_frame)
     ss_type = 3 if config['sum_of_squares'] == 'TYPE_III' else 2
 
@@ -272,6 +287,7 @@ def descriptive_estimated_means(job: AnalysisJob, frame: pd.DataFrame) -> tuple[
     of the categorical terms and the configured interactions.
     """
     config = job.config
+    _check_estimated_means(job)
     categorical = [c['term'] for c in job.columns_of_kind('CATEGORICAL', 'ORDINAL')]
     results, warnings = [], []
     for response in job.concept_columns('CONTINUOUS'):

@@ -163,6 +163,23 @@ def test_single_level_term_is_an_error():
     assert e.value.errors[0].path == ['anova', 'terms', '1']
 
 
+def test_estimated_means_of_a_continuous_term_are_an_error():
+    """A covariate, e.g. a numerical factor, has no levels to compare"""
+    columns, rows = one_way()
+    columns.append(column(X) | {'title': 'Light'})
+    rows = [row + [float(i % 4)] for i, row in enumerate(rows)]
+    for config in (
+            anova_config([term(Y), term(A), term(X)], estimated_means=[means_spec([A]), means_spec([X])]),
+            anova_config([term(Y), term(A), term(X)], estimated_means=[means_spec([A], by=[X])]),
+    ):
+        with pytest.raises(AnalysisJobFailed) as e:
+            run_job(job('ANOVA', config, columns, rows))
+        error, = e.value.errors
+        assert error.code == ErrorCode.MODEL_FAILED
+        assert error.message == "Estimated means are of categorical terms, and 'Light' is continuous"
+    assert error.path == ['anova', 'estimatedMeans', '0', 'by', '0']
+
+
 def test_descriptive_estimated_means():
     columns, rows = one_way()
     outcome = run_job(job(
