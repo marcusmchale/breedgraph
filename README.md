@@ -759,7 +759,7 @@ Each service installs from a wheelhouse, a folder of the wheels it needs, withou
 them from the release's tag, on a machine with the development environment:
 
     cd path/to/breedgraph
-    scripts/build_wheelhouses.sh --check v0.1.5
+    scripts/build_wheelhouses.sh --check v0.1.6
 
 They land in `dist/` as `wheelhouse_<extra>_<version>`, beside the wheel and the source distribution, built for
 CPython 3.12 on x86_64 with glibc 2.34 or later; the script's header says what `--check` needs. rpy2 has no wheels, so
@@ -768,13 +768,13 @@ the analysis worker's machine builds it as it installs, with R's headers and a c
 
 Copy each wheelhouse to its machine, somewhere the user that runs the service can read it:
 
-    scp -r dist/wheelhouse_server_0.1.5 user@server:~/
+    scp -r dist/wheelhouse_server_0.1.6 user@server:~/
 
 then, on the server and as that user, install it into the venv its unit runs:
 
     cd /opt/breedgraph
     python3 -m venv .venv
-    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.5/ 'breedgraph[server]'
+    .venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_server_0.1.6/ 'breedgraph[server]'
 
 and likewise `breedgraph[worker]` into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and
 `breedgraph[analysis_worker]` into `/opt/analysis_worker/.venv`. To upgrade, install the new wheelhouse into the same
@@ -786,14 +786,14 @@ whose compiled module can't be loaded from `/tmp`, and rpy2's build, giving up o
 programs may run, owned by the installing user, and remove it afterwards:
 
     sudo install -d -o analysisworker -g analysisworker -m 700 /opt/analysis_worker/pip-tmp
-    sudo -u analysisworker env TMPDIR=/opt/analysis_worker/pip-tmp /opt/analysis_worker/.venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_analysis_worker_0.1.5/ 'breedgraph[analysis_worker]'
+    sudo -u analysisworker env TMPDIR=/opt/analysis_worker/pip-tmp /opt/analysis_worker/.venv/bin/python -m pip install --no-index --find-links /path/to/wheelhouse_analysis_worker_0.1.6/ 'breedgraph[analysis_worker]'
     sudo rm -rf /opt/analysis_worker/pip-tmp
 
 The scripts aren't in the wheel, nor in the source distribution: run them from a checkout of the release's tag, with
 the venv, whose breedgraph they import, and the environment. A server that can't reach GitHub is sent the tag as an
 archive, unpacked where the checkout goes (`tar xzf ... -C /opt/breedgraph` gives `/opt/breedgraph/checkout`):
 
-    git archive --format=tar.gz --prefix=checkout/ -o dist/breedgraph-0.1.5-checkout.tar.gz v0.1.5
+    git archive --format=tar.gz --prefix=checkout/ -o dist/breedgraph-0.1.6-checkout.tar.gz v0.1.6
 
 and then:
 
