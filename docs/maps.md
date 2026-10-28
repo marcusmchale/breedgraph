@@ -1,7 +1,7 @@
 # Maps
 
-Browsers contact no third party for maps: tiles come from our server, and place searches go through the API, which asks
-Nominatim (`NOMINATIM_URL`, limited per user by `GEOCODING_RATE_LIMIT_PER_HOUR`).
+Browsers contact no third party for maps: tiles come from our server, and the API answers place searches itself, from
+its own copy of GeoNames' places, so no search leaves the server (Place search, below).
 
 ## The world and the regions
 
@@ -62,7 +62,45 @@ Bounds in it are `[[south, west], [north, east]]`.
   open, when a location is selected and when it shows a country's maps arriving (`composables/locations/tilesJson.js`).
 - `countries` maps each country's code to `{name, bounds}`, the extent to show it by around its main parts (east is
   above 180 for a country across the antimeridian), for every country fetched or divided. Where a country has none,
-  `locationsGeocodeCountry(name).bounds` is the fallback.
+  `locationsCountryPlace(code).bounds`, from GeoNames' outlines, is the fallback.
+
+## Place search
+
+The location map's place search is answered by the API from [GeoNames](https://www.geonames.org)' places (CC BY 4.0,
+credited under the map), kept on our server (`adapters/geonames`). **No search leaves the server: no third party
+receives what anyone searches for.** Until v0.1.7, searches went to Nominatim, the OpenStreetMap Foundation's service
+in the United Kingdom. Searches are not logged, and are open to visitors.
+- **What is searched:** the towns of 1,000 people or more worldwide (GeoNames' `cities1000`) and every country, fetched
+  when the API first starts; and every place of each country in the location trees (its own dump: villages,
+  townlands, farms, hills, rivers, with their other names, in other languages or older), fetched when the country is
+  added, and deleted when it is removed. A country's own places stand in for the world's towns of it. Roads,
+  undersea features and places no longer there are left out. At each start the API fetches what is missing: the
+  world's, and those of countries in the location trees whose places were never fetched or failed.
+- **How:** a search's words are matched without case or accents. The first word (or, failing that, another) is in the
+  place's names and the others in its names or those of its county, province or country, so "Ballyduff Kerry" finds
+  the Ballyduff in Kerry; the last word may be the start of one, as it is typed. Whole names come first, then names
+  started, then other names; then, as BreedView asks, those in the map's view, or only those (`bounded`), or only
+  those of one country; then the larger and more important, and the nearer. Each result has its kind ("town",
+  "farm"), its region ("Kerry, Munster") and a zoom to show it at, or for a country, its extent around its main parts,
+  which `locationsCountryPlace` gives too.
+- **Guards:** a search is stopped after a second, each API process runs four at a time (the rest wait up to five
+  seconds, then are refused as busy), and a request makes at most five. There is no hourly limit.
+- **Where they stand:** `locationsMapStatus`'s `places` says whether a country's own places are there, coming, or
+  failed (with why in words for its users), and whether the world's towns stand in for them meanwhile.
+- **Storage** (`GAZETTEER_PATH`, not served): one SQLite database, `gazetteer.sqlite` (SQLite's full-text search,
+  FTS5), and the files it is loaded from, `places/<key>.tsv.gz`, one for the world and one per country, from which it
+  is made again when a release changes its layout. Measured: the world's file 11.5 MB and 65 MB in the database,
+  loaded in 6 s; Ireland's (30,000 places) 0.7 MB and 5 MB, in half a second; the United States' (2.2 million) 59 MB
+  and 430 MB, written by the worker in 26 s and loaded in 33 s, with searches still answered within a few tenths of a
+  second. A single letter is matched as a whole name, as the start of one would be the start of too many.
+- **Fetching:** the API downloads the files from `GEONAMES_URL` itself (empty: none are fetched, and searches answer
+  from what is there), or with `MAP_WORKER=1` the map worker does, as a `gazetteer` job in its quick lane, the file
+  coming back through the API. The worker keeps each file in its cache (`MAP_CACHE_PATH/gazetteer`) and sends it again
+  rather than downloading it while younger than `GAZETTEER_CACHE_DAYS` (30): GeoNames changes daily, but little that
+  matters to a field trial's map. `scripts/map_tiles.py --gazetteer` fetches the world's and every country's again,
+  from the cache, or with `--fresh` downloaded anew. Removing a country cancels its job.
+- Redis holds a lock per key, the fetches under way, which resume after a restart, and why a fetch failed. A load
+  is one transaction, and searches go on during it.
 
 ## Outlines and builds
 
@@ -94,7 +132,7 @@ Run it again with `--fresh` now and then to refresh the world file (without it, 
 world it keeps), and then `scripts/map_tiles.py --refresh` to fetch the regions again from the newest build.
 `--regions` fetches what the API would for every country and placed location, for a first setup or after losing the
 files, and `--dry-run` reports what would be fetched and its size. The script shares the API's locks, so both can run
-at once. Deploying leaves `MAP_TILES_PATH` and `MAP_BOUNDARIES_PATH` as they are. For
+at once. Deploying leaves `MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH` and `GAZETTEER_PATH` as they are. For
 development, `--world-maxzoom 6` gives a world file of about 45 MB.
 
 ## Serving the tiles

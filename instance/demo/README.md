@@ -64,15 +64,15 @@ production's server block) and the rest to production, as before.
      fails where `/tmp` is mounted `noexec` (`TypeError: 'NoneType' object is not callable`): run it with `TMPDIR` set
      to a directory where programs may run (breedgraph docs/deployment.md, Installing from the wheelhouses);
    - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`, `tmp`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
-     `map_tiles/`, `map_boundaries/`;
+     `map_tiles/`, `map_boundaries/`, `gazetteer/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
    - `private/` (0700).
 
    The maps take room: the regions visitors fetch, to `MAP_TILES_MAX_GB` (10 GB), and the world and Ireland, which
-   `dump/` keeps a copy of, about 2 GB. Where `/opt` is on the system disk, beside production's Neo4j, put
-   `map_tiles/`, `map_boundaries/` and `dump/` on a data disk instead, owned by `breedgraph-demo` likewise, and name
-   them in the env file (`MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH`, `DEMO_DUMP_DIR`) and in the nginx snippet's two
-   tile locations.
+   `dump/` keeps a copy of, about 2 GB, and the place search's places, about 100 MB. Where `/opt` is on the system
+   disk, beside production's Neo4j, put `map_tiles/`, `map_boundaries/`, `gazetteer/` and `dump/` on a data disk
+   instead, owned by `breedgraph-demo` likewise, and name them in the env file (`MAP_TILES_PATH`,
+   `MAP_BOUNDARIES_PATH`, `GAZETTEER_PATH`, `DEMO_DUMP_DIR`) and in the nginx snippet's two tile locations.
 2. **Neo4j.** The installed package, run a second time (Community runs one database an instance): `neo4j.conf` here,
    ports 7688 and 7475 on 127.0.0.1. Copy `server-logs.xml` and `user-logs.xml` from `/etc/neo4j` beside it, then set
    its password as `breedgraph-demo`: `NEO4J_CONF=/opt/breedgraph-demo/neo4j/conf neo4j-admin dbms set-initial-password
@@ -102,10 +102,13 @@ production's server block) and the rest to production, as before.
      (docs/maps.md), and otherwise cuts it once from Protomaps and keeps it. If the world's run warns that regions are
      of another zoom or version (an Ireland from an earlier world), run `--refresh` rather than `--regions`. The files
      are the site's own, so nothing production does to its maps changes them.
-   - Keep them as the baseline each reset restores:
+   - The site's worker fetches the place search's places too, the world's at the API's first start and Ireland's
+     with it, as the demonstration database holds Ireland (docs/maps.md, Place search).
+   - Keep them as the baseline each reset restores, the places once the API's log says Ireland's are loaded:
 
          rsync -a --delete /opt/breedgraph-demo/map_tiles/ /opt/breedgraph-demo/dump/map_tiles/
          rsync -a --delete /opt/breedgraph-demo/map_boundaries/ /opt/breedgraph-demo/dump/map_boundaries/
+         rsync -a --delete /opt/breedgraph-demo/gazetteer/places/ /opt/breedgraph-demo/dump/gazetteer/
 
      The world (560 MB) and Ireland (450 MB) are then on the disk twice, about 2 GB in all. To move the site to a newer
      build, fetch the world with `--fresh` and the regions with `--refresh`, and keep them again.
@@ -156,7 +159,7 @@ package upgrades both instances: run the reset afterwards, to check the dump sti
 
 1. Refuses to run outside the demonstration site: its env file must say `BREEDGRAPH_DEMO=1`, and name neither
    production's Neo4j port nor its Redis port. It reads the dump's parts from `DEMO_DUMP_DIR` (`neo4j.dump`,
-   `files/`, `map_tiles/`, `map_boundaries/`), and refuses, before stopping anything, a dump without its files, or an
+   `files/`, `map_tiles/`, `map_boundaries/`, `gazetteer/`), and refuses, before stopping anything, a dump without its files, or an
    env file of an earlier release naming a part elsewhere (`DEMO_FILES_DIR`, `DEMO_MAP_TILES_DIR`,
    `DEMO_MAP_BOUNDARIES_DIR`): move it into `DEMO_DUMP_DIR` and remove the setting.
 2. Stops the target: the API, the workers, Neo4j and Redis.
@@ -165,7 +168,9 @@ package upgrades both instances: run the reset afterwards, to check the dump sti
 4. Starts Neo4j and Redis, empties Redis, copies the dump's files over the file store, deleting the rest, and empties
    the archive worker's store. The dump's files wait to be archived, so the worker archives them again. It copies the
    dump's maps (`dump/map_tiles/`, `dump/map_boundaries/`) over the site's in the same way, deleting the regions
-   visitors fetched. Without them it warns and goes on. Emptying Redis cancels the map worker's jobs, which it stops at their next renewal; the regions
+   visitors fetched, and the dump's places over the site's (`dump/gazetteer/` to `GAZETTEER_PATH/places/`), deleting
+   the database they were loaded into, which the API makes again from them as it starts. Without either it warns and
+   goes on. Emptying Redis cancels the map worker's jobs, which it stops at their next renewal; the regions
    it kept stay in its cache.
 5. Empties the site's erasure log, without replaying it: the people erased there were the site's, and are gone with it.
 6. Rotates `SECRET_KEY`, so that no login cookie from before the reset signs in, as a restore reissues account ids.

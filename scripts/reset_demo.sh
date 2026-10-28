@@ -7,8 +7,8 @@
 #
 #   sudo scripts/reset_demo.sh /opt/breedgraph-demo/breedgraph-demo.env
 #
-# The dump is DEMO_DUMP_DIR: neo4j.dump, the file store's files in files/, and the site's maps in map_tiles/ and
-# map_boundaries/ (instance/demo/README.md, Setting it up).
+# The dump is DEMO_DUMP_DIR: neo4j.dump, the file store's files in files/, the site's maps in map_tiles/ and
+# map_boundaries/, and the place search's places in gazetteer/ (instance/demo/README.md, Setting it up).
 #
 # Run as root, by breedgraph-demo-reset.service each night: it stops and starts the site's services (its systemd target,
 # instance/demo/breedgraph-demo.target), and runs the rest as breedgraph-demo. It refuses an env file that is not the demonstration site's (BREEDGRAPH_DEMO=1) or that points at
@@ -32,6 +32,7 @@ DEMO_DUMP_DIR="${DEMO_DUMP_DIR%/}"
 DUMP_FILES="$DEMO_DUMP_DIR/files"
 DUMP_MAP_TILES="$DEMO_DUMP_DIR/map_tiles"
 DUMP_MAP_BOUNDARIES="$DEMO_DUMP_DIR/map_boundaries"
+DUMP_GAZETTEER="$DEMO_DUMP_DIR/gazetteer"
 # Earlier releases named the dump's folders one by one: an env file naming one elsewhere is refused, before anything is
 # stopped, rather than the reset leaving out what is there
 declare -A DUMP_PARTS=([DEMO_FILES_DIR]="$DUMP_FILES" [DEMO_MAP_TILES_DIR]="$DUMP_MAP_TILES" \
@@ -96,6 +97,17 @@ elif [ -d "$DUMP_MAP_TILES" ] && [ -d "$DUMP_MAP_BOUNDARIES" ]; then
   as_demo rsync -a --delete "$DUMP_MAP_BOUNDARIES"/ "$MAP_BOUNDARIES_PATH"/
 else
   echo "No maps in $DUMP_MAP_TILES and $DUMP_MAP_BOUNDARIES: the site's are left as they are"
+fi
+# The dump's places (the world's and Ireland's files) over the site's, deleting those of countries visitors added, and
+# the database they were loaded into, which the API makes again from them when it starts (docs/maps.md, Place search)
+if [ -z "${GAZETTEER_PATH:-}" ]; then
+  echo "No places restored: $ENV_FILE does not set GAZETTEER_PATH"
+elif [ -d "$DUMP_GAZETTEER" ]; then
+  as_demo mkdir -p "$GAZETTEER_PATH/places"
+  as_demo rsync -a --delete "$DUMP_GAZETTEER"/ "$GAZETTEER_PATH/places"/
+  as_demo find "$GAZETTEER_PATH" -maxdepth 1 -name 'gazetteer.sqlite*' -delete
+else
+  echo "No places in $DUMP_GAZETTEER: the site's are left as they are"
 fi
 
 # 5. The site's erasure log emptied, not replayed: the people erased on the site went with its data

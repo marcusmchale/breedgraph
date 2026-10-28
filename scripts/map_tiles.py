@@ -11,6 +11,9 @@ a country too large, a section's when a location in it is placed (adapters/pmtil
   --refresh  fetches every region again from the newest build.
   --fresh    cuts the world anew from the newest build. Without it, the map worker sends the world it keeps
              (MAP_CACHE_PATH) when that is of the same zoom and major version, as for a second site.
+  --gazetteer  fetches the place search's places (adapters/geonames, docs/maps.md, Place search) again: the world's
+             towns and those of every country in the database, from the map worker's cache, or with --fresh
+             downloaded anew. The API fetches those it lacks at each start, so this is for refreshing them.
   --dry-run  reports what would be fetched and its size.
 Only the parts needed are downloaded. Each file is written under a temporary name and replaced once complete, so it
 can run while the files are served, and while the API runs: they share its locks in Redis.
@@ -24,6 +27,7 @@ Usage, with the instance env files sourced:
     python scripts/map_tiles.py [--world-maxzoom 8] [--build https://build.protomaps.com/YYYYMMDD.pmtiles] [--fresh] [--dry-run]
     python scripts/map_tiles.py --regions [--dry-run]
     python scripts/map_tiles.py --refresh [--dry-run]
+    python scripts/map_tiles.py --gazetteer [--fresh] [--dry-run]
 """
 import argparse
 import asyncio
@@ -39,6 +43,8 @@ from neo4j import AsyncGraphDatabase
 from breedgraph import config
 from breedgraph.config import get_bolt_url, get_graphdb_auth, DATABASE_NAME
 from breedgraph.adapters.redis import RedisStateStore
+from breedgraph.adapters.geonames import GeoNamesGazetteer
+from breedgraph.adapters.geonames.index import WORLD as WORLD_PLACES
 from breedgraph.adapters.pmtiles import PmtilesMapRegions, Outcome, Region, MapRegionError
 from breedgraph.adapters.pmtiles.command import PmtilesCommand, ProtomapsBuilds
 from breedgraph.adapters.pmtiles.jobs import sources, WORLD
@@ -149,11 +155,33 @@ async def refresh_regions(args, regions: PmtilesMapRegions) -> int:
     return 1 if failed else 0
 
 
+async def fetch_places(args, state_store: RedisStateStore) -> int:
+    gazetteer = GeoNamesGazetteer(state_store)
+    if not gazetteer.worker and not gazetteer.geonames_url:
+        logger.error("GEONAMES_URL is empty, and without MAP_WORKER the places are downloaded from it")
+        return 1
+    keys = [WORLD_PLACES, *sorted(await read_located_locations())]
+    if args.dry_run:
+        logger.info(f"Would fetch the places of {', '.join(keys)}" + (", downloaded anew" if args.fresh else ""))
+        return 0
+    await gazetteer.open()
+    failed = 0
+    for key in keys:
+        if await gazetteer.fetch_now(key, fresh=args.fresh):
+            logger.info(f"{key}: its places are loaded")
+        elif key in await state_store.get_gazetteer_failures():
+            logger.error(f"{key}: its places could not be fetched (the log says why)")
+            failed += 1
+        else:
+            logger.info(f"{key}: its places were fetched by another process, as the API's")
+    return 1 if failed else 0
+
+
 async def run(args) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    world = not args.regions and not args.refresh
-    if not world and read_json(out / WORLD_JSON) is None:
+    world = not args.regions and not args.refresh and not args.gazetteer
+    if (args.regions or args.refresh) and read_json(out / WORLD_JSON) is None:
         logger.error(f"There is no world file in {out}: cut it first, without --regions or --refresh")
         return 1
     if config.MAP_WORKER:
@@ -161,6 +189,8 @@ async def run(args) -> int:
     # the regions' requests and locks, and the map worker's jobs, are kept in Redis
     state_store = await RedisStateStore.create() if config.MAP_WORKER or not world else None
     try:
+        if args.gazetteer:
+            return await fetch_places(args, state_store)
         if world:
             pmtiles, builds, _ = sources(
                 state_store, config.MAP_WORKER, args.pmtiles, args.build, Path(config.MAP_BOUNDARIES_PATH)
@@ -178,18 +208,19 @@ def main() -> int:
     action = parser.add_mutually_exclusive_group()
     action.add_argument('--regions', action='store_true', help="fetch the regions of every country and located location")
     action.add_argument('--refresh', action='store_true', help="fetch every region again from the newest build")
+    action.add_argument('--gazetteer', action='store_true', help="fetch the place search's places again")
     parser.add_argument('--build', default=config.MAP_TILES_BUILD, help="'latest', or a Protomaps build's URL (MAP_TILES_BUILD)")
     parser.add_argument('--out', default=config.MAP_TILES_PATH, help="where the tiles are served from (MAP_TILES_PATH)")
     parser.add_argument('--pmtiles', default=config.MAP_PMTILES_COMMAND or 'pmtiles', help="the pmtiles command (MAP_PMTILES_COMMAND)")
     parser.add_argument('--world-maxzoom', type=int, default=8)
-    parser.add_argument('--fresh', action='store_true', help="cut the world anew, rather than take the one the map worker keeps")
+    parser.add_argument('--fresh', action='store_true', help="cut the world, or download the places, anew, rather than take what the map worker keeps")
     parser.add_argument('--dry-run', action='store_true', help="report what would be fetched and its size, fetching nothing")
     args = parser.parse_args()
     if config.MAP_WORKER:
         if Path(args.out).resolve() != Path(config.MAP_TILES_PATH).resolve():
             logger.error("With MAP_WORKER the map worker's files come back to MAP_TILES_PATH, so --out must be it")
             return 1
-    elif not PmtilesCommand(args.pmtiles).available():
+    elif not args.gazetteer and not PmtilesCommand(args.pmtiles).available():
         logger.error(f"The pmtiles command ({args.pmtiles}) is not installed (docs/maps.md)")
         return 1
     return asyncio.run(run(args))

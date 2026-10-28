@@ -1,6 +1,6 @@
 """
 scripts/reset_demo.sh with DRY_RUN=1, which prints what it would run: it reads the dump's parts from DEMO_DUMP_DIR
-(neo4j.dump, files/, map_tiles/, map_boundaries/), and refuses, before stopping anything, an env file whose settings
+(neo4j.dump, files/, map_tiles/, map_boundaries/, gazetteer/), and refuses, before stopping anything, an env file whose settings
 from earlier releases name them elsewhere.
 """
 import os
@@ -16,7 +16,7 @@ ROOT = Path(__file__).parents[3]
 def site(tmp_path) -> Path:
     """A demonstration site's folders, with its dump and its maps"""
     dump = tmp_path / 'dump'
-    for folder in ('files', 'map_tiles', 'map_boundaries'):
+    for folder in ('files', 'map_tiles', 'map_boundaries', 'gazetteer'):
         (dump / folder).mkdir(parents=True)
     (dump / 'neo4j.dump').write_bytes(b'')
     (tmp_path / 'demo_accounts.json').write_text('{}')
@@ -31,6 +31,7 @@ def env_file(site: Path, **settings) -> Path:
         'FILE_STORAGE_PATH': site / 'files', 'PERSON_ERASURE_LOG_PATH': site / 'erasure.jsonl',
         'TERMS_OF_USE_PATH': site / 'legal/terms.md', 'PRIVACY_NOTICE_PATH': site / 'legal/privacy.md',
         'MAP_TILES_PATH': site / 'map_tiles', 'MAP_BOUNDARIES_PATH': site / 'map_boundaries',
+        'GAZETTEER_PATH': site / 'gazetteer',
     } | settings
     path = site / 'breedgraph-demo.env'
     path.write_text(''.join(f'{name}="{value}"\n' for name, value in values.items()))
@@ -57,8 +58,11 @@ def test_the_dumps_parts_are_read_from_its_folder(site):
         (f'{dump}/files/', f'{site}/files/'),
         (f'{dump}/map_tiles/', f'{site}/map_tiles/'),
         (f'{dump}/map_boundaries/', f'{site}/map_boundaries/'),
+        (f'{dump}/gazetteer/', f'{site}/gazetteer/places/'),
     ]
     assert f'--from-path={dump} ' in result.stdout
+    # the database the places were loaded into, made again from them as the API starts
+    assert f"find {site}/gazetteer -maxdepth 1 -name gazetteer.sqlite* -delete" in result.stdout
 
 
 @pytest.mark.parametrize('name', ['DEMO_FILES_DIR', 'DEMO_MAP_TILES_DIR', 'DEMO_MAP_BOUNDARIES_DIR'])
@@ -76,7 +80,7 @@ def test_settings_naming_the_parts_where_they_are_are_accepted(site):
         DEMO_MAP_BOUNDARIES_DIR=dump / 'map_boundaries'
     ))
     assert result.returncode == 0, result.stderr
-    assert len(copies(result)) == 3
+    assert len(copies(result)) == 4
 
 
 def test_a_dump_without_its_files_is_refused_before_anything_stops(site):
@@ -91,5 +95,14 @@ def test_a_dump_without_maps_is_reset_leaving_the_sites_maps(site):
     (site / 'dump/map_tiles').rmdir()
     result = reset(env_file(site))
     assert result.returncode == 0, result.stderr
-    assert copies(result) == [(f'{site}/dump/files/', f'{site}/files/')]
+    assert copies(result)[0] == (f'{site}/dump/files/', f'{site}/files/') and len(copies(result)) == 2
     assert f'No maps in {site}/dump/map_tiles and {site}/dump/map_boundaries' in result.stdout
+
+
+def test_a_dump_without_places_is_reset_leaving_the_sites_places(site):
+    (site / 'dump/gazetteer').rmdir()
+    result = reset(env_file(site))
+    assert result.returncode == 0, result.stderr
+    assert [source for source, _ in copies(result)] == [f'{site}/dump/{folder}/' for folder in ('files', 'map_tiles', 'map_boundaries')]
+    assert f'No places in {site}/dump/gazetteer' in result.stdout
+    assert 'gazetteer.sqlite' not in result.stdout

@@ -79,15 +79,23 @@ class GeoNamesGazetteer(AbstractGazetteer):
     def file(self, key: str) -> Path:
         return self.files / f'{key}.tsv.gz'
 
-    async def start(self) -> None:
-        try:
-            made = await asyncio.to_thread(self.index.create, read_countries().values())
-        except (sqlite3.Error, OSError):
-            logger.exception("The place search's database could not be made, so places cannot be searched")
-            return
+    async def open(self) -> bool:
+        """
+        Make the database, and the folder of its files, deleting uploads left there long ago: True when the database
+        was made anew, to be loaded again from the files
+        """
+        made = await asyncio.to_thread(self.index.create, read_countries().values())
         self.ready = True
         self.files.mkdir(parents=True, exist_ok=True)
         await asyncio.to_thread(sweep_uploads, self.files)
+        return made
+
+    async def start(self) -> None:
+        try:
+            made = await self.open()
+        except (sqlite3.Error, OSError):
+            logger.exception("The place search's database could not be made, so places cannot be searched")
+            return
         if made:
             self._spawn(self._load_kept())
         if self.worker:

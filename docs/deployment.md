@@ -72,8 +72,9 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
      demonstration site, which its slice holds to 6 GB (`instance/demo/README.md`, Limits).
 2. **The user and directories.** A `breedgraph` system user, owning `/opt/breedgraph` and the directories its
    environment names: the logs (`LOG_BASE`, e.g. `/var/log/breedgraph`), the uploaded files (`FILE_STORAGE_PATH`), the
-   database dumps (`NEO4J_ARCHIVE_PATH`), the erasure log's (`PERSON_ERASURE_LOG_PATH`), and the map tiles and
-   outlines (`MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH`).
+   database dumps (`NEO4J_ARCHIVE_PATH`), the erasure log's (`PERSON_ERASURE_LOG_PATH`), the map tiles and
+   outlines (`MAP_TILES_PATH`, `MAP_BOUNDARIES_PATH`), and the place search's places (`GAZETTEER_PATH`: about 80 MB
+   for the world's towns, and more for each country added, maps.md, Place search).
 3. **The code.** The `server` wheelhouse into `/opt/breedgraph/.venv` (Installing from the wheelhouses, below), and a
    checkout
    of the release's tag in `/opt/breedgraph/checkout`, or its `git archive` where the server can't reach GitHub (same
@@ -152,8 +153,8 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    with `/opt/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12`, which follows uv's upgrades of 3.12.
 
    For the map worker, `pmtiles` in `/usr/local/bin` (maps.md): it needs internet access, to Protomaps' builds
-   (`build.protomaps.com`, `build-metadata.protomaps.dev`) and geoBoundaries (`www.geoboundaries.org` and the GitHub
-   files it links to).
+   (`build.protomaps.com`, `build-metadata.protomaps.dev`), geoBoundaries (`www.geoboundaries.org` and the GitHub
+   files it links to) and GeoNames (`download.geonames.org`), for the place search.
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
    `/var/log/analysis_worker`; `mapworker` owning `/opt/map_worker`, `/var/log/map_worker` and `/srv/map_worker`, on
@@ -313,10 +314,14 @@ without the token; from anywhere else, 403.
       /opt/analysis_worker/.venv/bin/python -m pip install --target ~/awtest/pylib pytest pytest-asyncio
       cd ~/awtest/checkout
       PYTHONPATH=$HOME/awtest/pylib ANALYSIS_WORKER_AUTH_TOKEN=test LOG_BASE=$HOME/awtest/logs /opt/analysis_worker/.venv/bin/python -m pytest -p no:cacheprovider -q -rs tests/analysis_worker
-- The map shows its tiles, and a place search answers. Adding a country fetches its map through the map worker: its
-  log (`/var/log/map_worker/map.log`) shows the outlines, size and extract jobs, and the country's layer is in
-  `/tiles/tiles.json` once it is done (or it is divided, if larger than `MAP_REGION_MAX_GB`). Remove that country and
-  add it again: the log says the region is sent from the cache, and `/srv/map_worker/cache` holds it.
+- The map shows its tiles. Signed out, a place search for "Galway" lists the city with its county and province,
+  and the map credits GeoNames. Adding a country fetches its map and its places through the map worker: its log
+  (`/var/log/map_worker/map.log`) shows the outlines, size, extract and gazetteer jobs, the country's layer is in
+  `/tiles/tiles.json` once it is done (or it is divided, if larger than `MAP_REGION_MAX_GB`), and a search finds its
+  villages. Remove that country and add it again: the log says the region and its places are sent from the cache, and
+  `/srv/map_worker/cache` holds them.
+- The web server makes no requests of its own to the internet: what the site needs from it comes through the map
+  worker.
 - An invitation's email arrives, and its link opens the registration page.
 - A guide chapter's video plays, with its captions.
 - `trigger_retention.sh /opt/breedgraph/breedgraph.env` prints the API's response.

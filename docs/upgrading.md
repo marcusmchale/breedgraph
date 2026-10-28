@@ -52,6 +52,35 @@ stops anything. Before the site's upgrade:
 
 The site's upgrade ends with its reset as usual, which checks the dump and its files are where it reads them.
 
+**Place search from GeoNames, without Nominatim.** Place searches on the location map are answered by the API from
+its own copy of GeoNames' places ([maps.md](maps.md), Place search), so no search leaves our server and no third
+party receives what anyone searches for: until now they went to Nominatim, the OpenStreetMap Foundation's service in
+the United Kingdom. They are open to visitors. The countries offered for a new location tree come from GeoNames' list,
+packaged with BreedGraph, rather than from a file of each deployment's. Upgrade the map workers with the API: an
+older worker fails the new kind of job.
+
+1. In the API's env file, remove `NOMINATIM_URL`, `GEOCODING_RATE_LIMIT_PER_HOUR` and `COUNTRY_CODES_PATH` (the
+   country codes file it named can be deleted), and add `GAZETTEER_PATH`, a folder the API's user owns, on a disk with
+   room (`/data/breedgraph/gazetteer`, say), and `GEONAMES_URL`: the template's where the API fetches for itself, or
+   empty with `MAP_WORKER=1`.
+2. In each map worker's env file, `GEONAMES_URL` and `GAZETTEER_CACHE_DAYS` as in `instance/map_worker.env`. The
+   worker server must reach `download.geonames.org`.
+3. Where `PRIVACY_NOTICE_PATH` names a copy of the privacy notice, copy the release's `src/breedgraph/legal/privacy_notice.md`
+   over it: its "Maps and place search" section says searches are answered on our server. It has a new hash, which
+   accounts registering from then on record with their consent.
+4. After the restart, the API fetches the world's towns and the places of every country in the location trees by
+   itself, in a few minutes: its log says "Loaded … towns" and "Loaded … places of IRL". Later,
+   `scripts/map_tiles.py --gazetteer --fresh` downloads them anew rather than take what the map worker keeps.
+
+The demonstration site: set `GAZETTEER_PATH` in its env file (beside its maps, `/data/breedgraph-demo/gazetteer`, say)
+and `GEONAMES_URL=""`. Its dump gains `gazetteer/`, the places each reset restores ([its README](../instance/demo/README.md),
+Setting it up, step 6): once the site has fetched the world's and Ireland's after its upgrade, keep them, as
+`breedgraph-demo`:
+
+    rsync -a --delete /data/breedgraph-demo/gazetteer/places/ /data/breedgraph-demo/dump/gazetteer/
+
+Until then, its resets leave its places as they are.
+
 **The map workers' logs** say once when the API stops answering, each hour while it doesn't, and when it answers again,
 rather than at each poll: nothing to do.
 
