@@ -10,15 +10,17 @@ from pathlib import Path
 import httpx
 import pytest
 
+from map_worker.adapters.cache import ExtractCache
 from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
 from map_worker.adapters.http.client import MapAPIClient
-from map_worker.domain.job import MapJob, BadJob, check
+from map_worker.domain.job import MapJob, Extract, BadJob, check
 from map_worker.fetching import PmtilesCommand, MapRegionError
 from map_worker.service_layer import handlers as handlers_module
 from map_worker.service_layer.handlers import MapHandlers
 from map_worker.service_layer.worker import MapWorker
 
 BUILD = 'https://build.protomaps.com/20261026.pmtiles'
+BUILD_NEXT = 'https://build.protomaps.com/20261027.pmtiles'
 OUTLINE = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'properties': {}, 'geometry': None}]}
 
 FAKE_PMTILES = """#!{python}
@@ -46,6 +48,7 @@ class MockClient(AbstractMapAPIClient):
     def __init__(self, jobs: dict[str, list[MapJob]] | None = None):
         self.jobs = jobs or {}
         self.results, self.failures, self.uploads, self.renewals = [], [], [], []
+        self.builds = []  # (key, build, version) of each file sent
         self.held = True
         self.upload_errors: list[Exception] = []
 
@@ -65,10 +68,11 @@ class MockClient(AbstractMapAPIClient):
         self.failures.append((job.kind, job.key, error))
         return True
 
-    async def upload(self, job, path):
+    async def upload(self, job, extract):
         if self.upload_errors:
             raise self.upload_errors.pop(0)
-        self.uploads.append((job.key, path.read_bytes()))
+        self.uploads.append((job.key, extract.path.read_bytes()))
+        self.builds.append((job.key, extract.build, extract.version))
         return True
 
 
@@ -94,6 +98,26 @@ def handlers(pmtiles, work) -> MapHandlers:
     return handlers
 
 
+@pytest.fixture
+def cached(pmtiles, work, tmp_path) -> MapHandlers:
+    """Handlers keeping what they cut"""
+    handlers = MapHandlers(pmtiles[0], work, '', '', cache=ExtractCache(tmp_path / 'cache', poll_seconds=0.05))
+    handlers.clear()
+    return handlers
+
+
+def counting(pmtiles: PmtilesCommand) -> list:
+    """The builds pmtiles cuts from"""
+    cuts = []
+    extract = pmtiles.extract
+
+    async def counted(build, *args, **kwargs):
+        cuts.append(build)
+        return await extract(build, *args, **kwargs)
+    pmtiles.extract = counted
+    return cuts
+
+
 def worker(client, handlers) -> MapWorker:
     worker = MapWorker(client, handlers, poll_interval=0.05)
     worker.upload_retry_seconds = 0
@@ -114,6 +138,8 @@ def worker(client, handlers) -> MapWorker:
     (region(outline=None), 'has no outline'),
     (region(outline={'type': 'Polygon'}), 'not a FeatureCollection'),
     (region(key='../etc'), 'not a key'),
+    (region(version='4.15.2; rm -rf /'), 'not a version'),
+    (region(fresh='yes'), 'fresh is not'),
 ])
 def test_jobs_asking_for_anything_else_than_maps_are_refused(bad, reason):
     with pytest.raises(BadJob, match=reason):
@@ -125,6 +151,7 @@ def test_jobs_asking_for_anything_else_than_maps_are_refused(bad, reason):
     job('outlines', 'USA-ADM1', code='USA', level='ADM1'),
     region(key='USA-ADM1-USA-ADM1-3_0_0-B1', kind='size'),
     region(key='world', outline=None, minzoom=0, maxzoom=8),
+    region(version='4.15.2', fresh=True),
 ])
 def test_jobs_for_maps_are_done(good):
     check(good)
@@ -157,6 +184,7 @@ async def test_an_extract_is_uploaded_and_deleted(handlers):
     client = MockClient({'extract': [region()]})
     assert await worker(client, handlers).process_next('extract')
     assert client.uploads == [('IRL', b'PMTiles' + bytes(9))]
+    assert client.builds == [('IRL', BUILD, None)]
     assert not list(handlers.work_path.iterdir())
 
 
@@ -232,6 +260,61 @@ async def test_a_long_extract_holds_up_no_quick_job(handlers, pmtiles, monkeypat
         await asyncio.wait_for(task, 10)
 
 
+""" Its cache """
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('first, again', [
+    (region(version='4.15.2'), region(build=BUILD_NEXT, version='4.16.0')),  # a newer build of the same version
+    (region(), region()),  # the same pinned build, which has no version
+])
+async def test_an_extract_is_kept_and_sent_again(cached, first, again):
+    cuts = counting(cached.pmtiles)
+    client = MockClient({'extract': [first, again]})
+    for _ in range(2):
+        assert await worker(client, cached).process_next('extract')
+    assert cuts == [BUILD]
+    assert client.builds == [('IRL', BUILD, first.payload.get('version'))] * 2, 'sent with the build it was cut from'
+    assert [key for key, _ in client.uploads] == ['IRL', 'IRL']
+    assert sorted(path.name for path in cached.cache.path.iterdir()) == ['.IRL.lock', 'IRL.json', 'IRL.pmtiles']
+    assert not list(cached.work_path.iterdir())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('again', [
+    region(build=BUILD_NEXT, version='5.0.0'),  # another major version
+    region(build=BUILD_NEXT, version='4.16.0', fresh=True),  # asked fresh, as by scripts/map_tiles.py --refresh
+    region(build=BUILD_NEXT, version='4.16.0', maxzoom=14),
+    region(build=BUILD_NEXT, version='4.16.0', outline={**OUTLINE, 'features': OUTLINE['features'] * 2}),
+    region(build=BUILD_NEXT),  # a pinned build, which must be the same
+])
+async def test_an_extract_of_other_tiles_is_cut_again_and_replaces_the_one_kept(cached, again):
+    cuts = counting(cached.pmtiles)
+    client = MockClient({'extract': [region(version='4.15.2'), again]})
+    for _ in range(2):
+        assert await worker(client, cached).process_next('extract')
+    assert cuts == [BUILD, BUILD_NEXT]
+    assert client.builds[1] == ('IRL', BUILD_NEXT, again.payload.get('version'))
+    assert json.loads((cached.cache.path / 'IRL.json').read_text())['build'] == BUILD_NEXT
+
+
+@pytest.mark.asyncio
+async def test_workers_sharing_a_cache_cut_a_region_once(pmtiles, tmp_path):
+    """The production and demonstration sites' workers, each with a work path of its own"""
+    pmtiles[1].write_text(json.dumps({'seconds': 0.5}))
+    cuts = counting(pmtiles[0])
+    both = []
+    for site in ('production', 'demo'):
+        cache = ExtractCache(tmp_path / 'cache', poll_seconds=0.05)
+        handlers = MapHandlers(pmtiles[0], tmp_path / site, '', '', cache=cache)
+        handlers.clear()
+        both.append(handlers)
+    extracts = await asyncio.wait_for(asyncio.gather(*(handlers.extract(region()) for handlers in both)), 10)
+    assert cuts == [BUILD]
+    assert extracts[0].path == extracts[1].path == tmp_path / 'cache' / 'IRL.pmtiles'
+    assert not any(extract.temporary for extract in extracts)
+
+
 """ Its HTTP client """
 
 
@@ -264,10 +347,12 @@ async def test_the_client_leases_renews_and_uploads(tmp_path):
     file = tmp_path / 'IRL.pmtiles'
     file.write_bytes(b'tiles')
     with pytest.raises(UploadRefused, match='not a PMTiles file'):
-        await client.upload(leased, file)
+        await client.upload(leased, Extract(file, BUILD, '4.15.2'))
 
     assert all(r.headers['Authorization'] == 'Bearer token' for r in requests)
     assert json.loads(requests[3].content) == {'lease': 'abc', 'result': {'size': 1}}
     put = requests[4]
     assert (put.method, put.url.path) == ('PUT', '/map_jobs/extract/IRL/file')
     assert (put.headers['X-Map-Lease'], put.headers['X-Map-Size']) == ('abc', '5')
+    assert (put.headers['X-Map-Build'], put.headers['X-Map-Version']) == (BUILD, '4.15.2')
+    assert file.exists(), 'the caller deletes it, if it is temporary'

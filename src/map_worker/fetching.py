@@ -84,9 +84,23 @@ class PmtilesCommand:
         return parse_archive_size(output)
 
     async def extract(
-            self, build: str, outline: Path | None, output: Path, minzoom: int, maxzoom: int, key: str | None = None
-    ) -> None:
+            self,
+            build: str,
+            outline: Path | None,
+            output: Path,
+            minzoom: int,
+            maxzoom: int,
+            key: str | None = None,
+            version: str | None = None,
+            fresh: bool = False
+    ) -> Tuple[str, str | None] | None:
+        """
+        Cut the region into output. As for size, key, version (of the build's tiles) and fresh (not a file the map
+        worker kept) are for the map worker's jobs, which return the build and version the file was cut from; the
+        command returns None, having cut it from build.
+        """
         await self._run('extract', build, str(output), *self._options(outline, minzoom, maxzoom), '--quiet')
+        return None
 
 
 def latest_build(builds: List[dict], major: str | None = None) -> dict | None:

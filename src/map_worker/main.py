@@ -4,10 +4,11 @@ from pathlib import Path
 
 from map_worker.service_layer.worker import MapWorker
 from map_worker.service_layer.handlers import MapHandlers
+from map_worker.adapters.cache import ExtractCache
 from map_worker.adapters.http.client import MapAPIClient
 from map_worker.fetching import PmtilesCommand
 from map_worker.config import (
-    MAP_WORKER_AUTH_TOKEN, LOG_CONFIG, API_URL, MAP_POLL_INTERVAL, MAP_WORK_PATH, MAP_PMTILES_COMMAND,
+    MAP_WORKER_AUTH_TOKEN, LOG_CONFIG, API_URL, MAP_POLL_INTERVAL, MAP_WORK_PATH, MAP_CACHE_PATH, MAP_PMTILES_COMMAND,
     GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL
 )
 
@@ -22,11 +23,15 @@ async def run_worker(api_url: str, poll_interval: int):
     Run the worker loop. Jobs it was doing when it last stopped are queued again by the API once their leases expire,
     so it starts with an empty work directory.
     """
-    logger.info(f"Starting Map Worker with config: api_url={api_url}, work_path={MAP_WORK_PATH}, poll_interval={poll_interval}s")
+    logger.info(
+        f"Starting Map Worker with config: api_url={api_url}, work_path={MAP_WORK_PATH}, cache_path={MAP_CACHE_PATH}, "
+        f"poll_interval={poll_interval}s"
+    )
     pmtiles = PmtilesCommand(MAP_PMTILES_COMMAND)
     if not pmtiles.available():
         raise RuntimeError(f"The pmtiles command ({MAP_PMTILES_COMMAND}) is not installed (breedgraph README.md, Maps)")
-    handlers = MapHandlers(pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL)
+    cache = ExtractCache(Path(MAP_CACHE_PATH)) if MAP_CACHE_PATH else None
+    handlers = MapHandlers(pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, cache=cache)
     handlers.clear()
     client = MapAPIClient(base_url=api_url, auth_token=MAP_WORKER_AUTH_TOKEN)
     worker = MapWorker(client=client, handlers=handlers, poll_interval=poll_interval)

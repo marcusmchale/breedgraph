@@ -1,12 +1,11 @@
 import asyncio
 import logging
-from pathlib import Path
 from typing import Set
 
 import httpx
 
 from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
-from map_worker.domain.job import MapJob, BadJob, LANES, check
+from map_worker.domain.job import MapJob, Extract, BadJob, LANES, check
 from map_worker.fetching import MapRegionError
 from map_worker.service_layer.handlers import MapHandlers
 
@@ -112,20 +111,21 @@ class MapWorker:
             logger.exception(f"The {job.kind} job for {job.key} raised an unexpected error: {e}")
             await self.client.post_failure(job, "An internal error occurred in the map worker")
             return
-        if isinstance(outcome, Path):
+        if isinstance(outcome, Extract):
             try:
                 await self._upload(job, outcome)
             finally:
-                outcome.unlink(missing_ok=True)
+                if outcome.temporary:
+                    outcome.path.unlink(missing_ok=True)
         else:
             await self.client.post_result(job, outcome)
         logger.info(f"Done the {job.kind} job for {job.key}")
 
-    async def _upload(self, job: MapJob, path: Path):
+    async def _upload(self, job: MapJob, extract: Extract):
         """Send the file, again after a break in the connection unless the job was cancelled meanwhile"""
         for attempt in range(1, UPLOAD_ATTEMPTS + 1):
             try:
-                await self.client.upload(job, path)
+                await self.client.upload(job, extract)
                 return
             except UploadRefused as e:
                 logger.error(f"The API refused the extract of {job.key}: {e}")

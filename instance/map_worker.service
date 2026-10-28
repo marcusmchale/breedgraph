@@ -31,7 +31,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-# and its MAP_WORK_PATH, which ProtectSystem=strict otherwise leaves read-only
+# and its MAP_WORK_PATH and MAP_CACHE_PATH, which ProtectSystem=strict otherwise leaves read-only
 ReadWritePaths=/opt/map_worker /var/log/map_worker /srv/map_worker
 
 # Logging

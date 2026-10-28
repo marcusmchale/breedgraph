@@ -80,7 +80,10 @@ async def cut_world(args, out: Path, pmtiles: PmtilesCommand, builds: ProtomapsB
         return 0
     partial = out / '.world.pmtiles.partial'
     logger.info(f"Cutting {world} to zoom {args.world_maxzoom} from {build}")
-    await pmtiles.extract(build, None, partial, 0, args.world_maxzoom, key=WORLD)
+    # cut anew, not taken from the map worker's cache: cutting the world is asked for
+    cut = await pmtiles.extract(build, None, partial, 0, args.world_maxzoom, key=WORLD, version=version, fresh=True)
+    if cut is not None:
+        build, version = cut
     os.replace(partial, world)
     write_json(out / WORLD_JSON, {
         'url': world.name,

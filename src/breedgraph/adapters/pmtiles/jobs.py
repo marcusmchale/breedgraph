@@ -20,6 +20,7 @@ from typing import AsyncIterator, List, Tuple
 import aiofiles
 
 from breedgraph.service_layer.infrastructure.state_store import AbstractStateStore
+from map_worker.domain.job import BUILD, VERSION
 from .boundaries import GeoBoundaries
 from .command import PmtilesCommand, ProtomapsBuilds, MapRegionError
 from .regions import REGIONS_DIRECTORY
@@ -109,15 +110,25 @@ class WorkerPmtiles(PmtilesCommand):
         return int((await self.jobs.run('size', key, self._payload(build, outline, minzoom, maxzoom)))['size'])
 
     async def extract(
-            self, build: str, outline: Path | None, output: Path, minzoom: int, maxzoom: int, key: str | None = None
-    ) -> None:
+            self,
+            build: str,
+            outline: Path | None,
+            output: Path,
+            minzoom: int,
+            maxzoom: int,
+            key: str | None = None,
+            version: str | None = None,
+            fresh: bool = False
+    ) -> Tuple[str, str | None]:
         """
         Wait for the extract and move its file to output, which is in the directory it is received into. A done
-        extract whose file is still to be taken is joined, as by a process resumed after a restart.
+        extract whose file is still to be taken is joined, as by a process resumed after a restart. Returns the build
+        and version the file was cut from: an earlier build of the same version, when the worker kept the region
+        (map_worker adapters/cache.py), unless fresh.
         """
         if key is None:
             raise ValueError("The map worker's jobs need the region's key")
-        payload = self._payload(build, outline, minzoom, maxzoom)
+        payload = self._payload(build, outline, minzoom, maxzoom) | {'version': version, 'fresh': fresh}
         while True:
             result = await self.jobs.run('extract', key, payload, reuse_done=True)
             upload = output.parent / result['file']
@@ -130,6 +141,9 @@ class WorkerPmtiles(PmtilesCommand):
         await self.jobs.state_store.delete_map_job('extract', key)
         for other in output.parent.glob(f'.{key}.*{UPLOAD_SUFFIX}'):
             other.unlink(missing_ok=True)
+        if result.get('build'):
+            return result['build'], result.get('version')
+        return build, version
 
 
 def sources(
@@ -220,14 +234,21 @@ async def receive_extract(
         key: str,
         lease: str,
         size: int,
-        chunks: AsyncIterator[bytes]
+        chunks: AsyncIterator[bytes],
+        build: str | None = None,
+        version: str | None = None
 ) -> None:
     """
     Keep an extract's file as it arrives, under a name the API makes from the job, beside where it is moved to
-    (WorkerPmtiles.extract), and finish the job with it. Deleted unless the job finishes with it.
+    (WorkerPmtiles.extract), and finish the job with it and the build and version it was cut from. Deleted unless the
+    job finishes with it.
     """
     if not await state_store.renew_map_job('extract', key, lease, lease_seconds):
         raise LeaseNotHeld(f"extract {key}")
+    if build is not None and not BUILD.fullmatch(build):
+        raise BadUpload(f"not one of Protomaps' builds: {build!r}")
+    if version and not VERSION.fullmatch(version):
+        raise BadUpload(f"not a version of the tiles: {version!r}")
     directory = tiles_path if key == WORLD else tiles_path / REGIONS_DIRECTORY
     directory.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(directory).free < size:
@@ -249,7 +270,8 @@ async def receive_extract(
             raise BadUpload(f"{received} bytes of the {size} announced")
         if head != PMTILES_MAGIC:
             raise BadUpload("not a PMTiles file")
-        if not await state_store.finish_map_job('extract', key, lease, result={'file': name, 'size': size}):
+        result = {'file': name, 'size': size, 'build': build, 'version': version or None}
+        if not await state_store.finish_map_job('extract', key, lease, result=result):
             raise LeaseNotHeld(f"extract {key}")
         finished = True
     finally:

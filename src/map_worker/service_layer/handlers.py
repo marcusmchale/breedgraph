@@ -2,7 +2,8 @@
 import json
 from pathlib import Path
 
-from map_worker.domain.job import MapJob
+from map_worker.adapters.cache import ExtractCache
+from map_worker.domain.job import MapJob, Extract
 from map_worker.fetching import PmtilesCommand, list_builds, download_outlines
 
 import logging
@@ -11,21 +12,31 @@ logger = logging.getLogger(__name__)
 
 class MapHandlers:
 
-    def __init__(self, pmtiles: PmtilesCommand, work_path: Path, geoboundaries_url: str, builds_url: str):
+    def __init__(
+            self,
+            pmtiles: PmtilesCommand,
+            work_path: Path,
+            geoboundaries_url: str,
+            builds_url: str,
+            cache: ExtractCache | None = None
+    ):
         self.pmtiles = pmtiles
         self.work_path = work_path
         self.geoboundaries_url = geoboundaries_url
         self.builds_url = builds_url
+        self.cache = cache
 
     def clear(self) -> None:
-        """Delete what a worker stopped part way left behind"""
+        """Delete what a worker stopped part way left behind, and make the cache"""
         self.work_path.mkdir(parents=True, exist_ok=True)
         for path in self.work_path.iterdir():
             if path.suffix in ('.geojson', '.pmtiles') and path.is_file():
                 path.unlink()
+        if self.cache is not None:
+            self.cache.check(self.work_path)
 
-    async def handle(self, job: MapJob) -> dict | Path:
-        """A quick job's result, or an extract's file, which the caller deletes once sent"""
+    async def handle(self, job: MapJob) -> dict | Extract:
+        """A quick job's result, or an extract's file, which the caller deletes once sent if it is temporary"""
         return await getattr(self, job.kind)(job)
 
     async def builds(self, job: MapJob) -> dict:
@@ -56,7 +67,18 @@ class MapHandlers:
                 outline.unlink(missing_ok=True)
         return {'size': size}
 
-    async def extract(self, job: MapJob) -> Path:
+    async def extract(self, job: MapJob) -> Extract:
+        """The region cut, or with a cache, the region kept there, cut first if it is not kept"""
+        if self.cache is None:
+            return Extract(await self._cut(job), job.payload['build'], job.payload.get('version'))
+        async with self.cache.holding(job.key):
+            kept = self.cache.find(job)
+            if kept is not None:
+                logger.info(f"Sending {job.key} from the cache, cut from {kept.build}")
+                return kept
+            return self.cache.keep(job, await self._cut(job))
+
+    async def _cut(self, job: MapJob) -> Path:
         outline = self._outline(job)
         output = self.work_path / f'{job.key}.pmtiles'
         logger.info(f"Extracting {job.key} from {job.payload['build']}")

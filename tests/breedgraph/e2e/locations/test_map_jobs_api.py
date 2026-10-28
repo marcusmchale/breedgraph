@@ -10,6 +10,7 @@ from breedgraph import config
 from breedgraph.config import get_base_url
 
 PMTILES = b'PMTiles' + bytes(25)
+BUILD = 'https://build.protomaps.com/20261026.pmtiles'
 OUTLINES = {'type': 'FeatureCollection', 'features': [
     {'type': 'Feature', 'properties': {'shapeID': 'irl'}, 'geometry': {'type': 'Point', 'coordinates': [-8, 53]}}
 ]}
@@ -102,11 +103,11 @@ async def test_an_extract_is_kept_under_a_name_the_api_makes(client, jobs):
     await jobs.enqueue_map_job('extract', 'IRL', {})
     job = await lease(client, 'extract')
     response = await client.put("/map_jobs/extract/IRL/file", content=PMTILES, headers=worker_headers(**{
-        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PMTILES))
+        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PMTILES)), 'X-Map-Build': BUILD, 'X-Map-Version': '4.15.2'
     }))
     assert response.status_code == 204, response.text
     result = (await jobs.get_map_job('extract', 'IRL'))['result']
-    assert result == {'file': f".IRL.{job['lease']}.upload", 'size': len(PMTILES)}
+    assert result == {'file': f".IRL.{job['lease']}.upload", 'size': len(PMTILES), 'build': BUILD, 'version': '4.15.2'}
     assert (Path(config.MAP_TILES_PATH) / 'regions' / result['file']).read_bytes() == PMTILES
 
 
@@ -125,6 +126,23 @@ async def test_a_bad_extract_is_refused_and_nothing_kept(client, jobs, content, 
     assert response.status_code == status
     assert not list((Path(config.MAP_TILES_PATH) / 'regions').glob('.LUX.*'))
     assert (await jobs.get_map_job('extract', 'LUX'))['leased'], 'the worker may send it again'
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize('build, version', [
+    ('https://example.org/20261026.pmtiles', '4.15.2'),
+    (BUILD, '4.15.2 <script>'),
+])
+async def test_an_extract_said_to_come_from_elsewhere_than_protomaps_is_refused(client, jobs, build, version):
+    """The build goes into the region's description, which tiles.json serves"""
+    await jobs.enqueue_map_job('extract', 'LUX', {})
+    job = await lease(client, 'extract')
+    response = await client.put("/map_jobs/extract/LUX/file", content=PMTILES, headers=worker_headers(**{
+        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PMTILES)), 'X-Map-Build': build,
+        'X-Map-Version': version
+    }))
+    assert response.status_code == 400
+    assert not list((Path(config.MAP_TILES_PATH) / 'regions').glob('.LUX.*'))
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -667,7 +667,9 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     for the map to show it by in `countries/<code>.json`, whether fetched whole or divided. Removing a country deletes
     its files; a section stays until its country is removed.
   - Before a fetch, a dry run gives the region's size. The fetch fails unless the disk has room for it, with 10% of
-    its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed.
+    its size and 1 GB to spare. Plan for up to `MAP_REGION_MAX_GB` per country added or section placed. With
+    `MAP_TILES_MAX_GB` set, as on the demonstration site, which shares production's disk, it also fails if the
+    regions' files would then take more than that together.
   - Each API process fetches one region at a time. Redis holds a lock per region, who asked, and the regions under way,
     which resume after a restart. Finished regions are known from their files.
 - **With the map worker** (`MAP_WORKER=1`), for an API's server without internet access, as in production: the map
@@ -680,9 +682,16 @@ The tiles are cut from a [Protomaps](https://docs.protomaps.com/basemaps/downloa
     worker extracts waits for that extract rather than asking again.
   - Outlines and files come back through the API, which keeps them under names of its own beside where they go.
     Removing a country cancels its jobs: the worker stops at its next renewal.
+  - With `MAP_CACHE_PATH`, the worker keeps each region it cuts (`src/map_worker/adapters/cache.py`), and sends the
+    file kept when a region is asked for again with the same zooms, outline and major version of the tiles, however
+    old its build. A country removed and added again, or added on the demonstration site, whose worker shares the
+    cache, is then not cut again from Protomaps. The region's description (`regions/<key>.json`) names the build it
+    was cut from. `scripts/map_tiles.py --refresh` cuts regions again from the newest build, replacing those kept,
+    and the world file is always cut anew. The API never deletes from the cache: it holds at most one file per region
+    ever asked for, so delete from it by hand if the worker server's disk needs the room.
   - Coordinates never leave the API's server: sections are found there, and a job carries only a region's key, its
-    outline, a build and zooms. The worker refuses anything but maps from Protomaps' builds, so a pinned
-    `MAP_TILES_BUILD` must be one at `https://build.protomaps.com/`.
+    outline, a build with its version, zooms, and whether to cut it anew. The worker refuses anything but maps from
+    Protomaps' builds, so a pinned `MAP_TILES_BUILD` must be one at `https://build.protomaps.com/`.
   - `scripts/map_tiles.py` goes through it too, while the API and the worker run. The API's server then needs no
     pmtiles, and the worker's needs no access to Redis or the database.
 

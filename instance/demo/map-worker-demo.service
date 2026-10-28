@@ -1,0 +1,47 @@
+# /etc/systemd/system/map-worker-demo.service on the worker server: a map worker for the demonstration site's API,
+# beside production's (instance/map_worker.service), as the same user from the same venv. The site's other workers run
+# on the web server, but that server can't reach the internet, so this one runs here. It shares production's worker's
+# cache and has a work path of its own (map-worker-demo.env). It is not part of breedgraph-demo.target, which is on the
+# web server: while the site resets, it logs a warning each poll.
+[Unit]
+Description=Map Worker for the BreedGraph demonstration site
+After=network.target
+Wants=network-online.target
+
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=mapworker
+Group=mapworker
+
+WorkingDirectory=/opt/map_worker
+EnvironmentFile=/opt/map_worker/map-worker-demo.env
+
+ExecStart=/opt/map_worker/.venv/bin/python -m map_worker.main
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Graceful shutdown: the worker stops a running pmtiles, and the site's API queues its job again once the lease expires
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# its MAP_WORK_PATH and the shared MAP_CACHE_PATH, which ProtectSystem=strict otherwise leaves read-only
+ReadWritePaths=/opt/map_worker /var/log/map_worker /srv/map_worker
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=map-worker-demo
+
+[Install]
+WantedBy=multi-user.target

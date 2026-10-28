@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 
-from map_worker.domain.job import MapJob
+from map_worker.domain.job import MapJob, Extract
 
 
 class UploadRefused(Exception):
@@ -32,8 +31,11 @@ class AbstractMapAPIClient(ABC):
         ...
 
     @abstractmethod
-    async def upload(self, job: MapJob, path: Path) -> bool:
-        """An extract's file; False if the lease is no longer held, UploadRefused if the API refused the file"""
+    async def upload(self, job: MapJob, extract: Extract) -> bool:
+        """
+        An extract's file, with the build it was cut from; False if the lease is no longer held, UploadRefused if the
+        API refused the file
+        """
         ...
 
     async def close(self) -> None:

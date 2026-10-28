@@ -16,6 +16,9 @@ MAP_TILES_PATH = os.environ.get('MAP_TILES_PATH', 'instance/map_tiles')
 # A country whose detailed tiles would be larger than this is fetched in sections (states or provinces), each when a
 # location in it is placed on the map
 MAP_REGION_MAX_GB = float(os.environ.get('MAP_REGION_MAX_GB', 2))
+# The most the regions' files may take together, so that a site sharing a server's disk (the demonstration site) is
+# held to its share: a region that would take more fails. 0 for no limit but the disk's.
+MAP_TILES_MAX_GB = float(os.environ.get('MAP_TILES_MAX_GB', 0))
 # The Protomaps build regions are cut from: 'latest', or the URL of a build to pin
 MAP_TILES_BUILD = os.environ.get('MAP_TILES_BUILD', 'latest')
 # The go-pmtiles command that cuts the tiles; regions are not fetched while it is empty or not installed

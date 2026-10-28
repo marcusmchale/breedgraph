@@ -22,7 +22,9 @@ kept: this README (Setup, deploy), [BreedView's README](https://github.com/marcu
   archived files in its `ARCHIVE_DESTINATION`.
 - The analysis worker (`instance/analysis_worker.service`) in `/opt/analysis_worker`, as `analysisworker`, with R.
 - The map worker (`instance/map_worker.service`) in `/opt/map_worker`, as `mapworker`, with `pmtiles`: it fetches the
-  map tiles and outlines the API needs from the internet, which the web server can't reach (README, Maps).
+  map tiles and outlines the API needs from the internet, which the web server can't reach (README, Maps), and keeps
+  what it cuts in its `MAP_CACHE_PATH`. If the demonstration site is hosted, its own map worker runs beside it
+  (`instance/demo/map-worker-demo.service`), sharing the cache.
 - cron: copying the database backups and the erasure log from the web server (`scripts/sync_database_backups.sh`).
 
 The workers poll the API at their `API_URL`, an address of the web server on the internal network, with the tokens
@@ -152,8 +154,10 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    files it links to).
 2. **Users and directories.** `archiveworker` owning `/opt/archive_worker`, `/var/log/archive_worker` and the
    archive's `ARCHIVE_DESTINATION`, on the large disk; `analysisworker` owning `/opt/analysis_worker` and
-   `/var/log/analysis_worker`; `mapworker` owning `/opt/map_worker`, `/var/log/map_worker` and its `MAP_WORK_PATH`,
-   on the large disk, with room for the largest file the API fetches (`MAP_REGION_MAX_GB`, 2).
+   `/var/log/analysis_worker`; `mapworker` owning `/opt/map_worker`, `/var/log/map_worker` and `/srv/map_worker`, on
+   the large disk. That holds the worker's `MAP_WORK_PATH` (`/srv/map_worker/work`), with room for the largest file the
+   API fetches (`MAP_REGION_MAX_GB`, 2), and its `MAP_CACHE_PATH` (`/srv/map_worker/cache`), which keeps every region
+   cut, for either site, until it is deleted by hand (README, Maps). The two must be on the same filesystem.
 3. **The code.** The `worker` wheelhouse into `/opt/archive_worker/.venv` and `/opt/map_worker/.venv`, and the
    `analysis_worker` wheelhouse into `/opt/analysis_worker/.venv`, which compiles rpy2 against R as it installs. Where
    `/tmp` is mounted `noexec`, that fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR`
@@ -161,10 +165,12 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
 4. **The environments.** `/opt/archive_worker/archive_worker.env`, `/opt/analysis_worker/analysis_worker.env` and
    `/opt/map_worker/map_worker.env`, from `instance/`, mode 0600: `API_URL` the web server's internal address
    (`http://<internal address>:8080`, below), the token the API's environment has for each, `LOG_BASE` in
-   `/var/log/...`, for the archive worker its `ARCHIVE_DESTINATION` and for the map worker its `MAP_WORK_PATH`.
+   `/var/log/...`, for the archive worker its `ARCHIVE_DESTINATION` and for the map worker its `MAP_WORK_PATH` and
+   `MAP_CACHE_PATH`.
 5. **The units.** `instance/archive_worker.service`, `instance/analysis_worker.service` and
    `instance/map_worker.service` to `/etc/systemd/system/`, with the archive's `ARCHIVE_DESTINATION` in the archive
-   worker's `ReadWritePaths` and `MAP_WORK_PATH` in the map worker's, then `daemon-reload` and `enable --now` each.
+   worker's `ReadWritePaths` and `/srv/map_worker` in the map worker's, then `daemon-reload` and `enable --now` each.
+   For the demonstration site, also its map worker: `instance/demo/README.md`, Setting it up.
 6. **The backup copy.** `/etc/breedgraph/backup_sync.env` (from `instance/backup_sync.env`), an ssh key the web server
    accepts, and cron (README, Backups, restores and retention). It never needs the encryption key. On the web server,
    the key belongs to a user of its own, which may only read the dumps and the erasure log, and only with rsync
@@ -257,6 +263,13 @@ and passes bodies both ways as they arrive rather than through temporary files o
             proxy_http_version 1.1;
             proxy_set_header Host $host;
         }
+        # the demonstration site's map worker, on the worker server too, to the site's API without /demo (only if
+        # the site is hosted: instance/demo/README.md)
+        location ^~ /demo/map_jobs/ {
+            proxy_pass http://127.0.0.1:8001/map_jobs/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
         location / {
             return 404;
         }
@@ -284,6 +297,9 @@ settings as the server above:
         access_log off;
     }
 
+The demonstration site's map worker then comes to the location in its snippet (`nginx-breedgraph-demo.conf`), left
+commented out there for this case.
+
 ## Upgrading to a new release
 
 1. Build it (§1).
@@ -291,7 +307,8 @@ settings as the server above:
    checkout moved to the new tag (or replaced by its archive), the release's new settings added to `breedgraph.env`
    (its notes list them), and `sudo systemctl restart breedgraph`; then BreedView's new `dist/` in place of
    `/var/www/breedview`.
-3. **The worker server:** the wheelhouses with `--upgrade` into the three venvs, and the three units restarted.
+3. **The worker server:** the wheelhouses with `--upgrade` into the three venvs, and the three units restarted (with
+   `map-worker-demo` if the demonstration site is hosted, as it runs from the map worker's venv).
 4. **The demonstration site:** `instance/demo/README.md`, Upgrades.
 5. The checks below.
 
@@ -310,7 +327,8 @@ settings as the server above:
       PYTHONPATH=$HOME/awtest/pylib ANALYSIS_WORKER_AUTH_TOKEN=test LOG_BASE=$HOME/awtest/logs /opt/analysis_worker/.venv/bin/python -m pytest -p no:cacheprovider -q -rs tests/analysis_worker
 - The map shows its tiles, and a place search answers. Adding a country fetches its map through the map worker: its
   log (`/var/log/map_worker/map.log`) shows the outlines, size and extract jobs, and the country's layer is in
-  `/tiles/tiles.json` once it is done (or it is divided, if larger than `MAP_REGION_MAX_GB`).
+  `/tiles/tiles.json` once it is done (or it is divided, if larger than `MAP_REGION_MAX_GB`). Remove that country and
+  add it again: the log says the region is sent from the cache, and `/srv/map_worker/cache` holds it.
 - An invitation's email arrives, and its link opens the registration page.
 - A guide chapter's video plays, with its captions.
 - `trigger_retention.sh /opt/breedgraph/breedgraph.env` prints the API's response.

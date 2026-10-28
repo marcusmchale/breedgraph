@@ -78,13 +78,18 @@ async def upload_extract(
         request: Request,
         key: str,
         x_map_lease: str = Header(...),
-        x_map_size: int = Header(...)
+        x_map_size: int = Header(...),
+        x_map_build: str | None = Header(None),
+        x_map_version: str | None = Header(None)
 ):
-    """An extract's file, kept in MAP_TILES_PATH as it arrives and moved into place by the API's waiting process"""
+    """
+    An extract's file, kept in MAP_TILES_PATH as it arrives and moved into place by the API's waiting process, with
+    the build and version of the tiles it was cut from
+    """
     try:
         await receive_extract(
             request.app.bus.state_store, Path(config.MAP_TILES_PATH), config.MAP_JOB_LEASE_SECONDS,
-            key, x_map_lease, x_map_size, request.stream()
+            key, x_map_lease, x_map_size, request.stream(), build=x_map_build, version=x_map_version
         )
     except LeaseNotHeld:
         raise not_held()

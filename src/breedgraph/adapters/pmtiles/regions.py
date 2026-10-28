@@ -216,6 +216,14 @@ def region_file(tiles_path: Path, region: Region, suffix: str = '.pmtiles') -> P
     return tiles_path / REGIONS_DIRECTORY / f'{region.key}{suffix}'
 
 
+def regions_size(directory: Path, excluding: Path | None = None) -> int:
+    """The bytes the complete region files in the directory take, but for one"""
+    return sum(
+        path.stat().st_size for path in directory.glob('*.pmtiles')
+        if not path.name.startswith('.') and path != excluding
+    )
+
+
 def read_sidecars(tiles_path: Path) -> List[dict]:
     """The regions fetched: the sidecar of each complete region file"""
     directory = tiles_path / REGIONS_DIRECTORY

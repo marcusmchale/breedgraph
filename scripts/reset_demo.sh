@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Reset the hosted demonstration site to its dump (instance/demo/README.md, Each night): stop its services, load the
 # dump over the store (its transaction logs too, so what was entered is gone), empty Redis, copy the dump's files over
-# the file store, empty the archive worker's store and the site's erasure log, rotate SECRET_KEY so that no login cookie
-# from before signs in, write the site's legal texts, load the state store, set the accounts
-# (scripts/set_demo_accounts.py), and start the services.
+# the file store and its maps over the site's, empty the archive worker's store and the site's erasure log, rotate
+# SECRET_KEY so that no login cookie from before signs in, write the site's legal texts, load the state store, set the
+# accounts (scripts/set_demo_accounts.py), and start the services.
 #
 #   sudo scripts/reset_demo.sh /opt/breedgraph-demo/breedgraph-demo.env
 #
@@ -22,7 +22,8 @@ set -a; . "$ENV_FILE"; set +a
 [ "${DB_PORT:-7687}" != 7687 ] || refuse "$ENV_FILE points at production's Neo4j (7687)"
 [ "${REDIS_PORT:-6379}" != 6379 ] || refuse "$ENV_FILE points at production's Redis (6379)"
 for name in DEMO_ROOT DEMO_DUMP_DIR DEMO_FILES_DIR DEMO_ACCOUNTS DEMO_CHECKOUT DEMO_ARCHIVE_DIR NEO4J_PACKAGE \
-    FILE_STORAGE_PATH PERSON_ERASURE_LOG_PATH TERMS_OF_USE_PATH PRIVACY_NOTICE_PATH; do
+    FILE_STORAGE_PATH PERSON_ERASURE_LOG_PATH TERMS_OF_USE_PATH PRIVACY_NOTICE_PATH \
+    DEMO_MAP_TILES_DIR DEMO_MAP_BOUNDARIES_DIR MAP_TILES_PATH MAP_BOUNDARIES_PATH; do
   [ -n "${!name:-}" ] || refuse "$ENV_FILE sets no $name"
 done
 [ -f "$DEMO_DUMP_DIR/neo4j.dump" ] || refuse "no dump at $DEMO_DUMP_DIR/neo4j.dump"
@@ -46,8 +47,8 @@ echo "Loading $DEMO_DUMP_DIR/neo4j.dump"
 as_demo NEO4J_HOME="$DEMO_ROOT/neo4j" NEO4J_CONF="$DEMO_ROOT/neo4j/conf" \
   "$NEO4J_PACKAGE/bin/neo4j-admin" database load neo4j --from-path="$DEMO_DUMP_DIR" --overwrite-destination=true
 
-# 4. Neo4j and Redis started, Redis emptied, the files copied, and the archive worker's copies of them deleted: the
-# dump's files wait to be archived, and are again
+# 4. Neo4j and Redis started, Redis emptied, the files copied, the archive worker's copies of them deleted (the dump's
+# files wait to be archived, and are again), and the maps restored
 run systemctl start neo4j-demo redis-demo
 echo "Waiting for Neo4j on $DB_PORT"
 as_demo .venv/bin/python - <<'EOF'
@@ -68,6 +69,22 @@ run redis-cli -h 127.0.0.1 -p "$REDIS_PORT" flushall
 as_demo mkdir -p "$FILE_STORAGE_PATH"
 as_demo rsync -a --delete "$DEMO_FILES_DIR"/ "$FILE_STORAGE_PATH"/
 as_demo find "$DEMO_ARCHIVE_DIR" -mindepth 1 -delete
+# The dump's maps (Ireland's region, and the links to production's world file) over the site's, deleting the regions
+# visitors fetched, then tiles.json written again, so that it names production's world as it is now. Without them the
+# reset goes on, as the site works without detailed maps.
+if [ -d "$DEMO_MAP_TILES_DIR" ] && [ -d "$DEMO_MAP_BOUNDARIES_DIR" ]; then
+  as_demo rsync -a --delete "$DEMO_MAP_TILES_DIR"/ "$MAP_TILES_PATH"/
+  as_demo rsync -a --delete "$DEMO_MAP_BOUNDARIES_DIR"/ "$MAP_BOUNDARIES_PATH"/
+  as_demo .venv/bin/python - <<'EOF'
+import os
+from pathlib import Path
+from breedgraph.adapters.pmtiles.regions import write_tiles_json
+if not write_tiles_json(Path(os.environ['MAP_TILES_PATH'])):
+    print("No world file in MAP_TILES_PATH: link production's (instance/demo/README.md, Map tiles)")
+EOF
+else
+  echo "No maps in $DEMO_MAP_TILES_DIR and $DEMO_MAP_BOUNDARIES_DIR: the site's are left as they are"
+fi
 
 # 5. The site's erasure log emptied, not replayed: the people erased on the site went with its data
 as_demo truncate -s 0 "$PERSON_ERASURE_LOG_PATH"

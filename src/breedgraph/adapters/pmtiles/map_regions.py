@@ -36,7 +36,8 @@ from .command import MapRegionError
 from .jobs import sources, sweep_uploads
 from .regions import (
     Region, Point, COUNTRY, SECTION_LEVELS, REGIONS_DIRECTORY, WORLD_JSON,
-    section_for, features_bounds, country_bounds, region_file, country_file, read_json, write_json, write_tiles_json
+    section_for, features_bounds, country_bounds, region_file, country_file, read_json, write_json, write_tiles_json,
+    regions_size
 )
 
 import logging
@@ -74,11 +75,13 @@ class PmtilesMapRegions(AbstractMapRegions):
             max_gb: float | None = None,
             build: str | None = None,
             poll_seconds: float = POLL_SECONDS,
-            worker: bool | None = None
+            worker: bool | None = None,
+            max_tiles_gb: float | None = None
     ):
         """
         publish puts the events that email requestors; without it, as for scripts/map_tiles.py, none are sent.
         worker (config.MAP_WORKER) has the map worker fetch what needs the internet, and command is then unused.
+        max_tiles_gb (config.MAP_TILES_MAX_GB) limits the regions' files together, 0 not at all.
         """
         self.state_store = state_store
         self.publish = publish
@@ -93,6 +96,7 @@ class PmtilesMapRegions(AbstractMapRegions):
             poll_seconds=poll_seconds
         )
         self.max_bytes = (config.MAP_REGION_MAX_GB if max_gb is None else max_gb) * 10 ** 9
+        self.max_tiles_bytes = (config.MAP_TILES_MAX_GB if max_tiles_gb is None else max_tiles_gb) * 10 ** 9
         self.poll_seconds = poll_seconds
         self.enabled = False
         self._regions: Dict[str, asyncio.Task] = {}
@@ -292,7 +296,7 @@ class PmtilesMapRegions(AbstractMapRegions):
         if region.level == COUNTRY and size > self.max_bytes and not file.exists():
             logger.info(f"Detailed maps for {region.key} would take {size} bytes, so it is divided")
             return Outcome.DIVIDED
-        await self._extract(region, size)
+        await self._extract(region, size, fresh=refresh)
         return Outcome.READY
 
     async def _describe_country(self, country: Region) -> None:
@@ -355,7 +359,8 @@ class PmtilesMapRegions(AbstractMapRegions):
         build, version = await self.builds.latest(major=version.split('.')[0] if version else None)
         return world, build, version
 
-    async def _extract(self, region: Region, size: int) -> None:
+    async def _extract(self, region: Region, size: int, fresh: bool = False) -> None:
+        """Cut the region, or with fresh, cut it from the newest build rather than take the one the map worker kept"""
         world, build, version = await self._build()
         outline, features = await self.boundaries.outline(region)
         directory = self.tiles_path / REGIONS_DIRECTORY
@@ -363,13 +368,25 @@ class PmtilesMapRegions(AbstractMapRegions):
         free = shutil.disk_usage(directory).free
         if free < size * (1 + SPACE_MARGIN) + SPACE_RESERVE:
             raise MapRegionError(f"Not enough disk space: {size} bytes needed and {free} free")
+        if self.max_tiles_bytes:
+            # the region's own file, fetched again, is replaced
+            used = await asyncio.to_thread(regions_size, directory, region_file(self.tiles_path, region))
+            if used + size > self.max_tiles_bytes:
+                raise MapRegionError(
+                    f"The map storage is full: {size} bytes needed, and the regions take {used} of the "
+                    f"{self.max_tiles_bytes:.0f} allowed (MAP_TILES_MAX_GB)"
+                )
         await self.state_store.set_map_region_fetching(region.key)
         await self._notify_fetching(region, await self.state_store.get_map_region_requestors(region.key))
         partial = directory / f'.{region.key}.pmtiles.partial'
         minzoom = world['maxZoom'] + 1
         logger.info(f"Fetching detailed maps for {region.key} ({size} bytes) from {build}")
         async with self._extracting:
-            await self.pmtiles.extract(build, outline, partial, minzoom, MAX_ZOOM, key=region.key)
+            cut = await self.pmtiles.extract(
+                build, outline, partial, minzoom, MAX_ZOOM, key=region.key, version=version, fresh=fresh
+            )
+        if cut is not None:
+            build, version = cut  # the map worker's, which may have kept the region from an earlier build
         if not await self.state_store.is_map_region_pending(region.key):
             partial.unlink(missing_ok=True)
             raise RegionRemoved(region.key)

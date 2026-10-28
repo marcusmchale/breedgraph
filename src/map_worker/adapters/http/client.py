@@ -1,10 +1,10 @@
 import json
-from pathlib import Path
+import os
 
 import aiofiles
 import httpx
 
-from map_worker.domain.job import MapJob
+from map_worker.domain.job import MapJob, Extract
 from .abstract_client import AbstractMapAPIClient, UploadRefused
 
 import logging
@@ -64,22 +64,25 @@ class MapAPIClient(AbstractMapAPIClient):
     async def post_failure(self, job: MapJob, error: str) -> bool:
         return await self._post(job, 'failure', {'error': error})
 
-    async def upload(self, job: MapJob, path: Path) -> bool:
-        async def chunks():
-            async with aiofiles.open(path, 'rb') as f:
+    async def upload(self, job: MapJob, extract: Extract) -> bool:
+        async with aiofiles.open(extract.path, 'rb') as f:
+            async def chunks():
                 while chunk := await f.read(CHUNK_SIZE):
                     yield chunk
 
-        response = await self.client.put(
-            f"{self.base_url}/{job.kind}/{job.key}/file",
-            headers=self._headers() | {
-                "Content-Type": "application/octet-stream",
-                "X-Map-Lease": job.lease,
-                "X-Map-Size": str(path.stat().st_size)
-            },
-            content=chunks(),
-            timeout=UPLOAD_TIMEOUT
-        )
+            response = await self.client.put(
+                f"{self.base_url}/{job.kind}/{job.key}/file",
+                headers=self._headers() | {
+                    "Content-Type": "application/octet-stream",
+                    "X-Map-Lease": job.lease,
+                    # the size of the file opened, which a worker sharing the cache may replace meanwhile
+                    "X-Map-Size": str(os.fstat(f.fileno()).st_size),
+                    "X-Map-Build": extract.build,
+                    "X-Map-Version": extract.version or ''
+                },
+                content=chunks(),
+                timeout=UPLOAD_TIMEOUT
+            )
         if response.status_code == 409:
             logger.info(f"The extract of {job.key} is no longer leased to this worker: its file is dropped")
             return False

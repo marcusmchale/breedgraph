@@ -4,7 +4,8 @@ A second BreedGraph beside production, on the same server, at https://breedgraph
 user guide's readers and for the DPO's and the legal office's review: the demonstration database (docs/demo-database.md), reset every night, with BreedView's demonstration
 build, whose banner says the site is fictional. It has its own Neo4j, Redis, API, analysis and archive workers, files,
 encryption key and logs, so nothing in it touches production, and one systemd target starts, stops and restarts them
-together.
+together. Its map worker runs on the worker server, beside production's, since the web server can't reach the
+internet. The two share the worker's cache, and the site shows production's world file, linked, below its own regions.
 
 The files here are templates: copy each to the place its first line names, fill in what is in angle brackets, and keep
 the private ones (mode 0600).
@@ -19,6 +20,7 @@ the private ones (mode 0600).
 | `breedgraph-demo.slice` | `/etc/systemd/system/` | the site's share of the machine's memory, which its units run in |
 | `neo4j-demo.service`, `redis-demo.service`, `breedgraph-demo.service`, `analysis-worker-demo.service`, `archive-worker-demo.service` | `/etc/systemd/system/` | the services, each part of the target |
 | `breedgraph-demo-reset.service`, `breedgraph-demo-reset.timer` | `/etc/systemd/system/` | the nightly reset (`scripts/reset_demo.sh`) |
+| `map-worker-demo.env`, `map-worker-demo.service` | on the worker server: `/opt/map_worker/` (private, as production's `map_worker.env`) and `/etc/systemd/system/` | the site's map worker, beside production's |
 | `nginx-breedgraph-demo.conf` | `/etc/nginx/snippets/breedgraph-demo.conf`, included in production's server block | the site at `/demo/`: BreedView's build, the API, the tiles |
 | `legal-preamble.md` | read from here by the reset | what the site's Terms and privacy notice say first |
 | `demo_accounts.example.json` | `/opt/breedgraph-demo/private/demo_accounts.json` (private, owned by `breedgraph-demo`) | the site's passwords and reviewer accounts (`scripts/set_demo_accounts.py`) |
@@ -44,9 +46,11 @@ production's server block) and the rest to production, as before.
   10 MB (`client_max_body_size` in the snippet), below production's limit. The analysis worker runs one analysis at
   a time, however many visitors ask, which may reserve 1.5 GB, and the worker uses 2 GB at most (`LimitAS` and
   `MemoryMax` in `analysis-worker-demo.service`), so an analysis needing more fails, saying so. Neo4j and Redis have
-  limits of their own (`neo4j.conf`, `redis-demo.conf`). The site's units all run in `breedgraph-demo.slice`, which
-  holds the site to 6 GB without swap, so that whatever one of its processes does, it is one of the site's that the
-  kernel ends, never one of production's.
+  limits of their own (`neo4j.conf`, `redis-demo.conf`). Visitors may add countries, whose maps are fetched to
+  production's disk: the site's regions together are held to `MAP_TILES_MAX_GB` (10), beyond which a fetch fails and
+  the visitor is emailed that it did, and each reset deletes them. The site's units all run in
+  `breedgraph-demo.slice`, which holds the site to 6 GB without swap, so that whatever one of its processes does, it
+  is one of the site's that the kernel ends, never one of production's.
 
 ## Setting it up (the server work)
 
@@ -60,7 +64,7 @@ production's server block) and the rest to production, as before.
      fails where `/tmp` is mounted `noexec` (`TypeError: 'NoneType' object is not callable`): run it with `TMPDIR` set
      to a directory where programs may run (breedgraph README.md, Build the wheelhouses);
    - `neo4j/` (`conf`, `data`, `logs`, `run`, `import`, `tmp`), `redis/`, `dump/`, `files/`, `archive/`, `legal/`,
-     `map_tiles/`;
+     `map_tiles/`, `map_boundaries/`;
    - `logs/`, with `logs/analysis-worker/` owned by `analysisworker`;
    - `private/` (0700);
    - `country_codes.csv`, a copy of production's (`COUNTRY_CODES_PATH`).
@@ -73,19 +77,41 @@ production's server block) and the rest to production, as before.
    `/opt/breedgraph-demo`, not `/etc/redis`, which Ubuntu closes to all but the `redis` group: `breedgraph-demo`, which
    runs this Redis, couldn't read it there, and joining that group would let it read production's Redis files.
 4. **The environments.** `breedgraph-demo.env`, with its own `SECRET_KEY`, salts and worker tokens (none shared with
-   production), and real SMTP. The workers' env files take the same two tokens. The site's own encryption key, for the
+   production), and real SMTP. The workers' env files take the same three tokens: the map worker's on the worker
+   server (step 6). The site's own encryption key, for the
    archive worker's copies: `sudo -u breedgraph-demo age-keygen -o /opt/breedgraph-demo/private/encryption_key.txt`,
    and its public key (`age-keygen -y` on the file) as `ENCRYPTION_RECIPIENT`.
 5. **The dump.** Copy the build's `demo_database.dump` to `/opt/breedgraph-demo/dump/neo4j.dump` and its
    `demo_database_files/` to `/opt/breedgraph-demo/dump/files/`. The build's manifest holds its generated passwords:
    the site's own go in the accounts file instead.
-6. **Map tiles.** The world file and Ireland's region into `/opt/breedgraph-demo/map_tiles`, cut on a machine with
-   `pmtiles` (`scripts/map_tiles.py`), as `MAP_PMTILES_COMMAND` is empty here: the site fetches no regions itself.
+6. **Maps.** The site's regions are fetched by its own map worker, on the worker server, which reaches the site's API
+   through the web server's internal nginx (step 8):
+   - On the worker server, `map-worker-demo.env` to `/opt/map_worker/` (mode 0600, as production's), with the web
+     server's internal address and the site's `MAP_WORKER_AUTH_TOKEN`, and `map-worker-demo.service` to
+     `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and `sudo systemctl enable --now map-worker-demo`. It
+     runs as `mapworker` from production's map worker's venv, with a work path of its own, `/srv/map_worker/work-demo`,
+     and production's cache, `/srv/map_worker/cache` (docs/deployment.md, the worker server).
+   - The world file is production's, never cut for the site (`scripts/map_tiles.py` with the site's env would replace
+     the link with a file of its own): link it, and its description, as `breedgraph-demo`:
+
+         ln -s /opt/breedgraph/map_tiles/world.pmtiles /opt/breedgraph/map_tiles/world.json /opt/breedgraph-demo/map_tiles/
+
+     nginx follows the link. The site's API reads `world.json` through it, so `breedgraph-demo` needs to read that file
+     and pass through `/opt/breedgraph` and `/opt/breedgraph/map_tiles`. A new world file in production (a new build)
+     is then the site's too.
+   - Once the site has loaded its dump (step 9), fetch Ireland's region through the site's worker, from the checkout
+     with the site's environment: `scripts/map_tiles.py --regions`. Then keep the result as the baseline each reset
+     restores: `rsync -a /opt/breedgraph-demo/map_tiles/ /opt/breedgraph-demo/dump/map_tiles/` (`-a` copies the world's
+     links as links), and the same for `map_boundaries/` into `dump/map_boundaries/`. If production's world moves to a
+     new major version of the tiles (README, Maps) or another zoom, fetch Ireland again (`--refresh`) and keep it
+     again.
 7. **BreedView.** `npm run build:demo` with `.env.demo.local` giving `VITE_BASE_PATH=/demo/` and
    `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and its `dist-demo/` copied to `/var/www/demo`. The guide's
    media go in its `guide-media/` (from `public/guide-media`).
 8. **nginx.** `nginx-breedgraph-demo.conf` to `/etc/nginx/snippets/breedgraph-demo.conf`, and
-   `include snippets/breedgraph-demo.conf;` in production's server block for port 443, then `sudo nginx -t` and
+   `include snippets/breedgraph-demo.conf;` in production's server block for port 443. For the site's map worker, the
+   `/demo/map_jobs/` location in the server on the internal address (docs/deployment.md, nginx), or where only HTTPS is
+   open between the networks, the one left commented out in the snippet. Then `sudo nginx -t` and
    `sudo systemctl reload nginx`. Everything is inside one `^~ /demo/` location, so production's own locations,
    regular expressions too, take nothing of the site's. It sends `X-Robots-Tag: noindex`, so that search engines leave
    the site out.
@@ -105,12 +131,17 @@ The target holds Neo4j, Redis, the API and the two workers, and starts them in o
 The API's and the workers' logs are in `/opt/breedgraph-demo/logs`, Neo4j's in `/opt/breedgraph-demo/neo4j/logs`.
 Production's services are not part of the target, so none of this stops them.
 
+The map worker is on the worker server, outside the target: `sudo systemctl restart map-worker-demo` there, and its log
+is `/var/log/map_worker/map-demo.log`. While the site is stopped or resetting, it logs a warning each poll, and goes on
+once the site's API answers.
+
 Restarting the target restarts Redis too, which saves nothing: the read models (the countries, the ontology) are gone
 until the next reset. Restart the API and the workers alone (`sudo systemctl restart breedgraph-demo
 archive-worker-demo analysis-worker-demo`), or run the reset, which fills them again.
 
 **Upgrades.** Update the site with production: pull the same version into `checkout/`, update its `.venv`, rebuild
-BreedView's demonstration build, and run the reset, which restarts everything on the new code and checks the dump
+BreedView's demonstration build, restart `map-worker-demo` on the worker server once production's map worker's venv
+is upgraded, and run the reset, which restarts everything on the new code and checks the dump
 loads, the accounts are set and the read models filled as each night. When the release changes the demonstration
 database (`scripts/build_demo_database.py`) or its dump, copy the new dump into `dump/` first. An upgrade of the Neo4j
 package upgrades both instances: run the reset afterwards, to check the dump still loads.
@@ -125,7 +156,11 @@ package upgrades both instances: run the reset afterwards, to check the dump sti
 3. Loads the dump with `neo4j-admin database load --overwrite-destination=true`, which replaces the store and its
    transaction logs, so what was entered is really gone.
 4. Starts Neo4j and Redis, empties Redis, copies the dump's files over the file store, deleting the rest, and empties
-   the archive worker's store. The dump's files wait to be archived, so the worker archives them again.
+   the archive worker's store. The dump's files wait to be archived, so the worker archives them again. It copies the
+   dump's maps (`dump/map_tiles/`, `dump/map_boundaries/`) over the site's in the same way, deleting the regions
+   visitors fetched, and writes `tiles.json` again, naming production's world as it is now. Without them it warns and
+   goes on. Emptying Redis cancels the map worker's jobs, which it stops at their next renewal; the regions it kept
+   stay in its cache.
 5. Empties the site's erasure log, without replaying it: the people erased there were the site's, and are gone with it.
 6. Rotates `SECRET_KEY`, so that no login cookie from before the reset signs in, as a restore reissues account ids.
 7. Writes the site's legal texts (`legal-preamble.md` and the drafts in `docs/legal/`), loads the state store, sets the
@@ -146,4 +181,8 @@ invited from the app, as anyone joins BreedGraph, and those accounts go at the n
 - `/demo/guide-media/*.vtt` is served as `text/vtt`, and the videos answer range requests (206).
 - The links in a verification email start `https://breedgraph.universityofgalway.ie/demo/`.
 - An upload shows as archived within a minute, and an analysis runs.
+- The map shows Ireland in detail, and `/demo/tiles/world.pmtiles` answers range requests (206) through the link.
+  Adding a country fetches its map through the site's map worker (`/var/log/map_worker/map-demo.log` on the worker
+  server), and after the next reset its layer is gone from `/demo/tiles/tiles.json`, which names production's world
+  build.
 - After a reset the story's state is the manifest's, and a login cookie from before it no longer signs in.
