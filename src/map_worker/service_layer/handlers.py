@@ -2,9 +2,9 @@
 import json
 from pathlib import Path
 
-from map_worker.adapters.cache import ExtractCache
+from map_worker.adapters.cache import ExtractCache, GazetteerCache
 from map_worker.domain.job import MapJob, Extract
-from map_worker.fetching import PmtilesCommand, list_builds, download_outlines
+from map_worker.fetching import PmtilesCommand, MapRegionError, list_builds, download_outlines, download_gazetteer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -18,22 +18,28 @@ class MapHandlers:
             work_path: Path,
             geoboundaries_url: str,
             builds_url: str,
-            cache: ExtractCache | None = None
+            cache: ExtractCache | None = None,
+            geonames_url: str = '',
+            gazetteer_cache: GazetteerCache | None = None
     ):
         self.pmtiles = pmtiles
         self.work_path = work_path
         self.geoboundaries_url = geoboundaries_url
         self.builds_url = builds_url
         self.cache = cache
+        self.geonames_url = geonames_url
+        self.gazetteer_cache = gazetteer_cache
 
     def clear(self) -> None:
         """Delete what a worker stopped part way left behind, and make the cache"""
         self.work_path.mkdir(parents=True, exist_ok=True)
         for path in self.work_path.iterdir():
-            if path.suffix in ('.geojson', '.pmtiles') and path.is_file():
+            if path.suffix in ('.geojson', '.pmtiles', '.gz', '.zip') and path.is_file():
                 path.unlink()
         if self.cache is not None:
             self.cache.check(self.work_path)
+        if self.gazetteer_cache is not None:
+            self.gazetteer_cache.check(self.work_path)
 
     async def handle(self, job: MapJob) -> dict | Extract:
         """A quick job's result, or an extract's file, which the caller deletes once sent if it is temporary"""
@@ -49,6 +55,30 @@ class MapHandlers:
     async def outlines(self, job: MapJob) -> dict:
         about, outlines = await download_outlines(self.geoboundaries_url, job.payload['code'], job.payload['level'])
         return {'about': about, 'outlines': outlines}
+
+    async def gazetteer(self, job: MapJob) -> Extract:
+        """GeoNames' places for a country or the world (download_gazetteer), from the cache while kept there"""
+        if not self.geonames_url:
+            raise MapRegionError("This map worker has no GEONAMES_URL")
+        path = self.work_path / f'gazetteer-{job.key}.tsv.gz'
+        if self.gazetteer_cache is None:
+            await self._download_gazetteer(job, path)
+            return Extract(path, None, None)
+        async with self.gazetteer_cache.holding(job.key):
+            kept = self.gazetteer_cache.find(job.key, fresh=bool(job.payload.get('fresh')))
+            if kept is None:
+                logger.info(f"Downloading GeoNames' places for {job.key}")
+                kept = self.gazetteer_cache.keep(job.key, path, await self._download_gazetteer(job, path))
+            else:
+                logger.info(f"Sending GeoNames' places for {job.key} from the cache")
+            return Extract(kept, None, None, temporary=False)
+
+    async def _download_gazetteer(self, job: MapJob, path: Path) -> int:
+        try:
+            return await download_gazetteer(self.geonames_url, job.key, job.payload.get('code'), path)
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
 
     def _outline(self, job: MapJob) -> Path | None:
         """The region's outline in a file for pmtiles' --region, or None for the world"""

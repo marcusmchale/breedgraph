@@ -105,3 +105,59 @@ class ExtractCache:
         }, indent=2))
         os.replace(partial, sidecar)
         return Extract(self._file(job.key), payload['build'], payload.get('version'), temporary=False)
+
+
+class GazetteerCache:
+    """
+    GeoNames' places sent for gazetteer jobs (handlers.gazetteer), kept in the cache's gazetteer/ folder and sent again
+    rather than downloaded again while younger than max_age_days, unless a job asks for them fresh: a country removed
+    and added again, or added on another site whose worker shares the cache, is downloaded once in that time. Each key
+    has its own lock in the cache, beside the regions'.
+    """
+
+    def __init__(self, cache: ExtractCache, max_age_days: float):
+        self.cache = cache
+        self.path = cache.path / 'gazetteer'
+        self.max_age_seconds = max_age_days * 86400
+
+    def check(self, work_path: Path) -> None:
+        """Make the cache and its folder, on the work path's filesystem"""
+        self.cache.check(work_path)
+        self.path.mkdir(exist_ok=True)
+
+    def holding(self, key: str):
+        return self.cache.holding(f'gazetteer-{key}')
+
+    def _file(self, key: str) -> Path:
+        return self.path / f'{key}.tsv.gz'
+
+    def _sidecar(self, key: str) -> Path:
+        return self.path / f'{key}.json'
+
+    def find(self, key: str, fresh: bool = False) -> Path | None:
+        """The places kept for the key, unless asked for fresh, too old, or none"""
+        if fresh or not self._file(key).exists():
+            return None
+        try:
+            fetched = datetime.fromisoformat(json.loads(self._sidecar(key).read_text())['fetched'])
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+        if (datetime.now(timezone.utc) - fetched).total_seconds() > self.max_age_seconds:
+            return None
+        return self._file(key)
+
+    def keep(self, key: str, places: Path, count: int) -> Path:
+        """Move the key's places, just downloaded, into the cache, replacing those kept"""
+        self.path.mkdir(parents=True, exist_ok=True)
+        sidecar = self._sidecar(key)
+        sidecar.unlink(missing_ok=True)  # so that no sidecar describes the new file but its own
+        os.replace(places, self._file(key))
+        partial = sidecar.with_name(f'.{sidecar.name}.partial')
+        partial.write_text(json.dumps({
+            'key': key,
+            'places': count,
+            'size': self._file(key).stat().st_size,
+            'fetched': datetime.now(timezone.utc).isoformat(timespec='seconds')
+        }, indent=2))
+        os.replace(partial, sidecar)
+        return self._file(key)

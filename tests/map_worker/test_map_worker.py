@@ -11,7 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from map_worker.adapters.cache import ExtractCache
+from map_worker.adapters.cache import ExtractCache, GazetteerCache
 from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
 from map_worker.adapters.http.client import MapAPIClient
 from map_worker.domain.job import MapJob, Extract, BadJob, check
@@ -141,6 +141,13 @@ def worker(client, handlers) -> MapWorker:
     (region(key='../etc'), 'not a key'),
     (region(version='4.15.2; rm -rf /'), 'not a version'),
     (region(fresh='yes'), 'fresh is not'),
+    (job('gazetteer', 'irl', code='IE'), 'not a key'),
+    (job('gazetteer', 'IRL-ADM1', code='IE'), 'not a key'),
+    (job('gazetteer', 'IRL', code='ie'), "not a country's alpha-2 code"),
+    (job('gazetteer', 'IRL'), "not a country's alpha-2 code"),
+    (job('gazetteer', 'IRL', code='IE', url='https://example.org/IE.zip'), 'asks for no more than'),
+    (job('gazetteer', 'world', code='IE'), 'asks for no more than'),
+    (job('gazetteer', 'IRL', code='IE', fresh='yes'), 'fresh is not'),
 ])
 def test_jobs_asking_for_anything_else_than_maps_are_refused(bad, reason):
     with pytest.raises(BadJob, match=reason):
@@ -153,6 +160,10 @@ def test_jobs_asking_for_anything_else_than_maps_are_refused(bad, reason):
     region(key='USA-ADM1-USA-ADM1-3_0_0-B1', kind='size'),
     region(key='world', outline=None, minzoom=0, maxzoom=8),
     region(version='4.15.2', fresh=True),
+    job('gazetteer', 'IRL', code='IE'),
+    job('gazetteer', 'NAM', code='NA', fresh=True),
+    job('gazetteer', 'world'),
+    job('gazetteer', 'world', fresh=False),
 ])
 def test_jobs_for_maps_are_done(good):
     check(good)
@@ -432,3 +443,82 @@ async def test_a_file_without_a_build_is_sent_without_the_build_headers(tmp_path
     [put] = requests
     assert (put.method, put.url.path, put.headers['X-Map-Size']) == ('PUT', '/map_jobs/size/IRL/file', '6')
     assert 'X-Map-Build' not in put.headers and 'X-Map-Version' not in put.headers
+
+
+""" GeoNames' places, for the place search """
+
+
+def gazetteer_handlers(work, cache=None, url='https://geonames.test') -> MapHandlers:
+    handlers = MapHandlers(PmtilesCommand('pmtiles'), work, '', '', geonames_url=url, gazetteer_cache=cache)
+    handlers.clear()
+    return handlers
+
+
+def counting_downloads(monkeypatch, seconds: float = 0) -> list:
+    """GeoNames' downloads, replaced by a file written after the seconds given; the keys downloaded"""
+    downloads = []
+
+    async def download(url, key, code, output):
+        downloads.append(key)
+        await asyncio.sleep(seconds)
+        output.write_bytes(b'\x1f\x8b' + key.encode())
+        return 1
+    monkeypatch.setattr(handlers_module, 'download_gazetteer', download)
+    return downloads
+
+
+@pytest.mark.asyncio
+async def test_a_countrys_places_are_sent_as_a_file_and_deleted(work, monkeypatch):
+    downloads = counting_downloads(monkeypatch)
+    client = MockClient({'quick': [job('gazetteer', 'IRL', code='IE')]})
+    assert await worker(client, gazetteer_handlers(work)).process_next('quick')
+    assert downloads == ['IRL']
+    assert client.uploads == [('IRL', b'\x1f\x8bIRL')] and client.builds == [('IRL', None, None)]
+    assert not list(work.iterdir())
+
+
+@pytest.mark.asyncio
+async def test_places_that_cannot_be_fetched_fail_the_job(work, monkeypatch):
+    async def missing(url, key, code, output):
+        output.write_bytes(b'part')
+        raise MapRegionError("GeoNames has no XX.zip")
+    monkeypatch.setattr(handlers_module, 'download_gazetteer', missing)
+    client = MockClient({'quick': [job('gazetteer', 'XXX', code='XX'), job('gazetteer', 'IRL', code='IE')]})
+    await worker(client, gazetteer_handlers(work)).process_next('quick')
+    await worker(client, gazetteer_handlers(work, url='')).process_next('quick')
+    assert client.failures == [('gazetteer', 'XXX', 'GeoNames has no XX.zip'),
+                               ('gazetteer', 'IRL', 'This map worker has no GEONAMES_URL')]
+    assert not list(work.iterdir()), 'nothing part written is left'
+
+
+@pytest.mark.asyncio
+async def test_places_are_kept_and_sent_again_until_old_or_asked_fresh(work, tmp_path, monkeypatch):
+    downloads = counting_downloads(monkeypatch)
+    cache = GazetteerCache(ExtractCache(tmp_path / 'cache'), max_age_days=30)
+    client = MockClient({'quick': [job('gazetteer', 'IRL', code='IE'), job('gazetteer', 'IRL', code='IE'),
+                                   job('gazetteer', 'IRL', code='IE', fresh=True)]})
+    for _ in range(3):
+        assert await worker(client, gazetteer_handlers(work, cache)).process_next('quick')
+    assert downloads == ['IRL', 'IRL'], 'sent from the cache the second time, fetched fresh the third'
+    assert [upload for _, upload in client.uploads] == [b'\x1f\x8bIRL'] * 3
+    kept = tmp_path / 'cache' / 'gazetteer'
+    assert (kept / 'IRL.tsv.gz').exists() and json.loads((kept / 'IRL.json').read_text())['places'] == 1
+
+    old = GazetteerCache(ExtractCache(tmp_path / 'cache'), max_age_days=0)
+    client = MockClient({'quick': [job('gazetteer', 'IRL', code='IE')]})
+    assert await worker(client, gazetteer_handlers(work, old)).process_next('quick')
+    assert downloads == ['IRL', 'IRL', 'IRL'], 'kept longer than the cache keeps places, so fetched again'
+
+
+@pytest.mark.asyncio
+async def test_workers_sharing_a_cache_download_a_country_once(tmp_path, monkeypatch):
+    downloads = counting_downloads(monkeypatch, seconds=0.3)
+    workers = []
+    for site in ('production', 'demo'):
+        cache = GazetteerCache(ExtractCache(tmp_path / 'cache', poll_seconds=0.05), max_age_days=30)
+        workers.append(worker(MockClient({'quick': [job('gazetteer', 'IRL', code='IE')]}),
+                              gazetteer_handlers(tmp_path / site, cache)))
+    assert await asyncio.gather(*(w.process_next('quick') for w in workers)) == [True, True]
+    assert downloads == ['IRL']
+    assert [w.client.uploads for w in workers] == [[('IRL', b'\x1f\x8bIRL')]] * 2
+

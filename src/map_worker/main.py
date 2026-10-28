@@ -4,12 +4,12 @@ from pathlib import Path
 
 from map_worker.service_layer.worker import MapWorker
 from map_worker.service_layer.handlers import MapHandlers
-from map_worker.adapters.cache import ExtractCache
+from map_worker.adapters.cache import ExtractCache, GazetteerCache
 from map_worker.adapters.http.client import MapAPIClient
 from map_worker.fetching import PmtilesCommand
 from map_worker.config import (
     MAP_WORKER_AUTH_TOKEN, LOG_CONFIG, API_URL, MAP_POLL_INTERVAL, MAP_WORK_PATH, MAP_CACHE_PATH, MAP_PMTILES_COMMAND,
-    GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL
+    GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, GEONAMES_URL, GAZETTEER_CACHE_DAYS
 )
 
 import logging.config
@@ -31,7 +31,10 @@ async def run_worker(api_url: str, poll_interval: int):
     if not pmtiles.available():
         raise RuntimeError(f"The pmtiles command ({MAP_PMTILES_COMMAND}) is not installed (breedgraph docs/maps.md)")
     cache = ExtractCache(Path(MAP_CACHE_PATH)) if MAP_CACHE_PATH else None
-    handlers = MapHandlers(pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, cache=cache)
+    handlers = MapHandlers(
+        pmtiles, Path(MAP_WORK_PATH), GEOBOUNDARIES_URL, PROTOMAPS_BUILDS_URL, cache=cache, geonames_url=GEONAMES_URL,
+        gazetteer_cache=GazetteerCache(cache, GAZETTEER_CACHE_DAYS) if cache is not None else None
+    )
     handlers.clear()
     client = MapAPIClient(base_url=api_url, auth_token=MAP_WORKER_AUTH_TOKEN)
     worker = MapWorker(client=client, handlers=handlers, poll_interval=poll_interval)
