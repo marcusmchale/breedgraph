@@ -7,6 +7,9 @@
 #
 #   sudo scripts/reset_demo.sh /opt/breedgraph-demo/breedgraph-demo.env
 #
+# The dump is DEMO_DUMP_DIR: neo4j.dump, the file store's files in files/, and the site's maps in map_tiles/ and
+# map_boundaries/ (instance/demo/README.md, Setting it up).
+#
 # Run as root, by breedgraph-demo-reset.service each night: it stops and starts the site's services (its systemd target,
 # instance/demo/breedgraph-demo.target), and runs the rest as breedgraph-demo. It refuses an env file that is not the demonstration site's (BREEDGRAPH_DEMO=1) or that points at
 # production's Neo4j or Redis. With DRY_RUN=1 it prints what it would do, and runs nothing.
@@ -21,11 +24,26 @@ set -a; . "$ENV_FILE"; set +a
 [ "${BREEDGRAPH_DEMO:-}" = 1 ] || refuse "$ENV_FILE does not say BREEDGRAPH_DEMO=1"
 [ "${DB_PORT:-7687}" != 7687 ] || refuse "$ENV_FILE points at production's Neo4j (7687)"
 [ "${REDIS_PORT:-6379}" != 6379 ] || refuse "$ENV_FILE points at production's Redis (6379)"
-for name in DEMO_ROOT DEMO_DUMP_DIR DEMO_FILES_DIR DEMO_ACCOUNTS DEMO_CHECKOUT DEMO_ARCHIVE_DIR NEO4J_PACKAGE \
+for name in DEMO_ROOT DEMO_DUMP_DIR DEMO_ACCOUNTS DEMO_CHECKOUT DEMO_ARCHIVE_DIR NEO4J_PACKAGE \
     FILE_STORAGE_PATH PERSON_ERASURE_LOG_PATH TERMS_OF_USE_PATH PRIVACY_NOTICE_PATH; do
   [ -n "${!name:-}" ] || refuse "$ENV_FILE sets no $name"
 done
+DEMO_DUMP_DIR="${DEMO_DUMP_DIR%/}"
+DUMP_FILES="$DEMO_DUMP_DIR/files"
+DUMP_MAP_TILES="$DEMO_DUMP_DIR/map_tiles"
+DUMP_MAP_BOUNDARIES="$DEMO_DUMP_DIR/map_boundaries"
+# Earlier releases named the dump's folders one by one: an env file naming one elsewhere is refused, before anything is
+# stopped, rather than the reset leaving out what is there
+declare -A DUMP_PARTS=([DEMO_FILES_DIR]="$DUMP_FILES" [DEMO_MAP_TILES_DIR]="$DUMP_MAP_TILES" \
+  [DEMO_MAP_BOUNDARIES_DIR]="$DUMP_MAP_BOUNDARIES")
+for name in "${!DUMP_PARTS[@]}"; do
+  if [ -n "${!name:-}" ] && [ "${!name%/}" != "${DUMP_PARTS[$name]}" ]; then
+    refuse "$ENV_FILE sets $name to ${!name}, but the reset reads ${DUMP_PARTS[$name]}: move it there and remove" \
+      "the setting (instance/demo/README.md, Upgrades)"
+  fi
+done
 [ -f "$DEMO_DUMP_DIR/neo4j.dump" ] || refuse "no dump at $DEMO_DUMP_DIR/neo4j.dump"
+[ -d "$DUMP_FILES" ] || refuse "no files at $DUMP_FILES"
 [ -f "$DEMO_ACCOUNTS" ] || refuse "no accounts file at $DEMO_ACCOUNTS"
 DEMO_USER="${DEMO_USER:-breedgraph-demo}"
 TARGET="${DEMO_TARGET:-breedgraph-demo.target}"
@@ -66,24 +84,18 @@ else:
 EOF
 run redis-cli -h 127.0.0.1 -p "$REDIS_PORT" flushall
 as_demo mkdir -p "$FILE_STORAGE_PATH"
-as_demo rsync -a --delete "$DEMO_FILES_DIR"/ "$FILE_STORAGE_PATH"/
+as_demo rsync -a --delete "$DUMP_FILES"/ "$FILE_STORAGE_PATH"/
 as_demo find "$DEMO_ARCHIVE_DIR" -mindepth 1 -delete
 # The dump's maps (the site's world file, Ireland's region and tiles.json) over the site's, deleting the regions
-# visitors fetched. Without them, or without the settings naming them (an env file from before they were added), the
-# reset goes on: the site works without detailed maps, and a reset that stopped would leave the day's visitors' data
-# in place.
-MAPS_SET=1
-for name in DEMO_MAP_TILES_DIR DEMO_MAP_BOUNDARIES_DIR MAP_TILES_PATH MAP_BOUNDARIES_PATH; do
-  [ -n "${!name:-}" ] || MAPS_SET=0
-done
-if [ "$MAPS_SET" = 0 ]; then
-  echo "No maps restored: $ENV_FILE does not set DEMO_MAP_TILES_DIR, DEMO_MAP_BOUNDARIES_DIR, MAP_TILES_PATH" \
-    "and MAP_BOUNDARIES_PATH"
-elif [ -d "$DEMO_MAP_TILES_DIR" ] && [ -d "$DEMO_MAP_BOUNDARIES_DIR" ]; then
-  as_demo rsync -a --delete "$DEMO_MAP_TILES_DIR"/ "$MAP_TILES_PATH"/
-  as_demo rsync -a --delete "$DEMO_MAP_BOUNDARIES_DIR"/ "$MAP_BOUNDARIES_PATH"/
+# visitors fetched. Without them, or without the settings naming the site's, the reset goes on: the site works without
+# detailed maps, and a reset that stopped would leave the day's visitors' data in place.
+if [ -z "${MAP_TILES_PATH:-}" ] || [ -z "${MAP_BOUNDARIES_PATH:-}" ]; then
+  echo "No maps restored: $ENV_FILE does not set MAP_TILES_PATH and MAP_BOUNDARIES_PATH"
+elif [ -d "$DUMP_MAP_TILES" ] && [ -d "$DUMP_MAP_BOUNDARIES" ]; then
+  as_demo rsync -a --delete "$DUMP_MAP_TILES"/ "$MAP_TILES_PATH"/
+  as_demo rsync -a --delete "$DUMP_MAP_BOUNDARIES"/ "$MAP_BOUNDARIES_PATH"/
 else
-  echo "No maps in $DEMO_MAP_TILES_DIR and $DEMO_MAP_BOUNDARIES_DIR: the site's are left as they are"
+  echo "No maps in $DUMP_MAP_TILES and $DUMP_MAP_BOUNDARIES: the site's are left as they are"
 fi
 
 # 5. The site's erasure log emptied, not replayed: the people erased on the site went with its data
