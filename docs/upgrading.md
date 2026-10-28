@@ -75,18 +75,9 @@ usual upgrade, once:
    `instance/map_worker.service`, whose `ReadWritePaths` holds `/srv/map_worker`, then
    `sudo systemctl daemon-reload` and `sudo systemctl restart map_worker`: the line starting the worker in
    `/var/log/map_worker/map.log` names the cache. Remove its old work folder, which it no longer uses.
-3. **Web server, nginx.** In the server on the internal address, beside the `/map_jobs/` location
-   ([deployment.md](deployment.md), nginx):
-
-       location ^~ /demo/map_jobs/ {
-           proxy_pass http://127.0.0.1:8001/map_jobs/;
-           proxy_http_version 1.1;
-           proxy_set_header Host $host;
-       }
-
-   Where only HTTPS is open between the networks, install the release's `instance/demo/nginx-breedgraph-demo.conf` as
-   `/etc/nginx/snippets/breedgraph-demo.conf` instead, with its `/demo/map_jobs/` block uncommented and the worker
-   server's address in it (compare it with the installed one first: `diff`). Then
+3. **Web server, nginx.** Install the release's `instance/demo/nginx-breedgraph-demo.conf` as
+   `/etc/nginx/snippets/breedgraph-demo.conf`, with its `/demo/map_jobs/` block uncommented and the worker server's
+   address in it ([deployment.md](deployment.md), nginx; compare it with the installed one first: `diff`). Then
    `sudo nginx -t && sudo systemctl reload nginx`. From any other machine,
    `curl -s -o /dev/null -w '%{http_code}\n' https://<site>/demo/map_jobs/next/quick` gives 403.
 4. **Web server, the demonstration site's env and maps.** A new token, made into a file only you can read, so that it
@@ -112,8 +103,8 @@ usual upgrade, once:
    worker".
 5. **Worker server, the site's map worker.** Copy the token over (`scp -3 <web server>:demo_map_token.env <worker>:`,
    then `shred -u` it on the web server). `instance/demo/map-worker-demo.env` to `/opt/map_worker/` (mode 0600, owned
-   by root, as `map_worker.env`), with `API_URL` the web server's internal address followed by `/demo`
-   (`http://<internal address>:8080/demo`, or `https://<site>/demo` where only HTTPS is open), its paths, and the token
+   by root, as `map_worker.env`), with `API_URL` the site's address followed by `/demo` (`https://<site>/demo`), its
+   paths, and the token
    appended from the copied file (`sudo tee -a`), which is then shredded. Check the route from here:
    `curl -s -o /dev/null -w '%{http_code}\n' <API_URL>/map_jobs/next/quick` gives 401 (the site's API refusing a
    request without the token); 403 is nginx refusing this server's address, 404 or 200 nginx without the location, 502

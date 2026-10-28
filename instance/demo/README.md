@@ -91,9 +91,9 @@ production's server block) and the rest to production, as before.
    and its `demo_database_files/` to `/opt/breedgraph-demo/dump/files/`. The build's manifest holds its generated passwords:
    the site's own go in the accounts file instead.
 6. **Maps.** The site's regions are fetched by its own map worker, on the worker server, which reaches the site's API
-   through the web server's internal nginx (step 8):
-   - On the worker server, `map-worker-demo.env` to `/opt/map_worker/` (mode 0600, as production's), with the web
-     server's internal address and the site's `MAP_WORKER_AUTH_TOKEN`, and `map-worker-demo.service` to
+   at the site's address, as production's workers do (step 8):
+   - On the worker server, `map-worker-demo.env` to `/opt/map_worker/` (mode 0600, as production's), with the
+     site's address and its `MAP_WORKER_AUTH_TOKEN`, and `map-worker-demo.service` to
      `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and `sudo systemctl enable --now map-worker-demo`. It
      runs as `mapworker` from production's map worker's venv, with a work path of its own, `/srv/map_worker/work-demo`,
      and production's cache, `/srv/map_worker/cache` (docs/deployment.md, the worker server).
@@ -114,9 +114,8 @@ production's server block) and the rest to production, as before.
    `VITE_API_HOST=https://breedgraph.universityofgalway.ie/demo`, and its `dist-demo/` copied to `/var/www/demo`. The guide's
    media go in its `guide-media/` (from `public/guide-media`).
 8. **nginx.** `nginx-breedgraph-demo.conf` to `/etc/nginx/snippets/breedgraph-demo.conf`, and
-   `include snippets/breedgraph-demo.conf;` in production's server block for port 443. For the site's map worker, the
-   `/demo/map_jobs/` location in the server on the internal address (docs/deployment.md, nginx), or where only HTTPS is
-   open between the networks, the one left commented out in the snippet. Then `sudo nginx -t` and
+   `include snippets/breedgraph-demo.conf;` in production's server block for port 443, with the worker server's
+   address in its `/demo/map_jobs/` location, for the site's map worker. Then `sudo nginx -t` and
    `sudo systemctl reload nginx`. Everything is inside one `^~ /demo/` location, so production's own locations,
    regular expressions too, take nothing of the site's. It sends `X-Robots-Tag: noindex`, so that search engines leave
    the site out.
@@ -189,14 +188,10 @@ invited from the app, as anyone joins BreedGraph, and those accounts go at the n
 - `/demo/guide-media/*.vtt` is served as `text/vtt`, and the videos answer range requests (206).
 - The links in a verification email start `https://breedgraph.universityofgalway.ie/demo/`.
 - An upload shows as archived within a minute, and an analysis runs.
-- From the worker server, the site's map routes answer through the web server's internal nginx. Renewing a lease the
-  site never gave, which changes nothing, prints 409 with the site's token and 401 without it:
-
-      curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer <token>" \
-        -H 'Content-Type: application/json' -d '{"lease": "none"}' \
-        http://<web server's internal address>:8080/demo/map_jobs/builds/latest/renew
-
-  A 404 is nginx without the `/demo/map_jobs/` location, a 502 the site's API not running.
+- From the worker server, the site's map routes answer: `curl -s -o /dev/null -w '%{http_code}\n'
+  https://<site>/demo/map_jobs/next/quick` prints 401, the site's API refusing a request without the token. A 403 is
+  nginx refusing the worker server's address, a 200 nginx without the `/demo/map_jobs/` location (BreedView's page),
+  and a 502 the site's API not running. Then the map worker's log shows no warning about its polls.
 - The map shows Ireland in detail, and `/demo/tiles/world.pmtiles` answers range requests (206). Adding a country
   fetches its map through the site's map worker (`/var/log/map_worker/map-demo.log` on the worker server), and after
   the next reset its layer is gone from `/demo/tiles/tiles.json`.

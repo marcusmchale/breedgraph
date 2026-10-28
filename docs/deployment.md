@@ -8,10 +8,10 @@ README](https://github.com/marcusmchale/breedview) (Branding), `instance/` (the 
 
 ## What runs where
 
-**The web server**, `breedgraph.universityofgalway.ie`:
+**The web server**, which serves the site, at `<site>` below (e.g. `breedgraph.example.org`):
 - nginx: the site, its certificate, BreedView's build in `/var/www/breedview` and its branding in
-  `/etc/breedview/branding`; the API's public routes; the map tiles; and, on the internal network, the routes the
-  workers poll (below).
+  `/etc/breedview/branding`; the API's public routes; the map tiles; and the routes the workers poll, for the worker
+  server's address alone (below).
 - The API: uvicorn on `127.0.0.1:8000` (`instance/breedgraph.service`), as the `breedgraph` user, from
   `/opt/breedgraph/.venv`, with its environment in `/opt/breedgraph/breedgraph.env`.
 - Neo4j, running Cypher 25, and Redis.
@@ -19,22 +19,22 @@ README](https://github.com/marcusmchale/breedview) (Branding), `instance/` (the 
 - cron: the database backups and the retention run.
 - The demonstration site, if it is hosted: `instance/demo/README.md`.
 
-**The worker server**, for archive, analysis and maps, on the internal network:
+**The worker server**, for archive, analysis and maps:
 - The archive worker (`instance/archive_worker.service`) in `/opt/archive_worker`, as `archiveworker`, keeping the
   archived files in its `ARCHIVE_DESTINATION`.
 - The analysis worker (`instance/analysis_worker.service`) in `/opt/analysis_worker`, as `analysisworker`, with R.
 - The map worker (`instance/map_worker.service`) in `/opt/map_worker`, as `mapworker`, with `pmtiles`: it fetches the
-  map tiles and outlines the API needs from the internet, which the web server can't reach (maps.md), and keeps
+  map tiles and outlines the API needs from the internet, so that the web server needs no access to it (maps.md), and keeps
   what it cuts in its `MAP_CACHE_PATH`. If the demonstration site is hosted, its own map worker runs beside it
   (`instance/demo/map-worker-demo.service`), sharing the cache.
 - cron: copying the database backups and the erasure log from the web server (`scripts/sync_database_backups.sh`).
 
-The workers poll the API at their `API_URL`, an address of the web server on the internal network, with the tokens
-they share with the API. nginx there passes `/archive/`, `/analysis_jobs/` and `/map_jobs/` to the API, for the worker
-server alone:
-on a port of its own, or, where only HTTPS is open between the two networks, in the site's own server block (nginx,
-below).
-The retention run, on the web server, calls the API on `127.0.0.1:8000` directly.
+The worker server reaches the web server, and never the other way. The workers poll the API at the site's address
+(`API_URL`, `https://<site>`) with the tokens they share with the API, and nginx passes `/archive/`, `/analysis_jobs/`
+and `/map_jobs/` to the API for the worker server's address alone (nginx, below); the backup copy reads the web
+server's dumps with rsync over ssh (§3). So the worker server needs HTTPS and ssh to the web server, and the web
+server nothing of it; where the two are, and what lies between them, doesn't matter otherwise. The retention run, on
+the web server, calls the API on `127.0.0.1:8000` directly.
 
 Tested with Python 3.12, Neo4j 2026.05 (Cypher 25), Redis 7, and R 4.3 (Ubuntu 24.04's) with lme4, lmerTest,
 emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.1 and packages (§3). breedgraph and BreedView are deployed at the same version ([releasing.md](releasing.md)).
@@ -45,7 +45,7 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
   leaves the wheel and the three wheelhouses in `dist/`.
 - **BreedView, production:** its build reads `.env.production`, which git ignores:
 
-      VITE_API_HOST=https://breedgraph.universityofgalway.ie
+      VITE_API_HOST=https://<site>
       VITE_GRAPHQL_PATH=/graphql
 
   The guide's videos are in `public/guide-media`, which git ignores too; from a fresh checkout, take them from the
@@ -80,7 +80,7 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    section).
 4. **The environment.** `/opt/breedgraph/breedgraph.env`, from `instance/breedgraph.env`, which names every variable
    the API reads, owned by `breedgraph` with mode 0600:
-   - `ENVIRONMENT="production"`, `PROTOCOL="https"`, `HOST_ADDRESS="breedgraph.universityofgalway.ie"`,
+   - `ENVIRONMENT="production"`, `PROTOCOL="https"`, `HOST_ADDRESS="<site>"`,
      `HOST_PORT=443`, `VUE_PORT=443`, `SITE_PATH=''`, `COOKIE_PREFIX=''`, `SITE_NAME`.
    - Paths absolute, as the API runs from `/opt/breedgraph` and the scripts from the checkout.
    - New random values for `SECRET_KEY`, every `*_SALT` (`ACCEPTANCE_SALT` among them: the API refuses to start
@@ -168,8 +168,8 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
    `/tmp` is mounted `noexec`, that fails with `TypeError: 'NoneType' object is not callable`: install with `TMPDIR`
    set to a directory where programs may run (Installing from the wheelhouses, below).
 4. **The environments.** `/opt/archive_worker/archive_worker.env`, `/opt/analysis_worker/analysis_worker.env` and
-   `/opt/map_worker/map_worker.env`, from `instance/`, mode 0600: `API_URL` the web server's internal address
-   (`http://<internal address>:8080`, below), the token the API's environment has for each, `LOG_BASE` in
+   `/opt/map_worker/map_worker.env`, from `instance/`, mode 0600: `API_URL` the site's address (`https://<site>`),
+   the token the API's environment has for each, `LOG_BASE` in
    `/var/log/...`, for the archive worker its `ARCHIVE_DESTINATION` and for the map worker its `MAP_WORK_PATH` and
    `MAP_CACHE_PATH`.
 5. **The units.** `instance/archive_worker.service`, `instance/analysis_worker.service` and
@@ -200,7 +200,7 @@ The site's server block, with the certificate lines it has, and the demonstratio
 
     server {
         listen 443 ssl;
-        server_name breedgraph.universityofgalway.ie;
+        server_name <site>;
         # ... ssl_certificate and ssl_certificate_key, as now
 
         # the upload limit, which BreedView reports (above)
@@ -260,63 +260,35 @@ The site's server block, with the certificate lines it has, and the demonstratio
         include snippets/breedgraph-demo.conf;
     }
 
-And a server on the web server's internal address, for the worker server alone. Archived files come back to the API
-whole when users ask for them, and analysis results and map files (to 2 GB) can be large, so it sets no body limit,
-and passes bodies both ways as they arrive rather than through temporary files on the root disk:
-
-    server {
-        listen <web server's internal address>:8080;
-        allow <worker server's internal address>;
-        deny all;
-        client_max_body_size 0;
-        proxy_request_buffering off;
-        proxy_buffering off;
-        proxy_read_timeout 300s;
-        # the workers poll every few seconds, which the API's own log leaves out too; refusals still go to the error log
-        access_log off;
-
-        location ~ ^/(archive|analysis_jobs|map_jobs)/ {
-            proxy_pass http://127.0.0.1:8000;
-            # HTTP/1.1, without which nginx buffers a chunked upload whatever proxy_request_buffering says
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-        }
-        # the demonstration site's map worker, on the worker server too, to the site's API without /demo (only if
-        # the site is hosted: instance/demo/README.md)
-        location ^~ /demo/map_jobs/ {
-            proxy_pass http://127.0.0.1:8001/map_jobs/;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-        }
-        location / {
-            return 404;
-        }
-    }
-
-then `sudo nginx -t` and `sudo systemctl reload nginx`. If a firewall runs on the web server, open that port to the
-worker server only.
-
-Where only HTTPS is open between the two networks, the worker server comes to the site's own server block instead, by
-the site's name, which its `/etc/hosts` gives as the web server's own address: through the site's public address, its
-requests would arrive from that address's front, not its own. Its `API_URL` is then `https://<site name>`, the
-certificate is checked as for any visitor, and the routes are a location of the site's server block, with the same
-settings as the server above:
+And, in the same server block, the routes the workers poll, for the worker server's address alone: the tokens
+authenticate the workers, and the address keeps everyone else from trying. Archived files come back to the API whole
+when users ask for them, and analysis results and map files (to 2 GB) can be large, so they set no body limit, and pass
+bodies both ways as they arrive rather than through temporary files on the root disk:
 
     location ~ ^/(archive|analysis_jobs|map_jobs)/ {
-        allow <worker server's internal address>;
+        allow <worker server's address>;
         deny all;
         proxy_pass http://127.0.0.1:8000;
+        # HTTP/1.1, without which nginx buffers a chunked upload whatever proxy_request_buffering says
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         client_max_body_size 0;
         proxy_request_buffering off;
         proxy_buffering off;
         proxy_read_timeout 300s;
+        # the workers poll every few seconds, which the API's own log leaves out too; refusals still go to the error log
         access_log off;
     }
 
-The demonstration site's map worker then comes to the location in its snippet (`nginx-breedgraph-demo.conf`), left
-commented out there for this case.
+The demonstration site's snippet has the same for its map worker, at `/demo/map_jobs/`. Then `sudo nginx -t` and
+`sudo systemctl reload nginx`.
+
+nginx allows by the address a request comes from. Where the site's name resolves, from the worker server, to something
+in front of the web server, such as a proxy or a load balancer, the workers' requests come from that instead: give the
+worker server the web server's own address for the name (in its `/etc/hosts`), so that it connects directly, the
+certificate still checked as for any visitor. From the worker server,
+`curl -s -o /dev/null -w '%{http_code}\n' https://<site>/map_jobs/next/quick` then gives 401, the API refusing a request
+without the token; from anywhere else, 403.
 
 ## Upgrading to a new release
 
