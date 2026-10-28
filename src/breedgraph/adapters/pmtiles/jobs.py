@@ -60,6 +60,26 @@ class MapJobs:
                 warned = True
             await asyncio.sleep(self.poll_seconds)
 
+    async def take_file(self, kind: str, key: str, payload: dict, output: Path) -> dict:
+        """
+        Wait for a job whose result is a file (receive_file), and move the file to output, which is in the directory it
+        is received into; returns the job's result. A done job whose file is still to be taken is joined, as by a
+        process resumed after a restart, and one whose file is gone (taken already, or deleted as left too long) is
+        asked for again.
+        """
+        while True:
+            result = await self.run(kind, key, payload, reuse_done=True)
+            upload = output.parent / result['file']
+            if upload.exists():
+                break
+            logger.warning(f"The map worker's {kind} file for {key} is no longer in {output.parent}, so it is asked for again")
+            await self.state_store.delete_map_job(kind, key)
+        os.replace(upload, output)
+        await self.state_store.delete_map_job(kind, key)
+        for other in output.parent.glob(f'.{key}.*{UPLOAD_SUFFIX}'):
+            other.unlink(missing_ok=True)
+        return result
+
 
 class WorkerBoundaries(GeoBoundaries):
     """The outlines the map worker downloads, which the API keeps as it receives them (receive_result)"""
@@ -129,18 +149,7 @@ class WorkerPmtiles(PmtilesCommand):
         if key is None:
             raise ValueError("The map worker's jobs need the region's key")
         payload = self._payload(build, outline, minzoom, maxzoom) | {'version': version, 'fresh': fresh}
-        while True:
-            result = await self.jobs.run('extract', key, payload, reuse_done=True)
-            upload = output.parent / result['file']
-            if upload.exists():
-                break
-            # taken already, or deleted as left too long: extracted again
-            logger.warning(f"The map worker's extract of {key} is no longer in {output.parent}, so it is asked for again")
-            await self.jobs.state_store.delete_map_job('extract', key)
-        os.replace(upload, output)
-        await self.jobs.state_store.delete_map_job('extract', key)
-        for other in output.parent.glob(f'.{key}.*{UPLOAD_SUFFIX}'):
-            other.unlink(missing_ok=True)
+        result = await self.jobs.take_file('extract', key, payload, output)
         if result.get('build'):
             return result['build'], result.get('version')
         return build, version
@@ -161,9 +170,9 @@ def sources(
     return WorkerPmtiles(jobs), WorkerBuilds(build, jobs), WorkerBoundaries(boundaries_path, jobs)
 
 
-def sweep_uploads(tiles_path: Path) -> None:
+def sweep_uploads(*directories: Path) -> None:
     """Delete uploads left by requests interrupted long ago: one under way is renewed by its job, or retried"""
-    for directory in (tiles_path, tiles_path / REGIONS_DIRECTORY):
+    for directory in directories:
         for path in directory.glob(f'.*{UPLOAD_SUFFIX}'):
             if time.time() - path.stat().st_mtime > UPLOAD_KEEP_SECONDS:
                 path.unlink(missing_ok=True)
@@ -239,17 +248,40 @@ async def receive_extract(
         version: str | None = None
 ) -> None:
     """
-    Keep an extract's file as it arrives, under a name the API makes from the job, beside where it is moved to
-    (WorkerPmtiles.extract), and finish the job with it and the build and version it was cut from. Deleted unless the
-    job finishes with it.
+    Keep an extract's file as it arrives, beside where it is moved to (WorkerPmtiles.extract), and finish the job with
+    it and the build and version it was cut from
     """
-    if not await state_store.renew_map_job('extract', key, lease, lease_seconds):
-        raise LeaseNotHeld(f"extract {key}")
     if build is not None and not BUILD.fullmatch(build):
         raise BadUpload(f"not one of Protomaps' builds: {build!r}")
     if version and not VERSION.fullmatch(version):
         raise BadUpload(f"not a version of the tiles: {version!r}")
     directory = tiles_path if key == WORLD else tiles_path / REGIONS_DIRECTORY
+    await receive_file(
+        state_store, 'extract', key, lease, lease_seconds, directory, size, chunks, PMTILES_MAGIC, 'PMTiles file',
+        extra={'build': build, 'version': version or None}
+    )
+
+
+async def receive_file(
+        state_store: AbstractStateStore,
+        kind: str,
+        key: str,
+        lease: str,
+        lease_seconds: int,
+        directory: Path,
+        size: int,
+        chunks: AsyncIterator[bytes],
+        magic: bytes,
+        what: str,
+        extra: dict | None = None
+) -> None:
+    """
+    Keep a job's file as it arrives, under a name the API makes from the job, in the directory it is taken from
+    (MapJobs.take_file), and finish the job with it: the size announced, and a file starting as one of its kind does
+    (magic). Deleted unless the job finishes with it.
+    """
+    if not await state_store.renew_map_job(kind, key, lease, lease_seconds):
+        raise LeaseNotHeld(f"{kind} {key}")
     directory.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(directory).free < size:
         raise NoSpace(f"{size} bytes needed and {shutil.disk_usage(directory).free} free")
@@ -263,16 +295,15 @@ async def receive_extract(
                 received += len(chunk)
                 if received > size:
                     raise BadUpload(f"more than the {size} bytes announced")
-                if len(head) < len(PMTILES_MAGIC):
-                    head += chunk[:len(PMTILES_MAGIC) - len(head)]
+                if len(head) < len(magic):
+                    head += chunk[:len(magic) - len(head)]
                 await f.write(chunk)
         if received != size:
             raise BadUpload(f"{received} bytes of the {size} announced")
-        if head != PMTILES_MAGIC:
-            raise BadUpload("not a PMTiles file")
-        result = {'file': name, 'size': size, 'build': build, 'version': version or None}
-        if not await state_store.finish_map_job('extract', key, lease, result=result):
-            raise LeaseNotHeld(f"extract {key}")
+        if head != magic:
+            raise BadUpload(f"not a {what}")
+        if not await state_store.finish_map_job(kind, key, lease, result={'file': name, 'size': size, **(extra or {})}):
+            raise LeaseNotHeld(f"{kind} {key}")
         finished = True
     finally:
         if not finished:

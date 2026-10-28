@@ -73,9 +73,10 @@ async def post_result(request: Request, kind: str, key: str, body: JobResult):
     return Response(status_code=204)
 
 
-@router.put('/extract/{key}/file')
-async def upload_extract(
+@router.put('/{kind}/{key}/file')
+async def upload_file(
         request: Request,
+        kind: str,
         key: str,
         x_map_lease: str = Header(...),
         x_map_size: int = Header(...),
@@ -83,9 +84,11 @@ async def upload_extract(
         x_map_version: str | None = Header(None)
 ):
     """
-    An extract's file, kept in MAP_TILES_PATH as it arrives and moved into place by the API's waiting process, with
-    the build and version of the tiles it was cut from
+    A job's file, kept as it arrives and moved into place by the API's waiting process: an extract's in MAP_TILES_PATH,
+    with the build and version of the tiles it was cut from
     """
+    if kind != 'extract':
+        raise HTTPException(status_code=404, detail=f"No file is sent for {kind} jobs")
     try:
         await receive_extract(
             request.app.bus.state_store, Path(config.MAP_TILES_PATH), config.MAP_JOB_LEASE_SECONDS,
@@ -94,10 +97,10 @@ async def upload_extract(
     except LeaseNotHeld:
         raise not_held()
     except BadUpload as e:
-        logger.error(f"Refused the map worker's extract of {key}: {e}")
+        logger.error(f"Refused the map worker's {kind} file for {key}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except NoSpace as e:
-        logger.error(f"No room for the map worker's extract of {key}: {e}")
+        logger.error(f"No room for the map worker's {kind} file for {key}: {e}")
         raise HTTPException(status_code=507, detail=f"Not enough disk space: {e}")
     return Response(status_code=204)
 

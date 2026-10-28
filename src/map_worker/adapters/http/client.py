@@ -77,14 +77,15 @@ class MapAPIClient(AbstractMapAPIClient):
                     "X-Map-Lease": job.lease,
                     # the size of the file opened, which a worker sharing the cache may replace meanwhile
                     "X-Map-Size": str(os.fstat(f.fileno()).st_size),
+                } | ({
                     "X-Map-Build": extract.build,
                     "X-Map-Version": extract.version or ''
-                },
+                } if extract.build is not None else {}),
                 content=chunks(),
                 timeout=UPLOAD_TIMEOUT
             )
         if response.status_code == 409:
-            logger.info(f"The extract of {job.key} is no longer leased to this worker: its file is dropped")
+            logger.info(f"The {job.kind} job for {job.key} is no longer leased to this worker: its file is dropped")
             return False
         if response.status_code in (400, 507):
             try:

@@ -179,11 +179,11 @@ class MapWorker:
                 await self.client.upload(job, extract)
                 return
             except UploadRefused as e:
-                logger.error(f"The API refused the extract of {job.key}: {e}")
+                logger.error(f"The API refused the {job.kind} file for {job.key}: {e}")
                 await self.client.post_failure(job, f"The API refused the file: {e}")
                 return
             except httpx.HTTPError as e:
-                logger.warning(f"Sending the extract of {job.key} failed (attempt {attempt}): {e}")
+                logger.warning(f"Sending the {job.kind} file for {job.key} failed (attempt {attempt}): {e}")
             await asyncio.sleep(self.upload_retry_seconds)
             try:
                 if not await self.client.renew(job):

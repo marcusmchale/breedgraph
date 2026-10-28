@@ -414,3 +414,21 @@ async def test_the_client_leases_renews_and_uploads(tmp_path):
     assert (put.headers['X-Map-Lease'], put.headers['X-Map-Size']) == ('abc', '5')
     assert (put.headers['X-Map-Build'], put.headers['X-Map-Version']) == (BUILD, '4.15.2')
     assert file.exists(), 'the caller deletes it, if it is temporary'
+
+
+@pytest.mark.asyncio
+async def test_a_file_without_a_build_is_sent_without_the_build_headers(tmp_path):
+    requests = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(204)
+
+    client = MapAPIClient('https://breedgraph.example/', auth_token='token')
+    client.client = httpx.AsyncClient(transport=httpx.MockTransport(answer))
+    file = tmp_path / 'file.gz'
+    file.write_bytes(b'\x1f\x8bdata')
+    assert await client.upload(MapJob('size', 'IRL', 'abc', 300, {}), Extract(file, None, None))
+    [put] = requests
+    assert (put.method, put.url.path, put.headers['X-Map-Size']) == ('PUT', '/map_jobs/size/IRL/file', '6')
+    assert 'X-Map-Build' not in put.headers and 'X-Map-Version' not in put.headers

@@ -112,6 +112,17 @@ async def test_an_extract_is_kept_under_a_name_the_api_makes(client, jobs):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_no_file_is_taken_for_a_kind_that_sends_none(client, jobs):
+    await jobs.enqueue_map_job('size', 'LUX', {})
+    job = await lease(client, 'quick')
+    response = await client.put("/map_jobs/size/LUX/file", content=PMTILES, headers=worker_headers(**{
+        'X-Map-Lease': job['lease'], 'X-Map-Size': str(len(PMTILES))
+    }))
+    assert response.status_code == 404
+    assert (await jobs.get_map_job('size', 'LUX'))['leased'], 'the job is left as it was'
+
+
+@pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize('content, size, status', [
     (PMTILES, len(PMTILES) + 1, 400),  # shorter than announced
     (PMTILES, len(PMTILES) - 1, 400),  # longer

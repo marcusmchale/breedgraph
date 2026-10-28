@@ -18,19 +18,16 @@ from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.pmtiles import map_regions as map_regions_module
 from breedgraph.adapters.pmtiles.regions import Region
 from breedgraph.service_layer.infrastructure.map_regions import MapState, MapSectionStatus
-from breedgraph.adapters.pmtiles.jobs import (
-    receive_result, receive_extract, sources, LeaseNotHeld, BadUpload, NoSpace, MapRegionError
-)
+from breedgraph.adapters.pmtiles.jobs import sources, MapRegionError
 from map_worker.adapters.cache import ExtractCache
-from map_worker.adapters.http.abstract_client import AbstractMapAPIClient, UploadRefused
-from map_worker.domain.job import MapJob
 from map_worker.fetching import PmtilesCommand
 from map_worker.service_layer import handlers as handlers_module
 from map_worker.service_layer.handlers import MapHandlers
 from map_worker.service_layer.worker import MapWorker
 
+from tests.breedgraph.integration.services.map_worker_harness import InProcessClient, until
+
 BUILD = 'https://build.protomaps.com/20261026.pmtiles'
-LEASE_SECONDS = 1.5
 
 # The outline's file is named after its region: the API's own (USA-ADM0, USA-ADM1-a), or the map worker's (size-USA,
 # extract-USA-ADM1-a), whose countries are named by code alone
@@ -95,51 +92,6 @@ OUTLINES = {
 IN_A, ALSO_IN_A, IN_B1, IN_B2, IN_LUX = (35, -95), (36, -96), (35, -87), (35, -82), (49.6, 6.1)
 
 
-class InProcessClient(AbstractMapAPIClient):
-    """The map worker's client, calling what the API's routes call (entrypoints/fastapi/map_jobs.py)"""
-
-    def __init__(self, maps: 'Maps'):
-        self.maps = maps
-        self.payloads = []
-
-    async def lease(self, lane):
-        leased = await self.maps.state_store.lease_map_job(lane, LEASE_SECONDS)
-        if leased is None:
-            return None
-        kind, key, lease, payload = leased
-        self.payloads.append((kind, key, payload))
-        return MapJob(kind, key, lease, LEASE_SECONDS, payload)
-
-    async def renew(self, job):
-        return await self.maps.state_store.renew_map_job(job.kind, job.key, job.lease, LEASE_SECONDS)
-
-    async def post_result(self, job, result):
-        try:
-            await receive_result(
-                self.maps.state_store, self.maps.boundaries, LEASE_SECONDS, job.kind, job.key, job.lease, result
-            )
-        except LeaseNotHeld:
-            return False
-        return True
-
-    async def post_failure(self, job, error):
-        return await self.maps.state_store.finish_map_job(job.kind, job.key, job.lease, error=error)
-
-    async def upload(self, job, extract):
-        async def chunks():
-            yield extract.path.read_bytes()
-        try:
-            await receive_extract(
-                self.maps.state_store, self.maps.tiles, LEASE_SECONDS, job.key, job.lease,
-                extract.path.stat().st_size, chunks(), build=extract.build, version=extract.version
-            )
-        except LeaseNotHeld:
-            return False
-        except (BadUpload, NoSpace) as e:
-            raise UploadRefused(str(e))
-        return True
-
-
 class Maps:
     def __init__(self, path: Path, state_store, worker: bool = False):
         self.state_store = state_store
@@ -163,7 +115,7 @@ class Maps:
             python=sys.executable, name=NAME, config=str(self.config), log=str(self.log)
         ))
         self.command.chmod(0o755)
-        self.client = InProcessClient(self)
+        self.client = InProcessClient(state_store, self.boundaries, self.tiles)
         self.work = path / 'work'
         self.cache = path / 'cache'
         self.map_worker: MapWorker | None = None
@@ -221,14 +173,6 @@ async def state(regions: PmtilesMapRegions, code: str) -> tuple:
     """The state of the country's maps, and of its sections', as the location map is told them"""
     status = await regions.status(code)
     return status.state, [(section.name, section.state, section.error) for section in status.sections]
-
-
-async def until(condition, seconds: float = 10):
-    for _ in range(int(seconds / 0.05)):
-        if condition():
-            return
-        await asyncio.sleep(0.05)
-    raise TimeoutError("The condition was not met")
 
 
 async def fake_outlines(url: str, code: str, level: str):

@@ -34,11 +34,11 @@ class MapJob:
 @dataclass
 class Extract:
     """
-    An extract's file, with the build and version of the tiles it was cut from: a temporary file is deleted once sent,
-    one kept in the cache is not
+    A file sent back for a job, an extract's with the build and version of the tiles it was cut from: a temporary file
+    is deleted once sent, one kept in the cache is not
     """
     path: Path
-    build: str
+    build: str | None
     version: str | None
     temporary: bool = True
 

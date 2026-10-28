@@ -118,7 +118,7 @@ class PmtilesMapRegions(AbstractMapRegions):
             logger.info("Detailed maps are fetched by the map worker")
             if not config.MAP_WORKER_AUTH_TOKEN:
                 logger.warning("MAP_WORKER is set but MAP_WORKER_AUTH_TOKEN is empty, so no map worker can fetch them")
-            await asyncio.to_thread(sweep_uploads, self.tiles_path)
+            await asyncio.to_thread(sweep_uploads, self.tiles_path, self.tiles_path / REGIONS_DIRECTORY)
         elif not self.pmtiles.available():
             if self.pmtiles.command:
                 logger.warning(
