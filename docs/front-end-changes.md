@@ -5,7 +5,7 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, several accesses to a team in an invitation at `070eb3c`, and the place search from GeoNames at `8fa9765`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, several accesses to a team in an invitation at `070eb3c`, the place search from GeoNames at `8fa9765`, and a licence before release with the standard licences at `d5815a8`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
@@ -26,41 +26,6 @@ set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
 It builds the API's schema and validates every operation in the front end's `.graphql` files, with the fragments each uses, and exits with 1 if any fails.
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
-
-## A licence before a study's data is released
-
-A study released beyond private, or with a dataset released beyond private, must have a licence
-(`docs/licences.md` §1). The API refuses, as the unit of work commits, any change that would leave one without:
-setting the release of the study or a dataset (`controlsSetRelease`, bulk control), creating a dataset released beyond
-private, a control transfer or renouncing that widens a release, and removing the licence of a released study. The
-error names the study by id: "Study 12 has no licence: a study, and its datasets, can be released beyond the teams that
-hold them only once the study has a licence". Files the data cites are not held to it.
-
-Work in breedview:
-- The study modals say a licence is needed before the study or its datasets are released beyond the team, and offer
-  the standard licences first (below).
-- Release menus, bulk control and dataset creation show the API's refusal as it is.
-- Removing a released study's licence is refused: the update modal can say so before the request.
-
-## Standard licences and the ontology's licence
-
-Every deployment now has two standard licences, CC BY 4.0 and CC0 1.0: legal references without controls
-(`docs/licences.md` §6). `referencesStandardLicences` lists them, CC BY 4.0 first, to anyone. `controlsControllers`
-gives each a controller with `fixed: true`, no controls, release `PUBLIC` and access `[READ]` alone, as it does any
-entity without controls (`docs/read-access.md`, rule 11): no one can edit or remove it, set its release or transfer
-it, and the API refuses with "... has no controls, so no one can change it". The reference search finds them as any
-public reference.
-
-`ontologyCommitVersion` keeps the latest version's licence when `licenceId` is null or left out, and the first
-version has CC BY 4.0, so the ontology's licence can be changed but not removed.
-
-Work in breedview:
-- A reference whose controller has no controls shows no controller badge or release menu, and no edit or delete
-  buttons: its text is fixed.
-- The licence pickers (studies, the ontology's commit form) list the standard licences first.
-- The commit form starts from the current licence, as it does, and drops its Remove button; a note on changing it:
-  entries contributed under CC BY 4.0, and the CRediT roles, stay under CC BY 4.0 with their attribution, whatever a
-  new version names.
 
 ## Scale categories on the scale
 
