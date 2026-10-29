@@ -76,6 +76,8 @@ BreedGraph records who entered or changed each record, and when, but who did it 
 
 An account with no Person record linked to it is not named at all.
 
+What you add to the shared ontology is public, under the ontology's licence, and is credited to the contributors to the BreedGraph ontology as a whole, not to you by name.
+
 To link your ORCID iD, you sign in at ORCID, which sends your browser back to us with your iD, signed by ORCID so that we can check it. It includes your name, which we do not keep. ORCID also gives your browser an access token, which your browser does not pass on to us.
 
 ## If you are invited
@@ -94,7 +96,9 @@ If you send a message, your name and email address are given to the recipient.
 
 ## Research data
 
-Research data, such as datasets, files and analyses, is held by the teams it is submitted for, and those who submit it decide how widely it is released: to their team only, which is the default, to all signed-in users, or to everyone. The team's administrators can change this at any time. Research data describes plants, samples, locations and measurements, and should not include personal data.
+Research data, such as datasets, files and analyses, is held by the teams it is submitted for, and those who submit it decide how widely it is released: to their team only, which is the default, to all signed-in users, or to everyone. The team's administrators can change this at any time. Research data describes plants, samples, locations and measurements, and should not include personal data: once released beyond the team, it can be reused by others, under a study's licence or our Terms of Use, and once released to everyone, by anyone.
+
+Licences and the Terms of Use never cover personal data. Records crediting people are not released under them, and are shown only as described above.
 
 ## When you use the website
 

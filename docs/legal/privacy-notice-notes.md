@@ -24,6 +24,12 @@ and where, and the admins see who on the site, where they may. A copy in a mailb
 deletion or a Person's erasure. An invitation still names who invites, and a contact message its sender, whose name
 is their point.
 
+Also since then (29 October 2026), the Terms of Use set out the terms of data released beyond its team: study
+data under its study's licence, other information released to everyone under CC BY 4.0, and the ontology under CC BY
+4.0. "Research data" now says that released data can be reused by others, which is why it should hold no personal
+data, and that licences and the Terms never cover personal data. "Who entered or changed data" says that ontology
+contributions are credited to the contributors as a whole, not by name.
+
 Points to confirm:
 
 1. **Lawful basis.** Consent (Art. 6(1)(a)) for account data and Person records; public task (Art. 6(1)(e)) for server

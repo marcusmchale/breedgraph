@@ -9,6 +9,13 @@ They describe the system as implemented: see `docs/person.md` for Person records
 and study licences are accepted, and `docs/read-access.md` for who can read what. Text in [square brackets] is a fact
 to fill in before publishing.
 
+## Other deployments
+
+The texts are written for the University's deployment. Another deployment publishes its own copies (below), and
+adapts what depends on its context. One supporting a consortium, say, whose agreement already sets how its members use
+and release each other's data, replaces the Terms' "Other information released beyond its team" with what the agreement
+says, or refers to it, and names its own operator and contacts throughout.
+
 ## Publishing
 
 The API serves the published copies, `src/breedgraph/legal/privacy_notice.md` and
