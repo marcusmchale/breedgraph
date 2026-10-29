@@ -30,7 +30,7 @@ def test_the_map_workers_template_names_every_variable_it_reads():
 def test_the_demonstration_sites_template_has_no_orcid_client():
     """ORCID sends people back only to the redirect its client was registered with, production's"""
     settings = dict(re.findall(r'^([A-Z][A-Z0-9_]+)="(.*)"$', (ROOT / 'instance/demo/breedgraph-demo.env').read_text(), re.MULTILINE))
-    assert (settings['ORCID_CLIENT_ID'], settings['ORCID_CLIENT_SECRET']) == ('', '')
+    assert settings['ORCID_CLIENT_ID'] == ''
 
 
 def test_the_password_policy_reads_its_settings_as_numbers(monkeypatch):

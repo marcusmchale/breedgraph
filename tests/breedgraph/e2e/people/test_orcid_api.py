@@ -4,34 +4,22 @@ import pytest
 import pytest_asyncio
 
 from breedgraph import config
-from breedgraph.adapters.orcid import HttpxOrcidService
+from breedgraph.adapters.orcid import OidcOrcidService
 from breedgraph.entrypoints.fastapi.graphql.decorators import GQLStatus
 from breedgraph.service_layer.handlers import handlers
-from breedgraph.service_layer.infrastructure.orcid import AbstractOrcidService
 
 from tests.breedgraph.e2e.people.post_methods import _post
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.person_builder import PersonBuilder
-
-
-class FakeOrcidService(AbstractOrcidService):
-    """Signs in whoever presents a code, as the ORCID iD the code names"""
-
-    @property
-    def configured(self) -> bool:
-        return True
-
-    def authorization_url(self, state: str) -> str:
-        return f"https://sandbox.orcid.org/oauth/authorize?state={state}"
-
-    async def verified_orcid(self, code: str) -> str:
-        return code
+from tests.breedgraph.utilities.orcid_tokens import configure_orcid, id_token
 
 
 @pytest.fixture(autouse=True)
-def fake_orcid(monkeypatch):
-    monkeypatch.setitem(handlers.dependencies, 'orcid_service', FakeOrcidService())
+def orcid(monkeypatch, tmp_path):
+    """ORCID sign-in as configured, with a key made for the tests held as ORCID's, so ORCID is not contacted"""
+    configure_orcid(monkeypatch, tmp_path)
+    monkeypatch.setitem(handlers.dependencies, 'orcid_service', OidcOrcidService())
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
@@ -55,12 +43,20 @@ async def start(client, token) -> dict:
     return get_verified_payload(response, "peopleStartOrcidLink")
 
 
-async def complete(client, token, code, state) -> dict:
+async def sign_in(client, token) -> tuple[str, str]:
+    """The state of a sign-in started, and the nonce ORCID is asked to put in the id_token"""
+    payload = await start(client, token)
+    assert_payload_success(payload)
+    query = parse_qs(urlparse(payload['result']).query)
+    return query['state'][0], query['nonce'][0]
+
+
+async def complete(client, token, id_token, state) -> dict:
     response = await _post(
         client, token,
-        " mutation ( $code: String!, $state: String! ) { peopleCompleteOrcidLink( code: $code, state: $state ) "
+        " mutation ( $idToken: String!, $state: String! ) { peopleCompleteOrcidLink( idToken: $idToken, state: $state ) "
         " { status, result, errors { name, message } } } ",
-        {"code": code, "state": state}
+        {"idToken": id_token, "state": state}
     )
     return get_verified_payload(response, "peopleCompleteOrcidLink")
 
@@ -70,21 +66,16 @@ async def my_orcid(client, token):
     return get_verified_payload(response, "peopleMyPerson")['result']['orcid']
 
 
-def state_from(payload) -> str:
-    assert_payload_success(payload)
-    return parse_qs(urlparse(payload['result']).query)['state'][0]
-
-
 @pytest.mark.asyncio(loop_scope="session")
 async def test_link_and_remove_orcid(client, login_token_factory, uow_factory, orcid_context):
     token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
-    state = state_from(await start(client, token))
+    state, nonce = await sign_in(client, token)
 
-    assert_payload_success(await complete(client, token, '0000-0002-1825-0097', state))
+    assert_payload_success(await complete(client, token, id_token(nonce, sub='0000-0002-1825-0097'), state))
     assert await my_orcid(client, token) == '0000-0002-1825-0097'
 
     # Each state is used once
-    payload = await complete(client, token, '0000-0002-1825-0097', state)
+    payload = await complete(client, token, id_token(nonce, sub='0000-0002-1825-0097'), state)
     assert payload['status'] == GQLStatus.ERROR.name
 
     response = await _post(client, token, " mutation { peopleRemoveOrcid { status, result, errors { name, message } } } ")
@@ -96,10 +87,24 @@ async def test_link_and_remove_orcid(client, login_token_factory, uow_factory, o
 async def test_state_belongs_to_the_user_who_started(client, login_token_factory, uow_factory, orcid_context):
     first_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
     second_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
-    state = state_from(await start(client, first_token))
+    state, nonce = await sign_in(client, first_token)
 
-    payload = await complete(client, second_token, '0000-0002-1694-233X', state)
+    payload = await complete(client, second_token, id_token(nonce, sub='0000-0002-1694-233X'), state)
     assert payload['status'] == GQLStatus.ERROR.name
+    assert await my_orcid(client, second_token) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_id_token_must_hold_the_nonce_of_the_state(client, login_token_factory, uow_factory, orcid_context):
+    """An id_token ORCID gave someone else, or for another sign-in, does not link its iD"""
+    first_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
+    second_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
+    _, first_nonce = await sign_in(client, first_token)
+    second_state, _ = await sign_in(client, second_token)
+
+    payload = await complete(client, second_token, id_token(first_nonce, sub='0000-0001-5109-3700'), second_state)
+    assert payload['status'] == GQLStatus.ERROR.name
+    assert 'could not be verified' in payload['errors'][0]['message']
     assert await my_orcid(client, second_token) is None
 
 
@@ -108,9 +113,11 @@ async def test_orcid_linked_once(client, login_token_factory, uow_factory, orcid
     first_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
     second_token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
     orcid = '0000-0003-1415-9269'
-    assert_payload_success(await complete(client, first_token, orcid, state_from(await start(client, first_token))))
+    state, nonce = await sign_in(client, first_token)
+    assert_payload_success(await complete(client, first_token, id_token(nonce, sub=orcid), state))
 
-    payload = await complete(client, second_token, orcid, state_from(await start(client, second_token)))
+    state, nonce = await sign_in(client, second_token)
+    payload = await complete(client, second_token, id_token(nonce, sub=orcid), state)
     assert payload['status'] == GQLStatus.ERROR.name
     assert 'already linked' in payload['errors'][0]['message']
 
@@ -126,7 +133,8 @@ async def test_requires_linked_person(client, login_token_factory, uow_factory, 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_invalid_orcid_refused(client, login_token_factory, uow_factory, orcid_context):
     token = login_token_factory(user_id=await linked_user(uow_factory, orcid_context))
-    payload = await complete(client, token, 'not-an-orcid', state_from(await start(client, token)))
+    state, nonce = await sign_in(client, token)
+    payload = await complete(client, token, id_token(nonce, sub='not-an-orcid'), state)
     assert payload['status'] == GQLStatus.ERROR.name
 
 
@@ -135,8 +143,7 @@ async def test_the_profile_is_told_whether_an_orcid_id_can_be_linked(client, log
     """Only where the site has an ORCID client: not on the demonstration site, whose ORCID would send people elsewhere"""
     token = login_token_factory(await AccountBuilder(uow_factory).account())
     query = " query { peopleOrcidLinking { status, result, errors { name, message } } } "
-    monkeypatch.setattr(bus, 'orcid_service', FakeOrcidService())
+    monkeypatch.setattr(bus, 'orcid_service', OidcOrcidService())
     assert get_verified_payload(await _post(client, token, query), "peopleOrcidLinking")['result'] is True
-    monkeypatch.setattr(bus, 'orcid_service', HttpxOrcidService())
     monkeypatch.setattr(config, 'ORCID_CLIENT_ID', None)
     assert get_verified_payload(await _post(client, token, query), "peopleOrcidLinking")['result'] is False

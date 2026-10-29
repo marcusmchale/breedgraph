@@ -330,28 +330,30 @@ without the token; from anywhere else, 403.
 ## ORCID linking
 
 Users link a verified ORCID iD to their Person record by signing in at ORCID (person.md, ORCID). Their browser goes to
-ORCID, and ORCID sends it back to the site's `/orcid` page with a code, which the API exchanges for the iD with
-`POST https://orcid.org/oauth/token`. So the web server needs outbound HTTPS to `orcid.org`, unlike anything else
-BreedGraph does from it. Until it has that, leave `ORCID_CLIENT_ID` empty: the profile then says linking isn't
-available on the site (`peopleOrcidLinking`), rather than offering it and failing at the end. To turn it on:
+ORCID, and ORCID sends it back to the site's `/orcid` page with an id_token, a statement of the iD that ORCID signed.
+The API checks the signature with ORCID's public key, which the release carries, so the web server never contacts
+ORCID and needs no outbound access. Until a client is registered, leave `ORCID_CLIENT_ID` empty: the profile then says
+linking isn't available on the site (`peopleOrcidLinking`). To turn it on:
 
-1. Check the web server reaches ORCID: a refusal, quickly, rather than a timeout:
-
-       curl -sS -o /dev/null -w '%{http_code}\n' --max-time 20 -X POST https://orcid.org/oauth/token
-
-   prints `400` or `401`. Where the network gives a proxy instead, set `HTTPS_PROXY` in the API's unit, which httpx
-   uses.
-2. Register a Public API client (free) on `orcid.org`, not the sandbox, whose accounts, clients and iDs are for
+1. Register a Public API client (free) on `orcid.org`, not the sandbox, whose accounts, clients and iDs are for
    testing only: from Developer Tools in an ORCID record, which is a person's (the client stays with that record), or
    through the organisation's ORCID membership where it has one. Give the application's name and website, and as its
    only redirect URI the site's `https://<host><SITE_PATH>/orcid` exactly. ORCID sends people back only to a registered
-   URI.
-3. In the API's env file: `ORCID_CLIENT_ID` and `ORCID_CLIENT_SECRET` from the registration (the secret moved as the
-   other secrets are), `ORCID_BASE_URL="https://orcid.org"`, and `ORCID_REDIRECT_URI` set to the registered URI. Then
-   restart the API.
-4. Check: signed in with an account linked to a Person, the profile offers Connect your ORCID iD; ORCID's sign-in
-   comes back to the profile with the iD shown, and Remove ORCID iD removes it. A failed exchange is logged as "ORCID
-   token exchange failed with status …".
+   URI. Sign-in uses the client ID only, not its secret. To tell which ORCID a client ID belongs to, from any machine:
+   `curl -s -H 'Accept: application/json' https://pub.orcid.org/v3.0/client/<client ID>` gives the client's name, and
+   "not found" for a sandbox client, whose own is at `pub.sandbox.orcid.org`.
+2. In the API's env file: `ORCID_CLIENT_ID` from the registration, `ORCID_BASE_URL="https://orcid.org"`, and
+   `ORCID_REDIRECT_URI` set to the registered URI. Then restart the API.
+3. Check: signed in with an account linked to a Person, the profile offers Connect your ORCID iD; ORCID's sign-in
+   comes back to the profile with the iD shown, and Remove ORCID iD removes it. A sign-in refused is logged as
+   "ORCID's id_token was refused: …" with the reason.
+
+**When ORCID changes its key.** ORCID publishes the keys it signs with at `https://orcid.org/oauth/jwks`, and each
+release carries them as they were when it was made (`scripts/orcid_jwks.py`, releasing.md). If ORCID signs with a key
+the release doesn't carry, sign-in fails and the API logs "ORCID signed with key …, which BreedGraph doesn't hold".
+Until a release carries the new key: on any machine that reaches ORCID, save `https://orcid.org/oauth/jwks` to a file,
+copy it to the web server (`/opt/breedgraph/orcid_jwks.json`, say, readable by the API's user), set `ORCID_JWKS_PATH`
+to it in the API's env file and restart the API. Remove the setting once a release carries the key.
 
 The demonstration site has no ORCID client (its env file leaves `ORCID_CLIENT_ID` empty, which a test keeps so): a
 client's redirect URI is production's, so its sign-in would end on production. The privacy notice already describes

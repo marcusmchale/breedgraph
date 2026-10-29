@@ -24,7 +24,7 @@ from breedgraph.adapters.redis.read_models import RedisReadModels
 from breedgraph.adapters.aiosmtp import EmailNotifications
 from breedgraph.adapters.its_dangerous import ItsDangerousAuthService
 from breedgraph.adapters.files import JsonLinesErasureLog
-from breedgraph.adapters.orcid import HttpxOrcidService
+from breedgraph.adapters.orcid import OidcOrcidService
 from breedgraph.adapters.pmtiles import PmtilesMapRegions
 from breedgraph.adapters.geonames import GeoNamesGazetteer
 
@@ -50,7 +50,7 @@ async def bootstrap(
         event_queue: Queue = Queue(),
         archival_service: Type[AbstractFileArchivalService]|None = None,
         erasure_log: Type[AbstractErasureLog] = JsonLinesErasureLog,
-        orcid_service: Type[AbstractOrcidService] = HttpxOrcidService,
+        orcid_service: Type[AbstractOrcidService] = OidcOrcidService,
         map_regions: Type[AbstractMapRegions] = PmtilesMapRegions,
         gazetteer: Type[AbstractGazetteer] = GeoNamesGazetteer
 ) -> MessageBus:

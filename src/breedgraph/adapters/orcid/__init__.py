@@ -1,1 +1,1 @@
-from .orcid_service import HttpxOrcidService
+from .orcid_service import OidcOrcidService

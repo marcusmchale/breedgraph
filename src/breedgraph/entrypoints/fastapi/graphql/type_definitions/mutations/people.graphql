@@ -57,11 +57,15 @@ extend type Mutation {
     peopleRemoveSelfAsContact(entityLabel: ControlledModelLabel!, entityId: ID!): BooleanPayload!
     """
     Start verifying the user's ORCID iD for their linked Person. Returns the ORCID sign-in URL to send the browser to.
-    ORCID then redirects to the configured ORCID_REDIRECT_URI, a front-end page, adding code and state to it.
+    ORCID then redirects to the configured ORCID_REDIRECT_URI, a front-end page, adding id_token and state to its
+    fragment (with an access token, which is not needed).
     """
     peopleStartOrcidLink: StringPayload!
-    """ Complete the ORCID sign-in with the code and state from the redirect, storing the verified ORCID iD """
-    peopleCompleteOrcidLink(code: String!, state: String!): BooleanPayload!
+    """
+    Complete the ORCID sign-in with the id_token and state from the redirect, storing the verified ORCID iD.
+    The id_token is checked against ORCID's key held on the server, so the API does not contact ORCID.
+    """
+    peopleCompleteOrcidLink(idToken: String!, state: String!): BooleanPayload!
     """ Remove the ORCID iD from the user's linked Person """
     peopleRemoveOrcid: BooleanPayload!
     """

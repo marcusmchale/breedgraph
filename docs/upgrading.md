@@ -7,6 +7,17 @@ section in turn. Releases before v0.1.6 list theirs in their notes on GitHub.
 
 The release's notes on GitHub link here; corrections found while deploying a release are made here, not in its notes.
 
+## Unreleased
+
+**ORCID linking without outbound access.** ORCID sign-in now gives the browser an id_token that ORCID signed, which
+the API checks with ORCID's public key, carried by the release, rather than exchanging a code with `orcid.org`. So the
+web server needs no access to ORCID, and linking can be turned on wherever a client is registered
+([deployment.md](deployment.md), ORCID linking). The client secret is no longer used: delete `ORCID_CLIENT_SECRET`
+from the API's env file, and from the demonstration site's. The client ID, `ORCID_BASE_URL` and the registered
+redirect URI are as before. Once production's client is registered on `orcid.org`, set `ORCID_CLIENT_ID`,
+`ORCID_BASE_URL="https://orcid.org"` and `ORCID_REDIRECT_URI`, and restart the API. A sign-in begun before the upgrade
+fails and is started again.
+
 ## v0.1.7
 
 **Cypher 25.** The queries are now written in Cypher 25, with no APOC, and the API refuses to start on a database
@@ -79,7 +90,8 @@ it starts, from the cache of the map worker it shares with production.
 **ORCID linking** is offered on the profile only where the API's ORCID client is configured (`ORCID_CLIENT_ID` and
 `ORCID_CLIENT_SECRET`), and elsewhere the profile says it isn't available on the site, as on the demonstration site.
 Where the credentials are set but the web server can't yet reach `orcid.org`, comment out `ORCID_CLIENT_ID` until it
-can, or linking is offered and fails at its last step ([deployment.md](deployment.md), ORCID linking).
+can, or linking is offered and fails at its last step. (The next release needs no access to `orcid.org`: Unreleased,
+above.)
 
 **The map workers' logs** say once when the API stops answering, each hour while it doesn't, and when it answers again,
 rather than at each poll: nothing to do.

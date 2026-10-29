@@ -30,9 +30,11 @@ api = [
     "bcrypt~=5.0.0",
     "itsdangerous~=2.2.0",
     "password-strength~=0.0.3.post2",
+    # checking the id_token ORCID signs, with its public key held on the server
+    "PyJWT[crypto]~=2.15.1",
 
     "aiosmtplib==5.1.2",
-    # place searches, ORCID records and map regions
+    # place searches and map regions
     "httpx==0.28.1",
     "python-multipart>=0.0.32",
     "aiofiles~=25.1.0",
@@ -97,6 +99,7 @@ breedgraph = [
     "data/*.txt",
     "data/*.md",
     "legal/*.md",
+    "adapters/orcid/jwks/*.json",
 ]
 archive_worker = []
 analysis_worker = ["adapters/r/*.R"]

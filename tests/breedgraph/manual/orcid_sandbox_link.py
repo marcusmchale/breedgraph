@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Links an ORCID iD to the user's Person on a running BreedGraph server, without the front end.
-For testing against the ORCID sandbox until the front-end /orcid page exists.
+Links an ORCID iD to the user's Person on a running BreedGraph server, without the front end, through the ORCID sandbox.
 
 Load the env files and start the server, then run with the same env files loaded:
     python tests/breedgraph/manual/orcid_sandbox_link.py --username <user>   # link
@@ -11,8 +10,9 @@ Load the env files and start the server, then run with the same env files loaded
 The user must be linked to a Person (peopleMyPerson). --create-user writes to the configured Neo4j database directly,
 creating a verified user with a random password, a team and a linked Person, and prints the login. The script opens ORCID's sign-in URL in a browser.
 If ORCID_REDIRECT_URI is an http://localhost or http://127.0.0.1 URI and its port is free (stop the front-end dev server),
-the script listens there and catches the redirect itself. Otherwise paste the URL ORCID redirected to
-(the page itself need not load), or just its code and state.
+the script listens there and catches the redirect itself: ORCID puts the id_token and state in the URL's fragment, which
+the browser keeps to itself, so the page served there sends them on. Otherwise paste the URL ORCID redirected to
+(the page itself need not load), or just its id_token and state.
 The state expires after ORCID_STATE_EXPIRES_SECONDS.
 """
 import argparse
@@ -69,20 +69,26 @@ class Client:
         return payload
 
 
-def code_and_state(params: dict) -> tuple[str, str]:
+def id_token_and_state(params: dict) -> tuple[str, str]:
     if 'error' in params:
         raise SystemExit(f"ORCID returned an error: {params['error'][0]} {params.get('error_description', [''])[0]}")
     try:
-        return params['code'][0], params['state'][0]
+        return params['id_token'][0], params['state'][0]
     except KeyError:
-        raise SystemExit("The URL has no code and state")
+        raise SystemExit("The URL has no id_token and state")
 
 
-def read_code_and_state() -> tuple[str, str]:
-    entered = input("Paste the redirected URL (or press enter to type the code and state): ").strip()
+def redirect_params(url: str) -> dict:
+    """ORCID's answer, in the fragment, or an error in the query"""
+    url = urlparse(url)
+    return parse_qs(url.fragment) or parse_qs(url.query)
+
+
+def read_id_token_and_state() -> tuple[str, str]:
+    entered = input("Paste the redirected URL (or press enter to type the id_token and state): ").strip()
     if not entered:
-        return input("code: ").strip(), input("state: ").strip()
-    return code_and_state(parse_qs(urlparse(entered).query))
+        return input("id_token: ").strip(), input("state: ").strip()
+    return id_token_and_state(redirect_params(entered))
 
 
 class DualStackServer(HTTPServer):
@@ -100,17 +106,28 @@ def redirect_listener() -> HTTPServer | None:
     if redirect.scheme != 'http' or redirect.hostname not in ('localhost', '127.0.0.1'):
         return None
 
+    path = redirect.path.rstrip('/')
+    received = f"{path}/received"
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             url = urlparse(self.path)
-            if url.path.rstrip('/') != redirect.path.rstrip('/'):
+            query = parse_qs(url.query)
+            if url.path.rstrip('/') == path and 'error' not in query:
+                # The browser keeps the fragment, so a script sends it on as a query
+                self.respond('text/html', f"<script>location.replace('{received}?' + location.hash.slice(1))</script>")
+                return
+            if url.path.rstrip('/') not in (path, received):
                 self.send_error(404)
                 return
-            self.server.params = parse_qs(url.query)
+            self.server.params = query
+            self.respond('text/plain', "Received the ORCID response, you can close this tab and return to the terminal.")
+
+        def respond(self, content_type: str, body: str):
             self.send_response(200)
-            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Content-Type', f'{content_type}; charset=utf-8')
             self.end_headers()
-            self.wfile.write(b"Received the ORCID response, you can close this tab and return to the terminal.")
+            self.wfile.write(body.encode())
 
         def log_message(self, *args):
             pass
@@ -135,7 +152,7 @@ def await_redirect(server: HTTPServer) -> tuple[str, str]:
             server.handle_request()
     finally:
         server.server_close()
-    return code_and_state(server.params)
+    return id_token_and_state(server.params)
 
 
 async def create_test_user() -> tuple[str, str]:
@@ -214,11 +231,11 @@ def main() -> int:
         server = None if args.no_listen else redirect_listener()
         print(f"\nSign in with your ORCID account at:\n\n{url}\n")
         webbrowser.open(url)
-        code, state = await_redirect(server) if server else read_code_and_state()
+        id_token, state = await_redirect(server) if server else read_id_token_and_state()
         client.gql(
-            "mutation ($code: String!, $state: String!) { peopleCompleteOrcidLink(code: $code, state: $state) "
+            "mutation ($idToken: String!, $state: String!) { peopleCompleteOrcidLink(idToken: $idToken, state: $state) "
             "{ status, result, errors { name, message } } }",
-            {'code': code, 'state': state}
+            {'idToken': id_token, 'state': state}
         )
 
     person = client.gql(my_person)['result']

@@ -274,8 +274,11 @@ async def start_orcid_link(
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         await _get_own_person(uow, cmd.agent_id)
     state = secrets.token_urlsafe(32)
-    url = orcid_service.authorization_url(state)
-    await state_store.store_oauth_state(state, cmd.agent_id, expires_seconds=config.ORCID_STATE_EXPIRES_SECONDS)
+    nonce = secrets.token_urlsafe(32)
+    url = orcid_service.authorization_url(state, nonce)
+    await state_store.store_oauth_state(
+        state, cmd.agent_id, nonce, expires_seconds=config.ORCID_STATE_EXPIRES_SECONDS
+    )
     return url
 
 
@@ -287,9 +290,11 @@ async def complete_orcid_link(
         orcid_service: AbstractOrcidService
 ):
     # The state is single use, and must have been issued to the same user
-    if await state_store.pop_oauth_state(cmd.state) != cmd.agent_id:
+    user_id, nonce = await state_store.pop_oauth_state(cmd.state) or (None, None)
+    if user_id != cmd.agent_id:
         raise UnauthorisedOperationError("This ORCID sign-in was not started by you or has expired, please try again")
-    orcid = normalise_orcid(await orcid_service.verified_orcid(cmd.code))
+    # The id_token must hold the nonce issued with the state, so that one given to someone else is refused
+    orcid = normalise_orcid(orcid_service.verified_orcid(cmd.id_token, nonce))
     async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
         person = await _get_own_person(uow, cmd.agent_id)
         if await uow.repositories.people.orcid_in_use(orcid, person.id):

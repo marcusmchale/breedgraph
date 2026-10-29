@@ -81,9 +81,9 @@ class StartOrcidLink(Command):
 
 
 class CompleteOrcidLink(Command):
-    """With the code and state ORCID adds to the redirect URI"""
+    """With the id_token and state ORCID adds to the redirect URI's fragment"""
     agent_id: int
-    code: str
+    id_token: str
     state: str
 
 

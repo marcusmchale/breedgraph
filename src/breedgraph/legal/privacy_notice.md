@@ -62,7 +62,7 @@ Who sees it: the teams that control the record decide whether it is shown to the
 - Other signed-in users it is shown to see only what attribution needs: your name, institution and ORCID iD.
 - People who are not signed in never see Person records. Signed-in users can search, by name, the records shown to them.
 
-To link your ORCID iD, you sign in at ORCID, which tells us your iD. ORCID also sends us your name and an access token, which we do not keep.
+To link your ORCID iD, you sign in at ORCID, which sends your browser back to us with your iD, signed by ORCID so that we can check it. It includes your name, which we do not keep. ORCID also gives your browser an access token, which your browser does not pass on to us.
 
 ## If you are invited
 

@@ -250,18 +250,25 @@ The ORCID iD is public. What BreedGraph controls is the link between the iD and 
 
 Only the linked User can set it, by signing in with ORCID. This means every stored iD is verified, and nobody can be wrongly credited through a mistyped iD. Unlinked Persons are identified by name and teams only.
 
+Sign-in is OpenID Connect implicit: ORCID gives the browser an id_token it signed, which the API checks against ORCID's
+key held on the server. So the API never contacts ORCID, and the web server needs no outbound access.
 The flow runs through GraphQL, so every step is authenticated and protected against request forgery.
 The login cookie is `SameSite=Strict`, so it would not be sent on ORCID's redirect back to a server route.
-1. `peopleStartOrcidLink` returns ORCID's sign-in URL (`scope=/authenticate`), with a random single-use `state` stored in Redis against the user for `ORCID_STATE_EXPIRES_SECONDS` (600).
-2. ORCID redirects to `ORCID_REDIRECT_URI`, a front-end page (default `/orcid`), adding `code` and `state`, or `error` if the user cancelled.
-3. The page calls `peopleCompleteOrcidLink(code, state)`. The server checks the state was issued to this user, exchanges the code with ORCID using `httpx`, validates the returned iD (including its check digit), and stores it.
+1. `peopleStartOrcidLink` returns ORCID's sign-in URL (`response_type=id_token`, `scope=openid`), with a random single-use `state` and a random `nonce`, both stored in Redis against the user for `ORCID_STATE_EXPIRES_SECONDS` (600).
+2. ORCID redirects to `ORCID_REDIRECT_URI`, a front-end page (default `/orcid`), adding `id_token` and `state` to its fragment, or `error` if the user cancelled. ORCID adds an access token as well, which the page leaves unused.
+3. The page calls `peopleCompleteOrcidLink(idToken, state)`. The server checks the state was issued to this user, then the id_token: signed with ORCID's key (RS256 only), issued by `ORCID_BASE_URL` for `ORCID_CLIENT_ID`, unexpired, and holding the `nonce` issued with the state. It validates the iD the token names (`sub`, including its check digit), and stores it.
 
-- Only the iD is stored. ORCID's access token and name are not kept.
+The nonce matters because ORCID's id_tokens last a day: it ties a token to a sign-in this user started minutes ago, so an
+id_token given to someone else, or to another sign-in, links nothing.
+
+- Only the iD is stored. The name in the id_token is not kept.
 - One Person per iD: checked when linking, and a uniqueness constraint in `create_constraints.cypher` for new databases.
 - `peopleRemoveOrcid` removes it. Only the linked user can set or remove it.
-- Config in `instance/*.env`: `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET` (ORCID **Public API** credentials, free), `ORCID_BASE_URL` (default `https://sandbox.orcid.org`; `https://orcid.org` in production) and `ORCID_REDIRECT_URI`, which must be registered with ORCID.
-  Without credentials, `peopleOrcidLinking` is false and the profile says linking isn't available on the site, and
-  `peopleStartOrcidLink` returns an error saying so. Turning it on in production: deployment.md, ORCID linking.
+- Config in `instance/*.env`: `ORCID_CLIENT_ID` (an ORCID **Public API** client, free; sign-in needs no client secret), `ORCID_BASE_URL` (default `https://sandbox.orcid.org`; `https://orcid.org` in production) and `ORCID_REDIRECT_URI`, which must be registered with ORCID.
+  ORCID's keys for `orcid.org` and the sandbox are packaged (`adapters/orcid/jwks/`, refreshed by `scripts/orcid_jwks.py`
+  before each release); `ORCID_JWKS_PATH` names a file to use in their place, for a key ORCID changed since.
+  Without a client ID or keys, `peopleOrcidLinking` is false and the profile says linking isn't available on the site,
+  and `peopleStartOrcidLink` returns an error saying so. Turning it on in production: deployment.md, ORCID linking.
 - Front end: a "Connect your ORCID iD" button following ORCID's brand guidelines, showing the iD as its full `https://orcid.org/…` address.
 
 This links an ORCID iD to an existing account. Signing in to BreedGraph with ORCID is a separate, later decision.
@@ -331,7 +338,8 @@ None for Person. Open questions on control transfer are in `control-transfer.md`
    Person changes are stored field by field, so changes stored from the id-only form, such as a request, do not overwrite the record.
    9b, done: contacts and messaging (§4).
    Done: deleting an account erases the linked Person by default (§6).
-10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes. Tested against a fake ORCID service and a mocked token exchange; to test against ORCID, register an application in the sandbox and set the credentials.
+10. **ORCID linking.** Done, as described in §6, through GraphQL rather than server routes, and by OpenID Connect implicit, so that the API never contacts ORCID.
+    Tested with id_tokens signed by a key made in the tests (`tests/breedgraph/utilities/orcid_tokens.py`); to test against ORCID, register an application in the sandbox, set its client ID and use `tests/breedgraph/manual/orcid_sandbox_link.py` or the profile.
 11. **Privacy notice.** Drafted for the DPO: `docs/legal/privacy-notice.md`, with the points to confirm in
     `docs/legal/privacy-notice-notes.md`.
 12. **Views.** Done (2026-10-17): the three views of §3 (`Person.view`, `linked`), no public directory (the people and

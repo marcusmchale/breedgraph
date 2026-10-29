@@ -10,6 +10,7 @@ redis==8.0.0
 bcrypt~=5.0.0
 itsdangerous~=2.2.0
 password-strength~=0.0.3.post2
+PyJWT[crypto]~=2.15.1
 
 aiosmtplib==5.1.2
 python-multipart>=0.0.32

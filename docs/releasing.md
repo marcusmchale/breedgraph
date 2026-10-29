@@ -23,6 +23,8 @@ the other, even one with no changes of its own. The version is in `pyproject.tom
   (breedview `tests/e2e/README.md`). A test that fails in a full run but passes alone is a flake to fix, not to ignore.
 - [upgrading.md](upgrading.md): its Unreleased section becomes the release's (`## v<version>`), saying what the
   release needs besides the usual upgrade, or that it needs nothing.
+- ORCID's keys are current: `python scripts/orcid_jwks.py`, and commit any change, which a key ORCID has changed makes
+  (deployment.md, ORCID linking).
 
 ## The version
 

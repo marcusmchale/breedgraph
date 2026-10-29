@@ -153,10 +153,10 @@ async def start_orcid_link(_, info) -> str:
 @graphql_mutation.field("peopleCompleteOrcidLink")
 @graphql_payload
 @require_authentication
-async def complete_orcid_link(_, info, code: str, state: str) -> bool:
+async def complete_orcid_link(_, info, id_token: str, state: str) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} completes linking an ORCID iD")
-    await info.context['bus'].handle(CompleteOrcidLink(agent_id=user_id, code=code, state=state))
+    await info.context['bus'].handle(CompleteOrcidLink(agent_id=user_id, id_token=id_token, state=state))
     return True
 
 @graphql_mutation.field("peopleRemoveOrcid")
