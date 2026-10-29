@@ -4,7 +4,7 @@ from breedgraph.domain.model import LifecyclePhase
 from breedgraph.domain.model.ontology import Version, OntologyEntryLabel, OntologyCommit
 
 from breedgraph.service_layer.queries.read_models import (
-    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
+    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput, OntologyContributor
 )
 
 class AbstractOntologyView(ABC):
@@ -91,6 +91,20 @@ class AbstractOntologyView(ABC):
             version: Version,
             view: OntologyViewMode,
     ) -> list[OntologyRelationshipOutput]:
+        ...
+
+    async def get_contributors(self, version: Version | None = None) -> list[OntologyContributor]:
+        """
+        The people listed as contributors to a version, the current one by default: those who agreed to be
+        (Person.ontology_credit) and whose work is in it, entries and relationships it still has or the commit that
+        made it. For anyone, signed in or not.
+        """
+        if version is None:
+            version = await self.get_current_version()
+        return await self._get_contributors(version)
+
+    @abstractmethod
+    async def _get_contributors(self, version: Version) -> list[OntologyContributor]:
         ...
 
     async def get_commits(self, limit:int|None = None, last_version_id:int|None = None):

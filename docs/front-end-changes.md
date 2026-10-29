@@ -10,7 +10,7 @@ describe the API rather than the work, the schema's descriptions, README.md and 
 
 ## Where the front end is
 
-breedview (`4a6a9fc`) implements every API change up to 2026-10-29, except the one below.
+breedview (`4a6a9fc`) implements every API change up to 2026-10-29, except the two below.
 
 ## Team attributions
 
@@ -27,6 +27,19 @@ controls (docs/read-access.md, rule 9).
   `Controller.attributions`; visitors, who see no badge, see the credit alone where the badge would be, from
   `controlsAttributions`, asked for once per label and page where a page lists many entities.
 - **The analysis summary:** the report's data table names each dataset's credit.
+
+## The ontology's contributors
+
+Nothing breaks. A person may choose to be named among the contributors to the ontology versions their work is in
+(docs/person.md §6).
+
+- **The API:** `peopleSetOntologyCredit(listed)`, for the user's own linked Person; `Person.ontologyCredit`, in the full
+  view; and the open query `ontologyContributors(versionId)`, the name, institution and ORCID iD of each person listed
+  for a version, the current one by default, in name order.
+- **The profile:** in the person record's section, a choice to be listed among the ontology's contributors, saying that
+  the name, institution and ORCID iD are then shown to anyone, with the versions the user's work is in.
+- **The ontology page:** the version shown names its contributors, to anyone, beside its licence: everyone who
+  contributes is credited together, and these are the ones who agreed to be named.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,

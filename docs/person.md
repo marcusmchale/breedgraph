@@ -241,8 +241,27 @@ A linked User can always, regardless of access controls:
 - read their Person record
 - edit `name`
 - link or remove their ORCID iD
+- choose to be listed among the ontology's contributors, or no longer (below)
 - erase the record (§5)
 - unlink their account
+
+### Listed among the ontology's contributors
+
+What is added to the ontology is credited to its contributors together (the Terms of Use, "The ontology"). A linked
+User may also agree to be named: `peopleSetOntologyCredit(listed)` sets `ontology_credit` on their Person, which only
+they can set (`PersonStored.set_ontology_credit`), and `Person.ontologyCredit` shows it in the full view.
+`ontologyContributors(versionId)` then lists, for anyone, signed in or not, the name, institution and ORCID iD of each
+Person who agreed and whose work is in that version (`cypher/ontology/get_contributors.cypher`): their account created
+or changed one of the entries or relationships that version has, in a change it or an earlier one published, or
+committed that version. A change is stamped with the latest version when it was made, so a draft is in no version
+until the next commit. Credit follows what a version holds: an entry deprecated in a version is still in it, but once
+the next commit removes it, its author is named for later versions only through other work still there, and a
+committer is named for the version they committed, and later only through the work it published. Versions don't
+change, so a version that had someone's work always names them.
+
+This is the one way a Person is shown to anyone: by the person's own choice, as a team's attribution is by the team's
+(docs/read-access.md, rule 9). It is the account's choice, as the contributions are: unlinking or erasing the Person,
+deleting the account, and linking another account all withdraw it.
 
 ### ORCID
 

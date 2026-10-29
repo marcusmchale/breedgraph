@@ -14,7 +14,8 @@ from breedgraph.service_layer.queries.read_models import (
     Ontology,
     OntologyEntryOutput,
     OntologyViewMode,
-    OntologyRelationshipOutput
+    OntologyRelationshipOutput,
+    OntologyContributor
 )
 
 from breedgraph.service_layer.mappers import ontology_mapper
@@ -180,6 +181,15 @@ class Neo4jOntologyView(AbstractOntologyView):
             record = await result.single(strict=True)
             return record_to_relationships(record, version=version, view=view)
 
+
+    async def _get_contributors(self, version: Version) -> List[OntologyContributor]:
+        result: AsyncResult = await self.session.run(
+            queries['ontology']['get_contributors'], version=version.packed_version
+        )
+        return [
+            OntologyContributor(name=record['name'], institution=record['institution'], orcid=record['orcid'])
+            async for record in result
+        ]
 
     @staticmethod
     def record_to_commit(record) -> OntologyCommit:

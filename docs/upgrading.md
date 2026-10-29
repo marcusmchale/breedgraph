@@ -14,6 +14,11 @@ controls, and teams below it use it unless they set their own (README, Team). No
 isn't credited by name. Ask the admins of your team trees' roots to set theirs. The Terms of Use's Credit section now
 names them, so the new Terms are asked for again; the privacy notice says they are public.
 
+**The ontology's contributors.** People with a Person linked to their account can now choose, on their profile, to be
+named among the contributors to the ontology versions their work is in, which anyone sees on the ontology page
+([person.md](person.md) §6). Nothing to migrate: no one is named until they choose to be. The Terms of Use's ontology
+section and the privacy notice say so.
+
 **The observation unit by subject.** An analysis's `grouping.unit` now takes the subjects whose units observations are
 made at (`subjectIds`, e.g. Plot), in place of selected parent units (`unitIds`), and BreedView names it the
 observation unit ([analysis.md](analysis.md) §3). Nothing to set. An analysis submitted before the upgrade with the old

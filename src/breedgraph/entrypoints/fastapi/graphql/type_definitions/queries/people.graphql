@@ -34,6 +34,11 @@ type Person {
     orcid: String
     """In the full view: whether a user is linked to this Person, whether or not the viewer may see who"""
     linked: Boolean
+    """
+    In the full view: the linked user agreed to be listed by name among the contributors to the ontology
+    (peopleSetOntologyCredit, ontologyContributors)
+    """
+    ontologyCredit: Boolean
     """The user linked to this Person, who has rights over the record: shown to that user and admins of their teams"""
     linkedUser: UserDisplay
     """In the full view, shown to the user and admins of their teams"""

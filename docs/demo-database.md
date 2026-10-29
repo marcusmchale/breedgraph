@@ -43,6 +43,8 @@ Operations and the lab take the institute's.
 **Persons:**
 - Dara, Bridget, Theo and Lena have Persons linked to their accounts, released to registered users. Bridget's is the
   programme's contact.
+- Dara, who builds and commits the ontology, has agreed to be listed among its contributors, so the ontology page
+  names her to anyone.
 - Petra's Person is unlinked, and her request to be linked to it is waiting for Bridget.
 - Fergus Fieldhand is private, and credited on the 2024 and 2025 field data.
 - Nina Newcomer is private and unlinked. The guide offers her the record when she is invited.

@@ -270,6 +270,12 @@ type ControllersPayload {
     errors: [Error!]
 }
 
+type OntologyContributorsPayload {
+    status: QueryStatus!
+    result: [OntologyContributor!]
+    errors: [Error!]
+}
+
 type AttributionsPayload {
     status: QueryStatus!
     result: [EntityAttributions!]

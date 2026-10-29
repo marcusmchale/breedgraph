@@ -86,6 +86,14 @@ type Query {
     """Get ontology commit history, use lastVersionId to paginate"""
     ontologyCommitHistory(limit: Int, lastVersionId: ID): OntologyCommitsPayload!
     """
+    The people listed as contributors to an ontology version, the current one by default, for anyone, signed in or
+    not: those who agreed to be listed (Person.ontologyCredit) and whose work is in that version, as they created or
+    changed one of its entries or relationships, or committed that version. Authors of entries and relationships since
+    removed are named for the versions that had them, not later ones. Everyone who contributes is credited together,
+    as the contributors to the BreedGraph ontology; these are the ones named.
+    """
+    ontologyContributors(versionId: ID): OntologyContributorsPayload!
+    """
     Get a list of users requesting new ontology roles.
     Only available to Users with the admin ontology role.
     """

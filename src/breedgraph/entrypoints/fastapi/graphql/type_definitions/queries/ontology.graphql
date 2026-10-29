@@ -5,6 +5,13 @@ type Version {
     patch: Int!
 }
 
+""" A person listed as a contributor to an ontology version, by their own agreement: their name, institution and ORCID iD """
+type OntologyContributor {
+    name: String!
+    institution: String
+    orcid: String
+}
+
 type OntologyCommit {
     version: Version!
     comment: String

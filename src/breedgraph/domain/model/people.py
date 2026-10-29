@@ -74,6 +74,9 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
     orcid: str | None = None  # set only by the linked user, verified through ORCID sign-in
     user: int | None = None  # the linked user, who has subject rights over this record
     claims: List[int] = field(default_factory=list)  # users requesting to be linked, pending approval
+    # the linked user agreed to be listed by name, to anyone, among the contributors to the ontology versions their
+    # work is in (docs/person.md, §6); only they set it, and unlinking or erasing the record withdraws it
+    ontology_credit: bool = False
 
     recorded_by: int | None = None
     recorded_at: datetime | None = None
@@ -108,6 +111,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             user=None,
             # users see their own request to be linked, so they can withdraw it, but not others'
             claims=[user_id] if user_id is not None and user_id in self.claims else list(),
+            ontology_credit=False,
             recorded_by=None,
             recorded_at=None
         )
@@ -149,6 +153,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         self.orcid = None
         self.user = None
         self.claims = list()
+        self.ontology_credit = False
         self.erased_at = datetime.now(timezone.utc)
 
     def set_orcid(self, agent_id: int, orcid: str) -> None:
@@ -161,6 +166,15 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         if not self.is_subject(agent_id):
             raise UnauthorisedOperationError("Only the linked user can remove the ORCID iD of a Person")
         self.orcid = None
+
+    def set_ontology_credit(self, agent_id: int, listed: bool) -> None:
+        """
+        Only the linked user agrees to be listed by name among the ontology's contributors, or withdraws it: their
+        name, institution and ORCID iD are then shown to anyone, which is personal data only they can agree to share
+        """
+        if not self.is_subject(agent_id):
+            raise UnauthorisedOperationError("Only the linked user can choose to be listed as a contributor to the ontology")
+        self.ontology_credit = bool(listed)
 
     def _require_linkable(self) -> None:
         if self.erased:
@@ -200,6 +214,8 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         self._require_linkable()
         self.user = user_id
         self.claims = list()
+        # an agreement to be listed was the earlier account's, and the contributions were too
+        self.ontology_credit = False
 
     def unlink(self, agent_id: int, controller: Controller, admin_teams: Set[int]) -> None:
         """The linked user or admins of the controlling teams can remove the link"""
@@ -208,6 +224,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
         if not (self.is_subject(agent_id) or controller.has_access(Access.ADMIN, agent_id, admin_teams)):
             raise UnauthorisedOperationError("Only the linked user or admins of the controlling teams can unlink a Person")
         self.user = None
+        self.ontology_credit = False
 
     def to_output(self) -> 'PersonOutput':
         """The full record, as its readers see it"""
@@ -220,6 +237,7 @@ class PersonStored(PersonBase, ControlledModel, ControlledAggregate):
             orcid=self.orcid,
             user=self.user,
             claims=list(self.claims),
+            ontology_credit=self.ontology_credit,
             recorded_by=self.recorded_by,
             recorded_at=self.recorded_at,
             erased_at=self.erased_at,
@@ -240,6 +258,7 @@ class PersonOutput(PersonBase, EnumLabeledModel):
     orcid: str | None = None
     user: int | None = None
     claims: List[int] = field(default_factory=list)
+    ontology_credit: bool | None = None  # in the full view only
     recorded_by: int | None = None
     recorded_at: datetime | None = None
     erased_at: datetime | None = None

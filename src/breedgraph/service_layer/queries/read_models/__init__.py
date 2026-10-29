@@ -2,6 +2,7 @@ from .ontology import (
     Ontology,
     OntologyRelationshipOutput,
     OntologyViewMode,
+    OntologyContributor,
 
     OntologyEntryOutput,
     TermOutput,

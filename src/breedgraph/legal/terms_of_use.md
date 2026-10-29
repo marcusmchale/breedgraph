@@ -66,7 +66,7 @@ Personal data, such as a record crediting a person, is never released under a li
 
 ## The ontology
 
-The shared ontology is published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and each of its versions names its licence. What you add to the ontology, you license under CC BY 4.0, to be credited collectively, as the contributors to the BreedGraph ontology. Some entries come from other sources under their own licences, such as the CRediT contributor roles from NISO, under CC BY 4.0: each shows its source and the credit it asks for, which you keep when you use the entry.
+The shared ontology is published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and each of its versions names its licence. What you add to the ontology, you license under CC BY 4.0, to be credited collectively, as the contributors to the BreedGraph ontology. If a Person record is linked to your account, you can also choose to be named among the contributors to the versions your work is in, which shows everyone your record's name, institution and ORCID iD; credit the ontology by citing BreedGraph, the version you used and the contributors it names. Some entries come from other sources under their own licences, such as the CRediT contributor roles from NISO, under CC BY 4.0: each shows its source and the credit it asks for, which you keep when you use the entry.
 
 ## Credit
 

@@ -8,7 +8,7 @@ from breedgraph.domain.model.ontology import (
     Version, LifecyclePhase,
 )
 from breedgraph.service_layer.queries.read_models import (
-    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput
+    Ontology, OntologyEntryOutput, OntologyViewMode, OntologyRelationshipOutput, OntologyContributor
 )
 
 from breedgraph.domain.model.accounts import UserOutput, UserDisplay, OntologyRole
@@ -374,6 +374,20 @@ async def resolve_event_variables(obj, info):
 @event.field("factors")
 async def resolve_event_factors(obj, info):
     return await resolve_ontology_entries(info.context, entry_ids=obj.factors)
+
+@graphql_query.field("ontologyContributors")
+@graphql_payload
+async def get_contributors(_, info, version_id: str | None = None) -> List[OntologyContributor]:
+    """Open to anyone: each person listed agreed to it, from their own account (docs/person.md, §6)"""
+    bus = info.context.get('bus')
+    async with bus.views_factory.get_views() as views:
+        if version_id is None:
+            return await views.ontology.get_contributors()
+        try:
+            version = Version.from_packed(int(version_id))
+        except ValueError:
+            raise ValueError("Could not recognize version ID")
+        return await views.ontology.get_contributors(version)
 
 @graphql_query.field("ontologyCommitHistory")
 @graphql_payload

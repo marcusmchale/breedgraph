@@ -281,6 +281,12 @@ class DemoScenarioBuilder:
                     stored = await uow.repositories.people.get(person_id=s[key])
                     stored.link(s[person.account])
                     await uow.commit()
+                if person.ontology_credit:
+                    # which only the linked account chooses
+                    async with self.uow_factory.get_uow(user_id=s[person.account]) as uow:
+                        stored = await uow.repositories.people.get(person_id=s[key])
+                        stored.set_ontology_credit(s[person.account], True)
+                        await uow.commit()
 
     # Ontology ------------------------------------------------------------------------------------------------------
 

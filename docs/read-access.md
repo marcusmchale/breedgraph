@@ -103,6 +103,9 @@ In detail:
    makes it public, to credit what it releases, so `controlsAttributions` gives anyone the attributions of the teams
    controlling an entity they can read, each team's own or the nearest above it in its tree, found through teams
    hidden from them too. For an entity they cannot read it gives none, so as not to say who holds what is hidden.
+   Likewise a person may choose to be named among the ontology's contributors, from their own account, which shows
+   anyone their linked Person's name, institution and ORCID iD with the versions their work is in
+   (`ontologyContributors`, docs/person.md §6). No one else can make that choice for them.
 10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
    aggregates, team trees included, so write handlers and integrity checks see members the writer cannot read:
    deleting a location with hidden children, or a location tree, layout tree or unit graph root with hidden members, is refused, and

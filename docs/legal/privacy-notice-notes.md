@@ -35,6 +35,12 @@ what they release, so that the Terms' credit can name them. It is the only thing
 only when the team sets it. The summary and "Research data" say so, and that it should name an organisation or group,
 not a person without their agreement.
 
+Also on 29 October 2026, a person with a Person record linked to their account can choose to be named among the
+contributors to the ontology versions their work is in: the record's name, institution and ORCID iD are then shown to
+everyone with those versions. It is the one way a Person record is shown publicly, by the person's own choice from
+their account, on consent like the record itself ("Lawful basis"). Unlinking or erasing the record, or deleting the
+account, ends it. "Who entered or changed data", the summary and "Lawful basis" say so.
+
 Points to confirm:
 
 1. **Lawful basis.** Consent (Art. 6(1)(a)) for account data and Person records; public task (Art. 6(1)(e)) for server

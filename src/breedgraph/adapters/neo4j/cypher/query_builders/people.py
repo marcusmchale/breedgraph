@@ -33,6 +33,7 @@ def _person(person: str = 'person') -> str:
         WHEN 'FULL' THEN {person} {{
           .id, .name, .institution, .orcid, .consent_attestation, .recorded_by, .recorded_at, .erased_at,
           view: person_view,
+          ontology_credit: coalesce({person}.ontology_credit, false),
           erased: {person}.erased_at IS NOT NULL,
           teams: [({person})-[:IN_TEAM]->(team: Team) | team.id],
           user: head([(user: User)-[:IS_PERSON]->({person}) | user.id]),

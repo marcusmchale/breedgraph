@@ -150,10 +150,12 @@ class Person:
     account: str | None = None  # the account linked to it
     claimant: str | None = None  # an account that asks to be linked to it, and is still waiting
     erased: bool = False  # erased at the end of the build
+    ontology_credit: bool = False  # the linked account agreed to be listed among the ontology's contributors
 
 
 PEOPLE: Dict[str, Person] = {
-    'person_dara': Person("Dara Data", 'institute', REGISTERED, teams=('institute',), account='dara'),
+    # Dara, who builds and commits the ontology, is listed among its contributors
+    'person_dara': Person("Dara Data", 'institute', REGISTERED, teams=('institute',), account='dara', ontology_credit=True),
     'person_bridget': Person("Bridget Breeder", 'breeding', REGISTERED, teams=('breeding',), account='bridget'),
     'person_theo': Person("Theo Technician", 'field', REGISTERED, teams=('field',), account='theo'),
     'person_lena': Person("Lena Lab", 'lab', REGISTERED, teams=('lab',), account='lena'),

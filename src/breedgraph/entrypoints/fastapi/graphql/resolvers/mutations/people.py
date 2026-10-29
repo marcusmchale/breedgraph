@@ -3,7 +3,7 @@ from breedgraph.domain.commands.people import (
     CreatePerson, UpdatePerson, ErasePerson,
     RequestPersonClaim, WithdrawPersonClaim, ApprovePersonClaim, RejectPersonClaim, UnlinkPerson,
     RemoveSelfAsContact, ContactPerson,
-    StartOrcidLink, CompleteOrcidLink, RemoveOrcid
+    StartOrcidLink, CompleteOrcidLink, RemoveOrcid, SetOntologyCredit
 )
 from breedgraph.domain.model.controls import ReadRelease, ControlledModelLabel
 
@@ -166,4 +166,13 @@ async def remove_orcid(_, info) -> bool:
     user_id = info.context.get('user_id')
     logger.debug(f"User {user_id} removes their ORCID iD")
     await info.context['bus'].handle(RemoveOrcid(agent_id=user_id))
+    return True
+
+@graphql_mutation.field("peopleSetOntologyCredit")
+@graphql_payload
+@require_authentication
+async def set_ontology_credit(_, info, listed: bool) -> bool:
+    user_id = info.context.get('user_id')
+    logger.debug(f"User {user_id} sets whether they are listed as a contributor to the ontology")
+    await info.context['bus'].handle(SetOntologyCredit(agent_id=user_id, listed=listed))
     return True

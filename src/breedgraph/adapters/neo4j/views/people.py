@@ -42,6 +42,7 @@ class Neo4jPeopleView(AbstractPeopleView):
             orcid=person.get('orcid'),
             user=person.get('user'),
             claims=list(person.get('claims') or []),
+            ontology_credit=person.get('ontology_credit'),
             recorded_by=person.get('recorded_by'),
             recorded_at=deserialize_time(person.get('recorded_at')),
             erased_at=deserialize_time(person.get('erased_at')),

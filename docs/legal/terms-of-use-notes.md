@@ -31,6 +31,8 @@ Changes in the revision of 29 October 2026, on the terms of data released beyond
 - "Credit": users cite the attribution BreedGraph shows with the information, the teams that hold it. A team sets its
   attribution, which is public, and teams within it are credited by it unless they set their own; a team that sets
   none isn't named. This is how CC BY 4.0's "identification of the creator" is met for what teams release.
+- "The ontology": contributors are still credited collectively, and those who choose to be are also named, with each
+  version their work is in. Crediting a version means citing it and the contributors it names.
 
 To confirm for that revision:
 
@@ -38,8 +40,8 @@ To confirm for that revision:
    under CC BY 4.0 for the team, and that the Terms can say so.
 2. **Database rights.** That the University licenses its own rights in BreedGraph's information as a whole, such as
    database rights, on the same terms ("Other information released beyond its team").
-3. **Collective credit.** That crediting ontology contributors collectively, rather than by name, is reasonable
-   attribution under CC BY 4.0.
+3. **Collective credit.** That crediting ontology contributors collectively, naming only those who choose to be
+   named, is reasonable attribution under CC BY 4.0.
 
 To agree with the University's intellectual property team: any further use the University may make of data submitted
 to BreedGraph, and its terms ("How we use what you submit").

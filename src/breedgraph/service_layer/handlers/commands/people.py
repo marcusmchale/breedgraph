@@ -313,3 +313,15 @@ async def remove_orcid(
         person = await _get_own_person(uow, cmd.agent_id)
         person.remove_orcid(cmd.agent_id)
         await uow.commit()
+
+
+@handlers.command_handler()
+async def set_ontology_credit(
+        cmd: commands.people.SetOntologyCredit,
+        uow_factory: AbstractUnitOfWorkFactory
+):
+    async with uow_factory.get_uow(user_id=cmd.agent_id) as uow:
+        # an erased Person is unlinked, so the user has none to list
+        person = await _get_own_person(uow, cmd.agent_id)
+        person.set_ontology_credit(cmd.agent_id, cmd.listed)
+        await uow.commit()

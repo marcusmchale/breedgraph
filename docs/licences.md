@@ -158,3 +158,6 @@ where the latest has none, so the ontology always has a licence (`OntologyApplic
 ontology admin can name another public licence for a version, for a deployment whose context calls for one; entries
 from CC BY 4.0 sources, and those contributed under CC BY 4.0, stay under it with their attribution whatever a later
 version names, so a new licence must allow that.
+
+**Crediting the ontology.** Contributors are credited together, as the contributors to the BreedGraph ontology. Those
+who agree to be named are listed with each version their work is in (`ontologyContributors`, docs/person.md §6).

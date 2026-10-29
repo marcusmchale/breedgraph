@@ -20,6 +20,14 @@ class OntologyViewMode(Enum):
     REFERENTIAL = "REFERENTIAL"
 
 @dataclass(frozen=True)
+class OntologyContributor:
+    """A person listed as a contributor to an ontology version, by their own agreement: what attribution needs"""
+    name: str
+    institution: str | None = None
+    orcid: str | None = None
+
+
+@dataclass(frozen=True)
 class OntologyRelationshipOutput:
     label: OntologyRelationshipLabel
 

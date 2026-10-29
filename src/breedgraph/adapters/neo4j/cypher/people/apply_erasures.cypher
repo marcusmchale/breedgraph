@@ -18,5 +18,6 @@ SET
   person.name = null,
   person.institution = null,
   person.orcid = null,
+  person.ontology_credit = null,
   person.erased_at = coalesce(person.erased_at, datetime(erasure.erased_at))
 RETURN count(DISTINCT person) AS erased

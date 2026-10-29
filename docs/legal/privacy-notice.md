@@ -7,7 +7,7 @@
 - BreedGraph is a research data platform for plant breeding, run by the University of Galway. Partner organisations use it to record and share research data.
 - The University is responsible for all personal data in BreedGraph: your account, and the records that credit people for research.
 - Your personal data is in BreedGraph with your consent: the details you give when you register, and records crediting you, which are made only with your agreement. You can withdraw it at any time by deleting your account or erasing a record that credits you, or by asking us.
-- Those who submit data decide who sees it. A record crediting a person is private to the team that made it unless that team releases it to signed-in users. Pages open to everyone show no one's name, and there is no public directory of people or organisations. A team may choose how it is credited, which is shown to everyone with what it releases.
+- Those who submit data decide who sees it. A record crediting a person is private to the team that made it unless that team releases it to signed-in users. Pages open to everyone show no one's name, except those who choose to be named among the ontology's contributors, and there is no public directory of people or organisations. A team may choose how it is credited, which is shown to everyone with what it releases.
 - BreedGraph records who entered or changed data, but who did it is shown only to those who can see their Person record: by default, the team that holds it.
 - Your email address is not shown to other users.
 - BreedGraph sets only the cookies it needs to sign you in, protect your requests and remember that you accepted its Terms of Use and any study licences. Maps and place searches come from our own server, so using BreedGraph sends nothing from your browser to other companies, unless you choose to link your ORCID iD.
@@ -76,7 +76,7 @@ BreedGraph records who entered or changed each record, and when, but who did it 
 
 An account with no Person record linked to it is not named at all.
 
-What you add to the shared ontology is public, under the ontology's licence, and is credited to the contributors to the BreedGraph ontology as a whole, not to you by name.
+What you add to the shared ontology is public, under the ontology's licence, and is credited to the contributors to the BreedGraph ontology as a whole, not to you by name, unless you choose to be named. If a Person record is linked to your account, you can choose on your profile to be listed among the contributors to the ontology versions your work is in. Everyone, signed in or not, then sees your record's name, institution and ORCID iD with those versions. Only you can make that choice, and you can stop at any time; unlinking or erasing the record, or deleting your account, also stops it.
 
 To link your ORCID iD, you sign in at ORCID, which sends your browser back to us with your iD, signed by ORCID so that we can check it. It includes your name, which we do not keep. ORCID also gives your browser an access token, which your browser does not pass on to us.
 
@@ -126,7 +126,7 @@ We use no analytics, advertising or tracking cookies.
 
 ## Lawful basis
 
-Most personal data in BreedGraph is processed with your consent (Art. 6(1)(a) GDPR): the details you give when you register, and the Person records that credit people, which are made only with the consent of the person credited. You can withdraw your consent at any time, by deleting your account or erasing a Person record (see "Your rights"), or by asking us. Withdrawing it does not affect what was done before.
+Most personal data in BreedGraph is processed with your consent (Art. 6(1)(a) GDPR): the details you give when you register, and the Person records that credit people, which are made only with the consent of the person credited. Being named among the ontology's contributors rests on your consent too, given when you choose it. You can withdraw your consent at any time, by deleting your account, erasing a Person record or no longer choosing to be named (see "Your rights"), or by asking us. Withdrawing it does not affect what was done before.
 
 Some processing is needed to run BreedGraph securely and reliably, and rests on the University's public task (Art. 6(1)(e) GDPR), as the University provides BreedGraph as part of its research: server logs, counts of failed sign-in attempts, backups, and the log of erasures that keeps restored backups correct.
 
@@ -167,7 +167,7 @@ You have rights to access, correct and erase your personal data, to restrict or 
 In BreedGraph:
 
 - **Your account**: change your username, full name, email address or password, or delete your account, in your account settings. When you delete your account, you are asked whether to erase the Person record linked to it as well, which is the default.
-- **A Person record crediting you**: if you have an account, ask to link the record to your account. Administrators of the teams that control it decide the request, after confirming who you are. Once linked, you can see the record in full, correct your name, link your ORCID iD, unlink the record, or **erase it**.
+- **A Person record crediting you**: if you have an account, ask to link the record to your account. Administrators of the teams that control it decide the request, after confirming who you are. Once linked, you can see the record in full, correct your name, link your ORCID iD, choose whether to be named among the ontology's contributors, unlink the record, or **erase it**.
 - **If you have no account**, contact us. Once we have confirmed who you are, we can erase the record for you, or invite you to register and link it, so you can manage it yourself.
 - **Erasing a Person record** withdraws your consent: it removes your name, institution, teams and ORCID iD and keeps only an anonymous record number, so research data stays attributed without identifying you.
 - **Anything else**: contact us.

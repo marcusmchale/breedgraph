@@ -89,3 +89,9 @@ class CompleteOrcidLink(Command):
 
 class RemoveOrcid(Command):
     agent_id: int
+
+
+class SetOntologyCredit(Command):
+    """The linked user agrees, or no longer agrees, to be listed by name among the ontology's contributors"""
+    agent_id: int
+    listed: bool

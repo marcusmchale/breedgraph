@@ -163,6 +163,10 @@ async def test_delete_account_erases_person_by_default(
 async def test_delete_account_can_keep_person(client, login_token_factory, uow_factory, delete_context):
     admin_token = login_token_factory(user_id=delete_context['user_id'])
     user_id, password, person_id = await member_with_person(uow_factory, delete_context)
+    # an agreement to be listed among the ontology's contributors goes with the account
+    async with uow_factory.get_uow(user_id=user_id) as uow:
+        (await uow.repositories.people.get(user_id=user_id)).set_ontology_credit(user_id, True)
+        await uow.commit()
 
     response, payload = await delete_account(client, login_token_factory(user_id=user_id), password, erase_person=False)
     assert_payload_success(payload)
@@ -171,6 +175,8 @@ async def test_delete_account_can_keep_person(client, login_token_factory, uow_f
     assert person['erased'] is False
     assert person['name']
     assert person['linkedUser'] is None
+    async with uow_factory.get_uow() as uow:
+        assert not (await uow.repositories.people.get(person_id=person_id)).ontology_credit
 
 
 @pytest.mark.asyncio(loop_scope="session")

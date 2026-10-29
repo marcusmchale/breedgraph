@@ -41,6 +41,8 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'ontologyEntries': ('query { ontologyEntries(labels: [SUBJECT]) { status errors { name message } } }', {}, True),
         'ontologyRelationships': ('query ($ids: [ID!]!) { ontologyRelationships(entryIds: $ids) { status errors { name message } } }', {'ids': [ids['ontology_subject_tree']]}, True),
         'ontologyVersion': ('query { ontologyVersion { status errors { name message } } }', {}, True),
+        # each person listed agreed to it from their own account (docs/person.md, §6)
+        'ontologyContributors': ('query { ontologyContributors { status errors { name message } } }', {}, True),
         'programs': ('query { programs { status errors { name message } } }', {}, True),
         'programsProgram': ('query ($id: ID) { programsProgram(id: $id) { status errors { name message } } }', {'id': ids['program_public']}, True),
         'programsStudy': ('query ($id: ID!) { programsStudy(id: $id) { status errors { name message } } }', {'id': ids['study_public']}, True),

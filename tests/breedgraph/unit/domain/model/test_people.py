@@ -223,3 +223,31 @@ def test_only_subject_sets_and_removes_orcid():
         person.remove_orcid(ADMIN_USER)
     person.remove_orcid(SUBJECT_USER)
     assert person.orcid is None
+
+
+def test_only_subject_chooses_to_be_listed_as_an_ontology_contributor():
+    person = stored_person()
+    with pytest.raises(UnauthorisedOperationError):
+        person.set_ontology_credit(ADMIN_USER, True)
+    person.set_ontology_credit(SUBJECT_USER, True)
+    assert person.ontology_credit and person.to_output().ontology_credit
+    person.set_ontology_credit(SUBJECT_USER, False)
+    assert not person.ontology_credit
+
+
+def test_unlinking_or_erasing_withdraws_the_listing_and_a_new_link_starts_without():
+    # the agreement was the linked account's, as the contributions were
+    person = stored_person()
+    person.set_ontology_credit(SUBJECT_USER, True)
+    person.unlink(ADMIN_USER, admin_controller(person), {CONTROL_TEAM})
+    assert not person.ontology_credit
+
+    person = stored_person(ontology_credit=True)
+    person.erase(agent_id=SUBJECT_USER, controller=admin_controller(person), admin_teams=set())
+    assert not person.ontology_credit
+
+    person = stored_person(user=None, ontology_credit=True)
+    person.link(OTHER_USER)
+    assert not person.ontology_credit
+    # nor does the id-only form carry it
+    assert not stored_person(ontology_credit=True)._id_only(OTHER_USER).ontology_credit

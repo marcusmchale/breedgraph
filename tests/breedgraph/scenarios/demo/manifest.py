@@ -123,6 +123,8 @@ def demo_manifest(
         'ontology': {
             'versions': [{'version': version, 'comment': comment} for version, comment in s.commits],
             'entries': s.ontology,
+            # the people listed among its contributors, by their agreement
+            'contributors': [person.name for person in PEOPLE.values() if person.ontology_credit],
         },
         'layouts': s.layouts,
         'groupings': s.groupings,

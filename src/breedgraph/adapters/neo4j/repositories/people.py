@@ -127,7 +127,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
         if not changed:
             return
         props = {}
-        for attr in ('name', 'institution', 'orcid', 'erased_at'):
+        for attr in ('name', 'institution', 'orcid', 'ontology_credit', 'erased_at'):
             if attr in changed:
                 props[attr] = getattr(person, attr)
         await self.tx.run(
@@ -151,6 +151,7 @@ class Neo4jPeopleRepository(Neo4jControlledRepository[PersonInput, PersonStored]
             orcid=record.get('orcid'),
             user=record.get('user'),
             claims=list(record.get('claims') or []),
+            ontology_credit=bool(record.get('ontology_credit')),
             recorded_by=record.get('recorded_by'),
             recorded_at=deserialize_time(record.get('recorded_at')),
             erased_at=deserialize_time(record.get('erased_at'))

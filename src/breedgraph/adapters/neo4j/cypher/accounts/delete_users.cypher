@@ -7,6 +7,11 @@
 UNWIND $deletions AS deletion
 MATCH (user: User {id: deletion.user_id})
 WHERE deletion.created_at IS NULL OR user.time.epochMillis = datetime(deletion.created_at).epochMillis
+// An agreement to be listed among the ontology's contributors is the account's, so it goes with the link
+CALL (user) {
+  MATCH (user)-[:IS_PERSON]->(person: Person)
+  REMOVE person.ontology_credit
+}
 CALL (user) {
   MATCH (user)-[r: READ|WRITE|CURATE|ADMIN|IS_PERSON|CLAIMS]->()
   DELETE r

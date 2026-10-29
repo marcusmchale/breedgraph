@@ -69,6 +69,12 @@ extend type Mutation {
     """ Remove the ORCID iD from the user's linked Person """
     peopleRemoveOrcid: BooleanPayload!
     """
+    The user agrees (listed true), or no longer agrees, to be listed by name among the contributors to the ontology
+    versions their work is in (ontologyContributors): their linked Person's name, institution and ORCID iD are then
+    shown to anyone. Only the linked user sets it, and unlinking or erasing the Person withdraws it.
+    """
+    peopleSetOntologyCredit(listed: Boolean!): BooleanPayload!
+    """
     Send a message to a contact of a Program or Trial the sender can read (entityLabel PROGRAM or TRIAL).
     BreedGraph emails the linked user without revealing their address. The sender's name and email address
     are included, so the recipient can reply: tell the sender this before sending.
