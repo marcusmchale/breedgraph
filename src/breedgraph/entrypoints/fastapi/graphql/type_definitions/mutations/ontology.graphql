@@ -601,6 +601,10 @@ extend type Mutation {
     """
     ontologyRestoreEntries(ids: [ID!]!): BooleanPayload!
 
+    """
+    Commit the drafts as a new version. The licence and copyright must be public references. The version keeps the
+    latest version's licence unless licenceId names another, so the ontology's licence can be changed but not removed.
+    """
     ontologyCommitVersion(
         versionChange: VersionChange!,
         comment: String,

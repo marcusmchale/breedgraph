@@ -3,6 +3,7 @@ import json
 from neo4j import Record
 
 from breedgraph.adapters.neo4j.cypher import queries
+from breedgraph.custom_exceptions import UnauthorisedOperationError
 from breedgraph.domain.model.contributions import contributions_from
 from breedgraph.service_layer.tracking import TrackableProtocol
 from breedgraph.adapters.neo4j.repositories.controlled import Neo4jControlledRepository
@@ -55,6 +56,25 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             stored.contributions = contributions_from(contributions)
         return stored
 
+    async def seed(self, reference: ReferenceBase, seed_key: str) -> ReferenceStoredBase:
+        """
+        Create a reference without controls, so it is fixed: everyone can read it and no one can change it
+        (docs/read-access.md, rule 11). It is keyed, for seeding again to find it: the standard licences
+        (service_layer/application/licence_seed.py).
+        """
+        if self.user_id is None:
+            raise UnauthorisedOperationError("Seeding references requires a user_id")
+        stored = await self._create_controlled(reference)
+        await self.tx.run(queries['references']['set_seed_key'], reference_id=stored.id, seed_key=seed_key)
+        await self.controls.record_writes(stored)
+        return stored
+
+    async def get_seeded_id(self, seed_key: str) -> int | None:
+        """The id of the reference seeded with this key"""
+        result = await self.tx.run(queries['references']['get_reference_id_by_seed_key'], seed_key=seed_key)
+        record = await result.single()
+        return record['id'] if record else None
+
     async def _set_contributions(self, reference_id: int, contributions: list[dict]) -> None:
         await self.tx.run(queries['references']['set_contributions'], reference_id=reference_id, contributions=contributions)
 
@@ -75,8 +95,9 @@ class Neo4jReferencesRepository(Neo4jControlledRepository[ReferenceBase, Referen
             record['text_format'] = TextFormat(record['text_format'])
         if 'schema' in record:
             record['schema'] = json.loads(record['schema'])
-        # the retention job's mark (remove_unused_files), not part of the reference
+        # the retention job's mark (remove_unused_files), and the key of a seeded reference, not part of the reference
         record.pop('unused_since', None)
+        record.pop('seed_key', None)
         # legal text written before content hashes were kept was typed, so its hash is that of the text
         if reference_type == ReferenceType.LEGAL and record.get('content_hash') is None and record.get('text') is not None:
             record['content_hash'] = text_hash(record['text'])

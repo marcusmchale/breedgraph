@@ -9,6 +9,18 @@ The release's notes on GitHub link here; corrections found while deploying a rel
 
 ## Unreleased
 
+**Standard licences.** Setting up now seeds two standard licences, CC BY 4.0 and CC0 1.0, as legal references
+without controls, which everyone can read and no one can change, and gives the ontology's first version CC BY 4.0
+([licences.md](licences.md) §6). A database set up before needs them once, after the schema step (a new constraint,
+on the references' seed keys), on the web server, from the release's checkout with the venv and environment:
+
+    python scripts/apply_schema.py
+    python scripts/seed_licences.py
+
+The second creates only what is missing, and says which references the licences are. The ontology's next version then
+takes CC BY 4.0, unless an ontology admin names another. The demonstration site's database is rebuilt for the release,
+with them.
+
 **ORCID linking without outbound access.** ORCID sign-in now gives the browser an id_token that ORCID signed, which
 the API checks with ORCID's public key, carried by the release, rather than exchanging a code with `orcid.org`. So the
 web server needs no access to ORCID, and linking can be turned on wherever a client is registered

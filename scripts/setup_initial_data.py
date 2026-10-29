@@ -14,7 +14,7 @@ from neo4j import AsyncTransaction, AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from breedgraph.domain.model.accounts import OntologyRole
-from breedgraph.service_layer.application.ontology_seed import seed_ontology
+from breedgraph.service_layer.application.initial_data import seed_initial_data
 
 
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
@@ -78,10 +78,12 @@ async def create_initial_ontology_entries(
     system_account: AccountStored,
     uow: AbstractUnitOfWorkFactory
 ):
-    """Create essential ontology entries needed for the application: Country, and the CRediT roles."""
+    """
+    Create what the application needs from the start: the standard licences, the ontology's seeded entries (Country
+    and the CRediT roles), and its first version, under CC BY 4.0
+    """
     async with uow.get_uow(user_id=system_account.user.id) as uow_holder:
-        await seed_ontology(uow_holder.ontology)
-        await uow_holder.ontology.commit_version(version_change=None, comment="Initial system commit")
+        await seed_initial_data(uow_holder)
         await uow_holder.commit()
         logger.info("Initial ontology setup completed successfully")
 

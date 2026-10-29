@@ -7,6 +7,7 @@ from breedgraph.custom_exceptions import IllegalOperationError
 from breedgraph.service_layer.persistence.ontology import OntologyPersistenceService
 
 from breedgraph.adapters.neo4j.cypher import queries, ontology
+from breedgraph.service_layer.application.licence_seed import CC_BY
 from breedgraph.adapters.neo4j.ontology_records import record_to_entry, patch_values
 from breedgraph.service_layer.queries.read_models import OntologyEntryOutput, OntologyViewMode
 
@@ -168,6 +169,10 @@ class Neo4jOntologyPersistenceService(OntologyPersistenceService):
 
     async def set_seed_key(self, entry_id: int, seed_key: str) -> None:
         await self.tx.run(queries['ontology']['set_seed_key'], entry_id=entry_id, seed_key=seed_key)
+
+    async def get_default_licence(self) -> int | None:
+        record = await (await self.tx.run(queries['ontology']['get_default_licence'], default_seed_key=CC_BY)).single()
+        return record['licence'] if record else None
 
     async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
         await self.tx.run(queries['ontology']['set_entries_locked'], entry_ids=entry_ids, locked=locked, user_id=user_id)

@@ -669,6 +669,9 @@ Data from elsewhere, and how it is credited:
 - **Places and countries:** [GeoNames](https://www.geonames.org)' places and country list, under the Creative Commons
   Attribution 4.0 licence. The place search credits it under its results, linking to the licence; the country list
   packaged with BreedGraph is credited in `src/breedgraph/data/README.md`.
+- **Licence texts:** Creative Commons' legal code of CC BY 4.0 and CC0 1.0, packaged unchanged in
+  `src/breedgraph/legal/licences/` and seeded as the standard licences (`docs/licences.md` §6). Creative Commons
+  dedicates the text of its licences to the public domain under CC0.
 - **Outlines:** [geoBoundaries](https://www.geoboundaries.org)' country and section outlines, under open licences that
   vary by country (CC BY 4.0 for most), kept beside each file in `MAP_BOUNDARIES_PATH`. They are used only to cut map
   tiles and find sections on the server, and are not served.

@@ -3,6 +3,7 @@ CREATE CONSTRAINT IF NOT EXISTS FOR (user:User) REQUIRE user.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (team:Team) REQUIRE team.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (ontologyEntry:OntologyEntry) REQUIRE ontologyEntry.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (ontologyEntry:OntologyEntry) REQUIRE ontologyEntry.seed_key IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS FOR (reference:Reference) REQUIRE reference.seed_key IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (ontologyRelationship:OntologyRelationship) REQUIRE ontologyRelationship.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (germplasm:Germplasm) REQUIRE germplasm.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (program:Program) REQUIRE program.id IS UNIQUE;

@@ -336,6 +336,9 @@ class MockOntologyPersistenceService(OntologyPersistenceService):
             return Version()
         return max(commit.version for commit in self.commit_history)
 
+    async def get_default_licence(self) -> int | None:
+        return self.commit_history[-1].licence if self.commit_history else None
+
     async def _commit_version(self, user_id: int, commit: OntologyCommit):
         """Save version with commit metadata."""
         self.commits[commit.version] = commit

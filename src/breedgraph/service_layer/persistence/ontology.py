@@ -83,6 +83,14 @@ class OntologyPersistenceService(ABC):
         ...
 
     @abstractmethod
+    async def get_default_licence(self) -> int | None:
+        """
+        The id of the licence a new version keeps when it names none: the latest version's or, where it has none, the
+        standard CC BY 4.0, if seeded (service_layer/application/licence_seed.py)
+        """
+        ...
+
+    @abstractmethod
     async def set_entries_locked(self, entry_ids: List[int], locked: bool, user_id: int) -> None:
         """Lock or unlock entries, recording who did it and when"""
         ...

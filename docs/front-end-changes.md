@@ -27,6 +27,25 @@ It builds the API's schema and validates every operation in the front end's `.gr
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
 
+## Standard licences and the ontology's licence
+
+Every deployment now has two standard licences, CC BY 4.0 and CC0 1.0: legal references without controls
+(`docs/licences.md` §6). `controlsControllers` gives each a controller with no controls, release `PUBLIC` and access
+`[READ]` alone, as it does any entity without controls (`docs/read-access.md`, rule 11): no one can edit or remove it,
+set its release or transfer it, and the API refuses with "... has no controls, so no one can change it". The reference
+pickers find them as any public reference.
+
+`ontologyCommitVersion` keeps the latest version's licence when `licenceId` is null or left out, and the first
+version has CC BY 4.0, so the ontology's licence can be changed but not removed.
+
+Work in breedview:
+- A reference whose controller has no controls shows no controller badge or release menu, and no edit or delete
+  buttons: its text is fixed.
+- The licence pickers (studies, the ontology's commit form) list the standard licences first.
+- The commit form starts from the current licence, as it does, and drops its Remove button; a note on changing it:
+  entries contributed under CC BY 4.0, and the CRediT roles, stay under CC BY 4.0 with their attribution, whatever a
+  new version names.
+
 ## Scale categories on the scale
 
 A scale's categories are no longer ontology entries: they are part of the scale, in order (an ordinal scale's order is

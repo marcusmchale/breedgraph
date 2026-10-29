@@ -147,11 +147,17 @@ class OntologyApplicationService:
             licence_reference: int|None = None,
             copyright_reference: int|None = None
     ) -> OntologyCommit:
-        """Create a new ontology version with commit metadata. """
+        """
+        Create a new ontology version with commit metadata. A version keeps the latest one's licence unless it names
+        another, and takes the standard CC BY 4.0 where the latest has none, so the ontology always has a licence:
+        CC BY 4.0, as seeding gives the first version, unless an ontology admin names another (docs/licences.md §6).
+        """
         if not self.role in [OntologyRole.EDITOR, OntologyRole.ADMIN]:
             raise UnauthorisedOperationError("Only admins and editors can commit versions")
         elif not self.user_id:
             raise UnauthorisedOperationError("Only registered users can commit versions")
+        if licence_reference is None:
+            licence_reference = await self.persistence.get_default_licence()
         await self._require_citable_references([licence_reference, copyright_reference])
 
         commit = await self.persistence.commit_version(

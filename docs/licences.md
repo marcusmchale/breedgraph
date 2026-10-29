@@ -3,6 +3,7 @@
 A study may name a licence for the use of its data: a legal reference whose terms people agree to before they get the
 data, as everyone agrees to the Terms of Use before using BreedGraph. This note records how a licence is kept
 readable, how its text is given, what identifies the text agreed to, and how agreements are kept without records.
+The standard licences, and the ontology's, are in §6.
 It is not legal advice: whether agreeing in BreedGraph binds anyone is for the University's legal office.
 
 ## 1. A licence is readable by whoever reads the data by release
@@ -115,3 +116,31 @@ readable by whoever reads the data by release (§1). Nothing changes for dataset
   current hash, all or none, and adds them to the identity's token, beside the Terms (§4). Keyed by licence id, a
   licence shared by many studies is one acceptance. `LegalReference.accepted` says whether the request carries an
   acceptance of the reference's current text.
+
+## 6. Standard licences and the ontology's licence
+
+Every deployment starts with two standard licences, seeded with the ontology's first entries
+(`service_layer/application/licence_seed.py`, run by `scripts/setup_initial_data.py`, the database builds and the
+test setup through `initial_data.seed_initial_data`):
+
+| Seed key | Licence | Text |
+|---|---|---|
+| `cc-by-4.0` | Creative Commons Attribution 4.0 International (CC BY 4.0) | `src/breedgraph/legal/licences/cc-by-4.0.txt` |
+| `cc0-1.0` | Creative Commons CC0 1.0 Universal, a public domain dedication | `src/breedgraph/legal/licences/cc0-1.0.txt` |
+
+- Each is a legal reference with Creative Commons' legal code as its plain text, packaged unchanged (CC dedicates the
+  text of its licences to the public domain), and its content hash is that of the file (§3).
+- Each has **no controls**, so it is fixed: everyone can read it and cite it, as a study's licence or the ontology's,
+  and no one can change it, remove it or set its release (docs/read-access.md, rule 11). It is always public, so it
+  meets the release rule (§1) for any study.
+- Each has a seed key, set only by seeding, which finds it again: seeding creates only what is missing.
+  `scripts/seed_licences.py` seeds them into a database set up before they were.
+
+**The ontology's licence.** The ontology is shared, so its licence must be public (docs/read-access.md, rule 10). Its
+first version, made by seeding, is under CC BY 4.0: the CRediT roles in it are NISO's, under CC BY 4.0
+(docs/contributions.md §3), and the Terms of Use ask contributors to license what they add under it. A new version keeps
+the latest version's licence unless it names another (`ontologyCommitVersion`'s `licenceId`), and takes CC BY 4.0
+where the latest has none, so the ontology always has a licence (`OntologyApplicationService.commit_version`). An
+ontology admin can name another public licence for a version, for a deployment whose context calls for one; entries
+from CC BY 4.0 sources, and those contributed under CC BY 4.0, stay under it with their attribution whatever a later
+version names, so a new licence must allow that.

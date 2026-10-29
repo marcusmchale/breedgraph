@@ -99,6 +99,8 @@ breedgraph = [
     "data/*.txt",
     "data/*.md",
     "legal/*.md",
+    "legal/licences/*.txt",
+    "legal/licences/*.md",
     "adapters/orcid/jwks/*.json",
 ]
 archive_worker = []

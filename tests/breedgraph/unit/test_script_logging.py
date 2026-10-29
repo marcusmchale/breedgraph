@@ -15,7 +15,7 @@ SCRIPTS = Path(__file__).parents[3] / 'scripts'
 # Run on the server by an operator, or by a unit, saying what they did through logging
 OPERATOR_SCRIPTS = [
     'setup_initial_data.py', 'apply_schema.py', 'apply_erasures.py', 'erase_person.py', 'load_state_store.py',
-    'set_demo_accounts.py', 'map_tiles.py'
+    'set_demo_accounts.py', 'map_tiles.py', 'seed_licences.py'
 ]
 
 

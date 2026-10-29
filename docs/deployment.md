@@ -99,8 +99,9 @@ emmeans, car and pbkrtest; the worker server also with Ubuntu 22.04 and its R 4.
 5. **The unit.** `instance/breedgraph.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
    `sudo systemctl enable --now breedgraph`.
 6. **The first data.** From the checkout, with the venv and the environment: `python scripts/setup_initial_data.py`,
-   which refuses a database that isn't empty, and makes the schema, a system account and the ontology's first entries
-   (Installing from the wheelhouses, below). Then make the site's first account, the first ontology admin, which invites
+   which refuses a database that isn't empty, and makes the schema, a system account, the standard licences (CC BY 4.0
+   and CC0 1.0, docs/licences.md §6) and the ontology's first entries and version, under CC BY 4.0 (Installing from
+   the wheelhouses, below). Then make the site's first account, the first ontology admin, which invites
    the others:
    `python scripts/create_first_account.py --name <username> --email <address> --fullname "<full name>"` asks for its
    password and its holder's consent to the privacy notice, and prints its id. Registering in BreedView always needs

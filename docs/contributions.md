@@ -93,6 +93,8 @@ Each seeded Role's `source` gives its role page as the URL and, as the attributi
 
 The entries are locked, so the definitions stay unchanged. If an admin unlocks one and changes its definition,
 they add "Adapted from CRediT." to the description, as the licence asks changes to be indicated.
+The ontology's first version, which holds them, is published under CC BY 4.0 too, and later versions keep it unless an
+ontology admin names another licence (docs/licences.md §6).
 
 ## 4. Locking ontology entries
 

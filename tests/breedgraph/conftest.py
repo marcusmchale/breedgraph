@@ -20,7 +20,7 @@ from breedgraph.adapters.neo4j import Neo4jViewsFactory
 from breedgraph.adapters.neo4j import queries
 
 from breedgraph.service_layer.messagebus import MessageBus
-from breedgraph.service_layer.application.ontology_seed import seed_ontology
+from breedgraph.service_layer.application.initial_data import seed_initial_data
 
 from tests.breedgraph.utilities.inputs import UserInputGenerator, LoremTextGenerator
 from tests.breedgraph.scenarios import (
@@ -150,8 +150,7 @@ async def init_neo4j(uow_factory) -> None:
         await uow.commit()
 
     async with uow_factory.get_uow(user_id=system_account.user.id) as uow:
-        await seed_ontology(uow.ontology)
-        await uow.ontology.commit_version(version_change=None, comment='Initial version')
+        await seed_initial_data(uow)
         await uow.commit()
 
 async def init_redis(uow_factory) -> None:
