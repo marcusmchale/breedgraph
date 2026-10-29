@@ -46,6 +46,7 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
             name=team.name,
             name_lower=team.name.casefold(),
             fullname=team.fullname,
+            attribution=team.attribution,
             admin=self.user_id,
             heritable=admin_heritable
         )
@@ -59,7 +60,8 @@ class Neo4jTeamTreesRepository(BaseRepository[TeamInput, TeamTree]):
             team=team.id,
             name=team.name,
             name_lower=team.name.casefold(),
-            fullname=team.fullname
+            fullname=team.fullname,
+            attribution=team.attribution
         )
         await self._set_team_access(team)
 

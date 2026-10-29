@@ -226,6 +226,14 @@ type Query {
         entityIds: [ID!]!
     ): ControllersPayload!
     """
+    How to credit each entity, for anyone, signed in or not: the attributions of the teams that control it, which they
+    make public by setting them (Team.attribution). An entity you cannot read, or an id of no entity, has none.
+    """
+    controlsAttributions (
+        entityLabel: ControlledModelLabel!
+        entityIds: [ID!]!
+    ): AttributionsPayload!
+    """
     How many entities of each label teams control, by release. Only for teams the user is an admin of: a request
     naming any other team is refused.
     """

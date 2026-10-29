@@ -30,6 +30,11 @@ data under its study's licence, other information released to everyone under CC 
 data, and that licences and the Terms never cover personal data. "Who entered or changed data" says that ontology
 contributions are credited to the contributors as a whole, not by name.
 
+Also on 29 October 2026, teams can set an attribution, the text they are credited by, which is shown to everyone with
+what they release, so that the Terms' credit can name them. It is the only thing about a team shown to everyone, and
+only when the team sets it. The summary and "Research data" say so, and that it should name an organisation or group,
+not a person without their agreement.
+
 Points to confirm:
 
 1. **Lawful basis.** Consent (Art. 6(1)(a)) for account data and Person records; public task (Art. 6(1)(e)) for server

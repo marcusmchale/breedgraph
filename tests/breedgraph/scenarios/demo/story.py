@@ -75,14 +75,16 @@ class Team:
     name: str
     parent: str | None = None  # None for the root of a team tree
     owner: str | None = None  # the account that creates a team tree
+    attribution: str | None = None  # how the team is credited; one without takes the nearest above it
 
 
+# The breeding group is credited as itself; field operations and the lab take the institute's
 TEAMS: Dict[str, Team] = {
-    'institute': Team(INSTITUTE, owner='dara'),
-    'breeding': Team("Wheat Breeding Group", parent='institute'),
+    'institute': Team(INSTITUTE, owner='dara', attribution=INSTITUTE),
+    'breeding': Team("Wheat Breeding Group", parent='institute', attribution=f"Wheat Breeding Group, {INSTITUTE}"),
     'field': Team("Field Operations", parent='institute'),
     'lab': Team("Grain Quality Lab", parent='institute'),
-    'cooperative': Team(COOPERATIVE, owner='petra'),
+    'cooperative': Team(COOPERATIVE, owner='petra', attribution=COOPERATIVE),
 }
 
 

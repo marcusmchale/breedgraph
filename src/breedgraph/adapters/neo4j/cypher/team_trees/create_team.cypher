@@ -6,7 +6,8 @@ CREATE (admin)-[affiliation: ADMIN {authorisation:'AUTHORISED', heritable:$herit
   id: counter.count,
   name: $name,
   name_lower: $name_lower,
-  fullname: $fullname
+  fullname: $fullname,
+  attribution: $attribution
 })
 // Admin access includes read access, to the same extent
 CREATE (admin)-[read: READ {authorisation:'AUTHORISED', heritable:$heritable}]-> (team)

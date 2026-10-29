@@ -10,7 +10,7 @@
 - While data is private, the team that holds it decides who reads it, and can agree its own terms with them.
 - A study's data is released beyond its team only with a licence for the study. You accept the licence before you get the data, and you use and pass on the data only as the licence allows.
 - Other information released to everyone, and the shared ontology, are under the Creative Commons Attribution 4.0 licence (CC BY 4.0). Information released to signed-in users is for their own research: don't publish it or pass it on outside BreedGraph.
-- Give credit for what you use from BreedGraph, including data released to everyone, such as public germplasm and locations.
+- Give credit for what you use from BreedGraph, including data released to everyone, such as public germplasm and locations: cite BreedGraph and the teams it credits with the information.
 - Add personal data about another person, such as crediting them for their work, only with their consent.
 - Your account, and your acceptance of these Terms and of licences, are yours alone: don't share them.
 
@@ -70,7 +70,9 @@ The shared ontology is published under [CC BY 4.0](https://creativecommons.org/l
 
 ## Credit
 
-When you use information from BreedGraph, including what its owners have released to everyone, such as public germplasm and locations, and the shared ontology, give appropriate credit: cite BreedGraph, and the study, the people credited and the references that the information names. A licence may ask for more.
+When you use information from BreedGraph, including what its owners have released to everyone, such as public germplasm and locations, and the shared ontology, give appropriate credit: cite BreedGraph, the attribution BreedGraph shows with the information (the teams that hold it), and the study, the people credited and the references that the information names. A licence may ask for more.
+
+A team may set an attribution, the text it is credited by, which BreedGraph shows to everyone with the information the team holds. Teams within it are credited by it unless they set their own, and a team without one is not named. An attribution is public: name an organisation or a group in it, and a person only with their agreement.
 
 ## What you add
 

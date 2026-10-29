@@ -32,7 +32,8 @@ async def create_team(
 
         team_input = TeamInput(
             name=cmd.name,
-            fullname=cmd.fullname if cmd.fullname else cmd.name
+            fullname=cmd.fullname if cmd.fullname else cmd.name,
+            attribution=cmd.given_text('attribution')
         )
         if cmd.parent is None:
             org: TeamTree = await uow.repositories.team_trees.create(team_input)
@@ -79,4 +80,6 @@ async def update_team(
             team.name = cmd.name
         if cmd.given('fullname'):
             team.fullname = cmd.given_text('fullname')
+        if cmd.given('attribution'):
+            team.attribution = cmd.given_text('attribution')
         await uow.commit()

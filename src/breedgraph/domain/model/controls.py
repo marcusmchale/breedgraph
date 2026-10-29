@@ -82,6 +82,8 @@ class DiscoveryMatch:
 class Controller:
     controls: Dict[int, Control] = field(default_factory=dict) # key should be team_id
     writes: List[WriteStamp] = field(default_factory=list)  # timestamps of writes to DB
+    # as read: how to credit the entity, from its controlling teams (TeamBase.attribution); none when it is hidden
+    attributions: List[str] = field(default_factory=list)
 
     @property
     def teams(self) -> set[int]:

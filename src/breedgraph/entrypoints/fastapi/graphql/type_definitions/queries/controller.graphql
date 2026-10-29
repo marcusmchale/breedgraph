@@ -40,6 +40,8 @@ type Controller {
     teams: [TeamReference!]!
     """ What your affiliations let you do with the entity through the teams that control it """
     access: [Access!]!
+    """ How to credit the entity: its controlling teams' attributions, as controlsAttributions gives them """
+    attributions: [String!]!
     release: ReadRelease!
     """
     Whether the entity has no controls: then everyone reads it and no one changes it, sets its release or transfers it,
@@ -49,6 +51,12 @@ type Controller {
     """ The first and latest writes: null for an entity you cannot read, whose history is hidden """
     created: DateTime
     updated: DateTime
+}
+
+""" How to credit an entity: the attributions of the teams that control it, each its own or inherited """
+type EntityAttributions {
+    entityId: ID!
+    attributions: [String!]!
 }
 
 enum ControlTransferStatus { PENDING, ACCEPTED, REJECTED, CANCELLED }

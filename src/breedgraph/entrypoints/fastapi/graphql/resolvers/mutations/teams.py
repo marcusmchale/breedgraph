@@ -22,6 +22,7 @@ async def create_team(
         agent_id=user_id,
         name=team.get('name'),
         fullname=team.get('fullname'),
+        attribution=team.get('attribution'),
         parent=team.get('parent_id')
     )
     await info.context['bus'].handle(cmd)
@@ -58,8 +59,8 @@ async def update_team(
         agent_id=user_id,
         team_id=team.get('id'),
         name=team.get('name'),
-        # passed only when given, as null clears it
-        **{key: team[key] for key in ('fullname',) if key in team}
+        # passed only when given, as null clears them
+        **{key: team[key] for key in ('fullname', 'attribution') if key in team}
     )
     await info.context['bus'].handle(cmd)
     return True

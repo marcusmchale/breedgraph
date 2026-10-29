@@ -191,16 +191,59 @@ def licence_release_violations() -> str:
     """
 
 
-def read_controllers(label: ControlledModelLabel):
+def _attributions(entity: str, readable: str, label: ControlledModelLabel, alias: str) -> str:
     """
-    The controllers of the entities with ids $entity_ids as the user may see them (see docs/read-access.md): the
-    current controls of each, and the writes to it only when the user can read the entity. For an entity they cannot
-    read, the controller is a placeholder with its controls alone, without when they were set, so they see whom to
-    ask for access, but not the history of data hidden from them. An entity without current controls has none.
+    A call setting alias to the attributions of the teams currently controlling entity, when readable: each team's own,
+    or the nearest above it in its team tree, in the order of the teams' ids, without repeats. Attributions are public,
+    so they are found through teams hidden from the user too.
+    """
+    return f"""
+        CALL ({entity}, {readable}) {{
+          OPTIONAL MATCH ({entity})<-[:CONTROLS]-(credit_control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(credited:Team)
+          WHERE {readable}
+          WITH credited, credit_control
+          ORDER BY credited.id, credit_control.sequence DESC
+          WITH credited, collect(credit_control)[0] AS credit_control
+          WHERE credited IS NOT NULL AND NOT coalesce(credit_control.ended, false)
+          CALL (credited) {{
+            OPTIONAL MATCH credit_path = (crediting:Team)-[:INCLUDES_TEAM*0..]->(credited)
+            WHERE crediting.attribution IS NOT NULL
+            RETURN crediting.attribution AS attribution
+            ORDER BY length(credit_path)
+            LIMIT 1
+          }}
+          WITH credited, attribution
+          ORDER BY credited.id
+          RETURN coll.distinct([attribution IN collect(attribution) WHERE attribution IS NOT NULL]) AS {alias}
+        }}
+    """
+
+
+def read_attributions(label: ControlledModelLabel) -> str:
+    """
+    How to credit each of the entities with ids $entity_ids that the user can read: the attributions of the teams that
+    control it (see _attributions). An entity they cannot read has none, so as not to say who holds what is hidden.
     """
     return f"""
         MATCH (entity: {label.label}) WHERE entity.id IN $entity_ids
         {_visible('entity', label, 'entity_readable')}
+        {_attributions('entity', 'entity_readable', label, 'attributions')}
+        RETURN entity.id AS entity_id, attributions
+    """
+
+
+def read_controllers(label: ControlledModelLabel):
+    """
+    The controllers of the entities with ids $entity_ids as the user may see them (see docs/read-access.md): the
+    current controls of each, and the writes to it and its attributions only when the user can read the entity. For an
+    entity they cannot read, the controller is a placeholder with its controls alone, without when they were set, so
+    they see whom to ask for access, but not the history of data hidden from them. An entity without current controls
+    has none.
+    """
+    return f"""
+        MATCH (entity: {label.label}) WHERE entity.id IN $entity_ids
+        {_visible('entity', label, 'entity_readable')}
+        {_attributions('entity', 'entity_readable', label, 'attributions')}
         CALL (entity, entity_readable) {{
             OPTIONAL MATCH (entity)<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team)
             WITH team, control
@@ -217,6 +260,7 @@ def read_controllers(label: ControlledModelLabel):
         RETURN
             entity.id AS entity_id,
             controls,
+            attributions,
             CASE WHEN entity_readable THEN [
                 (entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
                 {{user: user.id, time: write.time}}

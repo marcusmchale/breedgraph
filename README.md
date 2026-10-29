@@ -295,7 +295,12 @@ with ADMIN affiliates receiving an email to approve this request.
 Such requests are heritable, such that a user may request an affiliation to the root of a team tree, 
 and ADMIN affiliates may approve the affiliation only to a chosen child team.
 #### Team
-Teams have name and fullname attributes.
+Teams have name and fullname attributes, and may have an attribution: the text to credit the team by, such as
+"Wheat Breeding Group, Example Institute". A team without one takes the nearest attribution above it in its team tree
+(`Team.inheritedAttribution`), so an institute sets it once at its root. Attributions are public: `controlsAttributions`
+gives anyone, signed in or not, the attributions of the teams that control an entity they can read, and
+`Controller.attributions` gives the same with the controls, so that what a team releases is credited to it. A team that
+sets none, and inherits none, has chosen not to be credited by name.
 ### Layout tree
 A layout tree is a tree of [layouts](#layout) with a single root.
 These are used to describe positions for [units](#unit) within [unit graphs](#unit-graph).

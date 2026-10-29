@@ -3,17 +3,23 @@ input TeamInput {
     name: String!
     """ Optional full name for the team """
     fullname: String
+    """
+    Optional text to credit the team by, shown to anyone with what it controls (Team.attribution). It is public, so it
+    should name people only with their agreement.
+    """
+    attribution: String
     """ Optional parent team to extend a team tree"""
     parentId: ID
 }
 
 """
-Fields left out are unchanged; null, or an empty string, clears fullname
+Fields left out are unchanged; null, or an empty string, clears fullname or attribution
 """
 input TeamUpdate {
     id: ID!
     name: String
     fullname: String
+    attribution: String
 }
 
 extend type Mutation {

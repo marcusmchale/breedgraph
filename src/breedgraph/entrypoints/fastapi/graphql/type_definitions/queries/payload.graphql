@@ -270,6 +270,12 @@ type ControllersPayload {
     errors: [Error!]
 }
 
+type AttributionsPayload {
+    status: QueryStatus!
+    result: [EntityAttributions!]
+    errors: [Error!]
+}
+
 type ControlTransferPayload {
     status: QueryStatus!
     result: ControlTransfer

@@ -121,5 +121,16 @@ class Neo4jControlsView(AbstractControlsView):
                 WriteStamp(user=write['user'], time=deserialize_time(write['time']))
                 for write in sorted(record['writes'], key=lambda write: write['time'])
             ]
-            controllers[record['entity_id']] = Controller(controls=controls, writes=writes)
+            controllers[record['entity_id']] = Controller(
+                controls=controls, writes=writes, attributions=list(record['attributions'])
+            )
         return controllers
+
+    async def _get_attributions(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, List[str]]:
+        result = await self.session.run(
+            control_queries.read_attributions(label),
+            entity_ids=entity_ids,
+            read_teams=self.read_teams,
+            minimum_release=self.minimum_release
+        )
+        return {record['entity_id']: list(record['attributions']) async for record in result}

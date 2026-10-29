@@ -362,3 +362,51 @@ async def test_whole_team_tree_refuses_removing_a_team_with_hidden_children(root
     team_tree = TeamTree(nodes=[root_team, child, grandchild], edges=[(1, 2, {}), (2, 3, {})])
     with pytest.raises(IllegalOperationError):
         team_tree.remove_team(2)
+
+
+def _team(team_id: int, lorem_text_generator, attribution: str | None = None, affiliations: Affiliations = None) -> TeamStored:
+    return TeamStored(
+        id=team_id,
+        affiliations=affiliations or Affiliations(),
+        **{**get_team_input(lorem_text_generator).model_dump(), 'attribution': attribution}
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_team_inherits_the_nearest_attribution_above_it(root_team, lorem_text_generator):
+    # the root is credited as an institute, the child as a group within it; the grandchild takes the group's, and a
+    # team with its own keeps it
+    root_team.attribution = 'Example Institute'
+    child = _team(2, lorem_text_generator, 'Wheat Group, Example Institute')
+    grandchild = _team(3, lorem_text_generator)
+    own = _team(4, lorem_text_generator, 'Barley Group')
+    unnamed = _team(5, lorem_text_generator)
+    team_tree = TeamTree(
+        nodes=[root_team, child, grandchild, own, unnamed],
+        edges=[(1, 2, {}), (2, 3, {}), (2, 4, {}), (1, 5, {})]
+    )
+    assert {team_id: team_tree.get_inherited_attribution(team_id) for team_id in range(1, 6)} == {
+        1: None,
+        2: 'Example Institute',
+        3: 'Wheat Group, Example Institute',
+        4: 'Wheat Group, Example Institute',
+        5: 'Example Institute'
+    }
+    output_map = team_tree.to_output_map()
+    assert (output_map[3].attribution, output_map[3].inherited_attribution) == (None, 'Wheat Group, Example Institute')
+    assert (output_map[4].attribution, output_map[4].inherited_attribution) == ('Barley Group', 'Wheat Group, Example Institute')
+
+
+@pytest.mark.asyncio
+async def test_attributions_are_inherited_through_teams_hidden_from_the_reader(root_team, lorem_text_generator):
+    # attributions are public, so a team the reader can see inherits from a team between it and the root that they
+    # can't, as everyone sees it credited
+    root_team.attribution = 'Example Institute'
+    hidden = _team(2, lorem_text_generator, 'Wheat Group, Example Institute')
+    reader = Affiliations()
+    reader.set_by_access(Access.READ, 2, Affiliation(authorisation=Authorisation.AUTHORISED, heritable=False))
+    seen = _team(3, lorem_text_generator, affiliations=reader)
+    team_tree = TeamTree(nodes=[root_team, hidden, seen], edges=[(1, 2, {}), (2, 3, {})])
+    redacted = team_tree.redacted(user_id=2)
+    assert {team.id for team in redacted.teams} == {1, 3}
+    assert redacted.to_output_map()[3].inherited_attribution == 'Wheat Group, Example Institute'

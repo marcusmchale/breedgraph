@@ -114,7 +114,10 @@ def demo_manifest(
         'breedgraph_commit': breedgraph_commit,
         'accounts': _accounts(s, passwords),
         'deleted_accounts': {key: {'user_id': s[key]} for key, account in ACCOUNTS.items() if account.deleted},
-        'teams': {key: {'id': s[key], 'name': team.name, 'parent': team.parent} for key, team in TEAMS.items()},
+        'teams': {
+            key: {'id': s[key], 'name': team.name, 'parent': team.parent, 'attribution': team.attribution}
+            for key, team in TEAMS.items()
+        },
         'viewers': list(VIEWERS),
         'entities': _entities(s),
         'ontology': {

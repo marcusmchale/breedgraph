@@ -7,7 +7,7 @@
 - BreedGraph is a research data platform for plant breeding, run by the University of Galway. Partner organisations use it to record and share research data.
 - The University is responsible for all personal data in BreedGraph: your account, and the records that credit people for research.
 - Your personal data is in BreedGraph with your consent: the details you give when you register, and records crediting you, which are made only with your agreement. You can withdraw it at any time by deleting your account or erasing a record that credits you, or by asking us.
-- Those who submit data decide who sees it. A record crediting a person is private to the team that made it unless that team releases it to signed-in users. Pages open to everyone show no one's name, and there is no public directory of people or organisations.
+- Those who submit data decide who sees it. A record crediting a person is private to the team that made it unless that team releases it to signed-in users. Pages open to everyone show no one's name, and there is no public directory of people or organisations. A team may choose how it is credited, which is shown to everyone with what it releases.
 - BreedGraph records who entered or changed data, but who did it is shown only to those who can see their Person record: by default, the team that holds it.
 - Your email address is not shown to other users.
 - BreedGraph sets only the cookies it needs to sign you in, protect your requests and remember that you accepted its Terms of Use and any study licences. Maps and place searches come from our own server, so using BreedGraph sends nothing from your browser to other companies, unless you choose to link your ORCID iD.
@@ -99,6 +99,8 @@ If you send a message, your name and email address are given to the recipient.
 Research data, such as datasets, files and analyses, is held by the teams it is submitted for, and those who submit it decide how widely it is released: to their team only, which is the default, to all signed-in users, or to everyone. The team's administrators can change this at any time. Research data describes plants, samples, locations and measurements, and should not include personal data: once released beyond the team, it can be reused by others, under a study's licence or our Terms of Use, and once released to everyone, by anyone.
 
 Licences and the Terms of Use never cover personal data. Records crediting people are not released under them, and are shown only as described above.
+
+A team may set an attribution, the text it is credited by, such as the name of a research group and its institution. It is public: BreedGraph shows it to everyone with the data the team releases, and teams within it are credited by it unless they set their own. The team's administrators set it, and can change or remove it at any time. An attribution should name an organisation or a group, not a person, unless that person has agreed.
 
 ## When you use the website
 

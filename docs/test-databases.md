@@ -25,7 +25,8 @@ Both dumps have the scenario's accounts, all verified, with `example.org` addres
 | `readpolicy_stranger` | All access to an unrelated team |
 | `readpolicy_outsider` | No affiliation |
 
-The manifest gives each account's id, and every entity's id, label, controls and readers by its scenario name.
+The manifest gives each account's id, each team's attribution, and every entity's id, label, controls, readers and credit
+by its scenario name.
 In the BreedCAFS dump, `readpolicy_admin` is also a heritable admin of the "BreedCAFS Rehearsal University" team,
 which has the BreedCAFS Migration team under it, so it reads the migrated data.
 

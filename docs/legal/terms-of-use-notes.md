@@ -28,6 +28,9 @@ Changes in the revision of 29 October 2026, on the terms of data released beyond
   roles, keep their own licence and credit.
 - "Who sees the data you submit": while data is private, the team that holds it agrees its own terms with those it
   gives read access to, outside BreedGraph.
+- "Credit": users cite the attribution BreedGraph shows with the information, the teams that hold it. A team sets its
+  attribution, which is public, and teams within it are credited by it unless they set their own; a team that sets
+  none isn't named. This is how CC BY 4.0's "identification of the creator" is met for what teams release.
 
 To confirm for that revision:
 

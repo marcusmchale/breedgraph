@@ -31,6 +31,13 @@ type Team {
     id: ID!
     name: String!
     fullname: String
+    """
+    The team's own text to credit it by. It is public: controlsAttributions gives it to anyone, with what the team
+    controls (docs/read-access.md, rule 9). Teams below it use it unless they set their own.
+    """
+    attribution: String
+    """ The nearest attribution above the team in its tree, which credits the team when it has none of its own """
+    inheritedAttribution: String
     parent: Team
     children: [Team!]
     affiliations: Affiliations

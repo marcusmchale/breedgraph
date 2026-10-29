@@ -1,7 +1,8 @@
 """
 The read-policy scenario: one world for the read tests (docs/read-access.md) and for the synthetic test database.
 
-Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree.
+Viewers and teams. "root" is a team tree root with a child team "child"; "other" is a second team tree. Root and other
+are credited by attributions of their own (ATTRIBUTIONS); child takes root's.
 
     admin     WRITE, READ, CURATE, ADMIN on root; ADMIN and READ on child (no WRITE, no CURATE)
     writer    READ, WRITE, CURATE on child
@@ -258,6 +259,10 @@ AFFILIATIONS = {
     'outsider': {},
 }
 
+# How the teams are credited (Team.attribution): the child has none of its own, so it takes the root's
+ATTRIBUTIONS = {'root': 'Read Policy Institute', 'other': 'Other Breeding Group'}
+TEAM_CREDITED_BY = {'root': 'root', 'child': 'root', 'other': 'other'}
+
 
 @dataclass
 class TreeMember:
@@ -309,6 +314,12 @@ class ReadPolicyScenario:
         if team in self.read_teams[viewer]:
             return True
         return release >= (PUBLIC if viewer == 'anonymous' else REGISTERED)
+
+    def attributions(self, viewer: str, name: str) -> list[str]:
+        """How the viewer is told to credit the entity (controlsAttributions): its team's attribution, if they can read it"""
+        if not self.readable(viewer, name):
+            return []
+        return [ATTRIBUTIONS[TEAM_CREDITED_BY[self.controls[name][0]]]]
 
     def person_view(self, viewer: str, name: str) -> str:
         """
@@ -589,6 +600,12 @@ class ReadPolicyScenarioBuilder:
             await team_trees.authorise_access(user_id=s['stranger'], team_id=s['other'], access=access)
 
         s['outsider'] = await self._account('outsider')
+
+        for team, attribution in ATTRIBUTIONS.items():
+            async with self.uow_factory.get_uow(user_id=self.scenario['admin' if team == 'root' else 'stranger']) as uow:
+                team_tree = await uow.repositories.team_trees.get(team_id=s[team])
+                team_tree.get_team(s[team]).attribution = attribution
+                await uow.commit()
 
     async def _ontology(self):
         ontology = OntologyBuilder(uow_factory=self.uow_factory)

@@ -88,6 +88,8 @@ class TeamBase(ABC):
 
     name: str = ''
     fullname: str = None
+    # How to credit the team, shown to anyone with what it controls. Teams below it use it unless they set their own.
+    attribution: str|None = None
 
 @dataclass
 class TeamInput(TeamBase, LabeledModel):
@@ -108,6 +110,8 @@ class TeamStored(TeamBase, StoredModel):
 class TeamOutput(TeamBase, StoredModel):
     parent: int|None = None
     children: list[int] = field(default_factory=list)
+    # the nearest attribution above the team in its tree, which it is credited by when it has none of its own
+    inherited_attribution: str|None = None
 
     direct_affiliations: Affiliations = field(default_factory=Affiliations)
     inherited_affiliations: Affiliations = field(default_factory=Affiliations)
@@ -141,16 +145,19 @@ class TeamOutput(TeamBase, StoredModel):
             stored: TeamStored,
             parent: int|None = None,
             children: List[int] = None,
-            inherited_affiliations: Affiliations = None
+            inherited_affiliations: Affiliations = None,
+            inherited_attribution: str|None = None
     ) -> Self:
         return cls(
             id=stored.id,
             name=stored.name,
             fullname=stored.fullname,
+            attribution=stored.attribution,
             direct_affiliations=stored.affiliations,
             parent=parent,
             children=children or [],
-            inherited_affiliations=inherited_affiliations or Affiliations()
+            inherited_affiliations=inherited_affiliations or Affiliations(),
+            inherited_attribution=inherited_attribution
         )
 
 TInput = TeamInput
@@ -162,6 +169,8 @@ class TeamTree(TreeAggregate):
 
     def __init__(self, nodes: List[TeamStored|TeamInput] = None, edges: List[Tuple[int, int, dict]]|None = None):
         self.redaction_mapping = None
+        # set on a redacted copy: attributions are public, so they are inherited through teams hidden from the reader
+        self.inherited_attributions: dict[int, str|None]|None = None
         super().__init__(nodes=nodes, edges=edges)
         if nodes:
             for a in self.root.affiliations.get_by_access(Access.ADMIN).values():
@@ -296,6 +305,16 @@ class TeamTree(TreeAggregate):
                     affiliations.set_by_access(access, user_id, incoming_affiliation)
 
         return affiliations
+
+    def get_inherited_attribution(self, team_id: int) -> str|None:
+        """The nearest attribution above the team, which credits it when it has none of its own"""
+        if self.inherited_attributions is not None:
+            return self.inherited_attributions.get(team_id)
+        for ancestor_id in self.get_ancestors(team_id):
+            attribution = self.get_team(ancestor_id).attribution
+            if attribution:
+                return attribution
+        return None
 
     def may_authorise(self, agent_id: int, team_id: int, heritable: bool = False) -> bool:
         """
@@ -532,6 +551,7 @@ class TeamTree(TreeAggregate):
         g = deepcopy(self._graph)
 
         redaction_mapping = dict()
+        inherited_attributions = {node_id: self.get_inherited_attribution(node_id) for node_id in g.nodes}
 
         for node_id in list(g.nodes):
             entry: TeamStored = g.nodes[node_id]['model']
@@ -545,6 +565,7 @@ class TeamTree(TreeAggregate):
         org = self.__class__()
         org._graph = g
         org.redaction_mapping = redaction_mapping
+        org.inherited_attributions = inherited_attributions
         return org
 
     def to_output_map(self) -> dict[int, TeamOutput]:
@@ -553,7 +574,8 @@ class TeamTree(TreeAggregate):
                 team,
                 parent=self.get_parent_id(team.id),
                 children=self.get_children_ids(team.id),
-                inherited_affiliations=self.get_inherited_affiliations(team.id)
+                inherited_affiliations=self.get_inherited_affiliations(team.id),
+                inherited_attribution=self.get_inherited_attribution(team.id)
             ) for team in self.teams
         }
         if self.redaction_mapping is not None:

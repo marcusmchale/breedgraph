@@ -10,7 +10,23 @@ describe the API rather than the work, the schema's descriptions, README.md and 
 
 ## Where the front end is
 
-breedview (`4a6a9fc`) implements every API change up to 2026-10-29.
+breedview (`4a6a9fc`) implements every API change up to 2026-10-29, except the one below.
+
+## Team attributions
+
+Nothing breaks. A team may set an attribution, the text to credit it by, which anyone sees with what the team
+controls (docs/read-access.md, rule 9).
+
+- **The API:** `TeamInput.attribution` and `TeamUpdate.attribution` (left out is unchanged; null or empty clears it);
+  `Team.attribution`, the team's own, and `Team.inheritedAttribution`, the nearest above it in its team tree;
+  `Controller.attributions`, for signed-in users; and the open query `controlsAttributions(entityLabel, entityIds)`,
+  one `{ entityId, attributions }` for each id asked for, with none for an entity the user cannot read.
+- **The team form** (create and edit): an Attribution field, with the inherited one as its placeholder, and a hint that
+  it is public, so it shouldn't name people without their agreement.
+- **Credit with the controls:** the controller badge's details and modal show "Credit: …" from
+  `Controller.attributions`; visitors, who see no badge, see the credit alone where the badge would be, from
+  `controlsAttributions`, asked for once per label and page where a page lists many entities.
+- **The analysis summary:** the report's data table names each dataset's credit.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,

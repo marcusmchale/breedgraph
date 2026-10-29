@@ -31,6 +31,9 @@ from any building or road (below), and the varieties' names are checked against 
 | Grain Quality Lab | Lena Lab: R, W, C, A; Bridget: R |
 | Example Seed Cooperative (its own tree) | Petra Partner: A+, R+, C+, W |
 
+The institute, the Wheat Breeding Group and the Cooperative are credited by attributions of their own; Field
+Operations and the lab take the institute's.
+
 **Accounts:**
 - Dara is an ontology admin, Bridget an ontology editor, and Theo has asked to be an editor.
 - Each account's username is its first name in lower case: `dara`, `bridget`, `theo`, `lena`, `petra`.

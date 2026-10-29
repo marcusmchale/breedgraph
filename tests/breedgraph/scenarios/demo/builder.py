@@ -218,7 +218,7 @@ class DemoScenarioBuilder:
             owner = s[team.owner]
             # the creator of a team tree is a heritable admin and reader of it
             async with self.uow_factory.get_uow(user_id=owner) as uow:
-                team_tree = await uow.repositories.team_trees.create(TeamInput(name=team.name))
+                team_tree = await uow.repositories.team_trees.create(TeamInput(name=team.name, attribution=team.attribution))
                 await uow.commit()
             s.ids[key] = team_tree.root.id
             children = {child: t for child, t in TEAMS.items() if t.parent == key}
@@ -226,7 +226,7 @@ class DemoScenarioBuilder:
                 async with self.uow_factory.get_uow(user_id=owner) as uow:
                     team_tree = await uow.repositories.team_trees.get(team_id=s[key])
                     for child in children.values():
-                        team_tree.add_team(TeamInput(name=child.name), parent_id=s[key])
+                        team_tree.add_team(TeamInput(name=child.name, attribution=child.attribution), parent_id=s[key])
                     await uow.commit()
                 async with self.uow_factory.get_uow(user_id=owner) as uow:
                     team_tree = await uow.repositories.team_trees.get(team_id=s[key])

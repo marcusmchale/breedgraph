@@ -46,6 +46,8 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'programsStudy': ('query ($id: ID!) { programsStudy(id: $id) { status errors { name message } } }', {'id': ids['study_public']}, True),
         'programsTrial': ('query ($id: ID) { programsTrial(id: $id) { status errors { name message } } }', {'id': ids['trial_public']}, True),
         'references': ('query ($ids: [ID!]) { references(ids: $ids) { status errors { name message } } }', {'ids': [ids['reference_public']]}, True),
+        # attributions are public, by the teams' choice (docs/read-access.md, rule 9)
+        'controlsAttributions': ('query ($ids: [ID!]!) { controlsAttributions(entityLabel: LOCATION, entityIds: $ids) { status errors { name message } } }', {'ids': [ids['country']]}, True),
         'referencesFileDownload': ('query ($id: ID!) { referencesFileDownload(fileId: $id) { status errors { name message } } }', {'id': public_file}, True),
         'referencesFileDownloadState': ('query ($id: ID!) { referencesFileDownloadState(fileId: $id) { status errors { name message } } }', {'id': public_file}, True),
         'referencesSearch': ('query { referencesSearch(description: "Readpolicy") { status errors { name message } } }', {}, True),

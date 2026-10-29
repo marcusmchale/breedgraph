@@ -73,7 +73,8 @@ from tests.breedgraph.scenarios.spectra_scenario import (
 from tests.breedgraph.scenarios.ontology_builder import CANOPY_SPECTRUM
 from tests.breedgraph.scenarios.scale_scenario import ScaleScenarioBuilder, ScaleScenario, ScaleParameters, study_key, field_key
 from tests.breedgraph.scenarios.read_policy_scenario import (
-    ReadPolicyScenarioBuilder, ReadPolicyScenario, VIEWERS, AFFILIATIONS, ENTITY_LABELS, DATASETS, REFERENCES
+    ReadPolicyScenarioBuilder, ReadPolicyScenario, VIEWERS, AFFILIATIONS, ENTITY_LABELS, DATASETS, REFERENCES,
+    ATTRIBUTIONS, TEAM_CREDITED_BY
 )
 
 import logging
@@ -367,7 +368,8 @@ def manifest(
             for viewer in ACCOUNTS
         },
         'teams': {
-            team: {'id': scenario[team]}
+            # attribution: the team's own, or None where it takes its parent's
+            team: {'id': scenario[team], 'attribution': ATTRIBUTIONS.get(team)}
             for team in ('root', 'child', 'other')
         },
         'ids': dict(sorted(scenario.ids.items())),
@@ -378,6 +380,8 @@ def manifest(
                 'team': scenario.controls[name][0],
                 'release': scenario.controls[name][1].name,
                 'readable_by': [viewer for viewer in VIEWERS if scenario.readable(viewer, name)],
+                # how it is credited (controlsAttributions), to those who can read it
+                'credit': ATTRIBUTIONS[TEAM_CREDITED_BY[scenario.controls[name][0]]],
                 # how each viewer sees a Person: FULL, ATTRIBUTION or RESTRICTED (docs/person.md §3)
                 **(
                     {'person_views': {viewer: scenario.person_view(viewer, name) for viewer in VIEWERS}}

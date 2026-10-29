@@ -9,6 +9,11 @@ The release's notes on GitHub link here; corrections found while deploying a rel
 
 ## Unreleased
 
+**Team attributions.** A team may now set an attribution, the text to credit it by, shown to anyone with what it
+controls, and teams below it use it unless they set their own (README, Team). Nothing to migrate: a team without one
+isn't credited by name. Ask the admins of your team trees' roots to set theirs. The Terms of Use's Credit section now
+names them, so the new Terms are asked for again; the privacy notice says they are public.
+
 **The observation unit by subject.** An analysis's `grouping.unit` now takes the subjects whose units observations are
 made at (`subjectIds`, e.g. Plot), in place of selected parent units (`unitIds`), and BreedView names it the
 observation unit ([analysis.md](analysis.md) §3). Nothing to set. An analysis submitted before the upgrade with the old

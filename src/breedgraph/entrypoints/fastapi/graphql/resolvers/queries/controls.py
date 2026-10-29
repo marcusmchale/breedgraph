@@ -58,6 +58,22 @@ async def get_controllers(_, info, entity_label: ControlledModelLabel, entity_id
     return [controllers.get(int(entity_id)) for entity_id in entity_ids]
 
 
+@graphql_query.field("controlsAttributions")
+@graphql_payload
+async def get_attributions(_, info, entity_label: ControlledModelLabel, entity_ids: List[int]) -> List[dict]:
+    """
+    How to credit each entity, for anyone: the attributions of its controlling teams, which the teams make public by
+    setting them. None for an entity the user cannot read, or for an id of no entity (docs/read-access.md, rule 9).
+    """
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        attributions = await views.controls.get_attributions(entity_label, entity_ids)
+    return [
+        {'entity_id': entity_id, 'attributions': attributions.get(int(entity_id), [])}
+        for entity_id in dict.fromkeys(entity_ids)
+    ]
+
+
 @controller.field("access")
 def resolve_access(obj: Controller, info) -> List[Access]:
     """What the user's affiliations let them do with the entity through the teams that control it"""

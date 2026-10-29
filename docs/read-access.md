@@ -85,7 +85,7 @@ In detail:
    stand-in's id is not the controlling team's, access is never decided by comparing team ids on the client: the
    server answers it (`Controller.access`) from the user's affiliations.
    Team references are for signed-in users: anonymous users see no controllers, nor a Person's teams (in its full
-   view only), so they meet no teams at all.
+   view only), so they meet no teams, only the attributions that teams choose to make public (rule 9).
 8. **An entity's controller follows the entity.** The controller of an entity the user can read is returned in
    full: its controls, writes, and when each was made. For an entity they cannot read it is a placeholder: its release
    level, its controlling teams (stood in for as rule 7 says), and the user's own access, but no writes and no times,
@@ -99,6 +99,10 @@ In detail:
    transfers and follow stand-ins to it. Anonymous users see no teams (the team queries need an account), so the
    organisations using BreedGraph are not listed publicly. Hidden teams are skipped within a team tree (rule 3),
    stood in for where referred to (rule 7), and a placeholder when asked for by id (rule 2).
+   A team's attribution (`Team.attribution`), the text it is credited by, is the exception: a team that sets one
+   makes it public, to credit what it releases, so `controlsAttributions` gives anyone the attributions of the teams
+   controlling an entity they can read, each team's own or the nearest above it in its tree, found through teams
+   hidden from them too. For an entity they cannot read it gives none, so as not to say who holds what is hidden.
 10. **Write paths are separate: load whole, authorise explicitly, redact only on read.** Repositories return whole
    aggregates, team trees included, so write handlers and integrity checks see members the writer cannot read:
    deleting a location with hidden children, or a location tree, layout tree or unit graph root with hidden members, is refused, and

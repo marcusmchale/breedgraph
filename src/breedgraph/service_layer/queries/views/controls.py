@@ -62,6 +62,16 @@ class AbstractControlsView(ABC):
             return {}
         return await self._get_controllers(label, entity_ids)
 
+    async def get_attributions(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, List[str]]:
+        """
+        How to credit the entities with these ids, by entity id: the attributions of their controlling teams, for those
+        the user can read, and none for the others (see docs/read-access.md, rule 9). For anyone, signed in or not.
+        """
+        entity_ids = [int(entity_id) for entity_id in dict.fromkeys(entity_ids) if entity_id is not None]
+        if not entity_ids:
+            return {}
+        return await self._get_attributions(label, entity_ids)
+
     async def _require_admin(self, team_ids: Iterable[int]) -> None:
         """Refuses teams the user is not an admin of, rather than leave them out, so the client can say why"""
         admin_teams = set(await self._get_admin_teams())
@@ -111,6 +121,10 @@ class AbstractControlsView(ABC):
 
     @abstractmethod
     async def _get_controllers(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, Controller]:
+        ...
+
+    @abstractmethod
+    async def _get_attributions(self, label: ControlledModelLabel, entity_ids: List[int]) -> Dict[int, List[str]]:
         ...
 
     @abstractmethod

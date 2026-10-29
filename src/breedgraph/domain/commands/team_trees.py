@@ -5,6 +5,7 @@ class CreateTeam(Command):
 
     name: str
     fullname: str|None = None
+    attribution: str|None = None
     parent: int|None
 
 class UpdateTeam(Command):
@@ -13,6 +14,7 @@ class UpdateTeam(Command):
 
     name: str|None = None
     fullname: str|None = None
+    attribution: str|None = None
 
 class DeleteTeam(Command):
     agent_id: int

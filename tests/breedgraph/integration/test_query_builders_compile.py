@@ -94,7 +94,7 @@ QUERIES = {
         for builder in (
             controls.set_controls, controls.add_controls, controls.end_controls, controls.record_writes,
             controls.get_controllers, controls.read_controllers, controls.read_controlled_entities, controls.scope_entity_ids,
-            controls.read_entity_names
+            controls.read_entity_names, controls.read_attributions
         )
     },
     'controls.read_controlled_counts': controls.read_controlled_counts(),

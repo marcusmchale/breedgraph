@@ -62,7 +62,8 @@ when they are read; nothing needed backfilling.
 
 Everyone accepts the Terms of Use before using BreedGraph, through the website or the API, and the study licences
 before their data (§5). The Terms forbid sharing accounts and acceptances, and passing data on outside its licence;
-they can later ask for credit for information anyone can see, such as germplasm and locations. Their draft for review
+and ask for credit for what is used, naming BreedGraph and the attributions of the teams that hold it
+(`controlsAttributions`), including information anyone can see, such as germplasm and locations. Their draft for review
 is `docs/legal/terms-of-use.md`; the API serves the published copy (`src/breedgraph/legal/terms_of_use.md`, or the file
 `TERMS_OF_USE_PATH` names), read once at start-up with its SHA-256. It serves the privacy notice the same way
 (`src/breedgraph/legal/privacy_notice.md`, or the file `PRIVACY_NOTICE_PATH` names; drafted in
