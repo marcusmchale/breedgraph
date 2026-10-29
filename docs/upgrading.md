@@ -7,7 +7,7 @@ section in turn. Releases before v0.1.6 list theirs in their notes on GitHub.
 
 The release's notes on GitHub link here; corrections found while deploying a release are made here, not in its notes.
 
-## Unreleased
+## v0.1.8
 
 **Team attributions.** A team may now set an attribution, the text to credit it by, shown to anyone with what it
 controls, and teams below it use it unless they set their own (README, Team). Nothing to migrate: a team without one
@@ -54,6 +54,15 @@ from the API's env file, and from the demonstration site's. The client ID, `ORCI
 redirect URI are as before. Once production's client is registered on `orcid.org`, set `ORCID_CLIENT_ID`,
 `ORCID_BASE_URL="https://orcid.org"` and `ORCID_REDIRECT_URI`, and restart the API. A sign-in begun before the upgrade
 fails and is started again.
+
+**The legal texts.** The Terms of Use and the privacy notice served are the release's (`src/breedgraph/legal/`), as
+revised for the licences, team attributions and the ontology's contributors. A deployment that serves its own copies
+(`TERMS_OF_USE_PATH`, `PRIVACY_NOTICE_PATH`) brings them up to date from `docs/legal/` before restarting the API.
+
+Nothing to do for the rest: an entity without controls is fixed, read by everyone and changed by no one, which only
+the seeded licences are ([read-access.md](read-access.md), rule 11); BreedView downloads an analysis's summary, a
+report with its settings and each result table as CSV; and it names the levels of record groups whose codes hold
+within a unit or its graph, rather than showing their keys.
 
 ## v0.1.7
 
