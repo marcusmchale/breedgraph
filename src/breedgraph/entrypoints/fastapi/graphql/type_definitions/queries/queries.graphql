@@ -274,6 +274,11 @@ type Query {
     references(ids: [ID!]): ReferencesPayload!
     """ Get a users recently created/updated file references """
     referencesRecentFiles(referenceTypes:[ReferenceType!]): ReferencesPayload!
+    """
+    The standard licences every deployment starts with, CC BY 4.0 then CC0 1.0: legal references without controls,
+    which everyone reads and no one changes, for licence pickers to offer first
+    """
+    referencesStandardLicences: ReferencesPayload!
     """ Search for references by text in description. Also searches for filename, url and externalId where relevant. """
     referencesSearch(
         description: String!

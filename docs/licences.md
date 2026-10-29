@@ -146,6 +146,8 @@ test setup through `initial_data.seed_initial_data`):
   meets the release rule (§1) for any study.
 - Each has a seed key, set only by seeding, which finds it again: seeding creates only what is missing.
   `scripts/seed_licences.py` seeds them into a database set up before they were.
+- `referencesStandardLicences` lists them, in this order, to anyone, for licence pickers to offer first, and their
+  controllers say `fixed`.
 
 **The ontology's licence.** The ontology is shared, so its licence must be public (docs/read-access.md, rule 10). Its
 first version, made by seeding, is under CC BY 4.0: the CRediT roles in it are NISO's, under CC BY 4.0

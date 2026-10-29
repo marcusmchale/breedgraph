@@ -41,6 +41,11 @@ type Controller {
     """ What your affiliations let you do with the entity through the teams that control it """
     access: [Access!]!
     release: ReadRelease!
+    """
+    Whether the entity has no controls: then everyone reads it and no one changes it, sets its release or transfers it,
+    as for the standard licences (docs/read-access.md, rule 11). Its release is PUBLIC and its access READ alone.
+    """
+    fixed: Boolean!
     """ The first and latest writes: null for an entity you cannot read, whose history is hidden """
     created: DateTime
     updated: DateTime

@@ -93,6 +93,15 @@ async def get_references(_, info, ids: List[int]) -> List[ReferenceStoredBase]:
         return await views.references.get_references(ids)
 
 
+"""The standard licences, for licence pickers to offer first (docs/licences.md §6)"""
+@graphql_query.field("referencesStandardLicences")
+@graphql_payload
+async def get_standard_licences(_, info) -> List[ReferenceStoredBase]:
+    async with get_context_lock(info.context):
+        views = await get_context_views(info.context)
+        return await views.references.get_standard_licences()
+
+
 """References whose description matches: only those the user can read"""
 @graphql_query.field("referencesSearch")
 @graphql_payload

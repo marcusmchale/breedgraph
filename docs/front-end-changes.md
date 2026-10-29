@@ -45,10 +45,11 @@ Work in breedview:
 ## Standard licences and the ontology's licence
 
 Every deployment now has two standard licences, CC BY 4.0 and CC0 1.0: legal references without controls
-(`docs/licences.md` §6). `controlsControllers` gives each a controller with no controls, release `PUBLIC` and access
-`[READ]` alone, as it does any entity without controls (`docs/read-access.md`, rule 11): no one can edit or remove it,
-set its release or transfer it, and the API refuses with "... has no controls, so no one can change it". The reference
-pickers find them as any public reference.
+(`docs/licences.md` §6). `referencesStandardLicences` lists them, CC BY 4.0 first, to anyone. `controlsControllers`
+gives each a controller with `fixed: true`, no controls, release `PUBLIC` and access `[READ]` alone, as it does any
+entity without controls (`docs/read-access.md`, rule 11): no one can edit or remove it, set its release or transfer
+it, and the API refuses with "... has no controls, so no one can change it". The reference search finds them as any
+public reference.
 
 `ontologyCommitVersion` keeps the latest version's licence when `licenceId` is null or left out, and the first
 version has CC BY 4.0, so the ontology's licence can be changed but not removed.

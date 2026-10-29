@@ -1,5 +1,6 @@
 from neo4j import AsyncSession
 
+from breedgraph.adapters.neo4j.cypher import queries
 from breedgraph.adapters.neo4j.cypher.query_builders import references as reference_queries
 from breedgraph.adapters.neo4j.repositories.references import Neo4jReferencesRepository
 from breedgraph.domain.model.controls import ReadRelease
@@ -29,6 +30,10 @@ class Neo4jReferencesView(AbstractReferencesView):
 
     async def _get_references(self, reference_ids: List[int]) -> List[ReferenceStoredBase]:
         return await self._run(reference_queries.read_references(), reference_ids=reference_ids)
+
+    async def _get_seeded_ids(self, seed_keys: List[str]) -> dict[str, int]:
+        result = await self.session.run(queries['references']['get_seeded_reference_ids'], seed_keys=seed_keys)
+        return {record['seed_key']: record['id'] async for record in result}
 
     async def _get_file_reference(self, file_id: str) -> ReferenceStoredBase | None:
         references = await self._run(reference_queries.read_file_reference(), file_id=file_id)

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from breedgraph.domain.model.references import ReferenceStoredBase, ReferenceType
+from breedgraph.service_layer.application.licence_seed import STANDARD_LICENCES
 
 from typing import List
 
@@ -22,6 +23,20 @@ class AbstractReferencesView(ABC):
 
     @abstractmethod
     async def _get_references(self, reference_ids: List[int]) -> List[ReferenceStoredBase]:
+        ...
+
+    async def get_standard_licences(self) -> List[ReferenceStoredBase]:
+        """
+        The standard licences seeded in every deployment, CC BY 4.0 then CC0 1.0 (docs/licences.md §6): fixed legal
+        references, which everyone reads in full; those missing from a database set up before them are left out
+        """
+        ids = await self._get_seeded_ids([licence.seed_key for licence in STANDARD_LICENCES])
+        by_id = {reference.id: reference for reference in await self.get_references(list(ids.values()))}
+        return [by_id[ids[licence.seed_key]] for licence in STANDARD_LICENCES if ids.get(licence.seed_key) in by_id]
+
+    @abstractmethod
+    async def _get_seeded_ids(self, seed_keys: List[str]) -> dict[str, int]:
+        """The ids of the references seeded with these keys, by key"""
         ...
 
     async def get_file_reference(self, file_id: str) -> ReferenceStoredBase | None:
