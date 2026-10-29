@@ -5,12 +5,12 @@ given as in GraphQL (camelCase). A section is removed once breedview implements 
 invitations, transfers, record group extents, the renamed areas, contributions, times, bulk control, Person views and
 maps) are in this file's history, last in full at `021f830` (`git show 021f830:docs/front-end-changes.md`), the two
 after them (removing optional links with null, units as record group levels) at `7549579`, the three after those
-(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, several accesses to a team in an invitation at `070eb3c`, the place search from GeoNames at `8fa9765`, a licence before release with the standard licences at `d5815a8`, and scale categories on the scale and definitions that records cite at `ab85d9c`. Where they
+(arrivals, inherited germplasm, moving units) at `a5c7625`, germplasm entries from units at `fd0c50d`, legal references given as files at `81961e6`, the Terms of Use at `1ae91b7`, accepting study licences at `de74a78`, the privacy notice from the API at `8f48104`, derived units at `a89ee36`, licences of files at `b6298bc`, derivation stages at `2a8740d`, the ontology's public citations at `5ddb940`, adding children to several units at `4696d21`, removed ontology entries, layout locations and deleting layouts, clearing fields in updates and consent to records of people at `28924f0`, several accesses to a team in an invitation at `070eb3c`, the place search from GeoNames at `8fa9765`, a licence before release with the standard licences at `d5815a8`, scale categories on the scale and definitions that records cite at `ab85d9c`, and the observation unit by subject at `e235285`. Where they
 describe the API rather than the work, the schema's descriptions, README.md and the design notes in `docs/` have it.
 
 ## Where the front end is
 
-breedview (`a7790d4`) implements every API change up to 2026-10-29.
+breedview (`4a6a9fc`) implements every API change up to 2026-10-29.
 
 **For the next API change:** add a section for it, with what breaks and the work it needs; then, in breedview,
 regenerate the schema files with the API running (`node scripts/fetchGraphqlSchema.js` writes `schema.graphql`,
@@ -26,20 +26,3 @@ set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
 It builds the API's schema and validates every operation in the front end's `.graphql` files, with the fragments each uses, and exits with 1 if any fails.
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
-
-## The observation unit by subject
-
-`grouping.unit` of an analysis, the observation unit, now takes subjects: `UnitGroupingInput { subjectIds: [ID!]! }`
-and `UnitGrouping { subjectIds }`, in place of `unitIds`. Each record's base unit is rolled up into its nearest unit of
-one of the subjects, the unit itself or an ancestor, as for units of a subject as levels in record group dimensions
-(`docs/analysis.md` §3): one with none, or whose nearest lie on separate lineages, is `UNASSIGNED_UNIT`, and a subject
-that isn't one is `CONFIG_INVALID` at `grouping.unit.subjectIds.<i>`. `UNIT_NOT_FOUND` is gone.
-
-What breaks: `unit { unitIds }` in `analysisFragments.graphql` (`scripts/check_front_end_queries.py`), and the form's
-`unitIds`. Work (agreed with the user, `~/.claude/plans/analysis-observation-unit.md`):
-- the editor's grouping section: an Observation unit section first, with a subject checklist, then the Dimensions,
-  germplasm, position, time and record groups, each describing what it does to observations, with the new introduction
-  (`docs/analysis.md` §2);
-- "Units as levels" in record group dimensions renamed "Units of a subject as levels";
-- the form, its conversions and `formPathLabel` for `grouping.unit.subjectIds`;
-- the summary download and the page header name the observation unit by its subjects.
