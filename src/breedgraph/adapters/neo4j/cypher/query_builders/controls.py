@@ -1,4 +1,4 @@
-from breedgraph.domain.model.controls import ControlledModelLabel
+from breedgraph.domain.model.controls import ControlledModelLabel, ReadRelease
 from breedgraph.adapters.neo4j.cypher.query_builders.access import (
     visible as _visible, readable as _readable, least_release as _least_release
 )
@@ -134,11 +134,12 @@ def get_controllers(label:ControlledModelLabel):
 def licence_release_violations() -> str:
     """
     The studies among $study_ids, those of the datasets $dataset_ids, and those licensed by, or whose datasets or their
-    records cite, the references $reference_ids, whose licence is released less widely than the study, one of its
-    datasets, or a file reference those datasets or their records cite (docs/read-access.md, rule 10). Each comes with
-    its licence, the licence's release, the widest release among the study and its datasets, and the widest among the
-    files they cite (null for none) with, when the licence is released less widely than that, one such file. Releases
-    are as visible() compares them. A study without a licence is never one of them, nor is the ontology.
+    records cite, the references $reference_ids, that break the licence rule (docs/read-access.md, rule 10): a study
+    without a licence released beyond private, or with a dataset released beyond private, or a study whose licence is
+    released less widely than the study, one of its datasets, or a file reference those datasets or their records cite.
+    Each comes with its licence (null for none) and the licence's release, the widest release among the study and its
+    datasets, and the widest among the files they cite (null for none) with, when the licence is released less widely
+    than that, one such file. Releases are as visible() compares them. The ontology is never one of them.
     """
     return f"""
         CALL () {{
@@ -158,7 +159,7 @@ def licence_release_violations() -> str:
           WHERE cited.id IN $reference_ids
           RETURN study
         }}
-        MATCH (study)-[:USES_LICENCE]->(licence:Reference)
+        OPTIONAL MATCH (study)-[:USES_LICENCE]->(licence:Reference)
         {_least_release('licence', ControlledModelLabel.REFERENCE, 'licence_release')}
         {_least_release('study', ControlledModelLabel.STUDY, 'study_release')}
         CALL (study) {{
@@ -179,9 +180,13 @@ def licence_release_violations() -> str:
         }}
         WITH study, licence, licence_release, cited_release, widest_cited,
           CASE WHEN datasets_release > study_release THEN datasets_release ELSE study_release END AS data_release
-        WHERE licence_release < data_release OR licence_release < cited_release
-        RETURN study.id AS study_id, licence.id AS licence_id, licence_release, data_release, cited_release,
-          CASE WHEN licence_release < cited_release THEN widest_cited END AS cited_reference_id
+        WHERE CASE
+          WHEN licence IS NULL THEN data_release > {int(ReadRelease.PRIVATE)}
+          ELSE licence_release < data_release OR licence_release < cited_release
+        END
+        RETURN study.id AS study_id, licence.id AS licence_id,
+          CASE WHEN licence IS NOT NULL THEN licence_release END AS licence_release, data_release, cited_release,
+          CASE WHEN licence IS NOT NULL AND licence_release < cited_release THEN widest_cited END AS cited_reference_id
         ORDER BY licence_id, study_id
     """
 

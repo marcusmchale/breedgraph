@@ -60,6 +60,7 @@ from breedgraph.domain.model.unit_graphs import UnitInput, Position
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from .read_policy_scenario import ReadPolicyScenario
+from .standard_licences import standard_licence_id
 
 PROGRAM = "Readpolicy positions program"
 TRIAL = "Readpolicy positions trial"
@@ -345,7 +346,8 @@ class PositionScenarioBuilder:
             program.add_trial(TrialInput(name=TRIAL))
             await uow.repositories.programs.update_seen()
             (trial_id,) = program.trials
-            program.add_study(trial_id=trial_id, study=StudyInput(name=STUDY))
+            licence_id = await standard_licence_id(self.uow_factory)
+            program.add_study(trial_id=trial_id, study=StudyInput(name=STUDY, licence_id=licence_id))
             await uow.repositories.programs.update_seen()
             (study_id,) = program.get_trial(trial_id).studies
             await uow.commit()

@@ -27,13 +27,14 @@ class TeamTreeRoot:
 @dataclass(frozen=True)
 class LicenceViolation:
     """
-    A study whose licence is released less widely than the study, one of its datasets, or a file reference they or
-    their records cite (docs/read-access.md, rule 10): the widest of the files, and one of them when the licence is
-    released less widely than it
+    A study that breaks the licence rule (docs/read-access.md, rule 10): without a licence (licence_id None), released
+    beyond private or with a dataset that is; or with a licence released less widely than the study, one of its
+    datasets, or a file reference they or their records cite, with the widest of the files, and one of them when the
+    licence is released less widely than it
     """
     study_id: int
-    licence_id: int
-    licence_release: ReadRelease
+    licence_id: int | None
+    licence_release: ReadRelease | None
     data_release: ReadRelease
     cited_release: ReadRelease | None = None
     cited_reference_id: int | None = None
@@ -332,13 +333,14 @@ class AbstractAccessControlService(ABC):
 
     async def require_released_licences(self) -> None:
         """
-        A study's licence is released at least as widely as the study, every dataset of the study and every file
-        reference they or their records cite, so that whoever reads them by release can read the terms they are under
-        rather than a placeholder, and accept them before downloading a file that holds the study's data
-        (docs/read-access.md, rule 10; docs/licences.md §5). The rule spans several aggregates and every controlling
-        team, so it is checked as the unit of work commits, on the releases that result, over the models noted by
-        defer_licence_check. The refusal names the licence, and a file cited, never a study or dataset: the release of
-        the data it is the licence of is at least registered, so every writer could see that much.
+        A study released beyond private, or with a dataset that is, has a licence, released at least as widely as the
+        study, every dataset of the study and every file reference they or their records cite, so that whoever reads
+        them by release can read the terms they are under rather than a placeholder, and accept them before downloading
+        a file that holds the study's data (docs/read-access.md, rule 10; docs/licences.md §1, §5). The rule spans
+        several aggregates and every controlling team, so it is checked as the unit of work commits, on the releases
+        that result, over the models noted by defer_licence_check. The refusal names the licence and a file cited, or
+        the study without a licence, by id, never by name: a study or dataset released beyond private shows them to
+        every signed-in user, and a dataset shows its study's id to whoever reads it, as its writers do.
         """
         checks, self._licence_checks = self._licence_checks, defaultdict(set)
         if not checks:
@@ -351,6 +353,11 @@ class AbstractAccessControlService(ABC):
         if not violations:
             return
         violation = violations[0]
+        if violation.licence_id is None:
+            raise IllegalOperationError(
+                f"Study {violation.study_id} has no licence: a study, and its datasets, can be released beyond the "
+                f"teams that hold them only once the study has a licence"
+            )
         files_wider = violation.cited_reference_id is not None
         if violation.licence_id in checks.get(ControlledModelLabel.REFERENCE, ()):
             if violation.licence_release < violation.data_release:

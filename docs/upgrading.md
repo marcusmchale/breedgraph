@@ -21,6 +21,16 @@ The second creates only what is missing, and says which references the licences 
 takes CC BY 4.0, unless an ontology admin names another. The demonstration site's database is rebuilt for the release,
 with them.
 
+**A licence before release.** A study released beyond private, or with a dataset released beyond private, must now
+have a licence ([licences.md](licences.md) §1), and changes that would leave one without are refused. In a database
+from before, once the licences are seeded:
+
+    python scripts/check_study_licences.py
+
+lists such studies with `licence_id` None. Until each has a licence, a standard one will do, or is withdrawn to private
+with its datasets, changes to its releases, its datasets and its licence are refused. The new Terms of Use, which say
+so, are asked for again of everyone.
+
 **ORCID linking without outbound access.** ORCID sign-in now gives the browser an id_token that ORCID signed, which
 the API checks with ORCID's public key, carried by the release, rather than exchanging a code with `orcid.org`. So the
 web server needs no access to ORCID, and linking can be turned on wherever a client is registered

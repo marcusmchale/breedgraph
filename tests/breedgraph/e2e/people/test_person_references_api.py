@@ -9,6 +9,7 @@ from tests.breedgraph.e2e.people.post_methods import _post
 from tests.breedgraph.e2e.utils import get_verified_payload, assert_payload_success
 from tests.breedgraph.scenarios.account_builder import AccountBuilder
 from tests.breedgraph.scenarios.dataset_builder import DatasetBuilder
+from tests.breedgraph.scenarios.standard_licences import standard_licence_id
 
 PERSON_REFERENCE = " id name restricted "
 
@@ -79,7 +80,12 @@ async def test_contacts_and_contributors_resolve_to_persons(client, login_token_
     assert program['trials'][0]['contributions'] == [{'person': program['contacts'][0], 'roles': []}]
     assert await get_dataset_contributors(client, token, dataset_id) == program['contacts']
 
-    # Others who can read the program and dataset, but not the Person, see the id only
+    # Others who can read the program and dataset, but not the Person, see the id only; a released dataset's study has
+    # a licence (docs/licences.md §1)
+    async with uow_factory.get_uow(user_id=context['user_id']) as uow:
+        program = await uow.repositories.programs.get(program_id=context['program_id'])
+        program.get_study(context['study_id']).licence_id = await standard_licence_id(uow_factory)
+        await uow.commit()
     await release_to_registered(uow_factory, context, ControlledModelLabel.PROGRAM, context['program_id'])
     await release_to_registered(uow_factory, context, ControlledModelLabel.TRIAL, context['trial_id'])
     await release_to_registered(uow_factory, context, ControlledModelLabel.DATASET, dataset_id)

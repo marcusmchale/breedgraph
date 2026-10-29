@@ -100,13 +100,15 @@ async def test_a_study_cannot_be_released_more_widely_than_its_licence(bus, uow_
 @pytest.mark.asyncio(loop_scope="session")
 async def test_a_licence_must_be_released_as_widely_as_the_datasets_of_its_study(bus, uow_factory, dataset_build_context, lorem_text_generator):
     context = dataset_build_context
-    study_id = await create_study(bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.PRIVATE)
+    # a public dataset needs its study to have a licence (docs/licences.md §1)
+    first_id = await legal_reference(bus, context, ReadRelease.PUBLIC)
+    study_id = await create_study(bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.PRIVATE, first_id)
     await create_dataset(uow_factory, context, study_id, ReadRelease.PUBLIC)
 
     registered_id = await legal_reference(bus, context, ReadRelease.REGISTERED)
     with pytest.raises(IllegalOperationError, match="cannot be the licence of data released as PUBLIC"):
         await bus.handle(UpdateStudy(agent_id=context['user_id'], study_id=study_id, licence_id=registered_id))
-    assert await licence_of(uow_factory, context, study_id) is None
+    assert await licence_of(uow_factory, context, study_id) == first_id
 
     public_id = await legal_reference(bus, context, ReadRelease.PUBLIC)
     await bus.handle(UpdateStudy(agent_id=context['user_id'], study_id=study_id, licence_id=public_id))

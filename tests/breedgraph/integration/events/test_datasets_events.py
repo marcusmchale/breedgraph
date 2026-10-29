@@ -105,6 +105,7 @@ async def test_a_reference_cited_by_a_record_keeps_the_release_of_its_dataset(
         event_queue,
         uow_factory,
         state_store,
+        lorem_text_generator,
         dataset_build_context
 ):
     from breedgraph.custom_exceptions import IllegalOperationError
@@ -116,8 +117,12 @@ async def test_a_reference_cited_by_a_record_keeps_the_release_of_its_dataset(
     reference_id = await bus.handle(CreateExternalReference(
         agent_id=user_id, write_team=dataset_build_context['team_id'], release=ReadRelease.PUBLIC, url='https://example.org/method'
     ))
+    # a registered dataset's study has a licence (docs/licences.md §1)
+    study_id = await licensed_study(
+        bus, uow_factory, dataset_build_context, lorem_text_generator.new_text(), ReadRelease.PRIVATE, ReadRelease.PUBLIC
+    )
     submission_id = await state_store.store_submission(agent_id=user_id, submission={
-        'study_id': dataset_build_context['study_id'],
+        'study_id': study_id,
         'concept_id': dataset_build_context['concept_id'],
         'records': [{'unit_id': dataset_build_context['unit_id'], 'value': '1', 'start': '2013', 'reference_ids': [reference_id]}]
     })
@@ -208,7 +213,10 @@ async def test_a_dataset_is_not_moved_into_a_study_with_a_narrower_licence(
 
     context = dataset_build_context
     user_id = context['user_id']
-    submitted = await submit_dataset(bus, event_queue, state_store, context, context['study_id'], ReadRelease.PUBLIC)
+    source_id = await licensed_study(
+        bus, uow_factory, context, lorem_text_generator.new_text(), ReadRelease.PRIVATE, ReadRelease.PUBLIC
+    )
+    submitted = await submit_dataset(bus, event_queue, state_store, context, source_id, ReadRelease.PUBLIC)
     assert await state_store.get_status(agent_id=user_id, key=submitted) == SubmissionStatus.COMPLETED
     dataset_id = await state_store.get_submission_dataset_id(agent_id=user_id, submission_id=submitted)
     target_id = await licensed_study(
@@ -221,7 +229,7 @@ async def test_a_dataset_is_not_moved_into_a_study_with_a_narrower_licence(
     assert await state_store.get_status(agent_id=user_id, key=update_id) == SubmissionStatus.FAILED
     assert 'cannot be the licence of data released as PUBLIC' in str(await state_store.get_errors(agent_id=user_id, key=update_id))
     async with uow_factory.get_uow(user_id=user_id) as uow:
-        assert (await uow.repositories.datasets.get(dataset_id=dataset_id)).study == context['study_id']
+        assert (await uow.repositories.datasets.get(dataset_id=dataset_id)).study == source_id
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_contributions_credit_readable_persons_with_roles(

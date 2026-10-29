@@ -27,6 +27,21 @@ It builds the API's schema and validates every operation in the front end's `.gr
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
 
+## A licence before a study's data is released
+
+A study released beyond private, or with a dataset released beyond private, must have a licence
+(`docs/licences.md` §1). The API refuses, as the unit of work commits, any change that would leave one without:
+setting the release of the study or a dataset (`controlsSetRelease`, bulk control), creating a dataset released beyond
+private, a control transfer or renouncing that widens a release, and removing the licence of a released study. The
+error names the study by id: "Study 12 has no licence: a study, and its datasets, can be released beyond the teams that
+hold them only once the study has a licence". Files the data cites are not held to it.
+
+Work in breedview:
+- The study modals say a licence is needed before the study or its datasets are released beyond the team, and offer
+  the standard licences first (below).
+- Release menus, bulk control and dataset creation show the API's refusal as it is.
+- Removing a released study's licence is refused: the update modal can say so before the request.
+
 ## Standard licences and the ontology's licence
 
 Every deployment now has two standard licences, CC BY 4.0 and CC0 1.0: legal references without controls

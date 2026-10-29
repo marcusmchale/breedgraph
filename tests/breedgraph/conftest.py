@@ -21,6 +21,8 @@ from breedgraph.adapters.neo4j import queries
 
 from breedgraph.service_layer.messagebus import MessageBus
 from breedgraph.service_layer.application.initial_data import seed_initial_data
+from breedgraph.service_layer.application.licence_seed import STANDARD_LICENCES
+from tests.breedgraph.e2e import utils as e2e_utils
 
 from tests.breedgraph.utilities.inputs import UserInputGenerator, LoremTextGenerator
 from tests.breedgraph.scenarios import (
@@ -152,6 +154,14 @@ async def init_neo4j(uow_factory) -> None:
     async with uow_factory.get_uow(user_id=system_account.user.id) as uow:
         await seed_initial_data(uow)
         await uow.commit()
+
+    async with uow_factory.get_uow() as uow:
+        acceptances = {
+            await uow.repositories.references.get_seeded_id(licence.seed_key): licence.reference_input().content_hash
+            for licence in STANDARD_LICENCES
+        }
+    e2e_utils.standard_licence_acceptances.clear()
+    e2e_utils.standard_licence_acceptances.update(acceptances)
 
 async def init_redis(uow_factory) -> None:
 

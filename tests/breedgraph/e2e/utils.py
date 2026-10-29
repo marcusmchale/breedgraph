@@ -19,9 +19,19 @@ def acceptance_tokens() -> AcceptanceTokens:
     )
 
 
-def terms_cookie(user_id: int | None) -> str:
-    """A cookie accepting the published Terms of Use for the user, or a visitor who isn't signed in, as termsAccept sets"""
-    acceptances = Acceptances(user_id=user_id, terms=load_legal_text(config.TERMS_OF_USE_PATH).content_hash)
+# The standard licences the test setup seeds (docs/licences.md §6), as {id: content hash}: set by the conftest as it
+# seeds them, so that requests can accept them, as a browser that accepted them would
+standard_licence_acceptances: dict[int, str] = {}
+
+
+def terms_cookie(user_id: int | None, licences: dict[int, str] | None = None) -> str:
+    """
+    A cookie accepting the published Terms of Use for the user, or a visitor who isn't signed in, as termsAccept sets,
+    and the licences given, {id: content hash}, as licencesAccept adds them
+    """
+    acceptances = Acceptances(
+        user_id=user_id, terms=load_legal_text(config.TERMS_OF_USE_PATH).content_hash, licences=dict(licences or {})
+    )
     return f"{cookie_name(user_id)}={acceptance_tokens().token(acceptances)}"
 
 
@@ -33,7 +43,9 @@ def _user_id(auth_token: str | None) -> int | None:
         return None
 
 
-def with_auth(csrf_token: str, auth_token: str | None = None, accept_terms: bool = True) -> dict:
+def with_auth(
+        csrf_token: str, auth_token: str | None = None, accept_terms: bool = True, accept_standard_licences: bool = True
+) -> dict:
     """Helper function to create headers with proper tokens for test requests.
 
     Args:
@@ -41,6 +53,9 @@ def with_auth(csrf_token: str, auth_token: str | None = None, accept_terms: bool
         auth_token: Optional authentication token to include in cookie
         accept_terms: Whether to send an acceptance of the Terms of Use for the request's user, without which the API
             refuses everything but the Terms (docs/licences.md §4)
+        accept_standard_licences: Whether that acceptance accepts the standard licences too (docs/licences.md §6),
+            which the scenarios give the studies they release, so that tests of other things read their data as a
+            browser that accepted them would; tests of study licences give their studies licences of their own
 
     Returns:
         dict: Headers dictionary with proper CSRF and cookie values
@@ -55,10 +70,11 @@ def with_auth(csrf_token: str, auth_token: str | None = None, accept_terms: bool
     if accept_terms:
         # as a browser that accepted before signing in holds both: the API reads the one for whom it takes the request
         # to be from, which is the visitor's when the token's account no longer exists
-        headers["Cookie"] += f"; {terms_cookie(None)}"
+        licences = standard_licence_acceptances if accept_standard_licences else None
+        headers["Cookie"] += f"; {terms_cookie(None, licences)}"
         user_id = _user_id(auth_token)
         if user_id is not None:
-            headers["Cookie"] += f"; {terms_cookie(user_id)}"
+            headers["Cookie"] += f"; {terms_cookie(user_id, licences)}"
 
     return headers
 

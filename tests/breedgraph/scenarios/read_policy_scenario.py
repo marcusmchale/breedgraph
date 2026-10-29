@@ -130,6 +130,7 @@ from .ontology_builder import OntologyBuilder
 from .team_tree_builder import TeamTreeBuilder
 from .program_builder import ProgramBuilder
 from .location_tree_builder import LocationTreeBuilder
+from .standard_licences import standard_licence_id
 
 PUBLIC, REGISTERED, PRIVATE = ReadRelease.PUBLIC, ReadRelease.REGISTERED, ReadRelease.PRIVATE
 
@@ -775,6 +776,9 @@ class ReadPolicyScenarioBuilder:
                 before = set(stored.get_trial(s[parent]).studies)
                 new_study = study_input()
                 new_study.reference_ids = [s[reference] for reference in STUDY_REFERENCES.get(name, [])]
+                # released, so under a licence (docs/licences.md §1): the standard CC BY 4.0
+                if release > ReadRelease.PRIVATE:
+                    new_study.licence_id = await standard_licence_id(self.uow_factory)
                 stored.add_study(trial_id=s[parent], study=new_study)
                 await uow.repositories.programs.update_seen()
                 (study_id,) = set(stored.get_trial(s[parent]).studies) - before

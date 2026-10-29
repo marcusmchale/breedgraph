@@ -116,7 +116,7 @@ class Neo4jAccessControlService(AbstractAccessControlService):
             LicenceViolation(
                 study_id=record['study_id'],
                 licence_id=record['licence_id'],
-                licence_release=ReadRelease(record['licence_release']),
+                licence_release=None if record['licence_release'] is None else ReadRelease(record['licence_release']),
                 data_release=ReadRelease(record['data_release']),
                 cited_release=None if record['cited_release'] is None else ReadRelease(record['cited_release']),
                 cited_reference_id=record['cited_reference_id']

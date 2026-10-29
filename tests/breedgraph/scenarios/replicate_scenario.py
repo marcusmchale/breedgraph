@@ -50,6 +50,7 @@ from breedgraph.domain.model.unit_graphs import UnitInput, Position
 from breedgraph.service_layer.infrastructure.unit_of_work import AbstractUnitOfWorkFactory
 
 from .read_policy_scenario import ReadPolicyScenario
+from .standard_licences import standard_licence_id
 
 PROGRAM = "Readpolicy replicates program"
 TRIAL = "Readpolicy replicates trial"
@@ -352,6 +353,7 @@ class ReplicateScenarioBuilder:
             (trial_id,) = program.trials
             program.add_study(trial_id=trial_id, study=StudyInput(
                 name=STUDY,
+                licence_id=await standard_licence_id(self.uow_factory),
                 groupings=[
                     RecordGroupingInput(name=name, type=b[type_key], extent=extent, scope=scope)
                     for name, (type_key, extent, scope) in GROUPINGS.items()

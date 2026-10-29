@@ -158,7 +158,8 @@ class Neo4jProgramsRepository(Neo4jControlledRepository[ProgramInput, ProgramSto
             licence_id=licence_id,
             design_id=design_id
         )
-        # a new licence changes no controls, so it is noted for the check of its release as the unit of work commits
+        # a licence given or removed changes no controls, so the study is noted for the licence rule, checked as the unit
+        # of work commits
         if 'licence_id' in study.changed:
             self.controls.defer_licence_check(ControlledModelLabel.STUDY, [study_id])
         if 'groupings' in study.changed:

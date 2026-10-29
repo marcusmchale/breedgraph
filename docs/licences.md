@@ -1,20 +1,31 @@
 # Licences: design note
 
-A study may name a licence for the use of its data: a legal reference whose terms people agree to before they get the
-data, as everyone agrees to the Terms of Use before using BreedGraph. This note records how a licence is kept
+A study names a licence for the use of its data before it, or its data, is released beyond the teams that hold it: a
+legal reference whose terms people agree to before they get the data, as everyone agrees to the Terms of Use before
+using BreedGraph. This note records how a licence is kept
 readable, how its text is given, what identifies the text agreed to, and how agreements are kept without records.
 The standard licences, and the ontology's, are in §6.
 It is not legal advice: whether agreeing in BreedGraph binds anyone is for the University's legal office.
 
-## 1. A licence is readable by whoever reads the data by release
+## 1. Released data has a licence, readable by whoever reads the data by release
+
+A study released beyond private, or with a dataset released beyond private, has a licence: so all study data that
+leaves the teams holding it comes with terms, which its curators choose, a standard licence (§6) or their own. The files
+its data cites are not held to this: a file may be another team's, cited by a private study it cannot see, and until the
+study has a licence a file released beyond its team is under the Terms of Use, as other information is.
 
 A study's licence is a legal reference released at least as widely as the study, every dataset of the study, and every
 file its datasets or their records cite (a reference with a file, which holds data, §5). So whoever reads them by
 release (registered users, or everyone) can read the terms they are under, not a placeholder, and can accept them
-before downloading such a file even when they cannot see the dataset citing it. Those who read them through a
-controlling team make their own agreements outside BreedGraph, so a private study can have a licence private to another
-team. The rule is checked as the unit of work commits, on the releases that result; docs/read-access.md rule 10 has the
-details, and `scripts/check_study_licences.py` reports studies that break it.
+before downloading such a file even when they cannot see the dataset citing it.
+
+**Private data.** While a study and its data are private, the teams that hold them decide who reads them, by giving read
+access, and agree their own terms with those readers outside BreedGraph, in a collaboration or consortium agreement for
+instance. BreedGraph asks no one who reads data through a controlling team to accept its licence (§5), so a private
+study needs no licence, and can have one private to another team.
+
+Both rules are checked as the unit of work commits, on the releases that result; docs/read-access.md rule 10 has the
+details, and `scripts/check_study_licences.py` reports studies that break them.
 
 ## 2. The text of a legal reference
 
