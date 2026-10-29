@@ -7,7 +7,7 @@ This note says what a user sees of controlled entities they cannot read, so that
 
 A controlled entity is readable by a user when any of these holds:
 
-- it has no current controls;
+- it has no current controls, which makes it fixed (rule 11);
 - a team in the user's read teams controls it;
 - the least release of its current controls is at least the minimum release: `REGISTERED` for a signed-in user,
   `PUBLIC` for an anonymous one.
@@ -142,6 +142,14 @@ In detail:
    all or none (those refused are named; those the user cannot read are reported as not found, by id), and read access
    to a new location and layout. Selected by arrival, a write takes only the units the user can read, so hidden units
    stay where they are.
+11. **An entity without controls is fixed.** Everyone can read it, signed in or not, and cite it or link to it; no one
+   can change it, remove it, set its release or transfer it, an admin of any team included (`Controller.fixed`).
+   Only seeding makes such entities, such as the standard licences given to every deployment. A controlled entity
+   never loses its last control: it takes its first ones in the unit of work that creates it, which notes it as
+   created (`AccessControlService.note_created`), so a stored entity without controls can't be given any; ending a
+   control leaves at least one, and a team that controls anything can't be deleted. The repositories' controllers
+   (`AccessControlService.get_controllers`) and the views' (`controlsControllers`) give such an entity a controller
+   with no controls and a public release.
 
 ## 3. Datasets under this policy
 

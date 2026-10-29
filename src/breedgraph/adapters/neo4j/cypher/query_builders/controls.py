@@ -109,23 +109,23 @@ def record_writes(label:ControlledModelLabel):
     """
 
 def get_controllers(label:ControlledModelLabel):
+    """
+    The controllers of the entities with ids $entity_ids, each with its current controls: none for an entity without
+    any, which is fixed (Controller.fixed), or new in this transaction and not yet given its first controls
+    """
     return f"""
         MATCH (entity: {label.label} ) WHERE entity.id in $entity_ids
-        WITH entity
-        
-        MATCH (entity)<-[:CONTROLS]-(control:Control)
-            <-[:CONTROLS]-(:Team{label.plural})
-            <-[:CONTROLS]-(team:Team)
-        
-        WITH entity, team, control
-        ORDER BY entity.id, team.id, control.sequence DESC
-        
-        WITH entity, team, collect(control)[0] as control
-        WHERE NOT coalesce(control.ended, false)
-        
+        CALL (entity) {{
+            OPTIONAL MATCH (entity)<-[:CONTROLS]-(control:Control)<-[:CONTROLS]-(:Team{label.plural})<-[:CONTROLS]-(team:Team)
+            WITH team, control
+            ORDER BY team.id, control.sequence DESC
+            WITH team, collect(control)[0] AS control
+            WHERE team IS NOT NULL AND NOT coalesce(control.ended, false)
+            RETURN collect({{team: team.id, release: control.release, time: control.time, user: control.user}}) AS controls
+        }}
         RETURN
             entity.id as entity_id,
-            collect({{team: team.id, release: control.release, time: control.time, user: control.user}}) as controls,
+            controls,
             [(entity)<-[write:CONTRIBUTED]-(:User{label.plural})<-[:CONTRIBUTED]-(user:User|DeletedUser) |
             {{user:user.id, time: write.time}}] as writes
    """

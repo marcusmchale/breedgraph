@@ -91,6 +91,7 @@ class GermplasmApplicationService:
         stored_entry = await self.persistence.create_entry(entry)
 
         # Set up access controls for the new entry
+        await self.access_control.note_created(stored_entry)
         await self.access_control.set_controls(
             models=stored_entry,
             control_teams={self.write_team},

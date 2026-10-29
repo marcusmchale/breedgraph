@@ -35,6 +35,7 @@ class ControlledRepository(
     A hidden aggregate cannot be found by a filter other than its id.
     On update, changing or removing a model requires curate access, and linking requires read access to both ends.
     A model nested in another, such as a study of a program's trial, is changed only by edits to it (own_changes).
+    A model without controls is fixed: it can be read and linked to, but not changed or removed (Controller.fixed).
     """
 
     def __init__(
@@ -122,6 +123,7 @@ class ControlledRepository(
         write_team = self._require_write_team()
 
         aggregate = await self._create_controlled(aggregate_input)
+        await self.controls.note_created(aggregate)
         await self.controls.set_controls(
             aggregate,
             control_teams={write_team},
@@ -202,6 +204,7 @@ class ControlledRepository(
         if aggregate.protected:
             raise UnauthorisedOperationError(aggregate.protected)
         controllers = await self.controls.get_controllers_for_aggregate(aggregate)
+        self._refuse_fixed(aggregate.controlled_models, controllers)
         if not aggregate.can_remove(controllers, self.user_id, self.access_teams[Access.CURATE]):
             raise UnauthorisedOperationError(
                 f"Removal requires curate permission"
@@ -211,6 +214,17 @@ class ControlledRepository(
     @abstractmethod
     async def _remove_controlled(self, aggregate: TControlledAggregate):
         raise NotImplementedError
+
+    @staticmethod
+    def _refuse_fixed(models, controllers: Dict[ControlledModelLabel, Dict[int, Controller]]) -> None:
+        """Refuse to change or remove a stored model without controls, which no one can (Controller.fixed)"""
+        for model in models:
+            if isinstance(model, ControlledModel):
+                controller = controllers.get(model.label, {}).get(model.id)
+                if controller is not None and controller.fixed:
+                    raise UnauthorisedOperationError(
+                        f"{model.label.value} {model.id} has no controls, so no one can change it"
+                    )
 
     async def _can_change(self, model: ControlledModel, controller: Controller) -> bool:
         """Whether the user can store changes to a model. Curate access by default."""
@@ -223,6 +237,7 @@ class ControlledRepository(
             return
 
         controllers = await self.controls.get_controllers_for_aggregate(aggregate)
+        self._refuse_fixed(list(aggregate.removed_models) + list(aggregate.changed_models), controllers)
         for model in aggregate.removed_models:
             if isinstance(model, ControlledModel):
                 controller = controllers[model.label][model.id]
@@ -248,6 +263,7 @@ class ControlledRepository(
             if isinstance(i, ControlledModel) and (i.label, i.id) not in merged
         ]
         if controlled_added:
+            await self.controls.note_created(controlled_added)
             await self.controls.set_controls(
                 controlled_added,
                 control_teams={self._require_write_team()},

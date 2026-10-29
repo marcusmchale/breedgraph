@@ -121,6 +121,7 @@ controller; that rule went with the per-organisation model.
 | Receiving side | Offers go to one recipient team. Only its admins accept, choosing `to_teams` from the recipient team and the teams below it, and the release level. |
 | Offer expiry | None. Offers stay pending until accepted, rejected or cancelled. |
 | Notifications | A `ControlTransferOffered` event emails the admins of `recipient_team`, following `AffiliationRequested` (`handlers/events/accounts.py`, `AffiliationRequestedMessage`). |
+| Entities without controls | Only seeded entities, such as the standard licences, have none. They are fixed: anyone can read them, and no transfer, renouncing or release change applies to them (`read-access.md`, rule 11). |
 | Write team on creation | **Required for every controlled entity.** Creating a controlled entity without an explicit write team is refused, so entities are never controlled by all of a user's write teams by default. The user's `default_write_team` is for the front end to preselect, not a server-side fallback. |
 
 ## 7. Implementation plan

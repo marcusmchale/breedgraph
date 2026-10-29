@@ -373,7 +373,7 @@ async def test_setting_the_release_of_an_uncontrolled_entity_is_refused(uow_fact
         await uow.tx.run("CREATE (:Program {id: -1, name: 'Uncontrolled'})")
         await uow.commit()
     async with uow_factory.get_uow(user_id=control_transfer_context['user_id_1']) as uow:
-        with pytest.raises(IllegalOperationError, match="No current controls"):
+        with pytest.raises(IllegalOperationError, match="has no controls"):
             await uow.controls.set_controls_by_id_and_label(
                 ids=[-1],
                 label=ControlledModelLabel.PROGRAM,

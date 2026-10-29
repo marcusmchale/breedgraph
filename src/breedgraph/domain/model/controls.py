@@ -102,13 +102,21 @@ class Controller:
     def updated(self) -> datetime | None:
         return max([w.time for w in self.writes if w.time is not None], default=None)
 
+    @property
+    def fixed(self) -> bool:
+        """
+        Whether the model has no current controls. Such a model is fixed: everyone can read it, and no one can change
+        it, remove it or give it controls. Only seeding makes such models, as a model takes its first controls in the
+        unit of work that creates it, and keeps at least one (docs/read-access.md, rule 11).
+        """
+        return not self.controls
+
     def set_release(self, team_id: int, release: ReadRelease):
         self.controls[team_id].release = release
 
     def has_access(self, access: Access, user_id: int|None = None, access_teams: Set[int]|None = None) -> bool:
-        if not self.controls:
-            # During controlled model creation the controller has no controls
-            return True
+        if self.fixed:
+            return access is Access.READ
 
         if access_teams is None:
             access_teams = set()

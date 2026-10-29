@@ -60,6 +60,8 @@ class AbstractAccessControlService(ABC):
         self.events: List = []
         # the models whose controls or links changed, by label, for require_released_licences
         self._licence_checks: Dict[ControlledModelLabel, Set[int]] = defaultdict(set)
+        # the models created in this unit of work, by label: only these may take their first controls
+        self._created: Dict[ControlledModelLabel, Set[int]] = defaultdict(set)
 
     @staticmethod
     async def _parse_input_to_models_by_label(
@@ -92,13 +94,28 @@ class AbstractAccessControlService(ABC):
             models_by_label[model.label].append(model)
         return models_by_label
 
+    async def note_created(
+            self,
+            models: Iterable[ControlledModel] | Iterable[ControlledAggregate] | ControlledModel | ControlledAggregate
+    ) -> None:
+        """
+        Note models as created in this unit of work, by the code that creates them, so that set_controls can give them
+        their first controls. A stored model without controls is fixed, and can't be given any (Controller.fixed).
+        """
+        for label, label_models in (await self._parse_input_to_models_by_label(models)).items():
+            self._created[label].update(model.id for model in label_models)
+
     async def set_controls(
             self,
             models: Iterable[ControlledModel] | Iterable[ControlledAggregate] | ControlledModel | ControlledAggregate,
             control_teams: Set[int],
             release: ReadRelease
     ) -> None:
-        """Set controls for all controlled models either supplied as a singleton, as a list or in an aggregate or list of aggregates"""
+        """
+        Set controls for all controlled models either supplied as a singleton, as a list or in an aggregate or list of
+        aggregates. A model without controls takes its first ones only if noted as created in this unit of work
+        (note_created); one with controls needs admin access.
+        """
 
         if not models:
             return
@@ -128,8 +145,12 @@ class AbstractAccessControlService(ABC):
         model_ids = list(model_ids)
         controllers = await self.get_controllers(label, model_ids)
 
-        for model_id, controller in controllers.items():
-            if not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
+        for model_id in model_ids:
+            controller = controllers.get(model_id)
+            if controller is None or controller.fixed:
+                if model_id not in self._created[label]:
+                    raise IllegalOperationError(self._fixed_message(label, model_id))
+            elif not controller.has_access(Access.ADMIN, self.user_id, access_teams=control_teams):
                 raise UnauthorisedOperationError("Admin access is required to set controls")
 
         self._require_release_ceiling(label, release)
@@ -176,12 +197,14 @@ class AbstractAccessControlService(ABC):
         """
         ids = list(ids)
         controllers = await self.get_controllers(label, ids)
-        uncontrolled = [model_id for model_id in ids if controllers.get(model_id) is None or not controllers[model_id].teams]
-        if uncontrolled:
-            raise IllegalOperationError(
-                f"No current controls found for {label.label} {', '.join(str(model_id) for model_id in uncontrolled)}"
-            )
+        for model_id in ids:
+            if controllers.get(model_id) is None or controllers[model_id].fixed:
+                raise IllegalOperationError(self._fixed_message(label, model_id))
         await self._verify_and_set_controls(label=label, model_ids=ids, control_teams=control_teams, release=release)
+
+    @staticmethod
+    def _fixed_message(label: ControlledModelLabel, model_id: int) -> str:
+        return f"{label.value} {model_id} has no controls, so no one can change it"
 
     @abstractmethod
     async def _set_controls(
@@ -250,7 +273,8 @@ class AbstractAccessControlService(ABC):
     async def require_access(self, label: ControlledModelLabel, model_ids: Iterable[int], access: Access) -> None:
         """
         For links and changes the repositories do not check: the user must have the given access to each model.
-        A model the user cannot read is reported as not found.
+        A model the user cannot read is reported as not found. A fixed model, without controls, can be read by anyone
+        and changed by no one.
         """
         model_ids = list(model_ids)
         controllers = await self.get_controllers(label, model_ids)
@@ -258,6 +282,8 @@ class AbstractAccessControlService(ABC):
             controller = controllers.get(model_id)
             if controller is None or not controller.has_access(Access.READ, self.user_id, self.access_teams[Access.READ]):
                 raise NoResultFoundError(f"{label.value} {model_id} was not found")
+            if access is not Access.READ and controller.fixed:
+                raise UnauthorisedOperationError(self._fixed_message(label, model_id))
             if not controller.has_access(access, self.user_id, self.access_teams[access]):
                 raise UnauthorisedOperationError(f"This change requires {access.value.casefold()} access")
 
@@ -406,8 +432,8 @@ class AbstractAccessControlService(ABC):
         controllers = await self.get_controllers(label, model_ids)
         for model_id in model_ids:
             controller = controllers.get(model_id)
-            if controller is None:
-                raise IllegalOperationError(f"No controls found for {label} {model_id}")
+            if controller is None or controller.fixed:
+                raise IllegalOperationError(self._fixed_message(label, model_id))
             if controller.teams.intersection(team_ids):
                 raise IllegalOperationError(f"Teams already control {label} {model_id}")
 
@@ -451,8 +477,8 @@ class AbstractAccessControlService(ABC):
         controllers = await self.get_controllers(label, model_ids)
         for model_id in model_ids:
             controller = controllers.get(model_id)
-            if controller is None:
-                raise IllegalOperationError(f"No controls found for {label} {model_id}")
+            if controller is None or controller.fixed:
+                raise IllegalOperationError(self._fixed_message(label, model_id))
             if not team_ids.issubset(controller.teams):
                 raise IllegalOperationError(f"Teams do not control {label} {model_id}")
             if not controller.teams - team_ids:
