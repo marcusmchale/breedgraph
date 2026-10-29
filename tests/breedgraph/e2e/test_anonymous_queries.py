@@ -49,6 +49,7 @@ def open_queries(ids: dict, files: dict) -> dict[str, tuple[str, dict, bool]]:
         'referencesFileDownload': ('query ($id: ID!) { referencesFileDownload(fileId: $id) { status errors { name message } } }', {'id': public_file}, True),
         'referencesFileDownloadState': ('query ($id: ID!) { referencesFileDownloadState(fileId: $id) { status errors { name message } } }', {'id': public_file}, True),
         'referencesSearch': ('query { referencesSearch(description: "Readpolicy") { status errors { name message } } }', {}, True),
+        'referencesStandardLicences': ('query { referencesStandardLicences { status errors { name message } } }', {}, True),
         'locationsRoots': ('query { locationsRoots { status errors { name message } } }', {}, True),
         'locationsCountries': ('query { locationsCountries { status errors { name message } } }', {}, True),
         # as the map files are
