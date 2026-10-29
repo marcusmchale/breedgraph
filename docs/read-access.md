@@ -174,7 +174,7 @@ not those units' names, subjects, germplasm, positions or how they are grouped i
 - `datasetsUnitsBySubject`: readable recorded units by subject, and the hidden ones as one group without a subject
   (a placeholder has none).
 - Analysis: every record of a readable dataset is analysed. A record on a hidden unit has that unit as a placeholder
-  context, hung from its nearest readable ancestors (for unit grouping and the factors describing it), without its
+  context, hung from its nearest readable ancestors (for the observation unit and the factors describing it), without its
   germplasm or positions, so it is not assigned to a germplasm or position group. A readable unit's germplasm is its
   own or the one it inherits, as rule 3 gives it, so a unit below a hidden one with germplasm is unassigned too.
   Position grouping places a readable unit by its own positions or those of the units above it, in the same way:

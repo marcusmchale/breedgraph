@@ -175,7 +175,8 @@ def replicates_manifest(replicates: ReplicateScenario, scenario: ReadPolicyScena
             'windowed_readings_per_tree': {
                 window or 'none': readings for window, readings in EXPECTED_WINDOWED_READINGS.items()
             },
-            # same_time height, grouping.unit by plot, term MEAN: without and with a MEAN replicate aggregation
+            # same_time height, observed at the plot subject (grouping.unit), term MEAN: without and with a MEAN
+            # replicate aggregation
             'plot_means': {
                 plot: {'unit_id': replicates.units[plot], 'pooled': pooled, 'mean_of_tree_means': two_stage}
                 for plot, (pooled, two_stage) in EXPECTED_PLOT_MEANS.items()

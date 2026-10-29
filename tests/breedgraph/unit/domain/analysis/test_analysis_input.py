@@ -181,6 +181,22 @@ def test_position_grouping_errors(grouping, expected):
     analysis['anova']['grouping']['position'] = grouping
     assert expected in paths(analysis)
 
+def test_the_observation_unit_takes_subjects():
+    analysis = anova()
+    analysis['anova']['grouping']['unit'] = {'subject_ids': [31, 32]}
+    assert AnalysisInputImport(**analysis).to_domain().spec.grouping.unit.subject_ids == [31, 32]
+
+@pytest.mark.parametrize('grouping, expected', [
+    ({'subject_ids': []}, ('anova', 'grouping', 'unit', 'subjectIds')),
+    ({'subject_ids': [31, 31]}, ('anova', 'grouping', 'unit', 'subjectIds')),
+    # the selected parent units of the old grouping are gone
+    ({'unit_ids': [1]}, ('anova', 'grouping', 'unit', 'unitIds')),
+])
+def test_observation_unit_errors(grouping, expected):
+    analysis = anova()
+    analysis['anova']['grouping']['unit'] = grouping
+    assert expected in paths(analysis)
+
 @pytest.mark.parametrize('grouping, reference, expected', [
     (None, {'type': 'LOCATION'}, ('anova', 'terms', '3', 'reference', 'type')),
     (None, {'type': 'LAYOUT_AXIS', 'layout_axis': 'Row'}, ('anova', 'terms', '3', 'reference', 'type')),

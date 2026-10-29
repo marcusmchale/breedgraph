@@ -42,14 +42,24 @@ Field names are given as in GraphQL (camelCase).
 Every analysis operates on **observations**, not on records.
 
 - An observation is identified by:
-  - **the unit:** the record's base unit, or its selected parent unit when `grouping.unit` is set, and
+  - **the observation unit:** the record's base unit, or with `grouping.unit`, its nearest unit of one of the chosen
+    subjects, e.g. a tree's plot (§3), and
   - **the level of every configured dimension:** time bin, germplasm, the position dimensions (location and layout
     axes), and each record-group dimension, and
   - **the study**, only when a `STUDY` term is used. Otherwise records of a unit from different studies are pooled.
+- **What each setting does to observations.** An observation is a unit at one level of each configured dimension, and
+  a concept's values are taken once per observation.
+  - Germplasm and units of a subject as levels give each unit one level, so units of the same germplasm stay separate
+    observations: its replicates.
+  - Time bins, record group codes and a unit's moves (position) can split a unit's records into several observations,
+    even when no term uses them. Position gives a unit that stayed put one level; a record group dimension's codes may
+    split a unit's records (replicate codes always do) where its units of a subject don't.
+  - The observation unit is not a dimension: it has no levels and no term. It merges units instead, rolling each up
+    into the unit of a chosen subject above it.
 - Each `CONCEPT` term contributes **one value per observation**. Records come from the selected datasets whose concept is the term's concept.
 - **Factors describe the observations of variables.** When an analysis has a term for a variable concept,
   only variable records form observations. Each factor record is added to the observations it describes:
-  - **unit:** observations of its own unit, or of a selected parent unit it rolls up into; otherwise those of the
+  - **unit:** observations of its own unit, or of the observation unit it rolls up into; otherwise those of the
     unit's descendants, where the nearest unit with a record of that factor applies (a tree takes its design block's treatment
     unless it has its own). Each path up a unit's parents stops at its first unit with a record, so on separate
     lineages (a sample pooled from two trees) the nearest records must agree: where they differ none applies, and
@@ -79,7 +89,8 @@ Every analysis operates on **observations**, not on records.
       (start, or end without a start). The next record outside the window starts a new reading, so readings don't chain.
       Records without a time are one reading.
     - Readings never span observations: time bins (`grouping.time`) split them.
-    `aggregation` then combines readings, e.g. units under a parent unit (`grouping.unit`) or times within a bin,
+    `aggregation` then combines readings, e.g. the units rolled up into one observation unit (`grouping.unit`) or
+    times within a bin,
     so each unit and time counts once whatever its number of replicates.
   - Without `replicateAggregation`, replicates in one observation are duplicates.
     - Under `NONE`, `DUPLICATE_OBSERVATION` has the path `replicateAggregation` when the duplicates are only replicates.
@@ -110,7 +121,14 @@ Every analysis operates on **observations**, not on records.
   - A germplasm whose selected ancestors lie on separate lineages (e.g. a cross of two selected parents) is unassigned.
   - With none selected (`germplasmIds` empty), each unit's germplasm is a level of its own. A unit with none is
     unassigned.
-- **Unit** (`grouping.unit`): replaces each base unit with its closest selected parent unit. The base units are still reported in results.
+- **Observation unit** (`grouping.unit`, `subjectIds`): rolls each record's base unit up into its nearest unit of one
+  of the subjects, the unit itself or an ancestor, e.g. trees into their plots. The rule is that of units of a subject
+  as levels (record groups, below), shared as `lineages.nearest_unit_of_subjects`:
+  - a base unit with no unit of the subjects at or above it is unassigned (`UNASSIGNED_UNIT`), as is one whose nearest
+    such units lie on separate lineages (a sample taken from trees of two plots);
+  - only units the user can read count, so a hidden unit is never an observation unit;
+  - the subjects must be subjects of the ontology (`CONFIG_INVALID` otherwise).
+  The base units are still reported in results. It is not a dimension: it sets what the dimensions apply to.
 - **Position** (`grouping.position`): where the units of records were. It gives a `LOCATION` term and a
   `LAYOUT_AXIS` term (`layoutAxis`) for each of `axes`.
   - A position **counts** when two things hold:
@@ -163,7 +181,7 @@ Every analysis operates on **observations**, not on records.
       can be members of shared `levels`, which merge a code across unit graphs (a member names the code in every unit graph).
   - **WITHIN_UNIT groupings** (§2, replicates):
     - Their codes are also nested in the record's base unit, keyed `groupingId|scope|unitId|code`,
-      so under unit grouping each child unit's replicates stay apart.
+      so under an observation unit each base unit's replicates stay apart.
     - Their codes can't be members of shared `levels`.
     - A dimension with WITHIN_UNIT groupings keeps each replicate as an observation. It can't be used as a term,
       and can't be used in ANOVA, where the replicates would be counted as independent observations.
@@ -172,7 +190,7 @@ Every analysis operates on **observations**, not on records.
       each in its own dataset of one submission.
     - Time is not part of the key, as observations already have a time bin. Analysing the replicates of a study-wide
       WITHIN_UNIT grouping across dates needs a `grouping.time`.
-  - **Units as levels** (`subjectIds`): blocks that are already units (e.g. the plots of a field, holding its trees)
+  - **Units of a subject as levels** (`subjectIds`): blocks that are already units (e.g. the plots of a field, holding its trees)
     need no grouping. The dimension lists their subjects instead of, or as well as, groupings.
     - Each study has one source of levels. Records of a study with one of the dimension's groupings take its codes, as
       above. Records of other studies take the nearest unit of one of the subjects: their base unit or an ancestor.
@@ -285,7 +303,7 @@ Results per analysis:
 | `DATASET_NOT_FOUND` / `DATASET_NOT_READABLE` | error | Remove the dataset, or request access |
 | `CONCEPT_NOT_IN_DATASETS` | error | Add a dataset for the concept, or remove the term |
 | `INCOMPATIBLE_SCALE` | error | Change the representation, aggregation or binning at `path` |
-| `UNIT_NOT_FOUND` / `GROUPING_NOT_FOUND` | error | Fix the grouping selection at `path` |
+| `GROUPING_NOT_FOUND` | error | Fix the grouping selection at `path` |
 | `DUPLICATE_OBSERVATION` | error | Suggest an aggregation or an extra dimension; show `recordIds`. With the path `replicateAggregation`, the duplicates are replicates: suggest a replicate aggregation |
 | `INVALID_TRANSFORMATION` | error | Remove the transformation, or exclude `recordIds` |
 | `INSUFFICIENT_DATA` | error | Too few observations: relax exclusions or dimensions |

@@ -26,3 +26,20 @@ set -a; . instance/breedgraph.env; . instance/private.breedgraph.env; set +a
 It builds the API's schema and validates every operation in the front end's `.graphql` files, with the fragments each uses, and exits with 1 if any fails.
 It does not check variables, so input fields built in JavaScript (as `roleIds` was) need a search.
 Rerun it after changing the front end, and after any API change, before releasing either.
+
+## The observation unit by subject
+
+`grouping.unit` of an analysis, the observation unit, now takes subjects: `UnitGroupingInput { subjectIds: [ID!]! }`
+and `UnitGrouping { subjectIds }`, in place of `unitIds`. Each record's base unit is rolled up into its nearest unit of
+one of the subjects, the unit itself or an ancestor, as for units of a subject as levels in record group dimensions
+(`docs/analysis.md` §3): one with none, or whose nearest lie on separate lineages, is `UNASSIGNED_UNIT`, and a subject
+that isn't one is `CONFIG_INVALID` at `grouping.unit.subjectIds.<i>`. `UNIT_NOT_FOUND` is gone.
+
+What breaks: `unit { unitIds }` in `analysisFragments.graphql` (`scripts/check_front_end_queries.py`), and the form's
+`unitIds`. Work (agreed with the user, `~/.claude/plans/analysis-observation-unit.md`):
+- the editor's grouping section: an Observation unit section first, with a subject checklist, then the Dimensions,
+  germplasm, position, time and record groups, each describing what it does to observations, with the new introduction
+  (`docs/analysis.md` §2);
+- "Units as levels" in record group dimensions renamed "Units of a subject as levels";
+- the form, its conversions and `formPathLabel` for `grouping.unit.subjectIds`;
+- the summary download and the page header name the observation unit by its subjects.

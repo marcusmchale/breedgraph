@@ -151,7 +151,7 @@ entry gives what analyses report, checked by `tests/breedgraph/e2e/analysis/test
 - `cases`: for an analysis of one dataset's concept with no dimensions, by aggregation and replicate aggregation, the
   error (code, the end of its path, the number of records) or the warnings;
 - `windowed_readings_per_tree`: readings per tree in `windowed`, with no window, `PT5M` and `PT1H`;
-- `plot_means`: `same_time` by plot (`grouping.unit`) with a term MEAN, pooled and as the mean of tree means;
+- `plot_means`: `same_time` by plot, the observation unit of the plot subject (`grouping.unit`), with a term MEAN, pooled and as the mean of tree means;
 - `levels`: the nested level keys (docs/analysis.md §6) of a record group dimension of each grouping, by dataset;
 - `blocks`: the Block levels of `blocks`, with "Block 1" shared, and its Batch levels.
 

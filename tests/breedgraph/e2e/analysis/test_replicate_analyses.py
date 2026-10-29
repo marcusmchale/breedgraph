@@ -87,7 +87,8 @@ async def test_plot_means(replicate_mean, read_policy, replicates, login_token_f
     submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
         "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['same_time']], {
             "terms": [concept(concept_id(read_policy, 'height'), **options), {"reference": {"type": "UNIT"}}],
-            "grouping": {"unit": {"unitIds": list(plots)}}
+            # observed at the plots: each tree's nearest unit of the plot subject
+            "grouping": {"unit": {"subjectIds": [read_policy['ontology_subject_plot']]}}
         }
     ), DESCRIPTIVE)
     assert submission['status'] == 'COMPLETED', submission['errors']
@@ -251,6 +252,45 @@ async def test_unit_levels_need_a_subject(read_policy, replicates, login_token_f
     error, = submission['errors']
     assert error['code'] == 'CONFIG_INVALID'
     assert error['path'] == ['descriptiveStatistics', 'grouping', 'recordGroups', '0', 'subjectIds', '0']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_observation_unit_needs_a_subject(read_policy, replicates, login_token_factory, client):
+    submission = await run_analysis(client, login_token_factory(read_policy['writer']), analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['same_time']], {
+            "terms": [concept(concept_id(read_policy, 'height'), aggregation='MEAN')],
+            # a concept, not a subject
+            "grouping": {"unit": {"subjectIds": [read_policy[CONCEPTS['height'][0]]]}}
+        }
+    ), DESCRIPTIVE)
+    assert submission['status'] == 'FAILED'
+    error, = submission['errors']
+    assert error['code'] == 'CONFIG_INVALID'
+    assert error['path'] == ['descriptiveStatistics', 'grouping', 'unit', 'subjectIds', '0']
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_the_observation_unit_config(read_policy, replicates, login_token_factory, client):
+    token = login_token_factory(read_policy['writer'])
+    plot = str(read_policy['ontology_subject_plot'])
+    payload = get_verified_payload(await post_to_submit_analysis(client, token, analysis(
+        "DESCRIPTIVE_STATISTICS", "descriptiveStatistics", [replicates.datasets['same_time']], {
+            "terms": [concept(concept_id(read_policy, 'height'), aggregation='MEAN')],
+            "grouping": {"unit": {"subjectIds": [plot]}}
+        }
+    )), "analysisSubmit")
+    assert_payload_success(payload)
+    json = {
+        "query": (
+            " query ( $id: ID! ) { analysisSubmission( id: $id ) { status, errors { name, message } "
+            "  result { config { ... on DescriptiveStatisticsConfig { grouping { unit { subjectIds } } } } } } } "
+        ),
+        "variables": {"id": payload['result']}
+    }
+    headers = with_auth(csrf_token=client.headers["X-CSRF-Token"], auth_token=token)
+    submission = get_verified_payload(await client.post(GQL_API_PATH, json=json, headers=headers), "analysisSubmission")
+    assert_payload_success(submission)
+    assert submission['result']['config']['grouping']['unit'] == {'subjectIds': [plot]}
 
 
 @pytest.mark.asyncio(loop_scope="session")

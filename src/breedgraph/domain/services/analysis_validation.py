@@ -64,8 +64,8 @@ def validate_dimensions(grouping: AnalysisGrouping, path: Path) -> list[Analysis
                     dimension_path + ['subjectIds', str(j)]
                 ))
             subject_owner.setdefault(subject_id, dimension.name)
-    if grouping.unit is not None and len(set(grouping.unit.unit_ids)) != len(grouping.unit.unit_ids):
-        messages.append(_invalid("Units must not be listed more than once", path + ['unit', 'unitIds']))
+    if grouping.unit is not None and len(set(grouping.unit.subject_ids)) != len(grouping.unit.subject_ids):
+        messages.append(_invalid("Subjects must not be listed more than once", path + ['unit', 'subjectIds']))
     if grouping.germplasm is not None and len(set(grouping.germplasm.germplasm_ids)) != len(grouping.germplasm.germplasm_ids):
         messages.append(_invalid("Germplasm must not be listed more than once", path + ['germplasm', 'germplasmIds']))
     if grouping.position is not None:

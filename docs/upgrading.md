@@ -9,6 +9,11 @@ The release's notes on GitHub link here; corrections found while deploying a rel
 
 ## Unreleased
 
+**The observation unit by subject.** An analysis's `grouping.unit` now takes the subjects whose units observations are
+made at (`subjectIds`, e.g. Plot), in place of selected parent units (`unitIds`), and BreedView names it the
+observation unit ([analysis.md](analysis.md) §3). Nothing to set. An analysis submitted before the upgrade with the old
+grouping can't show its settings, and expires within 7 days; submit it again with a subject.
+
 **Standard licences.** Setting up now seeds two standard licences, CC BY 4.0 and CC0 1.0, as legal references
 without controls, which everyone can read and no one can change, and gives the ontology's first version CC BY 4.0
 ([licences.md](licences.md) §6). A database set up before needs them once, after the schema step (a new constraint,

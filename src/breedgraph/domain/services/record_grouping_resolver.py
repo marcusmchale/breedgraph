@@ -8,6 +8,7 @@ from breedgraph.domain.model.analysis import (
 from breedgraph.domain.model.analysis_context import UnitContext, sentence
 from breedgraph.domain.model.datasets import RecordGroup
 from breedgraph.domain.model.programs import StudyStored, GroupingScope, RecordGroupingStored
+from breedgraph.domain.services.lineages import nearest_unit_of_subjects
 
 
 def describe_grouping(grouping: RecordGroupingStored) -> str:
@@ -247,23 +248,7 @@ class RecordGroupDimensionResolver:
         return self._unit_levels[unit_id]
 
     def _nearest_unit(self, unit_id: int) -> int | None:
-        """
-        The nearest unit of one of the subjects, the unit itself or an ancestor, if it is below every other one;
-        None if there is none, or they lie on separate lineages (e.g. a sample taken from trees of two plots).
-        """
-        unit = self.units.get(unit_id)
-        if unit is None:
-            return None
-        candidates = [
-            candidate for candidate in [unit_id, *unit.ancestor_ids]
-            if candidate in self.units and self.units[candidate].subject_id in self.subject_ids
-        ]
-        if not candidates:
-            return None
-        # ancestors are sorted closest first, so the first candidate is the nearest, or one of the nearest
-        nearest, *others = candidates
-        above = set(self.units[nearest].ancestor_ids)
-        return nearest if all(other in above for other in others) else None
+        return nearest_unit_of_subjects(unit_id, self.units, self.subject_ids)
 
     def unmatched_members(self) -> list[tuple[str, RecordGroupLevelKey]]:
         """(level label, member) for shared level members that matched no records, for warnings."""

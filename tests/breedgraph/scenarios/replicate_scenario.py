@@ -280,8 +280,8 @@ EXPECTED_CASES = [
 # readings of each tree in windowed: replicate aggregation window -> readings
 EXPECTED_WINDOWED_READINGS = {None: 3, 'PT5M': 2, 'PT1H': 1}
 
-# same_time, height with grouping.unit by plot and term aggregation MEAN: plot -> (pooled, mean of tree means),
-# without and with a MEAN replicate aggregation
+# same_time, height observed at the plot subject (grouping.unit) with term aggregation MEAN: plot -> (pooled, mean of
+# tree means), without and with a MEAN replicate aggregation
 EXPECTED_PLOT_MEANS = {
     plot_name('A', 1): (1120, 1120),
     plot_name('A', 2): (1557.5, 1620),

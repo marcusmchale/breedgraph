@@ -341,7 +341,11 @@ class GermplasmGrouping:
 
 @dataclass
 class UnitGrouping:
-    unit_ids: list[int]
+    """
+    The observation unit: each record's base unit is rolled up into its nearest unit of one of the subjects, the unit
+    itself or an ancestor, e.g. trees into their plots (domain.services.lineages.nearest_unit_of_subjects)
+    """
+    subject_ids: list[int]
 
 @dataclass
 class PositionGrouping:
@@ -368,7 +372,7 @@ class PositionGrouping:
 
 @dataclass
 class AnalysisGrouping:
-    """Dimensions of analytical observation identity, in addition to the observation unit."""
+    """The observation unit (unit), and the dimensions of analytical observation identity."""
     time: TimeSpecification|None = None
     germplasm: GermplasmGrouping|None = None
     unit: UnitGrouping|None = None
@@ -566,7 +570,6 @@ class AnalysisErrorCode(str, Enum):
     LICENCE_NOT_ACCEPTED = "LICENCE_NOT_ACCEPTED"  # docs/licences.md §5
     CONCEPT_NOT_IN_DATASETS = "CONCEPT_NOT_IN_DATASETS"
     INCOMPATIBLE_SCALE = "INCOMPATIBLE_SCALE"
-    UNIT_NOT_FOUND = "UNIT_NOT_FOUND"
     GROUPING_NOT_FOUND = "GROUPING_NOT_FOUND"
     DUPLICATE_OBSERVATION = "DUPLICATE_OBSERVATION"
     INVALID_TRANSFORMATION = "INVALID_TRANSFORMATION"

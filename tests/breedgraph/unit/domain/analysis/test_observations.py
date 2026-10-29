@@ -228,23 +228,6 @@ def test_a_record_with_one_time_stands_for_its_period():
     assert time_bins('START', '2020-05-03T12:00', [record(1, 100, '1', end='2020-05-03')]) == ['before']
     assert time_bins('END', '2020-05-03T12:00', [record(1, 100, '1', start='2020-05-03')]) == ['after']
 
-def test_unit_grouping_uses_parent_unit():
-    units = {
-        100: UnitContext(100, ancestor_ids=[1], parent_ids=[1]),
-        101: UnitContext(101, ancestor_ids=[1], parent_ids=[1]),
-        102: UnitContext(102),
-    }
-    ctx = context(
-        descriptive([concept_term(10, aggregation='MEAN')], grouping={'unit': {'unit_ids': [1]}}),
-        [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '3'), record(3, 102, '5')])],
-        units=units
-    )
-    frame, warnings = prepare(ctx)
-    assert values(frame, 10) == [2.0]
-    assert frame.observations[0].unit_ids == [100, 101]
-    assert frame.observations[0].exclusion['unit_ids'] == [100, 101]
-    assert [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_UNIT] == [[3]]
-
 def test_germplasm_dimension_assigns_closest_selected():
     units = {100: UnitContext(100, germplasm_id=3), 101: UnitContext(101, germplasm_id=2), 102: UnitContext(102, germplasm_id=9)}
     ctx = context(
@@ -369,6 +352,51 @@ PLOTS = {
     200: UnitContext(200, subject_id=SAMPLE, ancestor_ids=[100, 2, 1], parent_ids=[100]),
     201: UnitContext(201, subject_id=SAMPLE, ancestor_ids=[100, 102, 2, 3, 1], parent_ids=[100, 102]),
 }
+
+
+def observed_at(subject_ids, records, units=PLOTS):
+    """Observations of the records' mean, at the nearest units of the subjects (grouping.unit), and the warnings"""
+    ctx = context(
+        descriptive([concept_term(10, aggregation='MEAN')], grouping={'unit': {'subject_ids': subject_ids}}),
+        [dataset(1, 1, 10, records)],
+        units=units
+    )
+    return prepare(ctx)
+
+def unassigned_units(warnings):
+    return [w.record_ids for w in warnings if w.code == AnalysisWarningCode.UNASSIGNED_UNIT]
+
+def test_the_observation_unit_rolls_units_up_into_their_nearest_unit_of_a_subject():
+    frame, warnings = observed_at([PLOT], [
+        record(1, 100, '1'), record(2, 101, '3'), record(3, 102, '5'), record(4, 2, '7'), record(5, 200, '9')
+    ])
+    # trees and a sample into their plot, a plot's own record into itself
+    assert [o.group['unit_id'] for o in frame.observations] == [2, 3]
+    assert values(frame, 10) == [5.0, 5.0]
+    assert frame.observations[0].unit_ids == [2, 100, 101, 200]
+    assert frame.observations[0].exclusion['unit_ids'] == [2, 100, 101, 200]
+    assert unassigned_units(warnings) == []
+
+def test_units_with_no_unit_of_the_subjects_or_on_separate_lineages_are_unassigned():
+    # the field is above the plots, and sample 201 is from trees of two plots
+    frame, warnings = observed_at([PLOT], [record(1, 100, '1'), record(2, 1, '3'), record(3, 201, '5')])
+    assert [o.group['unit_id'] for o in frame.observations] == [2]
+    assert unassigned_units(warnings) == [[2, 3]]
+
+def test_with_several_subjects_the_nearest_unit_of_any_of_them_is_the_observation_unit():
+    frame, warnings = observed_at([PLOT, FIELD], [record(1, 100, '1'), record(2, 1, '3'), record(3, 201, '5')])
+    # a tree into its plot and the field into itself; sample 201's nearest are its two plots, which conflict, so it
+    # doesn't fall back to their field
+    assert [o.group['unit_id'] for o in frame.observations] == [2, 1]
+    assert values(frame, 10) == [1.0, 3.0]
+    assert unassigned_units(warnings) == [[3]]
+
+def test_a_unit_hidden_from_the_user_is_never_the_observation_unit():
+    # plot 2 hidden: tree 100's readable ancestors are the field alone, and the plot is not among the units
+    units = {1: PLOTS[1], 3: PLOTS[3], 100: UnitContext(100, subject_id=TREE, ancestor_ids=[1], parent_ids=[1]), 102: PLOTS[102]}
+    frame, warnings = observed_at([PLOT], [record(1, 100, '1'), record(2, 102, '3')], units=units)
+    assert [o.group['unit_id'] for o in frame.observations] == [3]
+    assert unassigned_units(warnings) == [[1]]
 PLOT_TERM = domain_term('RECORD_GROUP', record_group_dimension='plot')
 
 def test_nearest_unit_of_a_subject_is_the_level():
@@ -414,7 +442,7 @@ def test_unit_levels_split_units_rolled_up_above_them():
     ctx = context(
         descriptive(
             [concept_term(10, aggregation='MEAN'), PLOT_TERM],
-            grouping={'unit': {'unit_ids': [1]}, 'record_groups': [{'name': 'plot', 'subject_ids': [PLOT]}]}
+            grouping={'unit': {'subject_ids': [FIELD]}, 'record_groups': [{'name': 'plot', 'subject_ids': [PLOT]}]}
         ),
         [dataset(1, 1, 10, [record(1, 100, '1'), record(2, 101, '3'), record(3, 102, '5')])],
         units=PLOTS
@@ -450,7 +478,12 @@ def test_factor_above_the_unit_levels_applies_across_them():
 
 """ Replicates: codes of WITHIN_UNIT groupings """
 WITHIN_UNIT = RecordGroupExtent.WITHIN_UNIT
-TREES = {100: UnitContext(100, ancestor_ids=[1], parent_ids=[1]), 101: UnitContext(101, ancestor_ids=[1], parent_ids=[1])}
+# trees 100 and 101 in plot 1
+TREES = {
+    1: UnitContext(1, subject_id=PLOT),
+    100: UnitContext(100, subject_id=TREE, ancestor_ids=[1], parent_ids=[1]),
+    101: UnitContext(101, subject_id=TREE, ancestor_ids=[1], parent_ids=[1])
+}
 
 def replicates(scope=GroupingScope.STUDY_WIDE, dataset_scopes=(), extent=WITHIN_UNIT):
     """Study 1 with replicate grouping 7: tree 100 has 2 replicates, tree 101 has 4"""
@@ -475,7 +508,7 @@ def test_replicates_are_duplicates_without_replicate_aggregation():
 def test_replicate_aggregation_combines_each_reading_first():
     studies, datasets = replicates()
     ctx = context(
-        descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN'}, aggregation='MEAN')], grouping={'unit': {'unit_ids': [1]}}),
+        descriptive([concept_term(10, replicate_aggregation={'aggregation': 'MEAN'}, aggregation='MEAN')], grouping={'unit': {'subject_ids': [PLOT]}}),
         datasets, units=TREES, studies=studies
     )
     frame, warnings = prepare(ctx)
@@ -495,7 +528,7 @@ def test_replicate_aggregation_alone_gives_one_value_per_unit():
 def test_pooled_replicates_warn():
     studies, datasets = replicates()
     ctx = context(
-        descriptive([concept_term(10, aggregation='MEAN')], grouping={'unit': {'unit_ids': [1]}}),
+        descriptive([concept_term(10, aggregation='MEAN')], grouping={'unit': {'subject_ids': [PLOT]}}),
         datasets, units=TREES, studies=studies
     )
     frame, warnings = prepare(ctx)
@@ -571,7 +604,7 @@ def test_replicate_dimension_nests_codes_in_the_base_unit():
     ctx = context(
         descriptive(
             [concept_term(10)],
-            grouping={'unit': {'unit_ids': [1]}, 'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
+            grouping={'unit': {'subject_ids': [PLOT]}, 'record_groups': [{'name': 'replicate', 'grouping_ids': [7]}]}
         ),
         datasets, units=TREES, studies=studies
     )

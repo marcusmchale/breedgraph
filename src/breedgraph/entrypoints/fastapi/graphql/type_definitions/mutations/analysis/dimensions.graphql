@@ -42,19 +42,16 @@ input GermplasmGroupingInput {
 }
 
 """
-Defines how units are resolved into analytical groups.
-
-The server navigates the unit hierarchy from each record's unit
-to find the applicable selected parent unit.
+The observation unit: each record's base unit is rolled up into its
+nearest unit of one of the subjects, the unit itself or an ancestor,
+e.g. trees into their plots. A base unit with none, or whose nearest
+lie on separate lineages, is unassigned. Only units you can read count.
 """
 input UnitGroupingInput {
   """
-  Parent unit IDs defining the grouping level.
-
-  Descendant units are assigned to the corresponding selected
-  parent unit.
+  Subject IDs whose units observations are made at, e.g. Plot.
   """
-  unitIds: [ID!]!
+  subjectIds: [ID!]!
 }
 
 """
@@ -200,9 +197,10 @@ input RecordGroupDimensionInput {
 Defines the dimensions used to construct analytical observations.
 
 The observation unit is always part of observation identity: the
-base unit of each record, or its parent unit when a unit grouping
-is configured. Each configured dimension also contributes to
-observation identity. Study contributes only when a STUDY term
+base unit of each record, or its nearest unit of one of the
+subjects of unit. Each configured dimension also contributes to
+observation identity: germplasm gives each unit one level, while
+time, record group codes and a unit's moves can split its records. Study contributes only when a STUDY term
 is used.
 
 Records that cannot be assigned to a configured dimension are
@@ -220,7 +218,8 @@ input AnalysisGroupingInput {
   germplasm: GermplasmGroupingInput
 
   """
-  Replaces the base unit with a selected parent unit.
+  The observation unit: rolls each record's base unit up into its
+  nearest unit of one of the subjects. Without it, each base unit.
   """
   unit: UnitGroupingInput
 

@@ -15,10 +15,11 @@ from breedgraph.domain.model.analysis import (
     TimeSpecification, TimeAssignment, GermplasmGrouping, UnitGrouping, RecordGroupDimension,
     RecordGroupMember, AnovaSpec
 )
-from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord
+from breedgraph.domain.model.analysis_context import AnalysisContext, AnalysisRecord, UnitContext
 from breedgraph.domain.model.time_descriptors import upper
 from breedgraph.domain.services.analysis_binning import Binner, parse_datetime
 from breedgraph.domain.services.analysis_places import Placer, Place
+from breedgraph.domain.services.lineages import nearest_unit_of_subjects
 from breedgraph.domain.services.record_grouping_resolver import RecordGroupDimensionResolver
 
 
@@ -77,22 +78,30 @@ class DimensionResolver(ABC):
 
 
 class UnitResolver(DimensionResolver):
-    """The observation unit: the base unit of each record, or its closest selected parent unit."""
+    """
+    The observation unit: the base unit of each record, or with grouping.unit, its nearest unit of one of the subjects,
+    the unit itself or an ancestor (nearest_unit_of_subjects). A base unit with none, or whose nearest lie on separate
+    lineages, is unassigned.
+    """
     warning_code = AnalysisWarningCode.UNASSIGNED_UNIT
     description = "a unit"
 
-    def __init__(self, grouping: UnitGrouping | None, path: list[str]):
+    def __init__(self, grouping: UnitGrouping | None, units: dict[int, UnitContext], path: list[str]):
         super().__init__(AnalysisTermReference(type=AnalysisTermType.UNIT), path)
-        self.selected = set(grouping.unit_ids) if grouping is not None else None
+        self.subject_ids = set(grouping.subject_ids) if grouping is not None else None
+        self.units = units
+        self._rolled_up: dict[int, int | None] = {}
 
     def _assign(self, record: AnalysisRecord) -> DimensionLevel | None:
         unit = record.unit
         if unit is None:
             return None
-        if self.selected is None or unit.unit_id in self.selected:
+        if self.subject_ids is None:
             unit_id = unit.unit_id
         else:
-            unit_id = next((a for a in unit.ancestor_ids if a in self.selected), None)
+            if unit.unit_id not in self._rolled_up:
+                self._rolled_up[unit.unit_id] = nearest_unit_of_subjects(unit.unit_id, self.units, self.subject_ids)
+            unit_id = self._rolled_up[unit.unit_id]
             if unit_id is None:
                 return None
         return DimensionLevel(key=str(unit_id), output=unit_id)
@@ -293,7 +302,7 @@ def build_dimension_resolvers(context: AnalysisContext) -> list[DimensionResolve
     spec = context.request.spec
     grouping = spec.grouping
     path = [context.request.analysis_type.input_field, 'grouping']
-    resolvers: list[DimensionResolver] = [UnitResolver(grouping.unit, path + ['unit'])]
+    resolvers: list[DimensionResolver] = [UnitResolver(grouping.unit, context.units, path + ['unit'])]
     if grouping.time is not None:
         resolvers.append(TimeResolver(grouping.time, path + ['time']))
     if grouping.germplasm is not None:
@@ -321,8 +330,9 @@ def context_levels(resolvers: list[DimensionResolver], record: AnalysisRecord) -
     """
     The levels of a factor record describing the observations of variable records, by dimension name.
     None for a dimension it applies across: time when it has none, record groups it has no code for,
-    and germplasm and position, which come from the observed unit. The unit level is its own unit or the selected
-    parent unit it rolls up to, or None when it is above the selected units (it may still apply to their descendants).
+    and germplasm and position, which come from the observed unit. The unit level is its own unit or the observation
+    unit it rolls up into, or None when it has none, as above the subject's units (it may still apply to their
+    descendants).
     Returns None, and reports the record as unassigned to a unit, if it has no unit.
     """
     unit_resolver = resolvers[0]

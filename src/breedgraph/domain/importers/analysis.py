@@ -113,10 +113,10 @@ class GermplasmGroupingImport(ImportModel):
         return GermplasmGrouping(germplasm_ids=self.germplasm_ids)
 
 class UnitGroupingImport(ImportModel):
-    unit_ids: list[int] = Field(min_length=1)
+    subject_ids: list[int] = Field(min_length=1)
 
     def to_domain(self) -> UnitGrouping:
-        return UnitGrouping(unit_ids=self.unit_ids)
+        return UnitGrouping(subject_ids=self.subject_ids)
 
 class PositionGroupingImport(ImportModel):
     location_type_ids: list[int] = Field(min_length=1)

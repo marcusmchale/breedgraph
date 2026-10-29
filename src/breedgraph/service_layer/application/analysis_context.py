@@ -209,10 +209,8 @@ class AnalysisContextLoader:
             for dataset in datasets.values() if dataset.concept in concepts
             for record in dataset.records if record.unit is not None
         }
-        selected = request.spec.grouping.unit.unit_ids if request.spec.grouping.unit else []
-        unit_ids |= set(selected)
-
-        recorded = unit_ids - set(selected)
+        # the observation unit's units of its subjects are among their ancestors
+        recorded = set(unit_ids)
         placing = request.spec.grouping.position is not None
         units = {}
         if unit_ids:
@@ -254,14 +252,6 @@ class AnalysisContextLoader:
                         root_id=redacted.get_root_id(),
                         readable=False
                     )
-
-        for i, unit_id in enumerate(selected):
-            if unit_id not in units:
-                self.errors.append(AnalysisMessage(
-                    code=AnalysisErrorCode.UNIT_NOT_FOUND,
-                    message=f"Unit {unit_id} was not found",
-                    path=spec_path + ['grouping', 'unit', 'unitIds', str(i)]
-                ))
         return units
 
     async def _load_germplasm(self, request: AnalysisRequest, spec_path: list[str]) -> dict[int, set[int]]:
@@ -366,12 +356,18 @@ class AnalysisContextLoader:
         return locations, layouts
 
     async def _check_subjects(self, request: AnalysisRequest, spec_path: list[str]):
-        """The subjects whose units are levels of record group dimensions must be subjects of the ontology"""
-        for i, dimension in enumerate(request.spec.grouping.record_groups):
-            for j, subject_id in enumerate(dimension.subject_ids):
+        """
+        The subjects of the observation unit, and those whose units are levels of record group dimensions, must be
+        subjects of the ontology
+        """
+        grouping = request.spec.grouping
+        listed = [(['unit'], grouping.unit.subject_ids)] if grouping.unit is not None else []
+        listed += [(['recordGroups', str(i)], dimension.subject_ids) for i, dimension in enumerate(grouping.record_groups)]
+        for path, subject_ids in listed:
+            for j, subject_id in enumerate(subject_ids):
                 if await self.uow.ontology.get_cited_entry(subject_id, label=OntologyEntryLabel.SUBJECT) is None:
                     self.errors.append(AnalysisMessage(
                         code=AnalysisErrorCode.CONFIG_INVALID,
                         message=f"Subject {subject_id} was not found",
-                        path=spec_path + ['grouping', 'recordGroups', str(i), 'subjectIds', str(j)]
+                        path=spec_path + ['grouping', *path, 'subjectIds', str(j)]
                     ))

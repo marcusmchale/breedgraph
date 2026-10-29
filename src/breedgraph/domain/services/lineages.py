@@ -79,3 +79,25 @@ def seen_germplasm(unit_graph: Any, redacted: Any, unit_id: int) -> int | None:
     """
     germplasm, _ = lineage_value(unit_id, unit_graph.get_parent_ids, germplasm_seen(unit_graph, redacted))
     return None if germplasm is HIDDEN else germplasm
+
+
+def nearest_unit_of_subjects(unit_id: int, units: dict, subject_ids: set[int]) -> int | None:
+    """
+    The nearest unit of one of the subjects, the unit itself or an ancestor, when it is below every other one; None when
+    there is none, or when they lie on separate lineages (a sample taken from the trees of two plots). units maps a unit
+    id to its context, with its subject_id and its ancestor_ids, closest first: a unit missing from it, hidden from the
+    user, never counts. The observation unit (grouping.unit) and units of a subject as levels both use it.
+    """
+    unit = units.get(unit_id)
+    if unit is None:
+        return None
+    candidates = [
+        candidate for candidate in [unit_id, *unit.ancestor_ids]
+        if candidate in units and units[candidate].subject_id in subject_ids
+    ]
+    if not candidates:
+        return None
+    # ancestors are sorted closest first, so the first candidate is the nearest, or one of the nearest
+    nearest, *others = candidates
+    above = set(units[nearest].ancestor_ids)
+    return nearest if all(other in above for other in others) else None

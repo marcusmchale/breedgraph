@@ -178,8 +178,8 @@ enum AnalysisTermType {
   GERMPLASM
 
   """
-  The observation unit: the base unit of each record, or the
-  parent unit when grouping.unit is configured.
+  The observation unit: the base unit of each record, or its
+  nearest unit of a subject when grouping.unit is configured.
   """
   UNIT
 
